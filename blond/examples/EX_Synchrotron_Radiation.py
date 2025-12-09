@@ -6,6 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c
 
@@ -21,6 +22,10 @@ from blond import (
     SingleHarmonicRfStation,
     electron,
 )
+from blond.acc_math.analytic.synchrotron_radiation.utilities import (
+    gather_longitudinal_synchrotron_radiation_parameters,
+)
+from blond.physics.drifts import DriftBaseClass
 from blond.physics.synchrotron_radiation.synchrotron_radiation import (
     SynchrotronRadiationMaster,
 )
@@ -46,7 +51,7 @@ class SynchrotronRadiationSimulation:
         self.cavity.voltage = 516e6
         self.cavity.phi_rf = 0
 
-        self.n_turns = int(10)
+        self.n_turns = int(50000)
         self.energy_cycle = MagneticCyclePerTurn(
             value_init=self.reference_energy,
             values_after_turn=np.linspace(
@@ -56,12 +61,15 @@ class SynchrotronRadiationSimulation:
             in_unit="total energy",
         )
 
-        self.ring = Ring(self.circumference, check_section_indices=False)
+        self.ring = Ring(
+            self.circumference,
+            # check_section_indices=False,
+        )
         self.ring.add_element(self.cavity)
 
         # checks for rfcavity in each section prevents raising the following
         # number
-        number_of_sections = 4
+        number_of_sections = 1
         for i in range(number_of_sections):
             drift = DriftSimple(
                 name=f"drift{i + 1}",
@@ -74,6 +82,7 @@ class SynchrotronRadiationSimulation:
         self.SRHandler = SynchrotronRadiationMaster(
             name="SynchrotronRadiationMaster",
             radiation_integrals=self.synchrotron_radiation_integrals,
+            # track_before_element_type = DriftBaseClass,
         )
         self.ring.insert_element(self.SRHandler, insert_at=0, deepcopy=False)
 
@@ -113,7 +122,49 @@ def main():
         each_turn_i=1, beam=params.beam
     )
 
-    # raise ValueError("Synchrotron Radiation example is not ready")
+    simulation.run_simulation(
+        beams=(params.beam,),
+        turn_i_init=0,
+        n_turns=params.n_turns,
+        observe=(phase_observation, bunch_observation),
+    )
+
+    energy_loss_per_turn, damping_time, natural_energy_spread = (
+        gather_longitudinal_synchrotron_radiation_parameters(
+            particle_type=params.beam.particle_type,
+            energy=params.beam.reference_total_energy,
+            synchrotron_radiation_integrals=params.synchrotron_radiation_integrals,
+        )
+    )
+    fig, ax = plt.subplot(nrows=2, figsize=(8, 6), constrained_layout=True)
+    bunch_position_evolution = np.average(bunch_observation.dts, axis=1)
+    energy_spread_evolution = np.average(bunch_observation.dEs, axis=1)
+    ax.plot(bunch_position_evolution, label="Bunch position")
+
+    ax[1].plot(energy_spread_evolution, label="Energy spread evolution")
+    ax[1].plot(
+        natural_energy_spread * np.ones(len(energy_spread_evolution)),
+        "r--",
+        label="Energy spread evolution",
+    )
+    plt.show()
+
+    ANIMATE = True
+    if ANIMATE:  # pragma: no cover
+        plt.plot(phase_observation.phases)
+        plt.figure()
+        for i in range(params.n_turns):
+            plt.clf()
+            plt.hist2d(
+                bunch_observation.dts[i, :],
+                bunch_observation.dEs[i, :],
+                bins=256,
+                range=[[0, 2.5e-9], [-4e8, 4e8]],
+            )
+            plt.draw()
+            plt.pause(0.1)
+
+        plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover

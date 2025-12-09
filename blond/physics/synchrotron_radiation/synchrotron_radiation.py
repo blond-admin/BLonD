@@ -46,6 +46,8 @@ from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths i
 )
 from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from blond.cycles.magnetic_cycle import MagneticCycleBase
+from blond.physics.cavities import RfStationBaseClass
+from blond.physics.drifts import DriftBaseClass
 from blond.physics.synchrotron_radiation.elements import (
     SynchrotronRadiationBaseClass,
     SynchrotronRadiationDrift,
@@ -53,6 +55,10 @@ from blond.physics.synchrotron_radiation.elements import (
 )
 
 if TYPE_CHECKING:
+    from typing import (
+        TypeVar,
+    )
+
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -61,9 +67,12 @@ if TYPE_CHECKING:
     from blond.physics.cavities import RfStationBaseClass
     from blond.physics.drifts import DriftBaseClass
 
+    T = TypeVar("T")
 
 # TODO allow schedulable synchrotron radiation integrals in the master (e.g.
 # tapering)
+
+
 class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     """
     Master class for handling synchrotron radiation along the ring.
@@ -93,6 +102,9 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         section_index: int = 0,
         name: str | None = None,
         radiation_integrals: NumpyArray | None = None,
+        track_before_element_type: type[T] | None = None,
+        get_synchrotron_radiation_info_turn_by_turn: bool = False,
+        verbose: bool = False,
     ):
         super().__init__(
             section_index=section_index,
@@ -115,10 +127,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                     integrals.__len__()
                     >= minimum_number_of_expected_synchrotron_radiation_integrals
                 ):
-                    self.I2 = integrals[1]
-                    self.I3 = integrals[2]
-                    self.I4 = integrals[3]
-                    self.jz = 2.0 + self.I4 / self.I2
+                    self.synchrotron_radiation_integrals = integrals
                 else:
                     raise ValueError(
                         "The first five synchrotron "
@@ -129,17 +138,22 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                 raise TypeError(
                     f"Expected a list or numpy.ndarray as an input. Received {type(radiation_integrals)}."
                 )
+        self.get_synchrotron_radiation_info_turn_by_turn = (
+            get_synchrotron_radiation_info_turn_by_turn
+        )
+        self.verbose = verbose
 
+        if track_before_element_type is not None:
+            self.track_before_element_type = track_before_element_type
+        else:
+            self.track_before_element_type = DriftBaseClass
+
+        self._simulation: Simulation | None = None
         self._longitudinal_damping_time = None
         self._energy_loss_per_turn = None
-        self.get_synchrotron_radiation_info_turn_by_turn: bool | None = True
-        self.synchrotron_radiation_integrals: NumpyArray | None = (
-            radiation_integrals
-        )
-        self._simulation: Simulation | None = None
         self._damping_times: NumpyArray | None = None
-
         self._natural_energy_spread: NumpyArray | None = None
+
         self._turn_i: DynamicParameter | None = 0
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
@@ -170,7 +184,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         return self._damping_times
 
     @property
-    def number_of_generated_synchrotron_radiation_classes(self):
+    def number_of_generated_synchrotron_radiation_classes(self) -> int:
         """Number of generated synchrotron radiation classes."""
         return len(self.generated_children)
 
@@ -178,27 +192,18 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     # before the children and store it for later SR integrals update.
     # Question: How to handle modification from wigglers and other classes.
 
-    # TODO : UPdate synchrotron radiation integrals after a wiggler? Detect
+    # TODO : Update synchrotron radiation integrals after a wiggler? Detect
     #  other SynchrotronRadiationBaseClass elements before generating the
     #  children and save their location for SRI update.
 
     # TODO: transmit the share of SRI to the children.
     def generate_children(
         self,
-        element_list: list[DriftBaseClass | RfStationBaseClass]
-        | list[int]
-        | None = None,
     ):
         """Function to create synchrotron radiation elements in the ring.
 
         This method automatically creates, inserts and initialises the
         synchrotron radiation elements in the ring.
-
-        Parameters
-        ----------
-        element_list
-            List of elements before which a synchrotron radiation element
-            will be inserted
         """
         if not empty(self.generated_children):
             raise Warning(
@@ -207,6 +212,9 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             )
         else:
             i = 0
+            element_list = self._ring.elements.get_elements(
+                class_=self.track_before_element_type
+            )
             if element_list is not None:
                 if all(
                     isinstance(e, DriftBaseClass | RfStationBaseClass)
@@ -230,12 +238,10 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                 elif all(isinstance(e, int) for e in element_list):
                     for section_index in element_list:
                         i += 1
-                        length_to_consider = 0
                         share_of_synchrotron_radiation_integrals = 0
                         SRClass_child = SynchrotronRadiationSection(
                             section_index=section_index,
                             name=f"SynchrotronRadiationTracker_{i}",
-                            fraction_of_ring_circumference=length_to_consider,
                             share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
                         )
                         self._simulation.ring.add_element(
@@ -281,7 +287,10 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
-        self.__str__()  # TODO WHY
+        self.generate_children()
+
+        if self.verbose:
+            self.__str__()  # TODO WHY
 
     def on_run_simulation(
         self,
@@ -320,6 +329,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         """
         # Get the turn-by-turn data if requested, from the synchrotron
         # radiation integrals
+
         # TODO create observable
         if self.get_synchrotron_radiation_info_turn_by_turn:
             self._energy_loss_per_turn[self._turn_i] = (
