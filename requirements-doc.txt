@@ -2,3 +2,5 @@ sphinx
 sphinx-rtd-theme
 numpydoc
 intersphinx_registry
+myst-parser
+sphinx_autodoc_typehints

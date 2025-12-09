@@ -36,7 +36,6 @@ ASSIGNED_CATEGORIES = {
     # Lattice & Hardware
     "Simulation": LATTICE,
     "BoxLosses": LATTICE,
-    "ConstantMagneticCycle": LATTICE,
     "DriftSimple": LATTICE,
     "MultiHarmonicRfStation": LATTICE,
     "ReferenceEnergyChange": LATTICE,
@@ -49,6 +48,7 @@ ASSIGNED_CATEGORIES = {
     "MagneticCycleByTime": CYCLE,
     "MagneticCyclePerTurn": CYCLE,
     "MagneticCyclePerTurnAllRfStations": CYCLE,
+    "ConstantMagneticCycle": CYCLE,
     # Beam Generation & Distribution
     "Beam": BEAM,
     "BiGaussian": BEAM,
