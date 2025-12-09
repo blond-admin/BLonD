@@ -18,7 +18,7 @@ also an example of how to use the class SliceMonitor (check the corresponding
 h5 files).
 
 References
--------
+----------
 Simon Lauber
 Danilo Quartullo
 """

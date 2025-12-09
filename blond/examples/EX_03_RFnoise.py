@@ -14,7 +14,7 @@ Notes
 No intensity effects.
 
 References
--------
+----------
 Simon Lauber
 Helga Timko
 """

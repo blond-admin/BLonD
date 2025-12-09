@@ -12,7 +12,7 @@
 for the CERN machines**
 
 References
--------
+----------
 Helga Timko
 Alexandre Lasheen
 """
