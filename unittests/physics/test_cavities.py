@@ -79,6 +79,10 @@ class TestRFStationBaseClass(unittest.TestCase):
                 cavity_feedback=None,
             )
 
+        cavity_feedback_good = SPSOneTurnFeedback(
+            profile=prof, n_sections=3
+        )
+
         mhc = MultiHarmonicRfStation.headless(
             section_index=1,
             voltage=np.array([1]),
@@ -87,11 +91,10 @@ class TestRFStationBaseClass(unittest.TestCase):
             main_harmonic_idx=0,
             circumference=1,
             total_energy=1,
-            reference_beta=1,
+            beam_reference_beta=1,
+            cavity_feedback=cavity_feedback_good
         )
-        cavity_feedback_good = SPSOneTurnFeedback(
-            profile=prof, _parent_rf_station=mhc, n_sections=3
-        )
+
 
         # TODO: remove this, once cavity feedback setup is fixed
         MultiHarmonicRfStation(
@@ -99,6 +102,9 @@ class TestRFStationBaseClass(unittest.TestCase):
             local_wakefield=None,
             main_harmonic_idx=0,
             n_harmonics=1,
+            voltage=np.array([1]),
+            harmonic=np.array([1]),
+            phi_rf=np.array([1]),
             cavity_feedback=(cavity_feedback_good,),
         )
         with self.assertRaises(ValueError):
@@ -220,7 +226,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             cavity_feedback=None,
             total_energy=939,
             main_harmonic_idx=0,
-            reference_beta=1,
+            beam_reference_beta=1,
         )
         self.multi_harmonic_cavity._ring.section_lengths = [1, 2, 3]
 
@@ -316,9 +322,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             self.multi_harmonic_cavity.get_main_harmonic_t_rf_actual()
             == 2
             * np.pi
-            / self.multi_harmonic_cavity._omega_rf[
-                self.multi_harmonic_cavity.main_harmonic_idx
-            ]
+            / self.multi_harmonic_cavity.get_main_harmonic_omega_rf_actual()
         )
         assert (
             self.multi_harmonic_cavity.calc_main_harmonic_t_rf(
@@ -380,6 +384,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             local_wakefield=None,
             cavity_feedback=None,
             total_energy=939,
+            beam_reference_beta=beam.reference_beta,
         )
         self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
 
@@ -423,7 +428,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         )
         assert (
             self.single_harmonic_cavity.get_main_harmonic_t_rf_actual()
-            == 2 * np.pi / self.single_harmonic_cavity._omega_rf
+            == 2 * np.pi / self.single_harmonic_cavity.get_main_harmonic_omega_rf_actual()
         )
         assert (
             self.single_harmonic_cavity.calc_main_harmonic_t_rf(

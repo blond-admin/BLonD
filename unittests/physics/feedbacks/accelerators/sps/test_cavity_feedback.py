@@ -1152,7 +1152,6 @@ class TestSPSTransmitterGain(unittest.TestCase):
         G_tx,
     ):
         OTFB = SPSOneTurnFeedback(
-            rf,
             profile,
             no_sections,
             n_cavities=no_cavities,

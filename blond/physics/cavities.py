@@ -121,7 +121,9 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         n_rf: int,
         section_index: int,
         local_wakefield: WakeField | None,
-        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
+        cavity_feedback: LocalFeedback
+        | tuple[LocalFeedback, ...]
+        | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
@@ -138,6 +140,8 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         if cavity_feedback is None:
             pass
         else:
+            if isinstance(cavity_feedback, LocalFeedback):
+                cavity_feedback = (cavity_feedback,)
             for feedback in cavity_feedback:
                 assert isinstance(feedback, LocalFeedback), (
                     "given feedback is not a LocalFeedback"
@@ -146,15 +150,15 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
         if beam_feedback is None:
             pass
-        elif isinstance(beam_feedback, LocalFeedback):
+        elif isinstance(beam_feedback, Blond2BeamFeedback):
             beam_feedback.set_parent_rf_station(rf_station=self)
         else:
             raise ValueError(beam_feedback)
         self._n_rf = n_rf
         self._local_wakefield = local_wakefield
-        self._cavity_feedback: tuple[LocalFeedback, ...] | None = (
-            cavity_feedback
-        )
+        self._cavity_feedback: (
+            LocalFeedback | tuple[LocalFeedback, ...] | None
+        ) = cavity_feedback
         self._beam_feedback = beam_feedback
 
         self._magnetic_cycle: MagneticCycleBase | None = None
@@ -525,7 +529,9 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         harmonic: float | None = None,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
-        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
+        cavity_feedback: LocalFeedback
+        | tuple[LocalFeedback, ...]
+        | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
@@ -598,10 +604,10 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             )
         if (
             self.phi_rf_design is None
-        ) and "_phi_rf_design" not in self.schedules:
+        ) and "phi_rf_design" not in self.schedules:
             raise ValueError(
-                "You need to define `_phi_rf_design` via `._phi_rf_design=...` "
-                f"or `.schedule(attribute='_phi_rf_design', value=...)` for {self.name}"
+                "You need to define `phi_rf_design` via `.phi_rf_design=...` "
+                f"or `.schedule(attribute='phi_rf_design', value=...)` for {self.name}"
             )
         if (self.harmonic is None) and "harmonic" not in self.schedules:
             raise ValueError(
@@ -764,6 +770,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         harmonic: float,
         circumference: float,
         total_energy: float,
+        beam_reference_beta: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
     ) -> SingleHarmonicRfStation:
@@ -783,6 +790,8 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             Synchrotron circumference in [m]
         total_energy
             Target total energy in [eV]
+        beam_reference_beta
+            Beam velocity as a fraction of the speed of light [1]
         local_wakefield
             Optional wakefield to interact with beam
         cavity_feedback
@@ -819,12 +828,14 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
 
+        beam = Mock(BeamBaseClass)
+        beam.reference_beta = beam_reference_beta
         single_harmonic_rf_station.on_init_simulation(simulation=simulation)
         single_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
             n_turns=1,
             turn_i_init=simulation.turn_i.value,
-            beam=Mock(BeamBaseClass),
+            beam=beam,
         )
         return single_harmonic_rf_station
 
@@ -879,7 +890,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         main_harmonic_idx: int,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
-        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
+        cavity_feedback: LocalFeedback
+        | tuple[LocalFeedback, ...]
+        | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
     ):
@@ -899,7 +912,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         self.main_harmonic_idx = main_harmonic_idx
 
         self.voltage = voltage
-        self._phi_rf_design = phi_rf
+        self.phi_rf_design = phi_rf
         self.harmonic = harmonic
         self.delta_phi_rf: NumpyArray | None = backend.zeros(
             n_harmonics
@@ -1180,7 +1193,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         circumference: float,
         total_energy: float,
         main_harmonic_idx: int,
-        reference_beta: float,
+        beam_reference_beta: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
@@ -1201,10 +1214,12 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             Synchrotron circumference in [m]
         total_energy
             Target total energy in [eV]
+        beam_reference_beta
+            Beam velocity as a fraction of the speed of light [1]
         main_harmonic_idx
             Index of the cavity's main harmonic
             Used to calculate attributes that rely on only one harmonic.
-        reference_beta
+        beam_reference_beta
             Beam reference fraction of speed of light (v/c0) [].
         local_wakefield
             Optional wakefield to interact with beam
@@ -1245,15 +1260,14 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         simulation.magnetic_cycle = energy_cycle
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
+        beam = Mock(BeamBaseClass)
+        beam.reference_beta = beam_reference_beta
         multi_harmonic_rf_station.on_init_simulation(simulation=simulation)
         multi_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
             n_turns=1,
             turn_i_init=simulation.turn_i.value,
-            beam=Mock(BeamBaseClass),
-            main_harmonic_idx=main_harmonic_idx,
+            beam=beam,
         )
-        beam = Mock(BeamBaseClass)
-        beam.reference_beta = reference_beta
-        multi_harmonic_rf_station._update_beam_based_attributes(beam)
+
         return multi_harmonic_rf_station

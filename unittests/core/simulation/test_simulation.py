@@ -38,10 +38,11 @@ class TestSimulation(unittest.TestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicRfStation()
-        cavity1.harmonic = 35640
-        cavity1.voltage = 6e6
-        cavity1.phi_rf_design = 0
+        cavity1 = SingleHarmonicRfStation(
+            harmonic=35640,
+            voltage=6e6,
+            phi_rf=0
+        )
 
         N_TURNS = int(1e3)
         magnetic_cycle = MagneticCyclePerTurn(

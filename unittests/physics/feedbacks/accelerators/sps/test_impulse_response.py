@@ -264,7 +264,6 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
         # Beam loading via feed-back system
         OTFB_4 = SPSOneTurnFeedback(
-            rf,
             profile,
             4,
             n_cavities=1,
@@ -341,14 +340,15 @@ class TestTravelingWaveCavity(unittest.TestCase):
                 turn_i_init=0,
                 particle_type=beam.particle_type,
             )
-            / rf.harmonic
+            / rf.get_main_harmonic()
         )
         bunch_spacing = 5 * t_rf
 
-        profile2 = StaticProfile(
-            cut_left=0,
-            cut_right=bunches * bunch_spacing,
+        profile2 = StaticProfile.from_rad(
+            cut_left_rad=0 * t_rf,
+            cut_right_rad=bunches * bunch_spacing * t_rf,
             n_bins=1000 * buckets,
+            t_period=t_rf,
         )
         ring.add_element(profile2)
         simulation = Simulation(
