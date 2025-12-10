@@ -209,12 +209,33 @@ class TestBeamBaseClass(unittest.TestCase):
         ids_after = self.beam_base_class._ids
         np.testing.assert_equal(np.sort(ids_before[mask]), np.sort(ids_after))
 
-    def test_add_beam(self):
+    def test_iadd_beam(self):
         intens = self.beam_base_class.intensity
+        id_max = np.max(self.beam_base_class._ids)
 
         self.beam_base_class += self.beam_base_class
 
         self.assertEqual(self.beam_base_class.intensity, 2 * intens)
+        self.assertEqual(self.beam_base_class._ids[-1], id_max*2+1)
+        self.assertEqual(len(self.beam_base_class._dt),
+                         len(self.beam_base_class._ids))
+
+    def test_iadd_particles(self):
+        intens = self.beam_base_class.intensity
+        id_max = np.max(self.beam_base_class._ids)
+
+        new_dt = np.linspace(-10, -1, 10)
+        new_dE = np.linspace(-10, -1, 10)
+
+        self.beam_base_class += (new_dt, new_dE)
+
+        self.assertEqual(self.beam_base_class.intensity, 2 * intens)
+        self.assertEqual(self.beam_base_class._ids[-1], id_max*2+1)
+        self.assertEqual(len(self.beam_base_class._dt),
+                         len(self.beam_base_class._ids))
+
+        np.testing.assert_array_equal(self.beam_base_class._dt[10:], new_dt)
+        np.testing.assert_array_equal(self.beam_base_class._dE[10:], new_dE)
 
 
 if __name__ == "__main__":
