@@ -741,7 +741,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
         Returns
         -------
-        main_harmonic_omega_rf_current
+        main_harmonic_omega_rf_actual
             The omega_rf of the main harmonic, in [rad/s].
         """
         return self.omega_rf_actual
@@ -754,7 +754,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
         Returns
         -------
-        main_harmonic_t_rf_current
+        main_harmonic_t_rf_actual
             The t_rf of the main harmonic, in [s].
         """
         return (2 * np.pi) / self.get_main_harmonic_omega_rf_actual()
@@ -876,7 +876,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
                 2.0
                 * np.pi
                 * self.harmonic
-                * (self.delta_omega_rf)
+                * self.delta_omega_rf
                 / self.omega_rf_design
             )
 
@@ -1009,11 +1009,10 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             section_index=section_index,
             local_wakefield=local_wakefield,
             cavity_feedback=cavity_feedback,
+            voltage=voltage,
+            phi_rf=phi_rf,
+            harmonic=harmonic,
         )
-
-        single_harmonic_rf_station.voltage = voltage
-        single_harmonic_rf_station.phi_rf_design = phi_rf
-        single_harmonic_rf_station.harmonic = harmonic
 
         ring = Mock(Ring)
         ring.circumference = circumference
