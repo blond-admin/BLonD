@@ -59,7 +59,7 @@ def main():
 
     sim = Simulation.from_locals(locals())
     sim.print_one_turn_execution_order()
-    BIGAUS = False
+    BIGAUS = True
     if BIGAUS:
         sim.prepare_beam(
             beam=beam1,
@@ -86,9 +86,6 @@ def main():
                 animate=True,
             ),
         )
-    plt.figure()
-    beam1.plot_hist2d()
-    plt.show()
 
     phase_observation = RfStationPhaseObservation(
         each_turn_i=1,
