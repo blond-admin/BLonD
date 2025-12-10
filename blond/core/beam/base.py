@@ -187,7 +187,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             flags = np.ones(len(dt)) * BeamFlags.ACTIVE.value
 
         id_max = backend.max(self._ids)
-        ids = backend.arange(id_max + 1, id_max + len(dt) + 1, dtype=int)
+        ids = backend.arange(id_max + 1, id_max + len(dt) + 1, dtype=np.int32)
 
         self._dt = backend.concatenate((self._dt, dt))
         self._dE = backend.concatenate((self._dE, dE))
