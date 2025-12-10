@@ -62,7 +62,7 @@ class BeamBaseClassTester(BeamBaseClass):
         """
         self._dt = dt
         self._dE = dE
-        self._ids = np.arange(len(dt))
+        self._ids = np.arange(len(dt), dtype=np.int32)
         self._flags = flags
         self.reference_time = reference_time
         self.reference_total_energy = reference_total_energy
