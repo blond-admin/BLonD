@@ -97,6 +97,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         else:
             self.add_particles(other)
 
+        return self
+
     def add_beam(self, other: BeamBaseClass, purge: bool = False):
         """
         Add the contents of another beam to this one.
