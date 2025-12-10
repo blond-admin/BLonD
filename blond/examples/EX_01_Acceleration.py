@@ -25,6 +25,9 @@ from blond import (
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.experimental.beam_preparation.empiric_matcher import EmpiricMatcher
+from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    SemiEmpiricMatcher,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -56,7 +59,7 @@ def main():
 
     sim = Simulation.from_locals(locals())
     sim.print_one_turn_execution_order()
-    BIGAUS = True
+    BIGAUS = False
     if BIGAUS:
         sim.prepare_beam(
             beam=beam1,
@@ -71,16 +74,21 @@ def main():
     else:  # pragma: no cover
         sim.prepare_beam(
             beam=beam1,
-            preparation_routine=EmpiricMatcher(
-                grid_base_dt=np.linspace(0, 2.5e-9, 100),
-                grid_base_dE=np.linspace(
-                    -(777538700.0 * 2), 777538700.0 * 2, 100
-                ),
+            preparation_routine=SemiEmpiricMatcher(
+                time_limit=(0, 2.5e-9),
                 n_macroparticles=1e6,
                 seed=0,
                 maxiter_intensity_effects=0,
+                hamilton_to_density_kwargs=dict(
+                    density_modifier=2.0,  # Controls density profile sharpness
+                    hamilton_max=40.0,  # Hamiltonian cutoff [eV]
+                ),
+                animate=True,
             ),
         )
+    plt.figure()
+    beam1.plot_hist2d()
+    plt.show()
 
     phase_observation = RfStationPhaseObservation(
         each_turn_i=1,

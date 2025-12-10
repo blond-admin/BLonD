@@ -30,6 +30,7 @@ from unittest.mock import Mock
 
 import numpy as np
 from scipy.constants import speed_of_light as c0
+from scipy.interpolate import interp1d
 
 from blond.acc_math.analytic.simple_math import calc_total_energy
 from blond.core.base import HasPropertyCache
@@ -41,8 +42,13 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, TypeVar
 
     from numpy.typing import NDArray as NumpyArray
+    from scipy.interpolate import (
+        Akima1DInterpolator,
+        PchipInterpolator,
+    )
 
     from blond.core.simulation.simulation import Simulation
+    from blond.generals.protocols import AnyInterpolator
 
     FloatOrArray = float | NumpyArray
 
@@ -907,14 +913,13 @@ class MagneticCycleByTime(MagneticCycleBase):
         To 'bending field' associated bending radius, in [m].
     interpolator
         Interpolation routine to get time in between the base values.
-        Default: `numpy.interp`.
+        Default: `scipy.interpolate.interp1d`.
 
     See Also
     --------
-    blond.generals.interpolation.interp_linear : NumPy's `interp` function
-    blond.generals.interpolation.interp_makima : Modified Akima Interpolation
-    blond.generals.interpolation.interp_pchip : Piecewise Cubic Hermite Interpolating Polynomial
-
+    scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`
+    scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation
+    scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial
     """
 
     def __init__(
@@ -924,7 +929,12 @@ class MagneticCycleByTime(MagneticCycleBase):
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
-        interpolator=np.interp,
+        interpolator: type[
+            Akima1DInterpolator
+            | PchipInterpolator
+            | interp1d
+            | AnyInterpolator
+        ] = interp1d,
     ):
         base_magnetic_rigidity = _to_magnetic_rigidity(
             data=base_values,
@@ -941,11 +951,13 @@ class MagneticCycleByTime(MagneticCycleBase):
             reference_particle=reference_particle,
             magnetic_rigidity_init=base_magnetic_rigidity[0],
         )
-        self._interpolator = interpolator
-        self._base_time = base_time[:]
-        self._base_values = base_values[:]
-        self._in_unit = in_unit
-        self._bending_radius = bending_radius
+        self._interpolator = interpolator(
+            base_time[:],
+            base_magnetic_rigidity[:],
+        )
+        self._base_values = base_values[:]  # only for debugging
+        self._in_unit = in_unit  # only for debugging
+        self._bending_radius = bending_radius  # only for debugging
 
     def on_init_simulation(
         self,
@@ -997,11 +1009,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         total_energy
             Total relativistic energy, in [eV].
         """
-        magnetic_rigidity = self._interpolator(
-            reference_time,
-            self._base_time,
-            self._base_magnetic_rigidity,
-        )
+        magnetic_rigidity = self._interpolator(reference_time)
         return calc_total_energy(
             mass=particle_type.mass,
             momentum=magnetic_rigidity_to_momentum(
@@ -1017,7 +1025,10 @@ class MagneticCycleByTime(MagneticCycleBase):
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
-        interpolator=np.interp,  # todo type hint, also below
+        interpolator: Akima1DInterpolator
+        | PchipInterpolator
+        | interp1d
+        | AnyInterpolator = interp1d,
     ) -> MagneticCycleByTime:
         """
         Initialize object without simulation context.
@@ -1039,13 +1050,20 @@ class MagneticCycleByTime(MagneticCycleBase):
         bending_radius
             Bending radius, in [m].
         interpolator
-            Interpolation routine to get time in between the base values.
-            Default: `numpy.interp`.
+                Interpolation routine to get time in between the base values.
+                Default: `scipy.interpolate.interp1d`.
 
         Returns
         -------
         magnetic_cycle_by_time
             Initialized MagneticCycleByTime instance.
+
+        See Also
+        --------
+        scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`
+        scipy.interpolate.interp1d.Akima1DInterpolator : Modified Akima Interpolation
+        scipy.interpolate.interp1d.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial
+
         """
         from blond.core.beam.base import BeamBaseClass
         from blond.core.beam.particle_types import ParticleType

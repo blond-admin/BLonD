@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
+from scipy.interpolate import interp1d
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -21,9 +22,14 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
 
     from numpy.typing import NDArray as NumpyArray
+    from scipy.interpolate import (
+        Akima1DInterpolator,
+        PchipInterpolator,
+    )
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+    from blond.generals.protocols import AnyInterpolator
 
     T = TypeVar("T")
 
@@ -581,25 +587,28 @@ class ScheduledInterpolation(_Scheduled):
         Values along the values axis.
     interpolator
         Interpolation routine to get time in between the base values.
-        Default: `numpy.interp`.
+        Default: `scipy.interpolate.interp1d`.
 
     See Also
     --------
-    blond.generals.interpolation.interp_linear : NumPy's `interp` function
-    blond.generals.interpolation.interp_makima : Modified Akima Interpolation
-    blond.generals.interpolation.interp_pchip : Piecewise Cubic Hermite Interpolating Polynomial
+    scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`
+    scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation
+    scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial
     """
 
     def __init__(
         self,
         times: NumpyArray,
         values: NumpyArray,
-        interpolator: Callable = np.interp,
+        interpolator: type[
+            Akima1DInterpolator
+            | PchipInterpolator
+            | interp1d
+            | AnyInterpolator
+        ] = interp1d,
     ) -> None:
         super().__init__()
-        self.times = times
-        self.values = values
-        self.interpolator = interpolator
+        self.interpolator = interpolator(times, values)
 
     def get_scheduled(
         self,
@@ -621,7 +630,7 @@ class ScheduledInterpolation(_Scheduled):
         value
             The interpolated value for the current time.
         """
-        return self.interpolator(reference_time, self.times, self.values)
+        return self.interpolator(reference_time)
 
 
 def get_scheduler(
