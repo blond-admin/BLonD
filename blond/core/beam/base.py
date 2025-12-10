@@ -171,7 +171,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         new_dt = new_particles[0]
         new_dE = new_particles[1]
 
-        self.intensity += self.ratio + len(new_dt)
+        self.intensity += self.ratio * len(new_dt)
 
         self._dt = backend.concatenate((self._dt, new_dt))
         self._dE = backend.concatenate((self._dE, new_dE))
@@ -185,7 +185,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._ids = backend.concatenate((self._ids, new_ids))
 
         self._flags = backend.concatenate(
-            self._flags, np.arange(len(new_dt)) * BeamFlags.ACTIVE.value
+            (self._flags, np.ones(len(new_dt)) * BeamFlags.ACTIVE.value)
         )
 
     @requires(["EnergyCycleBase"])
