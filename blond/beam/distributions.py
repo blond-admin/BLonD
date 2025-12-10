@@ -1026,7 +1026,6 @@ def populate_bunch(
     particle density in phase space.*
     """
     # Initialise the random number generator
-    # np.random.seed(seed=seed)
     rng = np.random.default_rng(seed)
     # Generating particles randomly inside the grid cells according to the
     # provided density_grid
@@ -1431,7 +1430,7 @@ def _get_dE_from_dt(
 
     return dE_amplitude
 
-def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
+def Haissinski(ring_tracker: FullRingAndRF, synchrotron_radiation: SynchrotronRadiation,
                verbose: bool = True, seed: int = 1234,
                root_kwargs: dict = {}):
     r"""Solves the Haissinksi equation to find the equilibrum bunch distribution of the
@@ -1452,7 +1451,7 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
     ----------
     ring_tracker : class
         A FullRingAndRF type class
-    isr : class
+    synchrotron_radiation : class
         A SynchrotronRadiation type class
     verbose : bool, optional
         If True, returns the `scipy.optimize._optimize.OptimizeResult` object of the
@@ -1480,13 +1479,13 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
     def Gauss(t, sigma):
         return np.exp(-0.5 * t**2 / sigma**2) / np.sqrt(2*np.pi) / sigma
 
-    # computes the induced voltage for a given profile lam
-    def Vind(lam, induced_voltage):
+    # computes the induced voltage for a given profile line density
+    def Vind(line_density, induced_voltage):
         if induced_voltage is None:
             return 0.0
         else:
             # update profile used in the computation of Vind
-            profile.n_macroparticles = lam * profile.bin_size * n_macroparticles
+            profile.n_macroparticles = line_density * profile.bin_size * n_macroparticles
 
             induced_voltage.induced_voltage_sum()
             return induced_voltage.induced_voltage
@@ -1509,7 +1508,7 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
     omega_rf = rf_station.omega_rf[0, counter]
     phi_rf = rf_station.phi_rf[0, counter]
     # equilibrium energy spread [eV]
-    sigmaE = energy * isr.sigma_dE
+    sigmaE = energy * synchrotron_radiation.sigma_dE
 
     # zero-current bunch length [s]
     sigma0 = np.abs(eta0) \
@@ -1517,22 +1516,22 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
         * sigmaE / rf_station.omega_s0[counter]
 
     # initial Gaussian profile
-    lam0 = Gauss(profile.bin_centers, sigma0)
+    line_density_0 = Gauss(profile.bin_centers, sigma0)
     # also initialize Profile object
-    profile.n_macroparticles = lam0 * profile.bin_size * n_macroparticles
+    profile.n_macroparticles = line_density_0 * profile.bin_size * n_macroparticles
 
     # scale factor [s]
     Tau = -eta0 * sigmaE**2 / energy / (q*voltage_rf) * tRev
 
     # arguments passed to the root finding algorithm
-    args = tracker, Tau, isr.U0
+    args = tracker, Tau, synchrotron_radiation.U0
 
-    def N(lam, tracker, Tau, U0):
+    def N(line_density, tracker, Tau, U0):
         # compute rf voltage
         tracker.rf_voltage_calculation()
         # primitive of the potential energy
         exponent = scipy.integrate.cumulative_trapezoid(tracker.rf_voltage
-            + Vind(lam, tracker.totalInducedVoltage)
+            + Vind(line_density, tracker.totalInducedVoltage)
             - U0/q, tracker.profile.bin_centers, initial=0) / rf_station.voltage[0, counter]
         # integration constant
         exponent += -np.cos(omega_rf*tracker.profile.bin_centers[0]+phi_rf) / omega_rf \
@@ -1542,12 +1541,11 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
 
         fac1 = scipy.integrate.trapezoid(term2, tracker.profile.bin_centers)
 
-        return lam * fac1 - term2
-
+        return line_density * fac1 - term2
 
     # obtain the Haissinski solution
     fun = lambda l: N(l, *args)  # helper function since root needs a function of one argument
-    sol = scipy.optimize.root(fun, lam0, **root_kwargs)
+    sol = scipy.optimize.root(fun, line_density_0, **root_kwargs)
     haiss_dt = sol.x
 
     # create macro-particles from distribution

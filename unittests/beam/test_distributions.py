@@ -12,6 +12,7 @@ from blond.impedances.impedance import InducedVoltageFreq, \
     TotalInducedVoltage
 from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from blond.beam.distributions import Haissinski
+from blond.utils import bmath as bm
 import scipy
 
 from blond.beam.distributions import (
@@ -134,45 +135,70 @@ class testHaissinskiSolution(unittest.TestCase):
         ring = Ring(110.4, 5e-4, 1.3e9, Electron(), n_turns=1,
                     synchronous_data_type='total energy')
         self.beam = Beam(ring, 100, 344e6)
-        rf_station = RFStation(ring, 184, 1e6, -0.045466)
-        profile = Profile(self.beam,
-                          cut_options = CutOptions(cut_left=-5*4.12e-12,
-                                                   cut_right=5*4.12e-12,
-                                                   n_slices=128))
+        self.rf_station = RFStation(ring, 184, 1e6, -0.045466)
+        self.profile = Profile(self.beam,
+                               cut_options = CutOptions(cut_left=-5*4.12e-12,
+                                                        cut_right=5*4.12e-12,
+                                                       n_slices=128))
 
         cSR_source = CoherentSynchrotronRadiation(R_bend)
-        cSR_impedance = InducedVoltageFreq(self.beam, profile, [cSR_source],
+        cSR_impedance = InducedVoltageFreq(self.beam, self.profile, [cSR_source],
                                            frequency_resolution=6.826e9)
-        inducedVoltage = TotalInducedVoltage(self.beam, profile, [cSR_impedance])
+        inducedVoltage = TotalInducedVoltage(self.beam, self.profile, [cSR_impedance])
 
-        tracker = RingAndRFTracker(rf_station, self.beam, profile=profile,
+        tracker = RingAndRFTracker(self.rf_station, self.beam, profile=self.profile,
                                    total_induced_voltage=inducedVoltage,
                                    interpolation=True)
         self.ring_tracker = FullRingAndRF([tracker])
 
-        self.iSR = SynchrotronRadiation(ring, rf_station, self.beam, R_bend, n_kicks=1,
-                                        quantum_excitation=True, shift_beam=False)
+        self.SR = SynchrotronRadiation(ring, self.rf_station, self.beam, R_bend, n_kicks=1,
+                                       quantum_excitation=True, shift_beam=False)
+        # equilibrium energy spread [eV]
+        self.sigma_E = ring.energy[0,0] * self.SR.sigma_dE
+        # zero-current bunch duration [s]
+        self.sigma_dt0 = abs(ring.eta_0[0,0]) / (ring.beta[0,0]*ring.energy[0,0]) \
+            * self.sigma_E / self.rf_station.omega_s0[0]
+
 
     # Run after every test
     def tearDown(self):
         del self.ring_tracker
         del self.beam
-        del self.iSR
+        del self.SR
 
     def test_Haissinski_verbose_1(self):
-        haissinski_solution = Haissinski(self.ring_tracker, self.iSR, verbose=False)
+        haissinski_solution = Haissinski(self.ring_tracker, self.SR, verbose=False)
         self.assertIsNone(haissinski_solution)
 
     def test_Haissinski_verbose_2(self):
-        haissinski_solution = Haissinski(self.ring_tracker, self.iSR, verbose=True)
+        haissinski_solution = Haissinski(self.ring_tracker, self.SR, verbose=True)
         self.assertIsInstance(haissinski_solution, scipy.optimize._optimize.OptimizeResult)
 
     def test_Haissinski_root_kwargs(self):
-        haissinski_solution = Haissinski(self.ring_tracker, self.iSR, verbose=True,
+        haissinski_solution = Haissinski(self.ring_tracker, self.SR, verbose=True,
                                          root_kwargs={'method':'lm'})
         self.assertEqual(haissinski_solution.method, 'lm',
                          msg="Root key word arguments not passed correctly.")
 
+    def test_sigma_E(self):
+        # test that Haissinski solution has equilibrium energy spread
+        Haissinski(self.ring_tracker, self.SR, verbose=False, seed=1789*1989)
+        self.assertAlmostEqual(self.sigma_E / bm.std(self.beam.dE), 0.99, 2)
+
+    def test_sigma_zero(self):
+        # test zero-current bunch length
+        self.beam.n_macroparticles = int(1e5)  # increase MPs for better statistics
+        tracker = RingAndRFTracker(self.rf_station, self.beam, profile=self.profile,
+                                   total_induced_voltage=None,  # no collective effects
+                                   interpolation=True)
+        _ring_tracker = FullRingAndRF([tracker])
+        Haissinski(_ring_tracker, self.SR, verbose=False, seed=1789*1989)
+        self.assertAlmostEqual(bm.std(self.beam.dt)*1e12, self.sigma_dt0*1e12, 1)
+
+    def test_sigma_dt(self):
+        # test bunch length of Haissinski solution; close to 3.92 ps for 100 MPs
+        Haissinski(self.ring_tracker, self.SR, verbose=False, seed=1789*1989)
+        self.assertAlmostEqual(bm.std(self.beam.dt)*1e12, 3.92, 2)
 
 if __name__ == "__main__":
     unittest.main()
