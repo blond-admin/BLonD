@@ -290,6 +290,7 @@ class BackendBaseClass(ABC):
         self.fftconvolve: Callable = None  # type: ignore
         self.concatenate: Callable = None  # type: ignore
         self.unique: Callable = None  # type: ignore
+        self.max: Callable = None # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -500,6 +501,7 @@ class NumpyBackend(BackendBaseClass):
         self.fftconvolve = fftconvolve
         self.concatenate = np.concatenate
         self.unique = np.unique
+        self.max = np.max
 
         self._finalize()
 
@@ -626,6 +628,7 @@ class CupyBackend(BackendBaseClass):
         self.fftconvolve = fftconvolve
         self.concatenate = cp.concatenate
         self.unique = cp.unique
+        self.max = cp.max
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
