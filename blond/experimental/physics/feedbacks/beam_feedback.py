@@ -174,7 +174,7 @@ class Blond2BeamFeedback(LocalFeedback):
 
     def update_phi_beam(self):
         """
-        Beam phase measured at the main RF frequency and phase
+        Beam phase measured at the main RF frequency and phase.
 
         Beam phase measured at the main RF frequency and phase. The beam is
         convolved with the window function of the band-pass filter of the

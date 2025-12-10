@@ -67,27 +67,16 @@ ASSIGNED_CATEGORIES = {
 }
 
 
-def assign_category(class_name):
-    """Return the category name for a given class, or OTHER_CATEGORY_NAME."""
-    return ASSIGNED_CATEGORIES[
-        class_name
-    ]  # intended to fail whn category is undefined
-
-
 def main():
     """Reads all imports that are available at BLonD toplevel and creates RST file."""
-    alls = dir(blond)
+    blond_toplevel_variable_names = dir(
+        blond
+    )  # All variable names in `blond.__init__.py`
 
     # Prepare dict: category → list of RST blocks
     categorized_entries = {cat: [] for cat in CATEGORIES}
-    for name in alls:
-        obj = getattr(blond, name)
-        if inspect.isclass(obj):
-            try:
-                assign_category(name)
-            except KeyError as exc:
-                print(str(exc))
-    for name in alls:
+    print_unlinked_classes(blond_toplevel_variable_names)
+    for name in blond_toplevel_variable_names:
         obj = getattr(blond, name)
 
         if inspect.isclass(obj):
@@ -107,12 +96,24 @@ def main():
 
 """
 
-            category = assign_category(name)
+            category = ASSIGNED_CATEGORIES[name]
             categorized_entries[category].append(block)
 
-    # ------------------------------------------------------------
-    # Build RST file
-    # ------------------------------------------------------------
+    rst_content = make_rst_string(categorized_entries)
+
+    with open("modules/blond_main_objects.rst", "w", encoding="utf-8") as f:
+        f.write(rst_content)
+    print('Created "modules/blond_main_objects.rst"')
+
+
+def make_rst_string(categorized_entries: dict[str, list[str]]):
+    """Create a string for in RST style from the input blocks.
+
+    Parameters
+    ----------
+    categorized_entries
+        Each category has a list of strings to be added per category.
+    """
     rst_file = """
 BLonD Main Objects
 ==================
@@ -120,9 +121,8 @@ BLonD Main Objects
 .. toctree::
    :maxdepth: 1
 """
-
     for category, blocks in categorized_entries.items():
-        if not blocks:
+        if len(blocks) == 0:
             continue  # skip empty categories
 
         rst_file += f"""
@@ -131,10 +131,25 @@ BLonD Main Objects
 {"-" * len(category)}
 """
         rst_file += "\n".join(blocks)
+    return rst_file
 
-    with open("modules/blond_main_objects.rst", "w", encoding="utf-8") as f:
-        f.write(rst_file)
-    print('Created "modules/blond_main_objects.rst"')
+
+def print_unlinked_classes(blond_toplevel_variable_names: list[str]):
+    """Print all objects that are not listed in `ASSIGNED_CATEGORIES`.
+
+    Parameters
+    ----------
+    blond_toplevel_variable_names
+        All variable names in `blond.__init__.py`
+    """
+    assigned_category_keys = ASSIGNED_CATEGORIES.keys()
+    for name in blond_toplevel_variable_names:
+        obj = getattr(blond, name)
+        if inspect.isclass(obj) and name not in assigned_category_keys:
+            print(
+                f"{name} is missing in `ASSIGNED_CATEGORIES`."
+                f" Please add it in `{__file__}`."
+            )
 
 
 if __name__ == "__main__":
