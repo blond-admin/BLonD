@@ -125,6 +125,18 @@ test_py_312:
   tags:
     - k8s-gpu
 
+test_py_313:
+  image: gitlab-registry.cern.ch/blond/blond/python313
+  stage: test
+  interruptible: true
+  extends:
+    - .before
+    - .main
+    # - .publish
+  tags:
+    - k8s-gpu
+
+
 test_minimum:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: test
