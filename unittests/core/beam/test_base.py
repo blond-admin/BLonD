@@ -31,10 +31,6 @@ class BeamBaseClassTester(BeamBaseClass):
             is_counter_rotating=is_counter_rotating,
             is_distributed=is_distributed,
         )
-        self._dE = np.linspace(1, 10, 10, dtype=backend.float)
-        self._dt = np.linspace(20, 30, 10, dtype=backend.float)
-        self._flags = np.zeros(10, dtype=np.int32)
-        self._ids = np.arange(10, dtype=np.int32)
 
     @cached_property
     def ratio(self) -> float:
@@ -63,7 +59,12 @@ class BeamBaseClassTester(BeamBaseClass):
         reference_total_energy
             Time of the reference frame (global total energy), in [eV]
         """
-        pass
+        self._dt = dt
+        self._dE = dE
+        self._ids = np.arange(len(dt))
+        self._flags = flags
+        self.reference_time = reference_time
+        self.reference_total_energy = reference_total_energy
 
     def plot_hist2d(self):
         pass
@@ -80,8 +81,9 @@ class BeamBaseClassTester(BeamBaseClass):
     def dE_min(self) -> float:
         pass
 
+    @property
     def common_array_size(self) -> int:
-        pass
+        return len(self._dt)
 
 
 class TestBeamBaseClass(unittest.TestCase):
@@ -91,6 +93,12 @@ class TestBeamBaseClass(unittest.TestCase):
             particle_type=proton,
             is_counter_rotating=False,
             is_distributed=False,
+        )
+        self.beam_base_class.setup_beam(
+            np.linspace(1, 10, 10, dtype=backend.float),
+            np.linspace(20, 30, 10, dtype=backend.float),
+            np.zeros(10, dtype=np.int32),
+            np.arange(10, dtype=np.int32),
         )
 
     def test___init__(self):
@@ -200,6 +208,13 @@ class TestBeamBaseClass(unittest.TestCase):
         mask[select] = False
         ids_after = self.beam_base_class._ids
         np.testing.assert_equal(np.sort(ids_before[mask]), np.sort(ids_after))
+
+    def test_add_beam(self):
+        intens = self.beam_base_class.intensity
+
+        self.beam_base_class += self.beam_base_class
+
+        self.assertEqual(self.beam_base_class.intensity, 2 * intens)
 
 
 if __name__ == "__main__":
