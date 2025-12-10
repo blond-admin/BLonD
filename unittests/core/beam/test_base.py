@@ -257,7 +257,7 @@ class TestBeamBaseClass(unittest.TestCase):
             self.beam_base_class += other_beam
 
         other_beam.intensity = int(1E12)
-        other_beam._particle_type._charge = 2
+        object.__setattr__(other_beam._particle_type, "charge", 2)
 
         with self.assertRaises(TypeError):
             self.beam_base_class += other_beam
