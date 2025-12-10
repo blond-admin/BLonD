@@ -226,8 +226,8 @@ class TestBeamBaseClass(unittest.TestCase):
         intens = self.beam_base_class.intensity
         id_max = np.max(self.beam_base_class._ids)
 
-        new_dt = np.linspace(-10, -1, 10)
-        new_dE = np.linspace(-10, -1, 10)
+        new_dt = np.linspace(-10, -1, 10, dtype=backend.float)
+        new_dE = np.linspace(-10, -1, 10, dtype=backend.float)
 
         self.beam_base_class += (new_dt, new_dE)
 
@@ -265,6 +265,23 @@ class TestBeamBaseClass(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             self.beam_base_class += (other_beam._dt[:5], other_beam._dE)
+
+    def test_iadd_dtype_checks(self):
+        good_dt = np.linspace(1, 10, 10, dtype=np.float64)
+        bad_dt = good_dt.astype(np.float32)
+        good_dE = np.linspace(1, 10, 10, dtype=np.float64)
+        bad_dE = good_dE.astype(np.float32)
+        good_flags = np.ones(10, dtype=np.int32)
+        bad_flags = good_flags.astype(np.int64)
+
+        with self.assertRaises(TypeError):
+            self.beam_base_class._append_to_self(bad_dt, good_dE, good_flags)
+
+        with self.assertRaises(TypeError):
+            self.beam_base_class._append_to_self(good_dt, bad_dE, good_flags)
+
+        with self.assertRaises(TypeError):
+            self.beam_base_class._append_to_self(good_dt, good_dE, bad_flags)
 
 
 if __name__ == "__main__":
