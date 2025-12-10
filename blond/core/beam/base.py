@@ -91,6 +91,20 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             other
                 Either an instance of BeamBaseClass or an ArrayLike of
                 [dt, dE].
+
+        Examples
+        --------
+            >>> main_beam = Beam(...)
+            >>> injection_2 = Beam(...)
+            >>> # Track to 2nd injection
+            >>> meain_beam += injection_2
+            >>> # Continue tracking
+
+
+            >>> main_beam = Beam(...)
+            >>> for i in range(1, n_injections):
+            >>>     # Track one turn
+            >>>     main_beam += np.load(f"injected_turn_{i}.npy")
         """
         if isinstance(other, BeamBaseClass):
             self.add_beam(other)
