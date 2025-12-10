@@ -204,7 +204,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         # reference_total_energy in eV and mass_inv in [c²/eV]
         if self._reference_total_energy is None:
             raise ValueError(
-                "Beam is not properly set up, please set "
+                f"{type(self)} is not properly set up, please set "
                 "`reference_total_energy` first!"
             )
         val = self._reference_total_energy * self._particle_type.mass_inv
