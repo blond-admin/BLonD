@@ -579,7 +579,6 @@ class Ring(Preparable):
                     "Cannot overwrite the section indexes with deepcopy == False."
                 )
             for already_inserted, k in enumerate(insert_at):
-                element = copy.deepcopy(element)
                 self.elements.insert(
                     element=element,
                     insert_at=k + already_inserted,
