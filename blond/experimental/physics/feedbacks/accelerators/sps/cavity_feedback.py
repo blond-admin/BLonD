@@ -1014,59 +1014,62 @@ class SPSCavityFeedback:
 
         self.gap_voltage_phase = np.angle(cav_sum / cav_sum_ref)
 
-
-def track_init(self, debug: bool = False):
-    r"""Tracking of the SPSCavityFeedback without beam."""
-    if debug:
-        cmap = plt.get_cmap("jet")
-        colors = cmap(np.linspace(0, 1, self.turns))
-        plt.figure("Pre-tracking without beam")
-        ax = plt.axes([0.18, 0.1, 0.8, 0.8])
-        ax.grid()
-        ax.set_ylabel("Voltage [V]")
-
-    for i in range(self.turns):
-        self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
-        self.OTFB_1.track_no_beam()
+    def track_init(self, debug: bool = False):
+        r"""Tracking of the SPSCavityFeedback without beam."""
         if debug:
-            ax.plot(
-                self.OTFB_1.profile.hist_x * 1e6,
-                np.abs(self.OTFB_1.V_ANT_FINE[-self.OTFB_1.profile.n_bins :]),
-                color=colors[i],
-            )
-            ax.plot(
-                self.OTFB_1.rf_centers * 1e6,
-                self.OTFB_1.n_cavities
-                * np.abs(self.OTFB_1.V_ANT_COARSE[-self.OTFB_1.n_coarse :]),
-                color=colors[i],
-                linestyle="",
-                marker=".",
-            )
-        self.OTFB_2.track_no_beam()
-    if debug:
-        plt.show()
+            cmap = plt.get_cmap("jet")
+            colors = cmap(np.linspace(0, 1, self.turns))
+            plt.figure("Pre-tracking without beam")
+            ax = plt.axes([0.18, 0.1, 0.8, 0.8])
+            ax.grid()
+            ax.set_ylabel("Voltage [V]")
 
-    # Interpolate from the coarse mesh to the fine mesh of the beam
-    self.V_sum = np.interp(
-        self.OTFB_1.profile.hist_x,
-        self.OTFB_1.rf_centers,
-        self.OTFB_1.n_cavities
-        * self.OTFB_1.V_IND_COARSE_GEN[-self.OTFB_1.n_coarse :]
-        + self.OTFB_2.n_cavities
-        * self.OTFB_2.V_IND_COARSE_GEN[-self.OTFB_2.n_coarse :],
-    )
+        for i in range(self.turns):
+            self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
+            self.OTFB_1.track_no_beam()
+            if debug:
+                ax.plot(
+                    self.OTFB_1.profile.hist_x * 1e6,
+                    np.abs(
+                        self.OTFB_1.V_ANT_FINE[-self.OTFB_1.profile.n_bins :]
+                    ),
+                    color=colors[i],
+                )
+                ax.plot(
+                    self.OTFB_1.rf_centers * 1e6,
+                    self.OTFB_1.n_cavities
+                    * np.abs(
+                        self.OTFB_1.V_ANT_COARSE[-self.OTFB_1.n_coarse :]
+                    ),
+                    color=colors[i],
+                    linestyle="",
+                    marker=".",
+                )
+            self.OTFB_2.track_no_beam()
+        if debug:
+            plt.show()
 
-    # Convert to amplitude and phase
-    self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
-
-    # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-    self.V_corr /= self.OTFB_1._parent_rf_station.voltage[
-        self.OTFB_1.harmonic_index
-    ]
-    self.phi_corr = self.alpha_sum - np.angle(
-        np.interp(
+        # Interpolate from the coarse mesh to the fine mesh of the beam
+        self.V_sum = np.interp(
             self.OTFB_1.profile.hist_x,
             self.OTFB_1.rf_centers,
-            self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :],
+            self.OTFB_1.n_cavities
+            * self.OTFB_1.V_IND_COARSE_GEN[-self.OTFB_1.n_coarse :]
+            + self.OTFB_2.n_cavities
+            * self.OTFB_2.V_IND_COARSE_GEN[-self.OTFB_2.n_coarse :],
         )
-    )
+
+        # Convert to amplitude and phase
+        self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
+
+        # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
+        self.V_corr /= self.OTFB_1._parent_rf_station.voltage[
+            self.OTFB_1.harmonic_index
+        ]
+        self.phi_corr = self.alpha_sum - np.angle(
+            np.interp(
+                self.OTFB_1.profile.hist_x,
+                self.OTFB_1.rf_centers,
+                self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :],
+            )
+        )
