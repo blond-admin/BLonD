@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond import Simulation
 from blond.core.backends.backend import backend
 from blond.experimental.physics.feedbacks.base import (
     GlobalFeedback,
@@ -39,9 +40,35 @@ if TYPE_CHECKING:  # pragma: no cover
 class BeamFeedbackBase(GlobalFeedback):
     _parent_rf_station: RfStationBaseClass
 
-    def __init__(self, profile: ProfileBaseClass, delay: int = 0):
+    def __init__(
+        self,
+        profile: ProfileBaseClass,
+        delay: int = 0,
+        window_coefficient: float = 0.0,
+        time_offset: float | None = None,
+        current_thres=None,
+    ):
         super().__init__(profile=profile)
         self.delay = delay
+        self.window_coefficient = window_coefficient
+        self.time_offset = time_offset
+        self.current_thres = current_thres
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
+    ) -> None:
+        if (
+            self.current_thres is None
+            and self.cavities[0]._cavity_feedback is not None
+        ):
+            raise RuntimeError(
+                "The filled slots in the machine is needed to compute the cavity sum phase"
+            )
 
     @abstractmethod
     def get_beam_attribute(self, beam: BeamBaseClass):
@@ -52,6 +79,81 @@ class BeamFeedbackBase(GlobalFeedback):
     def apply_corrections(self, beam: BeamBaseClass):
         # shift the RF station phase or so
         pass
+
+    def beam_phase(self):
+        # Main RF frequency at the present turn
+        counter = self.cavities[0]._turn_i
+        omega_rf = self.cavities[0].omega_rf[0]
+        phi_rf = self.cavities[0].phi_rf[0]
+
+        if self.time_offset is None:
+            coeff = backend.specials.beam_phase(
+                self.profile.hist_x,
+                self.profile.hist_y,
+                self.window_coefficient,
+                omega_rf,
+                phi_rf,
+                self.profile.hist_step,
+            )
+        else:
+            indexes = self.profile.hist_x >= self.time_offset
+            coeff = backend.specials.beam_phase(
+                self.profile.hist_x[indexes],
+                self.profile.hist_y,
+                self.window_coefficient,
+                omega_rf,
+                phi_rf,
+                self.profile.hist_step,
+            )
+
+        # Project beam phase to (pi/2,3pi/2) range
+        self.phi_beam = np.arctan(coeff) + np.pi
+
+    def phase_difference(
+        self, beam: BeamBaseClass, RFnoise=None, noiseFB=None
+    ):
+        """
+        *Phase difference between beam and RF phase of the main RF system.
+        Optional: add RF phase noise through dphi directly.*
+        """
+
+        # Correct for design stable phase
+        counter = self.cavities[0]._turn_i.value
+        self.dphi = self.phi_beam - self.cavities[
+            0
+        ].calc_phi_s_single_harmonic(beam, enable_rf_phase=False)
+
+        # Phase offset due to beam loading
+        if self.cavities[0]._cavity_feedback is not None:
+            filled_slots = (
+                np.abs(
+                    self.cavities[0]
+                    ._cavity_feedback[0]
+                    .I_BEAM_COARSE[
+                        -self.cavities[0]._cavity_feedback[0].n_coarse :
+                    ]
+                )
+                > self.current_thres
+            )
+
+            gap_phase_in_slots = (
+                self.cavities[0]
+                ._cavity_feedback[0]
+                .gap_voltage_phase[filled_slots]
+            )
+            # voltage difference
+            if len(gap_phase_in_slots) > 0:
+                phi_mean = np.mean(gap_phase_in_slots)
+            else:
+                phi_mean = 0
+            self.dphi = self.dphi + phi_mean
+
+        # Possibility to add RF phase noise through the PL
+        if RFnoise is not None:
+            if noiseFB is not None:
+                self.dphi += noiseFB.x * RFnoise.dphi[counter]
+            else:
+                self.dphi += RFnoise.dphi[counter]
 
     def track(self, beam: BeamBaseClass):
         self.get_beam_attribute(  # could be mean energy, mean phase or whatever

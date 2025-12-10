@@ -39,8 +39,6 @@ class SPSBeamControl(BeamFeedbackBase):
         phi_sync: float | NumpyArray,
         global_gain: float | NumpyArray,
         action_delay: int,
-        window_coefficient: float = 0.0,
-        time_offset: float | None = None,
         *args,
         **kwargs,
     ):
@@ -56,9 +54,6 @@ class SPSBeamControl(BeamFeedbackBase):
 
         self.phi_sync = phi_sync
         self.global_gain = global_gain
-
-        self.window_coefficient = window_coefficient
-        self.time_offset = time_offset
 
         self.dphi_z1 = 0
         self.dphi_z2 = 0
@@ -84,6 +79,14 @@ class SPSBeamControl(BeamFeedbackBase):
         turn_i_init: int,
         **kwargs,
     ) -> None:
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+            **kwargs,
+        )
+
         def convert_to_array(parameter, delay_action=0):
             delay_action = np.concatenate(
                 (np.zeros(delay_action), np.ones(n_turns + 1 - delay_action))
@@ -116,56 +119,6 @@ class SPSBeamControl(BeamFeedbackBase):
         if isinstance(self.global_gain, float):
             self.global_gain = convert_to_array(self.global_gain)
 
-    def beam_phase(self):
-        # Main RF frequency at the present turn
-        counter = self.cavities[0]._turn_i
-        omega_rf = self.cavities[0].omega_rf[0]
-        phi_rf = self.cavities[0].phi_rf[0]
-
-        if self.time_offset is None:
-            coeff = backend.specials.beam_phase(
-                self.profile.hist_x,
-                self.profile.hist_y,
-                self.window_coefficient,
-                omega_rf,
-                phi_rf,
-                self.profile.hist_step,
-            )
-        else:
-            indexes = self.profile.hist_x >= self.time_offset
-            coeff = backend.specials.beam_phase(
-                self.profile.hist_x[indexes],
-                self.profile.hist_y,
-                self.window_coefficient,
-                omega_rf,
-                phi_rf,
-                self.profile.hist_step,
-            )
-
-        # Project beam phase to (pi/2,3pi/2) range
-        self.phi_beam = np.arctan(coeff) + np.pi
-
-    def phase_difference(
-        self, beam: BeamBaseClass, RFnoise=None, noiseFB=None
-    ):
-        """
-        *Phase difference between beam and RF phase of the main RF system.
-        Optional: add RF phase noise through dphi directly.*
-        """
-
-        # Correct for design stable phase
-        counter = self.cavities[0]._turn_i.value
-        self.dphi = self.phi_beam - self.cavities[
-            0
-        ].calc_phi_s_single_harmonic(beam, enable_rf_phase=False)
-
-        # Possibility to add RF phase noise through the PL
-        if RFnoise is not None:
-            if noiseFB is not None:
-                self.dphi += noiseFB.x * RFnoise.dphi[counter]
-            else:
-                self.dphi += RFnoise.dphi[counter]
-
     def get_beam_attribute(self, beam: BeamBaseClass):
         self.beam_phase()
 
@@ -180,8 +133,6 @@ class SPSBeamControl(BeamFeedbackBase):
         )
 
         # Phase loop
-        # self.beam_phase_multibunch()
-        # self.beam_phase_sharpWindow()
         self.beam_phase()
         self.phase_difference(beam)
 
