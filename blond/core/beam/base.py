@@ -99,7 +99,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         return self
 
-    def add_beam(self, other: BeamBaseClass, purge: bool = False):
+    def add_beam(self, other: BeamBaseClass):
         """
         Add the contents of another beam to this one.
 
@@ -136,11 +136,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._append_to_self(
             other._dt, other._dE, other._flags, other.intensity
         )
-
-        if purge:
-            for f in backend.unique(self._flags):
-                if f != BeamFlags.ACTIVE.value:
-                    self.purge_flagged_entries(f)
 
     def add_particles(self, new_particles: ArrayLike):
         """

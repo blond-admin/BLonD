@@ -266,21 +266,6 @@ class TestBeamBaseClass(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.beam_base_class += (other_beam._dt[:5], other_beam._dE)
 
-    def test_purge_after_addition(self):
-        select = [0, 1, -1]
-
-        self.beam_base_class._flags[:] = 1
-        self.beam_base_class._flags[select] = -500
-
-        self.beam_base_class.add_beam(self.beam_base_class, purge=True)
-
-        self.assertTrue(np.all(self.beam_base_class._flags != -500))
-        self.assertTrue(len(self.beam_base_class._dt), 14)
-        self.assertEqual(
-            len(np.unique(self.beam_base_class._ids)),
-            len(self.beam_base_class._ids),
-        )
-
 
 if __name__ == "__main__":
     unittest.main()
