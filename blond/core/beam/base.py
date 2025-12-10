@@ -133,20 +133,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         if self.particle_type != other.particle_type:
             raise TypeError("Cannot add beams with different particle_type")
 
-        self._dt = backend.concatenate((self._dt, other._dt))
-        self._dE = backend.concatenate((self._dE, other._dE))
-
-        self.intensity += other.intensity
-
-        new_ids = backend.arange(
-            backend.max(self._ids) + 1,
-            len(self._dt),
-            dtype=int,
-        )
-
-        self._ids = backend.concatenate((self._ids, new_ids))
-
-        self._flags = backend.concatenate((self._flags, other._flags))
+        self._append_to_self(other._dt, other._dE, other._flags,
+                             other.intensity)
 
         if purge:
             for f in backend.unique(self._flags):
@@ -167,26 +155,42 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         new_particles
             2D array of [dt, dE] defining the coordinates
                            of the new particles.
+
+        Raises
+        ------
+            ValueError: If the length of the new particle arrays to not
+                        match, a ValueError is raised.
         """
-        new_dt = new_particles[0]
-        new_dE = new_particles[1]
+        dt = backend.array(new_particles[0])
+        dE = backend.array(new_particles[1])
 
-        self.intensity += self.ratio * len(new_dt)
+        if len(dt) != len(dE):
+            raise ValueError("The input particles must have equal numbers of "
+                             "dt and dE coordinates")
 
-        self._dt = backend.concatenate((self._dt, new_dt))
-        self._dE = backend.concatenate((self._dE, new_dE))
+        self._append_to_self(dt, dE)
 
-        new_ids = backend.arange(
-            backend.max(self._ids) + 1,
-            len(self._dt),
-            dtype=int,
-        )
+    def _append_to_self(self,
+                        dt: NumpyArray | CupyArray,
+                        dE: NumpyArray | CupyArray,
+                        flags: NumpyArray | CupyArray | None = None,
+                        intensity: float | None = None,
+                        ):
 
-        self._ids = backend.concatenate((self._ids, new_ids))
+        if intensity is None:
+            intensity = self.ratio * len(dt)
 
-        self._flags = backend.concatenate(
-            (self._flags, np.ones(len(new_dt)) * BeamFlags.ACTIVE.value)
-        )
+        if flags is None:
+            flags = np.ones(len(dt)) * BeamFlags.ACTIVE.value
+
+        id_max = backend.max(self._ids)
+        ids = backend.arange(id_max+1, id_max + len(dt) + 1, dtype=int)
+
+        self._dt = backend.concatenate((self._dt, dt))
+        self._dE = backend.concatenate((self._dE, dE))
+        self._ids = backend.concatenate((self._ids, ids))
+        self._flags = backend.concatenate((self._flags, flags))
+        self.intensity += intensity
 
     @requires(["EnergyCycleBase"])
     def on_run_simulation(
