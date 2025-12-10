@@ -472,6 +472,16 @@ def reload_fortran_backend(  # NOQA: D102
             dE: NumpyArray | CupyArray,
             ids: NumpyArray | CupyArray,
         ):
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            assert flags.dtype == np.int32
+            assert ids.dtype == np.int32
+            assert flags.flags.c_contiguous
+            assert ids.flags.c_contiguous
+
             n_new = libblond_fortran.move_flagged_elements_to_end(
                 flag=np.int32(flag),
                 flags=flags,
