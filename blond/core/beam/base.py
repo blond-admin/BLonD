@@ -140,7 +140,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         new_ids = backend.arange(
             backend.max(self._ids) + 1,
-            len(self._dt) + len(other._dt) + 1,
+            len(self._dt),
             dtype=int,
         )
 
@@ -178,7 +178,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         new_ids = backend.arange(
             backend.max(self._ids) + 1,
-            len(self._dt) + len(new_dt) + 1,
+            len(self._dt),
             dtype=int,
         )
 
