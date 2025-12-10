@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import StaticProfile
+from blond import SingleHarmonicRfStation, StaticProfile
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.base import LocalFeedback
@@ -400,6 +400,11 @@ class IQCavityFeedback(LocalFeedback):
         use_lowpass_filter: bool = False,
     ) -> None:
         r"""Calculate RF beam current from beam profile"""
+        harmonic = (
+            self._parent_rf_station.harmonic
+            if isinstance(self._parent_rf_station, SingleHarmonicRfStation)
+            else self._parent_rf_station.harmonic[self.harmonic_index]
+        )
         t_rev = float(  # TODO REMWORK/REMOVE
             (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
             / self._parent_rf_station.omega_rf_design[self.harmonic_index]

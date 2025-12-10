@@ -1013,11 +1013,10 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             section_index=section_index,
             local_wakefield=local_wakefield,
             cavity_feedback=cavity_feedback,
+            voltage=voltage,
+            phi_rf=phi_rf,
+            harmonic=harmonic,
         )
-
-        single_harmonic_rf_station.voltage = voltage
-        single_harmonic_rf_station.phi_rf = phi_rf
-        single_harmonic_rf_station.harmonic = harmonic
 
         ring = Mock(Ring)
         ring.circumference = circumference
