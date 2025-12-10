@@ -182,23 +182,38 @@ def _build_dependency_graph(
         int
     )  # Count of incoming edges (dependencies) for each class
     all_classes = set()  # Set to keep track of all involved classes
+    for cls in [type(o) for o in instances]:
+        all_classes.add(cls.__name__)  # Register the class
 
     # Iterate through the types (classes) of all given instances
     for cls in [type(o) for o in instances]:
-        all_classes.add(cls.__name__)  # Register the class
         # Traverse the class's MRO (method resolution order) to get parent classes as well
         # For each dependency declared in 'on_init_simulation_dependencies'
-        dependencies = set()
+        dependencies_including_baseclasses = set()
         for cls_ in inspect.getmro(cls):
             deps = get_dependencies(cls_, dependency_attribute)
             for dep_ in deps:
-                dependencies.add(dep_)
-        for dep in dependencies:
-            graph[dep].append(cls.__name__)  # Add edge: dep -> cls
-            in_degree[cls.__name__] += (
-                1  # Increment in-degree count for the class
+                dependencies_including_baseclasses.add(dep_)
+
+        for dep_including_baseclasses in dependencies_including_baseclasses:
+            deps = [
+                cls.__name__
+                for cls in [type(o) for o in instances]
+                if dep_including_baseclasses
+                in [c.__name__ for c in inspect.getmro(cls)]
+            ]
+
+            # If a node is not implemented, which is in the dependency tree,
+            # the simulation would not be possible.
+            assert len(deps) > 0, (
+                f"Missing instance of {dep_including_baseclasses}"
             )
-            all_classes.add(dep)  # Ensure the dependency class is also tracked
+
+            for dep in deps:
+                graph[dep].append(cls.__name__)  # Add edge: dep -> cls
+                in_degree[cls.__name__] += (
+                    1  # Increment in-degree count for the class
+                )
     return graph, in_degree, all_classes
 
 

@@ -1,3 +1,4 @@
+import random
 import unittest
 
 from blond.core.ring.helpers import (
@@ -116,13 +117,13 @@ class TestFunctions(unittest.TestCase):
         )
         assert sorted_classes == ["Areal", "Breal"]
 
-    def test_get_required_order3(self) -> None:
+    def test_get_required_order_missing_instance(self) -> None:
         a = A()
         b = D()
-        sorted_classes = get_required_order(
-            instances=(a, b), dependency_attribute="common.requires"
-        )
-        assert sorted_classes == ["A", "D"]
+        with self.assertRaisesRegex(AssertionError, "Missing instance of "):
+            sorted_classes = get_required_order(
+                instances=(a, b), dependency_attribute="common.requires"
+            )
 
     def test_requires(self) -> None:
         class A:
@@ -203,6 +204,39 @@ class TestFunctions(unittest.TestCase):
             get_dependencies(
                 cls_=B,
                 dependency_attribute="requires",
+            )
+
+    def test_get_required_order_inheritance_bug(self):
+        class First:
+            def method(self):
+                pass
+
+        class AlsoFirst:
+            @requires(["First"])
+            def method(self):
+                pass
+
+        class Second:
+            @requires(["AlsoFirst"])
+            def method(self):
+                pass
+
+        class Third:
+            @requires(["AlsoFirst", "Second"])
+            def method(self):
+                pass
+
+        instances = [
+            Third(),
+            AlsoFirst(),
+            Second(),
+            First(),
+        ]
+        for i in range(10):
+            random.shuffle(instances)
+            ordered_classes = get_required_order(instances, f"method.requires")
+            self.assertEqual(
+                ordered_classes, ["First", "AlsoFirst", "Second", "Third"]
             )
 
 
