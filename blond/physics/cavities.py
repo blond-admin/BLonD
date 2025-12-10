@@ -344,7 +344,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_t_rf_actual(self) -> float:
+    def get_main_harmonic_t_rf_current(self) -> float:
         """
         Return the actual t_rf of the main harmonic.
 
