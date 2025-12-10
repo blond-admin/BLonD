@@ -133,8 +133,9 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         if self.particle_type != other.particle_type:
             raise TypeError("Cannot add beams with different particle_type")
 
-        self._append_to_self(other._dt, other._dE, other._flags,
-                             other.intensity)
+        self._append_to_self(
+            other._dt, other._dE, other._flags, other.intensity
+        )
 
         if purge:
             for f in backend.unique(self._flags):
@@ -165,18 +166,20 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         dE = backend.array(new_particles[1])
 
         if len(dt) != len(dE):
-            raise ValueError("The input particles must have equal numbers of "
-                             "dt and dE coordinates")
+            raise ValueError(
+                "The input particles must have equal numbers of "
+                "dt and dE coordinates"
+            )
 
         self._append_to_self(dt, dE)
 
-    def _append_to_self(self,
-                        dt: NumpyArray | CupyArray,
-                        dE: NumpyArray | CupyArray,
-                        flags: NumpyArray | CupyArray | None = None,
-                        intensity: float | None = None,
-                        ):
-
+    def _append_to_self(
+        self,
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        flags: NumpyArray | CupyArray | None = None,
+        intensity: float | None = None,
+    ):
         if intensity is None:
             intensity = self.ratio * len(dt)
 
@@ -184,7 +187,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             flags = np.ones(len(dt)) * BeamFlags.ACTIVE.value
 
         id_max = backend.max(self._ids)
-        ids = backend.arange(id_max+1, id_max + len(dt) + 1, dtype=int)
+        ids = backend.arange(id_max + 1, id_max + len(dt) + 1, dtype=int)
 
         self._dt = backend.concatenate((self._dt, dt))
         self._dE = backend.concatenate((self._dE, dE))

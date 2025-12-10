@@ -290,7 +290,7 @@ class BackendBaseClass(ABC):
         self.fftconvolve: Callable = None  # type: ignore
         self.concatenate: Callable = None  # type: ignore
         self.unique: Callable = None  # type: ignore
-        self.max: Callable = None # type: ignore
+        self.max: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():

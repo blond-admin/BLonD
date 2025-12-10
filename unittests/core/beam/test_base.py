@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import copy
 import unittest
 from functools import cached_property
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
-import copy
 
 import numpy as np
 
@@ -217,9 +217,10 @@ class TestBeamBaseClass(unittest.TestCase):
         self.beam_base_class += self.beam_base_class
 
         self.assertEqual(self.beam_base_class.intensity, 2 * intens)
-        self.assertEqual(self.beam_base_class._ids[-1], id_max*2+1)
-        self.assertEqual(len(self.beam_base_class._dt),
-                         len(self.beam_base_class._ids))
+        self.assertEqual(self.beam_base_class._ids[-1], id_max * 2 + 1)
+        self.assertEqual(
+            len(self.beam_base_class._dt), len(self.beam_base_class._ids)
+        )
 
     def test_iadd_particles(self):
         intens = self.beam_base_class.intensity
@@ -231,15 +232,15 @@ class TestBeamBaseClass(unittest.TestCase):
         self.beam_base_class += (new_dt, new_dE)
 
         self.assertEqual(self.beam_base_class.intensity, 2 * intens)
-        self.assertEqual(self.beam_base_class._ids[-1], id_max*2+1)
-        self.assertEqual(len(self.beam_base_class._dt),
-                         len(self.beam_base_class._ids))
+        self.assertEqual(self.beam_base_class._ids[-1], id_max * 2 + 1)
+        self.assertEqual(
+            len(self.beam_base_class._dt), len(self.beam_base_class._ids)
+        )
 
         np.testing.assert_array_equal(self.beam_base_class._dt[10:], new_dt)
         np.testing.assert_array_equal(self.beam_base_class._dE[10:], new_dE)
 
     def test_iadd_exceptions(self):
-
         other_beam = BeamBaseClassTester(
             intensity=1e1,
             particle_type=copy.deepcopy(proton),
@@ -256,7 +257,7 @@ class TestBeamBaseClass(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.beam_base_class += other_beam
 
-        other_beam.intensity = int(1E12)
+        other_beam.intensity = int(1e12)
         object.__setattr__(other_beam._particle_type, "charge", 2)
 
         with self.assertRaises(TypeError):
@@ -276,8 +277,10 @@ class TestBeamBaseClass(unittest.TestCase):
 
         self.assertTrue(np.all(self.beam_base_class._flags != -500))
         self.assertTrue(len(self.beam_base_class._dt), 14)
-        self.assertEqual(len(np.unique(self.beam_base_class._ids)),
-                         len(self.beam_base_class._ids))
+        self.assertEqual(
+            len(np.unique(self.beam_base_class._ids)),
+            len(self.beam_base_class._ids),
+        )
 
 
 if __name__ == "__main__":

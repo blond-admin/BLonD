@@ -14,7 +14,6 @@ import dataclasses as dc
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy import float32, float64
 from scipy.constants import (  # type: ignore[import-untyped]
     c,
     e,
@@ -28,7 +27,7 @@ from scipy.constants import (  # type: ignore[import-untyped]
 m_mu = physical_constants["muon mass"][0]
 
 if TYPE_CHECKING:
-    from typing import Self
+    pass
 
 
 @dc.dataclass(frozen=True, eq=True)
@@ -56,11 +55,17 @@ class ParticleType:
     quantum_radiation_constant: float = dc.field(init=False)
 
     def __post_init__(self):
-
+        """Complete the setup of the particle definition."""
         object.__setattr__(self, "mass_inv", 1 / self.mass)
 
         # classical particle radius [m]
-        radius_cl = 0.25 / (np.pi * epsilon_0) * e**2 * self.charge**2 / (self.mass * e)
+        radius_cl = (
+            0.25
+            / (np.pi * epsilon_0)
+            * e**2
+            * self.charge**2
+            / (self.mass * e)
+        )
         object.__setattr__(self, "classical_particle_radius", radius_cl)
 
         # Sand's radiation constant [m / eV^3]
