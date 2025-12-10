@@ -37,12 +37,20 @@ class ParticleType:
 
     Parameters
     ----------
-    mass : float
+    mass
         Rest mass energy of the particle, in [eV].
-    charge : float
+    charge
         Number of electric charges of the particle, in [].
-    user_decay_rate : float, optional
+    user_decay_rate
         Optional user-specified decay rate. Default is 0.0.
+    mass_inv
+        Inverse of the mass (1/mass), in [1/eV].
+    classical_particle_radius
+        Classical particle radius [m].
+    sands_radiation_constant
+        Sand's radiation constant [ m / eV^3].
+    quantum_radiation_constant
+        Quantum radiation constant [m].
     """
 
     mass: float
