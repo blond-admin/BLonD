@@ -1,6 +1,6 @@
-setuptools
+setuptools>=60
 numpy>=2
-scipy
-matplotlib
-numba
+scipy>=1.15
+matplotlib>=3.9
+numba>=0.60
 tqdm
