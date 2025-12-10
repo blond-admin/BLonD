@@ -565,8 +565,8 @@ def matched_from_line_density(
 
     if total_induced_voltage is not None:
         # Inputting new line density
-        profile.cut_options.cut_left = time_for_grid[0] -
-                                       0.5 * (time_for_grid[1] - time_for_grid[0])
+        profile.cut_options.cut_left = time_for_grid[0] - 0.5 * (
+                time_for_grid[1] - time_for_grid[0])
         profile.cut_options.cut_right = time_for_grid[-1] + 0.5 * (
                 time_for_grid[1] - time_for_grid[0]
         )
@@ -589,11 +589,11 @@ def matched_from_line_density(
             distribution_function_,
         ], induced_voltage_object
 
-    gc.collect()
-    return [hamiltonian_coord, distribution_function_], [
-        time_line_den,
-        line_density_,
-    ]
+        gc.collect()
+        return [hamiltonian_coord, distribution_function_], [
+            time_line_den,
+            line_density_,
+        ]
 
 
 @handle_legacy_kwargs
@@ -1227,12 +1227,12 @@ def line_density(
         )
 
     elif dist_type == "gaussian":
-                               if exponent is not None:
+        if exponent is not None:
             warnings.warn(f"exponent is ignored for {dist_type=}")
         sigma = bunch_length / 4
         line_density_ = np.exp(
-            -((coord_array - bunch_position)
-                                ** 2) / (2 * sigma ** 2))
+            -((coord_array - bunch_position) ** 2) / (2 * sigma**2)
+        )
 
     elif dist_type == "cosine_squared":
         if exponent is not None:
@@ -1312,8 +1312,7 @@ def bigaussian(
               )
         + (phi_s - phi_rf) / omega_rf
     )
-    beam.dE = sigma_dE *
-              rng_dE.normal(size=beam.n_macroparticles).astype(
+    beam.dE = sigma_dE * rng_dE.normal(size=beam.n_macroparticles).astype(
                   dtype=bm.precision.real_t, order="C"
     )
 
@@ -1411,8 +1410,8 @@ def parabolic(
     bin_energy = float(energy_array[1] - energy_array[0])
 
     # Density grid
-    isodensity_lines = ((dt_grid - bunch_position) / bunch_length * 2) ** 2. 0 +
-                       ((deltaE_grid - bunch_energy) / energy_spread * 2) ** 2.0
+    isodensity_lines = ((dt_grid - bunch_position) / bunch_length * 2) ** 2.
+    0 + ((deltaE_grid - bunch_energy) / energy_spread * 2) ** 2.0
     density_grid = 1 - isodensity_lines ** 2.0
     density_grid[density_grid < 0] = 0
     density_grid /= np.sum(density_grid)
