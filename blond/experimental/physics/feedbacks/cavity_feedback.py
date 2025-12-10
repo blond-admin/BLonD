@@ -202,6 +202,8 @@ class IQCavityFeedback(LocalFeedback):
         self.I_GEN_COARSE: NumpyArray | None = None
         self.I_GEN_FINE: NumpyArray | None = None
 
+        self.gap_voltage_phase: NumpyArray | None = None
+
         self.dT: float | None = None
 
     @requires(["RfStationBaseClass", "BeamBaseClass"])
@@ -246,6 +248,8 @@ class IQCavityFeedback(LocalFeedback):
         self.V_ANT_FINE = np.zeros(self.profile.n_bins, dtype=complex)
         self.I_GEN_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_GEN_FINE = np.zeros(self.profile.n_bins, dtype=complex)
+
+        self.gap_voltage_phase = np.zeros(self.n_coarse)
 
     def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
         self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
@@ -386,12 +390,12 @@ class IQCavityFeedback(LocalFeedback):
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self._parent_rf_station.voltage[self.harmonic_index]
-        self.phi_corr = self.alpha_sum - np.angle(
-            np.interp(
-                self.profile.hist_x,
-                self.rf_centers,
-                self.V_SET[-self.n_coarse :],
-            )
+        self.phi_corr = self.alpha_sum - np.mean(
+            np.angle(self.V_SET[-self.n_coarse :])
+        )
+
+        self.gap_voltage_phase = np.angle(
+            self.V_ANT_COARSE[-self.n_coarse :] / self.V_SET[-self.n_coarse :]
         )
 
     def rf_beam_current(
