@@ -133,6 +133,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         simulation
             `Simulation` context manager
         """
+        super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
         self._turn_i = simulation.turn_i
 

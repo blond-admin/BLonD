@@ -37,7 +37,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from numpy.matlib import empty
 
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_damping_times_in_turns,
@@ -197,7 +196,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     #  children and save their location for SRI update.
 
     # TODO: transmit the share of SRI to the children.
-    def generate_children(
+    def generate_synchrotron_radiation_subclasses(
         self,
     ):
         """Function to create synchrotron radiation elements in the ring.
@@ -205,7 +204,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         This method automatically creates, inserts and initialises the
         synchrotron radiation elements in the ring.
         """
-        if not empty(self.generated_children):
+        if self.generated_children:
             raise Warning(
                 "Synchrotron radiation subclasses have already been "
                 "generated. Command ignored"
@@ -275,19 +274,21 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             f"trackers generated"
         )
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(
+        self,
+        simulation: Simulation,
+    ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
         simulation
             `Simulation` context manager
         """
+        super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
         self._turn_i = simulation.turn_i
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
-
-        self.generate_children()
 
         if self.verbose:
             self.__str__()  # TODO WHY

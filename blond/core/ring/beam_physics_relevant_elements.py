@@ -19,6 +19,10 @@ from blond.core.base import Preparable
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import get_elements
 from blond.core.simulation.simulation import Simulation
+from blond.physics.synchrotron_radiation.elements import (
+    SynchrotronRadiationDrift,
+    SynchrotronRadiationSection,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
@@ -268,9 +272,12 @@ class BeamPhysicsRelevantElements(Preparable):
             insertion.
             If insert_at is not within [0:len(ring.elements.elements)]
         """
-        self._assert_no_init(
-            msg="Inserting elements after initialization is forbidden!"
-        )
+        if not isinstance(
+            element, SynchrotronRadiationDrift | SynchrotronRadiationSection
+        ):
+            self._assert_no_init(
+                msg="Inserting elements after initialization is forbidden!"
+            )
         assert isinstance(element.section_index, int)
         self.check_section_index_compatibility(
             element=element, insert_at=insert_at

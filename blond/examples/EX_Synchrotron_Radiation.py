@@ -21,6 +21,7 @@ from blond import (
     Simulation,
     SingleHarmonicRfStation,
     electron,
+    positron,
 )
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
@@ -48,16 +49,16 @@ class SynchrotronRadiationSimulation:
         self.reference_energy = 20e9
         self.cavity = SingleHarmonicRfStation()
         self.cavity.harmonic = 242400
-        self.cavity.voltage = 516e6
+        self.cavity.voltage = 51e6
         self.cavity.phi_rf = 0
 
-        self.n_turns = int(50000)
+        self.n_turns = int(100)
         self.energy_cycle = MagneticCyclePerTurn(
             value_init=self.reference_energy,
             values_after_turn=np.linspace(
                 self.reference_energy, self.reference_energy, self.n_turns
             ),
-            reference_particle=electron,
+            reference_particle=positron,
             in_unit="total energy",
         )
 
@@ -136,10 +137,15 @@ def main():
             synchrotron_radiation_integrals=params.synchrotron_radiation_integrals,
         )
     )
-    fig, ax = plt.subplot(nrows=2, figsize=(8, 6), constrained_layout=True)
+    fig, ax = plt.subplots(nrows=2, figsize=(8, 6), constrained_layout=True)
     bunch_position_evolution = np.average(bunch_observation.dts, axis=1)
-    energy_spread_evolution = np.average(bunch_observation.dEs, axis=1)
-    ax.plot(bunch_position_evolution, label="Bunch position")
+    energy_spread_evolution = (
+        np.average(bunch_observation.dEs, axis=1)
+        / params.beam.reference_total_energy
+    )
+    # ax[0].scatter(bunch_observation.dts[0, :],  bunch_observation.dEs[0, :],
+    #     label="Bunch position")
+    ax[0].plot(bunch_position_evolution, label="Bunch position")
 
     ax[1].plot(energy_spread_evolution, label="Energy spread evolution")
     ax[1].plot(
@@ -149,17 +155,17 @@ def main():
     )
     plt.show()
 
-    ANIMATE = True
+    ANIMATE = False
     if ANIMATE:  # pragma: no cover
         plt.plot(phase_observation.phases)
         plt.figure()
         for i in range(params.n_turns):
-            plt.clf()
+            # plt.clf()
             plt.hist2d(
                 bunch_observation.dts[i, :],
                 bunch_observation.dEs[i, :],
-                bins=256,
-                range=[[0, 2.5e-9], [-4e8, 4e8]],
+                # bins=256,
+                range=[[0, 2.5 * 1e-9], [-0.1 * 1e9, 0.1 * 1e9]],
             )
             plt.draw()
             plt.pause(0.1)
