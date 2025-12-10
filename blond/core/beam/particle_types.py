@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import dataclasses as dc
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
     from typing import Self
 
 
+@dc.dataclass(frozen=True, eq=True)
 class ParticleType:
     """
     Represents a particle type with physical constants.
@@ -44,160 +46,30 @@ class ParticleType:
         Optional user-specified decay rate. Default is 0.0.
     """
 
-    def __init__(
-        self, mass: float, charge: float, user_decay_rate: float = 0.0
-    ):
-        self._mass = float(mass)
-        self._charge = float(charge)
-        self._user_decay_rate = float(user_decay_rate)
+    mass: float
+    charge: int
+    user_decay_rate: float = 0
 
-        self._mass_inv = 1 / mass
+    mass_inv: float = dc.field(init=False)
+    classical_particle_radius: float = dc.field(init=False)
+    sands_radiation_constant: float = dc.field(init=False)
+    quantum_radiation_constant: float = dc.field(init=False)
+
+    def __post_init__(self):
+
+        object.__setattr__(self, "mass_inv", 1 / self.mass)
 
         # classical particle radius [m]
-        radius_cl = 0.25 / (np.pi * epsilon_0) * e**2 * charge**2 / (mass * e)
-        self._classical_particle_radius = radius_cl
+        radius_cl = 0.25 / (np.pi * epsilon_0) * e**2 * self.charge**2 / (self.mass * e)
+        object.__setattr__(self, "classical_particle_radius", radius_cl)
 
         # Sand's radiation constant [m / eV^3]
-        c_gamma = 4 * np.pi / 3 * self._classical_particle_radius / mass**3
-        self._sands_radiation_constant = c_gamma
+        c_gamma = 4 * np.pi / 3 * self.classical_particle_radius / self.mass**3
+        object.__setattr__(self, "sands_radiation_constant", c_gamma)
 
         # Quantum radiation constant [m]
-        c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (mass * e)
-        self._quantum_radiation_constant = c_q
-
-    def __eq__(self, other: Self) -> bool:
-        """
-        Equality comparison of the paticle.
-
-        Compares with another ParticleType object to ensure they have
-        the same value.  The values of mass, charge, decay rate and
-        particle radius are compared.
-
-        Args:
-            other: The ParticleType instance to compare to.
-
-        Returns
-        -------
-            bool: True if both ParticleTypes are the same.
-        """
-        other_tuple = (
-            other._mass,
-            other._charge,
-            other._user_decay_rate,
-            other._classical_particle_radius,
-        )
-        self_tuple = (
-            self._mass,
-            self._charge,
-            self._user_decay_rate,
-            self._classical_particle_radius,
-        )
-
-        return other_tuple == self_tuple
-
-    def __hash__(self):
-        """
-        Compute the hash of the particle.
-
-        Compares the hash value of the particle.  Uses the hash of a
-        tuple of (mass, charge, decay rate, particle radius).
-
-        Returns
-        -------
-            hash: The computed hash value
-        """
-        return hash(
-            (
-                self._mass,
-                self._charge,
-                self._user_decay_rate,
-                self._classical_particle_radius,
-            )
-        )
-
-    @property
-    def mass(self) -> float:
-        """
-        Rest mass energy of the particle, in [eV].
-
-        Returns
-        -------
-        mass
-            Rest mass energy of the particle, in [eV].
-        """
-        return self._mass
-
-    @property
-    def charge(self) -> float:
-        """
-        Number of electrons of the particle, unitless.
-
-        Returns
-        -------
-        charge
-            Number of electrons of the particle, unitless.
-        """
-        return self._charge
-
-    @property
-    def user_decay_rate(self) -> float:
-        """
-        Optional user-specified decay rate. Default is 0.0.
-
-        Returns
-        -------
-        user_decay_rate
-            Optional user-specified decay rate. Default is 0.0.
-        """
-        return self._user_decay_rate
-
-    @property
-    def mass_inv(self) -> float:
-        """
-        Inverse of the mass (1/mass), in [1/eV].
-
-        Returns
-        -------
-        mass_inv
-            Inverse of the mass (1/mass), in [1/eV].
-        """
-        return self._mass_inv
-
-    @property
-    def classical_particle_radius(self) -> float:
-        """
-        Classical particle radius [m].
-
-        Returns
-        -------
-        classical_particle_radius
-            Classical particle radius [m].
-        """
-        return self._classical_particle_radius
-
-    @property
-    def sands_radiation_constant(self) -> float:
-        """
-        Return Sand's radiation constant [ m / eV^3].
-
-        Returns
-        -------
-        sands_radiation_constant
-            Sand's radiation constant [ m / eV^3].
-        """
-        return self._sands_radiation_constant
-
-    @property
-    def quantum_radiation_constant(self) -> float32 | float64:
-        """
-        Quantum radiation constant [m].
-
-        Returns
-        -------
-        quantum_radiation_constant
-            Quantum radiation constant [m].
-        """
-        return self._quantum_radiation_constant
+        c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e)
+        object.__setattr__(self, "quantum_radiation_constant", c_q)
 
 
 proton: ParticleType = ParticleType(
