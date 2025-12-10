@@ -7,63 +7,56 @@ This script is intended to crash if a item appears without an
 """
 
 import inspect
+from enum import StrEnum
 
 import blond
 
-# Category Groups definition (can be extended if needed)
-LATTICE = "Lattice & Hardware"
-CYCLE = "Energy Ramp"
-BEAM = "Beam Generation & Distribution"
-DYNAMICS = "Beam Dynamics & Tracking"
-DIAGNOSTICS = "Observables & Diagnostics"
-PLOTTING = "Plotting & Visualization"
-BACKEND = "Computing Backend"
-MISC = "Misc"
 
-# define display order
-CATEGORIES = (
-    LATTICE,
-    CYCLE,
-    BEAM,
-    DYNAMICS,
-    DIAGNOSTICS,
-    PLOTTING,
-    BACKEND,
-    MISC,
-)
+class Categories(StrEnum):
+    """Categories that will be displayed on the website."""
+
+    LATTICE = "Lattice & Hardware"
+    CYCLE = "Energy Ramp"
+    BEAM = "Beam Generation & Distribution"
+    DYNAMICS = "Beam Dynamics & Tracking"
+    DIAGNOSTICS = "Observables & Diagnostics"
+    PLOTTING = "Plotting & Visualization"
+    BACKEND = "Computing Backend"
+    MISC = "Misc"
+
 
 ASSIGNED_CATEGORIES = {
     # Lattice & Hardware
-    "Simulation": LATTICE,
-    "BoxLosses": LATTICE,
-    "DriftSimple": LATTICE,
-    "MultiHarmonicRfStation": LATTICE,
-    "ReferenceEnergyChange": LATTICE,
-    "Ring": LATTICE,
-    "SingleHarmonicRfStation": LATTICE,
-    "UserDefinedElement": LATTICE,
-    "WakeField": LATTICE,
-    "StaticProfile": LATTICE,
+    "Simulation": Categories.LATTICE.value,
+    "BoxLosses": Categories.LATTICE.value,
+    "DriftSimple": Categories.LATTICE.value,
+    "MultiHarmonicRfStation": Categories.LATTICE.value,
+    "ReferenceEnergyChange": Categories.LATTICE.value,
+    "Ring": Categories.LATTICE.value,
+    "SingleHarmonicRfStation": Categories.LATTICE.value,
+    "UserDefinedElement": Categories.LATTICE.value,
+    "WakeField": Categories.LATTICE.value,
+    "StaticProfile": Categories.LATTICE.value,
     # Cycle
-    "MagneticCycleByTime": CYCLE,
-    "MagneticCyclePerTurn": CYCLE,
-    "MagneticCyclePerTurnAllRfStations": CYCLE,
-    "ConstantMagneticCycle": CYCLE,
+    "MagneticCycleByTime": Categories.CYCLE.value,
+    "MagneticCyclePerTurn": Categories.CYCLE.value,
+    "MagneticCyclePerTurnAllRfStations": Categories.CYCLE.value,
+    "ConstantMagneticCycle": Categories.CYCLE.value,
     # Beam Generation & Distribution
-    "Beam": BEAM,
-    "BiGaussian": BEAM,
+    "Beam": Categories.BEAM.value,
+    "BiGaussian": Categories.BEAM.value,
     # Diagnostics
-    "RfStationPhaseObservation": DIAGNOSTICS,
-    "StaticProfileObservation": DIAGNOSTICS,
-    "BeamObservationInRingElement": DIAGNOSTICS,
-    "BeamObservationOncePerTurn": DIAGNOSTICS,
+    "RfStationPhaseObservation": Categories.DIAGNOSTICS.value,
+    "StaticProfileObservation": Categories.DIAGNOSTICS.value,
+    "BeamObservationInRingElement": Categories.DIAGNOSTICS.value,
+    "BeamObservationOncePerTurn": Categories.DIAGNOSTICS.value,
     # Plotting
-    "AllowPlotting": PLOTTING,
+    "AllowPlotting": Categories.PLOTTING.value,
     # Backend / Precision
-    "Cupy32Bit": BACKEND,
-    "Cupy64Bit": BACKEND,
-    "Numpy32Bit": BACKEND,
-    "Numpy64Bit": BACKEND,
+    "Cupy32Bit": Categories.BACKEND.value,
+    "Cupy64Bit": Categories.BACKEND.value,
+    "Numpy32Bit": Categories.BACKEND.value,
+    "Numpy64Bit": Categories.BACKEND.value,
 }
 
 
@@ -74,7 +67,7 @@ def main():
     )  # All variable names in `blond.__init__.py`
 
     # Prepare dict: category → list of RST blocks
-    categorized_entries = {cat: [] for cat in CATEGORIES}
+    categorized_entries = {cat.value: [] for cat in Categories}
     print_unlinked_classes(blond_toplevel_variable_names)
     for name in blond_toplevel_variable_names:
         obj = getattr(blond, name)
