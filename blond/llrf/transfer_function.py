@@ -7,25 +7,26 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Transfer function analysis for open and closed loop**
 
 :Authors: **Jelena Banjac, Helga Timko**
-'''
-
-from __future__ import division
-import numpy as np
-import numpy.fft as npfft
-from matplotlib.mlab import psd, csd
-import matplotlib.pyplot as plt
-import scipy.signal as scs
+"""
 
 # Set up logging
 import logging
+
+import matplotlib.pyplot as plt
+import numpy as np
+import numpy.fft as npfft
+import scipy.signal as scs
+from matplotlib.mlab import psd, csd
+
 logger = logging.getLogger(__name__)
 
+
 class TransferFunction(object):
-    r'''Reconstructing the transfer function of a DUT based on input and output
+    r"""Reconstructing the transfer function of a DUT based on input and output
     signals.
 
     Parameters
@@ -38,10 +39,9 @@ class TransferFunction(object):
         sampling time
     plot : bool
         Enable/disable plotting; default is False
-    '''
+    """
 
     def __init__(self, signal_in, signal_out, T_s, plot=False):
-
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
         self.logger.info("TransferFunction class initialized")
@@ -50,11 +50,9 @@ class TransferFunction(object):
         self.signal_in = signal_in
         self.signal_out = signal_out
         self.T_s = T_s
-        self.plot =plot
-
+        self.plot = plot
 
     def analyse(self, data_cut):
-
         # input signal
         input_signal = self.signal_in[data_cut:]
         self.logger.debug(f"OUTPUT signal: {input_signal.shape}")
@@ -64,22 +62,28 @@ class TransferFunction(object):
         self.logger.debug(f"INPUT signal: {output_signal.shape}")
 
         # Estimate transfer function
-        self.f_est, self.H_est = self.estimate_transfer_function(input_signal,
-            output_signal, self.T_s, self.plot, self.logger)
-
+        self.f_est, self.H_est = self.estimate_transfer_function(
+            input_signal, output_signal, self.T_s, self.plot, self.logger
+        )
 
     @staticmethod
     def estimate_transfer_function(input, output, T_s, plot, logger):
         # Calculate transfer function
-        f_s = 1/T_s
-        n_fft = int(np.floor(len(input)/4))
-        f_est, H_est = tf_estimate(input, output, window=np.hamming(n_fft),
-                                   noverlap=0, Fs=f_s, NFFT=n_fft)
+        f_s = 1 / T_s
+        n_fft = int(np.floor(len(input) / 4))
+        f_est, H_est = tf_estimate(
+            input,
+            output,
+            window=np.hamming(n_fft),
+            noverlap=0,
+            Fs=f_s,
+            NFFT=n_fft,
+        )
         if plot:
             TransferFunction.plot_magnitude_and_phase(f_est, H_est)
 
         # reorder results to be form -freq to +freq
-        f_est = [x + f_s/2 if x < 0 else x - f_s/2 for x in f_est]
+        f_est = [x + f_s / 2 if x < 0 else x - f_s / 2 for x in f_est]
 
         # Spectrum of the input signal
         f_max = TransferFunction.input_signal_spectrum(input, n_fft, f_s, plot)
@@ -99,7 +103,6 @@ class TransferFunction(object):
 
         return f, H
 
-
     @staticmethod
     def input_signal_spectrum(input, n, f_s, plot):
         """
@@ -113,6 +116,7 @@ class TransferFunction(object):
             Number of points in the spectrum
         f_s : float
             Sampling frequency [1/s]
+        plot: not used
 
         Returns
         -------
@@ -124,9 +128,9 @@ class TransferFunction(object):
         N_sp: float
             Number of sections that the N-data spectrum is divided to
             calculate periodogram [1..N]
-        f_m : ndarray
+        f_m : NDArray
             Array of sample frequencies.
-        P_ss: ndarray
+        P_ss: NDArray
             Power spectral density or power spectrum of input signal `In`.
             Afterwards, it shifted the
             zero-frequency component to the center of the spectrum.
@@ -147,8 +151,13 @@ class TransferFunction(object):
         N_sp = 16
 
         # power spectral density or power spectrum of input signal `input`.
-        f_m, P_ss = scs.welch(input, window='hamming', noverlap=0,
-                              nperseg=int(np.floor(n / N_sp)), fs=f_s)
+        f_m, P_ss = scs.welch(
+            input,
+            window="hamming",
+            noverlap=0,
+            nperseg=int(np.floor(n / N_sp)),
+            fs=f_s,
+        )
 
         # reorder results to be form -freq to +freq
         f_m = [f - f_s if f >= f_s / 2 else f for f in f_m]
@@ -173,27 +182,26 @@ class TransferFunction(object):
 
     @staticmethod
     def plot_magnitude_and_phase(freq, H):
-
         magnitude = 20 * np.log10(np.abs(H))
         phases = np.unwrap(np.angle(H))
 
-        plt.rc('axes', labelsize=12, labelweight='normal', axisbelow=True)
-        plt.rc('legend', fontsize=11, fancybox=True, framealpha=0.5)
-        plt.rc('figure', figsize=(8, 6), titlesize=14)
-        plt.rc('grid', c='lightgray')
+        plt.rc("axes", labelsize=12, labelweight="normal", axisbelow=True)
+        plt.rc("legend", fontsize=11, fancybox=True, framealpha=0.5)
+        plt.rc("figure", figsize=(8, 6), titlesize=14)
+        plt.rc("grid", c="lightgray")
 
         fig = plt.figure()
         gs = plt.GridSpec(2, 1)
         ax1 = fig.add_subplot(gs[0, 0])
-        ax1.set_title('Transfer function')
-        ax1.plot(freq / 10**6, magnitude, 'r', linewidth=0.3)
-        ax1.set_xlabel('Frequency [MHz]')
-        ax1.set_ylabel('Gain [dB]')
+        ax1.set_title("Transfer function")
+        ax1.plot(freq / 10**6, magnitude, "r", linewidth=0.3)
+        ax1.set_xlabel("Frequency [MHz]")
+        ax1.set_ylabel("Gain [dB]")
 
         ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)
-        ax2.plot(freq / 10**6, (180/np.pi)*phases, 'r', linewidth=0.3)
-        ax2.set_xlabel('Frequency [MHz]')
-        ax2.set_ylabel('Phase [degrees]')
+        ax2.plot(freq / 10**6, (180 / np.pi) * phases, "r", linewidth=0.3)
+        ax2.set_xlabel("Frequency [MHz]")
+        ax2.set_ylabel("Phase [degrees]")
         plt.show()
 
 
@@ -239,6 +247,4 @@ def tf_estimate(x, y, *args, **kwargs):
     p_xy, frequencies_csd = csd(y, x, *args, **kwargs)
     p_xx, frequencies_psd = psd(x, *args, **kwargs)
 
-    return frequencies_csd, (p_xy/p_xx).conjugate()
-
-
+    return frequencies_csd, (p_xy / p_xx).conjugate()
