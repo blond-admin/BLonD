@@ -138,7 +138,7 @@ def rf_beam_current(
         beam.ratio  # FIXME add to beam
         * beam.particle_type.charge
         * e
-        * np.copy(profile.hist_y)
+        * profile.hist_y
     )
     logger.debug(
         "Sum of particles: %d, total charge: %.4e C",
