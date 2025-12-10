@@ -4,6 +4,7 @@ import unittest
 from functools import cached_property
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
+import copy
 
 import numpy as np
 
@@ -32,7 +33,7 @@ class BeamBaseClassTester(BeamBaseClass):
             is_distributed=is_distributed,
         )
 
-    @cached_property
+    @property
     def ratio(self) -> float:
         return self.intensity / self.common_array_size
 
@@ -236,6 +237,33 @@ class TestBeamBaseClass(unittest.TestCase):
 
         np.testing.assert_array_equal(self.beam_base_class._dt[10:], new_dt)
         np.testing.assert_array_equal(self.beam_base_class._dE[10:], new_dE)
+
+    def test_iadd_exceptions(self):
+
+        other_beam = BeamBaseClassTester(
+            intensity=1e1,
+            particle_type=copy.deepcopy(proton),
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+        other_beam.setup_beam(
+            np.linspace(1, 10, 10, dtype=backend.float),
+            np.linspace(20, 30, 10, dtype=backend.float),
+            np.zeros(10, dtype=np.int32),
+            np.arange(10, dtype=np.int32),
+        )
+
+        with self.assertRaises(ValueError):
+            self.beam_base_class += other_beam
+
+        other_beam.intensity = int(1E12)
+        other_beam._particle_type._charge = 2
+
+        with self.assertRaises(TypeError):
+            self.beam_base_class += other_beam
+
+        with self.assertRaises(ValueError):
+            self.beam_base_class += (other_beam._dt[:5], other_beam._dE)
 
 
 if __name__ == "__main__":
