@@ -40,12 +40,10 @@ def main():  # pragma: no cover `main_cli_xxx` gets executed anyway by CI/CD  pi
         main_cli_fortran()
     except Exception as exc:
         warnings.warn(str(exc), UserWarning, stacklevel=1)
-
     try:
         main_cli_cuda()
     except Exception as exc:
         warnings.warn(str(exc), UserWarning, stacklevel=1)
-
     try:
         main_cli_cpp()
     except Exception as exc:
