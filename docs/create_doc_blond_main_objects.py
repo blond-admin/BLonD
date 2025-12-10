@@ -7,12 +7,12 @@ This script is intended to crash if a item appears without an
 """
 
 import inspect
-from enum import StrEnum
+from enum import Enum
 
 import blond
 
 
-class Categories(StrEnum):
+class Categories(Enum):
     """Categories that will be displayed on the website."""
 
     LATTICE = "Lattice & Hardware"
