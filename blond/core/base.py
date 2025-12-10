@@ -123,7 +123,7 @@ class Schedulable:
 
     def __init__(self) -> None:
         super().__init__()
-        self.schedules: dict[str, SchedulederBaseClass] = {}
+        self.schedules: dict[str, SchedulerBaseClass] = {}
         self.schedule_active = False
 
     def schedule(
@@ -172,7 +172,7 @@ class Schedulable:
         assert hasattr(self, attribute), (
             f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
-        if isinstance(value, SchedulederBaseClass):
+        if isinstance(value, SchedulerBaseClass):
             # explicit declaration
             self.schedules[attribute] = value
         else:
@@ -498,7 +498,7 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
         pass
 
 
-class SchedulederBaseClass:
+class SchedulerBaseClass(ABC):
     """Base class to create objects used for scheduling of parameters."""
 
     @abstractmethod  # pragma: no cover
@@ -520,7 +520,7 @@ class SchedulederBaseClass:
         pass
 
 
-class ScheduledArray(SchedulederBaseClass):
+class ScheduledArray(SchedulerBaseClass):
     """Schedule values that change per turn.
 
     Parameters
@@ -557,7 +557,7 @@ class ScheduledArray(SchedulederBaseClass):
         return self.values[turn_i]
 
 
-class ScheduledInterpolation(SchedulederBaseClass):
+class ScheduledInterpolation(SchedulerBaseClass):
     """
     Schedule values that change along time.
 
@@ -604,7 +604,7 @@ class ScheduledInterpolation(SchedulederBaseClass):
 
 def get_scheduler(
     value: NumpyArray | tuple[NumpyArray, NumpyArray],
-) -> SchedulederBaseClass:
+) -> SchedulerBaseClass:
     """
     Auto-select the correct class of the schedulers.
 

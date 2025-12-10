@@ -213,12 +213,14 @@ class TestPreparable(unittest.TestCase):
 
 class TestFunctions(unittest.TestCase):
     def test_get_scheduler_1(self):
-        get_scheduler(
+        sched1 = get_scheduler(
             np.ones(10),
         )
-        get_scheduler(
+        sched2 = get_scheduler(
             (np.ones(10), np.ones(10)),
         )
+        self.assertEqual(type(sched1), ScheduledArray)
+        self.assertEqual(type(sched2), ScheduledInterpolation)
         with self.assertRaises(TypeError):
             get_scheduler(
                 "a string",
