@@ -908,6 +908,13 @@ class MagneticCycleByTime(MagneticCycleBase):
     interpolator
         Interpolation routine to get time in between the base values.
         Default: `numpy.interp`.
+
+    See Also
+    --------
+    blond.generals.interpolation.interp_linear : NumPy's `interp` function
+    blond.generals.interpolation.interp_makima : Modified Akima Interpolation
+    blond.generals.interpolation.interp_pchip : Piecewise Cubic Hermite Interpolating Polynomial
+
     """
 
     def __init__(

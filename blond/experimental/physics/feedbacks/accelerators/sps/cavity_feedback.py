@@ -36,7 +36,7 @@ from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
 from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.profiles import StaticProfile
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
 
 

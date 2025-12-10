@@ -579,12 +579,27 @@ class ScheduledInterpolation(_Scheduled):
         Values along the times axis, in [s].
     values
         Values along the values axis.
+    interpolator
+        Interpolation routine to get time in between the base values.
+        Default: `numpy.interp`.
+
+    See Also
+    --------
+    blond.generals.interpolation.interp_linear : NumPy's `interp` function
+    blond.generals.interpolation.interp_makima : Modified Akima Interpolation
+    blond.generals.interpolation.interp_pchip : Piecewise Cubic Hermite Interpolating Polynomial
     """
 
-    def __init__(self, times: NumpyArray, values: NumpyArray) -> None:
+    def __init__(
+        self,
+        times: NumpyArray,
+        values: NumpyArray,
+        interpolator: Callable = np.interp,
+    ) -> None:
         super().__init__()
         self.times = times
         self.values = values
+        self.interpolator = interpolator
 
     def get_scheduled(
         self,
@@ -606,7 +621,7 @@ class ScheduledInterpolation(_Scheduled):
         value
             The interpolated value for the current time.
         """
-        return np.interp(reference_time, self.times, self.values)
+        return self.interpolator(reference_time, self.times, self.values)
 
 
 def get_scheduler(
