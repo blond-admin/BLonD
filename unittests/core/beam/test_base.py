@@ -272,7 +272,6 @@ class TestBeamBaseClass(unittest.TestCase):
         self.beam_base_class._flags[:] = 1
         self.beam_base_class._flags[select] = -500
 
-        self.beam_base_class.purge_flagged_entries()
         self.beam_base_class.add_beam(self.beam_base_class, purge=True)
 
         self.assertTrue(np.all(self.beam_base_class._flags != -500))
