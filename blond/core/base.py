@@ -237,10 +237,14 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         Additional keyword arguments passed to the parent initializer.
     """
 
+    n_instances = 0
+
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(**kwargs)
+        type(self).n_instances += 1
+
         self._section_index = section_index
         if name is None:
             name = (
@@ -366,13 +370,10 @@ class BeamPhysicsRelevant(SimulationElementBase):
         Additional keyword arguments passed to the parent.
     """
 
-    n_instances = 0
-
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(section_index, name)
-        type(self).n_instances += 1
 
 
 class BeamObservationElement(SimulationElementBase):
@@ -395,25 +396,10 @@ class BeamObservationElement(SimulationElementBase):
         Additional keyword arguments passed to the parent :class:`SimulationElementBase`.
     """
 
-    n_instances = 0
-
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(section_index=section_index, name=name, **kwargs)
-        type(self).n_instances += 1
-
-    @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
-        """
-        Inspect the beam state without modifying it.
-
-        Parameters
-        ----------
-        beam
-            The beam object to be inspected or recorded.
-        """
-        pass
 
 
 class UserDefinedElement(BeamPhysicsRelevant, ABC):
