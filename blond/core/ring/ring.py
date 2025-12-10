@@ -683,4 +683,9 @@ class Ring(Preparable):
                 element._section_index = self.elements.elements[
                     insert_at
                 ].section_index
+        # Assert that the new index works now
+        self.elements.check_section_index_compatibility(
+                element=element,
+                insert_at=insert_at,
+            )
         return element
