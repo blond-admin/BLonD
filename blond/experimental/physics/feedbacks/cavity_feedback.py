@@ -16,6 +16,9 @@ import numpy as np
 from blond import SingleHarmonicRfStation, StaticProfile
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
+from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    SemiEmpiricMatcher,
+)
 from blond.experimental.physics.feedbacks.base import LocalFeedback
 from blond.experimental.physics.feedbacks.helpers import (
     cartesian_to_polar,
@@ -109,7 +112,7 @@ class IQCavityFeedback(LocalFeedback):
     # TODO docstring
 
     # TODO remove after development
-    _parent_rf_station: MultiHarmonicRfStation
+    _parent_rf_station: MultiHarmonicRfStation | SingleHarmonicRfStation
     profile: StaticProfile
 
     def __init__(
@@ -215,27 +218,21 @@ class IQCavityFeedback(LocalFeedback):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        self.T_s = (
-            self.n_periods_coarse * 2 * np.pi
-        ) / self._parent_rf_station.omega_rf_actual[self.harmonic_index]
-        # TODO REMWORK/REMOVE
-        t_rev = float(
-            (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
-            / self._parent_rf_station.omega_rf_actual[self.harmonic_index]
+        harmonic, omega_rf_actual, phi_rf_actual = (
+            self.get_harmonic_and_omega_rf_phi_rf_actual()
         )
+
+        self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf_actual
         # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(self._parent_rf_station.get_main_harmonic())
+        t_rev = float((2 * np.pi * harmonic) / omega_rf_actual)
+        # TODO REMWORK/REMOVE
+        t_rf = t_rev / float(harmonic)
 
         self.n_coarse = round(t_rev / self.T_s)
-        self.omega_carrier = (
-            self._parent_rf_station.omega_rf_actual[self.harmonic_index]
-            / self.n_periods_coarse
-        )
+        self.omega_carrier = omega_rf_actual / self.n_periods_coarse
         # FIXME NO REDECLARATION!
 
-        self.omega_rf = float(
-            self._parent_rf_station.omega_rf_actual[self.harmonic_index]
-        )
+        self.omega_rf = float(omega_rf_actual)
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
@@ -285,26 +282,104 @@ class IQCavityFeedback(LocalFeedback):
         """
         pass
 
+    def get_harmonic_and_omega_rf_phi_rf_actual(
+        self,
+    ) -> tuple[float, float, float]:
+        """
+        Convenience function to get the actual values, currently acting on the RF station.
+
+        This function is necessary since the _parent_cavity can be either a multi or single harmonic cavity.
+        One of the holds the values for phi_rf omega_rf and as arrays and one as floats.
+
+        Returns
+        -------
+        harmonic
+            harmonic number for the harmonic index/only one
+        omega_rf_actual
+            omega_rf_actual for the harmonic index/only one
+        phi_rf_actual
+            phi_rf_actual for the harmonic index/only one
+
+        """
+        if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
+            harmonic = self._parent_rf_station.harmonic
+            omega_rf_actual = self._parent_rf_station.omega_rf_actual
+            phi_rf_actual = self._parent_rf_station.phi_rf_actual
+        else:
+            harmonic = self._parent_rf_station.harmonic[self.harmonic_index]
+            omega_rf_actual = self._parent_rf_station.omega_rf_actual[
+                self.harmonic_index
+            ]
+            phi_rf_actual = self._parent_rf_station.phi_rf_actual[
+                self.harmonic_index
+            ]
+        return harmonic, omega_rf_actual, phi_rf_actual
+
+    def get_harmonic_and_omega_rf_phi_rf_design(
+        self,
+    ) -> tuple[float, float, float]:
+        """
+        Convenience function to get the design values of the RF station.
+
+        This function is necessary since the _parent_cavity can be either a multi or single harmonic cavity.
+        One of the holds the values for phi_rf omega_rf and as arrays and one as floats.
+
+        Returns
+        -------
+        harmonic
+            harmonic number for the harmonic index/only one
+        omega_rf_design
+            omega_rf_design for the harmonic index/only one
+        phi_rf_design
+            phi_rf_design for the harmonic index/only one
+
+        """
+        if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
+            harmonic = self._parent_rf_station.harmonic
+            omega_rf_design = self._parent_rf_station.omega_rf_design
+            phi_rf_design = self._parent_rf_station.phi_rf_design
+        else:
+            harmonic = self._parent_rf_station.harmonic[self.harmonic_index]
+            omega_rf_design = self._parent_rf_station.omega_rf_design[
+                self.harmonic_index
+            ]
+            phi_rf_design = self._parent_rf_station.phi_rf_design[
+                self.harmonic_index
+            ]
+        return harmonic, omega_rf_design, phi_rf_design
+
+    def get_voltage_from_parent_rf_station(self) -> float:
+        """
+        Convenience function to get the voltage from the parent RF station.
+
+        Returns
+        -------
+        voltage
+            voltage from the parent RF station, either at harmonic_index or the only one
+
+        """
+        if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
+            return self._parent_rf_station.voltage
+        else:
+            return self._parent_rf_station.voltage[self.harmonic_index]
+
     def update_rf_variables(
         self, omega_rf: float | None = None, harmonic: float | None = None
     ) -> None:
         r"""Updating variables from the other BLonD classes."""
         # Present time step
-
+        harmonic_actual, omega_rf_actual, phi_rf_actual = (
+            self.get_harmonic_and_omega_rf_phi_rf_actual()
+        )
         # Present RF angular frequency
         if omega_rf is None:
-            self.omega_rf = float(
-                self._parent_rf_station.omega_rf_actual[self.harmonic_index]
-            )
+            self.omega_rf = float(omega_rf_actual)
         else:
             self.omega_rf = omega_rf
 
         if harmonic is None:
             t_rev = float(  # TODO REMWORK/REMOVE
-                2
-                * np.pi
-                * self._parent_rf_station.get_main_harmonic()
-                / self.omega_rf
+                2 * np.pi * harmonic_actual / self.omega_rf
             )
         else:
             t_rev = float(  # TODO REMWORK/REMOVE
@@ -327,10 +402,7 @@ class IQCavityFeedback(LocalFeedback):
 
         if omega_rf is None:
             # Residual part of last turn entering the current turn due to non-integer harmonic number
-            self.dT = (
-                -self._parent_rf_station.phi_rf_actual[self.harmonic_index]
-                / self.omega_rf
-            )
+            self.dT = -phi_rf_actual / self.omega_rf
 
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
@@ -389,7 +461,7 @@ class IQCavityFeedback(LocalFeedback):
         )
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self._parent_rf_station.voltage[self.harmonic_index]
+        self.V_corr /= self.get_voltage_from_parent_rf_station()
         self.phi_corr = self.alpha_sum - np.mean(
             np.angle(self.V_SET[-self.n_coarse :])
         )
@@ -404,14 +476,11 @@ class IQCavityFeedback(LocalFeedback):
         use_lowpass_filter: bool = False,
     ) -> None:
         r"""Calculate RF beam current from beam profile"""
-        harmonic = (
-            self._parent_rf_station.harmonic
-            if isinstance(self._parent_rf_station, SingleHarmonicRfStation)
-            else self._parent_rf_station.harmonic[self.harmonic_index]
+        harmonic, _, omega_rf_design = (
+            self.get_harmonic_and_omega_rf_phi_rf_design()
         )
         t_rev = float(  # TODO REMWORK/REMOVE
-            (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
-            / self._parent_rf_station.omega_rf_design[self.harmonic_index]
+            (2 * np.pi * harmonic) / omega_rf_design
         )
         # Beam current from profile
         self.I_BEAM_COARSE[: self.n_coarse] = self.I_BEAM_COARSE[
@@ -439,8 +508,7 @@ class IQCavityFeedback(LocalFeedback):
     def set_point_from_rfstation(self) -> NumpyArray:
         r"""Computes the setpoint in I/Q based on the RF voltage in the RFStation"""
         V_set = polar_to_cartesian(
-            self._parent_rf_station.voltage[self.harmonic_index]
-            / self.n_cavities,
+            self.get_voltage_from_parent_rf_station() / self.n_cavities,
             0,
         )
 

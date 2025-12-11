@@ -54,6 +54,13 @@ class LocalFeedback(FeedbackBaseClass):
         assert self._parent_rf_station is None, (
             "This feedback has already one owner!"
         )
+        if not isinstance(
+            rf_station, SingleHarmonicRfStation | MultiHarmonicRfStation
+        ):
+            raise ValueError(
+                f"Local feedbacks can only be initialized with SingleHarmonicRfStation "
+                f"or MultiHarmonicRfStation but not {type(rf_station)}"
+            )
         self._parent_rf_station = rf_station
 
     @abstractmethod  # pragma: no cover
