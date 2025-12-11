@@ -363,6 +363,8 @@ class IQCavityFeedback(LocalFeedback):
             harmonic, omega_rf, phi_rf = (
                 self.get_harmonic_and_omega_rf_phi_rf()
             )
+        else:
+            phi_rf = 0.0
 
         # Present RF angular frequency
         self.omega_rf = omega_rf
@@ -384,9 +386,8 @@ class IQCavityFeedback(LocalFeedback):
         # Present coarse grid and save previous turn coarse grid
         self.rf_centers_prev = np.copy(self.rf_centers)
 
-        if omega_rf is None:
-            # Residual part of last turn entering the current turn due to non-integer harmonic number
-            self.dT = -phi_rf / self.omega_rf
+        # Residual part of last turn entering the current turn due to non-integer harmonic number
+        self.dT = -phi_rf / self.omega_rf
 
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
