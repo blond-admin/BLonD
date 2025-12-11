@@ -125,6 +125,41 @@ class TestFunctions(unittest.TestCase):
                 instances=(a, b), dependency_attribute="common.requires"
             )
 
+    def test_get_required_order_inheritance(self) -> None:
+        class ABase:
+            def __init__(self) -> None:
+                pass
+
+            def common(self):
+                pass
+
+        class A(ABase):
+            def __init__(self) -> None:
+                pass
+
+            def common(self):
+                pass
+
+        class BBase:
+            def __init__(self) -> None:
+                pass
+
+            @requires(["ABase"])
+            def common(self):
+                pass
+
+        class B(BBase):
+            def __init__(self) -> None:
+                pass
+
+            def common(self):
+                pass
+
+        sorted_classes = get_required_order(
+            instances=(B(), A()), dependency_attribute="common.requires"
+        )
+        self.assertEqual(sorted_classes, ["A", "B"])
+
     def test_requires(self) -> None:
         class A:
             @requires([""])

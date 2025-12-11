@@ -181,40 +181,76 @@ def _build_dependency_graph(
     in_degree: defaultdict = defaultdict(
         int
     )  # Count of incoming edges (dependencies) for each class
-    all_classes = set()  # Set to keep track of all involved classes
-    for cls in [type(o) for o in instances]:
-        all_classes.add(cls.__name__)  # Register the class
+    all_classes: set[str] = {
+        o.__class__.__name__ for o in instances
+    }  # Set to keep track of all involved classes
 
     # Iterate through the types (classes) of all given instances
-    for cls in [type(o) for o in instances]:
+    for class_of_instance in (type(ins) for ins in instances):
         # Traverse the class's MRO (method resolution order) to get parent classes as well
         # For each dependency declared in 'on_init_simulation_dependencies'
-        dependencies_including_baseclasses = set()
-        for cls_ in inspect.getmro(cls):
-            deps = get_dependencies(cls_, dependency_attribute)
-            for dep_ in deps:
-                dependencies_including_baseclasses.add(dep_)
+        instance_depends_on: set[str] = set()
+        for inherited_class in inspect.getmro(class_of_instance):
+            dependencies_tmp = get_dependencies(
+                inherited_class, dependency_attribute
+            )
+            for dep_ in dependencies_tmp:
+                instance_depends_on.add(dep_)
 
-        for dep_including_baseclasses in dependencies_including_baseclasses:
-            deps = [
-                cls.__name__
-                for cls in [type(o) for o in instances]
-                if dep_including_baseclasses
-                in [c.__name__ for c in inspect.getmro(cls)]
-            ]
+        for dependency in instance_depends_on:
+            depends_on_instances = _get_matching_instances(
+                instances, dependency
+            )
 
             # If a node is not implemented, which is in the dependency tree,
             # the simulation would not be possible.
-            assert len(deps) > 0, (
-                f"Missing instance of {dep_including_baseclasses} which is a dependency of {cls.__name__}"
+            assert len(depends_on_instances) > 0, (
+                f"Missing instance of {dependency} which is a dependency of {class_of_instance.__name__}"
             )
 
-            for dep in deps:
-                graph[dep].append(cls.__name__)  # Add edge: dep -> cls
-                in_degree[cls.__name__] += (
+            for dep in depends_on_instances:
+                graph[dep].append(
+                    class_of_instance.__name__
+                )  # Add edge: dep -> cls
+                in_degree[class_of_instance.__name__] += (
                     1  # Increment in-degree count for the class
                 )
     return graph, in_degree, all_classes
+
+
+def _get_matching_instances(
+    instances: Iterable[object], dependency: str
+) -> list[str]:
+    """
+    Return the names of instance types that match dependency within the MRO.
+
+    Return the names of instance types whose method-resolution order (MRO)
+    includes a class with the given name.
+
+    Parameters
+    ----------
+    instances : Iterable[object]
+        An iterable of instantiated objects to inspect.
+    dependency : str
+        The class name to search for within each instance's MRO.
+
+    Returns
+    -------
+    list[str]
+        A list of class names (one per instance) whose MRO contains
+        a class named `dependency`.
+
+    Notes
+    -----
+    This checks only the class *names* in the MRO, not the class objects
+    themselves. For example, if multiple unrelated classes share the same
+    name, they will all be considered matches.
+    """
+    return [
+        instance_type.__name__
+        for instance_type in [type(ins) for ins in instances]
+        if dependency in [c.__name__ for c in inspect.getmro(instance_type)]
+    ]
 
 
 def get_dependencies(cls_: type, dependency_attribute: str) -> list:
