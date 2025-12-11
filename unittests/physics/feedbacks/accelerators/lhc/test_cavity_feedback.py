@@ -17,6 +17,8 @@ from blond.experimental.physics.feedbacks.accelerators.lhc.cavity_feedback impor
     LHCCavityLoopCommissioning,
 )
 
+proton.mass
+
 
 class TestLHCOpenDrive(unittest.TestCase):
     def setUp(self):

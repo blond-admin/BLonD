@@ -29,6 +29,9 @@ from blond import (
     WakeField,
     proton,
 )
+
+proton
+
 from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityLoopCommissioning,
