@@ -18,6 +18,7 @@ from unittest.mock import Mock
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -370,23 +371,28 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Beam class to interact with this element.
         """
         super().track(beam=beam)
-        if self.schedule_active:
-            self.apply_schedules(
-                turn_i=self._simulation.turn_i.value,
-                reference_time=beam.reference.time,
-            )
-        dt = self.orbit_length / beam.reference.velocity
-        gamma = beam.reference.gamma
-        eta_0 = self.alpha_0 - (1 / (gamma * gamma))
+        reference = beam.reference
+        dt = self.track_reference(reference)
+
+        gamma = reference.gamma
         backend.specials.drift_simple(
             dt=beam.write_partial_dt(),
             dE=beam.read_partial_dE(),
             T=dt,
-            eta_0=eta_0,
-            beta=beam.reference.beta,
-            energy=beam.reference.total_energy,
+            eta_0=(self.alpha_0 - (1 / (gamma * gamma))),
+            beta=reference.beta,
+            energy=reference.total_energy,
         )
-        beam.reference.time += dt
+
+    def track_reference(self, reference: ReferenceCoordinates):
+        if self.schedule_active:
+            self.apply_schedules(
+                turn_i=self._simulation.turn_i.value,
+                reference_time=reference.time,
+            )
+        dt = self.orbit_length / reference.velocity
+        reference.time += dt
+        return dt
 
     def eta_0(self, gamma: float) -> float:
         """

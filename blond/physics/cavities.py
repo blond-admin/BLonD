@@ -468,6 +468,21 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
+    def track_reference(
+        self, reference: ReferenceCoordinates, is_counter_rotating=False
+    ):
+        target_total_energy = self._magnetic_cycle.get_target_total_energy(
+            turn_i=self._turn_i.value,
+            section_i=self.section_index
+            if not is_counter_rotating
+            else len(self._ring.section_lengths) - self.section_index - 1,
+            reference_time=reference.time,
+            particle_type=reference.particle_type,
+        )
+        reference_energy_change = target_total_energy - reference.total_energy
+        reference.total_energy += reference_energy_change
+        return reference_energy_change
+
     @abstractmethod  # pragma: no cover
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """
@@ -753,16 +768,9 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             Beam class to interact with this element.
         """
         super().track(beam=beam)
-        target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
-            section_i=self.section_index
-            if not beam.is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
-            reference_time=beam.reference.time,
-            particle_type=beam.particle_type,
-        )
-        reference_energy_change = (
-            target_total_energy - beam.reference.total_energy
+        reference = beam.reference
+        reference_energy_change = self.track_reference(
+            reference, beam.is_counter_rotating
         )
         backend.specials.kick_single_harmonic(
             dt=beam.read_partial_dt(),
@@ -1301,16 +1309,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             Beam class to interact with this element.
         """
         super().track(beam=beam)
-        target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
-            section_i=self.section_index
-            if not beam.is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
-            reference_time=beam.reference.time,
-            particle_type=beam.particle_type,
-        )
-        reference_energy_change = (
-            target_total_energy - beam.reference.total_energy
+        reference = beam.reference
+        reference_energy_change = self.track_reference(
+            reference, beam.is_counter_rotating
         )
 
         backend.specials.kick_multi_harmonic(
@@ -1325,4 +1326,3 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             n_rf=self.n_rf,
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )
-        beam.reference.total_energy += reference_energy_change

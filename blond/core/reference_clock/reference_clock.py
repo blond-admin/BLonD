@@ -8,12 +8,18 @@
 
 """Helper class that holds the reference to the coordinate system."""
 
+from __future__ import annotations
+
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from blond.core.base import HasPropertyCache
+
+if TYPE_CHECKING:  # pragma: no cover
+    from blond.core.beam.particle_types import ParticleType
 
 
 class ReferenceCoordinates(HasPropertyCache):
@@ -23,6 +29,18 @@ class ReferenceCoordinates(HasPropertyCache):
         self.time = time
         self._total_energy = total_energy
         self._particle_type = particle_type
+
+    @property
+    def particle_type(self) -> ParticleType:
+        """
+        Particle type that the reference coordinates belong to.
+
+        Returns
+        -------
+        particle_type
+            Type of particles, e.g. protons.
+        """
+        return self._particle_type
 
     @property
     def total_energy(self) -> float:
