@@ -308,7 +308,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         # Initialize moving average
         self.n_mov_av = round(
             self.TWC.tau
-            / self._parent_rf_station.get_main_harmonic_t_rf_current()
+            / self._parent_rf_station.get_main_harmonic_t_rf_actual()
         )
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug("Moving average over %d points", self.n_mov_av)
@@ -724,7 +724,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         # TODO REMWORK/REMOVE
         t_rev = float(
             (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
-            / self._parent_rf_station.omega_rf[self.harmonic_index]
+            / self._parent_rf_station.omega_rf_actual[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(
