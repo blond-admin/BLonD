@@ -73,13 +73,23 @@ class _SparseProfileBaseClass:
         number_of_slices_per_profile
             Number of slices per profile
         _filling_pattern
-            Filling pattern / Bunch list/ Batch list of the synchrotron
+            Filling pattern / Bunch list/ Batch list of the synchrotron.
+            Defined as a mask arrray of filled buckets.
         _profile_length_in_buckets
             Profile lengths in number of RF buckets. Should be greater than 1.
         tracker_mode
             Choice of tracker. Can be "C" or "onebyone". Default is "C".
         do_track_on_init
             Enables tracking at initialisation. FALSE by default.
+
+        Returns
+        --------
+        ValueError if the filling pattern length is strictly higher than the
+        harmonic number of the main RF station.
+        Warning if the filling pattern length is strictly lower than the
+        harmonic number of the main RF station.
+        TypeError if the number of buckets covered by the profile is not an
+        integer.
 
         Illustration - this class is not intended for direct use
         --------
