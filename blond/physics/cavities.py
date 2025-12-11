@@ -156,12 +156,13 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         if cavity_feedback is None:
             pass
         else:
-            if isinstance(cavity_feedback, LocalFeedback):
+            if isinstance(
+                cavity_feedback, LocalFeedback
+            ):  # TODO: what if a wrong object is given?
                 cavity_feedback = (cavity_feedback,)
             for feedback in cavity_feedback:
-                assert isinstance(feedback, LocalFeedback), (
-                    "given feedback is not a LocalFeedback"
-                )
+                if not isinstance(feedback, LocalFeedback):
+                    raise ValueError("given feedback is not a LocalFeedback")
                 feedback.set_parent_rf_station(rf_station=self)
 
         if beam_feedback is None:
