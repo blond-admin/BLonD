@@ -25,6 +25,8 @@ from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Self
+
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
@@ -78,7 +80,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             None  # todo cached  properties
         )
 
-    def __iadd__(self, other: BeamBaseClass | ArrayLike):
+    def __iadd__(self, other: Self | ArrayLike) -> Self:
         """
         Inplace addition function.
 
@@ -106,14 +108,14 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             >>>     # Track one turn
             >>>     main_beam += np.load(f"injected_turn_{i}.npy")
         """
-        if isinstance(other, BeamBaseClass):
+        if isinstance(other, type(self)):
             self.add_beam(other)
         else:
             self.add_particles(other)
 
         return self
 
-    def add_beam(self, other: BeamBaseClass):
+    def add_beam(self, other: Self):
         """
         Add the contents of another beam to this one.
 
