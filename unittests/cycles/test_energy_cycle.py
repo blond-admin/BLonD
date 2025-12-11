@@ -305,7 +305,7 @@ class TestEnergyCycleByTime(unittest.TestCase):
 
     def test_get_target_total_energy(self):
         cycle = MagneticCycleByTime.headless(
-            base_time=np.linspace(1e12, 1e12, endpoint=True),
+            base_time=np.linspace(0, 1e12, endpoint=True),
             base_values=np.linspace(1e12, 1e12, endpoint=True),
             reference_particle=uranium_29,
             in_unit="total energy",
@@ -320,13 +320,13 @@ class TestEnergyCycleByTime(unittest.TestCase):
         e_tot_2 = cycle.get_target_total_energy(
             turn_i=0,
             section_i=0,
-            reference_time=0,
+            reference_time=1.1e4,
             particle_type=uranium_29,
         )
         e_tot_3 = cycle.get_target_total_energy(
             turn_i=0,
             section_i=0,
-            reference_time=0,
+            reference_time=1e11,
             particle_type=proton,
         )
         self.assertEqual(e_tot_1, e_tot_2)

@@ -22,7 +22,7 @@ from blond.experimental.physics.feedbacks.helpers import (
     rf_beam_current,
 )
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
     from typing import Optional as LateInit
 

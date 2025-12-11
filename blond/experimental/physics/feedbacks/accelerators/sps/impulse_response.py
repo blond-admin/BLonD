@@ -28,7 +28,7 @@ from scipy.constants import c
 from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 logger = logging.getLogger(__name__)
