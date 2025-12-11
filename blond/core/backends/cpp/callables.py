@@ -384,6 +384,16 @@ def reload_cpp_backend(  # NOQA: PLR0915
             dE: NumpyArray | CupyArray,
             ids: NumpyArray | CupyArray,
         ):
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            assert flags.dtype == np.int32
+            assert ids.dtype == np.int32
+            assert flags.flags.c_contiguous
+            assert ids.flags.c_contiguous
+
             n_new = _LIBBLOND.move_flagged_elements_to_end(
                 ct.c_int32(np.int32(flag)),
                 flags.ctypes.data_as(ct.c_void_p),

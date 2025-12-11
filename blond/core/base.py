@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -129,43 +129,67 @@ class Schedulable:
 
     def __init__(self) -> None:
         super().__init__()
-        self.schedules: dict[str, _Scheduled] = {}
+        self.schedules: dict[str, SchedulerBaseClass] = {}
         self.schedule_active = False
 
     def schedule(
         self,
         attribute: str,
-        value: float | int | NumpyArray | tuple[NumpyArray, NumpyArray],
-        mode: Literal["per-turn", "constant"] | None = None,
+        value: ScheduledArray
+        | ScheduledInterpolation
+        | NumpyArray
+        | tuple[NumpyArray, NumpyArray],
     ) -> None:
         """
-        Schedule a parameter to be changed during simulation.
+        Schedule a parameter to change dynamically during the simulation.
+
+        This method allows you to define how an attribute of the object
+        evolves over time. The scheduling can be done using various types
+        of input for convenience or precise control.
 
         Parameters
         ----------
         attribute
-            Attribute that shall be changed by scheduler.
+            The name of the attribute to be scheduled.
+            Must be an existing attribute of the object.
+
         value
-            Values to be set during schedule.
-        mode
-            Required when arrays are handed over.
-            "per-turn" or "constant".
+            The schedule definition for the attribute.
+            Can be provided in one of several forms:
+
+            1. **Convenient input options**:
+                - `NumpyArray`: Automatically cast to `ScheduledArray`.
+                - `tuple[NumpyArray, NumpyArray]`: Automatically cast to `ScheduledInterpolation`.
+
+            2. **Explicit scheduling objects**:
+                - `ScheduledArray`: Full control over array-based scheduling.
+                - `ScheduledInterpolation`: Full control over interpolation-based scheduling.
+
+        Raises
+        ------
+        AssertionError
+            If the specified attribute does not exist on the object.
 
         Notes
         -----
-        Can be constant, per turn or interpolated in time.
+        - Once a schedule is applied, the `schedule_active` flag is set to True.
+        - For convenience, non-explicit types are automatically converted using `get_scheduler`.
         """
         assert hasattr(self, attribute), (
             f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
-        self.schedules[attribute] = get_scheduler(value, mode=mode)
+        if isinstance(value, SchedulerBaseClass):
+            # explicit declaration
+            self.schedules[attribute] = value
+        else:
+            # should allow easier user input, but is less explicit
+            self.schedules[attribute] = get_scheduler(value)
         self.schedule_active = True
 
     def schedule_from_file(
         self,
         attribute: str,
         filename: str | PathLike,
-        mode: Literal["per-turn", "constant"] | None = None,
         **kwargs_loadtxt,
     ) -> None:
         """
@@ -191,7 +215,7 @@ class Schedulable:
             f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
         values = np.loadtxt(filename, **kwargs_loadtxt)
-        self.schedules[attribute] = get_scheduler(values, mode=mode)
+        self.schedules[attribute] = get_scheduler(values)
         self.schedule_active = True
 
     def apply_schedules(
@@ -243,10 +267,14 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         Additional keyword arguments passed to the parent initializer.
     """
 
+    n_instances = 0
+
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(**kwargs)
+        type(self).n_instances += 1
+
         self._section_index = section_index
         if name is None:
             name = (
@@ -372,13 +400,10 @@ class BeamPhysicsRelevant(SimulationElementBase):
         Additional keyword arguments passed to the parent.
     """
 
-    n_instances = 0
-
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(section_index, name)
-        type(self).n_instances += 1
 
 
 class BeamObservationElement(SimulationElementBase):
@@ -401,25 +426,10 @@ class BeamObservationElement(SimulationElementBase):
         Additional keyword arguments passed to the parent :class:`SimulationElementBase`.
     """
 
-    n_instances = 0
-
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(section_index=section_index, name=name, **kwargs)
-        type(self).n_instances += 1
-
-    @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
-        """
-        Inspect the beam state without modifying it.
-
-        Parameters
-        ----------
-        beam
-            The beam object to be inspected or recorded.
-        """
-        pass
 
 
 class UserDefinedElement(BeamPhysicsRelevant, ABC):
@@ -480,7 +490,9 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
         pass
 
 
-class _Scheduled:
+class SchedulerBaseClass(ABC):
+    """Base class to create objects used for scheduling of parameters."""
+
     @abstractmethod  # pragma: no cover
     def get_scheduled(
         self,
@@ -500,46 +512,8 @@ class _Scheduled:
         pass
 
 
-class ScheduledConstant(_Scheduled):
-    """
-    Schedule a value that never changes.
-
-    Parameters
-    ----------
-    value
-        A constant value.
-    """
-
-    def __init__(self, value: float | int | NumpyArray) -> None:
-        super().__init__()
-        self.value = value
-
-    def get_scheduled(
-        self,
-        turn_i: int,
-        reference_time: float,
-    ) -> float | int | NumpyArray:
-        """
-        Get the constant value.
-
-        Parameters
-        ----------
-        turn_i
-            Currently turn index.
-        reference_time
-            Current time, in [s].
-
-        Returns
-        -------
-        value
-            The constant value.
-        """
-        return self.value
-
-
-class ScheduledArray(_Scheduled):
-    """
-    Schedule values that change per turn.
+class ScheduledArray(SchedulerBaseClass):
+    """Schedule values that change per turn.
 
     Parameters
     ----------
@@ -575,7 +549,7 @@ class ScheduledArray(_Scheduled):
         return self.values[turn_i]
 
 
-class ScheduledInterpolation(_Scheduled):
+class ScheduledInterpolation(SchedulerBaseClass):
     """
     Schedule values that change along time.
 
@@ -634,35 +608,24 @@ class ScheduledInterpolation(_Scheduled):
 
 
 def get_scheduler(
-    value: float | int | NumpyArray | tuple[NumpyArray, NumpyArray],
-    mode: Literal["per-turn", "constant"] | None = None,
-) -> _Scheduled:
+    value: NumpyArray | tuple[NumpyArray, NumpyArray],
+) -> SchedulerBaseClass:
     """
     Auto-select the correct class of the schedulers.
 
     Parameters
     ----------
     value
-        Can be constant, per turn or interpolated in time.
-    mode
-        Required when arrays are handed over.
-        "per-turn" or "constant".
+        Array - per turn
+        (Array, Array) - time vs value, to be interpolated.
 
     Returns
     -------
     scheduler
         The appropriate scheduler instance.
     """
-    if isinstance(value, int | float):
-        return ScheduledConstant(value=value)
-    elif isinstance(value, np.ndarray):
-        assert mode is not None
-        if mode == "per-turn":
-            return ScheduledArray(values=value)
-        elif mode == "constant":
-            return ScheduledConstant(value=value)
-        else:
-            raise TypeError(type(value))
+    if isinstance(value, np.ndarray):
+        return ScheduledArray(values=value)
     elif isinstance(value, tuple):
         return ScheduledInterpolation(times=value[0], values=value[1])
     else:
