@@ -206,7 +206,7 @@ def _build_dependency_graph(
             # If a node is not implemented, which is in the dependency tree,
             # the simulation would not be possible.
             assert len(deps) > 0, (
-                f"Missing instance of {dep_including_baseclasses}"
+                f"Missing instance of {dep_including_baseclasses} which is a dependency of {cls.__name__}"
             )
 
             for dep in deps:
