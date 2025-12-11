@@ -1,4 +1,4 @@
-pytest
+pytest>=9
 pre-commit
-pytest-cov
-mpmath # part of the testing against blond2
+pytest-cov>=6
+mpmath>=1 # part of the testing against blond2

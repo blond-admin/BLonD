@@ -5,6 +5,7 @@ import numpy as np
 
 from blond import (
     Beam,
+    ConstantMagneticCycle,
     MagneticCyclePerTurn,
     Ring,
     Simulation,
@@ -21,6 +22,10 @@ from blond.testing.mocks import simulation_mock
 class BeamPhysicsRelevantHelper(BeamPhysicsRelevant):
     def track(self, beam: BeamBaseClass) -> None:
         pass
+
+    @property
+    def section_index(self):
+        return self._section_index
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
@@ -176,13 +181,31 @@ class TestRing(unittest.TestCase):
             deepcopy=False,
             section_index=None,
         )
-        element3 = Mock(spec=BeamPhysicsRelevant)
-        element3.section_index = 0
+
+    def test_insert_element_single_location(self):
+        element1 = Mock(spec=BeamPhysicsRelevant)
+        element2 = Mock(spec=BeamPhysicsRelevant)
+        element1.section_index = 0
+        element2.section_index = 0
+
+        self.ring.add_elements(
+            elements=[element1, element2],
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+
+        element3 = BeamPhysicsRelevantHelper()
+        element3._section_index = 0
         location = 1
-        self.ring.insert_element(
+        location_in_the_new_ring = self.ring.insert_element(
             element=element3,
             insert_at=location,
             deepcopy=False,
+        )
+        self.assertEqual(
+            location_in_the_new_ring[0],
+            location,
         )
         assert self.ring.elements.elements[1] is element3
 
@@ -220,9 +243,9 @@ class TestRing(unittest.TestCase):
         element4.section_index = 5
         location = [0, 2]
 
-        with self.assertRaises(
+        with self.assertRaisesRegex(
             AssertionError,
-            msg="The element section index is incompatible "
+            expected_regex="The element section index is incompatible "
             "with the requested location. Please allow "
             "overwrite for automatic handling.",
         ):
@@ -233,9 +256,11 @@ class TestRing(unittest.TestCase):
                 allow_section_index_overwrite=False,
             )
 
-        with self.assertRaises(
-            AssertionError,
-            msg="Cannot overwrite the section indexes with deepcopy == False.",
+        with self.assertRaisesRegex(
+            ValueError,
+            expected_regex=(
+                "Cannot overwrite the section indexes with deepcopy == False."
+            ),
         ):
             self.ring.insert_element(
                 element=element4,
@@ -243,18 +268,17 @@ class TestRing(unittest.TestCase):
                 deepcopy=False,
                 allow_section_index_overwrite=True,
             )
-        element4 = Mock(spec=BeamPhysicsRelevant)
-        element4.section_index = 5
+        element4 = BeamPhysicsRelevantHelper()
+        element4._section_index = 5
         location = [1, 2, 5]
         with self.assertRaises(
-            AssertionError,
-            msg=f"The element must be inserted within ["
-            f"0:{len(self.ring.elements.elements) + 1}] indexes.",
+            IndexError,
+            msg="The element must be inserted within [0:6] indexes.",
         ):
             self.ring.insert_element(
                 element=element4,
                 insert_at=location,
-                deepcopy=False,
+                deepcopy=True,
                 allow_section_index_overwrite=True,
             )
 
@@ -365,8 +389,8 @@ class TestRing(unittest.TestCase):
             section_index=None,
         )
 
-        element_test = Mock(spec=BeamPhysicsRelevant)
-        element_test.section_index = 10
+        element_test = BeamPhysicsRelevantHelper()
+        element_test._section_index = 10
         location = 1
         element_forced = self.ring._force_section_index_compatibility(
             element=element_test,
@@ -547,13 +571,15 @@ class TestRing(unittest.TestCase):
         )
 
         ring.on_init_simulation(simulation_mock)
-        sim = Simulation(ring, Mock(MagneticCyclePerTurn))
+        sim = Simulation(
+            ring, ConstantMagneticCycle(value=1, reference_particle=lead_82)
+        )
         beam = Beam(intensity=1, particle_type=lead_82)
         beam._dt = [1]
         beam._dE = [2]
         beam._flags = [3]
         beam._ids = [4]
-        sim.finalize((beam,))
+        sim.finalize((beam,), n_turns=1)
 
     def test_non_mandatory_element_checking_kicks(self):
         ring = Ring(circumference=200, check_section_indices=False)
@@ -580,15 +606,15 @@ class TestRing(unittest.TestCase):
         )
 
         ring.on_init_simulation(simulation_mock)
-        mag_cycle = Mock(MagneticCyclePerTurn)
-        mag_cycle.get_total_energy_init.return_value = 5
-        sim = Simulation(ring, mag_cycle)
+        sim = Simulation(
+            ring, ConstantMagneticCycle(value=1, reference_particle=lead_82)
+        )
         beam = Beam(intensity=1, particle_type=lead_82)
         beam._dt = [1]
         beam._dE = [2]
         beam._flags = [3]
         beam._ids = [4]
-        sim.finalize((beam,))
+        sim.finalize((beam,), n_turns=1)
 
 
 if __name__ == "__main__":

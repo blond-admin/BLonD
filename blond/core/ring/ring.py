@@ -559,23 +559,31 @@ class Ring(Preparable):
         locations_in_the_new_ring = []
         if isinstance(insert_at, int):
             insert_at = [insert_at]
-        for already_inserted, k in enumerate(insert_at):
-            if deepcopy:
+
+        if deepcopy:
+            for already_inserted, k in enumerate(insert_at):
                 element = copy.deepcopy(element)
                 if allow_section_index_overwrite:
                     element = self._force_section_index_compatibility(
                         element=element,
                         insert_at=k + already_inserted,
                     )
-                else:
-                    raise AssertionError(
-                        "Cannot overwrite the section indexes with deepcopy == False."
-                    )
-            self.elements.insert(
-                element=element,
-                insert_at=k + already_inserted,
-            )
-            locations_in_the_new_ring.append(k + already_inserted)
+                self.elements.insert(
+                    element=element,
+                    insert_at=k + already_inserted,
+                )
+                locations_in_the_new_ring.append(k + already_inserted)
+        else:
+            if allow_section_index_overwrite:
+                raise ValueError(
+                    "Cannot overwrite the section indexes with deepcopy == False."
+                )
+            for already_inserted, k in enumerate(insert_at):
+                self.elements.insert(
+                    element=element,
+                    insert_at=k + already_inserted,
+                )
+                locations_in_the_new_ring.append(k + already_inserted)
 
         return locations_in_the_new_ring
 
@@ -641,7 +649,7 @@ class Ring(Preparable):
         self, element: SimulationElementBase, insert_at: int
     ) -> SimulationElementBase:
         """
-        Internal method to automatically fix element section index for insertion.
+        Internal method to fix element section index for insertion.
 
         This private method is called by insert methods when
         `allow_section_index_overwrite=True`. It adjusts the element's `section_index`
@@ -664,6 +672,12 @@ class Ring(Preparable):
         SimulationElementBase
             The same element with potentially modified section_index.
         """
+        if insert_at > len(self.elements.elements):
+            raise IndexError(
+                f"The element must be inserted within ["
+                f"0:{len(self.elements.elements)}] indexes."
+            )
+
         try:
             self.elements.check_section_index_compatibility(
                 element=element,
@@ -678,4 +692,9 @@ class Ring(Preparable):
                 element._section_index = self.elements.elements[
                     insert_at
                 ].section_index
+        # Assert that the new index works now
+        self.elements.check_section_index_compatibility(
+            element=element,
+            insert_at=insert_at,
+        )
         return element
