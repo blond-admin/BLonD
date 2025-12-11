@@ -53,18 +53,18 @@ class BeamPreparationRoutine(ABC):
         beam.reference_total_energy = (
             simulation.magnetic_cycle.get_total_energy_init(
                 turn_i_init=simulation.turn_i.value,
-                t_init=beam.reference_time,  # FIXME
+                t_init=beam.reference.time,  # FIXME
                 particle_type=beam.particle_type,
             )
         )
-        beam.reference_time = 0  # FIXME
+        beam.reference.time = 0  # FIXME
         # assign beams?
 
         schedulables = simulation.ring.elements.get_elements(Schedulable)
         for s in schedulables:
             s.apply_schedules(
                 turn_i=simulation.turn_i.value,
-                reference_time=beam.reference_time,
+                reference_time=beam.reference.time,
             )
 
 

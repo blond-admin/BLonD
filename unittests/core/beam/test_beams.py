@@ -25,7 +25,7 @@ class TestBeam(unittest.TestCase):
             reference_time=11,
             reference_total_energy=1e12,
         )
-        self.assertEqual(self.beam.reference_time, 11.0)
+        self.assertEqual(self.beam.reference.time, 11.0)
         self.assertEqual(self.beam.reference_total_energy, 1e12)
 
     def test___init__(self):

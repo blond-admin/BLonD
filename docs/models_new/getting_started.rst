@@ -300,7 +300,7 @@ Access recorded data via:
 - ``bunch_observation.dts``: Time coordinates [s] for all particles (shape: n_turns × n_macroparticles)
 - ``bunch_observation.dEs``: Energy deviations [eV] for all particles (shape: n_turns × n_macroparticles)
 - ``bunch_observation.flags``: Particle status flags (e.g., lost particles)
-- ``bunch_observation.reference_time``: Reference time per turn [s]
+- ``bunch_observation.reference_coordinates.time``: Reference time per turn [s]
 - ``bunch_observation.reference_total_energy``: Reference energy per turn [eV]
 
 **BunchObservationMetaParams** - Statistical Parameters

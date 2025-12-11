@@ -365,7 +365,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             `Simulation` context manager.
         """
         # TODO allow several bunches
-        self._reference_time.write(self._beam.reference_time)
+        self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference_total_energy)
         self._dts.write(self._beam._dt)
         self._dEs.write(self._beam._dE)

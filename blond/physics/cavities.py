@@ -102,7 +102,7 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         if self.schedule_active:
             self.apply_schedules(
                 turn_i=self._turn_i.value,
-                reference_time=float(beam.reference_time),
+                reference_time=float(beam.reference.time),
             )
 
 
@@ -352,7 +352,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             section_i=self.section_index
             if not beam.is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
-            reference_time=float(beam.reference_time),
+            reference_time=float(beam.reference.time),
             particle_type=beam.particle_type,
         )
         reference_energy_change = (
@@ -757,7 +757,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             section_i=self.section_index
             if not beam.is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
-            reference_time=beam.reference_time,
+            reference_time=beam.reference.time,
             particle_type=beam.particle_type,
         )
         reference_energy_change = (
@@ -1304,7 +1304,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             section_i=self.section_index
             if not beam.is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
-            reference_time=beam.reference_time,
+            reference_time=beam.reference.time,
             particle_type=beam.particle_type,
         )
         reference_energy_change = (

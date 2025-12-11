@@ -9,6 +9,7 @@ from blond import Ring, Simulation, StaticProfile, proton
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
     SpsRlBeamFeedback,
 )
@@ -27,8 +28,10 @@ from blond.physics.impedances.base import WakeField
 class TestRFStationBaseClass(unittest.TestCase):
     def setUp(self) -> None:
         self.beam = Mock(BeamBaseClass)
+        self.beam.reference = Mock(ReferenceCoordinates)
+
         self.beam.particle_type = proton
-        self.beam.reference_time = 0
+        self.beam.reference.time = 0
         self.beam.reference_beta = 0.5
         self.beam.reference_velocity = self.beam.reference_beta * c0
         self.beam.reference_gamma = np.sqrt(1 - 0.25)  # beta**2
@@ -187,8 +190,9 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         from blond.core.beam.base import BeamBaseClass
 
         beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
         beam.particle_type = proton
-        beam.reference_time = 0
+        beam.reference.time = 0
         beam.reference_beta = 0.5
         beam.reference_velocity = beam.reference_beta * c0
         beam.reference_gamma = np.sqrt(1 - 0.25)  # beta**2
@@ -236,7 +240,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         self.multi_harmonic_cavity.track(beam=self.beam)
 
         self.assertEqual(self.beam.reference_total_energy, 939)  # incremented
-        self.assertEqual(self.beam.reference_time, 0)  # unchanged
+        self.assertEqual(self.beam.reference.time, 0)  # unchanged
 
         # print(self.beam.dE.tolist())
         np.testing.assert_allclose(  # changer/ test pinned to some value
@@ -359,8 +363,9 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         from blond.core.beam.base import BeamBaseClass
 
         beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
         beam.particle_type = proton
-        beam.reference_time = backend.float(0)
+        beam.reference.time = backend.float(0)
         beam.reference_beta = 0.5
         beam.reference_velocity = backend.float(beam.reference_beta * c0)
         beam.reference_gamma = backend.float(np.sqrt(1 - 0.25))  # beta**2
@@ -395,7 +400,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         self.single_harmonic_cavity.track(beam=self.beam)
 
         self.assertEqual(self.beam.reference_total_energy, 939)  # incremented
-        self.assertEqual(self.beam.reference_time, 0)  # unchanged
+        self.assertEqual(self.beam.reference.time, 0)  # unchanged
         np.testing.assert_allclose(  # test pinned to some value
             self.beam.dE,
             [

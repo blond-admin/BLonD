@@ -355,7 +355,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 simulation.intensity_effect_manager.set_profiles(active=True)
 
                 # this might get changed by the simulation
-                beam_reference_time = beam.reference_time
+                beam_reference_time = beam.reference.time
                 beam_reference_total_energy = beam.reference_total_energy
 
                 simulation.run_simulation(
@@ -365,7 +365,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     show_progressbar=False,
                 )
                 # reset to original value before simulation
-                beam.reference_time = beam_reference_time
+                beam.reference.time = beam_reference_time
                 beam.reference_total_energy = beam_reference_total_energy
 
                 # Prevent the profiles from updating.

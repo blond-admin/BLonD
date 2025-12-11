@@ -393,14 +393,14 @@ class Simulation(Preparable):
             particle_type=particle_type,
             intensity=intensity,
         )
-        t0 = probe_bunch.reference_time
+        t0 = probe_bunch.reference.time
         self.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             turn_i_init=0,
             show_progressbar=False,
         )
-        t1 = probe_bunch.reference_time
+        t1 = probe_bunch.reference.time
         T = t1 - t0
         potential_well = (
             cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
@@ -503,7 +503,7 @@ class Simulation(Preparable):
             intensity=intensity,
         )
         bunch_before = deepcopy(probe_bunch)
-        t_0 = probe_bunch.reference_time
+        t_0 = probe_bunch.reference.time
         deepcopy(self).run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
@@ -511,7 +511,7 @@ class Simulation(Preparable):
             show_progressbar=False,
         )
         # Calculate passed time
-        t_1 = probe_bunch.reference_time
+        t_1 = probe_bunch.reference.time
         t_rev = t_1 - t_0
         # Calculate scaling factor
         factor = float((dt[-1] - dt[0]) / t_rev)

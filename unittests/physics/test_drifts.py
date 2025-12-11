@@ -8,6 +8,7 @@ from scipy.constants import speed_of_light as c0
 from blond import Simulation
 from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 
 
@@ -81,7 +82,8 @@ class TestDriftSimple(unittest.TestCase):
         )
 
         beam = Mock(BeamBaseClass)
-        beam.reference_time = 0.0
+        beam.reference = Mock()
+        beam.reference.time = 0.0
         beam.reference_gamma = 1.0
         beam.reference_velocity = 0.5
         beam.reference_beta = 0.1
@@ -137,7 +139,8 @@ class TestDriftSimple(unittest.TestCase):
 
     def test_track(self):
         beam = Mock(BeamBaseClass)
-        beam.reference_time = backend.float(0)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.time = backend.float(0)
         beam.reference_beta = backend.float(0.5)
         beam.reference_velocity = backend.float(beam.reference_beta * c0)
         beam.reference_gamma = backend.float(np.sqrt(1 - 0.25))  # beta**2
@@ -176,7 +179,7 @@ class TestDriftSimple(unittest.TestCase):
             0.5,  # unchanged
         )
         self.assertEqual(
-            beam.reference_time,
+            beam.reference.time,
             self.drift_simple.orbit_length
             / (0.5 * c0),  # drifted by length of drift
         )

@@ -1,8 +1,9 @@
 import unittest
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock, Mock, PropertyMock
 
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import proton
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.cycles.magnetic_cycle import MagneticCycleByTime
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 
@@ -31,7 +32,9 @@ class DummyBeam(BeamBaseClass):
     """Minimal Beam implementation for testing EnergyReferenceKick."""
 
     def __init__(self):
-        self.reference_total_energy = 1e9
+        self.reference = Mock(ReferenceCoordinates)
+        self.reference.total_energy = 1e9
+        self.reference.time = 0
         self._dE = 0.0
         self.reference_time = 0.0
 
@@ -80,7 +83,7 @@ class TestEnergyReferenceKick(unittest.TestCase):
 
         self.energy_kick.schedule_active = False  # No schedules applied
 
-        original_ref_energy = beam.reference_total_energy
+        original_ref_energy = beam.reference.total_energy
         original_dE = beam._dE
 
         self.energy_kick.track(beam)
@@ -94,7 +97,7 @@ class TestEnergyReferenceKick(unittest.TestCase):
         expected_change = target_energy - original_ref_energy
 
         self.assertEqual(
-            beam.reference_total_energy, original_ref_energy + expected_change
+            beam.reference.total_energy, original_ref_energy + expected_change
         )
         self.assertEqual(beam._dE, original_dE - expected_change)
 

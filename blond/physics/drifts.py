@@ -373,7 +373,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         if self.schedule_active:
             self.apply_schedules(
                 turn_i=self._simulation.turn_i.value,
-                reference_time=beam.reference_time,
+                reference_time=beam.reference.time,
             )
         dt = self.orbit_length / beam.reference_velocity
         gamma = beam.reference_gamma
@@ -386,7 +386,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             beta=beam.reference_beta,
             energy=beam.reference_total_energy,
         )
-        beam.reference_time += dt
+        beam.reference.time += dt
 
     def eta_0(self, gamma: float) -> float:
         """

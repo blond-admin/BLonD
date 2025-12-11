@@ -7,6 +7,7 @@ import numpy as np
 from blond import Simulation, SingleHarmonicRfStation, StaticProfile, WakeField
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -36,7 +37,8 @@ simulation.turn_i = DynamicParameter(None)
 simulation.turn_i.value = 0
 beam = Mock(BeamBaseClass)
 beam.common_array_size = 128
-beam.reference_time = 0.8
+beam.reference = Mock(ReferenceCoordinates)
+beam.reference.time = 0.8
 beam.reference_beta = 0.9
 beam.reference_total_energy = 11
 beam._dt = np.ones(beam.common_array_size, dtype=float)

@@ -21,6 +21,7 @@ from scipy.constants import speed_of_light as c0  # type: ignore
 
 from blond.core.base import HasPropertyCache, Preparable
 from blond.core.helpers import int_from_float_with_warning
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -79,11 +80,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._flags: NumpyArray | CupyArray | None = None
         self._ids: NumpyArray | CupyArray | None = None
 
-        self.reference_time: float = 0.0
-        # todo cached properties
-        self._reference_total_energy: float | None = (
-            None  # todo cached  properties
-        )
+        self.reference = ReferenceCoordinates(time=0, total_energy=None)
 
     @requires(["EnergyCycleBase"])
     def on_run_simulation(
@@ -128,14 +125,14 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         new_reference_total_energy = (
             simulation.magnetic_cycle.get_total_energy_init(
                 turn_i_init=turn_i_init,
-                t_init=self.reference_time,
+                t_init=self.reference.time,
                 particle_type=self.particle_type,
             )
         )
-        if self._reference_total_energy != new_reference_total_energy:
+        if self.reference.total_energy != new_reference_total_energy:
             msg = (
                 f"`Bunch` was prepared for"
-                f" total_energy = {self._reference_total_energy} eV,"
+                f" total_energy = {self.reference.total_energy} eV,"
                 f" but simulation at {turn_i_init=} is"
                 f" {new_reference_total_energy} eV."
                 f" The energy is overwritten according to simulation."
@@ -171,12 +168,12 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         reference_total_energy
             Total beam energy [eV].
         """
-        if self._reference_total_energy is None:
+        if self.reference.total_energy is None:
             raise ValueError(
                 "Beam is not properly set up, please set "
                 "`reference_total_energy` first!"
             )
-        return self._reference_total_energy
+        return self.reference.total_energy
 
     @reference_total_energy.setter
     def reference_total_energy(self, reference_total_energy: float) -> None:
@@ -189,7 +186,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             Total beam energy [eV].
         """
         self.invalidate_cache_reference()
-        self._reference_total_energy = reference_total_energy
+        self.reference.total_energy = reference_total_energy
 
     @cached_property
     def reference_gamma(self) -> float:
@@ -202,12 +199,12 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             Beam reference gamma a.k.a. Lorentz factor [].
         """
         # reference_total_energy in eV and mass_inv in [c²/eV]
-        if self._reference_total_energy is None:
+        if self.reference.total_energy is None:
             raise ValueError(
                 "Beam is not properly set up, please set "
                 "`reference_total_energy` first!"
             )
-        val = self._reference_total_energy * self._particle_type.mass_inv
+        val = self.reference.total_energy * self._particle_type.mass_inv
         return val
 
     @cached_property

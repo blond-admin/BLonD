@@ -271,7 +271,7 @@ class EmpiricMatcher(MatchingRoutine):
             simulation=simulation,
             beam=beam,
         )
-        reference_time = deepcopy(beam.reference_time)
+        reference_time = deepcopy(beam.reference.time)
         reference_total_energy = deepcopy(beam.reference_total_energy)
 
         time_grid, deltaE_grid = np.meshgrid(
@@ -308,7 +308,7 @@ class EmpiricMatcher(MatchingRoutine):
         )
         hamilton_2D = self.hamiltonian_to_density_function(hamilton_2D)
         users_beam.reference_total_energy = reference_total_energy
-        users_beam.reference_time = reference_time
+        users_beam.reference.time = reference_time
         populate_beam(
             beam=users_beam,
             time_grid=time_grid,
@@ -338,7 +338,7 @@ class EmpiricMatcher(MatchingRoutine):
             beam_gridded.setup_beam(
                 dt=dt_flat_init.copy(),
                 dE=dE_flat_init.copy(),
-                reference_time=users_beam.reference_time,
+                reference_time=users_beam.reference.time,
                 # reference_total_energy=users_beam.reference_total_energy,
                 # flags=None # TODO
             )
@@ -360,7 +360,7 @@ class EmpiricMatcher(MatchingRoutine):
             )
             hamilton_2D = self.hamiltonian_to_density_function(hamilton_2D)
             users_beam.reference_total_energy = reference_total_energy
-            users_beam.reference_time = reference_time
+            users_beam.reference.time = reference_time
             populate_beam(
                 beam=users_beam,
                 time_grid=time_grid,

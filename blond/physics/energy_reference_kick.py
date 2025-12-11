@@ -125,7 +125,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
             section_i=self.section_index,
-            reference_time=beam.reference_time,
+            reference_time=beam.reference.time,
             particle_type=beam.particle_type,
         )
 
