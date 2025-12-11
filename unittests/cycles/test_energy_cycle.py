@@ -247,7 +247,7 @@ class TestEnergyCycleBase(unittest.TestCase):
         self.assertIsInstance(self.magnetic_cycle_base, MagneticCycleBase)
 
     def test_energy(self):
-        energy = self.magnetic_cycle_base.get_total_energy_init(0, 0, proton)
+        energy = self.magnetic_cycle_base.get_total_energy_init(proton)
         expected = np.sqrt(self.momentum_init**2 + proton.mass**2)
         assert_allclose(energy, expected, rtol=1e-8)
 
@@ -297,7 +297,7 @@ class TestEnergyCycleByTime(unittest.TestCase):
             in_unit="total energy",
         )
         self.assertEqual(
-            ebt.get_total_energy_init(0, 0, particle_type=uranium_29), 1e12
+            ebt.get_total_energy_init(particle_type=uranium_29), 1e12
         )
 
     def test_get_target_total_energy(self):

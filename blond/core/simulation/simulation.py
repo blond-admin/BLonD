@@ -1426,6 +1426,10 @@ class Simulation(Preparable):
 
         Raises
         ------
+        AssertionError
+            If ``n_turns`` exceeds the maximum turns defined by the
+            magnetic cycle, or if beam ordering is incorrect for counter-rotating simulations.
+
         FileNotFoundError
             If the saved data files cannot be found.
         AssertionError
