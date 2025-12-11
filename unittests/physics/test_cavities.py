@@ -73,7 +73,7 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         cavity_feedback_good = SPSOneTurnFeedback(profile=prof, n_sections=3)
 
-        mhc = MultiHarmonicRfStation.headless(
+        MultiHarmonicRfStation.headless(
             section_index=1,
             voltage=np.array([1]),
             harmonic=np.array([1]),
@@ -84,7 +84,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             beam_reference_beta=1,
             cavity_feedback=cavity_feedback_good,
         )
-
+        cavity_feedback_good._parent_rf_station = None  # reset
         # TODO: remove this, once cavity feedback setup is fixed
         MultiHarmonicRfStation(
             section_index=1,
@@ -321,16 +321,16 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             ]
         )
         assert (
-            self.multi_harmonic_cavity.get_main_harmonic_t_rf_current()
+            self.multi_harmonic_cavity.get_main_harmonic_t_rf_actual()
             == 2
             * np.pi
-            / self.multi_harmonic_cavity.get_main_harmonic_omega_rf_design()
+            / self.multi_harmonic_cavity.get_main_harmonic_omega_rf_actual()
         )
         assert (
             self.multi_harmonic_cavity.calc_main_harmonic_t_rf(
                 beam_beta=self.beam.reference_beta, ring_circumference=456
             )
-            == self.multi_harmonic_cavity.get_main_harmonic_t_rf_current()
+            == self.multi_harmonic_cavity.get_main_harmonic_t_rf_actual()
         )
 
     def test_on_init_simulation_fails2(self) -> None:
@@ -429,14 +429,14 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             == self.single_harmonic_cavity.harmonic
         )
         assert (
-            self.single_harmonic_cavity.get_main_harmonic_t_rf_current()
-            == 2 * np.pi / self.single_harmonic_cavity.omega_rf
+            self.single_harmonic_cavity.get_main_harmonic_t_rf_actual()
+            == 2 * np.pi / self.single_harmonic_cavity.omega_rf_actual
         )
         assert (
             self.single_harmonic_cavity.calc_main_harmonic_t_rf(
                 beam_beta=self.beam.reference_beta, ring_circumference=456
             )
-            == self.single_harmonic_cavity.get_main_harmonic_t_rf_current()
+            == self.single_harmonic_cavity.get_main_harmonic_t_rf_actual()
         )
 
     def test_on_init_simulation_fails(self) -> None:
@@ -452,7 +452,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.single_harmonic_cavity.phi_rf = None
+            self.single_harmonic_cavity.phi_rf_design = None
             self.single_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
