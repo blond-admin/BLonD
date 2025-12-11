@@ -903,9 +903,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         omega
             Angular frequency (2 PI f) of RF station, in [rad/s].
         """
-        return self.harmonic * backend.float(
-            TWOPI_C0 * beam_beta / ring_circumference
-        )
+        return self.harmonic * float(TWOPI_C0 * beam_beta / ring_circumference)
 
     def calc_gap_voltage(self):
         """Calculates total gap voltage in the RF station.
