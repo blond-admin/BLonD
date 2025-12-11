@@ -914,12 +914,30 @@ class MagneticCycleByTime(MagneticCycleBase):
     interpolator
         Interpolation routine to get time in between the base values.
         Default: `scipy.interpolate.interp1d`.
+    **kwargs
+        Optional keyword arguments for the interpolator
 
     See Also
     --------
     scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`
     scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation
     scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial
+
+    Examples
+    --------
+    >>> import scipy
+    >>> from blond import mu_plus
+    >>> time_per_turn = 953.338 * 2 * np.pi / scipy.constants.c
+    >>> n_turns = 17
+    >>> energy_ramp = np.linspace(63e9, 313.83e9 * 100, n_turns)
+    >>> energy_cycle = MagneticCycleByTime(
+    ...     reference_particle=mu_plus,
+    ...     base_time=np.linspace(0, 18 * time_per_turn, n_turns),
+    ...     base_values=energy_ramp,
+    ...     in_unit="momentum",
+    ...     interpolator=scipy.interpolate.Akima1DInterpolator,
+    ...     method="makima",
+    ... )
     """
 
     def __init__(
@@ -935,6 +953,7 @@ class MagneticCycleByTime(MagneticCycleBase):
             | interp1d
             | AnyInterpolator
         ] = interp1d,
+        **kwargs,
     ):
         base_magnetic_rigidity = _to_magnetic_rigidity(
             data=base_values,
@@ -954,6 +973,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         self._interpolator = interpolator(
             base_time[:],
             base_magnetic_rigidity[:],
+            **kwargs,
         )
         self._base_values = base_values[:]  # only for debugging
         self._in_unit = in_unit  # only for debugging

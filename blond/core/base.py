@@ -562,12 +562,39 @@ class ScheduledInterpolation(SchedulerBaseClass):
     interpolator
         Interpolation routine to get time in between the base values.
         Default: `scipy.interpolate.interp1d`.
+    **kwargs
+        Optional keyword arguments for the interpolator
 
     See Also
     --------
     scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`
     scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation
     scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial
+
+
+    Examples
+    --------
+    Using the Akima interpolation
+    >>> import scipy
+    >>> t_arr = np.linspace(0, 10)
+    >>> vals = np.linspace(-10, 0)
+    >>> scheduler = ScheduledInterpolation(
+    ...     times=t_arr,
+    ...     values=vals,
+    ...     interpolator=scipy.interpolate.Akima1DInterpolator,
+    ...     method="makima",
+    ... )
+
+    Using the Akima interpolation
+    >>> import scipy
+    >>> t_arr = np.linspace(0, 10)
+    >>> vals = np.linspace(-10, 0)
+    >>> scheduler = ScheduledInterpolation(
+    ...     times=t_arr,
+    ...     values=vals,
+    ...     interpolator=scipy.interpolate.PchipInterpolator,
+    ...     method="makima",
+    ... )
     """
 
     def __init__(
@@ -580,9 +607,10 @@ class ScheduledInterpolation(SchedulerBaseClass):
             | interp1d
             | AnyInterpolator
         ] = interp1d,
+        **kwargs,
     ) -> None:
         super().__init__()
-        self.interpolator = interpolator(times, values)
+        self.interpolator = interpolator(times, values, **kwargs)
 
     def get_scheduled(
         self,
