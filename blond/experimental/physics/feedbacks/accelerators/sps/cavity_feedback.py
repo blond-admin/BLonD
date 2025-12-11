@@ -204,6 +204,20 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         self.G_tx = float(G_tx)
         self.a_comb = float(a_comb)
 
+        # 200 MHz travelling wave cavity (TWC) model
+        if self.n_sections in [3, 4, 5]:
+            self.TWC = eval(
+                "SPS"
+                + str(self.n_sections)
+                + "Section200MHzTWC("
+                + str(self.df)
+                + ")"
+            )
+        else:
+            raise RuntimeError(
+                "ERROR in SPSOneTurnFeedback: argument n_sections has invalid value!"
+            )
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
@@ -221,39 +235,27 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         )
 
         # 200 MHz travelling wave cavity (TWC) model
-        if self.n_sections in [3, 4, 5]:
-            self.TWC = eval(
-                "SPS"
-                + str(self.n_sections)
-                + "Section200MHzTWC("
-                + str(self.df)
-                + ")"
+        if self.open_ff == 1:
+            # Feed-forward filter
+            self.coeff_ff = getattr(
+                sys.modules[__name__],
+                "feedforward_filter_TWC" + str(self.n_sections),
             )
-            if self.open_ff == 1:
-                # Feed-forward filter
-                self.coeff_ff = getattr(
-                    sys.modules[__name__],
-                    "feedforward_filter_TWC" + str(self.n_sections),
-                )
-                self.n_ff = len(self.coeff_ff)  # Number of coefficients for FF
-                self.n_ff_delay = round(
-                    0.5 * (self.n_ff - 1) + 0.5 * self.TWC.tau / self.T_s / 5
-                )
-
-                self.logger.debug(
-                    "Feed-forward delay in samples %d", self.n_ff_delay
-                )
-
-                # Multiply gain by normalisation factors from filter and
-                # beam-to generator current
-                self.G_ff *= self.TWC.R_beam / (
-                    self.TWC.R_gen * np.sum(self.coeff_ff)
-                )
-
-        else:
-            raise RuntimeError(
-                "ERROR in SPSOneTurnFeedback: argument n_sections has invalid value!"
+            self.n_ff = len(self.coeff_ff)  # Number of coefficients for FF
+            self.n_ff_delay = round(
+                0.5 * (self.n_ff - 1) + 0.5 * self.TWC.tau / self.T_s / 5
             )
+
+            self.logger.debug(
+                "Feed-forward delay in samples %d", self.n_ff_delay
+            )
+
+            # Multiply gain by normalisation factors from filter and
+            # beam-to generator current
+            self.G_ff *= self.TWC.R_beam / (
+                self.TWC.R_gen * np.sum(self.coeff_ff)
+            )
+
         self.logger.debug(
             "SPS OTFB cavities: %d, sections: %d, voltage partition %.2f, gain: %.2e",
             self.n_cavities,
