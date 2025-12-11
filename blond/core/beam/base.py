@@ -287,7 +287,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         return self._is_counter_rotating
 
-    @requires(["EnergyCycleBase"])
+    @requires(["MagneticCycleBase"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
