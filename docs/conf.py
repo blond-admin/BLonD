@@ -266,6 +266,8 @@ autodoc_default_options = {
 show_warning_types = True
 
 
+# Required to skip instances of _abc_impl, which are present in
+# all classes inheriting from ABC (which is almost all our classes)
 def skip_specific_functions(app, what, name, obj, skip, options):
     """
     Determine whether Sphinx should skip documenting a specific member.
