@@ -48,7 +48,6 @@ def main():
     rf_station_1.schedule(
         attribute="phi_rf",
         value=VariNoise().get_noise(n_turns=200),
-        mode="per-turn",
     )
     rf_station_1.harmonic = 35640
     energy_cycle = MagneticCyclePerTurn(
