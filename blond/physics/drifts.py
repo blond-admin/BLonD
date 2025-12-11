@@ -17,7 +17,12 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
+from blond.core.base import (
+    AltersReferene,
+    BeamPhysicsRelevant,
+    HasPropertyCache,
+    Schedulable,
+)
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -63,7 +68,7 @@ def _assert_purely_real_or_imaginary(val: complex):
         )
 
 
-class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+class DriftBaseClass(BeamPhysicsRelevant, AltersReferene, Schedulable, ABC):
     """
     Base class of a drift.
 
@@ -374,15 +379,16 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         reference = beam.reference
         dt = self.track_reference(reference)
 
-        gamma = reference.gamma
-        backend.specials.drift_simple(
-            dt=beam.write_partial_dt(),
-            dE=beam.read_partial_dE(),
-            T=dt,
-            eta_0=(self.alpha_0 - (1 / (gamma * gamma))),
-            beta=reference.beta,
-            energy=reference.total_energy,
-        )
+        if beam.common_array_size > 0:
+            gamma = reference.gamma
+            backend.specials.drift_simple(
+                dt=beam.write_partial_dt(),
+                dE=beam.read_partial_dE(),
+                T=dt,
+                eta_0=(self.alpha_0 - (1 / (gamma * gamma))),
+                beta=reference.beta,
+                energy=reference.total_energy,
+            )
 
     def track_reference(self, reference: ReferenceCoordinates):
         if self.schedule_active:

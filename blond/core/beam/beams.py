@@ -420,7 +420,7 @@ class ProbeBeam(Beam):
         dE: NumpyArray | None = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
-        intensity: int = 0,
+        intensity: float = 0,
     ) -> None:
         super().__init__(
             intensity=intensity,
@@ -442,6 +442,54 @@ class ProbeBeam(Beam):
         self.setup_beam(
             dt=dt,
             dE=dE,
+            reference_time=reference_time,
+            reference_total_energy=reference_total_energy,
+        )
+
+
+class EmptyBeam(Beam):
+    """
+    Create a test beam for probing simulation dynamics.
+
+    A ProbeBeam is a special beam type, designed for testing and
+    analysis purposes.
+
+    At least one of `dt` or `dE` must be provided. If only one is given,
+    the other coordinate is automatically set to zero for all particles.
+
+    Parameters
+    ----------
+    particle_type
+        The type of particle in the beam (e.g., protons, electrons).
+        This determines properties like mass and charge.
+    reference_time
+        The reference time for the coordinate system, in [s].
+    reference.total_energy
+        The reference total energy for the coordinate system, in [eV].
+    intensity
+        The beam intensity (number of real particles). Default is 0,
+        meaning no collective effects.
+
+    Raises
+    ------
+    ValueError
+        If neither `dt` nor `dE` is provided.
+    """
+
+    def __init__(
+        self,
+        particle_type: ParticleType,
+        reference_time: float | None = None,
+        reference_total_energy: float | None = None,
+        intensity: float = 0,
+    ) -> None:
+        super().__init__(
+            intensity=intensity,
+            particle_type=particle_type,
+        )
+        self.setup_beam(
+            dt=backend.zeros(0),
+            dE=backend.zeros(0),
             reference_time=reference_time,
             reference_total_energy=reference_total_energy,
         )
