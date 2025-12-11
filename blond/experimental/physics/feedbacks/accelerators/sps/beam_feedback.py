@@ -72,8 +72,8 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         **kwargs: dict[str, Any],
     ) -> None:
         self.alpha_0 = self._drift.alpha_0
-        self.beta = beam.reference_beta
-        self.energy = beam.reference_total_energy
+        self.beta = beam.reference.beta
+        self.energy = beam.reference.total_energy
 
     def track(self, beam: BeamBaseClass) -> None:
         r"""
@@ -98,7 +98,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self.update_dphi(beam=beam)
         self.radial_difference(beam=beam)
 
-        eta_0 = self._drift.eta_0(gamma=beam.reference_gamma)
+        eta_0 = self._drift.eta_0(gamma=beam.reference.gamma)
         # Frequency correction from phase loop and radial loop
         self.domega_dphi = -self.gain * self.dphi  # TODO declare
         self.domega_dR = (

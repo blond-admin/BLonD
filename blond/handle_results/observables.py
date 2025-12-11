@@ -348,7 +348,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             (n_entries,),
         )
         self._reference_total_energy = DenseArrayRecorder(
-            f"{self.common_filepath}_reference_total_energy",
+            f"{self.common_filepath}_reference.total_energy",
             (n_entries,),
         )
 
@@ -366,7 +366,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         """
         # TODO allow several bunches
         self._reference_time.write(self._beam.reference.time)
-        self._reference_total_energy.write(self._beam.reference_total_energy)
+        self._reference_total_energy.write(self._beam.reference.total_energy)
         self._dts.write(self._beam._dt)
         self._dEs.write(self._beam._dE)
         self._flags.write(self._beam._flags)
@@ -390,7 +390,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
 
         Returns
         -------
-        reference_total_energy
+        reference.total_energy
             Total energy array.
         """
         return self._reference_total_energy.get_valid_entries()

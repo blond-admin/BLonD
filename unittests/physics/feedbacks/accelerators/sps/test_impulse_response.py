@@ -378,7 +378,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
             dt=dt,
             dE=dE,
             reference_time=beam.reference.time,
-            reference_total_energy=beam.reference_total_energy,
+            reference_total_energy=beam.reference.total_energy,
         )
         rf._update_beam_based_attributes(
             beam=beam2,

@@ -116,7 +116,7 @@ class BeamObservationInRingElement(
             self.common_filepath + "_reference_time", (n_entries,)
         )
         self._reference_total_energy = DenseArrayRecorder(
-            self.common_filepath + "_reference_total_energy", (n_entries,)
+            self.common_filepath + "_reference.total_energy", (n_entries,)
         )
         self._flags = DenseArrayRecorder(
             self.common_filepath + "_flags",
@@ -135,7 +135,7 @@ class BeamObservationInRingElement(
         self._dEs.write(beam.read_partial_dE())
         self._dts.write(beam.read_partial_dt())
         self._reference_time.write(beam.reference.time)
-        self._reference_total_energy.write(beam.reference_total_energy)
+        self._reference_total_energy.write(beam.reference.total_energy)
         self._flags.write(beam.read_partial_flags())
 
     @property  # as readonly attributes
@@ -157,7 +157,7 @@ class BeamObservationInRingElement(
 
         Returns
         -------
-        reference_total_energy
+        reference.total_energy
             Total beam energy in eV.
         """
         return self._reference_total_energy.get_valid_entries()

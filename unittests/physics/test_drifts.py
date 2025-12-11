@@ -84,10 +84,10 @@ class TestDriftSimple(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         beam.reference = Mock()
         beam.reference.time = 0.0
-        beam.reference_gamma = 1.0
-        beam.reference_velocity = 0.5
-        beam.reference_beta = 0.1
-        beam.reference_total_energy = 1.0
+        beam.reference.gamma = 1.0
+        beam.reference.velocity = 0.5
+        beam.reference.beta = 0.1
+        beam.reference.total_energy = 1.0
         beam.write_partial_dt.return_value = np.ones(10)
         beam.read_partial_dE.return_value = np.zeros(10)
         self.drift_simple.track(beam=beam)
@@ -141,10 +141,10 @@ class TestDriftSimple(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
         beam.reference.time = backend.float(0)
-        beam.reference_beta = backend.float(0.5)
-        beam.reference_velocity = backend.float(beam.reference_beta * c0)
-        beam.reference_gamma = backend.float(np.sqrt(1 - 0.25))  # beta**2
-        beam.reference_total_energy = backend.float(938)
+        beam.reference.beta = backend.float(0.5)
+        beam.reference.velocity = backend.float(beam.reference.beta * c0)
+        beam.reference.gamma = backend.float(np.sqrt(1 - 0.25))  # beta**2
+        beam.reference.total_energy = backend.float(938)
         beam.dE = np.linspace(
             -1e6, 1e6, 10, dtype=backend.float
         )  # delta E in eV
@@ -175,7 +175,7 @@ class TestDriftSimple(unittest.TestCase):
             np.linspace(-1e6, 1e6, 10),
         )
         self.assertEqual(
-            beam.reference_beta,
+            beam.reference.beta,
             0.5,  # unchanged
         )
         self.assertEqual(

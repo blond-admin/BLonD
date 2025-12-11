@@ -250,7 +250,7 @@ class Ring(Preparable):
         --------
         average_transition_gamma : This method is interlnally used.
         """
-        return bool(self.calc_average_eta_0(gamma=beam.reference_gamma) < 0)
+        return bool(self.calc_average_eta_0(gamma=beam.reference.gamma) < 0)
 
     @property
     def n_rf_stations(self) -> int:

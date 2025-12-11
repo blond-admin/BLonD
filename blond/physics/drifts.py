@@ -375,16 +375,16 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
                 turn_i=self._simulation.turn_i.value,
                 reference_time=beam.reference.time,
             )
-        dt = self.orbit_length / beam.reference_velocity
-        gamma = beam.reference_gamma
+        dt = self.orbit_length / beam.reference.velocity
+        gamma = beam.reference.gamma
         eta_0 = self.alpha_0 - (1 / (gamma * gamma))
         backend.specials.drift_simple(
             dt=beam.write_partial_dt(),
             dE=beam.read_partial_dE(),
             T=dt,
             eta_0=eta_0,
-            beta=beam.reference_beta,
-            energy=beam.reference_total_energy,
+            beta=beam.reference.beta,
+            energy=beam.reference.total_energy,
         )
         beam.reference.time += dt
 

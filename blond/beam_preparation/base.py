@@ -50,7 +50,7 @@ class BeamPreparationRoutine(ABC):
         beam : BeamBaseClass
             The `Beam` object which state will be updated by this element.
         """
-        beam.reference_total_energy = (
+        beam.reference.total_energy = (
             simulation.magnetic_cycle.get_total_energy_init(
                 turn_i_init=simulation.turn_i.value,
                 t_init=beam.reference.time,  # FIXME

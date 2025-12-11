@@ -39,8 +39,8 @@ beam = Mock(BeamBaseClass)
 beam.common_array_size = 128
 beam.reference = Mock(ReferenceCoordinates)
 beam.reference.time = 0.8
-beam.reference_beta = 0.9
-beam.reference_total_energy = 11
+beam.reference.beta = 0.9
+beam.reference.total_energy = 11
 beam._dt = np.ones(beam.common_array_size, dtype=float)
 beam._dE = np.ones(beam.common_array_size, dtype=float)
 beam._flags = np.ones(beam.common_array_size, dtype=int)

@@ -130,7 +130,7 @@ def get_hamilton_semi_analytic(
         Time coordinates of the potential well [s].
     potential_well : array_like
         Potential energy values corresponding to ``ts`` [V].
-    reference_total_energy : float
+    reference.total_energy : float
         Reference total energy :math:`E_0` [eV].
     eta : float
         General synchrotron parameter (zeroth-order slippage factor) [unitless].
@@ -356,7 +356,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
                 # this might get changed by the simulation
                 beam_reference_time = beam.reference.time
-                beam_reference_total_energy = beam.reference_total_energy
+                beam_reference_total_energy = beam.reference.total_energy
 
                 simulation.run_simulation(
                     beams=(beam,),
@@ -366,7 +366,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 )
                 # reset to original value before simulation
                 beam.reference.time = beam_reference_time
-                beam.reference_total_energy = beam_reference_total_energy
+                beam.reference.total_energy = beam_reference_total_energy
 
                 # Prevent the profiles from updating.
                 simulation.intensity_effect_manager.set_profiles(active=False)
@@ -461,10 +461,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
         deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
             ts=ts,
             potential_well=avg_pot_well,
-            reference_total_energy=beam.reference_total_energy,
-            beta=beam.reference_beta,
+            reference_total_energy=beam.reference.total_energy,
+            beta=beam.reference.beta,
             eta=float(
-                simulation.ring.calc_average_eta_0(beam.reference_gamma)
+                simulation.ring.calc_average_eta_0(beam.reference.gamma)
             ),
             shape=self.internal_grid_shape,
         )

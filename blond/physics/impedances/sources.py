@@ -164,7 +164,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         np.gradient(x) in time domain
         ifft(derivative_kernel * fft(x)) in frequency domain
         """
-        T = simulation.ring.circumference / beam.reference_velocity
+        T = simulation.ring.circumference / beam.reference.velocity
         z_over_n = self.Z_over_n
         derivative_kernel = self._get_derivative_impedance(freq_x)
         return derivative_kernel[:] / (2 * np.pi) * z_over_n * T

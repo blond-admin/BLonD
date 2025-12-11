@@ -109,7 +109,7 @@ class Beam(BeamBaseClass):
             The absolute reference time for the coordinate system,
             in [s]. Particle times `dt` are relative to
             this reference.
-        reference_total_energy
+        reference.total_energy
             The reference total energy for the coordinate system, in [eV].
             Particle energies `dE` are relative to this reference.
         """
@@ -140,7 +140,7 @@ class Beam(BeamBaseClass):
         if reference_time:
             self.reference.time = reference_time
         if reference_total_energy:
-            self.reference_total_energy = reference_total_energy
+            self.reference.total_energy = reference_total_energy
 
         self.invalidate_cache()
 
@@ -401,7 +401,7 @@ class ProbeBeam(Beam):
         If neither `dt` nor `dE` is provided, an error is raised.
     reference_time
         The reference time for the coordinate system, in [s].
-    reference_total_energy
+    reference.total_energy
         The reference total energy for the coordinate system, in [eV].
     intensity
         The beam intensity (number of real particles). Default is 0,

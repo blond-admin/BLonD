@@ -110,7 +110,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         )
         factor = backend.float(
             (_factor / (2 * np.pi))
-            * (self._simulation.ring.circumference / beam.reference_velocity)
+            * (self._simulation.ring.circumference / beam.reference.velocity)
             / self._parent_wakefield.profile.hist_step
         )
         diff = self._parent_wakefield.profile.gradient_hist_y

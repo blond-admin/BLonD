@@ -91,8 +91,8 @@ def _get_dE_from_dt(
         simulation=simulation,
     )
 
-    energy = beam.reference_total_energy
-    beta = beam.reference_beta
+    energy = beam.reference.total_energy
+    beta = beam.reference.beta
 
     phi_s = calc_phi_s_single_harmonic(
         charge=beam.particle_type.charge,
@@ -101,11 +101,11 @@ def _get_dE_from_dt(
         energy_gain=simulation.magnetic_cycle.get_target_total_energy(
             1, 0, 0, particle_type=beam.particle_type
         )
-        - beam.reference_total_energy,
+        - beam.reference.total_energy,
         above_transition=above_transition,
     )
 
-    eta0 = [drift.eta_0(gamma=beam.reference_gamma) for drift in drifts]
+    eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
     assert all_equal(eta0), (
         f"Expected all `eta0` to be the same, but got {eta0}."
     )
@@ -166,7 +166,7 @@ def get_main_harmonic_attributes(
     # omega_rf should be all same
     omega_rf = [
         rf.calc_main_harmonic_omega_rf(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=simulation.ring.circumference,
         )
         for rf in rf_stations
@@ -306,11 +306,11 @@ class BiGaussian(MatchingRoutine):
             energy_gain=simulation.magnetic_cycle.get_target_total_energy(
                 0, 0, 0, particle_type=beam.particle_type
             )
-            - beam.reference_total_energy,
+            - beam.reference.total_energy,
             above_transition=above_transition,
         )
         # call to legacy
-        eta0 = [drift.eta_0(gamma=beam.reference_gamma) for drift in drifts]
+        eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
         assert all_equal(eta0), (
             f"Expected all `eta0` to be the same, but got {eta0}."
         )
@@ -347,8 +347,8 @@ class BiGaussian(MatchingRoutine):
                         phi_rf_d=phi_rf,
                         phi_s=phi_s,
                         etas=[eta0],
-                        beta=beam.reference_beta,
-                        total_energy=beam.reference_total_energy,
+                        beta=beam.reference.beta,
+                        total_energy=beam.reference.total_energy,
                         ring_circumference=simulation.ring.circumference,
                         dt=dt,
                         dE=dE,

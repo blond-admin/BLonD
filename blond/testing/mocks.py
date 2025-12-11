@@ -19,10 +19,12 @@ from blond import (
     StaticProfile,
     WakeField,
 )
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
 simulation_mock = Mock(Simulation)
 
 beam_mock = Mock(Beam)
+beam_mock.reference = Mock(ReferenceCoordinates)
 static_profile_mock = Mock(StaticProfile)
 wakefield_profile_mock = Mock(WakeField)
 cycle_const_mock = Mock(ConstantMagneticCycle)

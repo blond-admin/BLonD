@@ -25,6 +25,7 @@ from scipy.constants import speed_of_light as c0
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.feedbacks.beam_feedback import (
     Blond2BeamFeedback,
 )
@@ -356,7 +357,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             particle_type=beam.particle_type,
         )
         reference_energy_change = (
-            target_total_energy - beam.reference_total_energy
+            target_total_energy - beam.reference.total_energy
         )
 
         from blond.acc_math.analytic.hamilton import (
@@ -730,7 +731,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
         self._omega_rf = self.calc_omega(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=self._ring.circumference,
         )
         """
@@ -761,7 +762,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             particle_type=beam.particle_type,
         )
         reference_energy_change = (
-            target_total_energy - beam.reference_total_energy
+            target_total_energy - beam.reference.total_energy
         )
         backend.specials.kick_single_harmonic(
             dt=beam.read_partial_dt(),
@@ -772,7 +773,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             charge=beam.particle_type.charge,  #  FIXME
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )
-        beam.reference_total_energy += reference_energy_change
+        beam.reference.total_energy += reference_energy_change
 
     def calc_omega(
         self,
@@ -1033,7 +1034,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
         self._omega_rf = self.calc_omega(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=self._ring.circumference,
         )
 
@@ -1234,7 +1235,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         main_harmonic_idx
             Index of the cavity's main harmonic.
             Used to calculate attributes that rely on only one harmonic.
-        reference_beta
+        reference.beta
             Beam reference fraction of speed of light (v/c0) [].
         local_wakefield
             Optional wakefield to interact with beam.
@@ -1285,7 +1286,8 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             main_harmonic_idx=main_harmonic_idx,
         )
         beam = Mock(BeamBaseClass)
-        beam.reference_beta = reference_beta
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.beta = reference_beta
         multi_harmonic_rf_station._update_beam_based_attributes(beam)
         return multi_harmonic_rf_station
 
@@ -1308,7 +1310,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             particle_type=beam.particle_type,
         )
         reference_energy_change = (
-            target_total_energy - beam.reference_total_energy
+            target_total_energy - beam.reference.total_energy
         )
 
         backend.specials.kick_multi_harmonic(
@@ -1323,4 +1325,4 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             n_rf=self.n_rf,
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )
-        beam.reference_total_energy += reference_energy_change
+        beam.reference.total_energy += reference_energy_change

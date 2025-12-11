@@ -94,7 +94,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         )
         simulation = Simulation(ring=self.ring, magnetic_cycle=magnetic_cycle)
         self.simulation = simulation
-        self.beam.reference_total_energy = (
+        self.beam.reference.total_energy = (
             magnetic_cycle.get_total_energy_init(
                 0,
                 0,
@@ -102,7 +102,7 @@ class TestRfBeamCurrent(unittest.TestCase):
             )
         )
         self.omega_rf = self.rf.calc_omega(
-            self.beam.reference_beta, self.ring.circumference
+            self.beam.reference.beta, self.ring.circumference
         )
         self.beam.setup_beam(dt=np.zeros(N_m), dE=np.zeros(N_m))
 
@@ -180,7 +180,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
             / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.circumference
+                self.beam.reference.beta, self.ring.circumference
             )
         )
         rf_current = rf_beam_current(
@@ -427,7 +427,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
             / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.circumference
+                self.beam.reference.beta, self.ring.circumference
             )
         )
         self.profile.track(self.beam)
@@ -675,7 +675,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
             / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.circumference
+                self.beam.reference.beta, self.ring.circumference
             )
         )
         t_rf = t_rev / self.rf.harmonic
@@ -698,7 +698,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         beam2.setup_beam(
             dt=np.zeros(bunches * N_m),
             dE=np.zeros(bunches * N_m),
-            reference_total_energy=self.beam.reference_total_energy,
+            reference_total_energy=self.beam.reference.total_energy,
         )
         bunch_spacing = 5 * t_rf
         buckets = 5 * bunches
