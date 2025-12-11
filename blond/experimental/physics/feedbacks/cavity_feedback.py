@@ -472,7 +472,7 @@ class IQCavityFeedback(LocalFeedback):
         use_lowpass_filter: bool = False,
     ) -> None:
         r"""Calculate RF beam current from beam profile"""
-        harmonic, _, omega_rf_design = (
+        harmonic, omega_rf_design, _ = (
             self.get_harmonic_and_omega_rf_phi_rf_design()
         )
         t_rev = float(  # TODO REMWORK/REMOVE
