@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import Simulation, proton
+from blond import Numpy32Bit, Simulation, proton
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
@@ -284,6 +284,34 @@ class TestBeamBaseClass(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             self.beam_base_class._append_to_self(good_dt, good_dE, bad_flags)
+
+    def test__append_to_self_intensity(self):
+        dt = np.linspace(0, 10e-9, 10)
+        dE = np.linspace(0, 10e9, 10)
+        intenstiy_added = self.beam_base_class.ratio * len(dt)
+        intesity_before = self.beam_base_class.intensity * 1.0
+        self.beam_base_class._append_to_self(
+            dt=dt,
+            dE=dE,
+            intensity=intenstiy_added,
+        )
+        intesity_after = self.beam_base_class.intensity
+        self.assertAlmostEqual(
+            intesity_before + intenstiy_added, intesity_after
+        )
+
+    def test__append_to_self_intensity_fails(self):
+        dt = np.linspace(0, 10e-9, 10)
+        dE = np.linspace(0, 10e9, 10)
+        intenstiy_added = (
+            self.beam_base_class.ratio + 1  # make ratios not match
+        ) * len(dt)
+        with self.assertRaises(Exception):
+            self.beam_base_class._append_to_self(
+                dt=dt,
+                dE=dE,
+                intensity=intenstiy_added,
+            )
 
 
 if __name__ == "__main__":
