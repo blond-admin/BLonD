@@ -83,8 +83,8 @@ class BeamFeedbackBase(GlobalFeedback):
     def beam_phase(self):
         # Main RF frequency at the present turn
         counter = self.cavities[0]._turn_i
-        omega_rf = self.cavities[0].omega_rf[0]
-        phi_rf = self.cavities[0].phi_rf[0]
+        omega_rf = self.cavities[0].omega_rf_actual[0]
+        phi_rf = self.cavities[0].phi_rf_actual[0]
 
         if self.time_offset is None:
             coeff = backend.specials.beam_phase(

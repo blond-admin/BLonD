@@ -131,6 +131,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
     """
 
     skip_find_instances_attributes = ["omega_rf_design"]
+    _cavity_feedback: LocalFeedback | tuple[LocalFeedback, ...] | None = None
 
     def __init__(
         self,
@@ -144,8 +145,6 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
-        from blond.experimental.physics.feedbacks.base import LocalFeedback
-
         # prevent cyclic import
 
         super().__init__(
@@ -156,14 +155,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         if cavity_feedback is None:
             pass
         else:
-            if isinstance(
-                cavity_feedback, LocalFeedback
-            ):  # TODO: what if a wrong object is given?
-                cavity_feedback = (cavity_feedback,)
-            for feedback in cavity_feedback:
-                if not isinstance(feedback, LocalFeedback):
-                    raise ValueError("given feedback is not a LocalFeedback")
-                feedback.set_parent_rf_station(rf_station=self)
+            self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
 
         if beam_feedback is None:
             pass
@@ -354,10 +346,26 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """Attach beam feedback to the RF station after initialization."""
         self._beam_feedback = beam_feedback
 
-    def attach_cavity_feedback(self, cavity_feedback: LocalFeedback):
+    def attach_cavity_feedback(
+        self, cavity_feedback: LocalFeedback | tuple[LocalFeedback, ...]
+    ):
         """Attach cavity feedback to the RF station after initialization."""
         # TODO: This can also be list of cavity feedbacks and can also be called multiple times to keep adding CCFBs
-        cavity_feedback.set_parent_rf_station(rf_station=self)
+        if isinstance(
+            cavity_feedback, LocalFeedback
+        ):  # TODO: what if a wrong object is given?
+            cavity_feedback = (cavity_feedback,)
+        for feedback in cavity_feedback:
+            if not isinstance(feedback, LocalFeedback):
+                raise ValueError("given feedback is not a LocalFeedback")
+
+            feedback.set_parent_rf_station(rf_station=self)
+
+        if self._cavity_feedback is not None:
+            raise Warning(
+                "Already present cavity feedbacks are being overridden"
+            )
+
         self._cavity_feedback = cavity_feedback
 
     def calc_synchrotron_tune_single_harmonic(
@@ -450,6 +458,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             phase=float(self.get_main_harmonic_phi_rf()),
             energy_gain=reference_energy_change,
             above_transition=not self._ring.is_below_transition(beam=beam),
+            enable_rf_phase=enable_rf_phase,
         )
 
         return phi_s
@@ -816,7 +825,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             ring_circumference=self._ring.circumference,
         )
         """
-        self._t_rf = (2 * np.pi) / self.omega_rf_actual
+        self._t_rf = (2 * np.pi) / self.omega_rf
         self._t_rev = self._t_rf * self.harmonic
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)

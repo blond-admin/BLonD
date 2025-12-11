@@ -214,21 +214,19 @@ class IQCavityFeedback(LocalFeedback):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        harmonic, omega_rf_actual, phi_rf_actual = (
-            self.get_harmonic_and_omega_rf_phi_rf_actual()
-        )
+        harmonic, omega_rf, phi_rf = self.get_harmonic_and_omega_rf_phi_rf()
 
-        self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf_actual
+        self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
         # TODO REMWORK/REMOVE
-        t_rev = float((2 * np.pi * harmonic) / omega_rf_actual)
+        t_rev = float((2 * np.pi * harmonic) / omega_rf)
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(harmonic)
 
         self.n_coarse = round(t_rev / self.T_s)
-        self.omega_carrier = omega_rf_actual / self.n_periods_coarse
+        self.omega_carrier = omega_rf / self.n_periods_coarse
         # FIXME NO REDECLARATION!
 
-        self.omega_rf = float(omega_rf_actual)
+        self.omega_rf = float(omega_rf)
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
@@ -278,7 +276,7 @@ class IQCavityFeedback(LocalFeedback):
         """
         pass
 
-    def get_harmonic_and_omega_rf_phi_rf_actual(
+    def get_harmonic_and_omega_rf_phi_rf(
         self,
     ) -> tuple[float, float, float]:
         """
@@ -291,25 +289,23 @@ class IQCavityFeedback(LocalFeedback):
         -------
         harmonic
             harmonic number for the harmonic index/only one
-        omega_rf_actual
-            omega_rf_actual for the harmonic index/only one
-        phi_rf_actual
-            phi_rf_actual for the harmonic index/only one
+        omega_rf
+            omega_rf for the harmonic index/only one
+        phi_rf
+            phi_rf for the harmonic index/only one
 
         """
         if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
             harmonic = self._parent_rf_station.harmonic
-            omega_rf_actual = self._parent_rf_station.omega_rf_actual
-            phi_rf_actual = self._parent_rf_station.phi_rf_actual
+            omega_rf = self._parent_rf_station.omega_rf_actual
+            phi_rf = self._parent_rf_station.phi_rf_actual
         else:
             harmonic = self._parent_rf_station.harmonic[self.harmonic_index]
-            omega_rf_actual = self._parent_rf_station.omega_rf_actual[
+            omega_rf = self._parent_rf_station.omega_rf_actual[
                 self.harmonic_index
             ]
-            phi_rf_actual = self._parent_rf_station.phi_rf_actual[
-                self.harmonic_index
-            ]
-        return harmonic, omega_rf_actual, phi_rf_actual
+            phi_rf = self._parent_rf_station.phi_rf_actual[self.harmonic_index]
+        return harmonic, omega_rf, phi_rf
 
     def get_harmonic_and_omega_rf_phi_rf_design(
         self,
@@ -363,24 +359,16 @@ class IQCavityFeedback(LocalFeedback):
         self, omega_rf: float | None = None, harmonic: float | None = None
     ) -> None:
         r"""Updating variables from the other BLonD classes."""
-        # Present time step
-        harmonic_actual, omega_rf_actual, phi_rf_actual = (
-            self.get_harmonic_and_omega_rf_phi_rf_actual()
-        )
-        # Present RF angular frequency
-        if omega_rf is None:
-            self.omega_rf = float(omega_rf_actual)
-        else:
-            self.omega_rf = omega_rf
+        if omega_rf is None or harmonic is None:
+            harmonic, omega_rf, phi_rf = (
+                self.get_harmonic_and_omega_rf_phi_rf()
+            )
 
-        if harmonic is None:
-            t_rev = float(  # TODO REMWORK/REMOVE
-                2 * np.pi * harmonic_actual / self.omega_rf
-            )
-        else:
-            t_rev = float(  # TODO REMWORK/REMOVE
-                2 * np.pi * harmonic / self.omega_rf
-            )
+        # Present RF angular frequency
+        self.omega_rf = omega_rf
+        t_rev = float(  # TODO REMWORK/REMOVE
+            2 * np.pi * harmonic / self.omega_rf
+        )
 
         # Present carrier frequency: main RF frequency
         self.omega_carrier_prev = self.omega_carrier
@@ -398,7 +386,7 @@ class IQCavityFeedback(LocalFeedback):
 
         if omega_rf is None:
             # Residual part of last turn entering the current turn due to non-integer harmonic number
-            self.dT = -phi_rf_actual / self.omega_rf
+            self.dT = -phi_rf / self.omega_rf
 
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
