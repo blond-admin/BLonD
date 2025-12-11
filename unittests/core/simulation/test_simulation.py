@@ -62,6 +62,7 @@ class TestSimulation(unittest.TestCase):
             reference_total_energy=450e9,
         )
         self.simulation = Simulation.from_locals(locals())
+        self.simulation._beams = (beam1,)
         self.beam = beam1
 
     def test___init__(self):
@@ -579,13 +580,13 @@ class TestSimulation(unittest.TestCase):
     def test_finalize_warns(self) -> None:
         from blond import backend
 
-        beam_mock.common_array_size = int(1e32)
-        beam_mock.reference_beta = 1  # cavity initialisation
+        self.beam.common_array_size = int(1e32)
+        self.beam.reference_beta = 1  # cavity initialisation
         special_mode_org = backend.specials_mode
         backend.set_specials(mode="python")
         with self.assertWarns(PerformanceWarning):
             self.simulation.finalize(
-                beams=(beam_mock,),
+                beams=(self.beam,),
                 n_turns=None,
                 observe=(),
                 turn_i_init=0,
