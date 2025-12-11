@@ -267,12 +267,14 @@ class TestBeamBaseClass(unittest.TestCase):
             self.beam_base_class += (other_beam._dt[:5], other_beam._dE)
 
     def test_iadd_dtype_checks(self):
-        good_dt = np.linspace(1, 10, 10, dtype=np.float64)
-        bad_dt = good_dt.astype(np.float32)
-        good_dE = np.linspace(1, 10, 10, dtype=np.float64)
-        bad_dE = good_dE.astype(np.float32)
+        bad_dt = np.linspace(1, 10, 10, dtype=np.float64)
+        good_dt = bad_dt.astype(np.float32)
+        bad_dE = np.linspace(1, 10, 10, dtype=np.float64)
+        good_dE = bad_dE.astype(np.float32)
         good_flags = np.ones(10, dtype=np.int32)
         bad_flags = good_flags.astype(np.int64)
+
+        self.beam_base_class._append_to_self(good_dt, good_dE, good_flags)
 
         with self.assertRaises(TypeError):
             self.beam_base_class._append_to_self(bad_dt, good_dE, good_flags)
