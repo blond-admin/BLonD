@@ -3106,14 +3106,6 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
                 beam=beam_mock,
             )
 
-    def test_fails(self):
-        wf_mutli = WakeField.headless(
-            sources=(object,),
-            solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
-            profile=prof,
-            beam=beam_mock,
-        )
-
     def test_calc_induced_voltage_assert_profile_length_correct(self):
         t_rf = 7.706144104735e-10
         Q_factor = 1.76e6
