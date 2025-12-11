@@ -105,7 +105,6 @@ def main():
             )
             T_rev = cycle.get_t_rev_init(
                 circumference=ring.circumference,
-                t_init=0,
                 particle_type=test_particle,
             )
             val = rf_station.phi_s / (2 * np.pi) * T_rev / rf_station.harmonic

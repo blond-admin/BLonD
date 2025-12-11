@@ -185,7 +185,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         if self._t_periodicity is None:
             self._t_periodicity = simulation.magnetic_cycle.get_t_rev_init(
                 circumference=simulation.ring.circumference,
-                t_init=0,
                 particle_type=simulation.magnetic_cycle.reference_particle,
             )
             print(f"Set t_periodicity={self._t_periodicity} for {self}")
@@ -1109,7 +1108,6 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         # todo check that the time of n_revolutions matches n * length_profile
         t_rev = self._simulation.magnetic_cycle.get_t_rev_init(
             circumference=self._simulation.ring.circumference,
-            t_init=0,
             particle_type=self._simulation.magnetic_cycle.reference_particle,
         )
         if isinstance(t_rev, float):

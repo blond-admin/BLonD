@@ -126,7 +126,7 @@ class Blond3:
             dt=blond2.beam.dt,
             dE=blond2.beam.dE,
             reference_total_energy=sim.magnetic_cycle.get_total_energy_init(
-                t_init=0, particle_type=beam.particle_type
+                particle_type=beam.particle_type
             ),
         )
         profile.track(beam)

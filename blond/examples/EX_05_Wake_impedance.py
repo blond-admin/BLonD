@@ -100,7 +100,6 @@ def main():
             2**8,
             magnetic_cycle.get_t_rev_init(
                 ring.circumference,
-                t_init=0,
                 particle_type=proton,
             )
             / 4620,

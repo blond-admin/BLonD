@@ -222,7 +222,6 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     def get_t_rev_init(
         self,
         circumference: float,
-        t_init: float,
         particle_type: ParticleType,
     ) -> float:
         r"""
@@ -232,8 +231,6 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         ----------
         circumference : float
             Reference circumference of the synchrotron, in [m].
-        t_init : float
-            Initial time, in [s].
         particle_type : ParticleType
             Object containing particle properties (e.g., mass, charge).
 
@@ -263,7 +260,6 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
             \beta = \sqrt{1 - \frac{1}{\gamma^2}}
         """
         reference_total_energy = self.get_total_energy_init(
-            t_init=t_init,
             particle_type=particle_type,
         )
         reference_gamma = reference_total_energy * particle_type.mass_inv

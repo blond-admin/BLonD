@@ -179,7 +179,6 @@ class TestConstantEnergyCycle(unittest.TestCase):
         self.assertEqual(
             2000e6,
             self.constant_magnetic_cycle.get_total_energy_init(
-                t_init=0,
                 particle_type=proton,
             ),
         )

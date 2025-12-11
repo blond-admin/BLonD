@@ -364,7 +364,6 @@ class TestSimulation(unittest.TestCase):
             0,
             self.simulation.magnetic_cycle.get_t_rev_init(
                 circumference=self.simulation.ring.circumference,
-                t_init=0,
                 particle_type=particle_type,
             )
             / cavity.harmonic,
@@ -422,7 +421,6 @@ class TestSimulation(unittest.TestCase):
             0,
             self.simulation.magnetic_cycle.get_t_rev_init(
                 circumference=self.simulation.ring.circumference,
-                t_init=0,
                 particle_type=proton,
             )
             / cavity.harmonic,
@@ -481,7 +479,6 @@ class TestSimulation(unittest.TestCase):
             0,
             simulation.magnetic_cycle.get_t_rev_init(
                 circumference=simulation.ring.circumference,
-                t_init=0,
                 particle_type=particle_type,
             )
             / cavity.harmonic,

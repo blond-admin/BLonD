@@ -134,7 +134,6 @@ class TestBeamFeedback(unittest.TestCase):
         t_rf = (
             self.magnetic_cycle.get_t_rev_init(
                 circumference=self.ring.circumference,
-                t_init=0,
                 particle_type=self.magnetic_cycle._reference_particle,
             )
             / 4620

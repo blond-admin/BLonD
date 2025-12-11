@@ -117,7 +117,6 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
     t_rf = (
         magnetic_cycle.get_t_rev_init(
             ring.circumference,
-            t_init=0,
             particle_type=mu_plus,
         )
         / harmonic
