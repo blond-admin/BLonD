@@ -970,6 +970,7 @@ class Simulation(Preparable):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
+        callback_each_turn: int = 1,
     ) -> None:
         """
         Execute the main beam dynamics simulation loop.
@@ -1010,6 +1011,9 @@ class Simulation(Preparable):
             Optional user-defined function called at the end of each turn. Signature
             must be ``def callback(simulation: Simulation, beam: BeamBaseClass): ...``.
             Useful for custom data collection or live plotting. Default is None.
+        callback_each_turn
+            Specifies the the repitition rate at which `callback` is called.
+            Deafault is 1, each turn.
 
         Raises
         ------
@@ -1111,6 +1115,7 @@ class Simulation(Preparable):
                 observe=observe,
                 show_progressbar=show_progressbar,
                 callback=callback,
+                callback_each_turn=callback_each_turn,
             )
         elif len(beams) == 2:  # NOQA: PLR2004
             assert (
@@ -1256,6 +1261,7 @@ class Simulation(Preparable):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
+        callback_each_turn: int = 1,
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam.
@@ -1275,6 +1281,9 @@ class Simulation(Preparable):
         callback
             User defined function `def myfunction(simulation: Simulation): ...`
             that is called each turn.
+        callback_each_turn
+            Specifies the the repitition rate at which `callback` is called.
+            Deafault is 1, each turn.
 
         Notes
         -----
@@ -1296,7 +1305,7 @@ class Simulation(Preparable):
                     observable.update(
                         simulation=self,
                     )
-            if callback is not None:
+            if callback is not None and (turn_i % callback_each_turn) == 0:
                 callback(self, beam)
 
     def _run_simulation_counterrotating_beam(
