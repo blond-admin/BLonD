@@ -166,7 +166,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             alpha_array=np.atleast_1d(alpha_c),
             harmonic_list=np.atleast_1d(rf_station.harmonic),
             voltage_list=np.atleast_1d(rf_station.voltage),
-            phi_offset_list=np.atleast_1d(rf_station.phi_rf + np.pi),
+            phi_offset_list=np.atleast_1d(rf_station.phi_rf_actual + np.pi),
             p_increment=0,
         )
 
@@ -183,7 +183,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             macroparticlenumber=self.n_macroparticles
         )
 
-        omega = rf_station.calc_omega(
+        omega = rf_station.calc_omega_rf_design(
             beam_beta=beam.reference_beta,
             ring_circumference=simulation.ring.circumference,
         )
