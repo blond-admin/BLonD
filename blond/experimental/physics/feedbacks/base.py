@@ -41,6 +41,11 @@ class LocalFeedback(FeedbackBaseClass):
         section_index: int = 0,
         name: str | None = None,
     ):
+        from blond.physics.cavities import (  # no cyclic import
+            MultiHarmonicRfStation,
+            SingleHarmonicRfStation,
+        )
+
         super().__init__(
             section_index=section_index,
             name=name,
@@ -50,7 +55,23 @@ class LocalFeedback(FeedbackBaseClass):
         ) = None
         self.profile = profile
 
-    def set_parent_rf_station(self, rf_station: RfStationBaseClass):
+    def set_parent_rf_station(
+        self, rf_station: MultiHarmonicRfStation | SingleHarmonicRfStation
+    ) -> None:
+        """
+        Sets the parent RF station on initialization of the rf_station.
+
+        Parameters
+        ----------
+        rf_station
+            cavity to be the parent rf station
+
+        """
+        from blond.physics.cavities import (  # no cyclic import
+            MultiHarmonicRfStation,
+            SingleHarmonicRfStation,
+        )
+
         assert self._parent_rf_station is None, (
             "This feedback has already one owner!"
         )
