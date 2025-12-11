@@ -536,17 +536,8 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
         simulation
             `Simulation` context manager.
         """
-        self._phases.write(
-            None
-            if self._rf_station.phi_rf is None
-            else (self._rf_station.phi_rf + self._rf_station.delta_phi_rf)
-        )
-        self._omegas.write(
-            None
-            if self._rf_station._omega_rf is None
-            else (self._rf_station._omega_rf + self._rf_station.delta_omega_rf)
-            # TODO: should be property call instead of private member
-        )
+        self._phases.write(self._rf_station.phi_rf_actual)
+        self._omegas.write(self._rf_station.omega_rf_actual)
         self._voltages.write(
             self._rf_station.voltage,
         )
