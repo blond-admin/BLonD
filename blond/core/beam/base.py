@@ -170,7 +170,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         Raises
         ------
-            ValueError: If the length of the new particle arrays to not
+            ValueError: If the length of the new particle arrays do not
                         match, a ValueError is raised.
         """
         dt = backend.array(new_particles[0])
