@@ -85,7 +85,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             None  # todo cached  properties
         )
 
-    @requires(["EnergyCycleBase"])
+    @requires(["MagneticCycleBase"])
     def on_run_simulation(
         self,
         simulation: Simulation,
