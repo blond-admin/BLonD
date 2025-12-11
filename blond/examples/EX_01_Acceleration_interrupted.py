@@ -141,7 +141,7 @@ def main():
             observe=(phase_observation, bunch_observation),
             # callback=custom_action,
         )
-    ANIMATE = True
+    ANIMATE = False
     if ANIMATE:  # pragma: no cover
         plt.plot(phase_observation.phases)
         plt.figure()
