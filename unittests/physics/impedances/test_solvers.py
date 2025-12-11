@@ -177,10 +177,11 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             intensity=21,
             particle_type=uranium_29,
         )
-        cavity = SingleHarmonicRfStation()
-        cavity.harmonic = 1
-        cavity.voltage = 0
-        cavity.phi_rf = 0
+        cavity = SingleHarmonicRfStation(
+            harmonic=1,
+            voltage=0,
+            phi_rf=0,
+        )
         rng = np.random.default_rng()
         dt = rng.standard_normal(1000)
 
@@ -453,10 +454,12 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             intensity=21,
             particle_type=uranium_29,
         )
-        cavity = SingleHarmonicRfStation()
-        cavity.harmonic = 1
-        cavity.voltage = 0
-        cavity.phi_rf = 0
+        cavity = SingleHarmonicRfStation(
+            harmonic=1,
+            voltage=0,
+            phi_rf=0,
+        )
+
         rng = np.random.default_rng()
         dt = rng.standard_normal(1000)
 

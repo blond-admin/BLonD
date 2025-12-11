@@ -53,10 +53,11 @@ class TestResonatorImpedances(unittest.TestCase):
                 cut_right=1 * 96,
                 n_bins=256 * 96,
             )
-            cavity1 = SingleHarmonicRfStation()
-            cavity1.voltage = 0
-            cavity1.phi_rf = 0
-            cavity1.harmonic = 1
+            cavity1 = SingleHarmonicRfStation(
+                voltage=0,
+                phi_rf=0,
+                harmonic=1,
+            )
             drift = DriftSimple(
                 orbit_length=ring.circumference,
             )

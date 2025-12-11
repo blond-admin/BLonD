@@ -22,14 +22,18 @@ circumference = 26658.883
 logging.basicConfig(level=logging.INFO)
 ring = Ring(circumference=circumference)
 
-cavity1 = SingleHarmonicRfStation(section_index=0)
-cavity1.harmonic = 35640
-cavity1.voltage = 6e6
-cavity1.phi_rf = 0
-cavity2 = SingleHarmonicRfStation(section_index=1)
-cavity2.harmonic = 35640
-cavity2.voltage = 6e6
-cavity2.phi_rf = 0
+cavity1 = SingleHarmonicRfStation(
+    section_index=0,
+    harmonic=35640,
+    voltage=6e6,
+    phi_rf=0,
+)
+cavity2 = SingleHarmonicRfStation(
+    section_index=1,
+    harmonic=35640,
+    voltage=6e6,
+    phi_rf=0,
+)
 
 N_TURNS = int(1e3)
 energy_cycle = MagneticCyclePerTurn(
