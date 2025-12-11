@@ -111,10 +111,6 @@ class IQCavityFeedback(LocalFeedback):
 
     # TODO docstring
 
-    # TODO remove after development
-    _parent_rf_station: MultiHarmonicRfStation | SingleHarmonicRfStation
-    profile: StaticProfile
-
     def __init__(
         self,
         profile: StaticProfile,
