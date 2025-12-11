@@ -356,7 +356,7 @@ class LHCCavityLoop(IQCavityFeedback):
         self.TUNER_INPUT = np.zeros(2 * self.n_coarse, dtype=complex)
         self.TUNER_INTEGRATED = np.zeros(2 * self.n_coarse, dtype=complex)
 
-        self.V_ANT_FINE = np.zeros(self.profile.n_bins + 1, dtype=complex)
+        self.V_ANT_FINE = np.zeros(self.profile.n_bins, dtype=complex)
         self.I_GEN_FINE = np.zeros(self.profile.n_bins + 1, dtype=complex)
 
         self.V_EXC_IN: LateInit = None
