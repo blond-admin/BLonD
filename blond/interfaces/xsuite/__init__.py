@@ -13,8 +13,7 @@ Notes
 -----
 See Also https://xsuite.readthedocs.io/en/latest/
 
-References
-----------
+Authors:
 Birk Emil Karlsen-Bæck
 Elleanor Lamb
 Simon Lauber

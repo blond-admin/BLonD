@@ -9,8 +9,9 @@
 """
 Base classes to define :class:`~blond.blond.beam_preparation.base.BeamPreparationRoutine` and :class:`~blond.blond.beam_preparation.base.MatchingRoutine`.
 
-References
-----------
+Notes
+-----
+Authors:
 Simon Lauber
 """
 

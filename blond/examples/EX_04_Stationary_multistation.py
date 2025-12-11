@@ -13,8 +13,9 @@ Example input for simulating a ring with multiple RF stations.
 
 No intensity effects.
 
-References
-----------
+Notes
+-----
+Authors:
 Helga Timko
 """
 

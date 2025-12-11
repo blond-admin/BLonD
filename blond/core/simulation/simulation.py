@@ -9,8 +9,9 @@
 """
 Holds the `Simulation` class.
 
-References
-----------
+Notes
+-----
+Authors:
 S. Lauber
 L. Thiele
 """

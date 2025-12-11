@@ -9,8 +9,9 @@
 """
 Helper functions to initialize the beam.
 
-References
-----------
+Notes
+-----
+Authors:
 Leonard Thiele
 Simon Lauber
 """

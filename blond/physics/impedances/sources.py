@@ -11,8 +11,9 @@ Implementations of beam impedance sources.
 
 Module to describe classes for the calculation of wakes and impedances.
 
-References
-----------
+Notes
+-----
+Authors:
 Alexandre Lasheen
 Danilo Quartullo
 Juan F. Esteban Mueller,

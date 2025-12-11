@@ -9,8 +9,9 @@
 """
 Collection of implementations to do statistics.
 
-References
-----------
+Notes
+-----
+Authors:
 Paula Hickersberger
 """
 

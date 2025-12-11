@@ -17,8 +17,7 @@ The following classes are currently available:
 - :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
 
-References
-----------
+Authors:
 Simon Lauber
 """
 

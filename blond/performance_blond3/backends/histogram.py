@@ -9,8 +9,9 @@
 """
 Measure the performance of the histogram function.
 
-References
-----------
+Notes
+-----
+Authors:
 Leonard Thiele
 """
 
