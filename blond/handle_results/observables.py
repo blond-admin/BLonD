@@ -667,29 +667,23 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         shape_fine = (n_entries, self._n_fine)
 
         self._v_ant_fine = DenseArrayRecorder(
-            f"{self.common_filepath}_v_ant_fine",
-            shape_fine,
+            f"{self.common_filepath}_v_ant_fine", shape_fine, dtype=complex
         )
         self._i_beam_fine = DenseArrayRecorder(
-            f"{self.common_filepath}_v_ant_fine",
-            shape_fine,
+            f"{self.common_filepath}_v_ant_fine", shape_fine, dtype=complex
         )
         self._i_gen_fine = DenseArrayRecorder(
-            f"{self.common_filepath}_v_ant_fine",
-            shape_fine,
+            f"{self.common_filepath}_v_ant_fine", shape_fine, dtype=complex
         )
 
         self._v_ant_coarse = DenseArrayRecorder(
-            f"{self.common_filepath}_v_ant_coarse",
-            shape_coarse,
+            f"{self.common_filepath}_v_ant_coarse", shape_coarse, dtype=complex
         )
         self._i_beam_coarse = DenseArrayRecorder(
-            f"{self.common_filepath}_v_ant_coarse",
-            shape_coarse,
+            f"{self.common_filepath}_v_ant_coarse", shape_coarse, dtype=complex
         )
         self._i_gen_coarse = DenseArrayRecorder(
-            f"{self.common_filepath}_v_ant_coarse",
-            shape_coarse,
+            f"{self.common_filepath}_v_ant_coarse", shape_coarse, dtype=complex
         )
 
         self._v_corr = DenseArrayRecorder(
@@ -717,9 +711,15 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         self._i_beam_fine.write(self._feedback.I_BEAM_FINE)
         self._i_gen_fine.write(self._feedback.I_GEN_FINE)
 
-        self._v_ant_coarse.write(self._feedback.V_ANT_COARSE)
-        self._i_beam_coarse.write(self._feedback.I_BEAM_COARSE)
-        self._i_gen_coarse.write(self._feedback.I_GEN_COARSE)
+        self._v_ant_coarse.write(
+            self._feedback.V_ANT_COARSE[: -self._n_coarse]
+        )
+        self._i_beam_coarse.write(
+            self._feedback.I_BEAM_COARSE[: -self._n_coarse]
+        )
+        self._i_gen_coarse.write(
+            self._feedback.I_GEN_COARSE[: -self._n_coarse]
+        )
 
         self._v_corr.write(self._feedback.V_corr)
         self._phi_corr.write(self._feedback.phi_corr)
