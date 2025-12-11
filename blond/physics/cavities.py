@@ -8,10 +8,6 @@
 
 """Collection of implementations to handle lumped RF stations in synchrotrons."""
 
-# References
-# -------
-# Simon Lauber
-
 from __future__ import annotations
 
 import warnings

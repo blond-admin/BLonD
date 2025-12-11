@@ -8,10 +8,6 @@
 
 """Functions that help with hashing."""
 
-# References
-# -------
-# Simon Lauber
-
 from __future__ import annotations
 
 import hashlib
