@@ -47,10 +47,8 @@ from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.physics.cavities import RfStationBaseClass
 from blond.physics.drifts import DriftBaseClass
-from blond.physics.synchrotron_radiation.elements import (
+from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (
     SynchrotronRadiationBaseClass,
-    SynchrotronRadiationDrift,
-    SynchrotronRadiationSection,
 )
 
 if TYPE_CHECKING:
@@ -221,7 +219,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                 ):
                     for element in element_list:
                         i += 1
-                        SRClass_child = SynchrotronRadiationDrift(
+                        SRClass_child = _SynchrotronRadiationDrift(
                             section_index=element.section_index,
                             name=f"SynchrotronRadiationTracker_{i}",
                         )
@@ -238,7 +236,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                     for section_index in element_list:
                         i += 1
                         share_of_synchrotron_radiation_integrals = 0
-                        SRClass_child = SynchrotronRadiationSection(
+                        SRClass_child = _SynchrotronRadiationSection(
                             section_index=section_index,
                             name=f"SynchrotronRadiationTracker_{i}",
                             share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
@@ -258,7 +256,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                 )
                 for element in element_list:
                     i += 1
-                    SRClass_child = SynchrotronRadiationSection(
+                    SRClass_child = _SynchrotronRadiationDrift(
                         section_index=element.section_index,
                         name=f"SynchrotronRadiationTracker_{i}",
                     )
@@ -356,3 +354,110 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             )
         else:
             pass
+
+
+class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
+    """
+    Class to track the effect on synchrotron radiation before a drift.
+
+    Parameters
+    ----------
+    name: str, optional
+        Human-readable name for the element. If not provided, a unique name is
+        automatically generated.
+    section_index: int
+        Section index to group elements into sections
+    share_of_synchrotron_radiation_integrals: NumpyArray
+        Fractional synchrotron radiation integrals.
+    """
+
+    def __init__(
+        self,
+        section_index: int = 0,
+        name: str | None = None,
+        share_of_synchrotron_radiation_integrals: NumpyArray = None,
+    ):
+        super().__init__(
+            section_index=section_index,
+            name=name,
+            share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
+        )
+
+    @property
+    def energy_lost_due_to_synchrotron_radiation_drift(self):
+        """Energy lost by passing through the drift."""
+        return self._energy_lost_due_to_synchrotron_radiation
+
+    @property
+    def share_of_synchrotron_radiation_integrals(self):
+        """Synchrotron radiation integrals of the drift."""
+        return self._fractional_radiation_integrals
+
+    @property
+    def synchrotron_radiation_integrals_drift(self):
+        """Synchrotron radiation integrals of the drift."""
+        return self._fractional_radiation_integrals
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        simulation
+            `Simulation` context manager
+        """
+        self._turn_i = simulation.turn_i
+
+
+class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
+    """
+    Class to track the effect on synchrotron radiation before a section.
+
+    Parameters
+    ----------
+    name: str, optional
+        Human-readable name for the element. If not provided, a unique name is
+        automatically generated.
+    section_index: int
+        Section index to group elements into sections
+    share_of_synchrotron_radiation_integrals: NumpyArray
+        Fractional synchrotron radiation integrals.
+    """
+
+    # TODO : enforce a constraint on the number of
+    #  SynchrotronRadiationSection per section
+    def __init__(
+        self,
+        section_index: int = 0,
+        name: str | None = None,
+        share_of_synchrotron_radiation_integrals: NumpyArray = None,
+    ):
+        super().__init__(
+            section_index=section_index,
+            name=name,
+            share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
+        )
+        self._energy_lost_due_to_synchrotron_radiation = None
+
+    @property
+    def energy_lost_due_to_synchrotron_radiation_section(self):
+        """Energy lost by passing through the section."""
+        return self._energy_lost_due_to_synchrotron_radiation
+
+    @property
+    def share_of_synchrotron_radiation_integrals(self):
+        """Synchrotron radiation integrals of the section."""
+        return self._fractional_radiation_integrals
+
+    @property
+    def synchrotron_radiation_integrals_section(self):
+        """Synchrotron radiation integrals of the section."""
+        return self._fractional_radiation_integrals
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        simulation
+            `Simulation` context manager
+        """
+        self._turn_i = simulation.turn_i
