@@ -27,7 +27,7 @@ class AnyInterpolator(Protocol):
     and `PchipInterpolator`, with only __init__ and __call__ methods.
     """
 
-    def __init__(self, x: np.ndarray, y: np.ndarray) -> None:
+    def __init__(self, x: np.ndarray, y: np.ndarray, **kwargs) -> None:
         """
         Initialize the interpolator with data points (x, y).
 
@@ -37,6 +37,8 @@ class AnyInterpolator(Protocol):
             Array of input data points.
         y
             Array of output values corresponding to x.
+        **kwargs
+            Additional keyword arguments
         """
         ...
 
