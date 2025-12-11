@@ -302,7 +302,6 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -316,8 +315,6 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -539,6 +536,8 @@ class WakeField(ImpedanceBaseClass):
         simulation = Mock(Simulation)
         wf.on_init_simulation(simulation=simulation)
         wf.on_run_simulation(
-            simulation=simulation, beam=beam, n_turns=1, turn_i_init=0
+            simulation=simulation,
+            beam=beam,
+            n_turns=1,
         )
         return wf

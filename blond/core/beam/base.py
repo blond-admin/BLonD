@@ -91,7 +91,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -105,8 +104,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -114,7 +111,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             beam=beam,
             simulation=simulation,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
         msg = (
             "Beam was not initialized. This is possible using"
@@ -125,23 +121,19 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         assert self._dE is not None, msg
         assert self._flags is not None, msg
         assert self._ids is not None, msg
-        new_reference_total_energy = (
-            simulation.magnetic_cycle.get_total_energy_init(
-                turn_i_init=turn_i_init,
-                t_init=self.reference_time,
-                particle_type=self.particle_type,
-            )
+        total_energy_init = simulation.magnetic_cycle.get_total_energy_init(
+            particle_type=self.particle_type,
         )
-        if self._reference_total_energy != new_reference_total_energy:
+        if self._reference_total_energy != total_energy_init:
             msg = (
                 f"`Bunch` was prepared for"
                 f" total_energy = {self._reference_total_energy} eV,"
-                f" but simulation at {turn_i_init=} is"
-                f" {new_reference_total_energy} eV."
+                f" but "
+                f" {total_energy_init=} eV."
                 f" The energy is overwritten according to simulation."
             )
             warnings.warn(msg, stacklevel=1)
-        self.reference_total_energy = new_reference_total_energy
+        self.reference_total_energy = total_energy_init
 
     @property
     @abstractmethod  # pragma: no cover

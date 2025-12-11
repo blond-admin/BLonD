@@ -235,7 +235,6 @@ class SimulationTwoRfStationsWithWake:
         )
         t_rev = energy_cycle.get_t_rev_init(
             circumference=ring.circumference,
-            turn_i_init=0,
             t_init=0,
             particle_type=beam1.particle_type,
         )

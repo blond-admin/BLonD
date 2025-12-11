@@ -179,7 +179,6 @@ class TestConstantEnergyCycle(unittest.TestCase):
         self.assertEqual(
             2000e6,
             self.constant_magnetic_cycle.get_total_energy_init(
-                turn_i_init=0,
                 t_init=0,
                 particle_type=proton,
             ),
@@ -271,7 +270,6 @@ class TestEnergyCycleBase(unittest.TestCase):
         self.magnetic_cycle_base.on_run_simulation(
             simulation=simulation_ex1,
             n_turns=1,
-            turn_i_init=10,
             beam=Mock(BeamBaseClass),
         )
 

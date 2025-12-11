@@ -148,7 +148,6 @@ class Simulation(Preparable):
     def profiling(
         self,
         beams: tuple[BeamBaseClass],
-        turn_i_init: int,
         profile_start_turn_i: int,
         profile_n_turns: int,
         sortby: SortKey = SortKey.CUMULATIVE,
@@ -167,11 +166,8 @@ class Simulation(Preparable):
         ----------
         beams
             Beams to simulate during profiling (typically just one).
-        turn_i_init
-            Turn number at which to start the simulation.
         profile_start_turn_i
-            Turn number at which to begin profiling. Should be `>= turn_i_init`.
-            Set this higher than `turn_i_init` to skip profiling the initialization phase.
+            Turn number at which to begin profiling.
         profile_n_turns
             Number of turns to profile after starting.
         sortby
@@ -199,14 +195,14 @@ class Simulation(Preparable):
         >>> from pstats import SortKey
         >>> sim.profiling(
         ...     beams=(beam1,),
-        ...     turn_i_init=0,
+        ...
         ...     profile_start_turn_i=10,  # Skip first 10 turns
         ...     profile_n_turns=100,       # Profile next 100 turns
         ...     sortby=SortKey.CUMULATIVE,
         ... )
         # Prints detailed timing statistics
         """
-        assert profile_start_turn_i >= turn_i_init
+        assert profile_start_turn_i >= 0
 
         import cProfile
         import io
@@ -232,8 +228,7 @@ class Simulation(Preparable):
         end_turn = profile_start_turn_i + profile_n_turns
         self.run_simulation(
             beams=beams,
-            n_turns=end_turn - turn_i_init,
-            turn_i_init=turn_i_init,
+            n_turns=end_turn,
             show_progressbar=False,
             callback=start_profiling,
         )
@@ -397,7 +392,6 @@ class Simulation(Preparable):
         self.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
-            turn_i_init=0,
             show_progressbar=False,
         )
         t1 = probe_bunch.reference_time
@@ -507,7 +501,6 @@ class Simulation(Preparable):
         deepcopy(self).run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
-            turn_i_init=0,
             show_progressbar=False,
         )
         # Calculate passed time
@@ -576,7 +569,6 @@ class Simulation(Preparable):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -597,8 +589,6 @@ class Simulation(Preparable):
             The first beam that will be tracked (primary beam in multi-beam scenarios).
         n_turns
             Number of turns that will be simulated.
-        turn_i_init
-            Starting turn number.
         **kwargs
             Additional keyword arguments for extendability.
 
@@ -652,7 +642,6 @@ class Simulation(Preparable):
         self,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
     ) -> None:
         """
         Execute all `on_run_simulation` in the attribute hierarchy of `Simulation`.
@@ -663,15 +652,12 @@ class Simulation(Preparable):
             The beam object to simulate.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         """
         self._exec_all_in_tree(
             "on_run_simulation",
             simulation=self,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
 
     @staticmethod
@@ -947,7 +933,6 @@ class Simulation(Preparable):
         self,
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
-        turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
@@ -961,7 +946,7 @@ class Simulation(Preparable):
         during the simulation, and an optional callback can be used for custom actions.
 
         The simulation loop:
-            1. For each turn from ``turn_i_init`` to ``turn_i_init + n_turns``
+            1. For each turn up to ``n_turns``
             2. Track the beam through each element in the ring
             3. Update observables after each drift section
             4. Call the optional callback function
@@ -977,9 +962,6 @@ class Simulation(Preparable):
             Number of turns to simulate. If None, uses the maximum number defined by
             the magnetic cycle (only valid for cycles with a defined endpoint).
             Default is None.
-        turn_i_init
-            Starting turn number for the simulation. Use this to continue a simulation
-            from a specific turn. Default is 0.
         observe
             Tuple of observable objects that record data during the simulation
             (e.g., ``RfStationPhaseObservation``, ``BeamObservationEndOfTurn``).
@@ -994,9 +976,6 @@ class Simulation(Preparable):
 
         Raises
         ------
-        AssertionError
-            If ``turn_i_init + n_turns`` exceeds the maximum turns defined by the
-            magnetic cycle, or if beam ordering is incorrect for counter-rotating simulations.
         ValueError
             If ``n_turns`` is None and the magnetic cycle has unlimited turns.
         NotImplementedError
@@ -1068,7 +1047,6 @@ class Simulation(Preparable):
         >>> sim.run_simulation(
         ...     beams=(beam1,),
         ...     n_turns=500,      # Run 500 more turns
-        ...     turn_i_init=500,  # Starting from turn 500
         ... )
         """
         logger.info(f"Running `run_simulation` with {locals()}")
@@ -1081,14 +1059,12 @@ class Simulation(Preparable):
             beams=beams,
             n_turns=n_turns,
             observe=observe,
-            turn_i_init=turn_i_init,
         )
 
         if len(beams) == 1:  # NOQA: PLR2004
             self._run_simulation_single_beam(
                 beam=beams[0],
                 n_turns=_n_turns,
-                turn_i_init=turn_i_init,
                 observe=observe,
                 show_progressbar=show_progressbar,
                 callback=callback,
@@ -1105,7 +1081,6 @@ class Simulation(Preparable):
             )
             self._run_simulation_counterrotating_beam(
                 n_turns=_n_turns,
-                turn_i_init=turn_i_init,
                 observe=observe,
                 show_progressbar=show_progressbar,
                 callback=callback,
@@ -1120,7 +1095,6 @@ class Simulation(Preparable):
         self,
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
-        turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
     ) -> int:
         """
@@ -1143,8 +1117,6 @@ class Simulation(Preparable):
         n_turns
             Number of turns to simulate. If None, uses the maximum from the
             magnetic cycle (if defined).
-        turn_i_init
-            Starting turn number for the simulation.
         observe
             Observable objects that will record data during simulation.
 
@@ -1158,7 +1130,7 @@ class Simulation(Preparable):
         ValueError
             If ``n_turns`` is None and the magnetic cycle has unlimited turns.
         AssertionError
-            If ``turn_i_init + n_turns`` exceeds the magnetic cycle's maximum.
+            If ``n_turns`` exceeds the magnetic cycle's maximum.
 
         See Also
         --------
@@ -1178,9 +1150,9 @@ class Simulation(Preparable):
                 n_turns, warning_stacklevel=2
             )
             if max_turns is not None:
-                assert (turn_i_init + _n_turns) <= max_turns, (
+                assert (0 + _n_turns) <= max_turns, (
                     f"Max turn number is {self.magnetic_cycle.n_turns=}, "
-                    f"but trying to simulate {(turn_i_init + _n_turns)} turns"
+                    f"but trying to simulate {(0 + _n_turns)} turns"
                 )
         elif max_turns is None:
             raise ValueError(
@@ -1215,7 +1187,6 @@ class Simulation(Preparable):
         self._exec_on_run_simulation(
             beam=beams[0],
             n_turns=_n_turns,
-            turn_i_init=turn_i_init,
         )
         # unpin temporary attributes
         del self._observe
@@ -1226,7 +1197,6 @@ class Simulation(Preparable):
         self,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
@@ -1240,8 +1210,6 @@ class Simulation(Preparable):
             The beam to simulate.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to start with simulation.
         observe
             List of observables to protocol of whats happening inside
             the simulation.
@@ -1253,7 +1221,7 @@ class Simulation(Preparable):
             that is called each turn.
         """
         logger.info("Starting simulation mainloop...")
-        iterator = range(turn_i_init, turn_i_init + n_turns)
+        iterator = range(0, 0 + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
             # display to iteration
@@ -1284,7 +1252,6 @@ class Simulation(Preparable):
         self,
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
-        turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
@@ -1298,8 +1265,6 @@ class Simulation(Preparable):
             Tuple of two beams (co-rotating, counter-rotating).
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to start with simulation.
         observe
             List of observables to protocol of whats happening inside
             the simulation.
@@ -1321,7 +1286,7 @@ class Simulation(Preparable):
             )
 
         logger.info("Starting simulation mainloop...")
-        iterator = range(turn_i_init, turn_i_init + n_turns)
+        iterator = range(0, 0 + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
         self.turn_i.value = 0
@@ -1431,7 +1396,6 @@ class Simulation(Preparable):
         self,
         beams: tuple[BeamBaseClass],
         n_turns: int | None = None,
-        turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
@@ -1453,9 +1417,6 @@ class Simulation(Preparable):
         n_turns
             Number of turns that were simulated. Must match the saved data.
             If None, uses the maximum from the magnetic cycle. Default is None.
-        turn_i_init
-            Initial turn number of the saved simulation. Must match the saved data.
-            Default is 0.
         observe
             Tuple of observable objects to load data into. These observables will
             be populated with the saved data. Default is empty tuple.
@@ -1525,7 +1486,6 @@ class Simulation(Preparable):
             beams=beams,
             n_turns=n_turns,
             observe=observe,
-            turn_i_init=turn_i_init,
         )
         for observable in observe:
             if common_name is not None:

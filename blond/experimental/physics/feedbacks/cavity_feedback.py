@@ -222,7 +222,6 @@ class BirksCavityFeedback(LocalFeedback):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         pass

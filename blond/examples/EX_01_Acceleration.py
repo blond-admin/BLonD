@@ -108,7 +108,6 @@ def main():
     try:
         sim.load_results(
             beams=(beam1,),
-            turn_i_init=0,
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
         )
@@ -118,7 +117,6 @@ def main():
     except (FileNotFoundError, AssertionError):
         sim.run_simulation(
             beams=(beam1,),
-            turn_i_init=0,
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
             # callback=custom_action,

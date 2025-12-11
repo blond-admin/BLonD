@@ -68,7 +68,6 @@ def main():
 
     sim.run_simulation(
         beams=(beam1,),
-        turn_i_init=0,
         n_turns=n_turns,
     )
     plt.figure(0)

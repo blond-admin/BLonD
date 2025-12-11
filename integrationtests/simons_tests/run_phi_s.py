@@ -105,7 +105,6 @@ def main():
             )
             T_rev = cycle.get_t_rev_init(
                 circumference=ring.circumference,
-                turn_i_init=0,
                 t_init=0,
                 particle_type=test_particle,
             )

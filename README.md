@@ -105,7 +105,7 @@ dts += 0.05e-9
 
 sim.run_simulation(
     beams=(beam1,),
-    turn_i_init=0,
+
     n_turns=1e4,
 )
 plt.figure(0)

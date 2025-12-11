@@ -243,7 +243,6 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         beam = sim.beam1
         t_rev = simulation.magnetic_cycle.get_t_rev_init(
             simulation.ring.circumference,
-            turn_i_init=0,
             t_init=0,
             particle_type=beam.particle_type,
         )

@@ -74,7 +74,6 @@ class TestSimulation(unittest.TestCase):
     def test__exec_on_run_simulation(self):
         self.simulation._exec_on_run_simulation(
             n_turns=10,
-            turn_i_init=1,
             beam=self.beam,
         )
 
@@ -149,7 +148,6 @@ class TestSimulation(unittest.TestCase):
         sim.run_simulation(
             beams=(beam, beam_CR),
             n_turns=n_turns,
-            turn_i_init=0,
         )
         assert len(bunch_observation.mean_dE) == n_turns * n_cavities
         assert len(bunch_observation.mean_dt) == n_turns * n_cavities
@@ -177,7 +175,6 @@ class TestSimulation(unittest.TestCase):
         self.simulation._run_simulation_single_beam(
             beam=self.beam,
             n_turns=10,
-            turn_i_init=0,
             observe=(observe,),
             show_progressbar=True,
             callback=mock_func,
@@ -290,7 +287,6 @@ class TestSimulation(unittest.TestCase):
         kwargs = dict(
             beams=(self.beam,),
             n_turns=10,
-            turn_i_init=0,
             observe=(observation,),
         )
         self.simulation.run_simulation(**kwargs)
@@ -325,7 +321,7 @@ class TestSimulation(unittest.TestCase):
         beam = Mock(spec=BeamBaseClass)
 
         self.simulation.on_run_simulation(
-            simulation=self.simulation, n_turns=10, turn_i_init=0, beam=beam
+            simulation=self.simulation, n_turns=10, beam=beam
         )
 
     def test_print_one_turn_execution_order(self):
@@ -333,7 +329,6 @@ class TestSimulation(unittest.TestCase):
 
     def test_profiling(self):
         self.simulation.profiling(
-            turn_i_init=0,
             profile_start_turn_i=10,
             profile_n_turns=20,
             beams=(self.beam,),
@@ -352,7 +347,6 @@ class TestSimulation(unittest.TestCase):
 
         self.simulation.run_simulation(
             n_turns=10,
-            turn_i_init=0,
             observe=(observe,),
             show_progressbar=True,
             callback=mock_func,
@@ -371,7 +365,6 @@ class TestSimulation(unittest.TestCase):
             self.simulation.magnetic_cycle.get_t_rev_init(
                 circumference=self.simulation.ring.circumference,
                 t_init=0,
-                turn_i_init=0,
                 particle_type=particle_type,
             )
             / cavity.harmonic,
@@ -430,7 +423,6 @@ class TestSimulation(unittest.TestCase):
             self.simulation.magnetic_cycle.get_t_rev_init(
                 circumference=self.simulation.ring.circumference,
                 t_init=0,
-                turn_i_init=0,
                 particle_type=proton,
             )
             / cavity.harmonic,
@@ -490,7 +482,6 @@ class TestSimulation(unittest.TestCase):
             simulation.magnetic_cycle.get_t_rev_init(
                 circumference=simulation.ring.circumference,
                 t_init=0,
-                turn_i_init=0,
                 particle_type=particle_type,
             )
             / cavity.harmonic,
@@ -574,7 +565,6 @@ class TestSimulation(unittest.TestCase):
                 beams=beam_mock,
                 n_turns=None,
                 observe=(),
-                turn_i_init=0,
             )
 
     def test_finalize_warns(self) -> None:
@@ -588,7 +578,6 @@ class TestSimulation(unittest.TestCase):
                 beams=(beam_mock,),
                 n_turns=None,
                 observe=(),
-                turn_i_init=0,
             )
         backend.set_specials(mode=special_mode_org)
 

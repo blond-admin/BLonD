@@ -117,7 +117,6 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
     t_rf = (
         magnetic_cycle.get_t_rev_init(
             ring.circumference,
-            turn_i_init=0,
             t_init=0,
             particle_type=mu_plus,
         )
@@ -193,7 +192,6 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
     )
     sim.run_simulation(
         beams=([beam]),
-        turn_i_init=0,
         n_turns=n_turns_downscale,
         observe=(
             bunch_observation,
