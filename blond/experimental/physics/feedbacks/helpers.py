@@ -180,6 +180,8 @@ def rf_beam_current(
         ind_fine = np.round((profile.hist_x - dT - np.pi / omega_c) / T_s)
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+        if len(indices) == 0:  # only a single bucket in ind_fine
+            indices = np.array([ind_fine[0]])
 
         # Pick total current within one coarse grid
         charges_coarse = np.zeros(n_points, dtype=complex)

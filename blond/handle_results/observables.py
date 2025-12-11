@@ -25,6 +25,10 @@ import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
 from blond.core.base import MainLoopRelevant
+from blond.core.ring.helpers import requires
+from blond.experimental.physics.feedbacks.cavity_feedback import (
+    IQCavityFeedback,
+)
 from blond.handle_results.array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -577,6 +581,244 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
             Array of RF voltages.
         """
         return self._voltages.get_valid_entries()
+
+
+class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
+    """
+    Observe the RF station parameters during the execution of the simulation.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    feedback
+        Class that implements beam-RF interactions in a synchrotron.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+
+    Examples
+    --------
+    TODO:
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        feedback: IQCavityFeedback,
+        folder: str = "",
+    ):
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._feedback = feedback
+
+        self._v_ant_fine: DenseArrayRecorder | None = None
+        self._i_beam_fine: DenseArrayRecorder | None = None
+        self._i_gen_fine: DenseArrayRecorder | None = None
+
+        self._v_ant_coarse: DenseArrayRecorder | None = None
+        self._i_beam_coarse: DenseArrayRecorder | None = None
+        self._i_gen_coarse: DenseArrayRecorder | None = None
+
+        self._v_corr: DenseArrayRecorder | None = None
+        self._phi_corr: DenseArrayRecorder | None = None
+
+        self._n_coarse: float | None = None
+        self._n_fine: float | None = None
+
+    @requires(["IQCavityFeedback"])
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,  # not used in this context
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation `Beam` object.
+        n_turns
+            Number of turns to simulate.
+        turn_i_init
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+        )
+        self._n_coarse = (
+            self._feedback.n_coarse
+        )  # TODO: can these change during execution?
+        self._n_fine = self._feedback.profile.n_bins
+        n_entries = n_turns // self.each_turn_i + 2
+
+        shape_coarse = (n_entries, self._n_coarse)
+        shape_fine = (n_entries, self._n_fine)
+
+        self._v_ant_fine = DenseArrayRecorder(
+            f"{self.common_filepath}_v_ant_fine", shape_fine, dtype=complex
+        )
+        self._i_beam_fine = DenseArrayRecorder(
+            f"{self.common_filepath}_v_ant_fine", shape_fine, dtype=complex
+        )
+        self._i_gen_fine = DenseArrayRecorder(
+            f"{self.common_filepath}_v_ant_fine", shape_fine, dtype=complex
+        )
+
+        self._v_ant_coarse = DenseArrayRecorder(
+            f"{self.common_filepath}_v_ant_coarse", shape_coarse, dtype=complex
+        )
+        self._i_beam_coarse = DenseArrayRecorder(
+            f"{self.common_filepath}_v_ant_coarse", shape_coarse, dtype=complex
+        )
+        self._i_gen_coarse = DenseArrayRecorder(
+            f"{self.common_filepath}_v_ant_coarse", shape_coarse, dtype=complex
+        )
+
+        self._v_corr = DenseArrayRecorder(
+            f"{self.common_filepath}_v_corr", shape_fine
+        )
+        self._phi_corr = DenseArrayRecorder(
+            f"{self.common_filepath}_phi_corr", shape_fine
+        )
+
+    def update(
+        self,
+        simulation: Simulation,
+    ) -> None:
+        """
+        Update memory with new values.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        """
+        self._v_ant_fine.write(
+            self._feedback.V_ANT_FINE
+        )  # TODO: redo without capitalization
+        self._i_beam_fine.write(self._feedback.I_BEAM_FINE)
+        self._i_gen_fine.write(self._feedback.I_GEN_FINE)
+
+        self._v_ant_coarse.write(
+            self._feedback.V_ANT_COARSE[: -self._n_coarse]
+        )
+        self._i_beam_coarse.write(
+            self._feedback.I_BEAM_COARSE[: -self._n_coarse]
+        )
+        self._i_gen_coarse.write(
+            self._feedback.I_GEN_COARSE[: -self._n_coarse]
+        )
+
+        self._v_corr.write(self._feedback.V_corr)
+        self._phi_corr.write(self._feedback.phi_corr)
+
+    @property  # as readonly attributes
+    def v_corr(self) -> NumpyArray:
+        """
+        Feedbacks relative voltage correction ``(n_observations, n_fine)``, in [1].
+
+        Returns
+        -------
+        v_corr
+            Array of voltage corrections on the fine grid.
+        """
+        return self._v_corr.get_valid_entries()
+
+    @property  # as readonly attributes
+    def phi_corr(self) -> NumpyArray:
+        """
+        Feedbacks phase correction ``(n_observations, n_fine)``, in [rad].
+
+        Returns
+        -------
+        phi_corr
+            Array of phase corrections on the fine grid.
+        """
+        return self._phi_corr.get_valid_entries()
+
+    @property  # as readonly attributes
+    def i_beam_fine(self) -> NumpyArray:
+        """
+        Beam current on the fine grid as observed by the feedback ``(n_observations, n_fine)``, in [A].
+
+        Returns
+        -------
+        i_beam_fine
+            Array of beam currents on the fine grid.
+        """
+        return self._i_beam_fine.get_valid_entries()
+
+    @property  # as readonly attributes
+    def i_gen_fine(self) -> NumpyArray:
+        """
+        Generator current on the fine grid as observed by the feedback ``(n_observations, n_fine)``, in [A].
+
+        Returns
+        -------
+        i_gen_fine
+            Array of generator currents on the fine grid.
+        """
+        return self._i_gen_fine.get_valid_entries()
+
+    @property  # as readonly attributes
+    def v_ant_fine(self) -> NumpyArray:
+        """
+        Antenna Voltage in the feedback ``(n_observations, n_fine)``, in [V].
+
+        Returns
+        -------
+        v_ant_fine
+            Array of antenna voltages on the fine grid.
+        """
+        return self._v_ant_fine.get_valid_entries()
+
+    @property  # as readonly attributes
+    def i_beam_coarse(self) -> NumpyArray:
+        """
+        Beam current on the coarse grid as observed by the feedback ``(n_observations, n_coarse)``, in [A].
+
+        Returns
+        -------
+        i_beam_coarse
+            Array of beam currents on the coarse grid.
+        """
+        return self._i_beam_coarse.get_valid_entries()
+
+    @property  # as readonly attributes
+    def i_gen_coarse(self) -> NumpyArray:
+        """
+        Generator current on the coarse grid as observed by the feedback ``(n_observations, n_coarse)``, in [A].
+
+        Returns
+        -------
+        i_gen_coarse
+            Array of generator currents on the coarse grid.
+        """
+        return self._i_gen_coarse.get_valid_entries()
+
+    @property  # as readonly attributes
+    def v_ant_coarse(self) -> NumpyArray:
+        """
+        Antenna Voltage in the feedback ``(n_observations, n_coarse)``, in [V].
+
+        Returns
+        -------
+        v_ant_coarse
+            Array of antenna voltages on the coarse grid.
+        """
+        return self._v_ant_coarse.get_valid_entries()
 
 
 class StaticProfileObservation(ObservablesOncePerTurnBase):

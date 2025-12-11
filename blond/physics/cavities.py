@@ -25,6 +25,7 @@ from scipy.constants import speed_of_light as c0
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.beam.beams import ProbeBeam
 from blond.core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.base import LocalFeedback
 from blond.experimental.physics.feedbacks.beam_feedback import (
@@ -548,7 +549,10 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         #    self._beam_feedback.track(beam=beam)
 
         # Correction from cavity loop
-        if self._cavity_feedback is not None:
+        if (
+            not isinstance(beam, ProbeBeam)
+            and self._cavity_feedback is not None
+        ):
             for feedback in self._cavity_feedback:
                 if feedback is not None:
                     feedback.track(beam=beam)

@@ -13,18 +13,15 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import SingleHarmonicRfStation, StaticProfile
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
-from blond.experimental.beam_preparation.semi_empiric_matcher import (
-    SemiEmpiricMatcher,
-)
 from blond.experimental.physics.feedbacks.base import LocalFeedback
 from blond.experimental.physics.feedbacks.helpers import (
     cartesian_to_polar,
     polar_to_cartesian,
     rf_beam_current,
 )
+from blond.physics.cavities import SingleHarmonicRfStation
 
 if TYPE_CHECKING:
     from typing import Any
@@ -141,6 +138,8 @@ class IQCavityFeedback(LocalFeedback):
         name
             # TODO might be removed
         """
+        from blond import StaticProfile  # cyclic import
+
         assert isinstance(profile, StaticProfile)
         super().__init__(
             profile=profile,
@@ -295,6 +294,7 @@ class IQCavityFeedback(LocalFeedback):
             phi_rf for the harmonic index/only one
 
         """
+
         if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
             harmonic = self._parent_rf_station.harmonic
             omega_rf = self._parent_rf_station.omega_rf_actual
