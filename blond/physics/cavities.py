@@ -142,7 +142,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         cavity_feedback: LocalFeedback
         | tuple[LocalFeedback, ...]
         | None = None,
-        beam_feedback: Blond2BeamFeedback | None = None,
+        beam_feedback: Blond2BeamFeedback | BeamFeedbackBase | None = None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
@@ -162,6 +162,8 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             pass
         elif isinstance(beam_feedback, Blond2BeamFeedback):
             beam_feedback.set_parent_rf_station(rf_station=self)
+        elif isinstance(beam_feedback, BeamFeedbackBase):
+            self.attach_beam_feedback(beam_feedback)
         else:
             raise ValueError(beam_feedback)
         self._n_rf = n_rf
