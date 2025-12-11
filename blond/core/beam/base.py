@@ -86,13 +86,13 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         Inplace addition to the beam object.  Either adds two instances
         of BeamBaseClass together or adds an 2D array of particle
-        coordinates (format: [dt, dE]) to the beam.
+        coordinates (format: `[dt, dE]`) to the beam.
 
         Parameters
         ----------
             other
                 Either an instance of BeamBaseClass or an ArrayLike of
-                [dt, dE].
+                `[dt, dE]`.
 
         Examples
         --------
@@ -158,14 +158,14 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Add new particles to the beam.
 
         Function to add new particles to the beam from an array.  The
-        input array must be 2D with format [dt, dE].  The new
+        input array must be 2D with format `[dt, dE]`.  The new
         particles will be assumed to have the same intensity per
         macroparticle as the original beam.
 
         Parameters
         ----------
         new_particles
-            2D array of [dt, dE] defining the coordinates
+            2D array of `[dt, dE]` defining the coordinates
                            of the new particles.
 
         Raises
@@ -179,7 +179,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         if len(dt) != len(dE):
             raise ValueError(
                 "The input particles must have equal numbers of "
-                "dt and dE coordinates"
+                "`dt` and `dE` coordinates"
             )
 
         self._append_to_self(dt, dE)
@@ -208,21 +208,21 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         if self._dt.dtype != dt.dtype:
             raise TypeError(
                 "New time coordinates do not have the correct "
-                "dtype.  Should be {self._dt.dtype} but is "
+                "`dtype`.  Should be {self._dt.dtype} but is "
                 "{dt.dtype}"
             )
 
         if self._dE.dtype != dE.dtype:
             raise TypeError(
                 "New energy coordinates do not have the correct "
-                "dtype.  Should be {self._dE.dtype} but is "
+                "`dtype`.  Should be {self._dE.dtype} but is "
                 "{dE.dtype}"
             )
 
         if self._flags.dtype != flags.dtype:
             raise TypeError(
                 "New flags do not have the correct "
-                "dtype.  Should be {self._flags.dtype} but is "
+                "`dtype`.  Should be {self._flags.dtype} but is "
                 "{flags.dtype}"
             )
 
