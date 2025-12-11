@@ -2,6 +2,7 @@ import unittest
 from functools import cached_property
 
 import numpy as np
+import scipy
 
 from blond import Simulation
 from blond.core.base import (
@@ -78,6 +79,27 @@ class TestScheduledInterpolation(unittest.TestCase):
 
     def test_init(self):
         pass
+
+    def test_init_other1(self):
+        t_arr = np.linspace(0, 10)
+        vals = np.linspace(-10, 0)
+        scheduler = ScheduledInterpolation(
+            times=t_arr,
+            values=vals,
+            interpolator=scipy.interpolate.Akima1DInterpolator,
+            method="makima",
+        )
+        scheduler.get_scheduled(5, 1.0)  # should not crash
+
+        def test_init_other2(self):
+            t_arr = np.linspace(0, 10)
+            vals = np.linspace(-10, 0)
+            scheduler = ScheduledInterpolation(
+                times=t_arr,
+                values=vals,
+                interpolator=scipy.interpolate.PchipInterpolator,
+            )
+            scheduler.get_scheduled(5, 1.0)  # should not crash
 
 
 class BeamObservationElementTester(BeamObservationElement):
