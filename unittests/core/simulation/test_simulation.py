@@ -174,6 +174,7 @@ class TestSimulation(unittest.TestCase):
             return
 
         mock_func = create_autospec(my_callback, return_value=True)
+        self.simulation.turn_i.value = 0
         self.simulation.mainloop_single_beam(
             beam=self.beam,
             n_turns=10,
