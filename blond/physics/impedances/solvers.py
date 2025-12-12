@@ -420,7 +420,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
 
         self._wake_imp_y_needs_update = True  # update at least once
 
-    @requires(["EnergyCycleBase"])  # because InductiveImpedance.get_
+    @requires(["MagneticCycleBase"])  # because InductiveImpedance.get_
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:

@@ -80,7 +80,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             time=0, total_energy=None, particle_type=particle_type
         )
 
-    @requires(["EnergyCycleBase"])
+    @requires(["MagneticCycleBase"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -207,7 +207,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         return self._is_counter_rotating
 
-    @requires(["EnergyCycleBase"])
+    @requires(["MagneticCycleBase"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
