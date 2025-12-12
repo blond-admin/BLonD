@@ -425,6 +425,209 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         return self._flags.get_valid_entries()
 
 
+class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
+    """
+    Observe the beam statistics during simulation execution after a drift element.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    beam
+        Simulation beam object.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+
+    Examples
+    --------
+    >>> bunch_statistics = BeamObservationOncePerTurn(each_turn_i=2, beam=...)
+    >>>
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(bunch_statistics,),
+    ... )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> for index in (before, turn_2)
+    ...     plt.plot(
+    ...         bunch_statistics._bunch_position[index, :],
+    ...     )
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        beam: BeamBaseClass,
+        folder: str = "",
+    ):
+        super().__init__(
+            each_turn_i=each_turn_i,
+            folder=folder,
+        )
+        self._beam = beam
+        self._bunch_position: DenseArrayRecorder | None = None
+        self._energy_spread: DenseArrayRecorder | None = None
+        self._bunch_length: DenseArrayRecorder | None = None
+        self._flags: DenseArrayRecorder | None = None
+        self._reference_time: DenseArrayRecorder | None = None
+        self._reference_total_energy: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,  # not used in this context
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+        n_turns
+            Number of turns to simulate.
+        turn_i_init
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+        )
+
+        n_entries = n_turns // self.each_turn_i + 2
+        n_macroparticles = int(beam.common_array_size)
+        shape = (n_entries, n_macroparticles)
+
+        self._bunch_position = DenseArrayRecorder(
+            f"{self.common_filepath}_bunch_position",
+            shape,
+        )
+        self._energy_spread = DenseArrayRecorder(
+            f"{self.common_filepath}_energy_spread",
+            shape,
+        )
+        self._bunch_length = DenseArrayRecorder(
+            f"{self.common_filepath}_bunch_length",
+            shape,
+        )
+        self._flags = DenseArrayRecorder(
+            f"{self.common_filepath}_flags",
+            shape,
+        )
+
+        self._reference_time = DenseArrayRecorder(
+            f"{self.common_filepath}_reference_time",
+            (n_entries,),
+        )
+        self._reference_total_energy = DenseArrayRecorder(
+            f"{self.common_filepath}_reference_total_energy",
+            (n_entries,),
+        )
+
+    def update(
+        self,
+        simulation: Simulation,
+    ) -> None:
+        """
+        Update memory with new values.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        """
+        # TODO allow several bunches
+        self._reference_time.write(self._beam.reference_time)
+        self._reference_total_energy.write(self._beam.reference_total_energy)
+        self._bunch_position.write(np.average(self._beam._dt))
+        self._energy_spread.write(np.std(self._beam._dE))
+        self._bunch_length.write(np.std(self._beam._dt))
+        self._flags.write(self._beam._flags)
+
+    @property  # as readonly attributes
+    def reference_time(self):
+        """
+        Return reference time of shape ``(n_observations, n_bins)``.
+
+        Returns
+        -------
+        reference_time
+            Reference time array.
+        """
+        return self._reference_time.get_valid_entries()
+
+    @property  # as readonly attributes
+    def reference_total_energy(self):
+        """
+        Return total energy of shape ``(n_observations, n_bins)``.
+
+        Returns
+        -------
+        reference_total_energy
+            Total energy array.
+        """
+        return self._reference_total_energy.get_valid_entries()
+
+    @property  # as readonly attributes
+    def bunch_position(self):
+        """
+        Return array of bunch_position of shape ``(1, n_observations)``.
+
+        Returns
+        -------
+        bunch_position
+            Bunch position array.
+        """
+        return self._bunch_position.get_valid_entries()
+
+    @property  # as readonly attributes
+    def energy_spread(self):
+        """
+        Return array of energy spread of shape ``(1, n_observations)``.
+
+        Returns
+        -------
+        energy_spread
+            Energy spread array.
+        """
+        return self._energy_spread.get_valid_entries()
+
+    @property  # as readonly attributes
+    def bunch_length(self):
+        """
+        Return array of bunch_length of shape ``(1, n_observations)``.
+
+        Returns
+        -------
+        bunch_length
+            Bunch length array.
+        """
+        return self._bunch_length.get_valid_entries()
+
+    @property  # as readonly attributes
+    def flags(self):
+        """
+        Return flags of particles, eg if lost or not of shape ``(n_observations, n_macroparticles)``.
+
+        Returns
+        -------
+        flags
+            Particle flags array.
+        """
+        return self._flags.get_valid_entries()
+
+
 class RfStationPhaseObservation(ObservablesOncePerTurnBase):
     """
     Observe the RF station parameters during the execution of the simulation.
