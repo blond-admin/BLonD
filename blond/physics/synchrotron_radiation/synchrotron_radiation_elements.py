@@ -67,7 +67,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     def _calculate_kick(
         self,
         beam: BeamBaseClass,
-        seed: int | None = None,
     ) -> NumpyArray:
         """
         Energy kick induced by synchrotron radiation and quantum excitation.
@@ -98,16 +97,19 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._energy_lost_due_to_synchrotron_radiation = U0
         self._damping_time = tau_z
         # fixme How to integrate the random generator??? Best practice?
-        return -2.0 / tau_z * beam.read_partial_dE() - 2.0 * sigma0 / np.sqrt(
-            tau_z
-        ) * beam.reference_total_energy * self.rng.normal(
-            size=beam.n_macroparticles_partial()
+        return (
+            -U0
+            - 2.0 / tau_z * beam.read_partial_dE()
+            + 2.0
+            * sigma0
+            / np.sqrt(tau_z)
+            * beam.reference_total_energy
+            * self.rng.normal(size=beam.n_macroparticles_partial())
         )
 
     def _update_beam_energy(
         self,
         beam: BeamBaseClass,
-        seed: int | None = None,
     ):
         """
         Update the beam partial energy with radiation damping and excitation.
@@ -367,4 +369,4 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         """
         self._turn_i = self._simulation.turn_i
         self.update_synchrotron_radiation_integrals(beam=beam)
-        self._update_beam_energy(beam)
+        self._update_beam_energy(beam=beam)
