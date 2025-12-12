@@ -2,12 +2,14 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
+from scipy.constants import e
 from scipy.constants import speed_of_light as c0
 
 from blond import (
     SynchrotronRadiationBaseClass,
-    SynchrotronRadiationDrift,
-    SynchrotronRadiationSection,
+    WigglerMagnet,
+    _SynchrotronRadiationDrift,
+    _SynchrotronRadiationSection,
     electron,
 )
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
@@ -31,10 +33,10 @@ class TestRFStationBaseClass(unittest.TestCase):
         self.SRB = SynchrotronRadiationBaseClass(
             share_of_synchrotron_radiation_integrals=0.1 * radiation_integrals
         )
-        self.SRD = SynchrotronRadiationDrift(
+        self.SRD = _SynchrotronRadiationDrift(
             share_of_synchrotron_radiation_integrals=0.1 * radiation_integrals
         )
-        self.SRS = SynchrotronRadiationSection(
+        self.SRS = _SynchrotronRadiationSection(
             share_of_synchrotron_radiation_integrals=0.1 * radiation_integrals
         )
 
@@ -107,3 +109,99 @@ class TestRFStationBaseClass(unittest.TestCase):
         self.SRB._update_beam_energy(beam=self.beam)
 
         new_energy = self.beam.read_partial_dE()
+
+
+class TestWigglerMagnet(unittest.TestCase):
+    def setUp(self) -> None:
+        radiation_integrals = np.array(
+            [
+                0.646747216157,
+                0.0005936549319,
+                5.6814536525e-08,
+                5.92870407301e-09,
+                1.71368060083e-11,
+            ]
+        )
+        self.wiggler_magnet = WigglerMagnet(
+            wiggler_type="sinusoidal",
+            number=2,
+            peak_field=1,
+            pole_length=0.01,
+            number_poles=50,
+            section_index=0,
+        )
+        self.wiggler_magnet_none = WigglerMagnet(
+            wiggler_type=None,
+        )
+
+    def test_inputs_and_properties(self):
+        assert self.wiggler_magnet.section_index == 0
+        assert self.wiggler_magnet._type == "sinusoidal"
+        assert self.wiggler_magnet._number == 2
+        assert self.wiggler_magnet._peak_field == 1
+        assert self.wiggler_magnet._pole_length == 0.01
+        assert self.wiggler_magnet._number_poles == 50
+
+        self.assertEqual(self.wiggler_magnet.number_of_wigglers, 2)
+        self.assertEqual(self.wiggler_magnet_none.number_of_wigglers, 1)
+
+        self.assertEqual(self.wiggler_magnet.length_wiggler, 50 * 0.01)
+        self.assertIsNone(self.wiggler_magnet_none.length_wiggler)
+
+        self.assertEqual(self.wiggler_magnet.number_of_poles, 50)
+        self.assertEqual(self.wiggler_magnet_none.number_of_poles, 43)
+
+        self.assertEqual(self.wiggler_magnet.peak_magnetic_field, 1)
+        self.assertEqual(self.wiggler_magnet_none.peak_magnetic_field, 1)
+
+        self.assertEqual(self.wiggler_magnet.pole_length, 0.01)
+        self.assertEqual(self.wiggler_magnet_none.pole_length, 0.095)
+
+    def test_calculate_contribution_to_synchrotron_radiation_integrals(self):
+        (
+            self.wiggler_magnet._calculate_contribution_to_synchrotron_radiation_integrals()
+        )
+        (
+            self.wiggler_magnet_none._calculate_contribution_to_synchrotron_radiation_integrals()
+        )
+
+        self.assertIsNone(
+            self.wiggler_magnet_none._contribution_to_synchrotron_radiation_integrals_without_energy,
+        )
+
+        self.assertEqual(
+            self.wiggler_magnet._contribution_to_synchrotron_radiation_integrals_without_energy[
+                0
+            ],
+            -1
+            / 2
+            * 2
+            * 50
+            * 0.01
+            * (e * 1) ** 2
+            * (50 * 0.01 / (2 * np.pi)) ** 2,
+        )
+        self.assertEqual(
+            self.wiggler_magnet._contribution_to_synchrotron_radiation_integrals_without_energy[
+                1
+            ],
+            1 / 2 * 2 * 50 * 0.01 * (e * 1) ** 2,
+        )
+        self.assertEqual(
+            self.wiggler_magnet._contribution_to_synchrotron_radiation_integrals_without_energy[
+                2
+            ],
+            4 / (3 * np.pi) * 2 * 50 * 0.01 * (e * 1) ** 3,
+        )
+        self.assertEqual(
+            self.wiggler_magnet._contribution_to_synchrotron_radiation_integrals_without_energy[
+                3
+            ],
+            0,
+        )
+        self.assertEqual(
+            self.wiggler_magnet._contribution_to_synchrotron_radiation_integrals_without_energy[
+                4
+            ],
+            2 * 0.01**2 * 50 * 0.01 / (15 * np.pi**3) * (e * 1) ** 5,
+        )
