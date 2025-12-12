@@ -34,11 +34,11 @@ L. Valle
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.base import DynamicParameter, Schedulable
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.physics.cavities import RfStationBaseClass
 from blond.physics.drifts import DriftBaseClass
@@ -53,7 +53,6 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond.core.beam.base import BeamBaseClass
     from blond.core.ring.ring import Ring
     from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import RfStationBaseClass
@@ -65,7 +64,7 @@ if TYPE_CHECKING:
 # tapering)
 
 
-class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
+class SynchrotronRadiationMaster(Schedulable):
     """
     Master class for handling synchrotron radiation along the ring.
 
@@ -98,10 +97,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         get_synchrotron_radiation_info_turn_by_turn: bool = False,
         verbose: bool = False,
     ):
-        super().__init__(
-            section_index=section_index,
-            name=name,
-        )
+        super().__init__()
 
         minimum_number_of_expected_synchrotron_radiation_integrals = 5
         if radiation_integrals is None:
@@ -184,7 +180,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     # TODO: transmit the share of SRI to the children.
     def generate_synchrotron_radiation_subclasses(
         self,
-        simulation: Simulation,
+        ring: Ring,
     ):
         """Function to create synchrotron radiation elements in the ring.
 
@@ -193,8 +189,8 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
 
         Parameters
         ----------
-        simulation
-            `Simulation` context manager
+        ring
+            `Ring` context manager
         """
         if self.generated_children:
             raise Warning(
@@ -203,7 +199,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             )
         else:
             i = 0
-            element_list = simulation.ring.elements.get_elements(
+            element_list = ring.elements.get_elements(
                 class_=self.track_before_element_type
             )
             if (element_list is None) or all(
@@ -218,19 +214,16 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                         )
                     else:
                         share_of_synchrotron_radiation_integrals = (
-                            element.orbit_length
-                            / simulation.ring.circumference
-                        )
+                            element.orbit_length / ring.circumference
+                        ) * self.synchrotron_radiation_integrals
                     SRClass_child = _SynchrotronRadiationDrift(
                         section_index=element.section_index,
                         name=f"SynchrotronRadiationTracker_{i}",
                         share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
                     )
-                    simulation.ring.insert_element(
+                    ring.insert_element(
                         element=SRClass_child,
-                        insert_at=simulation.ring.elements.elements.index(
-                            element
-                        ),
+                        insert_at=ring.elements.elements.index(element),
                         deepcopy=True,
                     )
                     self.generated_children.append(SRClass_child)
@@ -238,24 +231,22 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             elif all(isinstance(e, int) for e in element_list):
                 for section_index in element_list:
                     i += 1
-                    if hasattr(simulation.ring, "section_radiation_integrals"):
+                    if hasattr(ring, "section_radiation_integrals"):
                         share_of_synchrotron_radiation_integrals = (
-                            simulation.ring.section_radiation_integrals[
-                                section_index
-                            ]
+                            ring.section_radiation_integrals[section_index]
                         )
                     else:
                         share_of_synchrotron_radiation_integrals = (
-                            simulation.ring.section_lengths[section_index]
-                            / simulation.ring.circumference
-                        )
+                            ring.section_lengths[section_index]
+                            / ring.circumference
+                        ) * self.synchrotron_radiation_integrals
 
                     SRClass_child = _SynchrotronRadiationSection(
                         section_index=section_index,
                         name=f"SynchrotronRadiationTracker_{i}",
                         share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
                     )
-                    simulation.ring.add_element(
+                    ring.add_element(
                         SRClass_child,
                         section_index=section_index,
                         reorder=True,
@@ -269,83 +260,6 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             f"{len(self.generated_children)} synchrotron radiation "
             f"trackers generated"
         )
-
-    def on_init_simulation(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        simulation
-            `Simulation` context manager
-        """
-        super().on_init_simulation(simulation=simulation)
-        self._simulation = simulation
-        self._turn_i = simulation.turn_i
-        self._magnetic_cycle = simulation.magnetic_cycle
-        self._ring = simulation.ring
-
-        if self.verbose:
-            self.__str__()  # TODO WHY
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        turn_i_init: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager
-        beam
-            Simulation `Beam` object
-        n_turns
-            Number of turns to simulate
-        turn_i_init
-            Initial turn to execute simulation
-        """
-        pass
-
-    def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
-
-        Parameters
-        ----------
-        beam
-            Beam class to interact with this element
-        """
-        pass
-        # TODO create observable
-        # if self.get_synchrotron_radiation_info_turn_by_turn:
-        #     self._energy_loss_per_turn[self._turn_i] = (
-        #         calculate_energy_loss_per_turn(
-        #             energy=beam.reference_total_energy,
-        #             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-        #             particle_type=beam.particle_type,
-        #         )
-        #     )
-        #     self._damping_times[self._turn_i, :] = (
-        #         calculate_damping_times_in_turns(
-        #             energy=beam.reference_total_energy,
-        #             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-        #             particle_type=beam.particle_type,
-        #         )
-        #     )
-        #     self._natural_energy_spread[self._turn_i] = (
-        #         calculate_natural_energy_spread(
-        #             energy=beam.reference_total_energy,
-        #             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-        #             particle_type=beam.particle_type,
-        #         )
-        #     )
-        # else:
 
 
 class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
