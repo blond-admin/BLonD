@@ -473,6 +473,34 @@ class BackendBaseClass(ABC):
 
         return arr
 
+    def _cast_arr_and_dtype(
+        self, arr: ArrayLike, dtype: type
+    ) -> NumpyArray | CupyArray:
+        # Catch likely errors and reraise with slightly friendlier
+        # messages.  Raise from the original exception to aid
+        # debugging.
+        #
+        # ValueError is raised by backend.array(arr) if input is ragged.
+        # TypeError is raised by arr.astype(backend.[type]) if input
+        # cannot be coerced to the new type (e.g. str -> float)
+
+        try:
+            new_arr = self._asarray_if_needed(arr)
+        except ValueError as exc:
+            raise ValueError(
+                f"Unable to convert input data {arr} to array."
+            ) from exc
+
+        try:
+            new_arr = self._cast_dtype_if_needed(new_arr, dtype)
+        except (TypeError, ValueError) as exc:
+            raise type(exc)(
+                "Unable to automatically cast dtype of input data from "
+                f"{new_arr.dtype} to {dtype}."
+            ) from exc
+
+        return new_arr
+
     def cast_arr_float_if_needed(
         self, arr: ArrayLike
     ) -> NumpyArray | CupyArray:
@@ -490,8 +518,7 @@ class BackendBaseClass(ABC):
         -------
             NumpyArray | CupyArray: The modified (if needed) array
         """
-        arr = self._asarray_if_needed(arr)
-        return self._cast_dtype_if_needed(arr, self.float)
+        return self._cast_arr_and_dtype(arr, self.float)
 
     def cast_arr_complex_if_needed(
         self, arr: ArrayLike
@@ -510,8 +537,7 @@ class BackendBaseClass(ABC):
         -------
             NumpyArray | CupyArray: The modified (if needed) array
         """
-        arr = self._asarray_if_needed(arr)
-        return self._cast_dtype_if_needed(arr, self.complex)
+        return self._cast_arr_and_dtype(arr, self.complex)
 
 
 class NumpyBackend(BackendBaseClass):
