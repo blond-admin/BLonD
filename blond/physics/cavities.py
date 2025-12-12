@@ -153,10 +153,12 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
-        if cavity_feedback is None:
-            pass
-        else:
+        if cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
+        else:
+            self._cavity_feedback: (
+                LocalFeedback | tuple[LocalFeedback, ...] | None
+            ) = cavity_feedback
 
         if beam_feedback is None:
             pass
@@ -168,9 +170,6 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             raise ValueError(beam_feedback)
         self._n_rf = n_rf
         self._local_wakefield = local_wakefield
-        self._cavity_feedback: (
-            LocalFeedback | tuple[LocalFeedback, ...] | None
-        ) = cavity_feedback
         self._beam_feedback = beam_feedback
 
         self._magnetic_cycle: MagneticCycleBase | None = None
