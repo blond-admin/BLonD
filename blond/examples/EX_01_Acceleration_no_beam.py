@@ -9,6 +9,7 @@
 # pragma: no cover
 import logging
 import sys
+from pstats import SortKey
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -28,6 +29,8 @@ from blond.core.beam.beams import EmptyBeam
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 
 logging.basicConfig(level=logging.INFO)
+
+PROFILING = False
 
 
 def main():
@@ -65,6 +68,15 @@ def main():
     bunch_observation = BeamObservationOncePerTurn(each_turn_i=1, beam=beam1)
 
     with backend.temporary_specials_mode("python"):
+        if PROFILING:
+            sim.profiling(
+                beams=(beam1,),
+                turn_i_init=0,
+                profile_n_turns=1e5,
+                sortby=SortKey.TIME,
+                # callback=custom_action,
+            )
+            sys.exit(0)
         sim.run_simulation(
             beams=(beam1,),
             turn_i_init=0,
