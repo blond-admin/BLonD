@@ -11,6 +11,7 @@ from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BeamObservationOncePerTurn,
+    BeamStatisticsOncePerTurn,
     DynamicProfileConstNBinsObservation,
     ObservablesOncePerTurnBase,
     RfStationPhaseObservation,
