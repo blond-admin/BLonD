@@ -42,6 +42,9 @@ from blond.core.helpers import (
 from blond.core.ring.helpers import get_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.warnings_ import NotTestedWarning, PerformanceWarning
+from blond.physics.synchrotron_radiation.synchrotron_radiation import (
+    SynchrotronRadiationMaster,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -134,6 +137,17 @@ class Simulation(Preparable):
 
         super().__init__()
         self._ring: Ring = ring
+
+        if any(
+            isinstance(
+                self._ring.elements.elements[i], SynchrotronRadiationMaster
+            )
+            for i in range(len(self._ring.elements.elements))
+        ):
+            SRM = self._ring.elements.get_elements(
+                class_=SynchrotronRadiationMaster,
+            )[0]
+            SRM.generate_synchrotron_radiation_subclasses(simulation=self)
 
         self._magnetic_cycle: MagneticCycleBase = magnetic_cycle
 

@@ -38,11 +38,6 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
-    calculate_damping_times_in_turns,
-    calculate_energy_loss_per_turn,
-    calculate_natural_energy_spread,
-)
 from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.physics.cavities import RfStationBaseClass
@@ -133,11 +128,9 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                     )
             else:
                 raise TypeError(
-                    f"Expected a list or numpy.ndarray as an input. Received {type(radiation_integrals)}."
+                    f"Expected a list or numpy.ndarray as an input. Received"
+                    f" {type(radiation_integrals)}."
                 )
-        self.get_synchrotron_radiation_info_turn_by_turn = (
-            get_synchrotron_radiation_info_turn_by_turn
-        )
         self.verbose = verbose
 
         if track_before_element_type is not None:
@@ -146,11 +139,6 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             self.track_before_element_type = DriftBaseClass
 
         self._simulation: Simulation | None = None
-        self._longitudinal_damping_time = None
-        self._energy_loss_per_turn = None
-        self._damping_times: NumpyArray | None = None
-        self._natural_energy_spread: NumpyArray | None = None
-
         self._turn_i: DynamicParameter | None = 0
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
@@ -196,11 +184,17 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     # TODO: transmit the share of SRI to the children.
     def generate_synchrotron_radiation_subclasses(
         self,
+        simulation: Simulation,
     ):
         """Function to create synchrotron radiation elements in the ring.
 
         This method automatically creates, inserts and initialises the
         synchrotron radiation elements in the ring.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager
         """
         if self.generated_children:
             raise Warning(
@@ -209,63 +203,67 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             )
         else:
             i = 0
-            element_list = self._ring.elements.get_elements(
+            element_list = simulation.ring.elements.get_elements(
                 class_=self.track_before_element_type
             )
-            if element_list is not None:
-                if all(
-                    isinstance(e, DriftBaseClass | RfStationBaseClass)
-                    for e in element_list
-                ):
-                    for element in element_list:
-                        i += 1
-                        SRClass_child = _SynchrotronRadiationDrift(
-                            section_index=element.section_index,
-                            name=f"SynchrotronRadiationTracker_{i}",
-                        )
-                        self._simulation.ring.insert_element(
-                            element=SRClass_child,
-                            insert_at=self._simulation.ring.elements.elements.index(
-                                element
-                            ),
-                            deepcopy=True,
-                        )
-                        self.generated_children.append(SRClass_child)
-
-                elif all(isinstance(e, int) for e in element_list):
-                    for section_index in element_list:
-                        i += 1
-                        share_of_synchrotron_radiation_integrals = 0
-                        SRClass_child = _SynchrotronRadiationSection(
-                            section_index=section_index,
-                            name=f"SynchrotronRadiationTracker_{i}",
-                            share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
-                        )
-                        self._simulation.ring.add_element(
-                            SRClass_child,
-                            section_index=section_index,
-                            reorder=True,
-                        )
-                        self.generated_children.append(SRClass_child)
-                else:
-                    raise TypeError("Inhomogeneous element classes.")
-
-            else:
-                element_list = self._simulation.ring.elements.get_elements(
-                    DriftBaseClass
-                )
+            if (element_list is None) or all(
+                isinstance(e, DriftBaseClass | RfStationBaseClass)
+                for e in element_list
+            ):
                 for element in element_list:
                     i += 1
+                    if hasattr(element, "radiation_integrals"):
+                        share_of_synchrotron_radiation_integrals = (
+                            element.radiation_integrals
+                        )
+                    else:
+                        share_of_synchrotron_radiation_integrals = (
+                            element.orbit_length
+                            / simulation.ring.circumference
+                        )
                     SRClass_child = _SynchrotronRadiationDrift(
                         section_index=element.section_index,
                         name=f"SynchrotronRadiationTracker_{i}",
+                        share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
                     )
-                    self._simulation.ring.add_element(
+                    simulation.ring.insert_element(
+                        element=SRClass_child,
+                        insert_at=simulation.ring.elements.elements.index(
+                            element
+                        ),
+                        deepcopy=True,
+                    )
+                    self.generated_children.append(SRClass_child)
+
+            elif all(isinstance(e, int) for e in element_list):
+                for section_index in element_list:
+                    i += 1
+                    if hasattr(simulation.ring, "section_radiation_integrals"):
+                        share_of_synchrotron_radiation_integrals = (
+                            simulation.ring.section_radiation_integrals[
+                                section_index
+                            ]
+                        )
+                    else:
+                        share_of_synchrotron_radiation_integrals = (
+                            simulation.ring.section_lengths[section_index]
+                            / simulation.ring.circumference
+                        )
+
+                    SRClass_child = _SynchrotronRadiationSection(
+                        section_index=section_index,
+                        name=f"SynchrotronRadiationTracker_{i}",
+                        share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
+                    )
+                    simulation.ring.add_element(
                         SRClass_child,
-                        section_index=element.section_index,
+                        section_index=section_index,
                         reorder=True,
                     )
                     self.generated_children.append(SRClass_child)
+            else:
+                raise TypeError("Inhomogeneous element classes.")
+
         # FIXME SR tracker BEFORE Drifts and AFTER Cavity -- do I agree now?
         return print(
             f"{len(self.generated_children)} synchrotron radiation "
@@ -313,10 +311,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         turn_i_init
             Initial turn to execute simulation
         """
-        if self.get_synchrotron_radiation_info_turn_by_turn:
-            self._energy_loss_per_turn = np.empty(n_turns)
-            self._longitudinal_damping_time = np.empty(n_turns)
-            self._natural_energy_spread = np.empty(n_turns)
+        pass
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.
@@ -326,34 +321,31 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         beam
             Beam class to interact with this element
         """
-        # Get the turn-by-turn data if requested, from the synchrotron
-        # radiation integrals
-
+        pass
         # TODO create observable
-        if self.get_synchrotron_radiation_info_turn_by_turn:
-            self._energy_loss_per_turn[self._turn_i] = (
-                calculate_energy_loss_per_turn(
-                    energy=beam.reference_total_energy,
-                    synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-                    particle_type=beam.particle_type,
-                )
-            )
-            self._damping_times[self._turn_i, :] = (
-                calculate_damping_times_in_turns(
-                    energy=beam.reference_total_energy,
-                    synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-                    particle_type=beam.particle_type,
-                )
-            )
-            self._natural_energy_spread[self._turn_i] = (
-                calculate_natural_energy_spread(
-                    energy=beam.reference_total_energy,
-                    synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-                    particle_type=beam.particle_type,
-                )
-            )
-        else:
-            pass
+        # if self.get_synchrotron_radiation_info_turn_by_turn:
+        #     self._energy_loss_per_turn[self._turn_i] = (
+        #         calculate_energy_loss_per_turn(
+        #             energy=beam.reference_total_energy,
+        #             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+        #             particle_type=beam.particle_type,
+        #         )
+        #     )
+        #     self._damping_times[self._turn_i, :] = (
+        #         calculate_damping_times_in_turns(
+        #             energy=beam.reference_total_energy,
+        #             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+        #             particle_type=beam.particle_type,
+        #         )
+        #     )
+        #     self._natural_energy_spread[self._turn_i] = (
+        #         calculate_natural_energy_spread(
+        #             energy=beam.reference_total_energy,
+        #             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+        #             particle_type=beam.particle_type,
+        #         )
+        #     )
+        # else:
 
 
 class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):

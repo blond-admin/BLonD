@@ -26,11 +26,9 @@ from blond import (
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.physics.drifts import DriftBaseClass
 from blond.physics.synchrotron_radiation.synchrotron_radiation import (
     SynchrotronRadiationMaster,
 )
-from unittests.physics.test_drift_integration import cavity1
 
 
 class SynchrotronRadiationSimulation:
@@ -86,7 +84,6 @@ class SynchrotronRadiationSimulation:
             # track_before_element_type = DriftBaseClass,
         )
         self.ring.insert_element(self.SRHandler, insert_at=0, deepcopy=False)
-
         beam = Beam(
             intensity=1e9,
             particle_type=electron,
@@ -100,9 +97,11 @@ class SynchrotronRadiationSimulation:
 def main():
     params = SynchrotronRadiationSimulation()
 
+    params.ring.elements.print_order()
     simulation = Simulation(
         ring=params.ring, magnetic_cycle=params.energy_cycle
     )
+    params.ring.elements.print_order()
     simulation.print_one_turn_execution_order()
 
     simulation.prepare_beam(
