@@ -5,6 +5,7 @@ import numpy as np
 
 from blond import (
     Beam,
+    ConstantMagneticCycle,
     MagneticCyclePerTurn,
     Ring,
     Simulation,
@@ -570,13 +571,15 @@ class TestRing(unittest.TestCase):
         )
 
         ring.on_init_simulation(simulation_mock)
-        sim = Simulation(ring, Mock(MagneticCyclePerTurn))
+        sim = Simulation(
+            ring, ConstantMagneticCycle(value=1, reference_particle=lead_82)
+        )
         beam = Beam(intensity=1, particle_type=lead_82)
         beam._dt = [1]
         beam._dE = [2]
         beam._flags = [3]
         beam._ids = [4]
-        sim.finalize((beam,))
+        sim.finalize((beam,), n_turns=1)
 
     def test_non_mandatory_element_checking_kicks(self):
         ring = Ring(circumference=200, check_section_indices=False)
@@ -603,13 +606,15 @@ class TestRing(unittest.TestCase):
         )
 
         ring.on_init_simulation(simulation_mock)
-        sim = Simulation(ring, Mock(MagneticCyclePerTurn))
+        sim = Simulation(
+            ring, ConstantMagneticCycle(value=1, reference_particle=lead_82)
+        )
         beam = Beam(intensity=1, particle_type=lead_82)
         beam._dt = [1]
         beam._dE = [2]
         beam._flags = [3]
         beam._ids = [4]
-        sim.finalize((beam,))
+        sim.finalize((beam,), n_turns=1)
 
     def test_synchrotron_radiation_integrals(self):
         self.assertIsNone(self.ring.radiation_integrals)
