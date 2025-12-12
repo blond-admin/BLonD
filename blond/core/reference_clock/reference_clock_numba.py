@@ -17,7 +17,12 @@ from scipy.constants import speed_of_light as c0
 yolooo = None
 
 
-@nb.njit(nb.float64(nb.float64, nb.float64), fastmath=True, cache=True)
+@nb.njit(
+    nb.float64(nb.float64, nb.float64),
+    fastmath=True,
+    cache=True,
+    inline="always",
+)
 def gamma(_total_energy, _mass_inv) -> float:
     """
     Beam reference gamma a.k.a. Lorentz factor [].
@@ -31,7 +36,12 @@ def gamma(_total_energy, _mass_inv) -> float:
     return _total_energy * _mass_inv
 
 
-@nb.njit(nb.float64(nb.float64, nb.float64), fastmath=True, cache=True)
+@nb.njit(
+    nb.float64(nb.float64, nb.float64),
+    fastmath=True,
+    cache=True,
+    inline="always",
+)
 def beta(_total_energy, _mass_inv) -> float:
     """
     Beam reference fraction of speed of light (v/c0) [].
@@ -46,7 +56,12 @@ def beta(_total_energy, _mass_inv) -> float:
     return val
 
 
-@nb.njit(nb.float64(nb.float64, nb.float64), fastmath=True, cache=True)
+@nb.njit(
+    nb.float64(nb.float64, nb.float64),
+    fastmath=True,
+    cache=True,
+    inline="always",
+)
 def velocity(_total_energy, _mass_inv) -> float:
     """
     Beam reference speed [m/s].
