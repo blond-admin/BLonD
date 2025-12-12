@@ -278,6 +278,13 @@ class TestTravelingWaveCavity(unittest.TestCase):
         # Compute impulse response
         OTFB_4.TWC.impulse_response_beam(OTFB_4.omega_c, profile.hist_x)
 
+        omega = rf.get_main_harmonic_omega_rf_design(
+            beam_beta=beam.reference_beta,
+            ring_circumference=ring.circumference,
+        )
+        OTFB_4.set_hardware_commissioning(omega_rf=omega, harmonic=4620)
+        rf.attach_cavity_feedback(OTFB_4)
+
         # Compute induced voltage in (I,Q) coordinates
         OTFB_4.track(beam=beam)
         # convert back to time
@@ -286,7 +293,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         ) * np.sin(
             OTFB_4.omega_rf * profile.hist_x
             + np.angle(OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_bins :])
-            + rf.phi_rf[0]
+            + rf.phi_rf_actual[0]
             - np.angle(OTFB_4.V_SET[-OTFB_4.n_coarse])
         )
 
@@ -402,6 +409,13 @@ class TestTravelingWaveCavity(unittest.TestCase):
         OTFB.TWC.impulse_response_beam(
             OTFB.omega_c, OTFB.profile.hist_x, OTFB.rf_centers
         )
+        omega = rf.get_main_harmonic_omega_rf_design(
+            beam_beta=beam2.reference_beta,
+            ring_circumference=ring.circumference,
+        )
+        OTFB.set_hardware_commissioning(omega_rf=omega, harmonic=4620)
+        rf.attach_cavity_feedback(OTFB)
+
         OTFB.track(beam=beam2)
 
         imp_fine_meas = (OTFB.TWC.h_beam[::1000])[:100]
