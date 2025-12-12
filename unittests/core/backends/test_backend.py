@@ -11,6 +11,7 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     NumpyBackend,
     backend,
+    default,
 )
 from blond.core.backends.numba.callables import recompile_numba_backend
 
@@ -25,6 +26,11 @@ from numba import set_num_threads
 
 
 class TestBackendBaseClass(unittest.TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        backend.change_backend(type(default))
+        backend.set_specials("numba")
+
     def setUp(self) -> None:
         self.backend_base_class = Numpy32Bit()
 
