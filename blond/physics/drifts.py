@@ -376,29 +376,45 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Beam class to interact with this element.
         """
         super().track(beam=beam)
-        reference = beam.reference
-        dt = self.track_reference(reference)
+
+        if self.schedule_active:
+            self.apply_schedules(
+                turn_i=self._simulation.turn_i.value,
+                reference_time=beam.reference.time,
+            )
+
+        dt = self.track_reference(beam.reference)
 
         if beam.common_array_size > 0:
-            gamma = reference.gamma
+            gamma = beam.reference.gamma
             backend.specials.drift_simple(
                 dt=beam.write_partial_dt(),
                 dE=beam.read_partial_dE(),
                 T=dt,
                 eta_0=(self.alpha_0 - (1 / (gamma * gamma))),
-                beta=reference.beta,
-                energy=reference.total_energy,
+                beta=beam.reference.beta,
+                energy=beam.reference.total_energy,
             )
 
-    def track_reference(self, reference: ReferenceCoordinates):
-        if self.schedule_active:
-            self.apply_schedules(
-                turn_i=self._simulation.turn_i.value,
-                reference_time=reference.time,
-            )
-        dt = self.orbit_length / reference.velocity
-        reference.time += dt
-        return dt
+    def track_reference(
+        self, reference: ReferenceCoordinates, **kwargs
+    ) -> float:
+        """
+        Updates the coordinates of the reference coordinate system.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+
+        Returns
+        -------
+        reference_time_change
+            Change of reference time.
+        """
+        reference_time_change = self.orbit_length / reference.velocity
+        reference.time += reference_time_change
+        return reference_time_change
 
     def eta_0(self, gamma: float) -> float:
         """

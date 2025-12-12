@@ -478,6 +478,19 @@ class RfStationBaseClass(
     def track_reference(
         self, reference: ReferenceCoordinates, is_counter_rotating=False
     ):
+        """
+        Updates the coordinates of the reference coordinate system.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+
+        Returns
+        -------
+        reference_energy_change
+            Change of reference energy [eV].
+        """
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
             section_i=self.section_index
@@ -487,7 +500,7 @@ class RfStationBaseClass(
             particle_type=reference.particle_type,
         )
         reference_energy_change = target_total_energy - reference.total_energy
-        reference.total_energy += reference_energy_change
+        reference.total_energy = target_total_energy
         return reference_energy_change
 
     @abstractmethod  # pragma: no cover

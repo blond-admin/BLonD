@@ -747,5 +747,21 @@ class HasPropertyCache:
 
 
 class AltersReferene(ABC):
+    """Base class for objects that alter the reference coordinate system."""
+
+    @abstractmethod  # pragma: no cover
     def track_reference(self, reference: ReferenceCoordinates, **kwargs):
+        """
+        Updates the coordinates of the reference coordinate system.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+
+        Returns
+        -------
+        change
+            Change of reference time or energy.
+        """
         pass
