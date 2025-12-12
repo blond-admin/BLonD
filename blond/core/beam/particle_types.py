@@ -76,7 +76,7 @@ class ParticleType:
 
     mass_inv: float = dc.field(init=False)
     classical_particle_radius: float = dc.field(init=False)
-    sands_radiation_constant: float = dc.field(init=False)
+    sand_radiation_constant: float = dc.field(init=False)
     quantum_radiation_constant: float = dc.field(init=False)
 
     def __post_init__(self):
@@ -95,7 +95,7 @@ class ParticleType:
 
         # Sand's radiation constant [m / eV^3]
         c_gamma = 4 * np.pi / 3 * self.classical_particle_radius / self.mass**3
-        object.__setattr__(self, "sands_radiation_constant", c_gamma)
+        object.__setattr__(self, "sand_radiation_constant", c_gamma)
 
         # Quantum radiation constant [m]
         c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e)
