@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -22,6 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import TYPE_CHECKING, Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
 DEFAULT_BACKEND = "python"
@@ -291,6 +293,7 @@ class BackendBaseClass(ABC):
         self.concatenate: Callable = None  # type: ignore
         self.unique: Callable = None  # type: ignore
         self.max: Callable = None  # type: ignore
+        self.ndarray: type = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -454,6 +457,62 @@ class BackendBaseClass(ABC):
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
 
+    def _asarray_if_needed(self, arr: ArrayLike) -> NumpyArray | CupyArray:
+        # Faster to check than cast, so only cast if needed
+        return arr if isinstance(arr, self.ndarray) else self.array(arr)
+
+    def _cast_dtype_if_needed(
+        self, arr: NumpyArray | CupyArray, dtype: type
+    ) -> NumpyArray | CupyArray:
+        if arr.dtype != dtype:
+            warnings.warn(
+                f"Automatically casting dtype from {arr.dtype} to {dtype}",
+                stacklevel=3,
+            )
+            arr = arr.astype(dtype)
+
+        return arr
+
+    def cast_arr_float_if_needed(
+        self, arr: ArrayLike
+    ) -> NumpyArray | CupyArray:
+        """Convert input to backend.array with dtype=backend.float.
+
+        Uses isinstance and dtype checks to only modify the object if
+        needed, which is faster and avoids breaking references.  If the
+        reference is required to change, `backend.array` should be
+        called directly.
+
+        Args:
+            arr : The object that should be returned as an array
+
+        Returns
+        -------
+            NumpyArray | CupyArray: The modified (if needed) array
+        """
+        arr = self._asarray_if_needed(arr)
+        return self._cast_dtype_if_needed(arr, self.float)
+
+    def cast_arr_complex_if_needed(
+        self, arr: ArrayLike
+    ) -> NumpyArray | CupyArray:
+        """Convert input to backend.array with dtype=backend.complex.
+
+        Uses isinstance and dtype checks to only modify the object if
+        needed, which is faster and avoids breaking references.  If the
+        reference is required to change, `backend.array` should be
+        called directly.
+
+        Args:
+            arr : The object that should be returned as an array
+
+        Returns
+        -------
+            NumpyArray | CupyArray: The modified (if needed) array
+        """
+        arr = self._asarray_if_needed(arr)
+        return self._cast_dtype_if_needed(arr, self.complex)
+
 
 class NumpyBackend(BackendBaseClass):
     """
@@ -502,6 +561,7 @@ class NumpyBackend(BackendBaseClass):
         self.concatenate = np.concatenate
         self.unique = np.unique
         self.max = np.max
+        self.ndarray = np.ndarray
 
         self._finalize()
 
@@ -629,6 +689,7 @@ class CupyBackend(BackendBaseClass):
         self.concatenate = cp.concatenate
         self.unique = cp.unique
         self.max = cp.max
+        self.ndarray = cp.ndarray
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
