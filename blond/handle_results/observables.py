@@ -706,19 +706,19 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             `Simulation` context manager.
         """
         self._v_ant_fine.write(
-            self._feedback.V_ANT_FINE
+            self._feedback.V_ANT_FINE[-self._n_fine :]
         )  # TODO: redo without capitalization
-        self._i_beam_fine.write(self._feedback.I_BEAM_FINE)
-        self._i_gen_fine.write(self._feedback.I_GEN_FINE)
+        self._i_beam_fine.write(self._feedback.I_BEAM_FINE[-self._n_fine :])
+        self._i_gen_fine.write(self._feedback.I_GEN_FINE[-self._n_fine :])
 
         self._v_ant_coarse.write(
-            self._feedback.V_ANT_COARSE[: -self._n_coarse]
+            self._feedback.V_ANT_COARSE[-self._n_coarse :]
         )
         self._i_beam_coarse.write(
-            self._feedback.I_BEAM_COARSE[: -self._n_coarse]
+            self._feedback.I_BEAM_COARSE[-self._n_coarse :]
         )
         self._i_gen_coarse.write(
-            self._feedback.I_GEN_COARSE[: -self._n_coarse]
+            self._feedback.I_GEN_COARSE[-self._n_coarse :]
         )
 
         self._v_corr.write(self._feedback.V_corr)
