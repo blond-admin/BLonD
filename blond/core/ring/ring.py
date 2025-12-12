@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -32,6 +33,8 @@ if TYPE_CHECKING:  # pragma: no cover
     )
     from blond.core.simulation.simulation import Simulation
     from blond.physics.drifts import DriftBaseClass
+
+logger = logging.getLogger(__name__)
 
 
 class Ring(Preparable):
@@ -514,6 +517,7 @@ class Ring(Preparable):
         >>> ring.add_elements(rf_stations)
         """
         for element in elements:
+            logger.info(f"Adding {element}")
             self.add_element(
                 element=element,
                 deepcopy=deepcopy,
@@ -587,6 +591,8 @@ class Ring(Preparable):
                         element=element,
                         insert_at=k + already_inserted,
                     )
+                logger.info(f"Adding {element}")
+
                 self.elements.insert(
                     element=element,
                     insert_at=k + already_inserted,
@@ -598,6 +604,8 @@ class Ring(Preparable):
                     "Cannot overwrite the section indexes with deepcopy == False."
                 )
             for already_inserted, k in enumerate(insert_at):
+                logger.info(f"Adding {element}")
+
                 self.elements.insert(
                     element=element,
                     insert_at=k + already_inserted,

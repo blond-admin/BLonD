@@ -206,11 +206,11 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
     ):
         super().__init__(name=name, section_index=section_index)
 
-        self._type = (wiggler_type,)
-        self._number = (number,)
-        self._peak_field = (peak_field,)
-        self._pole_length = (pole_length,)
-        self._number_poles = (number_poles,)
+        self._type = wiggler_type
+        self._number = number
+        self._peak_field = peak_field
+        self._pole_length = pole_length
+        self._number_poles = number_poles
 
         self._simulation: Simulation | None = None
         self._contribution_to_synchrotron_radiation_integrals_without_energy: (
@@ -295,34 +295,37 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
     def _calculate_contribution_to_synchrotron_radiation_integrals(self):
         """Calculates the wiggler radiation integrals without beam energy."""
-        self._contribution_to_synchrotron_radiation_integrals_without_energy = np.array(
-            [
-                (
-                    -1
+        if self._type == "sinusoidal":
+            self._contribution_to_synchrotron_radiation_integrals_without_energy = np.array(
+                [
+                    (
+                        -1
+                        / 2
+                        * self.number_of_wigglers
+                        * self.length_wiggler
+                        * (e * self.peak_magnetic_field) ** 2
+                        * (self.length_wiggler / (2 * np.pi)) ** 2
+                    ),
+                    1
+                    / 2
                     * self.number_of_wigglers
                     * self.length_wiggler
-                    * (e * self.peak_magnetic_field) ** 2
+                    * (e * self.peak_magnetic_field) ** 2,
+                    4
+                    / (3 * np.pi)
+                    * self.number_of_wigglers
                     * self.length_wiggler
-                    / (2 * np.pi)
-                ),
-                1
-                / 2
-                * self.number_of_wigglers
-                * self.length_wiggler
-                * (e * self.peak_magnetic_field) ** 2,
-                4
-                / (3 * np.pi)
-                * self.number_of_wigglers
-                * self.length_wiggler
-                * (e * self.peak_magnetic_field) ** 3,
-                0,
-                self.number_of_wigglers
-                * self.pole_length**2
-                * self.length_wiggler
-                / (15 * np.pi**3)
-                * (e * self.peak_magnetic_field) ** 5,
-            ]
-        )
+                    * (e * self.peak_magnetic_field) ** 3,
+                    0,
+                    self.number_of_wigglers
+                    * self.pole_length**2
+                    * self.length_wiggler
+                    / (15 * np.pi**3)
+                    * (e * self.peak_magnetic_field) ** 5,
+                ]
+            )
+        else:
+            self._contribution_to_synchrotron_radiation_integrals_without_energy = None
 
     def update_synchrotron_radiation_integrals(self, beam: BeamBaseClass):
         """

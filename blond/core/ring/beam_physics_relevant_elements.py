@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 import warnings
 from typing import TYPE_CHECKING
 
@@ -28,6 +29,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.base import SimulationElementBase
 
     T = TypeVar("T")
+
+logger = logging.getLogger(__name__)
 
 
 class BeamPhysicsRelevantElements(Preparable):
@@ -218,10 +221,16 @@ class BeamPhysicsRelevantElements(Preparable):
                     insert_at = i
 
             if insert_at is not None:
+                logger.info(f"Adding {element}")
+
                 self.elements.insert(insert_at + 1, element)
             else:
+                logger.info(f"Adding {element}")
+
                 self.elements.append(element)
         else:
+            logger.info(f"Adding {element}")
+
             self.elements.append(element)
 
     def check_section_index_compatibility(
@@ -311,6 +320,8 @@ class BeamPhysicsRelevantElements(Preparable):
         self.check_section_index_compatibility(
             element=element, insert_at=insert_at
         )
+        logger.info(f"Adding {element}")
+
         self.elements.insert(insert_at, element)
 
     @property  # as readonly attributes

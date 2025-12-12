@@ -55,4 +55,5 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation import (  # NOQA
 )
 from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (  # NOQA
     SynchrotronRadiationBaseClass,
+    WigglerMagnet,
 )

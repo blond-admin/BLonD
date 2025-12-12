@@ -6,6 +6,9 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+import logging
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c
@@ -29,6 +32,8 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 from blond.physics.synchrotron_radiation.synchrotron_radiation import (
     SynchrotronRadiationMaster,
 )
+
+logging.basicConfig(level=logging.INFO)
 
 
 class SynchrotronRadiationSimulation:
@@ -98,6 +103,8 @@ def main():
     params = SynchrotronRadiationSimulation()
 
     params.ring.elements.print_order()
+    print(params.ring.elements.elements)
+    # sys.exit(0)
     simulation = Simulation(
         ring=params.ring, magnetic_cycle=params.energy_cycle
     )
