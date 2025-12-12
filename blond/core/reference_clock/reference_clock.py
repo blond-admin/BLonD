@@ -10,13 +10,14 @@
 
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING
 
-import numpy as np
-from scipy.constants import speed_of_light as c0
-
 from blond.core.base import HasPropertyCache
+from blond.core.reference_clock.reference_clock_numba import beta as beta_nb
+from blond.core.reference_clock.reference_clock_numba import gamma as gamma_nb
+from blond.core.reference_clock.reference_clock_numba import (
+    velocity as velocity_nb,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.particle_types import ParticleType
@@ -25,10 +26,15 @@ if TYPE_CHECKING:  # pragma: no cover
 class ReferenceCoordinates(HasPropertyCache):
     """Helper class that holds the reference to the coordinate system."""
 
-    def __init__(self, time, total_energy, particle_type):
-        self.time = time
-        self._total_energy = total_energy
-        self._particle_type = particle_type
+    def __init__(
+        self,
+        time: float,
+        total_energy: float | None,
+        particle_type: ParticleType,
+    ):
+        self.time = time  # no property syntax
+        self._total_energy = total_energy  # only read access
+        self._particle_type = particle_type  # only read access
 
     @property
     def particle_type(self) -> ParticleType:
@@ -68,10 +74,9 @@ class ReferenceCoordinates(HasPropertyCache):
         total_energy
             Total beam energy [eV].
         """
-        self.invalidate_cache_reference()
         self._total_energy = total_energy
 
-    @cached_property
+    @property
     def gamma(self) -> float:
         """
         Beam reference gamma a.k.a. Lorentz factor [].
@@ -86,10 +91,9 @@ class ReferenceCoordinates(HasPropertyCache):
             raise ValueError(
                 "Beam is not properly set up, please set `total_energy` first!"
             )
-        val = self._total_energy * self._particle_type.mass_inv
-        return val
+        return gamma_nb(self._total_energy, self._particle_type.mass_inv)
 
-    @cached_property
+    @property
     def beta(self) -> float:
         """
         Beam reference fraction of speed of light (v/c0) [].
@@ -99,11 +103,9 @@ class ReferenceCoordinates(HasPropertyCache):
         beta
             Beam reference fraction of speed of light (v/c0) [].
         """
-        gamma = self.gamma
-        val = np.sqrt(1.0 - 1.0 / (gamma * gamma))
-        return val
+        return beta_nb(self._total_energy, self._particle_type.mass_inv)
 
-    @cached_property
+    @property
     def velocity(self) -> float:
         """
         Beam reference speed [m/s].
@@ -113,14 +115,4 @@ class ReferenceCoordinates(HasPropertyCache):
         velocity
             Beam reference speed [m/s].
         """
-        return self.beta * c0
-
-    def invalidate_cache_reference(self) -> None:
-        """Reset cache of `cached_property` attributes."""
-        super()._invalidate_cache(
-            (
-                "gamma",
-                "beta",
-                "velocity",
-            )
-        )
+        return velocity_nb(self._total_energy, self._particle_type.mass_inv)
