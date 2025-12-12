@@ -429,7 +429,7 @@ class RfStationBaseClass(
             self.delta_omega_rf = omega_increment
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
-        if np.any(self.delta_omega_rf != 0):
+        """if any(self.delta_omega_rf): # any nonzero
             assert self.harmonic is not None
             assert self._omega_rf is not None
             assert self.delta_omega_rf is not None
@@ -441,7 +441,7 @@ class RfStationBaseClass(
                 / self._omega_rf[:]
             )
 
-            self.delta_phi_rf += phi_increment
+            self.delta_phi_rf += phi_increment"""
 
         """
         # Add phase noise directly to the cavity RF phase
@@ -476,7 +476,9 @@ class RfStationBaseClass(
             self._local_wakefield.track(beam=beam)
 
     def track_reference(
-        self, reference: ReferenceCoordinates, is_counter_rotating=False
+        self,
+        reference: ReferenceCoordinates,
+        is_counter_rotating: bool = False,
     ):
         """
         Updates the coordinates of the reference coordinate system.
@@ -485,6 +487,8 @@ class RfStationBaseClass(
         ----------
         reference
             The object that holds the reference time [s] and total energy [eV].
+        is_counter_rotating
+            Whether the beam is counter rotating or not.
 
         Returns
         -------
