@@ -5,10 +5,19 @@ import numpy as np
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
-from blond import Ring, Simulation, StaticProfile, proton
+from blond import (
+    ConstantMagneticCycle,
+    Ring,
+    Simulation,
+    StaticProfile,
+    proton,
+)
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.experimental.physics.feedbacks.accelerators.mucol.cavity_feedback import (
+    PassiveCavity,
+)
 from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
     SpsRlBeamFeedback,
 )
@@ -100,6 +109,52 @@ class TestRFStationBaseClass(unittest.TestCase):
             SingleHarmonicRfStation(
                 section_index=1, local_wakefield=None, cavity_feedback=(prof,)
             )
+
+    def test_single_cavity_feedback_allowed(self):
+        prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
+        cavity_feedback_good = PassiveCavity(
+            profile=prof,
+            R_over_Q=1,
+            Q_L=2,
+            f_center=200e6,
+            f_detuning=1,
+            n_cavities=5,
+            generator_current=6,
+            n_pretrack=5,
+        )
+        mhc = SingleHarmonicRfStation(
+            section_index=1,
+            local_wakefield=None,
+            voltage=6e6,
+            harmonic=25000,
+            phi_rf=0,
+            cavity_feedback=cavity_feedback_good,
+        )
+
+        mhc._turn_i = 1
+        mhc._ring = Mock(Ring)
+        mhc._ring.circumference = 456
+
+        simulation = Mock(Simulation)
+        simulation.turn_i = DynamicParameter(1)
+        simulation.ring.circumference = 456
+        simulation.ring.section_lengths = np.array(
+            [simulation.ring.circumference]
+        )
+        simulation.magnetic_cycle = Mock(ConstantMagneticCycle)
+        simulation.magnetic_cycle.get_target_total_energy.return_value = 1.0
+
+        self.beam.ratio = 0.01
+
+        mhc.on_init_simulation(simulation=simulation)
+        mhc.on_run_simulation(
+            simulation=simulation, beam=self.beam, n_turns=100, turn_i_init=0
+        )
+        cavity_feedback_good.on_run_simulation(
+            simulation=simulation, beam=self.beam, n_turns=100, turn_i_init=0
+        )
+
+        mhc.track(beam=self.beam)
 
     def test_track_with_feedbacks(self):
         SingleHarmonicRfStation(
