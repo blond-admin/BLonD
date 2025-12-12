@@ -32,7 +32,6 @@ class TestLHCOpenDrive(unittest.TestCase):
         V = 4e6  # RF voltage [V]
         dphi = 0  # Phase modulation/offset
         gamma_t = 53.8  # Transition gamma
-        alpha = 1 / gamma_t**2  # First order mom. comp. factor
 
         # Initialise necessary classes
         # ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=1)
@@ -81,7 +80,7 @@ class TestLHCOpenDrive(unittest.TestCase):
             beam_beta=beam.reference_beta,
             ring_circumference=ring.circumference,
         )
-        rf._omega_rf = omega  # TODO FIXME REMOVE
+        rf.omega_rf_design = omega  # TODO FIXME REMOVE
         self.f_c = float(omega) / (2 * np.pi)
 
     def test_setup(self):
@@ -100,6 +99,9 @@ class TestLHCOpenDrive(unittest.TestCase):
             tau_loop=650e-9,
             tau_otfb=1472e-9,
             RFFB=self.RFFB,
+        )
+        CL.set_hardware_commissioning(
+            omega_rf=2 * np.pi * self.f_c, harmonic=35640
         )
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
@@ -126,6 +128,9 @@ class TestLHCOpenDrive(unittest.TestCase):
             tau_otfb=1472e-9,
             RFFB=self.RFFB,
         )
+        CL.set_hardware_commissioning(
+            omega_rf=2 * np.pi * self.f_c, harmonic=35640
+        )
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT_COARSE[-10:])) * 1e-6
@@ -151,7 +156,6 @@ class TestLHCOpenDrive(unittest.TestCase):
 
     def test_3(self):
         CL = LHCCavityLoop(
-            self.rf,
             self.profile,
             f_c=self.f_c,
             G_gen=1,
@@ -163,6 +167,9 @@ class TestLHCOpenDrive(unittest.TestCase):
             tau_loop=650e-9,
             tau_otfb=1472e-9,
             RFFB=self.RFFB,
+        )
+        CL.set_hardware_commissioning(
+            omega_rf=2 * np.pi * self.f_c, harmonic=35640
         )
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
