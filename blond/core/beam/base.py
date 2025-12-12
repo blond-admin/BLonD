@@ -131,11 +131,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         ----------
             other
                 The BeamBaseClass object to add to this Beam
-            purge (optional):
-                Specify if flagged particles should be purged when
-                adding the beams.  If True, all particles with flag
-                different to the Active value will be purged.
-                Defaults to False.
 
         Raises
         ------
