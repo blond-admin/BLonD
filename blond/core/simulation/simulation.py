@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from pstats import SortKey
 from typing import TYPE_CHECKING
@@ -67,6 +67,25 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 logger = logging.getLogger(__name__)
+
+
+def _single_beam_to_tuple(
+    maybe_beams: BeamBaseClass | tuple[BeamBaseClass, ...],
+) -> tuple[BeamBaseClass, ...]:
+    """
+    Guarantee that the result is a tuple of beams.
+
+    Parameters
+    ----------
+    maybe_beams
+        Single beam instance or multiple beams.
+
+    Returns
+    -------
+    beams
+        Tuple of at leat one beam.
+    """
+    return maybe_beams if isinstance(maybe_beams, Sequence) else (maybe_beams,)
 
 
 class Simulation(Preparable):
@@ -947,12 +966,13 @@ class Simulation(Preparable):
 
     def run_simulation(
         self,
-        beams: tuple[BeamBaseClass, ...],
+        beams: BeamBaseClass | tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
+        callback_each_turn: int = 1,
     ) -> None:
         """
         Execute the main beam dynamics simulation loop.
@@ -993,6 +1013,9 @@ class Simulation(Preparable):
             Optional user-defined function called at the end of each turn. Signature
             must be ``def callback(simulation: Simulation, beam: BeamBaseClass): ...``.
             Useful for custom data collection or live plotting. Default is None.
+        callback_each_turn
+            Specifies the the repitition rate at which `callback` is called.
+            Deafault is 1, each turn.
 
         Raises
         ------
@@ -1073,6 +1096,7 @@ class Simulation(Preparable):
         ...     turn_i_init=500,  # Starting from turn 500
         ... )
         """
+        beams = _single_beam_to_tuple(beams)
         logger.info(f"Running `run_simulation` with {locals()}")
         n_turns = (
             int_from_float_with_warning(n_turns, warning_stacklevel=2)
@@ -1087,13 +1111,13 @@ class Simulation(Preparable):
         )
 
         if len(beams) == 1:  # NOQA: PLR2004
-            self._run_simulation_single_beam(
+            self.mainloop_single_beam(
                 beam=beams[0],
                 n_turns=_n_turns,
-                turn_i_init=turn_i_init,
                 observe=observe,
                 show_progressbar=show_progressbar,
                 callback=callback,
+                callback_each_turn=callback_each_turn,
             )
         elif len(beams) == 2:  # NOQA: PLR2004
             assert (
@@ -1105,7 +1129,7 @@ class Simulation(Preparable):
             ), (
                 "First beam must be normal, second beam must be counter-rotating"
             )
-            self._run_simulation_counterrotating_beam(
+            self.mainloop_counterrotating_beam(
                 n_turns=_n_turns,
                 turn_i_init=turn_i_init,
                 observe=observe,
@@ -1120,7 +1144,7 @@ class Simulation(Preparable):
 
     def finalize(
         self,
-        beams: tuple[BeamBaseClass, ...],
+        beams: BeamBaseClass | tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
@@ -1173,6 +1197,7 @@ class Simulation(Preparable):
           object to allow discovery by the initialization system.
         - Performance warnings are issued if using Python backend with many particles.
         """
+        beams = _single_beam_to_tuple(beams)
         self.ring.assert_circumference()
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
@@ -1222,16 +1247,23 @@ class Simulation(Preparable):
         # unpin temporary attributes
         del self._observe
         del self._beams
+        if len(beams) == 1:
+            self.turn_i.value = turn_i_init
+            self.section_i.value = None
+            for observable in observe:
+                observable.update(
+                    simulation=self,
+                )
         return _n_turns
 
-    def _run_simulation_single_beam(
+    def mainloop_single_beam(
         self,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
+        callback_each_turn: int = 1,
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam.
@@ -1242,8 +1274,6 @@ class Simulation(Preparable):
             The beam to simulate.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to start with simulation.
         observe
             List of observables to protocol of whats happening inside
             the simulation.
@@ -1253,17 +1283,20 @@ class Simulation(Preparable):
         callback
             User defined function `def myfunction(simulation: Simulation): ...`
             that is called each turn.
+        callback_each_turn
+            Specifies the the repitition rate at which `callback` is called.
+            Deafault is 1, each turn.
+
+        Notes
+        -----
+        This method assumes that ``Simulation.finalize(...)`` was executed
+        before.
         """
         logger.info("Starting simulation mainloop...")
-        iterator = range(turn_i_init, turn_i_init + n_turns)
+        iterator = range(self.turn_i.value, self.turn_i.value + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
             # display to iteration
-        self.turn_i.value = 0
-        for observable in observe:
-            observable.update(
-                simulation=self,
-            )
         for turn_i in iterator:
             self.turn_i.value = turn_i
             for element in self._ring.elements.elements:
@@ -1275,14 +1308,10 @@ class Simulation(Preparable):
                     observable.update(
                         simulation=self,
                     )
-            if callback is not None:
+            if callback is not None and (turn_i % callback_each_turn) == 0:
                 callback(self, beam)
 
-        # reset counters to uninitialized again
-        self.turn_i.value = None
-        self.section_i.value = None
-
-    def _run_simulation_counterrotating_beam(
+    def mainloop_counterrotating_beam(
         self,
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
@@ -1431,7 +1460,7 @@ class Simulation(Preparable):
 
     def load_results(
         self,
-        beams: tuple[BeamBaseClass],
+        beams: BeamBaseClass | tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
