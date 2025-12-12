@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Testing the performance of `kick_induced_voltage`.
-
-Authors
--------
-Simon Lauber
-"""
+"""Testing the performance of `kick_induced_voltage`."""
 
 import time
 

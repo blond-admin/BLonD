@@ -50,7 +50,8 @@ def rf_volt_comp(
     phi_rf: NumpyArray,
     bin_centers: NumpyArray,
 ) -> NumpyArray:
-    """Compute rf voltage at each bin.
+    """
+    Compute rf voltage at each bin.
 
     Args:
         voltages (NumpyArray): _description_
@@ -149,7 +150,8 @@ def drift(
 def slice_beam(
     dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: float
 ):
-    """Slice the time coordinate of the beam.
+    """
+    Slice the time coordinate of the beam.
 
     Args:
         dt (NumpyArray): _description_
@@ -165,7 +167,8 @@ def slice_beam(
 def slice_smooth(
     dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: float
 ):
-    """Smooth slice method.
+    """
+    Smooth slice method.
 
     Args:
         dt (NumpyArray): _description_
@@ -209,7 +212,8 @@ def linear_interp_kick(
     charge: float,
     acceleration_kick: float,
 ):
-    """Interpolated kick method.
+    """
+    Interpolated kick method.
 
     Args:
         dt (NumpyArray): _description_
@@ -242,7 +246,8 @@ def linear_interp_kick(
 def synchrotron_radiation(
     dE: NumpyArray, U0: float, n_kicks: int, tau_z: float
 ):
-    """Apply SR
+    """
+    Apply SR
 
     Args:
         dE (NumpyArray): _description_
@@ -262,7 +267,8 @@ def synchrotron_radiation_full(
     sigma_dE: float,
     energy: float,
 ):
-    """Apply SR with quantum excitation
+    """
+    Apply SR with quantum excitation
 
     Args:
         dE (NumpyArray): _description_
@@ -286,7 +292,8 @@ def synchrotron_radiation_full(
 
 
 def set_random_seed(seed: int):
-    """Set the seed of the RNG used in synchrotron radiation
+    """
+    Set the seed of the RNG used in synchrotron radiation
 
     Args:
         seed (int): _description_
@@ -388,7 +395,8 @@ def music_track_multiturn(
     coeff3: float,
     coeff4: float,
 ):
-    """This function calculates the multi-turn induced voltage and updates the
+    """
+    This function calculates the multi-turn induced voltage and updates the
     energies of the particles.
     Parameters and Returns as for music_track.
 

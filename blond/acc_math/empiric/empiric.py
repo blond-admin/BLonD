@@ -6,10 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to do statistics.
+"""
+Collection of implementations to do statistics.
 
-Authors
--------
+Notes
+-----
+Authors:
 Paula Hickersberger
 """
 

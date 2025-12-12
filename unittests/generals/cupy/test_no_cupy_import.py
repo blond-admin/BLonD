@@ -29,6 +29,10 @@ class TestFunctions(unittest.TestCase):
             # TypeError: Implicit conversion to a NumPy array is not allowed. Please use `.get()` to construct a NumPy array explicitly.
             plt.plot(array)
             plt.plot(array2)
+        with self.assertRaisesRegex(
+            TypeError, "Implicit conversion to a NumPy array is not allowed."
+        ):
+            plt.plot(array)  # should not work outside AllowPlotting
 
         backend.change_backend(backend_org)
         plt.close()

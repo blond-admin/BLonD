@@ -43,7 +43,8 @@ if TYPE_CHECKING:
 
 
 class RFStation:
-    r"""Class containing all the RF parameters for all the RF systems in one
+    r"""
+    Class containing all the RF parameters for all the RF systems in one
     ring segment or RF station.
 
     **How to use RF programs:**
