@@ -600,7 +600,8 @@ def hamiltonian(
     dE: float | NumpyArray,
     total_voltage: Optional[NumpyArray] = None,
 ) -> float | NumpyArray:
-    """Single RF sinusoidal Hamiltonian.
+    """
+    Single RF sinusoidal Hamiltonian.
     For the time being, for single RF section only or from total voltage.
     Uses beta, energy averaged over the turn.
     To be generalized."""
@@ -655,7 +656,8 @@ def separatrix(
     ring: Ring, rf_station: RFStation, dt: NumpyArray
 ) -> NumpyArray:
     # TODO:  Use list of RFStation and consider all voltages instead of multiplying by n sections
-    r"""Function to calculate the ideal separatrix without intensity effects.
+    r"""
+    Function to calculate the ideal separatrix without intensity effects.
     For single or multiple RF systems. For the time being, multiple RF sections
     are implemented for the case that all RF stations have the same voltage over
     one turn.

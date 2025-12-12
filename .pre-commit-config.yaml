@@ -19,6 +19,8 @@ repos:
       - id: isort
         args: ["--profile", "black", "--line-length", "79"] # otherwise not compatible with Ruf
 
+  # https://pre-commit.com/
+  # use `ruff check` to debug this hook
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.11  # Replace with the latest version
     hooks:
@@ -33,3 +35,10 @@ repos:
         name: check copyright
         entry: python dev_tools/precommit_check_copyright.py
         language: system
+
+  # https://numpydoc.readthedocs.io/en/latest/validation.html
+  # use `numpydoc lint --help` to debug this hook
+  - repo: https://github.com/numpy/numpydoc
+    rev: v1.10.0
+    hooks:
+      - id: numpydoc-validation

@@ -19,14 +19,14 @@ exactly
 samples over one turn. The feedback is pre-tracked without beam.
 
 
-STEP 1: Calculate RF beam current
+Step 1: Calculate RF beam current
 ---------------------------------
 
 The RF beam current is calculated for the entire turn, based on the beam profile :math:`\lambda_k`, where the
 sampling time is typically much smaller than T_s.
 
 
-STEP 2: Cavity-generator-beam interaction
+Step 2: Cavity-generator-beam interaction
 -----------------------------------------
 
 Within one turn, the update of parameters happens sample by sample, for :math:`n = 0...N-1`. First, the antenna voltage
@@ -50,7 +50,7 @@ the central frequency :math:`\omega_c`. In the discrete implementation, the equa
 where the upper indices denote the sample number.
 
 
-STEP 3: RF feedback response
+Step 3: RF feedback response
 ----------------------------
 
 The RF feedback acts on the difference between measured antenna voltage and required set point voltage
@@ -181,13 +181,13 @@ with :math:`n_\mathsf{taps}` being the number of taps of the FIR filter,
 
 
 
-STEP 4: Switch and protect response
+Step 4: Switch and protect response
 -----------------------------------
 
-STEP 5: Generator response
+Step 5: Generator response
 --------------------------
 
-STEP 6: Tuner control
+Step 6: Tuner control
 ---------------------
 The tuner control acts using the signal :math:`I_g \times V_a`, which is equivalent to
 :math:`\Im \left \{ I_g \overline{V}_a \right \}` in the complex plane. Here the bar denotes the complex conjugate.

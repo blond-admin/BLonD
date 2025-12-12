@@ -6,10 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Solvers to calculate the wake potential from impedance sources.
+"""
+Solvers to calculate the wake potential from impedance sources.
 
-Authors
--------
+Notes
+-----
+Authors:
 Alexandre Lasheen
 Danilo Quartullo,
 Juan F. Esteban Mueller
@@ -23,7 +25,6 @@ from __future__ import annotations
 import warnings
 from collections import deque
 from typing import TYPE_CHECKING
-from warnings import warn
 
 import numpy as np
 from scipy.constants import elementary_charge as e
@@ -200,7 +201,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
             if is_dynamic:
                 if self.expect_profile_change is False:
-                    warn(
+                    warnings.warn(
                         f"Because you are using"
                         f" a `{type(parent_wakefield.profile)}`,"
                         f" the variable `update_on_calc` is set to"
@@ -221,7 +222,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         for source in self._parent_wakefield.sources:
             if source.is_dynamic:
                 if self.expect_impedance_change is False:
-                    warn(
+                    warnings.warn(
                         f"Because `{source}` is dynamic,"
                         f" the variable `expect_impedance_change` is set to"
                         f" True, which might impact performance."
@@ -418,7 +419,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
 
         self._wake_imp_y_needs_update = True  # update at least once
 
-    @requires(["EnergyCycleBase"])  # because InductiveImpedance.get_
+    @requires(["MagneticCycleBase"])  # because InductiveImpedance.get_
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
@@ -442,7 +443,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
             self._wake_imp_y_needs_update = True
 
             if is_dynamic and self.expect_impedance_change is False:
-                warn(
+                warnings.warn(
                     f"Because you are using"
                     f" a `{type(parent_wakefield.profile)}`,"
                     f" the variable `update_on_calc` is set to"
@@ -462,7 +463,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         for source in self._parent_wakefield.sources:
             if source.is_dynamic:
                 if self.expect_impedance_change is False:
-                    warn(
+                    warnings.warn(
                         f"Because `{source}` is dynamic,"
                         f" the variable `expect_impedance_change` is set to"
                         f" True, which might impact performance."
@@ -577,7 +578,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     """
 
     def __init__(self):
-        warn("Untested code", NotTestedWarning, stacklevel=1)
+        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
         self._wake_function_vals: NumpyArray | None = None
         self._wake_function_time: NumpyArray | None = None
@@ -716,7 +717,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     """
 
     def __init__(self, decay_fraction_threshold: float = 0.001):
-        warn("Untested code", NotTestedWarning, stacklevel=1)
+        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
 
         self._last_reference_time: float | None = None

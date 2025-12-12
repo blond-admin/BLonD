@@ -30,7 +30,8 @@ def analytical_gaussian_resonator(
     tau_array: NumpyArray | float,
     n_particles: int,
 ) -> NumpyArray | float:
-    r"""Calculate the analytical induced voltage for a gaussian bunch and a resonator.
+    r"""
+    Calculate the analytical induced voltage for a gaussian bunch and a resonator.
 
     Parameters
     ----------

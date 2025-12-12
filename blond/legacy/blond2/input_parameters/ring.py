@@ -36,7 +36,8 @@ if TYPE_CHECKING:  # only for Python type hints
 
 
 class Ring:
-    r"""Class containing the general properties of the synchrotron that are
+    r"""
+    Class containing the general properties of the synchrotron that are
     independent of the RF system or the beam.
 
     The index :math:`n` denotes time steps, :math:`k` ring segments/sections

@@ -13,7 +13,10 @@ Example input for simulating a ring with multiple RF stations.
 
 No intensity effects.
 
-:Authors: **Helga Timko**
+Notes
+-----
+Authors:
+Helga Timko
 """
 
 from blond import (

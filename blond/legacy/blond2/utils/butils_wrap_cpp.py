@@ -26,7 +26,8 @@ __LIBBLOND = None
 
 
 def load_libblond(precision: str = "single"):
-    """Locates and initializes the blond compiled library
+    """
+    Locates and initializes the blond compiled library
     @param precision: The floating point precision of the calculations. Can be 'single' or 'double'.
     """
     global __LIBBLOND

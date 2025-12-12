@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of abstract classes to handle the calculation of wake potentials.
-
-Authors
--------
-Simon Lauber
-"""
+"""Collection of abstract classes to handle the calculation of wake potentials."""
 
 from __future__ import annotations
 
@@ -430,7 +425,7 @@ class WakeField(ImpedanceBaseClass):
             raise AttributeError("Use `calc_induced_voltage` first!")
         return self._induced_voltage
 
-    @requires(["EnergyCycleBase", "BeamBaseClass", "Beam"])  # because
+    @requires(["MagneticCycleBase"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.

@@ -51,7 +51,8 @@ else:
 
 
 def _compile_rf_noise_library(rf_noise_dir: pathlib.Path):
-    """Make the library for python, so that it can be imported later
+    """
+    Make the library for python, so that it can be imported later
 
 
     Notes
@@ -74,7 +75,8 @@ def _compile_rf_noise_library(rf_noise_dir: pathlib.Path):
         https://gitlab.cern.ch/be-rf-cs/Tools-and-libs/rf-noise-cpp
 
         Optional: You can also change the path using the environment variable 'RF_NOISE_DIR'
-        """)
+        """
+        )
 
     if isfile(_target_library):
         # remove old library
