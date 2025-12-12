@@ -25,13 +25,11 @@ from blond.physics.cavities import SingleHarmonicRfStation
 
 if TYPE_CHECKING:
     from typing import Any
-    from typing import Optional as LateInit
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Simulation
+    from blond import Simulation, StaticProfile
     from blond.core.beam.base import BeamBaseClass
-    from blond.physics.cavities import MultiHarmonicRfStation
 
 # TODO rewrite all docstrings
 
@@ -186,9 +184,9 @@ class IQCavityFeedback(LocalFeedback):
 
         self.rf_centers: NumpyArray | None = None
 
-        self.V_corr: float | None = None
-        self.alpha_sum: float | None = None
-        self.phi_corr: float | None = None
+        self.V_corr: NumpyArray | None = None
+        self.alpha_sum: NumpyArray | None = None
+        self.phi_corr: NumpyArray | None = None
         self.omega_carrier_prev: float | None = None
         self.T_s_prev: float | None = None
         self.rf_centers_prev: NumpyArray | None = None
