@@ -148,7 +148,6 @@ class Simulation(Preparable):
                 class_=SynchrotronRadiationMaster,
             )[0]
             SRM.generate_synchrotron_radiation_subclasses(simulation=self)
-        self.print_one_turn_execution_order()
 
         self._magnetic_cycle: MagneticCycleBase = magnetic_cycle
 
