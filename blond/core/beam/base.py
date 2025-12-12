@@ -99,7 +99,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             >>> main_beam = Beam(...)
             >>> injection_2 = Beam(...)
             >>> # Track to 2nd injection
-            >>> meain_beam += injection_2
+            >>> main_beam += injection_2
             >>> # Continue tracking
 
 
