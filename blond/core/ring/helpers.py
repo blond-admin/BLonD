@@ -35,13 +35,6 @@ def requires(dependencies: list[str]) -> Callable:
     functions or methods—especially in frameworks, pipelines, or initialization
     sequences where certain components must be processed first.
 
-    Notes
-    -----
-    - Dependencies are expressed as strings to avoid cyclic imports.
-    - The decorator does *not* enforce order by itself; it simply attaches
-      metadata (`.requires`) to the wrapped function that other systems can
-      inspect.
-
     Parameters
     ----------
     dependencies
@@ -52,6 +45,13 @@ def requires(dependencies: list[str]) -> Callable:
     -------
     Callable
         A decorator that adds a `requires` attribute to the decorated function.
+
+    Notes
+    -----
+    - Dependencies are expressed as strings to avoid cyclic imports.
+    - The decorator does *not* enforce order by itself; it simply attaches
+      metadata (`.requires`) to the wrapped function that other systems can
+      inspect.
 
     Examples
     --------
@@ -75,12 +75,6 @@ def requires(dependencies: list[str]) -> Callable:
     >>> )
     >>> # The classes are sorted according to their requirements
     >>> # sorted_classes = ['ClassA', 'ClassB']
-
-
-    Returns
-    -------
-    decorator
-        Decorator function that wraps the target function.
     """
     if not all(isinstance(dep, str) for dep in dependencies):
         raise TypeError("All dependencies must be strings.")

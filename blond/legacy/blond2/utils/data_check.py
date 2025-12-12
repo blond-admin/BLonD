@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 
 
 def check_input(variable: Any, msg: str, *args) -> tuple[bool, Any]:
-    """Check input and return InputDataError exception with user defined
+    """
+    Check input and return InputDataError exception with user defined
     message if False
 
     Args:
@@ -89,7 +90,8 @@ def check_data_dimensions(input_data: Any, *args) -> tuple[bool, Any]:
 
 
 def _check_number(input_data: Any) -> bool:
-    """returns True if input_data can be cast to int
+    """
+    returns True if input_data can be cast to int
 
     Args:
         input_data (_type_): _description_
@@ -110,7 +112,8 @@ def _check_number(input_data: Any) -> bool:
 
 
 def _check_length(input_data: NumpyArray | list | tuple, length: int) -> bool:
-    """Returns True if len(input_data) == length
+    """
+    Returns True if len(input_data) == length
     Should this return True if n-dim > 1?
 
     Args:

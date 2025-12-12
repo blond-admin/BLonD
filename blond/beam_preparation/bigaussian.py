@@ -6,7 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-# Authors: Simon Lauber
+# References: Simon Lauber
 # TODO add original author of bigaussian()
 
 """Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`."""

@@ -6,10 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Measure the performance of the histogram function.
+"""
+Measure the performance of the histogram function.
 
-Authors
--------
+Notes
+-----
+Authors:
 Leonard Thiele
 """
 

@@ -43,7 +43,8 @@ def cavity_response_sparse_matrix(
     Q_L,
     detuning,
 ):
-    """Solving the ACS cavity response model as a sparse matrix problem
+    """
+    Solving the ACS cavity response model as a sparse matrix problem
     for a given set of initial conditions, resonator parameters and
     generator and RF beam currents.
 
@@ -106,7 +107,8 @@ def cavity_response_sparse_matrix(
 
 
 def rectangle(t: NumpyArray, tau: float) -> NumpyArray:
-    r"""Rectangular function of time
+    r"""
+    Rectangular function of time
 
     .. math:: \mathsf{rect} \left( \frac{t}{\tau} \right) =
         \begin{cases}

@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Several setups of simulations that are intended for testcases.
-
-Authors
--------
-Simon Lauber
-"""
+"""Several setups of simulations that are intended for testcases."""
 
 import numpy as np
 from matplotlib import pyplot as plt

@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Testing the performance of `beam_phase`.
-
-Authors
--------
-Simon Lauber
-"""
+"""Testing the performance of `beam_phase`."""
 
 import time
 

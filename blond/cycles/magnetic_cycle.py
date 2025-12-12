@@ -17,8 +17,7 @@ The following classes are currently available:
 - :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
 
-Authors
--------
+Authors:
 Simon Lauber
 """
 
@@ -917,13 +916,13 @@ class MagneticCycleByTime(MagneticCycleBase):
         Interpolation routine to get time in between the base values.
         Default: `scipy.interpolate.interp1d`.
     **kwargs
-        Optional keyword arguments for the interpolator
+        Optional keyword arguments for the interpolator.
 
     See Also
     --------
-    scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`
-    scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation
-    scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial
+    scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
+    scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation.
+    scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
 
     Examples
     --------
@@ -1082,10 +1081,9 @@ class MagneticCycleByTime(MagneticCycleBase):
 
         See Also
         --------
-        scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`
-        scipy.interpolate.interp1d.Akima1DInterpolator : Modified Akima Interpolation
-        scipy.interpolate.interp1d.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial
-
+        scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
+        scipy.interpolate.interp1d.Akima1DInterpolator : Modified Akima Interpolation.
+        scipy.interpolate.interp1d.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
         """
         from blond.core.beam.base import BeamBaseClass
         from blond.core.beam.particle_types import ParticleType

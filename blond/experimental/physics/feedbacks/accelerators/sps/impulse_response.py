@@ -10,10 +10,9 @@
 """
 **Filters and methods for control loops**
 
-
-
-Authors
--------
+Notes
+-----
+Authors:
 Birk Emil Karlsen-Bæck
 Helga Timko
 """

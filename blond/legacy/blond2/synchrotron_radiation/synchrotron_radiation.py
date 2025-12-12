@@ -39,7 +39,8 @@ if TYPE_CHECKING:
 
 
 class SynchrotronRadiation:
-    """Class to compute synchrotron radiation effects, including
+    """
+    Class to compute synchrotron radiation effects, including
     radiation damping and quantum excitation.
     For multiple RF section, instantiate one object per RF section and
     call the track() method after tracking each section.

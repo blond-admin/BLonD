@@ -1,9 +1,4 @@
-"""Helper script to apply monkeytype stubs.
-
-Authors
--------
-Simon Lauber
-"""
+"""Helper script to apply monkeytype stubs."""
 
 import subprocess
 

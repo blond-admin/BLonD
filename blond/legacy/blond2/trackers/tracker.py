@@ -117,7 +117,8 @@ class FullRingAndRF:
         dt_margin_percent: float = 0.0,
         time_array: NumpyArray = None,
     ):
-        """Method to generate the potential well out of the RF systems. The
+        """
+        Method to generate the potential well out of the RF systems. The
         assumption made is that all the RF voltages are averaged over one turn.
         The potential well is then approximated over one turn, which is not the
         exact potential. This approximation should be fine enough to generate a
@@ -255,7 +256,8 @@ class FullRingAndRF:
 
 
 class RingAndRFTracker:
-    r"""Class taking care of basic particle coordinate tracking for a given
+    r"""
+    Class taking care of basic particle coordinate tracking for a given
     RF station and the part of the ring until the next station, see figure.
 
     .. image:: ring_and_RFstation.png

@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 
 
 class TransferFunction(object):
-    r"""Reconstructing the transfer function of a DUT based on input and output
+    r"""
+    Reconstructing the transfer function of a DUT based on input and output
     signals.
 
     Parameters
