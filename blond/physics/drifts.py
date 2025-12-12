@@ -18,7 +18,7 @@ from unittest.mock import Mock
 
 from blond.core.backends.backend import backend
 from blond.core.base import (
-    AltersReferene,
+    AltersReference,
     BeamPhysicsRelevant,
     HasPropertyCache,
     Schedulable,
@@ -68,7 +68,7 @@ def _assert_purely_real_or_imaginary(val: complex):
         )
 
 
-class DriftBaseClass(BeamPhysicsRelevant, AltersReferene, Schedulable, ABC):
+class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
     """
     Base class of a drift.
 

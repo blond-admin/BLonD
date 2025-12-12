@@ -25,7 +25,7 @@ from scipy.constants import speed_of_light as c0
 
 from blond.core.backends.backend import backend
 from blond.core.base import (
-    AltersReferene,
+    AltersReference,
     BeamPhysicsRelevant,
     DynamicParameter,
     Schedulable,
@@ -113,7 +113,7 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
 
 class RfStationBaseClass(
-    RfManipulationBaseClass, AltersReferene, Schedulable, ABC
+    RfManipulationBaseClass, AltersReference, Schedulable, ABC
 ):
     """
     Base class to implement beam-rf interactions in synchrotrons.
@@ -479,7 +479,7 @@ class RfStationBaseClass(
         self,
         reference: ReferenceCoordinates,
         is_counter_rotating: bool = False,
-    ):
+    ) -> float:
         """
         Updates the coordinates of the reference coordinate system.
 

@@ -449,13 +449,11 @@ class ProbeBeam(Beam):
 
 class EmptyBeam(Beam):
     """
-    Create a test beam for probing simulation dynamics.
+    Create a beam without `dt`, `dE` coordinates for probing simulation dynamics.
 
-    A ProbeBeam is a special beam type, designed for testing and
+    A EmptyBeam is a special beam type, designed for testing and
     analysis purposes.
 
-    At least one of `dt` or `dE` must be provided. If only one is given,
-    the other coordinate is automatically set to zero for all particles.
 
     Parameters
     ----------
@@ -469,11 +467,6 @@ class EmptyBeam(Beam):
     intensity
         The beam intensity (number of real particles). Default is 0,
         meaning no collective effects.
-
-    Raises
-    ------
-    ValueError
-        If neither `dt` nor `dE` is provided.
     """
 
     def __init__(

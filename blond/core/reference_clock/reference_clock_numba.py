@@ -14,8 +14,6 @@ import numba as nb
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-yolooo = None
-
 
 @nb.njit(
     nb.float64(nb.float64, nb.float64),
@@ -23,17 +21,19 @@ yolooo = None
     cache=True,
     inline="always",
 )
-def gamma(_total_energy, _mass_inv) -> float:
+def gamma(total_energy: float, mass_inv: float) -> float:
     """
     Beam reference gamma a.k.a. Lorentz factor [].
 
     Returns
     -------
-    gamma
-        Beam reference gamma a.k.a. Lorentz factor [].
+    total_energy
+        In [eV].
+    mass_inv
+        Inverse mass, in [c²/eV]
     """
     # total_energy in eV and mass_inv in [c²/eV]
-    return _total_energy * _mass_inv
+    return total_energy * mass_inv
 
 
 @nb.njit(
@@ -42,16 +42,18 @@ def gamma(_total_energy, _mass_inv) -> float:
     cache=True,
     inline="always",
 )
-def beta(_total_energy, _mass_inv) -> float:
+def beta(total_energy: float, mass_inv: float) -> float:
     """
     Beam reference fraction of speed of light (v/c0) [].
 
     Returns
     -------
-    beta
-        Beam reference fraction of speed of light (v/c0) [].
+    total_energy
+        In [eV].
+    mass_inv
+        Inverse mass, in [c²/eV]
     """
-    gamma_ = gamma(_total_energy, _mass_inv)
+    gamma_ = gamma(total_energy, mass_inv)
     val = np.sqrt(1.0 - 1.0 / (gamma_ * gamma_))
     return val
 
@@ -62,13 +64,15 @@ def beta(_total_energy, _mass_inv) -> float:
     cache=True,
     inline="always",
 )
-def velocity(_total_energy, _mass_inv) -> float:
+def velocity(total_energy: float, mass_inv: float) -> float:
     """
     Beam reference speed [m/s].
 
     Returns
     -------
-    velocity
-        Beam reference speed [m/s].
+    total_energy
+        In [eV].
+    mass_inv
+        Inverse mass, in [c²/eV]
     """
-    return beta(_total_energy, _mass_inv) * c0
+    return beta(total_energy, mass_inv) * c0

@@ -24,7 +24,6 @@ from blond import (
     backend,
     proton,
 )
-from blond.core.base import AltersReferene
 from blond.core.beam.beams import EmptyBeam
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 
@@ -67,7 +66,6 @@ def main():
     )
     bunch_observation = BeamObservationOncePerTurn(each_turn_i=1, beam=beam1)
 
-    ars = sim.ring.elements.get_elements(AltersReferene)
     beam1.reference.total_energy = sim.magnetic_cycle.get_total_energy_init(
         turn_i_init=0, t_init=0, particle_type=beam1.particle_type
     )
@@ -97,8 +95,8 @@ def main():
     plt.ylabel("T_rev (s)")
     plt.xlabel("turn")
     plt.plot(np.diff(bunch_observation.reference_time))
-    plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()

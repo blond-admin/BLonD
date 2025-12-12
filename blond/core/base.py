@@ -746,7 +746,7 @@ class HasPropertyCache:
         pass
 
 
-class AltersReferene(ABC):
+class AltersReference(ABC):
     """Base class for objects that alter the reference coordinate system."""
 
     @abstractmethod  # pragma: no cover
