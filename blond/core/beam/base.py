@@ -111,6 +111,12 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         if isinstance(other, type(self)):
             self.add_beam(other)
         else:
+            other = backend.cast_arr_float_if_needed(other)
+            if other.shape[0] != 2:  # noqa : PLR2004
+                raise ValueError(
+                    "Added array must have shape [2, n]"
+                    f" has shape {other.shape}"
+                )
             self.add_particles(other[0], other[1])
 
         return self
@@ -187,8 +193,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             ValueError: If the length of the new particle arrays do not
                         match, a ValueError is raised.
         """
-        dt = backend.array(dt, dtype=backend.float)
-        dE = backend.array(dE, dtype=backend.float)
+        dt = backend.cast_arr_float_if_needed(dt)
+        dE = backend.cast_arr_float_if_needed(dE)
 
         if len(dt) != len(dE):
             raise ValueError(
