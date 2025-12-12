@@ -23,6 +23,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRfStation,
+    backend,
     electron,
     positron,
 )
@@ -34,6 +35,8 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation import (
 )
 
 logging.basicConfig(level=logging.INFO)
+
+backend.set_specials("cpp")
 
 
 class SynchrotronRadiationSimulation:
@@ -48,14 +51,15 @@ class SynchrotronRadiationSimulation:
             ]
         )
         self.circumference = 90.65874532 * 1e3
-        self.momentum_compaction_factor = 0.646747216157 * 90.65874532 * 1e3
+        self.momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
         self.reference_energy = 20e9
+
         self.cavity = SingleHarmonicRfStation()
         self.cavity.harmonic = 242400
-        self.cavity.voltage = 51e6
+        self.cavity.voltage = 50.1e6
         self.cavity.phi_rf = 0
 
-        self.n_turns = int(100)
+        self.n_turns = int(10000)
         self.energy_cycle = MagneticCyclePerTurn(
             value_init=self.reference_energy,
             values_after_turn=np.linspace(
@@ -88,10 +92,14 @@ class SynchrotronRadiationSimulation:
             radiation_integrals=self.synchrotron_radiation_integrals,
             # track_before_element_type = DriftBaseClass,
         )
-        self.ring.insert_element(self.SRHandler, insert_at=0, deepcopy=False)
+        self.SRHandler.generate_synchrotron_radiation_subclasses(
+            ring=self.ring
+        )
+        self.ring.elements.print_order()
+
         beam = Beam(
-            intensity=1e9,
-            particle_type=electron,
+            intensity=2.725e10,
+            particle_type=positron,
         )
 
         self.beam = beam
@@ -104,23 +112,41 @@ def main():
 
     params.ring.elements.print_order()
     print(params.ring.elements.elements)
-    # sys.exit(0)
     simulation = Simulation(
         ring=params.ring, magnetic_cycle=params.energy_cycle
     )
     params.ring.elements.print_order()
     simulation.print_one_turn_execution_order()
 
-    simulation.prepare_beam(
-        beam=params.beam,
-        preparation_routine=BiGaussian(
-            sigma_dt=params.four_times_rms_bunch_length,
-            sigma_dE=params.energy_spread * params.reference_energy,
-            reinsertion=False,
-            seed=1,
-            n_macroparticles=1e3,
+    # simulation.prepare_beam(
+    #     beam=params.beam,
+    #     preparation_routine=BiGaussian(
+    #         sigma_dt= params.four_times_rms_bunch_length,
+    #         sigma_dE= params.energy_spread * params.reference_energy,
+    #         reinsertion=False,
+    #         seed=1,
+    #         n_macroparticles=1e3,
+    #     ),
+    # )
+    params.beam.setup_beam(
+        np.load(
+            "/Users/lvalle/cernbox/data_ramps/FCC-ee"
+            "/BLonD_simulations"
+            "/damped_distribution_dt_4mm.npy"
+        ),
+        np.load(
+            "/Users/lvalle/cernbox/data_ramps/FCC-ee"
+            "/BLonD_simulations/damped_distribution_dE_4mm.npy"
+        ),
+        reference_total_energy=params.energy_cycle.get_total_energy_init(
+            turn_i_init=0, t_init=0, particle_type=params.beam.particle_type
         ),
     )
+    print(
+        np.average(params.beam.read_partial_dE())
+        / params.beam.reference_total_energy
+    )
+
     phase_observation = RfStationPhaseObservation(
         each_turn_i=1,
         rf_station=params.cavity,
@@ -129,11 +155,27 @@ def main():
         each_turn_i=1, beam=params.beam
     )
 
+    def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
+        if simulation.turn_i.value is None or simulation.turn_i.value % 1 != 0:
+            return
+
+        artist = beam.plot_hist2d()
+        plt.xlim([0, 1.5 * 1e-9])
+        plt.ylim([-0.5 * 1e9, 0.5 * 1e9])
+        plt.ylabel("DE [eV]")
+        plt.xlabel("t [s]")
+        plt.draw()
+        plt.pause(1e-1)
+        artist.remove()
+
+    custom_action(simulation, beam=params.beam)
+
     simulation.run_simulation(
         beams=(params.beam,),
         turn_i_init=0,
         n_turns=params.n_turns,
         observe=(phase_observation, bunch_observation),
+        callback=custom_action,
     )
 
     energy_loss_per_turn, damping_time, natural_energy_spread = (
@@ -151,32 +193,22 @@ def main():
     )
     # ax[0].scatter(bunch_observation.dts[0, :],  bunch_observation.dEs[0, :],
     #     label="Bunch position")
+    synchronous_phase = np.arcsin(
+        energy_loss_per_turn
+        / 1
+        / (params.ring.circumference / params.beam.reference_velocity)
+        / params.cavity.voltage
+    )
     ax[0].plot(bunch_position_evolution, label="Bunch position")
+    ax[0].plot(synchronous_phase, label="Synchronous position")
 
-    ax[1].plot(energy_spread_evolution, label="Energy spread evolution")
+    ax[1].plot(energy_spread_evolution * 100, label="Energy spread evolution")
     ax[1].plot(
         natural_energy_spread * np.ones(len(energy_spread_evolution)),
         "r--",
-        label="Energy spread evolution",
+        label="Natural energy spread",
     )
     plt.show()
-
-    ANIMATE = False
-    if ANIMATE:  # pragma: no cover
-        plt.plot(phase_observation.phases)
-        plt.figure()
-        for i in range(params.n_turns):
-            # plt.clf()
-            plt.hist2d(
-                bunch_observation.dts[i, :],
-                bunch_observation.dEs[i, :],
-                # bins=256,
-                range=[[0, 2.5 * 1e-9], [-0.1 * 1e9, 0.1 * 1e9]],
-            )
-            plt.draw()
-            plt.pause(0.1)
-
-        plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover
