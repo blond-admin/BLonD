@@ -191,7 +191,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
         Returns
         -------
-        reference.total_energy
+        reference_total_energy
             The new energy, in [eV].
         """
         pass
@@ -218,7 +218,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
         Returns
         -------
-        reference.total_energy
+        reference_total_energy
             The total energy, in [eV].
         """
         index = turn_i_init - 1

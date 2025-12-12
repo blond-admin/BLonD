@@ -13,6 +13,9 @@ from blond.physics.drifts import DriftBaseClass, DriftSimple
 
 
 class DriftBaseClassHelper(DriftBaseClass):
+    def track_reference(self, reference: ReferenceCoordinates, **kwargs):
+        pass
+
     def eta_0(self, gamma: float) -> backend.float:
         pass
 
@@ -83,6 +86,7 @@ class TestDriftSimple(unittest.TestCase):
 
         beam = Mock(BeamBaseClass)
         beam.reference = Mock()
+        beam.common_array_size = 1
         beam.reference.time = 0.0
         beam.reference.gamma = 1.0
         beam.reference.velocity = 0.5

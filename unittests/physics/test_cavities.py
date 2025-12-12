@@ -191,6 +191,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
+        beam.common_array_size = 1
         beam.particle_type = proton
         beam.reference.time = 0
         beam.reference.beta = 0.5
@@ -364,6 +365,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
 
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
+        beam.common_array_size = 1
         beam.particle_type = proton
         beam.reference.time = backend.float(0)
         beam.reference.beta = 0.5
