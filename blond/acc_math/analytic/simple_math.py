@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, overload
 
+import numba as nb
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -87,6 +88,13 @@ def calc_total_energy(mass: float, momentum: float) -> float: ...
 def calc_total_energy(mass: float, momentum: NumpyArray) -> NumpyArray: ...
 
 
+@nb.njit(
+    [
+        nb.float64(nb.float64, nb.float64),
+        nb.float64[:](nb.float64, nb.float64[:]),
+        nb.float64[:, :](nb.float64, nb.float64[:, :]),
+    ]
+)
 def calc_total_energy(
     mass: float, momentum: float | NumpyArray
 ) -> float | NumpyArray:
