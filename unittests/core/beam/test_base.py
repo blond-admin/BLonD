@@ -8,8 +8,8 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import Numpy32Bit, Simulation, proton
-from blond.core.backends.backend import backend
+from blond import Simulation, proton
+from blond.core.backends.backend import Numpy64Bit, backend, default
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
 
@@ -88,6 +88,14 @@ class BeamBaseClassTester(BeamBaseClass):
 
 
 class TestBeamBaseClass(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        backend.change_backend(Numpy64Bit)
+
+    @classmethod
+    def tearDownClass(cls):
+        backend.change_backend(type(default))
+
     def setUp(self):
         self.beam_base_class = BeamBaseClassTester(
             intensity=1e12,
@@ -264,26 +272,38 @@ class TestBeamBaseClass(unittest.TestCase):
             self.beam_base_class += other_beam
 
         with self.assertRaises(ValueError):
+            self.beam_base_class += [1, 2, 3]
+
+        with self.assertRaises(ValueError):
+            self.beam_base_class += [[1, 2, 3]]
+
+        with self.assertRaises(ValueError):
             self.beam_base_class += (other_beam._dt[:5], other_beam._dE)
 
-    def test_iadd_dtype_checks(self):
-        bad_dt = np.linspace(1, 10, 10, dtype=np.float64)
-        good_dt = bad_dt.astype(np.float32)
-        bad_dE = np.linspace(1, 10, 10, dtype=np.float64)
-        good_dE = bad_dE.astype(np.float32)
+    def test_add_beam_dtype_checks(self):
+        good_dt = np.linspace(1, 10, 10, dtype=np.float64)
+        bad_dt = good_dt.astype(np.float32)
+        good_dE = np.linspace(1, 10, 10, dtype=np.float64)
         good_flags = np.ones(10, dtype=np.int32)
         bad_flags = good_flags.astype(np.int64)
 
-        self.beam_base_class._append_to_self(good_dt, good_dE, good_flags)
+        other_beam = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=proton,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+        other_beam.setup_beam(good_dt, good_dE, good_flags)
 
+        other_beam._dt = bad_dt
         with self.assertRaises(TypeError):
-            self.beam_base_class._append_to_self(bad_dt, good_dE, good_flags)
+            self.beam_base_class.add_beam(other_beam)
+        other_beam._dt = good_dt
 
+        other_beam._flags = bad_flags
         with self.assertRaises(TypeError):
-            self.beam_base_class._append_to_self(good_dt, bad_dE, good_flags)
-
-        with self.assertRaises(TypeError):
-            self.beam_base_class._append_to_self(good_dt, good_dE, bad_flags)
+            self.beam_base_class.add_beam(other_beam)
+        other_beam._flags = good_flags
 
     def test__append_to_self_intensity(self):
         dt = np.linspace(0, 10e-9, 10)
