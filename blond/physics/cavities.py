@@ -796,7 +796,6 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         reference_energy_change = self.track_reference(
             reference, beam.is_counter_rotating
         )
-        beam.reference.total_energy += reference_energy_change
         if beam.common_array_size > 0:
             backend.specials.kick_single_harmonic(
                 dt=beam.read_partial_dt(),

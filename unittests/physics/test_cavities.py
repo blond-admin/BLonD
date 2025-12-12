@@ -391,7 +391,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=None,
-            total_energy=939,
+            total_energy=939.0,
         )
         self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
 
@@ -401,7 +401,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
     def test_track(self) -> None:
         self.single_harmonic_cavity.track(beam=self.beam)
 
-        self.assertEqual(self.beam.reference.total_energy, 939)  # incremented
+        self.assertEqual(939, self.beam.reference.total_energy)  # incremented
         self.assertEqual(self.beam.reference.time, 0)  # unchanged
         np.testing.assert_allclose(  # test pinned to some value
             self.beam.dE,

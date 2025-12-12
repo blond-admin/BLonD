@@ -144,6 +144,7 @@ class TestDriftSimple(unittest.TestCase):
     def test_track(self):
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
+        beam.common_array_size = 1
         beam.reference.time = backend.float(0)
         beam.reference.beta = backend.float(0.5)
         beam.reference.velocity = backend.float(beam.reference.beta * c0)
