@@ -142,12 +142,28 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             ValueError: If self.ratio != other.ratio, a ValueError is
                         raised.
             TypeError: If self.particle_type != other.particle_type
+                       If the dtypes used for the two beams do not match
         """
         if self.ratio != other.ratio:
             raise ValueError("Cannot add beams with a different ratio")
 
         if self.particle_type != other.particle_type:
             raise TypeError("Cannot add beams with different particle_type")
+
+        # No point testing dt and dE separately
+        if self._dt.dtype != other._dt.dtype:
+            raise TypeError(
+                "`dtype` mismatch between the two beams"
+                f"{self._dt.dtype=} does not match"
+                f"{other._dt.dtype=}"
+            )
+
+        if self._flags.dtype != other._flags.dtype:
+            raise TypeError(
+                "`dtype` mismatch between the two beams"
+                f"{self._flags.dtype=} does not match"
+                f"{other._flags.dtype=}"
+            )
 
         self._append_to_self(
             other._dt, other._dE, other._flags, other.intensity
@@ -173,8 +189,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             ValueError: If the length of the new particle arrays do not
                         match, a ValueError is raised.
         """
-        dt = backend.array(new_particles[0])
-        dE = backend.array(new_particles[1])
+        dt = backend.array(new_particles[0], dtype=backend.float)
+        dE = backend.array(new_particles[1], dtype=backend.float)
 
         if len(dt) != len(dE):
             raise ValueError(
@@ -204,27 +220,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         ids = backend.arange(
             id_max + 1, id_max + len(dt) + 1, dtype=self._ids.dtype
         )
-
-        if self._dt.dtype != dt.dtype:
-            raise TypeError(
-                "New time coordinates do not have the correct "
-                f"`dtype`.  Should be {self._dt.dtype} but is "
-                f"{dt.dtype}"
-            )
-
-        if self._dE.dtype != dE.dtype:
-            raise TypeError(
-                "New energy coordinates do not have the correct "
-                f"`dtype`.  Should be {self._dE.dtype} but is "
-                f"{dE.dtype}"
-            )
-
-        if self._flags.dtype != flags.dtype:
-            raise TypeError(
-                "New flags do not have the correct "
-                f"`dtype`.  Should be {self._flags.dtype} but is "
-                f"{flags.dtype}"
-            )
 
         self._dt = backend.concatenate((self._dt, dt))
         self._dE = backend.concatenate((self._dE, dE))
