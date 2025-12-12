@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 import warnings
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -18,6 +19,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
 
     T = TypeVar("T")
+
+logger = logging.getLogger(__name__)
 
 
 def int_from_float_with_warning(
@@ -94,7 +97,7 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     found = set()
     seen = set()
 
-    def walk(obj: Any, skip_list):
+    def walk(obj: Any, skip_list, where):
         if id(obj) in seen:
             return
         seen.add(id(obj))
@@ -103,17 +106,22 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
             skip_list.extend(obj.skip_find_instances_attributes)
 
         # Check if object has the desired method
-        if hasattr(obj, method_name) and callable(getattr(obj, method_name)):
+        if (
+            hasattr(obj, method_name)
+            and callable(getattr(obj, method_name))
+            and not isinstance(obj, type)
+        ):
+            logger.info(f"Found {obj}.{method_name}(..) at {where}")
             found.add(obj)
 
         # Recurse into object attributes or container elements
         if isinstance(obj, dict):
             for key, value in obj.items():
-                walk(key, skip_list)
-                walk(value, skip_list)
+                walk(key, skip_list, where + str(key))
+                walk(value, skip_list, where + str(value))
         elif isinstance(obj, (list, tuple, set)):  # NOQA: UP038
             for item in obj:
-                walk(item, skip_list)
+                walk(item, skip_list, where + str(item))
         elif (
             hasattr(obj, "__dict__") and not is_mock
         ):  # checks if is python class
@@ -127,7 +135,7 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
                     attr = getattr(obj, attr_name)
                 except Exception:
                     continue  # Skip attributes that raise errors on access
-                walk(attr, skip_list)
+                walk(attr, skip_list, where + str(attr))
 
-    walk(root, skip_list=[])
+    walk(root, skip_list=[], where="")
     return found
