@@ -429,7 +429,7 @@ class RfStationBaseClass(
             self.delta_omega_rf = omega_increment
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
-        """if any(self.delta_omega_rf): # any nonzero
+        if np.any(self.delta_omega_rf):  # any nonzero
             assert self.harmonic is not None
             assert self._omega_rf is not None
             assert self.delta_omega_rf is not None
@@ -441,7 +441,7 @@ class RfStationBaseClass(
                 / self._omega_rf[:]
             )
 
-            self.delta_phi_rf += phi_increment"""
+            self.delta_phi_rf += phi_increment
 
         """
         # Add phase noise directly to the cavity RF phase
