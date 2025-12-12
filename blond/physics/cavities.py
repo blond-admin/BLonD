@@ -476,7 +476,7 @@ class RfStationBaseClass(
         is_counter_rotating: bool = False,
     ) -> float:
         """
-        Updates the coordinates of the reference coordinate system.
+        Update the coordinates of the reference coordinate system.
 
         Parameters
         ----------

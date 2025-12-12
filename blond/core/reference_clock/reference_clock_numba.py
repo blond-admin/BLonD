@@ -25,12 +25,17 @@ def gamma(total_energy: float, mass_inv: float) -> float:
     """
     Beam reference gamma a.k.a. Lorentz factor [].
 
-    Returns
-    -------
+    Parameters
+    ----------
     total_energy
         In [eV].
     mass_inv
-        Inverse mass, in [c²/eV]
+        Inverse mass, in [c²/eV].
+
+    Returns
+    -------
+    gamma
+        Beam reference gamma a.k.a. Lorentz factor [].
     """
     # total_energy in eV and mass_inv in [c²/eV]
     return total_energy * mass_inv
@@ -46,12 +51,17 @@ def beta(total_energy: float, mass_inv: float) -> float:
     """
     Beam reference fraction of speed of light (v/c0) [].
 
-    Returns
-    -------
+    Parameters
+    ----------
     total_energy
         In [eV].
     mass_inv
-        Inverse mass, in [c²/eV]
+        Inverse mass, in [c²/eV].
+
+    Returns
+    -------
+    beta
+         Beam reference fraction of speed of light (v/c0) [].
     """
     gamma_ = gamma(total_energy, mass_inv)
     val = np.sqrt(1.0 - 1.0 / (gamma_ * gamma_))
@@ -68,11 +78,16 @@ def velocity(total_energy: float, mass_inv: float) -> float:
     """
     Beam reference speed [m/s].
 
-    Returns
-    -------
+    Parameters
+    ----------
     total_energy
         In [eV].
     mass_inv
-        Inverse mass, in [c²/eV]
+        Inverse mass, in [c²/eV].
+
+    Returns
+    -------
+    velocity
+        Beam reference speed [m/s].
     """
     return beta(total_energy, mass_inv) * c0

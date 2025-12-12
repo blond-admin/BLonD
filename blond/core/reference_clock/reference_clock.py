@@ -24,7 +24,19 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class ReferenceCoordinates(HasPropertyCache):
-    """Helper class that holds the reference to the coordinate system."""
+    """
+    Helper class that holds the reference to the coordinate system.
+
+    Parameters
+    ----------
+    time
+        Reference time, in [s].
+    total_energy
+        Reference total energy, in [eV].
+    particle_type
+        The type of particle in the beam (e.g., protons, electrons).
+        This determines properties like mass and charge.
+    """
 
     def __init__(
         self,

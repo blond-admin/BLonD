@@ -749,12 +749,15 @@ class AltersReference(ABC):
     @abstractmethod  # pragma: no cover
     def track_reference(self, reference: ReferenceCoordinates, **kwargs):
         """
-        Updates the coordinates of the reference coordinate system.
+        Update the coordinates of the reference coordinate system.
 
         Parameters
         ----------
         reference
             The object that holds the reference time [s] and total energy [eV].
+        **kwargs
+            Allows more arguments in the method definition outside the
+            abstract class.
 
         Returns
         -------

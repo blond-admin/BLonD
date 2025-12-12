@@ -109,7 +109,7 @@ class Beam(BeamBaseClass):
             The absolute reference time for the coordinate system,
             in [s]. Particle times `dt` are relative to
             this reference.
-        reference.total_energy
+        reference_total_energy
             The reference total energy for the coordinate system, in [eV].
             Particle energies `dE` are relative to this reference.
         """
@@ -401,7 +401,7 @@ class ProbeBeam(Beam):
         If neither `dt` nor `dE` is provided, an error is raised.
     reference_time
         The reference time for the coordinate system, in [s].
-    reference.total_energy
+    reference_total_energy
         The reference total energy for the coordinate system, in [eV].
     intensity
         The beam intensity (number of real particles). Default is 0,
@@ -454,7 +454,6 @@ class EmptyBeam(Beam):
     A EmptyBeam is a special beam type, designed for testing and
     analysis purposes.
 
-
     Parameters
     ----------
     particle_type
@@ -462,7 +461,7 @@ class EmptyBeam(Beam):
         This determines properties like mass and charge.
     reference_time
         The reference time for the coordinate system, in [s].
-    reference.total_energy
+    reference_total_energy
         The reference total energy for the coordinate system, in [eV].
     intensity
         The beam intensity (number of real particles). Default is 0,

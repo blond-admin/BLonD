@@ -169,13 +169,13 @@ class Simulation(Preparable):
         ----------
         beams
             Beams to simulate during profiling (typically just one).
+        profile_n_turns
+            Number of turns to profile after starting.
         turn_i_init
             Turn number at which to start the simulation.
         profile_start_turn_i
             Turn number at which to begin profiling. Should be `>= turn_i_init`.
             Set this higher than `turn_i_init` to skip profiling the initialization phase.
-        profile_n_turns
-            Number of turns to profile after starting.
         sortby
             How to sort the profiling results. Options include:
                 - SortKey.CUMULATIVE: Sort by cumulative time (default, most useful)

@@ -400,12 +400,15 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self, reference: ReferenceCoordinates, **kwargs
     ) -> float:
         """
-        Updates the coordinates of the reference coordinate system.
+        Update the coordinates of the reference coordinate system.
 
         Parameters
         ----------
         reference
             The object that holds the reference time [s] and total energy [eV].
+        **kwargs
+            Allows more arguments in the method definition outside the
+            abstract class.
 
         Returns
         -------
