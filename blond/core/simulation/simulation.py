@@ -1220,7 +1220,7 @@ class Simulation(Preparable):
         del self._observe
         del self._beams
         if len(beams) == 1:
-            self.turn_i.value = turn_i_init
+            self.turn_i.value = 0
             self.section_i.value = None
             for observable in observe:
                 observable.update(
