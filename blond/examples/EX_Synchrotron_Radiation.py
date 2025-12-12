@@ -30,13 +30,14 @@ from blond import (
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
+from blond.handle_results.observables import BeamStatisticsOncePerTurn
 from blond.physics.synchrotron_radiation.synchrotron_radiation import (
     SynchrotronRadiationMaster,
 )
 
 logging.basicConfig(level=logging.INFO)
 
-backend.set_specials("cpp")
+# backend.set_specials("cpp")
 
 
 class SynchrotronRadiationSimulation:
@@ -59,7 +60,7 @@ class SynchrotronRadiationSimulation:
         self.cavity.voltage = 50.1e6
         self.cavity.phi_rf = 0
 
-        self.n_turns = int(10000)
+        self.n_turns = int(5000)
         self.energy_cycle = MagneticCyclePerTurn(
             value_init=self.reference_energy,
             values_after_turn=np.linspace(
@@ -142,17 +143,14 @@ def main():
             turn_i_init=0, t_init=0, particle_type=params.beam.particle_type
         ),
     )
-    print(
-        np.average(params.beam.read_partial_dE())
-        / params.beam.reference_total_energy
-    )
 
     phase_observation = RfStationPhaseObservation(
         each_turn_i=1,
         rf_station=params.cavity,
     )
-    bunch_observation = BeamObservationOncePerTurn(
-        each_turn_i=1, beam=params.beam
+    bunch_statistics = BeamStatisticsOncePerTurn(
+        each_turn_i=1,
+        beam=params.beam,
     )
 
     def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
@@ -174,8 +172,8 @@ def main():
         beams=(params.beam,),
         turn_i_init=0,
         n_turns=params.n_turns,
-        observe=(phase_observation, bunch_observation),
-        callback=custom_action,
+        observe=(phase_observation, bunch_statistics),
+        # callback=custom_action,
     )
 
     energy_loss_per_turn, damping_time, natural_energy_spread = (
@@ -186,28 +184,34 @@ def main():
         )
     )
     fig, ax = plt.subplots(nrows=2, figsize=(8, 6), constrained_layout=True)
-    bunch_position_evolution = np.average(bunch_observation.dts, axis=1)
-    energy_spread_evolution = (
-        np.average(bunch_observation.dEs, axis=1)
-        / params.beam.reference_total_energy
+    synchronous_phase = np.pi - np.arcsin(
+        energy_loss_per_turn / params.cavity.voltage
     )
-    # ax[0].scatter(bunch_observation.dts[0, :],  bunch_observation.dEs[0, :],
-    #     label="Bunch position")
-    synchronous_phase = np.arcsin(
-        energy_loss_per_turn
-        / 1
-        / (params.ring.circumference / params.beam.reference_velocity)
-        / params.cavity.voltage
+    ax[0].plot(bunch_statistics.bunch_position * 1e9, label="Bunch position")
+    ax[0].plot(
+        synchronous_phase
+        / params.cavity._omega_rf
+        * 1e9
+        * np.ones(len(bunch_statistics.bunch_position)),
+        label="Synchronous position",
     )
-    ax[0].plot(bunch_position_evolution, label="Bunch position")
-    ax[0].plot(synchronous_phase, label="Synchronous position")
+    ax[0].set_xlabel("Turn number")
+    ax[0].set_ylabel("Bunch position [ns]")
+    ax[0].legend()
 
-    ax[1].plot(energy_spread_evolution * 100, label="Energy spread evolution")
     ax[1].plot(
-        natural_energy_spread * np.ones(len(energy_spread_evolution)),
+        bunch_statistics.energy_spread * 100, label="Energy spread evolution"
+    )
+    ax[1].plot(
+        natural_energy_spread
+        * np.ones(len(bunch_statistics.bunch_position))
+        * 100,
         "r--",
         label="Natural energy spread",
     )
+    ax[1].set_xlabel("Turn number")
+    ax[1].set_ylabel("Energy spread [%]")
+    ax[1].legend()
     plt.show()
 
 
