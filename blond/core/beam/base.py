@@ -111,7 +111,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         if isinstance(other, type(self)):
             self.add_beam(other)
         else:
-            self.add_particles(other)
+            self.add_particles(other[0], other[1])
 
         return self
 
@@ -169,7 +169,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             other._dt, other._dE, other._flags, other.intensity
         )
 
-    def add_particles(self, new_particles: ArrayLike):
+    def add_particles(self, dt: ArrayLike, dE: ArrayLike):
         """
         Add new particles to the beam.
 
@@ -180,17 +180,20 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         Parameters
         ----------
-        new_particles
-            2D array of `[dt, dE]` defining the coordinates
-                           of the new particles.
+        dt
+            Array of floats defining the time coordinates of the new
+            particles.
+        dE
+            Array of floats defining the energy coordinates of the new
+            particles.
 
         Raises
         ------
             ValueError: If the length of the new particle arrays do not
                         match, a ValueError is raised.
         """
-        dt = backend.array(new_particles[0], dtype=backend.float)
-        dE = backend.array(new_particles[1], dtype=backend.float)
+        dt = backend.array(dt, dtype=backend.float)
+        dE = backend.array(dE, dtype=backend.float)
 
         if len(dt) != len(dE):
             raise ValueError(
