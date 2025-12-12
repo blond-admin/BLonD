@@ -169,6 +169,7 @@ class IQCavityFeedback(LocalFeedback):
         self.omega_carrier_prev: float | None = None
         self.omega_carrier: float | None = None
         self.omega_rf: float | None = None
+        self.t_rev: float | None = None
 
         # Present sampling time
         self.T_s_prev: float | None = None

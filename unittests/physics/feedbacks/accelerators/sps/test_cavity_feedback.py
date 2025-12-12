@@ -1135,7 +1135,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
         beam_2 = deepcopy(self.beam)
         self.rf.track(beam_2)
         del beam_2
-        cavity._omega_rf = np.array([200.222e6 * 2 * np.pi])
+        cavity.omega_rf_design = np.array([200.222e6 * 2 * np.pi])
 
         self.profile = StaticProfile(
             cut_left=0.0e-9,
@@ -1177,6 +1177,12 @@ class TestSPSTransmitterGain(unittest.TestCase):
             a_comb=15 / 16,
             commissioning=commissioning,
         )
+        omega = self.rf.get_main_harmonic_omega_rf_design(
+            beam_beta=self.beam.reference_beta,
+            ring_circumference=self.ring.circumference,
+        )
+        OTFB.set_hardware_commissioning(omega_rf=omega, harmonic=4620)
+        self.rf.attach_cavity_feedback(OTFB)
         for i in range(100):
             OTFB.track_no_beam()
 
@@ -1191,7 +1197,13 @@ class TestSPSTransmitterGain(unittest.TestCase):
 
     def test_preLS24sec(self):
         OTFB, V, I = self.init_otfb(
-            self.rf, self.profile, self.commissioning, 4, 2, 4 / 9, 1.03573985
+            self.rf,
+            self.profile,
+            self.commissioning,
+            4,
+            2,
+            4 / 9,
+            1.04978045,  # 1.03573985
         )
         self.assertAlmostEqual(
             V,

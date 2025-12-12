@@ -213,10 +213,15 @@ class SPSOneTurnFeedback(IQCavityFeedback):
                 + str(self.df)
                 + ")"
             )
+
+            # TWC resonant frequency
+            self.omega_c = self.TWC.omega_r
         else:
             raise RuntimeError(
                 "ERROR in SPSOneTurnFeedback: argument n_sections has invalid value!"
             )
+
+        self.dphi_mod = 0
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
@@ -270,12 +275,9 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         else:
             self.conv = self.matr_conv
 
-        # TWC resonant frequency
-        self.omega_c = self.TWC.omega_r
         # Length of arrays in LLRF
         self.n_coarse_ff = int(self.n_coarse / 5)
         # Initialize turn-by-turn variables
-        self.dphi_mod = 0
 
         # Check array length for set point modulation
         if self.set_point_modulation:
@@ -350,6 +352,127 @@ class SPSOneTurnFeedback(IQCavityFeedback):
 
         # Update global cavity loop variables before tracking
         self.update_rf_variables()
+        self.update_fb_variables()
+        self.logger.info("Class initialized")
+
+        self.V_ANT_START: NumpyArray | None = None
+        self.V_ANT_FINE_START: NumpyArray | None = None
+        self.phi_mod_0: Any | None = None
+
+    def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
+        super().set_hardware_commissioning(
+            omega_rf=omega_rf, harmonic=harmonic
+        )
+        # 200 MHz travelling wave cavity (TWC) model
+        if self.open_ff == 1:
+            # Feed-forward filter
+            self.coeff_ff = getattr(
+                sys.modules[__name__],
+                "feedforward_filter_TWC" + str(self.n_sections),
+            )
+            self.n_ff = len(self.coeff_ff)  # Number of coefficients for FF
+            self.n_ff_delay = round(
+                0.5 * (self.n_ff - 1) + 0.5 * self.TWC.tau / self.T_s / 5
+            )
+
+            self.logger.debug(
+                "Feed-forward delay in samples %d", self.n_ff_delay
+            )
+
+            # Multiply gain by normalisation factors from filter and
+            # beam-to generator current
+            self.G_ff *= self.TWC.R_beam / (
+                self.TWC.R_gen * np.sum(self.coeff_ff)
+            )
+
+        self.logger.debug(
+            "SPS OTFB cavities: %d, sections: %d, voltage partition %.2f, gain: %.2e",
+            self.n_cavities,
+            self.n_sections,
+            self.V_part,
+            self.G_tx,
+        )
+
+        # Switch between convolution methods
+        if self.cpp_conv:
+            self.conv = self.call_conv
+        else:
+            self.conv = self.matr_conv
+
+        # Length of arrays in LLRF
+        self.n_coarse_ff = int(self.n_coarse / 5)
+        # Initialize turn-by-turn variables
+
+        # Check array length for set point modulation
+        if self.set_point_modulation:
+            if self.V_SET.shape[0] != 2 * self.n_coarse:
+                raise RuntimeError(
+                    "V_SET length should be %d" % (2 * self.n_coarse)
+                )
+            self.set_point = self.set_point_mod
+        else:
+            self.set_point = self.set_point_std
+            self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        # Array to hold the bucket-by-bucket voltage with length LLRF
+        self.DV_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.logger.debug(
+            "Length of arrays on coarse grid 2x %d", self.n_coarse
+        )
+
+        # Array if noise is being injected
+        self.NOISE = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        # LLRF MODEL ARRAYS
+        # Initialize comb filter
+        self.DV_COMB_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        # Initialize the delayed signal
+        self.DV_DELAYED = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        # Initialize modulated signal (to fr)
+        self.DV_MOD_FR = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        # Initialize moving average
+        self.n_mov_av = round(self.TWC.tau / self.T_s)
+        self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.logger.debug("Moving average over %d points", self.n_mov_av)
+        if self.n_mov_av < 2:
+            raise RuntimeError(
+                "ERROR in SPSOneTurnFeedback: profile has to"
+                " have at least 12.5 ns resolution!"
+            )
+
+        # GENERATOR MODEL ARRAYS
+        # Initialize modulated signal (to frf)
+        self.DV_MOD_FRF = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        # Initialize induced voltage on coarse grid
+        self.V_IND_COARSE_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.CONV_RES = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.CONV_PREV = np.zeros(self.n_coarse, dtype=complex)
+
+        # BEAM MODEL ARRAYS
+        # Initialize induced beam voltage coarse and fine
+        self.V_IND_FINE_BEAM = np.zeros(self.profile.n_bins, dtype=complex)
+        self.V_IND_COARSE_BEAM = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        # Initialise feed-forward; sampled every fifth bucket
+        if self.open_ff == 1:
+            self.logger.debug("Feed-forward active")
+            self.I_BEAM_COARSE_FF = np.zeros(
+                2 * self.n_coarse_ff, dtype=complex
+            )
+            self.I_BEAM_COARSE_FF_MOD = np.zeros(
+                2 * self.n_coarse_ff, dtype=complex
+            )
+            self.I_FF_CORR_MOD = np.zeros(2 * self.n_coarse_ff, dtype=complex)
+            self.I_FF_CORR_DEL = np.zeros(2 * self.n_coarse_ff, dtype=complex)
+            self.I_FF_CORR = np.zeros(2 * self.n_coarse_ff, dtype=complex)
+            self.V_FF_CORR = np.zeros(2 * self.n_coarse_ff, dtype=complex)
+
+        # Update global cavity loop variables before tracking
+        self.update_rf_variables(omega_rf=omega_rf, harmonic=harmonic)
         self.update_fb_variables()
         self.logger.info("Class initialized")
 
@@ -723,15 +846,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
 
     def update_fb_variables(self):
         r"""Update variables in the feedback"""
-        # TODO REMWORK/REMOVE
-        t_rev = float(
-            (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
-            / self._parent_rf_station.omega_rf_actual[self.harmonic_index]
-        )
-        # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(
-            self._parent_rf_station.harmonic[self.harmonic_index]
-        )
+        t_rf = 2 * np.pi / float(self.omega_rf)
 
         # Phase offset at the end of a 1-turn modulated signal (for demodulated, multiply by -1 as c and r reversed)
         self.phi_mod_0 = (
