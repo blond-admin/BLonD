@@ -866,6 +866,52 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"{special=} {dtype=}",
                     )
 
+    def test_cast_float_arr(self):
+        backend.change_backend(Numpy64Bit)
+        target = backend.array([1, 2, 3], dtype=backend.float)
+        for in_type in (tuple, list, np.array):
+            cast = backend.cast_arr_float_if_needed(in_type(target))
+            self.assertTrue(cast.dtype == backend.float)
+            self.assertIsInstance(cast, backend.ndarray)
+            np.testing.assert_array_equal(cast, target)
+
+        for in_dtype in (np.int32, np.int64, np.float64, np.complex128):
+            cast = backend.cast_arr_float_if_needed(target.astype(in_dtype))
+            self.assertTrue(cast.dtype == backend.float)
+            self.assertIsInstance(cast, backend.ndarray)
+            np.testing.assert_array_equal(cast, target)
+
+        unchanged = backend.cast_arr_float_if_needed(target)
+        self.assertTrue(target is unchanged)
+
+    def test_cast_complex_arr(self):
+        backend.change_backend(Numpy64Bit)
+        target = backend.array([1, 2, 3], dtype=backend.complex)
+        for in_type in (tuple, list, np.array):
+            cast = backend.cast_arr_float_if_needed(in_type(target))
+            self.assertTrue(cast.dtype == backend.float)
+            self.assertIsInstance(cast, backend.ndarray)
+            np.testing.assert_array_equal(cast, target)
+
+        for in_dtype in (np.int32, np.int64, np.float64, np.complex256):
+            cast = backend.cast_arr_float_if_needed(target.astype(in_dtype))
+            self.assertTrue(cast.dtype == backend.float)
+            self.assertIsInstance(cast, backend.ndarray)
+            np.testing.assert_array_equal(cast, target)
+
+        unchanged = backend.cast_arr_complex_if_needed(target)
+        self.assertTrue(target is unchanged)
+
+    def test_cast_exceptions(self):
+        with self.assertRaises(ValueError):
+            backend.cast_arr_float_if_needed(["a", "b", "c"])
+
+        with self.assertRaises(TypeError):
+            backend.cast_arr_float_if_needed({1, 2, 3})
+
+        with self.assertRaises(ValueError):
+            backend.cast_arr_float_if_needed([[1, 2], 3])
+
     def tearDown(self) -> None:
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
