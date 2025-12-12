@@ -148,9 +148,9 @@ class Simulation(Preparable):
     def profiling(
         self,
         beams: tuple[BeamBaseClass],
-        turn_i_init: int,
-        profile_start_turn_i: int,
-        profile_n_turns: int,
+        profile_n_turns: int | float,
+        turn_i_init: int = 0,
+        profile_start_turn_i: int = 0,
         sortby: SortKey = SortKey.CUMULATIVE,
     ) -> None:
         """
@@ -230,9 +230,13 @@ class Simulation(Preparable):
                 pr.enable()
 
         end_turn = profile_start_turn_i + profile_n_turns
+        n_turns = int_from_float_with_warning(
+            end_turn - turn_i_init, warning_stacklevel=2
+        )
+
         self.run_simulation(
             beams=beams,
-            n_turns=end_turn - turn_i_init,
+            n_turns=n_turns,
             turn_i_init=turn_i_init,
             show_progressbar=False,
             callback=start_profiling,
