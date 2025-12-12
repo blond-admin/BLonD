@@ -132,7 +132,6 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
     """
 
     skip_find_instances_attributes = ["omega_rf_design"]
-    _cavity_feedback: LocalFeedback | tuple[LocalFeedback, ...] | None = None
 
     def __init__(
         self,
@@ -153,12 +152,11 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
+        self._cavity_feedback: (
+            LocalFeedback | tuple[LocalFeedback, ...] | None
+        ) = None
         if cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
-        else:
-            self._cavity_feedback: (
-                LocalFeedback | tuple[LocalFeedback, ...] | None
-            ) = cavity_feedback
 
         if beam_feedback is None:
             pass

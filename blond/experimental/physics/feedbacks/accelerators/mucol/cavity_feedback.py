@@ -85,7 +85,7 @@ class PassiveCavity(IQCavityFeedback):
         f_detuning: float,
         n_cavities: int,
         generator_current: float,
-        n_pretrack: int = 0,
+        n_pretrack: int | None = None,
         initial_v_coarse: NumpyArray | None = None,
         generator_phase: float = 0,
         injection_phase: float = -1,
@@ -121,7 +121,8 @@ class PassiveCavity(IQCavityFeedback):
         assert n_cavities > 0, "n_cavities must be > 0"
         self.n_cavities = n_cavities
 
-        assert n_pretrack > 0, "n_pretrack must be > 0"
+        if n_pretrack is not None:
+            assert n_pretrack > 0, "n_pretrack must be > 0"
         self.n_pretrack: float | None = n_pretrack
 
         self._initial_v_coarse = initial_v_coarse
