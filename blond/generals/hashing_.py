@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Functions that help with hashing.
-
-Authors
--------
-Simon Lauber
-"""
+"""Functions that help with hashing."""
 
 from __future__ import annotations
 

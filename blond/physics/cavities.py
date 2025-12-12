@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to handle lumped RF stations in synchrotrons.
-
-Authors
--------
-Simon Lauber
-"""
+"""Collection of implementations to handle lumped RF stations in synchrotrons."""
 
 from __future__ import annotations
 

@@ -6,10 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Helper functions to initialize the beam.
+"""
+Helper functions to initialize the beam.
 
-Authors
--------
+Notes
+-----
+Authors:
 Leonard Thiele
 Simon Lauber
 """

@@ -1198,7 +1198,8 @@ def bigaussian(
     seed: int = 1234,
     reinsertion: bool = False,
 ):
-    r"""Function generating a Gaussian beam both in time and energy
+    r"""
+    Function generating a Gaussian beam both in time and energy
     coordinates. Fills Beam.dt and Beam.dE arrays.
 
     Parameters

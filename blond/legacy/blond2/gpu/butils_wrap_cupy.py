@@ -28,7 +28,8 @@ def rf_volt_comp(
     phi_rf: CupyArray,
     bin_centers: CupyArray,
 ) -> CupyArray:
-    """Calculate the rf voltage at each profile bin
+    """
+    Calculate the rf voltage at each profile bin
 
     Args:
         voltages (float array): _description_
@@ -75,7 +76,8 @@ def kick(
     n_rf: int,
     acceleration_kick: Union[float64, float],
 ):
-    """Apply the energy kick
+    """
+    Apply the energy kick
 
     Args:
         dt (float array): the time coordinate
@@ -134,7 +136,8 @@ def drift(
     beta: Union[float64, float],
     energy: Union[float64, float],
 ):
-    """Apply the time drift function.
+    """
+    Apply the time drift function.
 
     Args:
         dt (_type_): _description_
@@ -198,7 +201,8 @@ def linear_interp_kick(
     charge: float,
     acceleration_kick: float,
 ):
-    """An accelerated version of the kick function.
+    """
+    An accelerated version of the kick function.
 
     Args:
         dt (_type_): _description_
@@ -256,7 +260,8 @@ def linear_interp_kick(
 def slice_beam(
     dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: float
 ):
-    """Constant space slicing with a constant frame.
+    """
+    Constant space slicing with a constant frame.
 
     Args:
         dt (_type_): _description_
@@ -311,7 +316,8 @@ def slice_beam(
 def synchrotron_radiation(
     dE: CupyArray, U0: float, n_kicks: int, tau_z: float
 ):
-    """Track particles with SR only (without quantum excitation)
+    """
+    Track particles with SR only (without quantum excitation)
 
     Args:
         dE (_type_): _description_
@@ -344,7 +350,8 @@ def synchrotron_radiation_full(
     sigma_dE: Union[float64, float],
     energy: float,
 ):
-    """Track particles with SR and quantum excitation.
+    """
+    Track particles with SR and quantum excitation.
 
     Args:
         dE (_type_): _description_
@@ -381,7 +388,8 @@ def __beam_phase_helper(
     omega_rf: Union[_FusionVarArray, _FusionVarScalar],
     phi_rf: Union[_FusionVarArray, _FusionVarScalar],
 ) -> Tuple[_FusionVarArray, _FusionVarArray]:
-    """Helper function, used by beam_phase
+    """
+    Helper function, used by beam_phase
 
     Args:
         bin_centers (_type_): _description_
@@ -406,7 +414,8 @@ def beam_phase(
     phi_rf: float,
     bin_size: float,
 ) -> float:
-    """Beam phase measured at the main RF frequency and phase. The beam is
+    """
+    Beam phase measured at the main RF frequency and phase. The beam is
        convolved with the window function of the band-pass filter of the
        machine. The coefficients of sine and cosine components determine the
        beam phase, projected to the range -Pi/2 to 3/2 Pi. Note that this beam
@@ -443,7 +452,8 @@ def __beam_phase_fast_helper(
     omega_rf: Union[_FusionVarScalar, _FusionVarArray],
     phi_rf: Union[_FusionVarScalar, _FusionVarArray],
 ) -> Tuple[_FusionVarArray, _FusionVarArray]:
-    """Helper function used by beam_phase_fast
+    """
+    Helper function used by beam_phase_fast
 
     Args:
         bin_centers (_type_): _description_
@@ -465,7 +475,8 @@ def beam_phase_fast(
     phi_rf: float,
     bin_size: float,
 ) -> float:
-    """Simplified, faster variation of the beam_phase function
+    """
+    Simplified, faster variation of the beam_phase function
 
     Args:
         bin_centers (_type_): _description_
