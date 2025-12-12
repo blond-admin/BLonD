@@ -130,7 +130,7 @@ def get_hamilton_semi_analytic(
         Time coordinates of the potential well [s].
     potential_well : array_like
         Potential energy values corresponding to ``ts`` [V].
-    reference.total_energy : float
+    reference_total_energy : float
         Reference total energy :math:`E_0` [eV].
     eta : float
         General synchrotron parameter (zeroth-order slippage factor) [unitless].

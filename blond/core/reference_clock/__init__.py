@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Helper class that holds the reference to the coordinate system."""
+"""Helper class that holds the reference to the beam coordinate system."""

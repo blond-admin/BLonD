@@ -1267,7 +1267,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         main_harmonic_idx
             Index of the cavity's main harmonic.
             Used to calculate attributes that rely on only one harmonic.
-        reference.beta
+        reference_beta
             Beam reference fraction of speed of light (v/c0) [].
         local_wakefield
             Optional wakefield to interact with beam.
