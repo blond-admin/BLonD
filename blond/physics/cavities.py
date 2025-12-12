@@ -155,9 +155,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         self._cavity_feedback: (
             LocalFeedback | tuple[LocalFeedback, ...] | None
         ) = None
-        if cavity_feedback is None:
-            pass
-        else:
+        if cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
 
         if beam_feedback is None:
@@ -170,6 +168,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             raise ValueError(beam_feedback)
         self._n_rf = n_rf
         self._local_wakefield = local_wakefield
+        self._beam_feedback = beam_feedback
 
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
