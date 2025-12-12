@@ -216,6 +216,38 @@ class TestBunchObservation(unittest.TestCase):
         self.bunch_observation.from_disk()
 
 
+class TestBunchStatistics(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bunch_statistics = BeamStatisticsOncePerTurn(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+            beam=beam,
+        )
+
+    def test___init__(self) -> None:
+        self.bunch_statistics = BeamStatisticsOncePerTurn(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+            beam=beam,
+        )
+
+    def test_from_disk(self) -> None:
+        self.bunch_statistics.on_init_simulation(
+            simulation=simulation,
+        )
+        self.bunch_statistics.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            turn_i_init=0,
+            n_turns=100,
+        )
+        self.bunch_statistics.update(
+            simulation=simulation,
+        )
+        self.bunch_statistics.to_disk()
+        self.bunch_statistics.from_disk()
+
+
 class TestRfStationPhaseObservation(unittest.TestCase):
     def setUp(self) -> None:
         rf_station = Mock(
