@@ -1,14 +1,16 @@
 """helper functions to add the copyright notice to all files."""
 
 import os
-from pathlib import Path
+import pathlib
+
+_HERE = pathlib.Path(__file__).parent.resolve()
 
 
 def insert_copyright_notes():
     """Adds the copyright notice to all files."""
-    ROOT = Path("../blond/").resolve()
+    ROOT = _HERE / "../blond/"
     assert ROOT.exists(), str(ROOT)
-    with open("copyright_notice.txt") as file:
+    with open(f"{_HERE}/copyright_notice.txt") as file:
         text_py = file.read() + "\n"
     text_cpp = text_py.replace("#", r"//")
     text_fortran = text_py.replace("#", r"!")

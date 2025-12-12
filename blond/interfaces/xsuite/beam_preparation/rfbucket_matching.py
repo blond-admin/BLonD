@@ -36,7 +36,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class XsuiteRFBucketMatcher(MatchingRoutine):
-    """Use the XSuite `RFBucketMatcher` for beam matching.
+    """
+    Use the XSuite `RFBucketMatcher` for beam matching.
 
     Beam preparation routine that matches a longitudinal beam distribution
     using the Xsuite RFBucketMatcher and populates the beam with macroparticles.
@@ -59,6 +60,13 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         for use in the distribution generation.
     verbose_regeneration : bool, default=False
         Whether to print verbose logs during the matching routine.
+    seed : int or None, default=None
+        Random seed for reproducible matching.
+
+    Raises
+    ------
+    ValueError
+        If the RF station is not set, energy is not provided, or transition gamma is missing.
 
     Examples
     --------
@@ -70,12 +78,6 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
     >>>         n_macroparticles= ...,
     >>>     ),
     >>> )
-
-    Raises
-    ------
-    ValueError
-        If the RF station is not set, energy is not provided, or transition gamma is missing.
-
     """
 
     def __init__(
@@ -101,7 +103,8 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> None:
-        """Generate and apply a matched longitudinal beam distribution.
+        """
+        Generate and apply a matched longitudinal beam distribution.
 
         This method constructs an RF bucket from the simulation and rf_station
         parameters, computes a stationary longitudinal distribution using
@@ -125,7 +128,6 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             - Initial beam energy is not set.
             - No `DriftSimple` elements are found in the ring.
             - `transition_gamma` is not defined in the first drift element.
-
         """
         # prevent crash if xpart not installed
         from xpart.longitudinal.rf_bucket import RFBucket

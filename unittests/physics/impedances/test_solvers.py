@@ -3092,6 +3092,20 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         with self.assertRaises(TypeError):
             wf_mutli.solver._update_wake_kernel()
 
+        class FaultyResonators2:
+            def get_cake(self):  # emulate wroing implementation
+                return
+
+        with self.assertRaisesRegex(
+            AttributeError, "should implement `TimeDomain.get_wake`"
+        ):
+            wf_mutli = WakeField.headless(
+                sources=(FaultyResonators2(),),
+                solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
+                profile=prof,
+                beam=beam_mock,
+            )
+
     def test_calc_induced_voltage_assert_profile_length_correct(self):
         t_rf = 7.706144104735e-10
         Q_factor = 1.76e6

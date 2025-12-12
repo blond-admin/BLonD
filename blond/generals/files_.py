@@ -23,7 +23,8 @@ def get_files_with_extensions(
     extensions: tuple[str, ...],
     recursive: bool = True,
 ) -> list[Path]:
-    """Retrieves all files in a folder that match a set of file extensions.
+    """
+    Retrieve all files in a folder that match a set of file extensions.
 
     Parameters
     ----------

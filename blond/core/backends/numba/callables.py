@@ -61,7 +61,8 @@ def enforce_precision(dtype):
 def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     floattype: type[np.float32 | np.float64],
 ):
-    """Helper to recompile `NumbaSpecials` when the backend changed.
+    """
+    Helper to recompile `NumbaSpecials` when the backend changed.
 
     Parameters
     ----------
@@ -554,7 +555,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     return NumbaSpecials
 
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from blond import backend
 
     NumbaSpecials = recompile_numba_backend(backend.float)

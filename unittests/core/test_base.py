@@ -2,6 +2,7 @@ import unittest
 from functools import cached_property
 
 import numpy as np
+import scipy
 
 from blond import Simulation
 from blond.core.base import (
@@ -12,7 +13,7 @@ from blond.core.base import (
     MainLoopRelevant,
     Preparable,
     Schedulable,
-    ScheduledConstant,
+    ScheduledArray,
     ScheduledInterpolation,
     get_scheduler,
 )
@@ -54,26 +55,6 @@ class TestBeamPhysicsRelevant(unittest.TestCase):
         pass
 
 
-class TestScheduledConstant(unittest.TestCase):
-    def setUp(self):
-        self.scheduled_constant = ScheduledConstant(1.0)
-        assert self.scheduled_constant.get_scheduled(1, 1.0) == 1.0
-        assert self.scheduled_constant.get_scheduled(int(1e9), np.inf) == 1.0
-
-        self.scheduled_constant = ScheduledConstant(1)
-        assert self.scheduled_constant.get_scheduled(1, 1.0) == 1
-        assert self.scheduled_constant.get_scheduled(int(1e9), np.inf) == 1
-
-        self.scheduled_constant = ScheduledConstant(np.array([1.0]))
-        assert self.scheduled_constant.get_scheduled(1, 1.0) == np.array([1.0])
-        assert self.scheduled_constant.get_scheduled(
-            int(1e9), np.inf
-        ) == np.array([1.0])
-
-    def test_init(self):
-        pass
-
-
 class TestScheduledInterpolation(unittest.TestCase):
     def setUp(
         self,
@@ -98,6 +79,27 @@ class TestScheduledInterpolation(unittest.TestCase):
 
     def test_init(self):
         pass
+
+    def test_init_other1(self):
+        t_arr = np.linspace(0, 10)
+        vals = np.linspace(-10, 0)
+        scheduler = ScheduledInterpolation(
+            times=t_arr,
+            values=vals,
+            interpolator=scipy.interpolate.Akima1DInterpolator,
+            method="makima",
+        )
+        scheduler.get_scheduled(5, 1.0)  # should not crash
+
+        def test_init_other2(self):
+            t_arr = np.linspace(0, 10)
+            vals = np.linspace(-10, 0)
+            scheduler = ScheduledInterpolation(
+                times=t_arr,
+                values=vals,
+                interpolator=scipy.interpolate.PchipInterpolator,
+            )
+            scheduler.get_scheduled(5, 1.0)  # should not crash
 
 
 class BeamObservationElementTester(BeamObservationElement):
@@ -233,13 +235,18 @@ class TestPreparable(unittest.TestCase):
 
 class TestFunctions(unittest.TestCase):
     def test_get_scheduler_1(self):
-        get_scheduler(1, mode="per-turn")
-        get_scheduler(1.0, mode="per-turn")
-        get_scheduler(np.ones(10), mode="per-turn")
-        get_scheduler((np.ones(10), np.ones(10)), mode="per-turn")
-        get_scheduler(np.ones(10), mode="constant")
+        sched1 = get_scheduler(
+            np.ones(10),
+        )
+        sched2 = get_scheduler(
+            (np.ones(10), np.ones(10)),
+        )
+        self.assertEqual(type(sched1), ScheduledArray)
+        self.assertEqual(type(sched2), ScheduledInterpolation)
         with self.assertRaises(TypeError):
-            get_scheduler("a string", mode="per-turn")
+            get_scheduler(
+                "a string",
+            )
         with self.assertRaises(TypeError):
             get_scheduler(np.ones(10), mode="not_in_the_mode_today")
 
@@ -255,24 +262,32 @@ class TestSchedulable(unittest.TestCase):
                 ),
             )
         self.schedulable.voltage = None
-        with self.assertRaises(AssertionError):  # mode not set for array
-            self.schedulable.schedule_from_file(
-                attribute="voltage",
-                filename=callers_relative_path(
-                    "schedulable_testfile.txt", stacklevel=1
-                ),
-            )
 
         self.schedulable.schedule_from_file(
             attribute="voltage",
             filename=callers_relative_path(
                 "schedulable_testfile.txt", stacklevel=1
             ),
-            mode="per-turn",
         )
 
     def test___init__(self):
         pass
+
+    def test_schedule(self):
+        schedulable = Schedulable()
+        schedulable.voltage = None
+        with self.assertRaises(TypeError):
+            schedulable.schedule("voltage", 1)
+        schedulable.schedule("voltage", np.ones(10))
+        schedulable.schedule(
+            "voltage",
+            ScheduledInterpolation(np.linspace(1, 10, 20), np.ones(20)),
+        )
+        schedulable.schedule(
+            "voltage",
+            ScheduledArray(np.ones(10)),
+        )
+        schedulable.schedule("voltage", np.ones(10))
 
 
 if __name__ == "__main__":

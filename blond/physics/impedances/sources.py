@@ -6,10 +6,10 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Implementations of beam impedance sources.
+"""
+Implementations of beam impedance sources.
 
 Module to describe classes for the calculation of wakes and impedances.
-
 
 Authors
 -------
@@ -108,7 +108,8 @@ def get_hash(array1d: NumpyArray) -> int:
 
 
 class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
-    """Inductive impedance, i.e. only complex component in frequency domain.
+    """
+    Inductive impedance, i.e. only complex component in frequency domain.
 
     Parameters
     ----------
@@ -133,7 +134,22 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> NumpyArray:
-        """Return the impedance in the frequency domain.
+        """
+        Return the impedance in the frequency domain.
+
+        Parameters
+        ----------
+        freq_x
+            Frequency axis, in [Hz].
+        simulation : Simulation
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation `Beam` object.
+
+        Returns
+        -------
+        impedance
+            Complex impedance array.
 
         Notes
         -----
@@ -147,21 +163,6 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
 
         np.gradient(x) in time domain
         ifft(derivative_kernel * fft(x)) in frequency domain
-
-
-        Parameters
-        ----------
-        freq_x
-            Frequency axis, in [Hz].
-        simulation : Simulation
-            Simulation object containing turn index and RF info.
-        beam
-            Simulation `Beam` object
-
-        Returns
-        -------
-        impedance
-            Complex impedance array.
         """
         T = simulation.ring.circumference / beam.reference_velocity
         z_over_n = self.Z_over_n
@@ -169,7 +170,19 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         return derivative_kernel[:] / (2 * np.pi) * z_over_n * T
 
     def _get_derivative_impedance(self, freq_x: NumpyArray) -> NumpyArray:
-        """Get the equivalent of np.gradient(x) in frequency domain ifft(derivative*fft(x))."""
+        """
+        Get the equivalent of np.gradient(x) in frequency domain ifft(derivative*fft(x)).
+
+        Parameters
+        ----------
+        freq_x
+            Frequency axis.
+
+        Returns
+        -------
+        derivative
+            Derivative impedance in frequency domain.
+        """
         # Recalculate only of `freq_x` is changed
         hash_ = get_hash(freq_x)
         if hash_ == self._cache_derivative_hash:
@@ -199,21 +212,24 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray:
-        """Get impedance equivalent to the partial wake in time domain.
+        """
+        Get impedance equivalent to the partial wake in time domain.
 
         Parameters
         ----------
         time
-            Time array to get wake, in [s]
+            Time array to get wake, in [s].
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
+        n_fft
+            Number of FFT points.
 
         Returns
         -------
         wake_impedance
-
+            Wake impedance.
         """
         # Recalculate only of `time` is changed
 
@@ -233,7 +249,8 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
 class Resonators(
     WakeFieldSource, TimeDomain, FreqDomain, TimeDomainCounterRotation
 ):
-    r"""Multiple resonances of RLC circuits for impedance calculations.
+    r"""
+    Multiple resonances of RLC circuits for impedance calculations.
 
     Parameters
     ----------
@@ -243,6 +260,8 @@ class Resonators(
         Center frequencies of the resonances, in [Hz].
     quality_factors : array-like or float
         Quality factors (Q) of the resonances, dimensionless.
+    shunt_impedances_counter_rotating : array-like or float or None
+        Shunt impedances for counter-rotating mode.
 
     Notes
     -----
@@ -348,7 +367,8 @@ class Resonators(
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
-        """Get the wake function, but converted to frequency domain.
+        """
+        Get the wake function, but converted to frequency domain.
 
         Get impedance  computed via ``fft(...)`` from time domain
         analytical formula equivalent to the partial single-particle-wake.
@@ -356,18 +376,18 @@ class Resonators(
         Parameters
         ----------
         time
-            Time array to get wake, in [s]
+            Time array to get wake, in [s].
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_fft
-            Number of fft bins to use
+            Number of fft bins to use.
 
         Returns
         -------
         wake_impedance
-
+            Wake impedance in frequency domain.
         """
         # Recalculate only if `time` has changed
         hash_ = get_hash(time)
@@ -388,7 +408,8 @@ class Resonators(
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
-        """Get the wake function, but converted to frequency domain.
+        """
+        Get the wake function, but converted to frequency domain.
 
         Get impedance  computed via ``fft(...)`` from time domain
         analytical formula equivalent to the partial single-particle-wake.
@@ -396,18 +417,18 @@ class Resonators(
         Parameters
         ----------
         time
-            Time array to get wake, in [s]
+            Time array to get wake, in [s].
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_fft
-            Number of fft bins to use
+            Number of fft bins to use.
 
         Returns
         -------
         wake_impedance
-
+            Wake impedance in frequency domain for counter-rotating mode.
         """
         # Recalculate only if `time` has changed
         hash_ = get_hash(time + 1)  # to distinguish between counterrotation
@@ -426,18 +447,36 @@ class Resonators(
         return wake_impedance_counter_rotation
 
     def get_wake_impedance_freq(self, time):
-        """Get frequency array corresponding to time used in :func:`get_wake_impedance`."""
+        """
+        Get frequency array corresponding to time used in :func:`get_wake_impedance`.
+
+        Parameters
+        ----------
+        time
+            Time array, in [s].
+
+        Returns
+        -------
+        frequency_array
+            Frequency array corresponding to the wake impedance.
+        """
         return backend.fft.rfftfreq(
             len(self._cache_wake_impedance), time[1] - time[0]
         )
 
     def get_wake(self, time: NumpyArray) -> NumpyArray:
-        """Computes the wake function of all resonators in time domain for the given time and returns the summed potential.
+        """
+        Compute the wake function of all resonators in time domain for the given time and return the summed potential.
 
         Parameters
         ----------
-        time : NumpyArray
-            time array at which the wake is calculated [V]
+        time
+            Time array at which the wake is calculated, in [s].
+
+        Returns
+        -------
+        wake
+            Wake potential array, in [V].
         """
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
 
@@ -461,18 +500,18 @@ class Resonators(
         return wake
 
     def get_wake_counter_rotation(self, time: NumpyArray) -> NumpyArray:
-        """Computes the wake function of all resonators in time domain for the given time and returns the summed potential.
+        """
+        Compute the wake function of all resonators in time domain for the given time and return the summed potential.
 
         Parameters
         ----------
-        time : NumpyArray
-            time array at which the wake is calculated, in [s]
+        time
+            Time array at which the wake is calculated, in [s].
 
         Returns
         -------
-        wake_potential: NumpyArray
-            potential array, in [V]
-
+        wake_potential
+            Potential array, in [V].
         """
         if self._shunt_impedances_counter_rotating is None:
             raise RuntimeError(
@@ -502,12 +541,20 @@ class Resonators(
     def calculate_envelope(
         self, time_axis: NumpyArray | None = None
     ) -> tuple[NumpyArray, NumpyArray]:
-        """Calculates the normalized envelope of all resonators.
+        """
+        Calculate the normalized envelope of all resonators.
 
         Parameters
         ----------
         time_axis
-            time axis on which to calculate the envelope [s]
+            Time axis on which to calculate the envelope, in [s].
+
+        Returns
+        -------
+        time_axis
+            Time axis used for calculation.
+        envelope
+            Normalized envelope values.
         """
         if time_axis is None:
             time_axis = np.linspace(
@@ -533,18 +580,19 @@ class Resonators(
         beam: BeamBaseClass,
         counter_rotation: bool = False,
     ) -> NumpyArray:
-        """Return the analytically calculated impedance in the frequency domain.
+        """
+        Return the analytically calculated impedance in the frequency domain.
 
         Parameters
         ----------
         freq_x
             Frequency axis, in [Hz].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         counter_rotation
-            checkbox if the counter-rotating or corotating impedance should be used
+            Checkbox if the counter-rotating or corotating impedance should be used.
 
         Returns
         -------
@@ -589,33 +637,34 @@ class ImpedanceTable(WakeFieldSource):
     def from_file(
         filepath: PathLike, reader: ImpedanceReader
     ) -> ImpedanceTable:
-        """Instance table from a file on the disk.
+        """
+        Instance table from a file on the disk.
 
         Parameters
         ----------
         filepath
-            Path of the file to lead
+            Path of the file to lead.
         reader
-            `ImpedanceReader` to interpret what's written in the file
+            `ImpedanceReader` to interpret what's written in the file.
 
         Returns
         -------
         impedance_table
-            The loaded table
-
+            The loaded table.
         """
         pass
 
 
 class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
-    """Impedance table in frequency domain.
+    """
+    Impedance table in frequency domain.
 
     Parameters
     ----------
     freq_x
         Frequency axis, in [Hz].
     freq_y
-        Complex amplitudes in frequency domain
+        Complex amplitudes in frequency domain.
     """
 
     def __init__(
@@ -637,16 +686,17 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> NumpyArray:
-        """Return the impedance in the frequency domain.
+        """
+        Return the impedance in the frequency domain.
 
         Parameters
         ----------
         freq_x
             Frequency axis, in [Hz].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
 
         Returns
         -------
@@ -670,19 +720,20 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
     def from_file(
         filepath: PathLike, reader: ImpedanceReader
     ) -> ImpedanceTableFreq:
-        """Instance table from a file on the disk.
+        """
+        Instance table from a file on the disk.
 
         Parameters
         ----------
         filepath
-            path of the file to lead
+            Path of the file to lead.
         reader
-            `ImpedanceReader` to interpret what's written in the file
+            `ImpedanceReader` to interpret what's written in the file.
 
         Returns
         -------
         impedance_table_freq
-
+            The loaded impedance table in frequency domain.
         """
         x_array, y_array = reader.load_file(filepath=filepath)
         assert not np.any(np.isnan(x_array))
@@ -691,14 +742,15 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
 
 
 class ImpedanceTableTime(ImpedanceTable, TimeDomain):
-    """Impedance table in frequency domain.
+    """
+    Impedance table in frequency domain.
 
     Parameters
     ----------
     wake_x
-        Wake time axis, in [s]
+        Wake time axis, in [s].
     wake_y
-        Wake amplitude, in [V]
+        Wake amplitude, in [V].
     """
 
     def __init__(
@@ -717,19 +769,20 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
     def from_file(
         filepath: PathLike | str, reader: ImpedanceReader
     ) -> ImpedanceTableTime:
-        """Instance table from a file on the disk.
+        """
+        Instance table from a file on the disk.
 
         Parameters
         ----------
         filepath
-            path of the file to lead
+            Path of the file to lead.
         reader
-            `ImpedanceReader` to interpret what's written in the file
+            `ImpedanceReader` to interpret what's written in the file.
 
         Returns
         -------
         impedance_table_time
-
+            The loaded impedance table in time domain.
         """
         x_array, y_array = reader.load_file(filepath=filepath)
         return ImpedanceTableTime(wake_x=x_array, wake_y=y_array)
@@ -741,21 +794,24 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray:
-        """Get impedance equivalent to the partial single-particle-wake in time domain.
+        """
+        Get impedance equivalent to the partial single-particle-wake in time domain.
 
         Parameters
         ----------
         time
-            Time array to get wake, in [s]
-        simulation : Simulation
+            Time array to get wake, in [s].
+        simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
+        n_fft
+            Number of FFT points.
 
         Returns
         -------
         wake_impedance
-
+            Wake impedance in frequency domain.
         """
         hash_ = get_hash(time)
         if hash_ == self._cache_wake_impedance_hash:
@@ -779,7 +835,26 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 
 # TODO rework docstring
 class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
-    r"""Impedance of travelling wave cavities.
+    r"""
+    Impedance of travelling wave cavities.
+
+    Parameters
+    ----------
+    R_S
+        Shunt impepdance, in [Ω].
+    frequency_R
+        Resonant frequency, in [Hz].
+    a_factor
+        Damping time `a`, in [s].
+
+    Attributes
+    ----------
+    R_S
+        Shunt impepdance, in [Ω].
+    frequency_R
+        Resonant frequency, in [Hz].
+    a_factor
+        Damping time `a`, in [s].
 
     Notes
     -----
@@ -801,24 +876,6 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
 
     .. math::
         a = 2 \pi \tilde{a}
-
-    Parameters
-    ----------
-    R_S
-        Shunt impepdance, in [Ω]
-    frequency_R
-        Resonant frequency, in [Hz]
-    a_factor
-        Damping time `a`, in [s]
-
-    Attributes
-    ----------
-    R_S
-        Shunt impepdance, in [Ω]
-    frequency_R
-        Resonant frequency, in [Hz]
-    a_factor
-        Damping time `a`, in [s]
 
     Examples
     --------
@@ -861,12 +918,18 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         self.a_factor = np.array(a_factor, dtype=float).flatten()
 
     def wake_calc(self, time: NumpyArray) -> NumpyArray:
-        r"""Wake calculation method as a function of time.
+        r"""
+        Wake calculation method as a function of time.
 
         Parameters
         ----------
         time
-            Time array to get wake, in [s]
+            Time array to get wake, in [s].
+
+        Returns
+        -------
+        wake
+            Wake potential array.
         """
         wake = np.zeros(time.shape, dtype=backend.float, order="C")
 
@@ -890,21 +953,24 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray:
-        """Get impedance equivalent to the partial single-particle-wake in time domain.
+        """
+        Get impedance equivalent to the partial single-particle-wake in time domain.
 
         Parameters
         ----------
         time
-            Time array to get wake, in [s]
-        simulation : Simulation
+            Time array to get wake, in [s].
+        simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
+        n_fft
+            Number of FFT points.
 
         Returns
         -------
         wake_impedance
-
+            Wake impedance in frequency domain.
         """
         wake = self.wake_calc(time=time)
         wake_impedance = np.fft.rfft(wake, n=n_fft)
@@ -916,16 +982,17 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> NumpyArray:
-        """Return the impedance in the frequency domain.
+        """
+        Return the impedance in the frequency domain.
 
         Parameters
         ----------
         freq_x
             Frequency axis, in [Hz].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
 
         Returns
         -------

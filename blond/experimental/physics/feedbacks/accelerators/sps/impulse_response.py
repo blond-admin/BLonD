@@ -7,9 +7,15 @@
 # Project website: http://blond.web.cern.ch/
 
 
-"""**Filters and methods for control loops**
+"""
+**Filters and methods for control loops**
 
-:Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
+
+
+Authors
+-------
+Birk Emil Karlsen-Bæck
+Helga Timko
 """
 
 from __future__ import annotations
@@ -22,7 +28,7 @@ from scipy.constants import c
 from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 logger = logging.getLogger(__name__)
@@ -39,7 +45,8 @@ def cavity_response_sparse_matrix(
     Q_L,
     detuning,
 ):
-    """Solving the ACS cavity response model as a sparse matrix problem
+    """
+    Solving the ACS cavity response model as a sparse matrix problem
     for a given set of initial conditions, resonator parameters and
     generator and RF beam currents.
 
@@ -101,7 +108,8 @@ def cavity_response_sparse_matrix(
 
 
 def rectangle(t: NumpyArray, tau: float) -> NumpyArray:
-    r"""Rectangular function of time
+    r"""
+    Rectangular function of time
 
     .. math:: \mathsf{rect} \left( \frac{t}{\tau} \right) =
         \begin{cases}
