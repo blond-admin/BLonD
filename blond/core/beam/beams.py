@@ -23,6 +23,7 @@ from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from matplotlib.collections import QuadMesh
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Simulation
@@ -272,7 +273,7 @@ class Beam(BeamBaseClass):
         """
         return len(self._dt)
 
-    def plot_hist2d(self, **kwargs) -> None:
+    def plot_hist2d(self, **kwargs) -> QuadMesh:
         """
         Plot a 2D histogram of the beam distribution.
 
@@ -288,6 +289,11 @@ class Beam(BeamBaseClass):
             - bins: number of bins (default: 256)
             - cmap: colormap (default: 'viridis')
             - range: data range [[xmin, xmax], [ymin, ymax]]
+
+        Returns
+        -------
+        image
+            `matplotlib.collections.QuadMesh` object.
 
         Notes
         -----
@@ -305,14 +311,14 @@ class Beam(BeamBaseClass):
             # variables below are just for the type hints to function correctly
             dE: CupyArray = self._dE
             dt: CupyArray = self._dt
-            counts, xedges, yedges, Image = plt.hist2d(
+            counts, xedges, yedges, image = plt.hist2d(
                 dt.get(), dE.get(), **kwargs
             )
         else:
-            counts, xedges, yedges, Image = plt.hist2d(
+            counts, xedges, yedges, image = plt.hist2d(
                 self._dt, self._dE, **kwargs
             )
-        return Image
+        return image
 
     def plot_scatter(self, **kwargs) -> None:
         """
