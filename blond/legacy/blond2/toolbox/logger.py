@@ -17,7 +17,8 @@ import logging
 
 
 class Logger:
-    """Class to log messages coming from other classes. Messages contain
+    """
+    Class to log messages coming from other classes. Messages contain
     {Time stamp} {Class name} {Log level} {Message}. Errors, warnings and info
     are logged into the console. To disable logging, call Logger().disable()
 

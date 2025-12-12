@@ -21,26 +21,23 @@ from typing import Protocol
 
 
 class AnyInterpolator(Protocol):
-    """A simplified Protocol for 1D interpolation.
+    """
+    A simplified Protocol for 1D interpolation.
 
     A simplified Protocol for 1D interpolation methods like `interp1d`, `Akima1DInterpolator`,
     and `PchipInterpolator`, with only __init__ and __call__ methods.
+
+    Parameters
+    ----------
+    x
+        Array of input data points.
+    y
+        Array of output values corresponding to x.
+    **kwargs
+        Additional keyword arguments.
     """
 
-    def __init__(self, x: np.ndarray, y: np.ndarray, **kwargs) -> None:
-        """
-        Initialize the interpolator with data points (x, y).
-
-        Parameters
-        ----------
-        x
-            Array of input data points.
-        y
-            Array of output values corresponding to x.
-        **kwargs
-            Additional keyword arguments
-        """
-        ...
+    def __init__(self, x: np.ndarray, y: np.ndarray, **kwargs) -> None: ...
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
         """
@@ -53,6 +50,7 @@ class AnyInterpolator(Protocol):
 
         Returns
         -------
+        y
             Interpolated values at the given points.
         """
         ...

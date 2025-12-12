@@ -47,7 +47,8 @@ def rf_volt_comp(
     phi_rf: NumpyArray,
     bin_centers: NumpyArray,
 ) -> NumpyArray:
-    """Compute rf voltage at each bin.
+    """
+    Compute rf voltage at each bin.
 
     Args:
         voltages (NumpyArray): _description_
@@ -165,7 +166,8 @@ def drift(
 def slice_beam(
     dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: float
 ):
-    """Slice the time coordinate of the beam.
+    """
+    Slice the time coordinate of the beam.
 
     Args:
         dt (NumpyArray): _description_
@@ -220,7 +222,8 @@ def linear_interp_kick(
     charge: float,
     acceleration_kick: float,
 ):
-    """Interpolated kick method.
+    """
+    Interpolated kick method.
 
     Args:
         dt (NumpyArray): _description_
@@ -256,7 +259,8 @@ def linear_interp_kick(
 def synchrotron_radiation(
     dE: NumpyArray, U0: float, n_kicks: int, tau_z: float
 ):
-    """Apply SR
+    """
+    Apply SR
 
     Args:
         dE (NumpyArray): _description_
@@ -286,7 +290,8 @@ def synchrotron_radiation_full(
     sigma_dE: float,
     energy: float,
 ):
-    """Apply SR with quantum excitation
+    """
+    Apply SR with quantum excitation
 
     Args:
         dE (NumpyArray): _description_

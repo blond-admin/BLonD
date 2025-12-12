@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to calculate the beam profile.
-
-Authors
--------
-Simon Lauber
-"""
+"""Collection of implementations to calculate the beam profile."""
 
 from __future__ import annotations
 

@@ -201,9 +201,6 @@ class Schedulable:
             Attribute that shall be changed by scheduler.
         filename
             Filename to read the parameters from.
-        mode
-            Required when arrays are handed over.
-            "per-turn" or "constant".
         **kwargs_loadtxt
             Additional keyword arguments to be passed to `numpy.loadtxt`.
 
@@ -513,7 +510,8 @@ class SchedulerBaseClass(ABC):
 
 
 class ScheduledArray(SchedulerBaseClass):
-    """Schedule values that change per turn.
+    """
+    Schedule values that change per turn.
 
     Parameters
     ----------
@@ -563,14 +561,13 @@ class ScheduledInterpolation(SchedulerBaseClass):
         Interpolation routine to get time in between the base values.
         Default: `scipy.interpolate.interp1d`.
     **kwargs
-        Optional keyword arguments for the interpolator
+        Optional keyword arguments for the interpolator.
 
     See Also
     --------
-    scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`
-    scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation
-    scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial
-
+    scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
+    scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation.
+    scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
 
     Examples
     --------
