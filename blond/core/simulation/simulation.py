@@ -1127,7 +1127,7 @@ class Simulation(Preparable):
             ), (
                 "First beam must be normal, second beam must be counter-rotating"
             )
-            self._run_simulation_counterrotating_beam(
+            self.mainloop_counterrotating_beam(
                 n_turns=_n_turns,
                 turn_i_init=turn_i_init,
                 observe=observe,
@@ -1287,7 +1287,8 @@ class Simulation(Preparable):
 
         Notes
         -----
-        This method assumes that `Simulation.finalize()` was executed before.
+        This method assumes that ``Simulation.finalize(...)`` was executed
+        before.
         """
         logger.info("Starting simulation mainloop...")
         iterator = range(self.turn_i.value, self.turn_i.value + n_turns)
@@ -1308,7 +1309,7 @@ class Simulation(Preparable):
             if callback is not None and (turn_i % callback_each_turn) == 0:
                 callback(self, beam)
 
-    def _run_simulation_counterrotating_beam(
+    def mainloop_counterrotating_beam(
         self,
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
