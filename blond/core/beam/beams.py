@@ -305,9 +305,14 @@ class Beam(BeamBaseClass):
             # variables below are just for the type hints to function correctly
             dE: CupyArray = self._dE
             dt: CupyArray = self._dt
-            plt.hist2d(dt.get(), dE.get(), **kwargs)
+            counts, xedges, yedges, Image = plt.hist2d(
+                dt.get(), dE.get(), **kwargs
+            )
         else:
-            plt.hist2d(self._dt, self._dE, **kwargs)
+            counts, xedges, yedges, Image = plt.hist2d(
+                self._dt, self._dE, **kwargs
+            )
+        return Image
 
     def plot_scatter(self, **kwargs) -> None:
         """
