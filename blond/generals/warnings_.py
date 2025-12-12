@@ -24,3 +24,9 @@ class NotTestedWarning(UserWarning):
     """Warning for not tested code/classes."""
 
     pass
+
+
+class PrecisionWarning(UserWarning):
+    """Warning for changing the precision of floats."""
+
+    pass

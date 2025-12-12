@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.generals.warnings_ import PrecisionWarning
+
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
     from types import ModuleType
@@ -468,6 +470,7 @@ class BackendBaseClass(ABC):
             warnings.warn(
                 f"Automatically casting dtype from {arr.dtype} to {dtype}",
                 stacklevel=3,
+                category=PrecisionWarning,
             )
             arr = arr.astype(dtype)
 
