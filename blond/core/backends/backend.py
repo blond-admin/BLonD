@@ -288,6 +288,10 @@ class BackendBaseClass(ABC):
         self.arange: Callable = None  # type: ignore
         self.average: Callable = None  # type: ignore
         self.fftconvolve: Callable = None  # type: ignore
+        self.min: Callable = None  # type: ignore
+        self.max: Callable = None  # type: ignore
+        self.dot: Callable = None  # type: ignore
+        self.percentile: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -496,6 +500,10 @@ class NumpyBackend(BackendBaseClass):
         self.arange = np.arange
         self.average = np.average
         self.fftconvolve = fftconvolve
+        self.min = np.min
+        self.max = np.max
+        self.dot = np.dot
+        self.percentile = np.percentile
 
         self._finalize()
 
@@ -620,6 +628,10 @@ class CupyBackend(BackendBaseClass):
         self.arange = cp.arange
         self.average = cp.average
         self.fftconvolve = fftconvolve
+        self.min = cp.min
+        self.max = cp.max
+        self.dot = cp.dot
+        self.percentile = cp.percentile
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
