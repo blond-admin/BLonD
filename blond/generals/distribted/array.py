@@ -44,7 +44,6 @@ class DistributedArray:
 
     def __init__(self, array: NumpyArray | CupyArray):
         self.array_local = array
-        self._histogram_local_cache = {}
         # Setup MPI communication
         self.comm = MPI.COMM_WORLD
 
@@ -58,42 +57,7 @@ class DistributedArray:
             self.size = 1
             self.is_distributed = False
 
-    @classmethod
-    def from_array(
-        cls, array: NumpyArray | CupyArray, comm=None
-    ) -> "DistributedArray":
-        """
-        Create a DistributedArray from an existing array.
-
-        This is a convenience factory method equivalent to calling the
-        constructor directly.
-
-        Parameters
-        ----------
-        array
-            The local array data for this process.
-        comm : MPI.Comm, optional
-            MPI communicator to use. If None, uses MPI.COMM_WORLD.
-            Ignored if MPI is not available.
-
-        Returns
-        -------
-        DistributedArray
-            A new DistributedArray instance.
-
-        Examples
-        --------
-        >>> import numpy as np
-        >>> arr = DistributedArray.from_array(np.random.rand(1000))
-        >>> print(arr.global_size)
-        """
-        instance = cls(array)
-        if comm is not None and instance.is_distributed:
-            instance.comm = comm
-            instance.rank = comm.Get_rank()
-            instance.size = comm.Get_size()
-            instance.is_distributed = instance.size > 1
-        return instance
+        self._histogram_local_cache = {}
 
     @property
     def is_root(self) -> bool:
@@ -276,92 +240,11 @@ class DistributedArray:
 
         # Combine histograms from all processes
         if self.is_distributed:
-            # Allocate global histogram array
-            if out is not None:
-                array_write_local = array_write_local.copy()
-                global_histogram = out
-            else:
-                global_histogram = backend.zeros(bins, backend.float)
+            self.comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
 
-            # Sum up histograms from all ranks
-            self.comm.Allreduce(
-                array_write_local, global_histogram, op=MPI.SUM
-            )
-
-            return global_histogram
+            return array_write_local
         else:
             return array_write_local
-
-    def percentile(self, q):
-        """
-        Compute the global percentile across all processes.
-
-        This method gathers all data to the root process for exact percentile
-        calculation, which may be memory-intensive for large arrays.
-
-        Parameters
-        ----------
-        q : float or array-like
-            Percentile(s) to compute, values between 0 and 100.
-
-        Returns
-        -------
-        float or array
-            The percentile value(s) across all distributed array chunks.
-
-        Notes
-        -----
-        This implementation gathers all distributed data to the root process,
-        which may not be feasible for very large datasets (TB-scale).
-        For approximate percentiles on large data, consider implementing
-        streaming quantile algorithms (e.g., t-digest, GK algorithm).
-        """
-        if self.is_distributed:
-            # Gather all data to root
-            local_data = self.array_local
-            if self.is_root:
-                # Gather sizes from all processes
-                sizes = self.comm.gather(local_data.size, root=0)
-                # Prepare receive buffer
-                all_data = backend.zeros(sum(sizes), dtype=local_data.dtype)
-            else:
-                sizes = self.comm.gather(local_data.size, root=0)
-                all_data = None
-
-            # Gather actual data
-            self.comm.Gatherv(
-                sendbuf=local_data,
-                recvbuf=(
-                    all_data,
-                    sizes if self.is_root else None,
-                ),
-                root=0,
-            )
-
-            # Compute percentile on root
-            if self.is_root:
-                # Convert to numpy for percentile calculation if needed
-                if hasattr(all_data, "get"):  # CuPy array
-                    result = backend.percentile(all_data, q).get()
-                else:
-                    import numpy as np
-
-                    result = np.percentile(all_data, q)
-            else:
-                result = None
-
-            # Broadcast result to all processes
-            result = self.comm.bcast(result, root=0)
-            return result
-        # Non-distributed case
-        elif hasattr(self.array_local, "get"):  # CuPy array
-            import cupy as cp
-
-            return cp.percentile(self.array_local, q).get()
-        else:
-            import numpy as np
-
-            return np.percentile(self.array_local, q)
 
     def barrier(self):
         """
