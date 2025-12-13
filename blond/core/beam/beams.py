@@ -20,6 +20,7 @@ import numpy as np
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.distribted.array import DistributedArray
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -124,18 +125,20 @@ class Beam(BeamBaseClass):
             assert flags.max() <= BeamFlags.ACTIVE.value
             assert len(dt) == len(flags)
 
-        self._dE: NumpyArray | CupyArray = backend.array(
-            dE, dtype=backend.float
+        self._dE: DistributedArray = DistributedArray(
+            backend.array(dE, dtype=backend.float)
         )
-        self._dt: NumpyArray | CupyArray = backend.array(
-            dt, dtype=backend.float
+        self._dt: DistributedArray = DistributedArray(
+            backend.array(dt, dtype=backend.float)
         )
 
         # intentionally 32 bit, this should be enough for all thinkable flags
-        self._flags: NumpyArray | CupyArray = flags.astype(np.int32)
+        self._flags: DistributedArray = DistributedArray(
+            backend.array(flags, dtype=np.int32)
+        )
 
-        self._ids: NumpyArray | CupyArray = backend.arange(
-            len(dt), dtype=np.int32
+        self._ids: DistributedArray = DistributedArray(
+            backend.arange(len(dt), dtype=np.int32)
         )
 
         if reference_time:
@@ -271,7 +274,7 @@ class Beam(BeamBaseClass):
         Particles that are labeled LOST will be nevertheless counted,
         as they still exist in the array.
         """
-        return len(self._dt)
+        return self._dt.global_size
 
     def plot_hist2d(self, **kwargs) -> QuadMesh:
         """
@@ -307,16 +310,16 @@ class Beam(BeamBaseClass):
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs:
             kwargs["bins"] = 256
-        if is_cupy_array(self._dt):
+        if is_cupy_array(self._dt.array_local):
             # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE
-            dt: CupyArray = self._dt
+            dE: CupyArray = self._dE.array_local
+            dt: CupyArray = self._dt.array_local
             counts, xedges, yedges, image = plt.hist2d(
                 dt.get(), dE.get(), **kwargs
             )
         else:
             counts, xedges, yedges, image = plt.hist2d(
-                self._dt, self._dE, **kwargs
+                self._dt.array_local, self._dE.array_local, **kwargs
             )
         return image
 
@@ -335,11 +338,11 @@ class Beam(BeamBaseClass):
             )
         if is_cupy_array(self._dt):
             # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE
-            dt: CupyArray = self._dt
+            dE: CupyArray = self._dE.array_local
+            dt: CupyArray = self._dt.array_local
             plt.scatter(dt.get(), dE.get(), **kwargs)
         else:
-            plt.scatter(self._dt, self._dE, **kwargs)
+            plt.scatter(self._dt.array_local, self._dE.array_local, **kwargs)
 
     def plot_hist(self, axis=0, **kwargs) -> None:
         """
@@ -368,10 +371,10 @@ class Beam(BeamBaseClass):
             )
         if "bins" not in kwargs:
             kwargs["bins"] = 256
-        if is_cupy_array(self._dt):
+        if is_cupy_array(self._dt.array_local):
             # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE
-            dt: CupyArray = self._dt
+            dE: CupyArray = self._dE.array_local
+            dt: CupyArray = self._dt.array_local
             if axis == 0:
                 xs = dt.get()
             elif axis == 1:
@@ -379,9 +382,9 @@ class Beam(BeamBaseClass):
             else:
                 raise ValueError(f"{axis=}")
         elif axis == 0:
-            xs = self._dt
+            xs = self._dt.array_local
         elif axis == 1:
-            xs = self._dE
+            xs = self._dE.array_local
         else:
             raise ValueError(f"{axis=}")
         plt.hist(xs, **kwargs)

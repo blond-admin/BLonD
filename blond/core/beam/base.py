@@ -22,6 +22,7 @@ from scipy.constants import speed_of_light as c0  # type: ignore
 from blond.core.base import HasPropertyCache, Preparable
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
+from blond.generals.distribted.array import DistributedArray
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -74,10 +75,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._is_counter_rotating = is_counter_rotating
 
         # should be initialized later using `setup_beam`
-        self._dE: NumpyArray | CupyArray | None = None
-        self._dt: NumpyArray | CupyArray | None = None
-        self._flags: NumpyArray | CupyArray | None = None
-        self._ids: NumpyArray | CupyArray | None = None
+        self._dE: DistributedArray | None = None
+        self._dt: DistributedArray | None = None
+        self._flags: DistributedArray | None = None
+        self._ids: DistributedArray | None = None
 
         self.reference_time: float = 0.0
         # todo cached properties
@@ -397,7 +398,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         visible to the current node.
         """
         if self._dE is not None:
-            return len(self._dE)
+            return self._dE.local_size
         else:
             raise AttributeError(
                 f"{self._dE=}. You can use `setup_beam("
@@ -442,7 +443,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dt
+        return self._dt.array_local
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
         """
@@ -463,7 +464,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         visible to the current node.
         """
         self.invalidate_cache_dt()
-        return self._dt
+        return self._dt.array_local
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
         """
@@ -483,7 +484,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dE
+        return self._dE.array_local
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
         """
@@ -504,7 +505,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         visible to the current node.
         """
         self.invalidate_cache_dE()
-        return self._dE
+        return self._dE.array_local
 
     def write_partial_flags(self) -> NumpyArray | CupyArray:
         """
@@ -562,17 +563,27 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             backend,  # prevent cyclic import
         )
 
-        n_before_truncation = len(self._flags)
-        n_after_truncation = backend.specials.move_flagged_elements_to_end(
-            flag=flag,
-            flags=self._flags,
-            dt=self._dt,
-            dE=self._dE,
-            ids=self._ids,
-        )
-        self._flags = self._flags[:n_after_truncation]
-        self._dt = self._dt[:n_after_truncation]
-        self._dE = self._dE[:n_after_truncation]
-        self._ids = self._ids[:n_after_truncation]
+        n_before_truncation_global = self._dt.global_size
 
-        self.intensity *= n_after_truncation / n_before_truncation
+        n_after_truncation_local = (
+            backend.specials.move_flagged_elements_to_end(
+                flag=flag,
+                flags=self._flags,
+                dt=self._dt.array_local,
+                dE=self._dE.array_local,
+                ids=self._ids.array_local,
+            )
+        )
+        self._flags = self._flags[:n_after_truncation_local]
+        self._dt.array_local = self._dt.array_local[:n_after_truncation_local]
+        self._dE.array_local = self._dE.array_local[:n_after_truncation_local]
+        self._ids.array_local = self._ids.array_local[
+            :n_after_truncation_local
+        ]
+
+        self._dt.barrier()
+        n_after_truncation_global = self._dt.global_size
+
+        self.intensity *= (
+            n_after_truncation_global / n_before_truncation_global
+        )

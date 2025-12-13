@@ -72,6 +72,18 @@ class DistributedArray:
         return self.rank == 0
 
     @property
+    def local_size(self) -> int:
+        """
+        Get the number of elements on the local processes.
+
+        Returns
+        -------
+        int
+            The total size of the distributed array across all processes.
+        """
+        return self.array_local.size
+
+    @property
     def global_size(self) -> int:
         """
         Get the total number of elements across all processes.
