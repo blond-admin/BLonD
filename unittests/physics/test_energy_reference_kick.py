@@ -1,63 +1,21 @@
 import unittest
-from unittest.mock import MagicMock, Mock, PropertyMock
+from copy import copy
+from unittest.mock import MagicMock, Mock
 
-from blond.core.beam.base import BeamBaseClass
+import numpy as np
+
+from blond.core.base import DynamicParameter
+from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import proton
-from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.cycles.magnetic_cycle import MagneticCycleByTime
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
-
-
-class DummyMagneticCycleByTime(MagneticCycleByTime):
-    def __init__(self):
-        # Pass dummy data to satisfy base class
-        super().__init__(
-            reference_particle=proton,
-            base_time=[0],
-            base_values=[1e9],  # initial energy
-        )
-
-    def get_target_total_energy(
-        self, *, turn_i, section_i, reference_time, particle_type
-    ):
-        return 1e9 + turn_i * 1e6
-
-
-class DummyTurn:
-    def __init__(self):
-        self.value = 0
-
-
-class DummyBeam(BeamBaseClass):
-    """Minimal Beam implementation for testing EnergyReferenceKick."""
-
-    def __init__(self):
-        self.reference = Mock(ReferenceCoordinates)
-        self.reference.total_energy = 1e9
-        self.reference.time = 0
-        self._dE = 0.0
-        self.reference_time = 0.0
-
-    @property
-    def particle_type(self):
-        return proton
-
-    def plot_hist2d(self, *args, **kwargs):
-        pass
-
-    def ratio(self, *args, **kwargs):
-        return 1.0
-
-    def setup_beam(self, *args, **kwargs):
-        pass
+from blond.testing.mocks import cycle_const_mock, simulation_mock
 
 
 class TestEnergyReferenceKick(unittest.TestCase):
     def setUp(self):
-        self.simulation = MagicMock()
-        self.simulation.turn_i = DummyTurn()
-        self.simulation.magnetic_cycle = DummyMagneticCycleByTime()
-        self.simulation.ring = MagicMock()
+        self.simulation = simulation_mock
+        self.simulation.turn_i = Mock(DynamicParameter)
+        self.simulation.magnetic_cycle = cycle_const_mock
 
         # Bypass __init__ TypeError by manually setting magnetic_cycle after creation
         self.energy_kick = ReferenceEnergyChange(section_index=0)
@@ -68,7 +26,7 @@ class TestEnergyReferenceKick(unittest.TestCase):
     def test_init_raises_typeerror(self):
         """Test that using an invalid magnetic cycle raises a TypeError when required."""
         simulation = MagicMock()
-        simulation.turn_i = DummyTurn()
+        simulation.turn_i = Mock(DynamicParameter)
         simulation.magnetic_cycle = object()  # invalid type
         simulation.ring = MagicMock()
 
@@ -77,14 +35,19 @@ class TestEnergyReferenceKick(unittest.TestCase):
             kick.on_init_simulation(simulation)
 
     def test_track_updates_beam_energy(self):
-        beam = DummyBeam()
-        type(beam).particle_type = PropertyMock(return_value=proton)
+        total_energy = 1e12
+        self.simulation.magnetic_cycle.get_target_total_energy.return_value = (
+            total_energy
+        )
+        beam = ProbeBeam(
+            dE=[0], particle_type=proton, reference_total_energy=0.5e12
+        )
         self.simulation.turn_i.value = 5
 
         self.energy_kick.schedule_active = False  # No schedules applied
 
-        original_ref_energy = beam.reference.total_energy
-        original_dE = beam._dE
+        original_ref_energy = copy(beam.reference.total_energy)
+        original_dE = np.copy(beam._dE)
 
         self.energy_kick.track(beam)
 
@@ -99,7 +62,7 @@ class TestEnergyReferenceKick(unittest.TestCase):
         self.assertEqual(
             beam.reference.total_energy, original_ref_energy + expected_change
         )
-        self.assertEqual(beam._dE, original_dE - expected_change)
+        np.testing.assert_allclose(beam._dE, original_dE - expected_change)
 
 
 if __name__ == "__main__":
