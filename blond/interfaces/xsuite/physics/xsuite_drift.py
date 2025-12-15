@@ -16,6 +16,8 @@ from blond._core.beam.beams import BeamBaseClass
 if TYPE_CHECKING:
     from xtrack import Line, Particles
     from blond._core.simulation.simulation import Simulation
+    from blond._core.base import BeamPhysicsRelevant
+    from blond.cycles.magnetic_cycle import MagneticCycleBase
 
 from blond.physics.drifts import DriftBaseClass  # import the base drift class
 
@@ -168,12 +170,65 @@ class DriftXSuite(DriftBaseClass):
         return self._line_internal
 
 
-class EnergyUpdateXsuite:
+class EnergyUpdateXsuite(BeamPhysicsRelevant):
     # todo
-    """
-    BLonD–Xsuite interface element that performs drift tracking using an
-    Xsuite Line or sub-element.
+    """Class to update the synchronous energy from the momentum program in BLonD.
+
+    Parameters
+    ----------
+    momentum : sequence
+        Momentum program [eV/c] from BLonD.
+
+    Attributes
+    ----------
+    momentum : numpy-array
+        Momentum program [eV/c] from BLonD.
+    xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
+        Class to update the momentum in xsuite.
     """
 
-    def __init__(self):
+    def __init__(self, momentum: MagneticCycleBase):
+        from xtrack import ReferenceEnergyIncrease, ZetaShift
+
+        # Load momentum program
+        self.momentum = momentum
+
+        # Find initial momentum update
+        init_p0c = self.momentum[1] - self.momentum[0]
+
+        # Enter the initial momentum update in the ReferenceEnergyIncrease class in xsuite
+        self.xsuite_energy_update = ReferenceEnergyIncrease(Delta_p0c=init_p0c)
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
+
+    def track(self, particles: Particles):
+        """
+        # todo move this to inside Xsuite drift, should not be separate classes?
+        Track method for the class to update the synchronous energy.
+
+
+        Parameters
+        ----------
+        particles : xtrack.Particles
+            Particles class from xtrack.
+
+        Attributes
+        ----------
+        xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
+            Class to update the momentum in xsuite.
+        """
+        # Check for particles which are still alive
+        mask_alive = particles.state > 0  # todo
+
+        # Use the still alive particles to find the current turn momentum
+        p0c_before = particles.p0c[mask_alive]  # todo
+
+        # Find the momentum for the next turn
+        p0c_after = self.momentum[particles.at_turn[mask_alive][0]]  # todo
+
+        # Update the energy increment
+        self.xsuite_energy_update.Delta_p0c = p0c_after - p0c_before[0]  # todo
+
+        # Apply the energy increment to the particles
+        self.xsuite_energy_update.track(particles)  # todo
