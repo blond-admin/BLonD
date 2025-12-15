@@ -6,7 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Functions to interface with distributed arrays."""
+"""Functions to interface with MPI distributed arrays."""
 
 from __future__ import annotations
 

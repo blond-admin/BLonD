@@ -1,5 +1,4 @@
 [run]
-parallel = True
 branch = True
 
 # a list of packages or directories, the source to measure during execution.

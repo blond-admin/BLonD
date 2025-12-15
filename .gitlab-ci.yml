@@ -48,17 +48,10 @@ workflow:
   script:
     - pip list
     - cd ${project_root}
+    # Run only MPI unittests. Only the main thread should report.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/core/backends/mpi_distributed/ --import-mode=importlib --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/core/backends/mpi_distributed/ --import-mode=importlib; fi'
+
     # Run all unittests + the examples
-    - mpirun -n 2 bash -c '
-      if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then
-        python3 -m pytest -v unittests/core/backends/mpi_distributed/ \
-          --import-mode=importlib \
-          --cov --cov-config=.coveragerc
-      else
-        python3 -m pytest -v unittests/core/backends/mpi_distributed/ \
-          --import-mode=importlib
-      fi
-      '
     - python3 -m pytest
       -v unittests/
       --import-mode=importlib
