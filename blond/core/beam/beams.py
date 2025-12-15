@@ -253,6 +253,7 @@ class Beam(BeamBaseClass):
         """
         return self._dE.max()
 
+    @cached_property
     def rms_emittance(self):
         """
         Calculate the Root-Mean-Square emittance of the beam.
