@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond.core.backends.backend import backend
+from blond.core.backends.mpi_distributed.callables import rms_emittance
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.generals.distribted.distributed_array import DistributedArray
@@ -251,6 +252,17 @@ class Beam(BeamBaseClass):
             Highest energy in [eV], relative to the reference energy.
         """
         return self._dE.max()
+
+    def rms_emittance(self):
+        """
+        Calculate the Root-Mean-Square emittance of the beam.
+
+        Returns
+        -------
+        rms_emittance
+            The Root-Mean-Square emittance in [s eV] of the beam.
+        """
+        return rms_emittance(dt=self._dt, dE=self._dE)
 
     @cached_property
     def common_array_size(self) -> int:

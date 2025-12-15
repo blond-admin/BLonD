@@ -346,11 +346,25 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """Size of the beam, considering distributed beams."""
         pass
 
+    @cached_property
+    @abstractmethod  # pragma: no cover  # as readonly attributes
+    def rms_emittance(self):
+        """
+        Calculate the Root-Mean-Square emittance of the beam.
+
+        Returns
+        -------
+        rms_emittance
+            The Root-Mean-Square emittance in [s eV] of the beam.
+        """
+        pass
+
     cached_props = (
         "dE_min",
         "dE_max",
         "dt_min",
         "dt_max",
+        "rms_emittance",
         "common_array_size",
         "ratio",
         "reference_gamma",
