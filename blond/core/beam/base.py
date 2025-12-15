@@ -22,6 +22,7 @@ from scipy.constants import speed_of_light as c0  # type: ignore
 from blond.core.base import HasPropertyCache, Preparable
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
+from blond.generals.arrays_ import _read_only
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -39,25 +40,6 @@ class BeamFlags(IntEnum):
     # for loss_box
     LOST = -500  # by convention with XSuite team.
     ACTIVE = 1
-
-
-def _read_only(array: NumpyArray | CupyArray):
-    """
-    Create a read-only view of the given array.
-
-    Parameters
-    ----------
-    array
-        Numpy or Cupy array.
-
-    Returns
-    -------
-    a_readonly
-        Readonly view of the original array.
-    """
-    view = array.view()
-    view.flags.writeable = False
-    return array
 
 
 class BeamBaseClass(Preparable, HasPropertyCache, ABC):
