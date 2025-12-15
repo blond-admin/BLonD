@@ -441,7 +441,7 @@ Run the simulation with the defined observations:
 
     sim.run_simulation(
         beams=(beam1,),
-        turn_i_init=0,
+
         n_turns=N_TURNS,
         observe=(phase_observation, bunch_observation),
     )
@@ -456,7 +456,7 @@ BLonD can cache simulation results. Use a try-except block to load cached result
     try:
         sim.load_results(
             beams=(beam1,),
-            turn_i_init=0,
+
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
         )
@@ -464,7 +464,7 @@ BLonD can cache simulation results. Use a try-except block to load cached result
     except (FileNotFoundError, AssertionError):
         sim.run_simulation(
             beams=(beam1,),
-            turn_i_init=0,
+
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
         )
@@ -492,7 +492,7 @@ You can define custom actions to execute during the simulation:
 
     sim.run_simulation(
         beams=(beam1,),
-        turn_i_init=0,
+
         n_turns=N_TURNS,
         observe=(phase_observation, bunch_observation),
         callback=custom_action,  # custom action called each turn
@@ -600,14 +600,14 @@ Here is the complete example putting it all together:
     try:
         sim.load_results(
             beams=(beam1,),
-            turn_i_init=0,
+
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
         )
     except (FileNotFoundError, AssertionError):
         sim.run_simulation(
             beams=(beam1,),
-            turn_i_init=0,
+
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
         )

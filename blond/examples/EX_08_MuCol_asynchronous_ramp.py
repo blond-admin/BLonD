@@ -136,7 +136,6 @@ def main():
     beam2._is_counter_rotating = True
     sim.run_simulation(
         beams=(beam1, beam2),
-        turn_i_init=0,
         n_turns=n_turns,
         callback=my_callback,  # not supported yet.
         observe=observables,

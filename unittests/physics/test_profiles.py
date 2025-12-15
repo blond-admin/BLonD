@@ -58,7 +58,6 @@ class TestProfileBaseClass(unittest.TestCase):
             simulation=simulation_mock,
             beam=beam_mock,
             n_turns=1,
-            turn_i_init=0,
         )
 
     def test_plot(self):

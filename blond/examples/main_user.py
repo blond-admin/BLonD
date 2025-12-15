@@ -143,9 +143,7 @@ class Main:
             `Beam` object, matched.
         """
         # Full simulation. everything here should be optimized
-        simulation.run_simulation(
-            turn_i_init=10, n_turns=100, beams=(my_beam,)
-        )
+        simulation.run_simulation(n_turns=100, beams=(my_beam,))
 
 
 def main() -> None:

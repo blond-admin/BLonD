@@ -150,7 +150,6 @@ class Beam(BeamBaseClass):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -168,8 +167,6 @@ class Beam(BeamBaseClass):
             The beam object being simulated (typically this beam itself).
         n_turns
             The total number of turns (revolutions) to simulate.
-        turn_i_init
-            The starting turn number for the simulation.
         **kwargs
             Additional keyword arguments for simulation setup.
         """
@@ -177,7 +174,6 @@ class Beam(BeamBaseClass):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
 
     @property
