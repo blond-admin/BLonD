@@ -247,7 +247,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
 
     Examples
     --------
-    >>> bunch_observation = BeamObservationOncePerTurn(each_turn_i=2, beam=...)
+    >>> bunch_observation = BeamObservationOncePerTurn(each_turn_i=2)
     >>>
     >>> sim.run_simulation(
     ...     beams=...,

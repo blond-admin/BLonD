@@ -129,7 +129,7 @@ def main():
             beam=beam,
         )
         bunch_observable = BeamObservationOncePerTurn(
-            each_turn_i=10, beam=beam
+            each_turn_i=10,
         )
         sim.run_simulation(
             observe=(bunch_observable,),
