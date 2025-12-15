@@ -55,6 +55,7 @@ workflow:
     - python3 -m pytest
       -v unittests/
       --import-mode=importlib
+      --cov-append
       --cov
       --cov-config=.coveragerc
       --cov-report html:coverage-html
