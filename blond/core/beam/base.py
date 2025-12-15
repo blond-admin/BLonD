@@ -22,7 +22,6 @@ from scipy.constants import speed_of_light as c0  # type: ignore
 from blond.core.base import HasPropertyCache, Preparable
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
-from blond.generals.arrays_ import _read_only
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -430,7 +429,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return _read_only(self._ids.array_local)
+        return self._ids.array_local
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
         """
@@ -450,7 +449,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return _read_only(self._dt.array_local)
+        return self._dt.array_local
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
         """
@@ -491,7 +490,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return _read_only(self._dE.array_local)
+        return self._dE.array_local
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
         """
@@ -554,7 +553,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return _read_only(self._flags.array_local)
+        return self._flags.array_local
 
     def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
         """
