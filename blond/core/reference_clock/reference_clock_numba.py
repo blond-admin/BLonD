@@ -20,7 +20,7 @@ from scipy.constants import speed_of_light as c0
     fastmath=True,
     cache=True,
     inline="always",
-)
+)  # pragma: no cover
 def gamma(total_energy: float, mass_inv: float) -> float:
     """
     Beam reference gamma a.k.a. Lorentz factor [].
@@ -46,7 +46,7 @@ def gamma(total_energy: float, mass_inv: float) -> float:
     fastmath=True,
     cache=True,
     inline="always",
-)
+)  # pragma: no cover
 def beta(total_energy: float, mass_inv: float) -> float:
     """
     Beam reference fraction of speed of light (v/c0) [].
@@ -73,7 +73,7 @@ def beta(total_energy: float, mass_inv: float) -> float:
     fastmath=True,
     cache=True,
     inline="always",
-)
+)  # pragma: no cover
 def velocity(total_energy: float, mass_inv: float) -> float:
     """
     Beam reference speed [m/s].
