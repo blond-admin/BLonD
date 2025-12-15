@@ -7,7 +7,7 @@ import numpy as np
 from blond import Beam, Simulation, proton
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
-from blond.generals.distribted.distributed_array import DistributedArray
+from blond.generals.distributed.distributed_array import DistributedArray
 
 
 class TestBeam(unittest.TestCase):

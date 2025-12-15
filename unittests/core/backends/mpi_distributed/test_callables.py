@@ -6,7 +6,7 @@ from blond.core.backends.mpi_distributed.callables import (
     mpi_is_active,
     rms_emittance,
 )
-from blond.generals.distribted.distributed_array import DistributedArray
+from blond.generals.distributed.distributed_array import DistributedArray
 
 mpi_active = mpi_is_active()
 mpi_inactive = not mpi_active

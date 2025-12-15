@@ -21,7 +21,7 @@ from blond.core.backends.backend import backend
 from blond.core.backends.mpi_distributed.callables import rms_emittance
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.generals.cupy.no_cupy_import import is_cupy_array
-from blond.generals.distribted.distributed_array import DistributedArray
+from blond.generals.distributed.distributed_array import DistributedArray
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore

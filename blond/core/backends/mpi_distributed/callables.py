@@ -25,7 +25,7 @@ except ImportError:
     MPI = None  # type: ignore
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond.generals.distribted.distributed_array import DistributedArray
+    from blond.generals.distributed.distributed_array import DistributedArray
 
 
 def mpi_is_active() -> float:

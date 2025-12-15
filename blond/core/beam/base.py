@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
-    from blond.generals.distribted.distributed_array import DistributedArray
+    from blond.generals.distributed.distributed_array import DistributedArray
 
 
 class BeamFlags(IntEnum):
