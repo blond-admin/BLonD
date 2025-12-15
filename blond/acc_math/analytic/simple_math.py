@@ -94,7 +94,7 @@ def calc_total_energy(mass: float, momentum: NumpyArray) -> NumpyArray: ...
         nb.float64[:](nb.float64, nb.float64[:]),
         nb.float64[:, :](nb.float64, nb.float64[:, :]),
     ]
-)
+)  # pragma: no cover
 def calc_total_energy(
     mass: float, momentum: float | NumpyArray
 ) -> float | NumpyArray:
