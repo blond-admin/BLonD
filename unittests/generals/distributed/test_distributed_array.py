@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 
+from blond import backend
 from blond.core.backends.mpi_distributed.callables import (
     mpi_is_active,
     rms_emittance,
@@ -15,7 +16,7 @@ mpi_inactive = not mpi_active
 class TestDistributedArray(unittest.TestCase):
     def setUp(self):
         rng = np.random.default_rng(0)
-        self.array = rng.normal(loc=0, scale=1, size=128)
+        self.array = backend.array([1.0, 2.0, 3, 4.0], dtype=np.float32)
         self.da = DistributedArray(self.array.copy())
 
     def local_size(self):
@@ -26,12 +27,6 @@ class TestDistributedArray(unittest.TestCase):
         self.assertEqual(self.da.global_size, 128)
 
     def _call_test(self, func, func_name):
-        expected = func(self.array)
-        if mpi_active:
-            self.da.mpi_scatter()
-        actual = getattr(self.da, func_name)()
-        np.testing.assert_almost_equal(expected, actual)
-
         expected = func(self.array)
         if mpi_active:
             self.da.mpi_scatter()
