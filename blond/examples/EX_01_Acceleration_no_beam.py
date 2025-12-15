@@ -29,7 +29,7 @@ from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 
 logging.basicConfig(level=logging.INFO)
 
-PROFILING = False
+n_turns = int(1e3)
 
 
 def main():
@@ -40,11 +40,9 @@ def main():
     rf_station.voltage = 6e6
     rf_station.phi_rf = 0
 
-    N_TURNS = int(1e6)
-
     energy_cycle = MagneticCyclePerTurn(
         value_init=450e9,
-        values_after_turn=np.linspace(450e9, 7e12, N_TURNS),
+        values_after_turn=np.linspace(450e9, 7e12, n_turns),
         reference_particle=proton,
     )
 
@@ -70,23 +68,13 @@ def main():
         turn_i_init=0, t_init=0, particle_type=beam1.particle_type
     )
 
-    with backend.temporary_specials_mode("python"):
-        if PROFILING:
-            sim.profiling(
-                beams=(beam1,),
-                turn_i_init=0,
-                profile_n_turns=1e5,
-                sortby=SortKey.TIME,
-                # callback=custom_action,
-            )
-            sys.exit(0)
-        sim.run_simulation(
-            beams=(beam1,),
-            turn_i_init=0,
-            n_turns=N_TURNS,
-            observe=(phase_observation, bunch_observation),
-            # callback=custom_action,
-        )
+    sim.run_simulation(
+        beams=(beam1,),
+        turn_i_init=0,
+        n_turns=n_turns,
+        observe=(phase_observation, bunch_observation),
+        # callback=custom_action,
+    )
     plt.figure()
     plt.ylabel("reference_time (s)")
     plt.xlabel("turn")
