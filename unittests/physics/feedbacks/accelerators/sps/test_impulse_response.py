@@ -243,8 +243,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
                 reinsertion=True,
             ),
         )
-
-        beam._dt += n_shift * t_rf
+        beam_dt = beam.write_partial_dt()
+        beam_dt += n_shift * t_rf
         rf._update_beam_based_attributes(
             beam=beam,
         )
@@ -368,8 +368,10 @@ class TestTravelingWaveCavity(unittest.TestCase):
         dt = np.empty(bunches * N_m)
         dE = np.empty_like(dt)
         for i in range(bunches):
-            dt[i * N_m : (i + 1) * N_m] = beam._dt + i * bunch_spacing
-            dE[i * N_m : (i + 1) * N_m] = beam._dE
+            dt[i * N_m : (i + 1) * N_m] = (
+                beam.read_partial_dt() + i * bunch_spacing
+            )
+            dE[i * N_m : (i + 1) * N_m] = beam.read_partial_dE()
         beam2.setup_beam(
             dt=dt,
             dE=dE,

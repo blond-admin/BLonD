@@ -315,14 +315,19 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             Beam class to interact with this element.
         """
         if self._beam_id_filter is None or self._beam_id_filter == id(beam):
-            self._sigma_dt.write(np.std(beam._dt))
-            self._sigma_dE.write(np.std(beam._dE))
-            self._mean_dt.write(np.mean(beam._dt))
-            self._mean_dE.write(np.mean(beam._dE))
+            self._sigma_dt.write(np.std(beam.read_partial_dt()))
+            self._sigma_dE.write(np.std(beam.read_partial_dE()))
+            self._mean_dt.write(np.mean(beam.read_partial_dt()))
+            self._mean_dE.write(np.mean(beam.read_partial_dE()))
             self._rms_emittance.write(
                 np.sqrt(
-                    np.average(beam._dE**2) * np.average(beam._dt**2)
-                    - np.average(beam._dE * beam._dt) ** 2
+                    np.average(beam.read_partial_dE() ** 2)
+                    * np.average(
+                        beam.read_partial_dt() ** 2
+                        - np.average(beam.read_partial_dE())
+                        * beam.read_partial_dt()
+                    )
+                    ** 2
                 )
             )
 

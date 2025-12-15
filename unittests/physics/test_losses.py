@@ -224,7 +224,7 @@ class TestBoxLosses(unittest.TestCase):
             | (beam.read_partial_dt() > 2)
             | (beam.read_partial_dE() < -10)
             | (beam.read_partial_dE() > 20),
-            ~beam._flags.astype(bool),
+            ~beam.read_partial_flags().astype(bool),
         )
         self.assertLess(beam.intensity, 1e12)
 

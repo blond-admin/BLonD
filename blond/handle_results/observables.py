@@ -353,7 +353,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         self._reference_total_energy.write(self._beam.reference_total_energy)
         self._dts.write(self._beam.read_partial_dt())
         self._dEs.write(self._beam.read_partial_dE())
-        self._flags.write(self._beam._flags.array_local)
+        self._flags.write(self._beam.read_partial_flags())
 
     @property  # as readonly attributes
     def reference_time(self):

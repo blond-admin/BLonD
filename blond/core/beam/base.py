@@ -41,6 +41,25 @@ class BeamFlags(IntEnum):
     ACTIVE = 1
 
 
+def _read_only(array: NumpyArray | CupyArray):
+    """
+    Create a read-only view of the given array.
+
+    Parameters
+    ----------
+    array
+        Numpy or Cupy array.
+
+    Returns
+    -------
+    a_readonly
+        Readonly view of the original array.
+    """
+    view = array.view()
+    view.flags.writeable = False
+    return array
+
+
 class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     """
     Base class to make beam classes.
@@ -415,7 +434,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._ids.array_local
+        return _read_only(self._ids.array_local)
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
         """
@@ -435,7 +454,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dt.array_local
+        return _read_only(self._dt.array_local)
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
         """
@@ -476,7 +495,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dE.array_local
+        return _read_only(self._dE.array_local)
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
         """
@@ -539,7 +558,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._flags.array_local
+        return _read_only(self._flags.array_local)
 
     def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
         """

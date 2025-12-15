@@ -31,7 +31,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
 
         DEV_PLOT = False
         if DEV_PLOT:
-            idx = np.argmax(sim.beam1._dt)
+            idx = np.argmax(sim.beam1.read_partial_dt())
             data = np.ones((1000, 2))
             data[:, :] = np.nan
 
@@ -42,18 +42,23 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 plt.cla()
                 beam.plot_hist2d(range=((0.7e-9, 1.8e-9), (-3.5e8, 3.5e8)))
                 data[simulation.turn_i.value % data.shape[0], 0] = (
-                    sim.beam1._dt[idx]
+                    sim.beam1.read_partial_dt()[idx]
                 )
                 data[simulation.turn_i.value % data.shape[0], 1] = (
-                    sim.beam1._dE[idx]
+                    sim.beam1.read_partial_dE()[idx]
                 )
                 plt.plot(data[:, 0], data[:, 1], ".")
-                plt.axhline(beam._dE.mean())
-                plt.axvline(beam._dt.mean())
+                plt.axhline(beam.read_partial_dE().mean())
+                plt.axvline(beam.read_partial_dt().mean())
                 plt.subplot(2, 1, 2)
                 if simulation.turn_i.value == 0:
                     plt.cla()
-                plt.hist(beam._dt, bins=256, histtype="step", density=True)
+                plt.hist(
+                    beam.read_partial_dt(),
+                    bins=256,
+                    histtype="step",
+                    density=True,
+                )
                 plt.draw()
                 plt.pause(0.1)
 
@@ -63,8 +68,12 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 n_turns=1e6,
             )
         for percentile in (10, 50, 90):
-            percentile_dt = float(np.percentile(sim.beam1._dt, percentile))
-            percentile_dE = float(np.percentile(sim.beam1._dE, percentile))
+            percentile_dt = float(
+                np.percentile(sim.beam1.read_partial_dt(), percentile)
+            )
+            percentile_dE = float(
+                np.percentile(sim.beam1.read_partial_dE(), percentile)
+            )
             np.testing.assert_allclose(
                 expected_dt[percentile],
                 percentile_dt,
@@ -90,10 +99,15 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 plt.subplot(2, 1, 1)
                 plt.cla()
                 beam.plot_hist2d(range=((0.7e-9, 1.8e-9), (-3.5e8, 3.5e8)))
-                plt.axhline(beam._dE.mean())
-                plt.axvline(beam._dt.mean())
+                plt.axhline(beam.read_partial_dE().mean())
+                plt.axvline(beam.read_partial_dt().mean())
                 plt.subplot(2, 1, 2)
-                plt.hist(beam._dt, bins=256, histtype="step", density=True)
+                plt.hist(
+                    beam.read_partial_dt(),
+                    bins=256,
+                    histtype="step",
+                    density=True,
+                )
                 plt.draw()
                 plt.draw()
                 plt.pause(0.1)
@@ -115,8 +129,12 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             90: 201528752.0,
         }
         for percentile in (10, 50, 90):
-            percentile_dt = float(np.percentile(sim.beam1._dt, percentile))
-            percentile_dE = float(np.percentile(sim.beam1._dE, percentile))
+            percentile_dt = float(
+                np.percentile(sim.beam1.read_partial_dt(), percentile)
+            )
+            percentile_dE = float(
+                np.percentile(sim.beam1.read_partial_dE(), percentile)
+            )
 
             np.testing.assert_allclose(
                 expected_dt[percentile],
@@ -145,7 +163,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
 
         DEV_PLOT = False
         if DEV_PLOT:
-            idx = np.argmax(sim.beam1._dt)
+            idx = np.argmax(sim.beam1.read_partial_dt())
             data = np.ones((1000, 2))
             data[:, :] = np.nan
 
@@ -156,18 +174,23 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 plt.cla()
                 beam.plot_hist2d()
                 data[simulation.turn_i.value % data.shape[0], 0] = (
-                    sim.beam1._dt[idx]
+                    sim.beam1.read_partial_dt()[idx]
                 )
                 data[simulation.turn_i.value % data.shape[0], 1] = (
-                    sim.beam1._dE[idx]
+                    sim.beam1.read_partial_dE()[idx]
                 )
                 plt.plot(data[:, 0], data[:, 1], ".")
-                plt.axhline(beam._dE.mean())
-                plt.axvline(beam._dt.mean())
+                plt.axhline(beam.read_partial_dE().mean())
+                plt.axvline(beam.read_partial_dt().mean())
                 plt.subplot(2, 1, 2)
                 if simulation.turn_i.value == 0:
                     plt.cla()
-                plt.hist(beam._dt, bins=256, histtype="step", density=True)
+                plt.hist(
+                    beam.read_partial_dt(),
+                    bins=256,
+                    histtype="step",
+                    density=True,
+                )
                 plt.draw()
                 plt.pause(0.1)
 
@@ -177,8 +200,12 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 n_turns=1e6,
             )
         for percentile in (10, 50, 90):
-            percentile_dt = float(np.percentile(sim.beam1._dt, percentile))
-            percentile_dE = float(np.percentile(sim.beam1._dE, percentile))
+            percentile_dt = float(
+                np.percentile(sim.beam1.read_partial_dt(), percentile)
+            )
+            percentile_dE = float(
+                np.percentile(sim.beam1.read_partial_dE(), percentile)
+            )
             np.testing.assert_allclose(
                 expected_dt[percentile],
                 percentile_dt,
@@ -204,10 +231,15 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 plt.subplot(2, 1, 1)
                 plt.cla()
                 beam.plot_hist2d()
-                plt.axhline(beam._dE.mean())
-                plt.axvline(beam._dt.mean())
+                plt.axhline(beam.read_partial_dE().mean())
+                plt.axvline(beam.read_partial_dt().mean())
                 plt.subplot(2, 1, 2)
-                plt.hist(beam._dt, bins=256, histtype="step", density=True)
+                plt.hist(
+                    beam.read_partial_dt(),
+                    bins=256,
+                    histtype="step",
+                    density=True,
+                )
                 plt.draw()
                 plt.draw()
                 plt.pause(0.1)
@@ -225,8 +257,12 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         }
         expected_dE = {10: -2083857792.0, 50: -3101351.0, 90: 2078033792.0}
         for percentile in (10, 50, 90):
-            percentile_dt = float(np.percentile(sim.beam1._dt, percentile))
-            percentile_dE = float(np.percentile(sim.beam1._dE, percentile))
+            percentile_dt = float(
+                np.percentile(sim.beam1.read_partial_dt(), percentile)
+            )
+            percentile_dE = float(
+                np.percentile(sim.beam1.read_partial_dE(), percentile)
+            )
             np.testing.assert_allclose(
                 expected_dt[percentile],
                 percentile_dt,
