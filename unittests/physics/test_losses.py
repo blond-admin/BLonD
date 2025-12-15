@@ -78,10 +78,10 @@ class TestBoxLosses(unittest.TestCase):
         )
         self.box_losses.track(beam=beam)
 
-        np.testing.assert_equal(beam._dt >= -1, True)
-        np.testing.assert_equal(beam._dt <= 2, True)
-        np.testing.assert_equal(beam._dE >= -10, True)
-        np.testing.assert_equal(beam._dE <= 20, True)
+        np.testing.assert_equal(beam.read_partial_dt() >= -1, True)
+        np.testing.assert_equal(beam.read_partial_dt() <= 2, True)
+        np.testing.assert_equal(beam.read_partial_dE() >= -10, True)
+        np.testing.assert_equal(beam.read_partial_dE() <= 20, True)
 
     def test_wrong_args(self):
         with self.assertRaises(AssertionError):
@@ -121,9 +121,9 @@ class TestBoxLosses(unittest.TestCase):
         print(beam._dE)
 
         # np.testing.assert_equal(beam._dt >= 1, True)
-        np.testing.assert_equal(beam._dt <= 2, True)
-        np.testing.assert_equal(beam._dE >= -10, True)
-        np.testing.assert_equal(beam._dE <= 20, True)
+        np.testing.assert_equal(beam.read_partial_dt() <= 2, True)
+        np.testing.assert_equal(beam.read_partial_dE() >= -10, True)
+        np.testing.assert_equal(beam.read_partial_dE() <= 20, True)
         self.assertLess(beam.intensity, 1e12)
 
     def test_track3(self):
@@ -143,10 +143,10 @@ class TestBoxLosses(unittest.TestCase):
         print(beam._dt)
         print(beam._dE)
 
-        np.testing.assert_equal(beam._dt >= 1, True)
+        np.testing.assert_equal(beam.read_partial_dt() >= 1, True)
         # np.testing.assert_equal(beam._dt <= 2, True)
-        np.testing.assert_equal(beam._dE >= -10, True)
-        np.testing.assert_equal(beam._dE <= 20, True)
+        np.testing.assert_equal(beam.read_partial_dE() >= -10, True)
+        np.testing.assert_equal(beam.read_partial_dE() <= 20, True)
         self.assertLess(beam.intensity, 1e12)
 
     def test_track4(self):
@@ -163,10 +163,10 @@ class TestBoxLosses(unittest.TestCase):
             dE=np.linspace(-100, 100, 201),
         )
         self.box_losses.track(beam=beam)
-        np.testing.assert_equal(beam._dt >= 1, True)
-        np.testing.assert_equal(beam._dt <= 2, True)
+        np.testing.assert_equal(beam.read_partial_dt() >= 1, True)
+        np.testing.assert_equal(beam.read_partial_dt() <= 2, True)
         # np.testing.assert_equal(beam._dE >= -10, True)
-        np.testing.assert_equal(beam._dE <= 20, True)
+        np.testing.assert_equal(beam.read_partial_dE() <= 20, True)
 
     def test_track5(self):
         self.box_losses = BoxLosses(
@@ -182,9 +182,9 @@ class TestBoxLosses(unittest.TestCase):
             dE=np.linspace(-100, 100, 201),
         )
         self.box_losses.track(beam=beam)
-        np.testing.assert_equal(beam._dt >= 1, True)
-        np.testing.assert_equal(beam._dt <= 2, True)
-        np.testing.assert_equal(beam._dE >= -10, True)
+        np.testing.assert_equal(beam.read_partial_dt() >= 1, True)
+        np.testing.assert_equal(beam.read_partial_dt() <= 2, True)
+        np.testing.assert_equal(beam.read_partial_dE() >= -10, True)
         # np.testing.assert_equal(beam._dE <= 20, True)
         self.assertLess(beam.intensity, 1e12)
 
@@ -218,14 +218,14 @@ class TestBoxLosses(unittest.TestCase):
             plt.axvline(self.box_losses.t_min)
             plt.show()
 
-        self.assertEqual(3, len(beam._dt))
-        self.assertEqual(3, len(beam._dE))
+        self.assertEqual(3, len(beam.read_partial_dt()))
+        self.assertEqual(3, len(beam.read_partial_dE()))
 
         np.testing.assert_equal(
-            (beam._dt < 1)
-            | (beam._dt > 2)
-            | (beam._dE < -10)
-            | (beam._dE > 20),
+            (beam.read_partial_dt() < 1)
+            | (beam.read_partial_dt() > 2)
+            | (beam.read_partial_dE() < -10)
+            | (beam.read_partial_dE() > 20),
             ~beam._flags.astype(bool),
         )
         self.assertLess(beam.intensity, 1e12)
