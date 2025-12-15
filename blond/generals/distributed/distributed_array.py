@@ -241,7 +241,7 @@ class DistributedArray:
     def histogram(
         self,
         bins,
-        range: tuple[float, float],
+        range: tuple[float, float] | None = None,
         out: NumpyArray | CupyArray | None = None,
     ):
         """
@@ -272,6 +272,9 @@ class DistributedArray:
         else:
             assert out.dtype == backend.float
             array_write_local = out
+
+        if range is None:
+            range = (self.min(), self.max())
 
         backend.specials.histogram(
             array_read=self.array_local,
