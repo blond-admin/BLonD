@@ -1178,7 +1178,7 @@ class Simulation(Preparable):
                 n_turns, warning_stacklevel=2
             )
             if max_turns is not None:
-                assert (0 + _n_turns) <= max_turns, (
+                assert _n_turns <= max_turns, (
                     f"Max turn number is {self.magnetic_cycle.n_turns=}, "
                     f"but trying to simulate {(0 + _n_turns)} turns"
                 )
@@ -1321,7 +1321,7 @@ class Simulation(Preparable):
             )
 
         logger.info("Starting simulation mainloop...")
-        iterator = range(0, 0 + n_turns)
+        iterator = range(n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
         self.turn_i.value = 0
