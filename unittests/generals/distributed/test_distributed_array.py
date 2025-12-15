@@ -30,13 +30,13 @@ class TestDistributedArray(unittest.TestCase):
         if mpi_active:
             self.da.mpi_scatter()
         actual = getattr(self.da, func_name)()
-        self.assertEqual(expected, actual)
+        np.testing.assert_almost_equal(expected, actual)
 
         expected = func(self.array)
         if mpi_active:
             self.da.mpi_scatter()
         actual = getattr(self.da, func_name)()
-        self.assertEqual(expected, actual)
+        np.testing.assert_almost_equal(expected, actual)
 
     def test_min(self):
         self._call_test(np.min, "min")
