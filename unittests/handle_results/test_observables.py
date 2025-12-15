@@ -102,7 +102,6 @@ class TestObservables(unittest.TestCase):
         self.observables.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            turn_i_init=0,
             n_turns=100,
         )
         self.observables.update(
@@ -119,7 +118,6 @@ class TestObservables(unittest.TestCase):
         self.observables.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            turn_i_init=0,
             n_turns=100,
         )
 
@@ -135,7 +133,6 @@ class TestObservables(unittest.TestCase):
         self.observables.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            turn_i_init=0,
             n_turns=100,
         )
 
@@ -151,7 +148,6 @@ class TestObservables(unittest.TestCase):
         self.observables.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            turn_i_init=0,
             n_turns=100,
         )
 
@@ -206,7 +202,6 @@ class TestBunchObservation(unittest.TestCase):
         self.bunch_observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            turn_i_init=0,
             n_turns=100,
         )
         self.bunch_observation.update(
@@ -249,7 +244,6 @@ class TestRfStationPhaseObservation(unittest.TestCase):
         self.rf_station_phase_observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            turn_i_init=0,
             n_turns=100,
         )
         self.rf_station_phase_observation.update(
@@ -288,7 +282,6 @@ class TestStaticProfileObservation(unittest.TestCase):
         self.static_profile_observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            turn_i_init=0,
             n_turns=100,
         )
         simulation.section_i.value = 0
@@ -307,7 +300,6 @@ class TestStaticProfileObservation(unittest.TestCase):
         self.static_profile_observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            turn_i_init=0,
             n_turns=100,
         )
         self.static_profile_observation._section_indices_to_observe = np.array(
@@ -362,9 +354,7 @@ class TestWakeFieldObservation(unittest.TestCase):
         )
 
         wf_obs.on_init_simulation(simulation=simulation)
-        wf_obs.on_run_simulation(
-            simulation=simulation, beam=beam, turn_i_init=0, n_turns=100
-        )
+        wf_obs.on_run_simulation(simulation=simulation, beam=beam, n_turns=100)
 
         orig_save = type(wf).induced_voltage
         type(wf).induced_voltage = PropertyMock(
@@ -388,7 +378,6 @@ class TestWakeFieldObservation(unittest.TestCase):
         self.wake_field_observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            turn_i_init=0,
             n_turns=100,
         )
         simulation.section_i.value = 0
@@ -440,7 +429,6 @@ class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
         self.dynamic_profile_observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            turn_i_init=0,
             n_turns=100,
         )
         self.dynamic_profile_observation.update(
@@ -518,7 +506,6 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         self.static_multi_profile_observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            turn_i_init=0,
             obs_per_turn=2,
             n_turns=100,
         )

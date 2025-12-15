@@ -143,7 +143,9 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         mhc_feedbacks.on_init_simulation(simulation=simulation)
         mhc_feedbacks.on_run_simulation(
-            simulation=simulation, beam=self.beam, n_turns=100, turn_i_init=0
+            simulation=simulation,
+            beam=self.beam,
+            n_turns=100,
         )
 
         with self.assertRaises(TypeError):
