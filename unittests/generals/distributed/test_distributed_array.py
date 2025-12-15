@@ -16,14 +16,14 @@ mpi_inactive = not mpi_active
 class TestDistributedArray(unittest.TestCase):
     def setUp(self):
         rng = np.random.default_rng(0)
-        self.array = backend.array([1.0, 2.0, 3, 4.0], dtype=np.float32)
+        self.array = rng.normal(loc=0, scale=1.0, size=128)
         self.da = DistributedArray(self.array.copy())
 
     def local_size(self):
         self.assertEqual(self.da.local_size, 128)
         if mpi_active:
             self.da.mpi_scatter()
-        self.assertEqual(self.da.local_size, 64)
+        self.assertEqual(self.da.local_size, 64)  # assumes `mpirun -n 2`
         self.assertEqual(self.da.global_size, 128)
 
     def _call_test(self, func, func_name):
