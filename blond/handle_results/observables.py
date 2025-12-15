@@ -153,7 +153,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self.each_turn_i = each_turn_i
 
         self._n_turns: int | None = None
-        self._turn_i_init: int | None = None
         self._turns_array: NumpyArray | None = None
 
         self._last_turn_i_observed = (
@@ -207,7 +206,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         simulation: Simulation,
         beam: BeamBaseClass,  # this is not used in this context
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -221,13 +219,10 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
         self._n_turns = int(n_turns)
-        self._turn_i_init = int(turn_i_init)
 
         self._turns_array = np.linspace(
             0, n_turns, num=n_turns // self.each_turn_i + 1, dtype=int
@@ -246,8 +241,6 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     each_turn_i
         Value to control that the element is
         callable each n-th turn.
-    beam
-        Simulation beam object.
     folder
         Path to the target folder used for
         saving or loading files.
@@ -274,14 +267,13 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
-        beam: BeamBaseClass,
         folder: str = "",
     ):
         super().__init__(
             each_turn_i=each_turn_i,
             folder=folder,
         )
-        self._beam = beam
+        self._beam: BeamBaseClass | None = None
         self._dts: DenseArrayRecorder | None = None
         self._dEs: DenseArrayRecorder | None = None
         self._flags: DenseArrayRecorder | None = None
@@ -314,7 +306,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
-
+        self._beam = beam
         n_entries = n_turns // self.each_turn_i + 2
         n_macroparticles = int(beam.common_array_size)
         shape = (n_entries, n_macroparticles)
@@ -430,8 +422,6 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     each_turn_i
         Value to control that the element is
         callable each n-th turn.
-    beam
-        Simulation beam object.
     folder
         Path to the target folder used for
         saving or loading files.
@@ -455,14 +445,13 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
-        beam: BeamBaseClass,
         folder: str = "",
     ):
         super().__init__(
             each_turn_i=each_turn_i,
             folder=folder,
         )
-        self._beam = beam
+        self._beam: BeamBaseClass | None = None
         self._bunch_position: DenseArrayRecorder | None = None
         self._energy_spread: DenseArrayRecorder | None = None
         self._bunch_length: DenseArrayRecorder | None = None
@@ -495,7 +484,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
-
+        self._beam = beam
         n_entries = n_turns // self.each_turn_i + 2
 
         self._bunch_position = DenseArrayRecorder(
@@ -803,7 +792,6 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         simulation: Simulation,
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -817,15 +805,13 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
+
         **kwargs
             Additional keyword arguments.
         """
         super().on_run_simulation(
             simulation=simulation,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
             beam=beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
@@ -942,7 +928,6 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         simulation: Simulation,
         beam: BeamBaseClass,  # this is not used in this context
         n_turns: int,
-        turn_i_init: int,
         **kwargs,
     ) -> None:
         """
@@ -956,8 +941,6 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             Simulation beam object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -965,7 +948,6 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
         n_entries = int(
             (len(self._turns_array) * len(self._profiles)) // self.each_turn_i
@@ -1075,7 +1057,6 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
         simulation: Simulation,
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -1089,8 +1070,6 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -1098,7 +1077,6 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
 
         n_entries = n_turns // self.each_turn_i + 2
@@ -1188,7 +1166,6 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -1202,8 +1179,7 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
             Simulation beam object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
+
         **kwargs
             Additional keyword arguments.
         """
@@ -1211,7 +1187,6 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
 
         n_entries = n_turns // self.each_turn_i + 2
