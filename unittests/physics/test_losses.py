@@ -18,7 +18,6 @@ class LossesBaseClassHelper(LossesBaseClass):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs,
     ) -> None:
         pass
@@ -67,7 +66,6 @@ class TestBoxLosses(unittest.TestCase):
             simulation=simulation_mock,
             beam=beam_mock,
             n_turns=1,
-            turn_i_init=0,
         )
 
     def test_track(self):

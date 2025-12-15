@@ -181,8 +181,6 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         t_rev = magnetic_cycle.get_t_rev_init(
             circumference=ring.circumference,
-            turn_i_init=0,
-            t_init=0,
             particle_type=proton,
         )
         rf = MultiHarmonicRfStation(
@@ -336,8 +334,6 @@ class TestTravelingWaveCavity(unittest.TestCase):
         t_rf = (
             magnetic_cycle.get_t_rev_init(
                 circumference=ring.circumference,
-                t_init=0,
-                turn_i_init=0,
                 particle_type=beam.particle_type,
             )
             / rf.harmonic

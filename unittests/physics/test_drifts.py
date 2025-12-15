@@ -34,7 +34,6 @@ class TestDriftBaseClass(unittest.TestCase):
         self.drift_base_class.on_run_simulation(
             simulation=simulation,
             n_turns=11,
-            turn_i_init=1,
             beam=Mock(BeamBaseClass),
         )
 

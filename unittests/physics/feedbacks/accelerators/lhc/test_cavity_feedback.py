@@ -71,7 +71,7 @@ class TestLHCOpenDrive(unittest.TestCase):
             ),
         )
         beam.reference_total_energy = sim.magnetic_cycle.get_total_energy_init(
-            0, 0, beam.particle_type
+            beam.particle_type
         )
         # Test in open loop, on tune
         self.RFFB = LHCCavityLoopCommissioning(
