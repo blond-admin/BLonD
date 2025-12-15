@@ -132,6 +132,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
         reference_energy_change = backend.float(
             target_total_energy - beam.reference_total_energy
         )
-
-        beam._dE -= reference_energy_change
+        dE = beam.write_partial_dE()
+        dE -= reference_energy_change
         beam.reference_total_energy += reference_energy_change
