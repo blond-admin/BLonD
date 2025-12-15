@@ -293,7 +293,6 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         simulation: Simulation,
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -307,8 +306,6 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -316,7 +313,6 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
 
         n_entries = n_turns // self.each_turn_i + 2
@@ -360,9 +356,9 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         # TODO allow several bunches
         self._reference_time.write(self._beam.reference_time)
         self._reference_total_energy.write(self._beam.reference_total_energy)
-        self._dts.write(self._beam._dt)
-        self._dEs.write(self._beam._dE)
-        self._flags.write(self._beam._flags)
+        self._dts.write(self._beam.read_partial_dt())
+        self._dEs.write(self._beam.read_partial_dE())
+        self._flags.write(self._beam.read_partial_flags())
 
     @property  # as readonly attributes
     def reference_time(self):
@@ -442,7 +438,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
 
     Examples
     --------
-    >>> bunch_statistics = BeamObservationOncePerTurn(each_turn_i=2, beam=...)
+    >>> bunch_statistics = BeamStatisticsOncePerTurn(each_turn_i=2, beam=...)
     >>>
     >>> sim.run_simulation(
     ...     beams=...,
@@ -452,7 +448,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
     >>> for index in (before, turn_2)
     ...     plt.plot(
-    ...         bunch_statistics._bunch_position[index, :],
+    ...         bunch_statistics.bunch_position()[index, :],
     ...     )
     """
 
@@ -470,7 +466,6 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         self._bunch_position: DenseArrayRecorder | None = None
         self._energy_spread: DenseArrayRecorder | None = None
         self._bunch_length: DenseArrayRecorder | None = None
-        self._flags: DenseArrayRecorder | None = None
         self._reference_time: DenseArrayRecorder | None = None
         self._reference_total_energy: DenseArrayRecorder | None = None
 
@@ -479,7 +474,6 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         simulation: Simulation,
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -493,8 +487,6 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -502,28 +494,21 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
 
         n_entries = n_turns // self.each_turn_i + 2
-        n_macroparticles = int(beam.common_array_size)
-        shape = (n_entries, n_macroparticles)
 
         self._bunch_position = DenseArrayRecorder(
             f"{self.common_filepath}_bunch_position",
-            shape,
+            n_entries,
         )
         self._energy_spread = DenseArrayRecorder(
             f"{self.common_filepath}_energy_spread",
-            shape,
+            n_entries,
         )
         self._bunch_length = DenseArrayRecorder(
             f"{self.common_filepath}_bunch_length",
-            shape,
-        )
-        self._flags = DenseArrayRecorder(
-            f"{self.common_filepath}_flags",
-            shape,
+            n_entries,
         )
 
         self._reference_time = DenseArrayRecorder(
@@ -548,36 +533,13 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             `Simulation` context manager.
         """
         # TODO allow several bunches
+
+        self._bunch_position.write(np.average(self._beam.read_partial_dt()))
+        self._energy_spread.write(np.std(self._beam.read_partial_dE()))
+        self._bunch_length.write(np.std(self._beam.read_partial_dt()))
+
         self._reference_time.write(self._beam.reference_time)
         self._reference_total_energy.write(self._beam.reference_total_energy)
-        self._bunch_position.write(np.average(self._beam._dt))
-        self._energy_spread.write(np.std(self._beam._dE))
-        self._bunch_length.write(np.std(self._beam._dt))
-        self._flags.write(self._beam._flags)
-
-    @property  # as readonly attributes
-    def reference_time(self):
-        """
-        Return reference time of shape ``(n_observations, n_bins)``.
-
-        Returns
-        -------
-        reference_time
-            Reference time array.
-        """
-        return self._reference_time.get_valid_entries()
-
-    @property  # as readonly attributes
-    def reference_total_energy(self):
-        """
-        Return total energy of shape ``(n_observations, n_bins)``.
-
-        Returns
-        -------
-        reference_total_energy
-            Total energy array.
-        """
-        return self._reference_total_energy.get_valid_entries()
 
     @property  # as readonly attributes
     def bunch_position(self):
@@ -616,16 +578,28 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         return self._bunch_length.get_valid_entries()
 
     @property  # as readonly attributes
-    def flags(self):
+    def reference_time(self):
         """
-        Return flags of particles, eg if lost or not of shape ``(n_observations, n_macroparticles)``.
+        Return reference time of shape ``(1, n_observations)``.
 
         Returns
         -------
-        flags
-            Particle flags array.
+        reference_time
+            Reference time array.
         """
-        return self._flags.get_valid_entries()
+        return self._reference_time.get_valid_entries()
+
+    @property  # as readonly attributes
+    def reference_total_energy(self):
+        """
+        Return total energy of shape ``(1, n_observations)``.
+
+        Returns
+        -------
+        reference_total_energy
+            Total energy array.
+        """
+        return self._reference_total_energy.get_valid_entries()
 
 
 class RfStationPhaseObservation(ObservablesOncePerTurnBase):
@@ -678,7 +652,6 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
         simulation: Simulation,
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -692,8 +665,6 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -701,7 +672,6 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
 
         n_entries = n_turns // self.each_turn_i + 2
