@@ -7,6 +7,7 @@ import numpy as np
 from blond import Beam, Simulation, proton
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
+from blond.generals.distribted.distributed_array import DistributedArray
 
 
 class TestBeam(unittest.TestCase):
@@ -59,7 +60,7 @@ class TestBeam(unittest.TestCase):
 
     def test_invalidate_cache_dE2(self) -> None:
         before = self.beam.dE_max
-        self.beam._dE[:] = 100  # changes, but cache unchanged
+        self.beam._dE.array_local[:] = 100  # changes, but cache unchanged
         # so result should be unchanged, even though _dE changed
         self.assertEqual(before, self.beam.dE_max)
 
@@ -76,7 +77,7 @@ class TestBeam(unittest.TestCase):
 
     def test_invalidate_cache_dE_min2(self) -> None:
         before = self.beam.dE_min
-        self.beam._dE[:] = 100
+        self.beam._dE.array_local[:] = 100
         self.assertEqual(before, self.beam.dE_min)
 
         self.beam.invalidate_cache_dE()
@@ -92,7 +93,7 @@ class TestBeam(unittest.TestCase):
 
     def test_invalidate_cache_dt_max2(self) -> None:
         before = self.beam.dt_max
-        self.beam._dt[:] = 50
+        self.beam._dt.array_local[:] = 50
         self.assertEqual(before, self.beam.dt_max)
 
         self.beam.invalidate_cache_dt()
@@ -108,7 +109,7 @@ class TestBeam(unittest.TestCase):
 
     def test_invalidate_cache_dt_min2(self) -> None:
         before = self.beam.dt_min
-        self.beam._dt[:] = 5
+        self.beam._dt.array_local[:] = 5
         self.assertEqual(before, self.beam.dt_min)
 
         self.beam.invalidate_cache_dt()
@@ -156,8 +157,8 @@ class TestBeam(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("Cupy not available")
         beam = Mock(Beam)
-        beam._dE = cp.ones(10)
-        beam._dt = cp.ones(10)
+        beam._dE = DistributedArray(cp.ones(10))
+        beam._dt = DistributedArray(cp.ones(10))
         Beam.plot_hist2d(beam)
         plt.gcf().clf()
 
@@ -170,8 +171,8 @@ class TestBeam(unittest.TestCase):
 
     def test_plot_scatter_executes_cpu(self) -> None:
         beam = Mock(Beam)
-        beam._dE = np.ones(10)
-        beam._dt = np.ones(10)
+        beam._dE = DistributedArray(np.ones(10))
+        beam._dt = DistributedArray(np.ones(10))
         Beam.plot_scatter(beam)
         plt.gcf().clf()
 
@@ -181,8 +182,8 @@ class TestBeam(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("Cupy not available")
         beam = Mock(Beam)
-        beam._dE = cp.ones(10)
-        beam._dt = cp.ones(10)
+        beam._dE = DistributedArray(cp.ones(10))
+        beam._dt = DistributedArray(cp.ones(10))
         Beam.plot_scatter(beam)
         plt.gcf().clf()
 
@@ -199,8 +200,8 @@ class TestBeam(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("Cupy not available")
         beam = Mock(Beam)
-        beam._dE = cp.ones(10)
-        beam._dt = cp.ones(10)
+        beam._dE = DistributedArray(cp.ones(10))
+        beam._dt = DistributedArray(cp.ones(10))
         for axis in range(2):
             Beam.plot_hist(beam, axis=axis)
             plt.gcf().clf()
@@ -209,14 +210,14 @@ class TestBeam(unittest.TestCase):
 
     def test_plot_hist_executes_kwargs(self) -> None:
         beam = Mock(Beam)
-        beam._dE = np.ones(10)
-        beam._dt = np.ones(10)
+        beam._dE = DistributedArray(np.ones(10))
+        beam._dt = DistributedArray(np.ones(10))
         Beam.plot_hist(beam, axis=0, bins=12)
 
     def test_plot_hist_executes_cpu(self) -> None:
         beam = Mock(Beam)
-        beam._dE = np.ones(10)
-        beam._dt = np.ones(10)
+        beam._dE = DistributedArray(np.ones(10))
+        beam._dt = DistributedArray(np.ones(10))
         for axis in range(2):
             Beam.plot_hist(beam, axis=axis)
             plt.gcf().clf()

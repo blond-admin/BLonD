@@ -22,7 +22,6 @@ from scipy.constants import speed_of_light as c0  # type: ignore
 from blond.core.base import HasPropertyCache, Preparable
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
-from blond.generals.distribted.array import DistributedArray
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -30,6 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
+    from blond.generals.distribted.distributed_array import DistributedArray
 
 
 class BeamFlags(IntEnum):
@@ -423,7 +423,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._ids
+        return self._ids.array_local
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
         """
@@ -527,7 +527,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         self.invalidate_cache_dt()
         self.invalidate_cache_dE()
-        return self._flags
+        return self._flags.array_local
 
     def read_partial_flags(self) -> NumpyArray | CupyArray:
         """
@@ -547,7 +547,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._flags
+        return self._flags.array_local
 
     def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
         """
@@ -568,13 +568,15 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         n_after_truncation_local = (
             backend.specials.move_flagged_elements_to_end(
                 flag=flag,
-                flags=self._flags,
+                flags=self._flags.array_local,
                 dt=self._dt.array_local,
                 dE=self._dE.array_local,
                 ids=self._ids.array_local,
             )
         )
-        self._flags = self._flags[:n_after_truncation_local]
+        self._flags.array_local = self._flags.array_local[
+            :n_after_truncation_local
+        ]
         self._dt.array_local = self._dt.array_local[:n_after_truncation_local]
         self._dE.array_local = self._dE.array_local[:n_after_truncation_local]
         self._ids.array_local = self._ids.array_local[

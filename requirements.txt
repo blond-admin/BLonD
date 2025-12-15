@@ -4,3 +4,4 @@ scipy>=1.15
 matplotlib>=3.9
 numba>=0.60
 tqdm
+mpi4py

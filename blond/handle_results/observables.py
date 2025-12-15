@@ -360,9 +360,9 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         # TODO allow several bunches
         self._reference_time.write(self._beam.reference_time)
         self._reference_total_energy.write(self._beam.reference_total_energy)
-        self._dts.write(self._beam._dt)
-        self._dEs.write(self._beam._dE)
-        self._flags.write(self._beam._flags)
+        self._dts.write(self._beam.read_partial_dt())
+        self._dEs.write(self._beam.read_partial_dE())
+        self._flags.write(self._beam._flags.array_local)
 
     @property  # as readonly attributes
     def reference_time(self):

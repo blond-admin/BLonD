@@ -20,7 +20,7 @@ import numpy as np
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.generals.cupy.no_cupy_import import is_cupy_array
-from blond.generals.distribted.array import DistributedArray
+from blond.generals.distribted.distributed_array import DistributedArray
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -336,7 +336,7 @@ class Beam(BeamBaseClass):
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
             )
-        if is_cupy_array(self._dt):
+        if is_cupy_array(self._dt.array_local):
             # variables below are just for the type hints to function correctly
             dE: CupyArray = self._dE.array_local
             dt: CupyArray = self._dt.array_local
@@ -371,20 +371,22 @@ class Beam(BeamBaseClass):
             )
         if "bins" not in kwargs:
             kwargs["bins"] = 256
-        if is_cupy_array(self._dt.array_local):
-            # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE.array_local
-            dt: CupyArray = self._dt.array_local
+
+        dE = self._dE.array_local
+        dt = self._dt.array_local
+
+        if is_cupy_array(dE):  # assume dt is the same like `dt`
             if axis == 0:
-                xs = dt.get()
+                dt = dt.get()
             elif axis == 1:
-                xs = dE.get()
+                dE = dE.get()
             else:
                 raise ValueError(f"{axis=}")
-        elif axis == 0:
-            xs = self._dt.array_local
+
+        if axis == 0:
+            xs = dt
         elif axis == 1:
-            xs = self._dE.array_local
+            xs = dE
         else:
             raise ValueError(f"{axis=}")
         plt.hist(xs, **kwargs)

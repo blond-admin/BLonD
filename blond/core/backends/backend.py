@@ -449,8 +449,8 @@ class BackendBaseClass(ABC):
         Examples
         --------
         >>> with backend.temporary_specials_mode("python"):
-        >>>     print(backend.specials_mode)
-        >>>     ...
+        ...     print(backend.specials_mode)
+        ...     ...
         >>> print(backend.specials_mode)
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
@@ -680,7 +680,7 @@ class Cupy64Bit(CupyBackend):
         )
 
 
-default = Numpy32Bit()  # use .change_backend(...) to change it anywhere
+default = Numpy64Bit()  # use .change_backend(...) to change it anywhere
 backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
 backend.verbose = True
 backend.apply_environment_variables()

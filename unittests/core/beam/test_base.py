@@ -11,6 +11,7 @@ from blond import Simulation, proton
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
+from blond.generals.distribted.distributed_array import DistributedArray
 
 if TYPE_CHECKING:
     from cupy.typing import NDArray as CupyArray
@@ -31,10 +32,14 @@ class BeamBaseClassTester(BeamBaseClass):
             is_counter_rotating=is_counter_rotating,
             is_distributed=is_distributed,
         )
-        self._dE = np.linspace(1, 10, 10, dtype=backend.float)
-        self._dt = np.linspace(20, 30, 10, dtype=backend.float)
-        self._flags = np.zeros(10, dtype=np.int32)
-        self._ids = np.arange(10, dtype=np.int32)
+        self._dE = DistributedArray(
+            np.linspace(1, 10, 10, dtype=backend.float)
+        )
+        self._dt = DistributedArray(
+            np.linspace(20, 30, 10, dtype=backend.float)
+        )
+        self._flags = DistributedArray(np.zeros(10, dtype=np.int32))
+        self._ids = DistributedArray(np.arange(10, dtype=np.int32))
 
     @cached_property
     def ratio(self) -> float:
@@ -189,16 +194,18 @@ class TestBeamBaseClass(unittest.TestCase):
         )
 
     def test_purge_flagged_entries(self):
-        ids_before = self.beam_base_class._ids.copy()
+        ids_before = self.beam_base_class._ids.array_local.copy()
         select = [0, 1, -1]
 
-        self.beam_base_class._flags[select] = -500
+        self.beam_base_class._flags.array_local[select] = -500
         self.beam_base_class.purge_flagged_entries()
-        self.assertTrue(np.all(self.beam_base_class._flags != -500))
+        self.assertTrue(
+            np.all(self.beam_base_class._flags.array_local != -500)
+        )
 
         mask = np.ones(len(ids_before), dtype=bool)
         mask[select] = False
-        ids_after = self.beam_base_class._ids
+        ids_after = self.beam_base_class._ids.array_local
         np.testing.assert_equal(np.sort(ids_before[mask]), np.sort(ids_after))
 
 

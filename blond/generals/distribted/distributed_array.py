@@ -9,10 +9,19 @@
 
 """Helper module to work with CPU/GPU arrays distributed via MPI."""
 
+from __future__ import annotations
+
 from math import sqrt
 from typing import TYPE_CHECKING
 
-from blond import backend
+from blond.core.backends.backend import backend
+
+if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from mpi4py import MPI as MPI_typehint
+    from numpy.typing import NDArray as NumpyArray
+
+MPI: MPI_typehint | None
 
 # Try to import MPI, but don't fail if not available
 try:
@@ -22,11 +31,6 @@ try:
 except ImportError:
     _MPI_AVAILABLE = False
     MPI = None  # type: ignore
-
-
-if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import NDArray as NumpyArray
 
 
 class DistributedArray:
@@ -44,8 +48,11 @@ class DistributedArray:
 
     def __init__(self, array: NumpyArray | CupyArray):
         self.array_local = array
-        # Setup MPI communication
-        self.comm = MPI.COMM_WORLD
+        if _MPI_AVAILABLE:
+            # Setup MPI communication
+            self.comm = MPI.COMM_WORLD
+        else:
+            self.comm = None
 
         # Determine rank and size
         if self.comm is not None:
