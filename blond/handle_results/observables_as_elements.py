@@ -320,7 +320,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             self._mean_dt.write(beam._dt.mean())
             self._mean_dE.write(beam._dE.mean())
             self._rms_emittance.write(  # FIXME make distributed
-                beam.rms_emittance()
+                beam.rms_emittance
             )
 
     @property  # as readonly attributes
