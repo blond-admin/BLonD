@@ -28,7 +28,23 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.generals.distribted.distributed_array import DistributedArray
 
 
-def rms_emittance(dt: DistributedArray, dE: DistributedArray):
+def mpi_is_active() -> float:
+    """
+    Check weather MPI is active.
+
+    Returns
+    -------
+    mpi_active
+        Weather MPI is active.
+    """
+    return (
+        MPI is not None
+        and MPI.Is_initialized()
+        and MPI.COMM_WORLD.Get_size() > 1
+    )
+
+
+def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
     """
     Calculate the Root-Mean-Square emittance of the beam.
 
@@ -62,4 +78,4 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray):
         n = local_count
     over_n = 1 / n
     rms = np.sqrt((dt_dt * over_n) * (dE_dE * over_n) - (dt_dE * over_n) ** 2)
-    return rms
+    return float(rms)

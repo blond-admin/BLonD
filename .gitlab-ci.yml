@@ -49,6 +49,11 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run all unittests + the examples
+    - mpirun -n 2 python3 -m pytest
+      -v unittests/core/backends/mpi_distributed/
+      --import-mode=importlib
+      --cov
+      --cov-config=.coveragerc
     - python3 -m pytest
       -v unittests/
       --import-mode=importlib

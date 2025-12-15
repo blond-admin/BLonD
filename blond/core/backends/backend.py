@@ -292,6 +292,7 @@ class BackendBaseClass(ABC):
         self.max: Callable = None  # type: ignore
         self.dot: Callable = None  # type: ignore
         self.percentile: Callable = None  # type: ignore
+        self.array_split: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -504,6 +505,7 @@ class NumpyBackend(BackendBaseClass):
         self.max = np.max
         self.dot = np.dot
         self.percentile = np.percentile
+        self.array_split = np.array_split
 
         self._finalize()
 
@@ -632,6 +634,7 @@ class CupyBackend(BackendBaseClass):
         self.max = cp.max
         self.dot = cp.dot
         self.percentile = cp.percentile
+        self.array_split = cp.array_split
 
         from blond.core.backends.cuda.callables import CudaSpecials
 

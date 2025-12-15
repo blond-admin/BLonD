@@ -66,6 +66,29 @@ class DistributedArray:
 
         self._histogram_local_cache = {}
 
+    def mpi_scatter(self) -> None:
+        """
+        Scatter a 1D NumPy array.
+
+        Scatter a 1D NumPy array.
+        Rank 0 owns the global array before scatter.
+        After scatter, each rank owns its local chunk.
+        """
+        if not self.is_distributed:
+            return
+
+        size = self.comm.Get_size()
+        rank = self.comm.Get_rank()
+
+        if rank == 0:
+            # Split array into `size` chunks
+            chunks = backend.array_split(self.array_local, size)
+        else:
+            chunks = None
+
+        # Each rank receives one chunk
+        self.array_local = self.comm.scatter(chunks, root=0)
+
     @property
     def is_root(self) -> bool:
         """
