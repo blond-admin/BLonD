@@ -90,7 +90,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs,
     ) -> None:
         """
@@ -104,8 +103,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
             Simulation beam object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """

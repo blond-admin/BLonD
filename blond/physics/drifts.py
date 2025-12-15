@@ -140,7 +140,6 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -154,8 +153,6 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -341,7 +338,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         d.on_init_simulation(simulation=simulation)
         d.on_run_simulation(
             simulation=simulation,
-            turn_i_init=0,
             n_turns=1,
             beam=Mock(BeamBaseClass),
         )

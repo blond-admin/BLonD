@@ -205,7 +205,6 @@ class RfStationBaseClass(
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -219,8 +218,6 @@ class RfStationBaseClass(
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -919,7 +916,6 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         single_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
             n_turns=1,
-            turn_i_init=simulation.turn_i.value,
             beam=Mock(BeamBaseClass),
         )
         return single_harmonic_rf_station
@@ -1308,7 +1304,6 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         multi_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
             n_turns=1,
-            turn_i_init=simulation.turn_i.value,
             beam=Mock(BeamBaseClass),
             main_harmonic_idx=main_harmonic_idx,
         )

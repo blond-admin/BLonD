@@ -59,7 +59,6 @@ class Preparable(ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -73,8 +72,6 @@ class Preparable(ABC):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -252,7 +249,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
 
     Subclasses must implement:
       - ``on_init_simulation(simulation)``: called once before the simulation loop starts.
-      - ``on_run_simulation(simulation, beam, n_turns, turn_i_init, **kwargs)``:
+      - ``on_run_simulation(simulation, beam, n_turns, **kwargs)``:
         called during each iteration of the main simulation loop.
 
     Parameters
@@ -312,7 +309,6 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs,
     ) -> None:
         """
@@ -326,8 +322,6 @@ class SimulationElementBase(MainLoopRelevant, ABC):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -466,7 +460,6 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -480,8 +473,6 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """

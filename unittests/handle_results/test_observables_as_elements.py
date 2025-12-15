@@ -45,7 +45,6 @@ class TestBeamObservationInRingElement(unittest.TestCase):
             simulation=simulation,
             beam=beam,
             n_turns=3,
-            turn_i_init=0,
         )
 
     def test_recorders_are_initialized(self):

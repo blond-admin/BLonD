@@ -96,8 +96,6 @@ class TestRfBeamCurrent(unittest.TestCase):
         self.simulation = simulation
         self.beam.reference.total_energy = (
             magnetic_cycle.get_total_energy_init(
-                0,
-                0,
                 particle_type=proton,
             )
         )

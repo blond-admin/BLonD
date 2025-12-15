@@ -774,8 +774,6 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             dt=np.zeros(N_m),
             dE=np.zeros(N_m),
             reference_total_energy=self.magnetic_cycle.get_total_energy_init(
-                0,
-                0,
                 particle_type=proton,
             ),
         )
