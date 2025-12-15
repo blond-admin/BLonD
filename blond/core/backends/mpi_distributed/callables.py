@@ -30,12 +30,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def mpi_is_active() -> float:
     """
-    Check weather MPI is active.
+    Check whether MPI is active.
 
     Returns
     -------
     mpi_active
-        Weather MPI is active.
+        True, if MPI is active.
     """
     return (
         MPI is not None
