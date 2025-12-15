@@ -21,9 +21,9 @@ from abc import ABC
 from typing import TYPE_CHECKING
 
 from blond.core.base import Schedulable
-from blond.core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
+    from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
 
 

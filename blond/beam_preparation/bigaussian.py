@@ -22,7 +22,6 @@ from blond.acc_math.analytic.hamilton import (
     is_in_separatrix,
 )
 from blond.beam_preparation.base import MatchingRoutine
-from blond.core.backends.backend import backend
 from blond.core.helpers import int_from_float_with_warning
 from blond.generals.iterables_ import all_equal
 
@@ -267,6 +266,7 @@ class BiGaussian(MatchingRoutine):
         beam
             Simulation :class:`~blond.core.beam.beam.Beam` object.
         """
+        from blond.core.backends.backend import backend
         from blond.physics.drifts import DriftSimple
 
         super().prepare_beam(

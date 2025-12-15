@@ -8,8 +8,6 @@
 
 # pragma: no cover
 import logging
-import sys
-from pstats import SortKey
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -21,7 +19,6 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRfStation,
-    backend,
     proton,
 )
 from blond.core.beam.beams import EmptyBeam
@@ -65,12 +62,11 @@ def main():
     bunch_observation = BeamObservationOncePerTurn(each_turn_i=1, beam=beam1)
 
     beam1.reference.total_energy = sim.magnetic_cycle.get_total_energy_init(
-        turn_i_init=0, t_init=0, particle_type=beam1.particle_type
+        particle_type=beam1.particle_type
     )
 
     sim.run_simulation(
         beams=(beam1,),
-        turn_i_init=0,
         n_turns=n_turns,
         observe=(phase_observation, bunch_observation),
         # callback=custom_action,

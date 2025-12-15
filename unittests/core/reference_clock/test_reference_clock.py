@@ -1,5 +1,6 @@
 import unittest
 
+import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from blond import uranium_29
@@ -47,4 +48,6 @@ class TestReferenceCoordinates(unittest.TestCase):
         self.assertAlmostEqual(0.6, self.reference_coorinates.beta)
 
     def test_velocity(self):
-        self.assertAlmostEqual(0.6 * c0, self.reference_coorinates.velocity)
+        np.testing.assert_allclose(
+            0.6 * c0, self.reference_coorinates.velocity
+        )

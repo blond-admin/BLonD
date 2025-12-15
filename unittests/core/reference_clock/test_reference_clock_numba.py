@@ -1,5 +1,6 @@
 import unittest
 
+import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from blond import uranium_29
@@ -36,7 +37,7 @@ class TestCallables(unittest.TestCase):
 
     def test_velocity(self):
         velocity_expected = 0.6 * c0
-        self.assertAlmostEqual(
+        np.testing.assert_allclose(
             velocity_expected,
             velocity(self.total_energy, self.mass_inv),
         )
