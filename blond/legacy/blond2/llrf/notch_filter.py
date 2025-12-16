@@ -30,16 +30,15 @@ def impedance_notches(
 
     # TODO: Remove eval
     for i in list_harmonics:
-        exec("y_" + str(i) + " = np.interp(i*f_rev, frequencies, imp_source)")
+        locals()["y_" + str(i)] = np.interp(i * f_rev, frequencies, imp_source)
         array_left = np.append(
             array_left,
             np.array([i * f_rev - halfmajorWidth, i * f_rev + halfmajorWidth]),
         )
-        exec(
-            "indices_"
-            + str(i)
-            + " = np.where((frequencies >= (i*f_rev-halfmajorWidth))&(frequencies <= (i*f_rev+halfmajorWidth)))[0]"
-        )
+        locals()["indices_" + str(i)] = np.where(
+            (frequencies >= (i * f_rev - halfmajorWidth))
+            & (frequencies <= (i * f_rev + halfmajorWidth))
+        )[0]
         indices_final = np.append(indices_final, locals()["indices_" + str(i)])
         frequencies_remainder_array = np.append(
             frequencies_remainder_array,
