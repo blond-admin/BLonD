@@ -580,7 +580,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     @property  # as readonly attributes
     def reference_total_energy(self):
         """
-        Return total energy of shape ``(1, n_observations)``.
+        Return reference total energy of shape ``(1, n_observations)``.
 
         Returns
         -------
