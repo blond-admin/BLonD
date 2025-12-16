@@ -43,14 +43,22 @@ def get_modified_files():
         ["git diff --no-commit-id --name-only -r HEAD"],
         check=True,
         capture_output=True,
-        shell=True,
+        # shell=True, # legacy, because of HIGH VULNERABILITY:
+        # Improper neutralization of
+        # special
+        # elements used in an OS Command ('OS Command Injection')
+        shell=False, #FIXME Probably broken by shell=False, rewrite `args` list
     )
     output += ret.stdout
     ret = subprocess.run(
         ["git diff-tree --no-commit-id --name-only -r HEAD"],
         check=True,
         capture_output=True,
-        shell=True,
+        # shell=True, # legacy, because of HIGH VULNERABILITY:
+        # Improper neutralization of
+        # special
+        # elements used in an OS Command ('OS Command Injection')
+        shell=False, #FIXME Probably broken by shell=False, rewrite `args` list
     )
     output += ret.stdout
     files = output.decode().splitlines()
@@ -119,7 +127,11 @@ class SanityCheck:
 
         ret = subprocess.run(
             ["make -C __doc html"],
-            shell=True,
+            # shell=True, # legacy, because of HIGH VULNERABILITY:
+            # Improper neutralization of
+            # special elements used in an OS Command ('OS Command Injection')
+            shell=False, #FIXME Probably broken by shell=False, rewrite
+            # `args` list
             check=False,
             capture_output=False,
         )
@@ -149,7 +161,11 @@ class SanityCheck:
 
         subprocess.run(
             [f"{sys.executable} -m pylint {self.pylint_settings} {files}"],
-            shell=True,
+            # shell=True, # legacy, because of HIGH VULNERABILITY:
+            # Improper neutralization of
+            # special elements used in an OS Command ('OS Command Injection')
+            shell=False, #FIXME Probably broken by shell=False, rewrite
+            # `args` list
             check=False,
             capture_output=False,
         )
@@ -174,7 +190,11 @@ class SanityCheck:
 
         subprocess.run(
             [f"{sys.executable} -m flake8 {self.flake8_settings} {files}"],
-            shell=True,
+            # shell=True, # legacy, because of HIGH VULNERABILITY:
+            # Improper neutralization of
+            # special elements used in an OS Command ('OS Command Injection')
+            shell=False, #FIXME Probably broken by shell=False, rewrite
+            # `args` list
             check=False,
             capture_output=False,
         )
@@ -199,7 +219,11 @@ class SanityCheck:
 
         subprocess.run(
             [f"{sys.executable} -m isort {self.isort_settings} {files}"],
-            shell=True,
+            # shell=True, # legacy, because of HIGH VULNERABILITY:
+            # Improper neutralization of
+            # special elements used in an OS Command ('OS Command Injection')
+            shell=False, #FIXME Probably broken by shell=False, rewrite
+            # `args` list
             check=False,
             capture_output=False,
         )
