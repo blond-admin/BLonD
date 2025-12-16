@@ -110,7 +110,7 @@ class IQCavityFeedback(LocalFeedback):
         self,
         profile: StaticProfile,
         n_cavities: int,
-        n_periods_coarse: int,
+        n_periods_coarse: int | float,
         harmonic_index: int,
         use_lowpass_filter: bool = False,
         section_index: int = 0,
@@ -162,7 +162,7 @@ class IQCavityFeedback(LocalFeedback):
         )
 
         # Ratio between rf periods and coarse grid sampling period
-        self.n_periods_coarse = int(n_periods_coarse)
+        self.n_periods_coarse = n_periods_coarse
 
         self.omega_carrier_prev: float | None = None
         self.omega_carrier: float | None = None
