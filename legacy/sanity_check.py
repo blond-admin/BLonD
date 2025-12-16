@@ -223,8 +223,9 @@ class SanityCheck:
             settings = self.pytest_settings
 
         subprocess.run(
-            [f"{sys.executable} -m pytest {settings} {files}"],
-            shell=True,
+            [f"{sys.executable} -m pytest {settings} {files}"], # FIXME
+            shell=False, # If True - High Vulnerability - Improper neutralization of special
+            # elements used in an OS Command ('OS Command Injection')
             check=False,
             capture_output=False,
         )
