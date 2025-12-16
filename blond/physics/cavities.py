@@ -858,15 +858,28 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         reference_energy_change = (
             target_total_energy - beam.reference_total_energy
         )
-        backend.specials.kick_single_harmonic(
-            dt=beam.read_partial_dt(),
-            dE=beam.write_partial_dE(),
-            voltage=self.voltage,
-            phi_rf=self.phi_rf_actual,
-            omega_rf=self.omega_rf_actual,
-            charge=beam.particle_type.charge,  #  FIXME
-            acceleration_kick=-reference_energy_change,  # Mind the minus!
-        )
+        if self._cavity_feedback is None:
+            backend.specials.kick_multi_harmonic(
+                dt=beam.read_partial_dt(),
+                dE=beam.write_partial_dE(),
+                voltage=self.voltage.astype(backend.float),
+                phi_rf=self.phi_rf_actual.astype(backend.float),
+                omega_rf=self.omega_rf_actual.astype(backend.float),
+                charge=beam.particle_type.charge,
+                n_rf=self.n_rf,
+                acceleration_kick=-reference_energy_change,  # Mind the minus!
+            )
+        else:
+            gap_voltage = self.calc_gap_voltage()
+            backend.specials.kick_induced_voltage(
+                dt=beam.read_partial_dt(),
+                dE=beam.write_partial_dE(),
+                voltage=gap_voltage,
+                bin_centers=self._cavity_feedback[0].profile.hist_x,
+                charge=beam.particle_type.charge,
+                acceleration_kick=-reference_energy_change,  # Mind the minus!
+            )
+
         beam.reference_total_energy += reference_energy_change
 
         if self._beam_feedback is not None and (
@@ -929,8 +942,8 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         gap_voltage
             Gap voltage in [V] within the length of the profile.
         """
-        n_slices = self._cavity_feedback.profile.n_bins
-        x_arr = self._cavity_feedback.profile.hist_x
+        n_slices = self._cavity_feedback[0].profile.n_bins
+        x_arr = self._cavity_feedback[0].profile.hist_x
 
         voltages = self.voltage * backend.ones(n_slices)
         omega_rf = self.omega_rf_actual * backend.ones(n_slices)
@@ -938,9 +951,9 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
         gap_voltage = (
             voltages
-            * self._cavity_feedback.V_corr
+            * self._cavity_feedback[0].V_corr
             * np.sin(
-                omega_rf * x_arr + phi_rf + self._cavity_feedback.phi_corr
+                omega_rf * x_arr + phi_rf + self._cavity_feedback[0].phi_corr
             )
         )
 
