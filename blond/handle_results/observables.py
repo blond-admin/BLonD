@@ -499,7 +499,6 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             f"{self.common_filepath}_bunch_length",
             n_entries,
         )
-
         self._reference_time = DenseArrayRecorder(
             f"{self.common_filepath}_reference_time",
             (n_entries,),
