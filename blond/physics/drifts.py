@@ -420,21 +420,27 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
 
 class DriftSpecial(DriftBaseClass):
+    """A special type of drift."""
+
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            Simulation context manager
+            Simulation context manager.
         """
         super().on_init_simulation(simulation=simulation)
 

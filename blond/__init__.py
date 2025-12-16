@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.txt.
@@ -16,19 +15,6 @@ from blond.core.backends.backend import (  # NOQA
     Numpy32Bit,
     Numpy64Bit,
     backend,
-=======
-from ._core.backends.backend import backend
-from ._core.base import UserDefinedElement
-from ._core.beam.beams import Beam
-from ._core.beam.particle_types import (
-    electron,
-    lead_ion,
-    mu_minus,
-    mu_plus,
-    positron,
-    proton,
-    uranium_29,
->>>>>>> be8b25d1 (added xsuite_drift stubs, not working because of hashing in helpers.py)
 )
 from blond.core.base import UserDefinedElement  # NOQA
 from blond.core.beam.beams import Beam  # NOQA
@@ -53,7 +39,6 @@ from blond.handle_results.observables import StaticProfileObservation  # NOQA
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,  # NOQA
 )
-<<<<<<< HEAD
 from blond.physics.cavities import (  # NOQA
     MultiHarmonicRfStation,
     SingleHarmonicRfStation,
@@ -63,11 +48,3 @@ from blond.physics.energy_reference_kick import ReferenceEnergyChange  # NOQA
 from blond.physics.impedances.base import WakeField  # NOQA
 from blond.physics.losses import BoxLosses  # NOQA
 from blond.physics.profiles import StaticProfile  # NOQA
-=======
-from .interfaces.xsuite.physics.xsuite_drift import DriftXSuite
-from .physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity
-from .physics.drifts import DriftSimple
-from .physics.impedances.base import WakeField
-from .physics.losses import BoxLosses
-from .physics.profiles import StaticProfile
->>>>>>> be8b25d1 (added xsuite_drift stubs, not working because of hashing in helpers.py)

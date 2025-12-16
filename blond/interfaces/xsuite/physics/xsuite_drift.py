@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """
 Functions and classes to interface BLonD with xsuite.
 
@@ -6,26 +14,25 @@ Functions and classes to interface BLonD with xsuite.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from scipy.constants import c as clight
 
-from blond._core.backends import backend
-from blond._core.beam.beams import BeamBaseClass
+from blond.core.backends import backend
+from blond.core.beam.beams import BeamBaseClass
 
 if TYPE_CHECKING:
     from xtrack import Line, Particles
-    from blond._core.simulation.simulation import Simulation
-    from blond._core.base import BeamPhysicsRelevant
+    from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
 
+from blond.core.base import BeamPhysicsRelevant
 from blond.physics.drifts import DriftBaseClass  # import the base drift class
 
 
-class DriftXSuite(DriftBaseClass):
+class DriftXsuite(DriftBaseClass):
     """
-    BLonD–Xsuite interface element that performs drift tracking using an
-    Xsuite Line or sub-element.
+    BLonD–Xsuite interface element that has drift with Xsuite Line or sub-element.
 
     Parameters
     ----------
@@ -33,9 +40,6 @@ class DriftXSuite(DriftBaseClass):
         BLonD beam to track.
     line : xtrack.Line
         The Xsuite line (or sub-line) to be used for drift transport.
-    element_name : str, optional
-        Name of the specific Xsuite element to track (e.g. "drift_1").
-        If None, the entire line will be tracked each call.
     beta0 : float
         Reference beta (usually from synchronous particle).
     energy0 : float
@@ -44,8 +48,15 @@ class DriftXSuite(DriftBaseClass):
         RF angular frequency [rad/s].
     phi_s : float, optional
         Synchronous phase [rad].
+    orbit_length : int, optional
+        Length of orbit [rad].
+    element_name : str, optional
+        Name of the specific Xsuite element to track (e.g. "drift_1").
+        If None, the entire line will be tracked each call.
     section_index : int, optional
         Section index to group elements (passed to DriftBaseClass).
+    **kwargs : Any
+        Additional keyword arguments passed to DriftBaseClass.
     """
 
     skip_find_instances_attributes = ["_xsuite_element", "_line_internal"]
@@ -59,7 +70,7 @@ class DriftXSuite(DriftBaseClass):
         omega_rf: float,
         phi_s: float = 0.0,
         orbit_length=0.0,
-        element_name: Optional[str] = None,
+        element_name: str | None = None,
         section_index: int = 0,
         **kwargs: Any,  # for MRO and future compatibility
     ) -> None:
@@ -73,15 +84,23 @@ class DriftXSuite(DriftBaseClass):
         self.energy0 = energy0
         self.omega_rf = omega_rf
         self.phi_s = phi_s
-        self._xsuite_element: Optional[Any] = (
+        self._xsuite_element: Any | None = (
             None  # Will be set in on_init_simulation
         )
 
         # Initialize drift-specific internal state
-        self._transition_gamma: Optional[backend.float] = None
-        self._momentum_compaction_factor: Optional[backend.float] = None
+        self._transition_gamma: backend.float | None = None
+        self._momentum_compaction_factor: backend.float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Init simulation.
+
+        Parameters
+        ----------
+        simulation : Simulation
+            The simulation instance to be initiated.
+        """
         super().on_init_simulation(simulation)
         if self.element_name is not None:
             try:
@@ -99,13 +118,32 @@ class DriftXSuite(DriftBaseClass):
         turn_i_init: int,
         **kwargs: Any,
     ) -> None:
+        """
+        Hook executed during simulation runtime.
+
+        Parameters
+        ----------
+        simulation : Simulation
+            Active BLonD simulation instance.
+        beam : BeamBaseClass
+            Beam being tracked.
+        n_turns : int
+            Number of turns to track.
+        turn_i_init : int
+            Initial turn index.
+        **kwargs : Any
+            Additional runtime arguments.
+        """
         pass
 
-    def track(self, beam: Optional[BeamBaseClass] = None) -> None:
+    def track(self, beam: BeamBaseClass | None = None) -> None:
         """
-        Perform drift tracking via the Xsuite line.
+        Track the beam through the Xsuite drift element or line.
 
-        Converts BLonD beam coordinates to Xsuite, runs the drift, and converts back.
+        Parameters
+        ----------
+        beam : BeamBaseClass | None
+            Beam to track; if None, the internally stored beam is used.
         """
         from xtrack import Particles
 
@@ -140,39 +178,87 @@ class DriftXSuite(DriftBaseClass):
         beam.dE = particles.ptau * self.beta0 * self.energy0
 
     @property
-    def momentum_compaction_factor(self) -> Optional[backend.float]:
-        """Momentum compaction factor."""
+    def momentum_compaction_factor(self) -> backend.float | None:
+        """
+        Return the momentum compaction factor.
+
+        Returns
+        -------
+        backend.float | None
+            Momentum compaction factor if defined.
+        """
         return self._momentum_compaction_factor
 
     @property
-    def transition_gamma(self) -> Optional[backend.float]:
-        """Gamma of transition crossing."""
+    def transition_gamma(self) -> backend.float | None:
+        """
+        Return the transition gamma.
+
+        Returns
+        -------
+        backend.float | None
+            Transition gamma if defined.
+        """
         return self._transition_gamma
 
     @transition_gamma.setter
     def transition_gamma(self, transition_gamma: float) -> None:
-        """Set gamma of transition crossing and compute momentum compaction factor."""
+        """
+        Set the transition gamma and update momentum compaction.
+
+        Parameters
+        ----------
+        transition_gamma : float
+            Relativistic gamma at transition.
+        """
         self._momentum_compaction_factor = backend.float(
             1.0 / (transition_gamma * transition_gamma)
         )
         self._transition_gamma = backend.float(transition_gamma)
 
     def eta_0(self, gamma: float) -> backend.float:
-        """Calculate eta_0 for given gamma."""
+        """
+        Compute the phase slip factor eta_0.
+
+        Parameters
+        ----------
+        gamma : float
+            Relativistic gamma.
+
+        Returns
+        -------
+        backend.float
+            Phase slip factor eta_0.
+        """
         return backend.float(self.alpha_0 - (1 / (gamma * gamma)))
 
     @property
-    def alpha_0(self) -> Optional[backend.float]:
-        """Alias for momentum compaction factor."""
+    def alpha_0(self) -> backend.float | None:
+        """
+        Return the momentum compaction factor alpha_0.
+
+        Returns
+        -------
+        backend.float | None
+            Momentum compaction factor.
+        """
         return self.momentum_compaction_factor
 
     def get_line(self):
+        """
+        Get back the Xsuite line.
+
+        Returns
+        -------
+        xsuite.interfaces.xsuite.Line
+            Xsuite line.
+        """
         return self._line_internal
 
 
 class EnergyUpdateXsuite(BeamPhysicsRelevant):
-    # todo
-    """Class to update the synchronous energy from the momentum program in BLonD.
+    """
+    Class to update the synchronous energy from the momentum program in BLonD.
 
     Parameters
     ----------
@@ -188,7 +274,7 @@ class EnergyUpdateXsuite(BeamPhysicsRelevant):
     """
 
     def __init__(self, momentum: MagneticCycleBase):
-        from xtrack import ReferenceEnergyIncrease, ZetaShift
+        from xtrack import ReferenceEnergyIncrease
 
         # Load momentum program
         self.momentum = momentum
@@ -200,23 +286,24 @@ class EnergyUpdateXsuite(BeamPhysicsRelevant):
         self.xsuite_energy_update = ReferenceEnergyIncrease(Delta_p0c=init_p0c)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Initialize simulation start.
+
+        Parameters
+        ----------
+        simulation : Simulation
+            Active BLonD simulation instance.
+        """
         pass
 
     def track(self, particles: Particles):
         """
-        # todo move this to inside Xsuite drift, should not be separate classes?
-        Track method for the class to update the synchronous energy.
-
+        Update the synchronous energy of particles.
 
         Parameters
         ----------
         particles : xtrack.Particles
-            Particles class from xtrack.
-
-        Attributes
-        ----------
-        xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
-            Class to update the momentum in xsuite.
+            Particles to which the energy update is applied.
         """
         # Check for particles which are still alive
         mask_alive = particles.state > 0  # todo

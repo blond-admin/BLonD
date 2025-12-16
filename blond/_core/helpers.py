@@ -1,3 +1,13 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""Helper functions for core."""
+
 from __future__ import annotations
 
 import warnings
@@ -12,14 +22,20 @@ if TYPE_CHECKING:  # pragma: no cover
 def int_from_float_with_warning(
     value: float | int, warning_stacklevel: int
 ) -> int:
-    """Make int from float, warn if there are fractional digits.
+    """
+    Make int from float, warn if there are fractional digits.
 
     Parameters
     ----------
     value
-        Some float value, potentially with fractional values
+        Some float value, potentially with fractional values.
     warning_stacklevel
-        `warnings.warn` parameter
+        `warnings.warn` parameter.
+
+    Returns
+    -------
+    int
+        Integer value from float.
     """
     if isinstance(value, int):
         return value
@@ -39,16 +55,22 @@ def int_from_float_with_warning(
 
 
 def find_instances_with_method(root: Any, method_name: str) -> Any:
-    """Find all instances within root that have a callable `methodname`.
+    """
+    Find all instances within root that have a callable `methodname`.
 
     Parameters
     ----------
     root
         Base instance to be inspected.
         All attributes are recursively scanned
-        for classes with a method `methodname`
+        for classes with a method `methodname`.
     method_name
-        Name of the method to be searched for
+        Name of the method to be searched for.
+
+    Returns
+    -------
+    set
+        Found instances.
     """
     found = set()
     seen = set()
@@ -70,7 +92,7 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
             for key, value in obj.items():
                 walk(key, skip_list)
                 walk(value, skip_list)
-        elif isinstance(obj, (list, tuple, set)):
+        elif isinstance(obj, list | tuple | set):
             for item in obj:
                 walk(item, skip_list)
         elif hasattr(obj, "__dict__"):  # checks if is python class

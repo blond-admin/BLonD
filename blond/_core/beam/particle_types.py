@@ -1,12 +1,18 @@
-from __future__ import annotations
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
 
-from dataclasses import dataclass, field
+"""Different particle classes."""
+
+from __future__ import annotations
 
 import numpy as np
 from numpy import float32, float64
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
-
-from ..backends.backend import backend
 
 m_mu = physical_constants["muon mass"][0]
 
@@ -20,7 +26,7 @@ class ParticleType:
     mass : float
         Rest mass energy of the particle, in [eV].
     charge : float
-        Number of electric charges of the particle, in []
+        Number of electric charges of the particle, in [].
     user_decay_rate : float, optional
         Optional user-specified decay rate. Default is 0.0.
     """
@@ -48,37 +54,86 @@ class ParticleType:
 
     @property
     def mass(self) -> float:
-        """Rest mass energy of the particle, in [eV]."""
+        """
+        Rest mass energy of the particle, in [eV].
+
+        Returns
+        -------
+        float
+            Rest mass energy of the particle, in [eV].
+        """
         return self._mass
 
     @property
     def charge(self) -> float:
-        """Number of electrons of the particle, in []"""
+        """
+        Number of electrons of the particle, in [].
+
+        Returns
+        -------
+        float
+            Charge of the particle, in [].
+        """
         return self._charge
 
     @property
     def user_decay_rate(self) -> float:
-        """Optional user-specified decay rate. Default is 0.0."""
+        """
+        Optional user-specified decay rate. Default is 0.0.
+
+        Returns
+        -------
+        float
+            User-specified decay rate of the particle, in [eV].
+        """
         return self._user_decay_rate
 
     @property
     def mass_inv(self) -> float:
-        """Inverse of the mass (1/mass), in [1/eV]."""
+        """
+        Inverse of the mass (1/mass), in [1/eV].
+
+        Returns
+        -------
+        float
+            Inverse of the mass (1/mass), in [1/eV].
+        """
         return self._mass_inv
 
     @property
     def classical_particle_radius(self) -> float32 | float64:
-        """Classical particle radius [m]."""
+        """
+        Classical particle radius [m].
+
+        Returns
+        -------
+        float
+            Classical particle radius [m].
+        """
         return self._classical_particle_radius
 
     @property
     def sands_radiation_constant(self) -> float32 | float64:
-        """Sand's radiation constant [ m / eV^3]."""
+        """
+        Return Sand's radiation constant [ m / eV^3].
+
+        Returns
+        -------
+        float
+            Classical particle radius [m].
+        """
         return self._sands_radiation_constant
 
     @property
     def quantum_radiation_constant(self) -> float32 | float64:
-        """Quantum radiation constant [m]."""
+        """
+        Quantum radiation constant [m].
+
+        Returns
+        -------
+        float
+            Quantum radiation constant [m].
+        """
         return self._quantum_radiation_constant
 
 
