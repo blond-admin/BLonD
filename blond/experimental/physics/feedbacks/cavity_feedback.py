@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -162,6 +163,10 @@ class IQCavityFeedback(LocalFeedback):
         )
 
         # Ratio between rf periods and coarse grid sampling period
+        if not type(n_periods_coarse) is int:
+            warnings.warn(
+                "n_periods_coarse is not an integer; coupling between loops might break"
+            )
         self.n_periods_coarse = n_periods_coarse
 
         self.omega_carrier_prev: float | None = None
@@ -228,7 +233,13 @@ class IQCavityFeedback(LocalFeedback):
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
-        self.rf_centers = np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf
+        if self.n_periods_coarse < 1:
+            self.rf_centers = (
+                np.arange(self.n_coarse) * self.T_s
+                + 0.5 * t_rf * self.n_periods_coarse
+            )
+        else:
+            self.rf_centers = np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf
 
         self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_BEAM_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)

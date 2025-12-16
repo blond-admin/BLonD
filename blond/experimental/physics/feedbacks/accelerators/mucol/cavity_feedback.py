@@ -91,7 +91,7 @@ class PassiveCavity(IQCavityFeedback):
         injection_phase: float = -1,
         injection_voltage: float = -1,
         harmonic_index: int = 0,
-        n_periods_coarse: int = 1,
+        n_periods_coarse: int | float = 1,
         section_index: int = 0,
         use_lowpass_filter: bool = False,
         name: str | None = None,
@@ -447,7 +447,7 @@ class PassiveCavity(IQCavityFeedback):
                         self.rf_centers,
                     )
                 ),
-                self.I_BEAM_COARSE,
+                self.I_GEN_COARSE,
             )(t_at_init)
 
             relative_detuning = self.omega_detuning / self.omega_center
