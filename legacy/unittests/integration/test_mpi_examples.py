@@ -42,7 +42,10 @@ class TestMpiExamples(unittest.TestCase):
     def setUp(self):
         pytest.importorskip('mpi4py')
         try:
-            subprocess.call(['mpirun', '--version'])
+            subprocess.run(['mpirun', '--version'],
+                            shell=False, # FIXME Probably broken by
+                            # shell=False, rewrite `args` list
+                            )
         except FileNotFoundError:
             unittest.SkipTest('mpirun not found, skipping tests')
 
