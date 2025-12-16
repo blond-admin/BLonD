@@ -14,7 +14,7 @@ import warnings
 from abc import ABC, abstractmethod
 from enum import IntEnum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.constants import speed_of_light as c0  # type: ignore
@@ -24,6 +24,8 @@ from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, Literal
+
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
@@ -237,6 +239,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         flags: NumpyArray | CupyArray = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
+        mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        **kwargs,
     ) -> None:
         """
         Set beam array attributes for simulation.
@@ -253,6 +257,12 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             Time of the reference frame (global time), in [s].
         reference_total_energy
             Time of the reference frame (global total energy), in [eV].
+        mpi_mode
+            - "root-distributes": The array is distributed from the root node to all ranks.
+            - "all-ranks":  All ranks setup the beam independently.
+        **kwargs
+            Keyword arguments to make the non-abstract implementation
+            extendable.
         """
         pass
 

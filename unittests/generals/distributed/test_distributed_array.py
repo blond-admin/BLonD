@@ -2,10 +2,8 @@ import unittest
 
 import numpy as np
 
-from blond import backend
 from blond.core.backends.mpi_distributed.callables import (
     mpi_is_active,
-    rms_emittance,
 )
 from blond.generals.distributed.distributed_array import DistributedArray
 

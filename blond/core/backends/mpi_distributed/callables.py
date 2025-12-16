@@ -13,16 +13,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+from mpi4py import MPI
 
 from blond import backend
-
-try:
-    from mpi4py import MPI
-
-    _MPI_AVAILABLE = True
-except ImportError:
-    _MPI_AVAILABLE = False
-    MPI = None  # type: ignore
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.generals.distributed.distributed_array import DistributedArray

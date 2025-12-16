@@ -24,6 +24,10 @@ from blond.experimental.acc_math.empiric.hamiltonian import (
     separatrixes,
 )
 from blond.experimental.beam_preparation.helpers import populate_beam
+from blond.generals.distributed.helpers import (
+    mpi_aware_random_generator_cpu,
+    mpi_local_size,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -65,11 +69,15 @@ def populate_beam(
     The beam coordinate dt and dE will be overwritten.
     """
     # Initialise the random number generator
-    if seed is not None:
-        np.random.seed(seed=seed)
+    n_macroparticles_local = mpi_local_size(
+        n_macroparticles, "n_macroparticles"
+    )
+    rng = mpi_aware_random_generator_cpu(
+        seed=seed, n_forward_per_rank=n_macroparticles_local
+    )
     # Generating particles randomly inside the grid cells according to the
     # provided density_grid
-    indexes = np.random.choice(
+    indexes = rng.choice(
         np.arange(0, np.size(density_grid)),
         n_macroparticles,
         p=density_grid.flatten(),
@@ -81,15 +89,15 @@ def populate_beam(
     # Randomize particles inside each grid cell (uniform distribution)
     dt = (
         time_grid.flatten()[indexes]
-        + np.random.triangular(left=-1, mode=0, right=1, size=n_macroparticles)
+        + rng.triangular(left=-1, mode=0, right=1, size=n_macroparticles)
         * time_step
     )
     dE = (
         deltaE_grid.flatten()[indexes]
-        + np.random.triangular(left=-1, mode=0, right=1, size=n_macroparticles)
+        + rng.triangular(left=-1, mode=0, right=1, size=n_macroparticles)
         * deltaE_step
     )
-    beam.setup_beam(dt=dt, dE=dE)
+    beam.setup_beam(dt=dt, dE=dE, mpi_mode="all-ranks")
 
 
 def normalize_as_density(hamilton_2D: NumpyArray):
@@ -287,6 +295,7 @@ class EmpiricMatcher(MatchingRoutine):
             dE=dE_flat_init.copy(),
             reference_time=reference_time,
             reference_total_energy=reference_total_energy,
+            mpi_mode="root-distributes",
             # flags=None # TODO
         )
         simulation.intensity_effect_manager.set_wakefields(False)
@@ -339,6 +348,7 @@ class EmpiricMatcher(MatchingRoutine):
                 reference_time=users_beam.reference_time,
                 # reference_total_energy=users_beam.reference_total_energy,
                 # flags=None # TODO
+                mpi_mode="root-distributes",
             )
             simulation.run_simulation(
                 beams=(beam_gridded,),

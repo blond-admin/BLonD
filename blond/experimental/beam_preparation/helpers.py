@@ -14,6 +14,10 @@ import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.distributed.helpers import (
+    mpi_aware_random_generator_cpu,
+    mpi_local_size,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
@@ -32,10 +36,6 @@ def generate_particle_coordinates(
     """
     Fill bunch with macroparticles according to `density_distribution`
 
-    Notes
-    -----
-    The beam coordinate `dt` and `dE` will be overwritten.
-
     Parameters
     ----------
     time_grid
@@ -51,15 +51,19 @@ def generate_particle_coordinates(
         always return the same value
     """
     # Initialise the random number generator
-    # DEv NOTE (2025) It might be checked at a later time,
+    # DEV NOTE (2025) It might be checked at a later time,
     # if cupy and numpy provide for the exact same random generators.
-    if seed is not None:
-        np.random.seed(seed=seed)
+    n_macroparticles_local = mpi_local_size(
+        n_macroparticles, warning_hint="n_macroparticles"
+    )
+    random_generator_cpu = mpi_aware_random_generator_cpu(
+        seed=seed, n_forward_per_rank=n_macroparticles_local
+    )
     # Generating particles randomly inside the grid cells according to the
     # provided density_grid
-    indexes = np.random.choice(
+    indexes = random_generator_cpu.choice(
         np.arange(0, np.size(density_grid)),
-        n_macroparticles,
+        n_macroparticles_local,
         p=copy_to_cpu(density_grid.flatten() / np.sum(density_grid)),
     )
     indexes = backend.array(
@@ -72,21 +76,25 @@ def generate_particle_coordinates(
     # Randomize particles inside each grid cell (uniform distribution)
     # ``backend.random.triangular`` has rotational symmetry, but is
     # distributed within a square.
-    dt = (
+    dt_local = (
         time_grid.flatten()[indexes]
-        + backend.random.triangular(
-            left=-1, mode=0, right=1, size=n_macroparticles
+        + backend.array(
+            random_generator_cpu.triangular(
+                left=-1, mode=0, right=1, size=n_macroparticles_local
+            )
         )
         * time_step
     )
-    dE = (
+    dE_local = (
         deltaE_grid.flatten()[indexes]
-        + backend.random.triangular(
-            left=-1, mode=0, right=1, size=n_macroparticles
+        + backend.array(
+            random_generator_cpu.triangular(
+                left=-1, mode=0, right=1, size=n_macroparticles_local
+            )
         )
         * deltaE_step
     )
-    return dt, dE
+    return dt_local, dE_local
 
 
 def populate_beam(
@@ -120,7 +128,7 @@ def populate_beam(
         Random seed, to make function with same seed
         always return the same value
     """
-    dt, dE = generate_particle_coordinates(
+    dt_local, dE_local = generate_particle_coordinates(
         time_grid=time_grid,
         deltaE_grid=deltaE_grid,
         density_grid=density_grid,
@@ -128,7 +136,7 @@ def populate_beam(
         seed=seed,
     )
 
-    beam.setup_beam(dt=dt, dE=dE)
+    beam.setup_beam(dt=dt_local, dE=dE_local, mpi_mode="all-ranks")
 
 
 def repopulate_beam(

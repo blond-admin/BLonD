@@ -24,6 +24,8 @@ from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.generals.distributed.distributed_array import DistributedArray
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Literal
+
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from matplotlib.collections import QuadMesh
     from numpy.typing import NDArray as NumpyArray
@@ -89,6 +91,8 @@ class Beam(BeamBaseClass):
         flags: NumpyArray | CupyArray | None = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
+        mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        **kwargs,
     ) -> None:
         """
         Configure the beam with an initial particle distributions.
@@ -115,6 +119,12 @@ class Beam(BeamBaseClass):
         reference_total_energy
             The reference total energy for the coordinate system, in [eV].
             Particle energies `dE` are relative to this reference.
+        mpi_mode
+            - "root-distributes": The array is distributed from the root node to all ranks.
+            - "all-ranks":  All ranks setup the beam independently.
+        **kwargs
+            Unused - Keyword arguments to make the non-abstract implementation
+            extendable.
         """
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_macroparticles = len(dt)
@@ -146,6 +156,16 @@ class Beam(BeamBaseClass):
             self.reference_time = reference_time
         if reference_total_energy:
             self.reference_total_energy = reference_total_energy
+
+        if mpi_mode == "root-distributes":
+            self._dE.mpi_scatter()
+            self._dt.mpi_scatter()
+            self._flags.mpi_scatter()
+            self._ids.mpi_scatter()
+        elif mpi_mode == "all-ranks":
+            pass
+        else:
+            raise NameError(f"Unknown {mpi_mode=}")
 
         self.invalidate_cache()
 

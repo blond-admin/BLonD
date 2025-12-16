@@ -14,6 +14,8 @@ from blond.core.beam.particle_types import ParticleType
 from blond.generals.distributed.distributed_array import DistributedArray
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from cupy.typing import NDArray as CupyArray
     from numpy._typing import NDArray as NumpyArray
 
@@ -52,21 +54,29 @@ class BeamBaseClassTester(BeamBaseClass):
         flags: NumpyArray | CupyArray = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
+        mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        **kwargs,
     ):
         """Sets beam array attributes for simulation
 
         Parameters
         ----------
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates [s].
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates [eV].
         flags
-            Macro-particle flags
+            Macro-particle flags.
         reference_time
-            Time of the reference frame (global time), in [s]
+            Time of the reference frame (global time), in [s].
         reference_total_energy
-            Time of the reference frame (global total energy), in [eV]
+            Time of the reference frame (global total energy), in [eV].
+        mpi_mode
+            - "root-distributes": The array is distributed from the root node to all ranks.
+            - "all-ranks":  All ranks setup the beam independently.
+        **kwargs
+            Unused - Keyword arguments to make the non-abstract implementation
+            extendable.
         """
         pass
 

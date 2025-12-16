@@ -192,4 +192,8 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         dt = -1 * (zeta) / c + T / 2
         # convert from delta to dE
         dE = delta * beam.reference_total_energy
-        beam.setup_beam(dt=dt, dE=dE)
+        beam.setup_beam(
+            dt=dt,
+            dE=dE,
+            mpi_mode="root-distributes",
+        )
