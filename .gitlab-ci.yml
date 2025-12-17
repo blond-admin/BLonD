@@ -83,7 +83,8 @@ workflow:
     #   junit: ${project_root}/coverage-report.xml
 
 precommit-check:
-  image: python:3.12
+
+  image: python:3.12 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
   stage: precommit
   interruptible: true
   before_script:
