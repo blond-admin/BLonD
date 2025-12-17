@@ -41,14 +41,9 @@ class DistributedArray:
         self.comm = MPI.COMM_WORLD
 
         # Determine rank and size
-        if self.comm is not None:
-            self.rank = self.comm.Get_rank()
-            self.size = self.comm.Get_size()
-            self.is_distributed = self.size > 1
-        else:
-            self.rank = 0
-            self.size = 1
-            self.is_distributed = False
+        self.rank = self.comm.Get_rank()
+        self.size = self.comm.Get_size()
+        self.is_distributed = self.size > 1
 
         self._histogram_local_cache = {}
 

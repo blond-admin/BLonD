@@ -339,6 +339,12 @@ class Beam(BeamBaseClass):
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs:
             kwargs["bins"] = 256
+        if self._dt.is_distributed:
+            warnings.warn(
+                "Plotting MPI single node distribution only.",
+                UserWarning,
+                stacklevel=2,
+            )
         if is_cupy_array(self._dt.array_local):
             # variables below are just for the type hints to function correctly
             dE: CupyArray = self._dE.array_local
