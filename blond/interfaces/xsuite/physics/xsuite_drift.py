@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from scipy.constants import c as clight
+from scipy.constants import c
 
 from blond.core.backends import backend
 from blond.core.beam.beams import BeamBaseClass
@@ -151,7 +151,7 @@ class DriftXsuite(DriftBaseClass):
             beam = self.beam
 
         # --- Convert BLonD → Xsuite coordinates ---
-        zeta = -(beam.dt - self.phi_s / self.omega_rf) * self.beta0 * clight
+        zeta = -(beam.dt - self.phi_s / self.omega_rf) * self.beta0 * c
         ptau = beam.dE / (self.beta0 * self.energy0)
 
         # Create a temporary Xsuite Particles object
@@ -172,8 +172,7 @@ class DriftXsuite(DriftBaseClass):
 
         # --- Convert back to BLonD coordinates ---
         beam.dt = (
-            -particles.zeta / (self.beta0 * clight)
-            + self.phi_s / self.omega_rf
+            -particles.zeta / (self.beta0 * c) + self.phi_s / self.omega_rf
         )
         beam.dE = particles.ptau * self.beta0 * self.energy0
 

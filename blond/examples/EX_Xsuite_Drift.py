@@ -11,18 +11,17 @@ import logging
 import numpy as np
 import xobjects as xo
 import xtrack as xt
-from matplotlib import pyplot as plt
 
 from blond import (
     Beam,
-    DriftXSuite,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
-    lead_ion,
+    SingleHarmonicRfStation,
+    lead_82,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.handle_results.helpers import callers_relative_path
+from blond.interfaces.xsuite.physics.xsuite_drift import DriftXsuite
 
 logging.basicConfig(level=logging.INFO)
 
@@ -43,10 +42,10 @@ def main():
     ring = Ring(2 * np.pi * 1100.009)
     momentum = 1.4e12
 
-    slip_factor = -0.017166999
-    mom_compaction = 0.0015175
+    # slip_factor = -0.017166999
+    # mom_compaction = 0.0015175
 
-    cavity1 = SingleHarmonicCavity()
+    cavity1 = SingleHarmonicRfStation()
     cavity1.harmonic = 4620
     cavity1.voltage = voltage
     cavity1.phi_rf = 0
@@ -55,16 +54,16 @@ def main():
 
     beam1 = Beam(
         intensity=1.5e11,
-        particle_type=lead_ion,
+        particle_type=lead_82,
     )
 
     energy_cycle = MagneticCyclePerTurn(
         value_init=momentum,
         values_after_turn=np.linspace(momentum, momentum, N_TURNS),
-        reference_particle=lead_ion,
+        reference_particle=lead_82,
     )
 
-    drift1 = DriftXSuite(
+    drift1 = DriftXsuite(
         line=line,
         beam=beam1,
         phi_s=0,

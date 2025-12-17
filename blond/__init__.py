@@ -19,6 +19,7 @@ from blond.core.backends.backend import (  # NOQA
 from blond.core.base import UserDefinedElement  # NOQA
 from blond.core.beam.beams import Beam  # NOQA
 from blond.core.beam.particle_types import electron  # NOQA
+from blond.core.beam.particle_types import lead_82  # NOQA
 from blond.core.beam.particle_types import mu_minus  # NOQA
 from blond.core.beam.particle_types import mu_plus  # NOQA
 from blond.core.beam.particle_types import positron  # NOQA
