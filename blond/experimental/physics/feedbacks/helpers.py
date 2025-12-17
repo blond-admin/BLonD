@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -177,7 +178,9 @@ def rf_beam_current(
             )
 
         # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.round((profile.hist_x - dT - np.pi / omega_c) / T_s)
+        ind_fine = np.round(
+            (profile.hist_x + dT - np.pi / omega_c) / T_s
+        )  # TODO: + or - here?
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
         if len(indices) == 0:  # only a single bucket in ind_fine
@@ -188,6 +191,12 @@ def rf_beam_current(
         charges_coarse[ind_fine[0]] = np.sum(
             charges_fine[np.arange(indices[0])]
         )
+        if any(indices < 0):
+            warnings.warn(
+                "part of the beam is located before turn time 0, "
+                "this will cause problems, please shift the beam"
+            )
+
         for i in range(1, len(indices)):
             charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
                 charges_fine[np.arange(indices[i - 1], indices[i])]

@@ -180,8 +180,8 @@ class PassiveCavity(IQCavityFeedback):
         self.omega_center = self.omega_rf - self.omega_detuning
         omega_deviation = self.omega_center - self.omega_rf
         # Dimensionless
-        self.samples_coarse = self.omega_rf * self.T_s
-        self.samples_fine = self.omega_rf * self.profile.hist_step
+        self.samples_coarse = self.omega_rf * self.T_s / 2 / np.pi
+        self.samples_fine = self.omega_rf * self.profile.hist_step / 2 / np.pi
         self.V_SET = np.ones_like(self.V_SET) * self._parent_rf_station.voltage
         self.relative_detuning = omega_deviation / self.omega_center
 
@@ -369,17 +369,17 @@ class PassiveCavity(IQCavityFeedback):
             + 2j * omega * self.I_GEN_COARSE[-self.n_coarse :],
         )
 
+        r_over_q = self.R_over_Q
+        Q_l = self.Q_L
         coeff_A = -2 * (0.5 * delta_omega**2 + delta_omega * omega) / (
-            omega * self.R_over_Q
-        ) + 1j * omega / (self.R_over_Q * self.Q_L)
-        coeff_dA = (
-            2j * (1 + delta_omega / omega) + 1 / self.Q_L
-        ) / self.R_over_Q
+            omega * r_over_q
+        ) + 1j * omega / (r_over_q * Q_l)
+        coeff_dA = (2j * (1 + delta_omega / omega) + 1 / Q_l) / r_over_q
 
         def fun(t, Y, curr):
             a, dA = Y
             res = (
-                omega * self.R_over_Q * (curr(t) - coeff_A * a - coeff_dA * dA)
+                omega * r_over_q * (curr(t) - coeff_A * a - coeff_dA * dA)
             )  # TODO: find out, why /2 is required
             return [dA, res]
 
@@ -416,18 +416,23 @@ class PassiveCavity(IQCavityFeedback):
         # Find initial value of antenna voltage and generator current
         t_at_init = self.profile.hist_x[0] - self.profile.hist_step
 
-        V_A_init = interp1d(
-            np.concatenate(
-                (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)
-            ),
-            self.V_ANT_COARSE,
-        )(t_at_init)
-        dV_A_init = interp1d(
-            np.concatenate(
-                (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)
-            ),
-            np.append(np.diff(self.V_ANT_COARSE), 0) / self.T_s,
-        )(t_at_init)
+        # V_A_init = interp1d(
+        #     np.concatenate(
+        #         (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)
+        #     ),
+        #     self.V_ANT_COARSE,
+        # )(t_at_init)
+        # dV_A_init = interp1d(
+        #     np.concatenate(
+        #         (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)
+        #     ),
+        #     np.append(np.diff(self.V_ANT_COARSE), 0) / self.T_s,
+        # )(t_at_init)
+        V_A_init = self.V_ANT_COARSE[-(1 + self.n_coarse)]
+        dV_A_init = (
+            self.V_ANT_COARSE[-(2 + self.n_coarse)]
+            - self.V_ANT_COARSE[-(1 + self.n_coarse)]
+        ) / self.T_s
         # print(dV_A_init)
         # dV_A_init = 0 + 0j
         if self.fine_RK:
@@ -450,7 +455,6 @@ class PassiveCavity(IQCavityFeedback):
                 self.I_GEN_COARSE,
             )(t_at_init)
 
-            relative_detuning = self.omega_detuning / self.omega_center
             self.V_ANT_FINE = cavity_response_sparse_matrix(
                 I_beam=self.I_BEAM_FINE,
                 I_gen=self.I_GEN_FINE,
@@ -460,7 +464,7 @@ class PassiveCavity(IQCavityFeedback):
                 samples_per_rf=self.samples_fine,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
-                detuning=relative_detuning,
+                detuning=self.relative_detuning,
             )
 
         self.V_ANT_FINE[-self.profile.n_bins :] = (
@@ -502,10 +506,10 @@ class PassiveCavity(IQCavityFeedback):
 
             # Convert RF beam current gradients to be in units of Amperes
             self.i_beam_gradient_fine = (
-                -self.i_beam_gradient_fine / self.profile.hist_step
+                self.i_beam_gradient_fine / self.profile.hist_step
             )
             self.i_beam_gradient_coarse[-self.n_coarse :] = (
-                -self.i_beam_gradient_coarse[-self.n_coarse :] / self.T_s
+                self.i_beam_gradient_coarse[-self.n_coarse :] / self.T_s
             )
 
     def rf_beam_current_gradient(

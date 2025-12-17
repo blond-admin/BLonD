@@ -400,7 +400,7 @@ class IQCavityFeedback(LocalFeedback):
         self.dT = -phi_rf / self.omega_rf
 
         self.rf_centers = (
-            np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
+            np.arange(self.n_coarse) + 0.5 * self.n_periods_coarse
         ) * self.T_s + self.dT
 
     @abstractmethod  # pragma: no cover
