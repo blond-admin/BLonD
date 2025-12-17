@@ -14,6 +14,7 @@ Functions and classes to interface BLonD with xsuite.
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any
 
 from scipy.constants import c
@@ -22,9 +23,10 @@ from blond.core.backends import backend
 from blond.core.beam.beams import BeamBaseClass
 
 if TYPE_CHECKING:
-    from xtrack import Line, Particles
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
+
+from xtrack import Line, Particles, ReferenceEnergyIncrease
 
 from blond.core.base import BeamPhysicsRelevant
 from blond.physics.drifts import DriftBaseClass  # import the base drift class
@@ -69,8 +71,8 @@ class DriftXsuite(DriftBaseClass):
         energy0: float,
         omega_rf: float,
         phi_s: float = 0.0,
-        orbit_length=0.0,
-        element_name: str | None = None,
+        orbit_length: float = 0.0,
+        element_name: str = None,
         section_index: int = 0,
         **kwargs: Any,  # for MRO and future compatibility
     ) -> None:
@@ -88,7 +90,6 @@ class DriftXsuite(DriftBaseClass):
             None  # Will be set in on_init_simulation
         )
 
-        # Initialize drift-specific internal state
         self._transition_gamma: backend.float | None = None
         self._momentum_compaction_factor: backend.float | None = None
 
@@ -102,6 +103,12 @@ class DriftXsuite(DriftBaseClass):
             The simulation instance to be initiated.
         """
         super().on_init_simulation(simulation)
+        warnings.warn(
+            "DriftXsuite is only valid for flat energy cycles. ",
+            UserWarning,
+            stacklevel=2,
+        )
+
         if self.element_name is not None:
             try:
                 self._xsuite_element = self._line_internal[self.element_name]
@@ -145,8 +152,6 @@ class DriftXsuite(DriftBaseClass):
         beam : BeamBaseClass | None
             Beam to track; if None, the internally stored beam is used.
         """
-        from xtrack import Particles
-
         if beam is None:
             beam = self.beam
 
@@ -273,8 +278,6 @@ class EnergyUpdateXsuite(BeamPhysicsRelevant):
     """
 
     def __init__(self, momentum: MagneticCycleBase):
-        from xtrack import ReferenceEnergyIncrease
-
         # Load momentum program
         self.momentum = momentum
 
