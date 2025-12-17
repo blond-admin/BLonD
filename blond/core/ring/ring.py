@@ -115,7 +115,6 @@ class Ring(Preparable):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -132,8 +131,6 @@ class Ring(Preparable):
             The beam object being simulated.
         n_turns
             Total number of turns to simulate.
-        turn_i_init
-            The starting turn number (useful for resuming simulations).
         **kwargs
             Additional keyword arguments.
         """

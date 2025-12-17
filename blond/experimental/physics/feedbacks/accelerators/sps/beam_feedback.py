@@ -68,7 +68,6 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         self.alpha_0 = self._drift.alpha_0

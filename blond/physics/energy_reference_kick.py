@@ -90,7 +90,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs,
     ) -> None:
         """
@@ -104,8 +103,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
             Simulation beam object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -132,6 +129,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
         reference_energy_change = backend.float(
             target_total_energy - beam.reference_total_energy
         )
-
-        beam._dE -= reference_energy_change
+        dE = beam.write_partial_dE()
+        dE -= reference_energy_change
         beam.reference_total_energy += reference_energy_change

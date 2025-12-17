@@ -804,7 +804,6 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-
         **kwargs
             Additional keyword arguments.
         """
@@ -1178,7 +1177,6 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
             Simulation beam object.
         n_turns
             Number of turns to simulate.
-
         **kwargs
             Additional keyword arguments.
         """

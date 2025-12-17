@@ -560,6 +560,14 @@ class SPSOneTurnFeedback(CavityFeedback):
             self.TWC = eval(
                 "SPS" + str(n_sections) + "Section200MHzTWC(" + str(df) + ")"
             )
+            if n_sections == 3:
+                self.TWC = SPS3Section200MHzTWC(df)
+            elif n_sections == 4:
+                self.TWC = SPS4Section200MHzTWC(df)
+            elif n_sections == 5:
+                self.TWC = SPS5Section200MHzTWC(df)
+            else:
+                raise ValueError(n_sections)
             if self.open_ff == 1:
                 # Feed-forward filter
                 self.coeff_ff = getattr(

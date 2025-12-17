@@ -32,7 +32,9 @@ class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
         pass
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
     ) -> None:
         pass
 
@@ -113,7 +115,9 @@ class BeamObservationElementTester(BeamObservationElement):
         pass
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
     ) -> None:
         pass
 
@@ -187,7 +191,9 @@ class MainLoopRelevantHelper(MainLoopRelevant):
         pass
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
     ) -> None:
         pass
 
@@ -212,7 +218,9 @@ class PreparableHelper(Preparable):
         pass
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
     ) -> None:
         pass
 

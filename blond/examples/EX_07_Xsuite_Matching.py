@@ -93,7 +93,6 @@ def main():
 
     try:
         sim.load_results(
-            turn_i_init=0,
             n_turns=N_TURNS,
             observe=[phase_observation],
             beams=[beam1],
@@ -101,7 +100,6 @@ def main():
     except AssertionError as exc:
         sim.run_simulation(
             beams=(beam1,),
-            turn_i_init=0,
             n_turns=N_TURNS,
             observe=[phase_observation, bunch_observation],
         )
