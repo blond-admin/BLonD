@@ -120,13 +120,17 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         return _LIBBLOND
 
-    if floattype == np.float32:
-        _LIBBLOND = load_libblond(precision="single")
-    elif floattype == np.float64:
-        _LIBBLOND = load_libblond(precision="double")
-
-    else:
-        raise TypeError(floattype)
+    try:
+        if floattype == np.float32:
+            _LIBBLOND = load_libblond(precision="single")
+        elif floattype == np.float64:
+            _LIBBLOND = load_libblond(precision="double")
+        else:
+            raise TypeError(floattype)
+    except OSError as exc:
+        raise OSError(
+            "`load_libblond` failed. Has the backend been compiled?"
+        ) from exc
 
     def _getPointer(x: NumpyArray) -> ct.c_void_p:
         return x.ctypes.data_as(ct.c_void_p)
