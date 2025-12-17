@@ -340,19 +340,19 @@ class BiGaussian(MatchingRoutine):
         dt = backend.array(  # potentially on GPU
             self._sigma_dt
             * rng_dt_cpu_only.standard_normal(
-                size=self._n_macroparticles_local
+                size=self._n_macroparticles_local,
+                dtype=backend.float,
             )
             + (phi_s - phi_rf) / omega_rf,
-            dtype=backend.float,
-            order="C",
+            copy=False,
         )
         dE = backend.array(  # potentially on GPU
             sigma_dE
             * rng_dE_cpu_only.standard_normal(
-                size=self._n_macroparticles_local
+                size=self._n_macroparticles_local,
+                dtype=backend.float,
             ),
-            dtype=backend.float,
-            order="C",
+            copy=False,
         )
 
         # Re-insert if necessary
@@ -381,16 +381,21 @@ class BiGaussian(MatchingRoutine):
                     break
                 dt[sel] = backend.array(  # potentially on GPU
                     self._sigma_dt
-                    * rng_dt_cpu_only.standard_normal(size=n_new)
+                    * rng_dt_cpu_only.standard_normal(
+                        size=n_new,
+                        dtype=backend.float,
+                    )
                     + (phi_s - phi_rf) / omega_rf,
-                    dtype=backend.float,
-                    order="C",
+                    copy=False,
                 )
 
                 dE[sel] = backend.array(  # potentially on GPU
-                    sigma_dE * rng_dE_cpu_only.standard_normal(size=n_new),
-                    dtype=backend.float,
-                    order="C",
+                    sigma_dE
+                    * rng_dE_cpu_only.standard_normal(
+                        size=n_new,
+                        dtype=backend.float,
+                    ),
+                    copy=False,
                 )
         beam.setup_beam(
             dt=dt,
