@@ -223,7 +223,7 @@ pages_blond3:  # adjusted for BLonD3, not active yet
     - cp -r ./_build/html/* public/v3/
   artifacts:
     paths:
-      - ${project_root}public
+      - ${project_root}/public
   only:
     - blonder_feature/docs-online
 
