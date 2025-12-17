@@ -213,27 +213,24 @@ pages:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: deploy
   script:
-    # Upgrade pip and install docs dependencies in the project root
     - cd ${project_root}
     - python3 -m pip install --upgrade pip
     - python3 -m pip install .[doc]
 
-    # Move to docs folder
-    - cd ${project_root}/docs
+    # Build docs
+    - cd docs
     - export PATH=/home/non_root/.local/bin:$PATH
-
-    # Run doc creation script
     - . ./create_docs.sh
 
-    # Ensure public/v3 exists and copy all HTML files
-    - mkdir -p ${project_root}/public/v3
-    - cp -r ${project_root}/docs/_build/html/. ${project_root}/public/v3/
+    # Copy HTML to public/v3
+    - cd ${project_root}   # <-- go back to project root
+    - mkdir -p public/v3
+    - cp -r docs/_build/html/. public/v3/
 
-    # Optional: debug what will be uploaded
-    - echo "Files to upload as artifacts:"
-    - ls -R ${project_root}/public/v3
+    # Debug
+    - ls -R public/v3
   artifacts:
     paths:
-      - ${project_root}/public
+      - public
   only:
     - blonder_feature/docs-online
