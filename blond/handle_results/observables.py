@@ -501,11 +501,11 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         )
         self._reference_time = DenseArrayRecorder(
             f"{self.common_filepath}_reference_time",
-            (n_entries,),
+            n_entries,
         )
         self._reference_total_energy = DenseArrayRecorder(
             f"{self.common_filepath}_reference_total_energy",
-            (n_entries,),
+            n_entries,
         )
 
     def update(
@@ -532,7 +532,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     @property  # as readonly attributes
     def bunch_position(self):
         """
-        Return array of bunch_position of shape ``(1, n_observations)``.
+        Return array of bunch_position of shape (n_observations,).
 
         Returns
         -------
@@ -544,7 +544,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     @property  # as readonly attributes
     def energy_spread(self):
         """
-        Return array of energy spread of shape ``(1, n_observations)``.
+        Return array of energy spread of shape (n_observations,).
 
         Returns
         -------
@@ -556,7 +556,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     @property  # as readonly attributes
     def bunch_length(self):
         """
-        Return array of bunch_length of shape ``(1, n_observations)``.
+        Return array of bunch_length of shape (n_observations,).
 
         Returns
         -------
@@ -568,7 +568,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     @property  # as readonly attributes
     def reference_time(self):
         """
-        Return reference time of shape ``(1, n_observations)``.
+        Return reference time of shape (n_observations,).
 
         Returns
         -------
