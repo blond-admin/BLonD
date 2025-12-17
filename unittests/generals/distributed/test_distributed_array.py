@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 
+from blond import backend
 from blond.core.backends.mpi_distributed.callables import (
     mpi_is_active,
 )
@@ -17,12 +18,14 @@ class TestDistributedArray(unittest.TestCase):
         self.array = rng.normal(loc=0, scale=1.0, size=128)
         self.da = DistributedArray(self.array.copy())
 
-    def local_size(self):
+    def test_local_size(self):
         self.assertEqual(self.da.local_size, 128)
         if mpi_active:
             self.da.mpi_scatter()
-        self.assertEqual(self.da.local_size, 64)  # assumes `mpirun -n 2`
-        self.assertEqual(self.da.global_size, 128)
+        if mpi_active:
+            self.assertEqual(self.da.local_size, 64)  # assumes `mpirun -n 2`
+            self.assertTrue(self.da.is_distributed)
+            self.assertEqual(self.da.global_size, 128)
 
     def _call_test(self, func, func_name):
         expected = func(self.array)
@@ -52,3 +55,19 @@ class TestDistributedArray(unittest.TestCase):
             self.da.mpi_scatter()
         actual = self.da.histogram(bins=8)
         np.testing.assert_allclose(expected, actual)
+
+    def test_histogram_with_out(self):
+        expected, _ = np.histogram(self.array, bins=8)
+        if mpi_active:
+            self.da.mpi_scatter()
+        actual = np.zeros_like(expected, dtype=backend.float)
+        self.da.histogram(bins=8, out=actual)
+        np.testing.assert_allclose(expected, actual)
+
+    def test_barrier(self):
+        if mpi_active:
+            self.da.array_local = self.da.array_local[:64]
+            self.da.barrier()
+            self.assertEqual(
+                self.da.global_size, 2 * 64
+            )  # assumes `mpirun -n 2`
