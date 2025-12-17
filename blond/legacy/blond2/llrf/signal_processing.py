@@ -42,7 +42,8 @@ logger = logging.getLogger(__name__)
 def polar_to_cartesian(
     amplitude: float | NumpyArray, phase: float | NumpyArray
 ) -> NumpyArray | complex:
-    """Convert data from polar to cartesian (I,Q) coordinates.
+    """
+    Convert data from polar to cartesian (I,Q) coordinates.
 
     Parameters
     ----------
@@ -63,7 +64,8 @@ def polar_to_cartesian(
 
 
 def cartesian_to_polar(IQ_vector: NumpyArray) -> tuple[NumpyArray, NumpyArray]:
-    """Convert data from Cartesian (I,Q) to polar coordinates.
+    """
+    Convert data from Cartesian (I,Q) to polar coordinates.
 
     Parameters
     ----------
@@ -85,7 +87,8 @@ def cartesian_to_polar(IQ_vector: NumpyArray) -> tuple[NumpyArray, NumpyArray]:
 
 
 def get_power_gen_i(I_gen_per_cav: NumpyArray, Z_0: float) -> float:
-    """RF generator power from generator current (physical, in [A]), for any
+    """
+    RF generator power from generator current (physical, in [A]), for any
     f_r (and thus any tau)
 
     Parameters
@@ -111,7 +114,8 @@ def modulator(
     phi_0: float = 0,
     dt: float = 0,
 ) -> NumpyArray:
-    """Demodulate a signal from initial frequency to final frequency. The two
+    """
+    Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
 
     Parameters
@@ -162,7 +166,8 @@ def rf_beam_current(
     external_reference: bool = True,
     dT: float = 0,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
-    r"""Function calculating the beam charge at the (RF) frequency, slice by
+    r"""
+    Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
     profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
     macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`

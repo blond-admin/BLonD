@@ -6,6 +6,13 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""
+Demonstration file for interrupted mainloop.
+
+This is the same as `EX_01_Acceleration.py` apart from using `finalize`
+`mainloop_single_beam` to execute the simulation.
+"""
+
 # pragma: no cover
 import logging
 
@@ -24,7 +31,6 @@ from blond import (
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.experimental.beam_preparation.empiric_matcher import EmpiricMatcher
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
@@ -115,9 +121,21 @@ def main():
             f"Loaded {phase_observation.common_filepath}"
         )  # pragma: no cover
     except (FileNotFoundError, AssertionError):
-        sim.run_simulation(
-            beams=(beam1,),
+        sim.finalize(
+            beams=beam1,
             n_turns=N_TURNS,
+            observe=(phase_observation, bunch_observation),
+            # callback=custom_action,
+        )
+        sim.mainloop_single_beam(
+            beam=beam1,
+            n_turns=N_TURNS // 2,
+            observe=(phase_observation, bunch_observation),
+            # callback=custom_action,
+        )
+        sim.mainloop_single_beam(
+            beam=beam1,
+            n_turns=N_TURNS // 2,
             observe=(phase_observation, bunch_observation),
             # callback=custom_action,
         )

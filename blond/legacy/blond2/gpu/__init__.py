@@ -62,7 +62,8 @@ class GPUDev:
                 file.write(f"{key}:{value}\n")
 
     def func(self, name):
-        """Get kernel from kernel module
+        """
+        Get kernel from kernel module
 
         Args:
             name (string): Kernel name
@@ -73,7 +74,8 @@ class GPUDev:
         return self.mod.get_function(name)
 
     def load_library(self, _precision: str):
-        """Load the GPU library
+        """
+        Load the GPU library
 
         Args:
             _precision (str): must be either 'single' or 'double'

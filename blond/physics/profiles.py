@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to calculate the beam profile.
-
-Authors
--------
-Simon Lauber
-"""
+"""Collection of implementations to calculate the beam profile."""
 
 from __future__ import annotations
 
@@ -87,7 +82,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -101,8 +95,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -597,7 +589,6 @@ class DynamicProfile(ProfileBaseClass):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -611,8 +602,6 @@ class DynamicProfile(ProfileBaseClass):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """

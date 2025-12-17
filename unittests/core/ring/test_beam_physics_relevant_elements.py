@@ -238,7 +238,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         simulation = Mock(spec=Simulation)
         beam = Mock(spec=BeamBaseClass)
         self.beam_physics_relevant_elements.on_run_simulation(
-            simulation=simulation, n_turns=10, turn_i_init=0, beam=beam
+            simulation=simulation, n_turns=10, beam=beam
         )
 
     def test_print_order(self):

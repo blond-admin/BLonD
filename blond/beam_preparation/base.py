@@ -6,10 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Base classes to define :class:`~blond.blond.beam_preparation.base.BeamPreparationRoutine` and :class:`~blond.blond.beam_preparation.base.MatchingRoutine`.
+"""
+Base classes to define :class:`~blond.blond.beam_preparation.base.BeamPreparationRoutine` and :class:`~blond.blond.beam_preparation.base.MatchingRoutine`.
 
-Authors
--------
+Notes
+-----
+Authors:
 Simon Lauber
 """
 
@@ -52,8 +54,6 @@ class BeamPreparationRoutine(ABC):
         """
         beam.reference_total_energy = (
             simulation.magnetic_cycle.get_total_energy_init(
-                turn_i_init=simulation.turn_i.value,
-                t_init=beam.reference_time,  # FIXME
                 particle_type=beam.particle_type,
             )
         )

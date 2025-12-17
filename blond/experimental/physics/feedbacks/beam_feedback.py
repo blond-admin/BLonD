@@ -11,8 +11,9 @@
 **Various beam phase loops with optional synchronisation/frequency/radial loops
 for the CERN machines**
 
-Authors
--------
+Notes
+-----
+Authors:
 Helga Timko
 Alexandre Lasheen
 """
@@ -174,7 +175,7 @@ class Blond2BeamFeedback(LocalFeedback):
 
     def update_phi_beam(self):
         """
-        Beam phase measured at the main RF frequency and phase
+        Beam phase measured at the main RF frequency and phase.
 
         Beam phase measured at the main RF frequency and phase. The beam is
         convolved with the window function of the band-pass filter of the

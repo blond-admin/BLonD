@@ -129,7 +129,7 @@ where :math:`\mathsf{rect}(x)` is the rectangular function. On the resonant freq
 
 
 
-THE CAVITY CONTROLLER
+The Cavity Controller
 ---------------------
 
 The cavity controller is a one-turn feedback, measuring in one turn and correcting in the turn after. It works on the

@@ -36,7 +36,7 @@ table.
 
 Just like in the real machine, we demand the user to define beforehand the
 energy programme, i.e. the **synchronous (design) total energy** at every time
-step :math:`n` and RF station :math:`(i)`, :math:`\left\{ E_{s,(i)}^n \right\}`.
+Step :math:`n` and RF station :math:`(i)`, :math:`\left\{ E_{s,(i)}^n \right\}`.
 This will define the design momentum :math:`p_s` through following relations:
 
 .. math:: E_s = \gamma_s m ,

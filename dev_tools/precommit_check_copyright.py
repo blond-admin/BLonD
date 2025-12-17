@@ -7,7 +7,7 @@ EXCLUDE = "legacy"
 
 
 def perform_check():
-    """Checks the copyright notice in all files."""
+    """Check the copyright notice in all files."""
     this_dir = Path(__file__).parent
     ROOT = (this_dir / "../blond/").resolve()
     assert ROOT.exists(), str(ROOT)

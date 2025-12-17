@@ -70,7 +70,8 @@ if TYPE_CHECKING:
 
 
 class CavityFeedback:
-    r"""Parent class for implementing cavity feedback models interfacing with BLonD
+    r"""
+    Parent class for implementing cavity feedback models interfacing with BLonD
 
     Parameters
     ----------
@@ -295,7 +296,8 @@ class CavityFeedback:
 
 
 class SPSCavityLoopCommissioning:
-    r"""Class containing commissioning settings for the cavity feedback
+    r"""
+    Class containing commissioning settings for the cavity feedback
 
     Parameters
     ----------
@@ -450,7 +452,8 @@ class LHCCavityLoopCommissioning:
 
 
 class SPSOneTurnFeedback(CavityFeedback):
-    r"""The SPS one-turn delay feedback and feedforward model in BLonD for a single cavity type.
+    r"""
+    The SPS one-turn delay feedback and feedforward model in BLonD for a single cavity type.
 
     Parameters
     ----------
@@ -557,6 +560,14 @@ class SPSOneTurnFeedback(CavityFeedback):
             self.TWC = eval(
                 "SPS" + str(n_sections) + "Section200MHzTWC(" + str(df) + ")"
             )
+            if n_sections == 3:
+                self.TWC = SPS3Section200MHzTWC(df)
+            elif n_sections == 4:
+                self.TWC = SPS4Section200MHzTWC(df)
+            elif n_sections == 5:
+                self.TWC = SPS5Section200MHzTWC(df)
+            else:
+                raise ValueError(n_sections)
             if self.open_ff == 1:
                 # Feed-forward filter
                 self.coeff_ff = getattr(
@@ -728,7 +739,8 @@ class SPSOneTurnFeedback(CavityFeedback):
         )
 
     def llrf_model(self):
-        r"""The LLRF model of the SPSOneTurnFeedback. This function calles the functions related
+        r"""
+        The LLRF model of the SPSOneTurnFeedback. This function calles the functions related
         to the LLRF part of the model in the correct order."""
 
         # Track all the modules of the LLRF-part of the model
@@ -749,7 +761,8 @@ class SPSOneTurnFeedback(CavityFeedback):
         self.gen_response()
 
     def beam_model(self):
-        r"""The Beam model of the SPSOneTurnFeedback. This function find the RF beam current from the Profile-
+        r"""
+        The Beam model of the SPSOneTurnFeedback. This function find the RF beam current from the Profile-
         object, applies the cavity response towards the beam and the feed-forward correction if engaged.
         """
 
@@ -882,7 +895,8 @@ class SPSOneTurnFeedback(CavityFeedback):
         self.V_SET[-self.n_coarse :] = self.V_set
 
     def set_point_mod(self):
-        r"""This function is called instead of set_point_std if a modulated set point is used.
+        r"""
+        This function is called instead of set_point_std if a modulated set point is used.
         That is, if the set point is non-constant over a turn with the periodicity of a turn.
         """
 
@@ -935,7 +949,8 @@ class SPSOneTurnFeedback(CavityFeedback):
         )
 
     def one_turn_delay(self):
-        r"""This function applies the complementary delay such that the correction is applied
+        r"""
+        This function applies the complementary delay such that the correction is applied
         with exactly the delay of one turn."""
 
         # Store last turn delayed signal and compute current turn error signal
@@ -960,7 +975,8 @@ class SPSOneTurnFeedback(CavityFeedback):
         )
 
     def mov_avg(self):
-        r"""This function applies the cavity filter, modelled as a moving average, to the modulated
+        r"""
+        This function applies the cavity filter, modelled as a moving average, to the modulated
         error signal."""
 
         # Store last turn moving average signal
@@ -990,7 +1006,8 @@ class SPSOneTurnFeedback(CavityFeedback):
         )
 
     def sum_and_gain(self):
-        r"""Summing of the error signal from the LLRF-part of the model and the set point voltage.
+        r"""
+        Summing of the error signal from the LLRF-part of the model and the set point voltage.
         The generator current is then found by multiplying by the transmitter gain and R_gen. The feed-forward
         current will also be added to the generator current if enabled."""
 
@@ -1030,7 +1047,8 @@ class SPSOneTurnFeedback(CavityFeedback):
         )
 
     def matr_conv(self, I: NumpyArray, h: NumpyArray) -> NumpyArray:
-        r"""Convolution of beam current with impulse response; uses a complete
+        r"""
+        Convolution of beam current with impulse response; uses a complete
         matrix with off-diagonal elements."""
 
         return scipy.signal.fftconvolve(I, h, mode="full")[: I.shape[0]]
@@ -1088,7 +1106,8 @@ class SPSOneTurnFeedback(CavityFeedback):
 
 
 class SPSCavityFeedback:
-    """Class determining the turn-by-turn total RF voltage and phase correction
+    """
+    Class determining the turn-by-turn total RF voltage and phase correction
     originating from the individual cavity feedbacks. Assumes two 4-section and
     two 5-section travelling wave cavities in the pre-LS2 scenario and four
     3-section and two 4-section cavities in the post-LS2 scenario. The voltage
@@ -1303,7 +1322,8 @@ class SPSCavityFeedback:
         self.rf_station = val
 
     def track(self):
-        r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types
+        r"""
+        Main tracking method for the SPSCavityFeedback. This tracks both cavity types
         with beam."""
 
         # Track the feedbacks for the two TWC types
@@ -1394,7 +1414,8 @@ class SPSCavityFeedback:
 
 
 class LHCCavityLoop(CavityFeedback):
-    r"""Cavity loop to regulate the RF voltage in the LHC ACS cavities.
+    r"""
+    Cavity loop to regulate the RF voltage in the LHC ACS cavities.
     The loop contains a generator, a switch-and-protect device, an RF FB and a
     OTFB. The arrays of the LLRF system cover one turn with exactly one tenth
     of the harmonic (i.e.\ the typical sampling time is about 25 ns).
@@ -1638,7 +1659,8 @@ class LHCCavityLoop(CavityFeedback):
         )
 
     def generator_current(self):
-        r"""Generator response
+        r"""
+        Generator response
 
         Attributes
         I_TEST : complex array
@@ -1736,7 +1758,8 @@ class LHCCavityLoop(CavityFeedback):
         )
 
     def update_set_point(self):
-        r"""Updates the set point for the next turn based on the design RF
+        r"""
+        Updates the set point for the next turn based on the design RF
         voltage."""
         coeff = np.polyfit(
             [0, self.n_coarse + 1],
@@ -1823,7 +1846,8 @@ class LHCCavityLoop(CavityFeedback):
             self.tuner_input()
 
     def update_arrays(self):
-        r"""Moves the array indices by one turn (n_coarse points) from the
+        r"""
+        Moves the array indices by one turn (n_coarse points) from the
         present turn to prepare the next turn. All arrays except for V_SET."""
 
         self.V_ANT_COARSE = np.concatenate(
@@ -1933,7 +1957,8 @@ class LHCCavityLoop(CavityFeedback):
         self.detuning = self.d_omega / self.omega_c
 
     def update_set_point_excitation(self, excitation: NumpyArray, turn: int):
-        r"""Updates the set point for the next turn based on the excitation to
+        r"""
+        Updates the set point for the next turn based on the excitation to
         be injected."""
 
         self.V_SET = np.concatenate(

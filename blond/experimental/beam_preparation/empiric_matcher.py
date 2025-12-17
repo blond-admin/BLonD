@@ -293,7 +293,6 @@ class EmpiricMatcher(MatchingRoutine):
         simulation.run_simulation(
             beams=(beam_gridded,),
             n_turns=1,
-            turn_i_init=0,
             observe=tuple(),
             show_progressbar=False,
             callback=None,
@@ -328,7 +327,6 @@ class EmpiricMatcher(MatchingRoutine):
             simulation.run_simulation(
                 beams=(users_beam,),
                 n_turns=1,
-                turn_i_init=0,
                 observe=tuple(),
                 show_progressbar=False,
                 callback=None,
@@ -345,7 +343,6 @@ class EmpiricMatcher(MatchingRoutine):
             simulation.run_simulation(
                 beams=(beam_gridded,),
                 n_turns=1,
-                turn_i_init=0,
                 observe=tuple(),
                 show_progressbar=False,
                 callback=None,

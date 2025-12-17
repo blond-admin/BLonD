@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Implementations to handle the readout of impedance files from the disk.
-
-Authors
--------
-Simon Lauber
-"""
+"""Implementations to handle the readout of impedance files from the disk."""
 
 from __future__ import annotations
 

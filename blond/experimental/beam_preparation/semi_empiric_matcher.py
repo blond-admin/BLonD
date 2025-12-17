@@ -361,7 +361,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 simulation.run_simulation(
                     beams=(beam,),
                     n_turns=1,
-                    turn_i_init=0,
                     show_progressbar=False,
                 )
                 # reset to original value before simulation

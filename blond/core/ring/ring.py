@@ -54,6 +54,9 @@ class Ring(Preparable):
         during simulation (e.g., due to energy changes), the circumference stays
         fixed. Orbit length changes result in timing delays but don't affect
         the RF frequency program.
+    check_section_indices : bool, optional
+        If True, validate section indices during initialization.
+        Default is True.
     radiation_integrals
             Synchrotron radiation integrals.
             First five synchrotron radiation integrals are required:
@@ -65,10 +68,7 @@ class Ring(Preparable):
             with '\rho' the bending radius of bending elements, 'D' the
             horizontal dispersion function, 'K' the focusing strength and 'H =
             \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
-            H-function
-    check_section_indices : bool, optional
-        If True, validate section indices during initialization.
-        Default is True.
+            H-function.
     """
 
     def __init__(
@@ -132,7 +132,6 @@ class Ring(Preparable):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -149,8 +148,6 @@ class Ring(Preparable):
             The beam object being simulated.
         n_turns
             Total number of turns to simulate.
-        turn_i_init
-            The starting turn number (useful for resuming simulations).
         **kwargs
             Additional keyword arguments.
         """
@@ -177,7 +174,14 @@ class Ring(Preparable):
 
     @property
     def radiation_integrals(self) -> NumpyArray | None:
-        """Synchrotron radiation integrals of the ring."""
+        """
+        Synchrotron radiation integrals of the ring.
+
+        Returns
+        -------
+        radiation_integrals
+            Synchrotron radiation integrals.
+        """
         return self._radiation_integrals
 
     @cached_property

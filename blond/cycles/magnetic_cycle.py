@@ -17,8 +17,7 @@ The following classes are currently available:
 - :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
 
-Authors
--------
+Authors:
 Simon Lauber
 """
 
@@ -113,7 +112,6 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -127,8 +125,6 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
             Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -136,7 +132,6 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
         self.invalidate_cache()
 
@@ -198,8 +193,6 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
     def get_total_energy_init(
         self,
-        turn_i_init: int,
-        t_init: float,
         particle_type: ParticleType,
     ) -> float:
         """
@@ -207,12 +200,6 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
         Parameters
         ----------
-        turn_i_init
-            Current turn index.
-            (Eventually needed for array accessing).
-        t_init
-            Current reference time, in [s].
-            (Eventually needed for interpolation).
         particle_type
             Type of particles, e.g. protons.
 
@@ -221,30 +208,19 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         reference_total_energy
             The total energy, in [eV].
         """
-        index = turn_i_init - 1
-        if index < 0:
-            total_energy_init = calc_total_energy(
-                mass=particle_type.mass,
-                momentum=magnetic_rigidity_to_momentum(
-                    magnetic_rigidity=self._magnetic_rigidity_before_turn_0,
-                    charge=particle_type.charge,
-                ),
-            )
-            new_reference_total_energy = total_energy_init
-        else:
-            new_reference_total_energy = self.get_target_total_energy(
-                turn_i=index,
-                section_i=-1,
-                reference_time=t_init,
-                particle_type=particle_type,
-            )
-        return new_reference_total_energy
+        total_energy_init = calc_total_energy(
+            mass=particle_type.mass,
+            momentum=magnetic_rigidity_to_momentum(
+                magnetic_rigidity=self._magnetic_rigidity_before_turn_0,
+                charge=particle_type.charge,
+            ),
+        )
+
+        return total_energy_init
 
     def get_t_rev_init(
         self,
         circumference: float,
-        turn_i_init: int,
-        t_init: float,
         particle_type: ParticleType,
     ) -> float:
         r"""
@@ -254,10 +230,6 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         ----------
         circumference : float
             Reference circumference of the synchrotron, in [m].
-        turn_i_init : int
-            Turn index corresponding to the initial time `t_init`.
-        t_init : float
-            Initial time, in [s].
         particle_type : ParticleType
             Object containing particle properties (e.g., mass, charge).
 
@@ -287,8 +259,6 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
             \beta = \sqrt{1 - \frac{1}{\gamma^2}}
         """
         reference_total_energy = self.get_total_energy_init(
-            turn_i_init=turn_i_init,
-            t_init=t_init,
             particle_type=particle_type,
         )
         reference_gamma = reference_total_energy * particle_type.mass_inv
@@ -680,7 +650,6 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         ret.on_run_simulation(
             simulation=simulation,
             n_turns=len(values_after_turn),
-            turn_i_init=0,
             beam=beam,
         )
 
@@ -887,7 +856,6 @@ class MagneticCyclePerTurnAllRfStations(MagneticCycleBase):
             simulation=simulation,
             beam=beam,
             n_turns=values_after_rf_station_per_turn.shape[1],
-            turn_i_init=0,
         )
         return ret
 
@@ -915,13 +883,13 @@ class MagneticCycleByTime(MagneticCycleBase):
         Interpolation routine to get time in between the base values.
         Default: `scipy.interpolate.interp1d`.
     **kwargs
-        Optional keyword arguments for the interpolator
+        Optional keyword arguments for the interpolator.
 
     See Also
     --------
-    scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`
-    scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation
-    scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial
+    scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
+    scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation.
+    scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
 
     Examples
     --------
@@ -1080,10 +1048,9 @@ class MagneticCycleByTime(MagneticCycleBase):
 
         See Also
         --------
-        scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`
-        scipy.interpolate.interp1d.Akima1DInterpolator : Modified Akima Interpolation
-        scipy.interpolate.interp1d.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial
-
+        scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
+        scipy.interpolate.interp1d.Akima1DInterpolator : Modified Akima Interpolation.
+        scipy.interpolate.interp1d.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
         """
         from blond.core.beam.base import BeamBaseClass
         from blond.core.beam.particle_types import ParticleType
@@ -1108,7 +1075,6 @@ class MagneticCycleByTime(MagneticCycleBase):
         ret.on_run_simulation(
             simulation=simulation,
             n_turns=1,
-            turn_i_init=0,
             beam=beam,
         )
 

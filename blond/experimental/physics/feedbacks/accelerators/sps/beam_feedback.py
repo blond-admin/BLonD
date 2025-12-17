@@ -68,7 +68,6 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         self.alpha_0 = self._drift.alpha_0
@@ -209,6 +208,8 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
 
     def beam_phase_sharpWindow(self):
         """
+        Beam phase measured at the main RF frequency and phase.
+
         Beam phase measured at the main RF frequency and phase. The beam is
         averaged over a window. The coefficients of sine and cosine components
         determine the beam phase, projected to the range -Pi/2 to 3/2 Pi.

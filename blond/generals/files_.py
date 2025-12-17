@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Functions that help working with files.
-
-Authors
--------
-Simon Lauber
-"""
+"""Functions that help working with files."""
 
 from __future__ import annotations
 
