@@ -16,7 +16,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
 
 from blond.acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
@@ -34,9 +33,6 @@ from blond.generals.iterables_ import all_equal
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-
-MPI_RANK = MPI_COMM_WORLD.Get_rank()
-MPI_SIZE = MPI_COMM_WORLD.Get_size()
 
 
 def _get_dE_from_dt_core(
