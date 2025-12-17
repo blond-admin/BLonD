@@ -209,7 +209,7 @@ test_documentation_building:
     when: always
 
 
-blond3_pages:
+pages:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: deploy
   script:
@@ -226,20 +226,3 @@ blond3_pages:
       - public
   only:
     - blonder_feature/docs-online
-
-
-pages:  # BLonD2 scripts
-  image: gitlab-registry.cern.ch/blond/blond/python310
-  interruptible: true
-  script:
-    - cd ${project_root}
-    - mkdir public
-    - python3 -m pip install --upgrade pip
-    - python3 -m pip install .[doc]
-    - export PATH=$HOME/.local/bin:$PATH && make -C docs html
-    - cp -r docs/_build/html/* public/
-  artifacts:
-    paths:
-      - ${project_root}/public
-  only:
-    - master
