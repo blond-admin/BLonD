@@ -211,6 +211,7 @@ test_documentation_building:
 
 pages_blond3:  # adjusted for BLonD3, not active yet
   image: gitlab-registry.cern.ch/blond/blond/python310
+  stage: deploy
   script:
     - cd ${project_root}
     - python3 -m pip install --upgrade pip
@@ -238,6 +239,6 @@ pages:  # BLonD2 scripts
     - cp -r docs/_build/html/* public/
   artifacts:
     paths:
-      - ${project_root}public
+      - ${project_root}/public
   only:
     - master
