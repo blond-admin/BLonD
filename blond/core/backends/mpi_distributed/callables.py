@@ -53,22 +53,25 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
     rms_emittance
         The Root-Mean-Square emittance in [s eV] of the beam.
     """
-    local_dt_dt = float(backend.dot(dt.array_local, dt.array_local))
-    local_dE_dE = float(backend.dot(dE.array_local, dE.array_local))
-    local_dt_dE = float(backend.dot(dt.array_local, dE.array_local))
+    # use dot(x,x) for faster calculation of sum(x**2)
+    local_dt_dt_sum = float(backend.dot(dt.array_local, dt.array_local))
+    local_dE_dE_sum = float(backend.dot(dE.array_local, dE.array_local))
+    local_dt_dE_sum = float(backend.dot(dt.array_local, dE.array_local))
     local_count = dt.local_size
 
     if dt.is_distributed:
         comm = dt.comm  # or dE.comm
-        dt_dt = comm.allreduce(local_dt_dt, op=MPI.SUM)
-        dE_dE = comm.allreduce(local_dE_dE, op=MPI.SUM)
-        dt_dE = comm.allreduce(local_dt_dE, op=MPI.SUM)
+        dt_dt_sum = comm.allreduce(local_dt_dt_sum, op=MPI.SUM)
+        dE_dE_sum = comm.allreduce(local_dE_dE_sum, op=MPI.SUM)
+        dt_dE_sum = comm.allreduce(local_dt_dE_sum, op=MPI.SUM)
         n = comm.allreduce(local_count, op=MPI.SUM)
     else:
-        dt_dt = local_dt_dt
-        dE_dE = local_dE_dE
-        dt_dE = local_dt_dE
+        dt_dt_sum = local_dt_dt_sum
+        dE_dE_sum = local_dE_dE_sum
+        dt_dE_sum = local_dt_dE_sum
         n = local_count
     over_n = 1 / n
-    rms = np.sqrt((dt_dt * over_n) * (dE_dE * over_n) - (dt_dE * over_n) ** 2)
+    rms = np.sqrt(
+        (dt_dt_sum * over_n) * (dE_dE_sum * over_n) - (dt_dE_sum * over_n) ** 2
+    )
     return float(rms)
