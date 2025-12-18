@@ -421,7 +421,9 @@ class RfStationBaseClass(
             self.delta_omega_rf = omega_increment
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
-        if np.any(self.delta_omega_rf):  # any nonzero
+        if np.any(
+            self.delta_omega_rf
+        ):  # equivalent to np.any(self.delta_omega_rf != 0)
             assert self.harmonic is not None
             assert self._omega_rf is not None
             assert self.delta_omega_rf is not None
