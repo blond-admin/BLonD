@@ -411,7 +411,7 @@ class PassiveCavity(IQCavityFeedback):
     def cavity_response_fine(self):
         r"""ACS cavity response model in matrix form on the fine-grid."""
         # Number of samples on fine grid
-        self.samples_fine = self.omega_rf * self.profile.hist_step
+        self.samples_fine = self.omega_rf * self.profile.hist_step / 2 / np.pi
 
         # Find initial value of antenna voltage and generator current
         t_at_init = self.profile.hist_x[0] - self.profile.hist_step
