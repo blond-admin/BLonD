@@ -171,7 +171,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         n_shift = 1550  # how many rf-buckets to shift beam
         omega_rf = float(
             rf.calc_omega(
-                beam_beta=self.beam.reference_beta,
+                beam_beta=self.beam.reference.beta,
                 ring_circumference=ring.circumference,
             )
         )

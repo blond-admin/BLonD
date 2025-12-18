@@ -70,7 +70,7 @@ class TestLHCOpenDrive(unittest.TestCase):
                 in_unit="momentum",
             ),
         )
-        beam.reference_total_energy = sim.magnetic_cycle.get_total_energy_init(
+        beam.reference.total_energy = sim.magnetic_cycle.get_total_energy_init(
             beam.particle_type
         )
         # Test in open loop, on tune
@@ -78,7 +78,7 @@ class TestLHCOpenDrive(unittest.TestCase):
             open_drive=True,
         )
         omega = self.rf.calc_omega(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=ring.circumference,
         )
         rf._omega_rf = omega  # TODO FIXME REMOVE

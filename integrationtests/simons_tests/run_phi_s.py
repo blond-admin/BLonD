@@ -61,16 +61,16 @@ def main():
             )
             print(f"{drift.transition_gamma=}")
             print(f"{drift.momentum_compaction_factor=}")
-            print(f"{drift.eta_0(beam.reference_gamma)=}")
+            print(f"{drift.eta_0(beam.reference.gamma)=}")
 
             ramp = np.linspace(
-                beam.reference_total_energy,
-                1.005 * beam.reference_total_energy,
+                beam.reference.total_energy,
+                1.005 * beam.reference.total_energy,
                 10000 + 1,
             )
             print(ramp[1] - ramp[0], "V")
-            print(f"{beam.reference_beta=}")
-            print(f"{beam.reference_gamma=}")
+            print(f"{beam.reference.beta=}")
+            print(f"{beam.reference.gamma=}")
             cycle = MagneticCyclePerTurn(
                 reference_particle=test_particle,
                 value_init=float(ramp[0]),
@@ -78,7 +78,7 @@ def main():
                 in_unit="total energy",
             )
             """cycle = ConstantMagneticCycle(reference_particle=test_particle,
-                                          value= beam.reference_total_energy,
+                                          value= beam.reference.total_energy,
                                           in_unit="total energy")"""
             simulation = Simulation.from_locals(locals())
             simulation.print_one_turn_execution_order()

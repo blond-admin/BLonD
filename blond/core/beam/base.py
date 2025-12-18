@@ -16,11 +16,9 @@ from enum import IntEnum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-import numpy as np
-from scipy.constants import speed_of_light as c0  # type: ignore
-
 from blond.core.base import HasPropertyCache, Preparable
 from blond.core.helpers import int_from_float_with_warning
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -70,7 +68,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             intensity, warning_stacklevel=2
         )
         self._is_distributed = is_distributed
-        self._particle_type = particle_type
         self._is_counter_rotating = is_counter_rotating
 
         # should be initialized later using `setup_beam`
@@ -79,10 +76,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._flags: NumpyArray | CupyArray | None = None
         self._ids: NumpyArray | CupyArray | None = None
 
-        self.reference_time: float = 0.0
-        # todo cached properties
-        self._reference_total_energy: float | None = (
-            None  # todo cached  properties
+        self.reference = ReferenceCoordinates(
+            time=0, total_energy=None, particle_type=particle_type
         )
 
     @requires(["MagneticCycleBase"])
@@ -124,16 +119,16 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         total_energy_init = simulation.magnetic_cycle.get_total_energy_init(
             particle_type=self.particle_type,
         )
-        if self._reference_total_energy != total_energy_init:
+        if self.reference._total_energy != total_energy_init:
             msg = (
                 f"`Bunch` was prepared for"
-                f" total_energy = {self._reference_total_energy} eV,"
+                f" total_energy = {self.reference._total_energy} eV,"
                 f" but "
                 f" {total_energy_init=} eV."
                 f" The energy is overwritten according to simulation."
             )
             warnings.warn(msg, stacklevel=1)
-        self.reference_total_energy = total_energy_init
+        self.reference.total_energy = total_energy_init
 
     @property
     @abstractmethod  # pragma: no cover
@@ -151,82 +146,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         particle_type
             Type of particles, e.g. protons.
         """
-        return self._particle_type
-
-    @property
-    def reference_total_energy(self) -> float:
-        """
-        Total beam energy [eV].
-
-        Returns
-        -------
-        reference_total_energy
-            Total beam energy [eV].
-        """
-        if self._reference_total_energy is None:
-            raise ValueError(
-                "Beam is not properly set up, please set "
-                "`reference_total_energy` first!"
-            )
-        return self._reference_total_energy
-
-    @reference_total_energy.setter
-    def reference_total_energy(self, reference_total_energy: float) -> None:
-        """
-        Total beam energy [eV].
-
-        Parameters
-        ----------
-        reference_total_energy
-            Total beam energy [eV].
-        """
-        self.invalidate_cache_reference()
-        self._reference_total_energy = reference_total_energy
-
-    @cached_property
-    def reference_gamma(self) -> float:
-        """
-        Beam reference gamma a.k.a. Lorentz factor [].
-
-        Returns
-        -------
-        reference_gamma
-            Beam reference gamma a.k.a. Lorentz factor [].
-        """
-        # reference_total_energy in eV and mass_inv in [c²/eV]
-        if self._reference_total_energy is None:
-            raise ValueError(
-                f"{type(self)} is not properly set up, please set "
-                "`reference_total_energy` first!"
-            )
-        val = self._reference_total_energy * self._particle_type.mass_inv
-        return val
-
-    @cached_property
-    def reference_beta(self) -> float:
-        """
-        Beam reference fraction of speed of light (v/c0) [].
-
-        Returns
-        -------
-        reference_beta
-            Beam reference fraction of speed of light (v/c0) [].
-        """
-        gamma = self.reference_gamma
-        val = np.sqrt(1.0 - 1.0 / (gamma * gamma))
-        return val
-
-    @cached_property
-    def reference_velocity(self) -> float:
-        """
-        Beam reference speed [m/s].
-
-        Returns
-        -------
-        reference_velocity
-            Beam reference speed [m/s].
-        """
-        return self.reference_beta * c0
+        return self.reference._particle_type
 
     @abstractmethod  # pragma: no cover
     def setup_beam(
@@ -333,20 +253,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         "dt_max",
         "common_array_size",
         "ratio",
-        "reference_gamma",
-        "reference_beta",
-        "reference_velocity",
     )
-
-    def invalidate_cache_reference(self) -> None:
-        """Reset cache of `cached_property` attributes."""
-        super()._invalidate_cache(
-            (
-                "reference_gamma",
-                "reference_beta",
-                "reference_velocity",
-            )
-        )
 
     def invalidate_cache_dE(self) -> None:
         """Reset cache of `cached_property` attributes."""
