@@ -1045,7 +1045,7 @@ class Simulation(Preparable):
         >>> beam1 = Beam(...)
         >>> rf_station1 = SingleHarmonicRfStation(...)
         >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
-        >>> beam_obs = BeamObservationOncePerTurn(each_turn_i=1, beam=beam1)
+        >>> beam_obs = BeamObservationOncePerTurn(each_turn_i=1)
         >>>
         >>> sim.run_simulation(
         ...     beams=(beam1,),

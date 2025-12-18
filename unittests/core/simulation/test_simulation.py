@@ -283,7 +283,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_load_results(self):
         observation = BeamObservationOncePerTurn(
-            each_turn_i=10, beam=self.beam
+            each_turn_i=10,
         )
         kwargs = dict(
             beams=(self.beam,),
@@ -339,7 +339,7 @@ class TestSimulation(unittest.TestCase):
         self.assertIsInstance(self.simulation.ring, Ring)
 
     def test_run_simulation(self):
-        observe = BeamObservationOncePerTurn(each_turn_i=10, beam=self.beam)
+        observe = BeamObservationOncePerTurn(each_turn_i=10)
 
         def my_callback(simulation: Simulation, beam: BeamBaseClass) -> None:
             return
