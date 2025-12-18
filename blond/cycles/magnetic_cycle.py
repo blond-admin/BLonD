@@ -498,8 +498,8 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         self._bending_radius = bending_radius
 
         self._magnetic_rigidity: NumpyArray | None = None
-        self._momentum_cached: dict[str, NumpyArray] = {}
-        self._total_energy_cached: dict[str, NumpyArray] = {}
+        self._momentum_cached: dict[int, NumpyArray] = {}
+        self._total_energy_cached: dict[int, NumpyArray] = {}
 
     def on_init_simulation(
         self,
@@ -583,7 +583,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         total_energy
             Total relativistic energy, in [eV].
         """
-        key = particle_type.__class__.__name__
+        key = id(particle_type)
         if key not in self._momentum_cached:
             self._momentum_cached[key] = magnetic_rigidity_to_momentum(
                 magnetic_rigidity=self._magnetic_rigidity[:, :],
