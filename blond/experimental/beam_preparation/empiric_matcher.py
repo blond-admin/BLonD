@@ -198,6 +198,10 @@ class EmpiricMatcher(MatchingRoutine):
 
         Examples
         --------
+        >>> from blond import Simulation, Beam
+        >>> from blond.experimental.beam_preparation.empiric_matcher import EmpiricMatcher
+        >>> simulation = Simulation( ... )
+        >>> beam1 = Beam( ... )
         >>> simulation.prepare_beam(
         ...     beam=beam1,
         ...     preparation_routine=EmpiricMatcher(

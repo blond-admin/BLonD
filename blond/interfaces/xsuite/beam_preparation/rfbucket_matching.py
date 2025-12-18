@@ -71,13 +71,13 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
     Examples
     --------
     >>> sim.prepare_beam(
-    >>>     beam= ... ,
-    >>>     preparation_routine=XsuiteRFBucketMatcher(
-    >>>         distribution_type=QGaussianDistribution,
-    >>>         sigma_z= ... ,
-    >>>         n_macroparticles= ...,
-    >>>     ),
-    >>> )
+    ...     beam= ... ,
+    ...     preparation_routine=XsuiteRFBucketMatcher(
+    ...         distribution_type=QGaussianDistribution,
+    ...         sigma_z= ... ,
+    ...         n_macroparticles= ...,
+    ...     ),
+    ... )
     """
 
     def __init__(

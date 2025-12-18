@@ -59,20 +59,20 @@ def requires(dependencies: list[str]) -> Callable:
     >>>
     >>>
     >>> class ClassA:
-    >>>     def common(self):
-    >>>         pass
+    ...     def common(self):
+    ...         pass
     >>>
     >>>
     >>> class ClassB:
-    >>>     @requires(["ClassA",])
-    >>>     def common(self):
-    >>>         pass
+    ...     @requires(["ClassA",])
+    ...     def common(self):
+    ...         pass
     >>>
     >>>
     >>> sorted_classes = get_required_order(
-    >>>     instances=(ClassB(), ClassA()),
-    >>>     dependency_attribute="common.requires",
-    >>> )
+    ...     instances=(ClassB(), ClassA()),
+    ...     dependency_attribute="common.requires",
+    ... )
     >>> # The classes are sorted according to their requirements
     >>> # sorted_classes = ['ClassA', 'ClassB']
     """
