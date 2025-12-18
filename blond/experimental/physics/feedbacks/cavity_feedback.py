@@ -225,7 +225,7 @@ class IQCavityFeedback(LocalFeedback):
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(harmonic)
 
-        self.n_coarse = round(t_rev / self.T_s)
+        self.n_coarse = round(t_rev / self.T_s)  # TODO: round or ceil?
         self.omega_carrier = omega_rf / self.n_periods_coarse
         # FIXME NO REDECLARATION!
 

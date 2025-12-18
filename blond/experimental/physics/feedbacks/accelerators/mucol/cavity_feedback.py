@@ -181,7 +181,9 @@ class PassiveCavity(IQCavityFeedback):
         omega_deviation = self.omega_center - self.omega_rf
         # Dimensionless
         self.samples_coarse = self.omega_rf * self.T_s / 2 / np.pi
-        self.samples_fine = self.omega_rf * self.profile.hist_step / 2 / np.pi
+        self.samples_fine = (
+            self.omega_rf * self.profile.hist_step / 2 / np.pi
+        )  # TODO: necessary at this place?
         self.V_SET = np.ones_like(self.V_SET) * self._parent_rf_station.voltage
         self.relative_detuning = omega_deviation / self.omega_center
 
