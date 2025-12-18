@@ -583,7 +583,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         total_energy
             Total relativistic energy, in [eV].
         """
-        key = id(particle_type)
+        key = hash(particle_type)
         if key not in self._momentum_cached:
             self._momentum_cached[key] = magnetic_rigidity_to_momentum(
                 magnetic_rigidity=self._magnetic_rigidity[:, :],
