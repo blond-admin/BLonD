@@ -564,8 +564,17 @@ class RfStationBaseClass(
 
 
 class SingleHarmonicRfStation(RfStationBaseClass):
-    """
+    r"""
     RF station with only one RF wave for beam interaction.
+
+    The energy change is calculated as:
+
+    .. math::
+        dE = \left( n_\text{charge} \cdot V \cdot
+        \sin\left(\omega_{\text{rf}} \cdot dt + \phi_{\text{rf}}
+        \right) \right) + \Delta E_\text{reference}
+
+    where :math:`\Delta E_\text{reference}` is the change of reference energy.
 
     Parameters
     ----------
@@ -929,6 +938,15 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     r"""
     RF station with several RF wave for beam interaction.
 
+    The energy change is calculated as:
+
+    .. math::
+        dE = \sum_{j} \left( n_\text{charge} \cdot V[j] \cdot
+        \sin\left(\omega_{\text{rf}}[j] \cdot dt + \phi_{\text{rf}}[
+        j]\right) \right) + \Delta E_\text{reference}
+
+    where :math:`\Delta E_\text{reference}` is the change of reference energy.
+
     Parameters
     ----------
     n_harmonics
@@ -961,15 +979,6 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         RF station's design phases (per harmonic) in [rad].
     harmonic
         RF station's design harmonics (per harmonic) [].
-
-    Notes
-    -----
-    The energy change is calculated as:
-
-    .. math::
-        dE = \sum_{j} \left( \text{charge} \cdot \text{voltage}[j] \cdot \sin\left(\omega_{\text{rf}}[j] \cdot dt + \phi_{\text{rf}}[j]\right) \right) + \text{acceleration\_kick}
-
-    where `acceleration_kick` is the change of reference energy.
 
     Examples
     --------
