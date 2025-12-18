@@ -9,6 +9,7 @@ from scipy.constants import speed_of_light as c0
 from scipy.signal import find_peaks
 
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.simulation.simulation import Simulation
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.readers import (
@@ -156,7 +157,9 @@ class TestInductiveImpedance(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.ring.circumference = 27e3
         beam = Mock(BeamBaseClass)
-        beam.reference_velocity = 0.8 / c0
+        beam.reference = Mock(ReferenceCoordinates)
+
+        beam.reference.velocity = 0.8 / c0
         freq_x = np.linspace(0, 1e9, 30)
         freq_y = self.inductive_impedance.get_impedance(
             freq_x=freq_x,
@@ -213,7 +216,9 @@ class TestInductiveImpedance(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.ring.circumference = 27e3
         beam = Mock(BeamBaseClass)
-        beam.reference_velocity = 0.8 / c0
+        beam.reference = Mock(ReferenceCoordinates)
+
+        beam.reference.velocity = 0.8 / c0
 
         hash_before = self.inductive_impedance._cache_wake_impedance_hash
         _ = self.inductive_impedance.get_wake_impedance(

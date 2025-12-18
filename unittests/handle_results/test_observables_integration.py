@@ -36,7 +36,7 @@ class TestObservables(unittest.TestCase):
         )
         cycle = ConstantMagneticCycle(
             reference_particle=beam.particle_type,
-            value=beam.reference_total_energy,
+            value=beam.reference.total_energy,
             in_unit="total energy",
         )
 

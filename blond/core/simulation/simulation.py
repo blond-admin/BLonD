@@ -169,8 +169,8 @@ class Simulation(Preparable):
     def profiling(
         self,
         beams: tuple[BeamBaseClass],
-        profile_start_turn_i: int,
-        profile_n_turns: int,
+        profile_n_turns: int | float,
+        profile_start_turn_i: int = 0,
         sortby: SortKey = SortKey.CUMULATIVE,
     ) -> None:
         """
@@ -187,10 +187,10 @@ class Simulation(Preparable):
         ----------
         beams
             Beams to simulate during profiling (typically just one).
-        profile_start_turn_i
-            Turn number at which to begin profiling.
         profile_n_turns
             Number of turns to profile after starting.
+        profile_start_turn_i
+            Turn number at which to begin profiling.
         sortby
             How to sort the profiling results. Options include:
                 - SortKey.CUMULATIVE: Sort by cumulative time (default, most useful)
@@ -246,7 +246,10 @@ class Simulation(Preparable):
             if simulation.turn_i.value == profile_start_turn_i:
                 pr.enable()
 
-        end_turn = profile_start_turn_i + profile_n_turns
+        end_turn = profile_start_turn_i + int_from_float_with_warning(
+            profile_n_turns, warning_stacklevel=2
+        )
+
         self.run_simulation(
             beams=beams,
             n_turns=end_turn,
@@ -409,13 +412,13 @@ class Simulation(Preparable):
             particle_type=particle_type,
             intensity=intensity,
         )
-        t0 = probe_bunch.reference_time
+        t0 = probe_bunch.reference.time
         self.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             show_progressbar=False,
         )
-        t1 = probe_bunch.reference_time
+        t1 = probe_bunch.reference.time
         T = t1 - t0
         potential_well = (
             cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
@@ -518,14 +521,14 @@ class Simulation(Preparable):
             intensity=intensity,
         )
         bunch_before = deepcopy(probe_bunch)
-        t_0 = probe_bunch.reference_time
+        t_0 = probe_bunch.reference.time
         deepcopy(self).run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             show_progressbar=False,
         )
         # Calculate passed time
-        t_1 = probe_bunch.reference_time
+        t_1 = probe_bunch.reference.time
         t_rev = t_1 - t_0
         # Calculate scaling factor
         factor = float((dt[-1] - dt[0]) / t_rev)
