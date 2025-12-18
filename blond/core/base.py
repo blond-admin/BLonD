@@ -564,6 +564,7 @@ class ScheduledInterpolation(SchedulerBaseClass):
     Examples
     --------
     Using the Akima interpolation
+
     >>> import scipy
     >>> t_arr = np.linspace(0, 10)
     >>> vals = np.linspace(-10, 0)

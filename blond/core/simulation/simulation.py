@@ -210,6 +210,7 @@ class Simulation(Preparable):
         Examples
         --------
         Profile 100 turns after a 10-turn warmup:
+
         >>> from blond import Simulation, Beam
         >>> sim = Simulation(...)
         >>> beam1 = Beam(...)
