@@ -111,7 +111,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         )
         factor = backend.float(
             (_factor / (2 * np.pi))
-            * (self._simulation.ring.circumference / beam.reference_velocity)
+            * (self._simulation.ring.circumference / beam.reference.velocity)
             / self._parent_wakefield.profile.hist_step
         )
         diff = self._parent_wakefield.profile.gradient_hist_y
@@ -922,7 +922,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         beam
             Beam class to interact with this element.
         """
-        self._update_past_profile_times_wake_times(beam.reference_time)
+        self._update_past_profile_times_wake_times(beam.reference.time)
         self._remove_fully_decayed_wake_profiles()
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles
