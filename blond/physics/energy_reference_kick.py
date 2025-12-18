@@ -47,8 +47,8 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
 
     Examples
     --------
-        >>> elem = ReferenceEnergyChange(section_index=1, name="energy_reference_kick")
-        >>> # Add to element map before simulation
+    >>> elem = ReferenceEnergyChange(section_index=1, name="energy_reference_kick")
+    >>> # Add to element map before simulation
     """
 
     def __init__(

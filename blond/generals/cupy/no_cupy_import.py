@@ -121,7 +121,7 @@ class AllowPlotting:
     --------
     >>> y = cupy.ones(12)
     >>> with AllowPlotting():
-    >>>     plt.plot(y)
+    ...     plt.plot(y)
     """
 
     def __init__(self) -> None:

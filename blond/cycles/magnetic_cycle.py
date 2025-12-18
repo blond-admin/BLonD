@@ -894,7 +894,8 @@ class MagneticCycleByTime(MagneticCycleBase):
     Examples
     --------
     >>> import scipy
-    >>> from blond import mu_plus
+    >>> import numpy as np
+    >>> from blond import mu_plus, MagneticCycleByTime
     >>> time_per_turn = 953.338 * 2 * np.pi / scipy.constants.c
     >>> n_turns = 17
     >>> energy_ramp = np.linspace(63e9, 313.83e9 * 100, n_turns)
