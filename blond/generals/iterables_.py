@@ -32,13 +32,13 @@ def all_equal(iterable: Iterable[T]) -> bool:
     Examples
     --------
     >>> all_equal([1, 1, 1])
-    >>> True
+    True
 
     >>> all_equal([1, 2, 1])
-    >>> False
+    False
 
     >>> all_equal([])
-    >>> True
+    True
     """
     iterator = iter(iterable)
     try:

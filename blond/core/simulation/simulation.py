@@ -402,7 +402,6 @@ class Simulation(Preparable):
         >>> plt.plot(dE_array, drift)
         >>> plt.xlabel('Energy offset [eV]')
         >>> plt.ylabel('Time drift [s]')
-        >>> plt.title('Chromatic Effect')
         >>> plt.show()
         """
         from blond.core.beam.beams import ProbeBeam
@@ -1402,26 +1401,27 @@ class Simulation(Preparable):
         --------
         Save results after a simulation:
 
-        >>> from blond import Simulation, Beam
+        >>> from blond import Simulation, Beam,RfStationPhaseObservation
+        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, ...)
         >>> sim = Simulation(...)
         >>> beam1 = Beam(...)
         >>> # Run simulation with observables
         >>> sim.run_simulation(
         ...     beams=(beam1,),
         ...     n_turns=1000,
-        ...     observe=(phase_obs, beam_obs),
+        ...     observe=(phase_obs,),
         ... )
         >>>
         >>> # Save the data
-        >>> sim.save_results(observe=(phase_obs, beam_obs))
+        >>> sim.save_results(observe=(phase_obs,))
 
         Save with a custom name prefix:
 
         >>> from blond import Simulation
         >>> sim = Simulation(...)
-        >>> sim.run_simulation(observe=(phase_obs, beam_obs), ...)
+        >>> sim.run_simulation(observe=(phase_obs,), ...)
         >>> sim.save_results(
-        ...     observe=(phase_obs, beam_obs),
+        ...     observe=(phase_obs,),
         ...     common_name="simulation_450GeV_1000turns"
         ... )
         """
@@ -1490,15 +1490,14 @@ class Simulation(Preparable):
         --------
         Load previously saved results:
 
-        >>> # Create observables (same as before)
-        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
-        >>> beam_obs = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
+        >>> from blond import RfStationPhaseObservation
+        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, ...)
         >>>
         >>> # Load the saved data
         >>> sim.load_results(
         ...     beams=(beam1,),
         ...     n_turns=1000,
-        ...     observe=(phase_obs, beam_obs),
+        ...     observe=(phase_obs,),
         ... )
         >>>
         >>> # Now analyze the loaded data
@@ -1507,22 +1506,25 @@ class Simulation(Preparable):
 
         Load with custom name prefix:
 
+        >>> from blond import Simulation, Beam
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> sim.load_results(
         ...     beams=(beam1,),
         ...     n_turns=1000,
-        ...     observe=(phase_obs, beam_obs),
+        ...     observe=(phase_obs,),
         ...     common_name="simulation_450GeV_1000turns"
         ... )
 
         Combine with run_simulation for caching:
 
         >>> try:
-        ...     sim.load_results(beams=(beam1,), n_turns=1000, observe=(phase_obs, beam_obs))
+        ...     sim.load_results(beams=(beam1,), n_turns=1000, observe=(phase_obs,))
         ...     print("Loaded cached results")
         ... except FileNotFoundError:
         ...     print("No cached results, running simulation")
-        ...     sim.run_simulation(beams=(beam1,), n_turns=1000, observe=(phase_obs, beam_obs))
-        ...     sim.save_results(observe=(phase_obs, beam_obs))
+        ...     sim.run_simulation(beams=(beam1,), n_turns=1000, observe=(phase_obs,))
+        ...     sim.save_results(observe=(phase_obs,))
         """
         self.finalize(
             beams=beams,

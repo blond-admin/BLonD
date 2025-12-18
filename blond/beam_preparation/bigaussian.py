@@ -227,6 +227,7 @@ class BiGaussian(MatchingRoutine):
 
     Examples
     --------
+    >>> from blond import Simulation, BiGaussian
     >>> simulation = Simulation( ... )
     >>> simulation.prepare_beam(
     ...     beam= ... ,

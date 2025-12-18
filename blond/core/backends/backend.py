@@ -445,8 +445,8 @@ class BackendBaseClass(ABC):
         Examples
         --------
         >>> with backend.temporary_specials_mode("python"):
-        >>>     print(backend.specials_mode)
-        >>>     ...
+        ...     print(backend.specials_mode)
+        ...     # ...
         >>> print(backend.specials_mode)
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
