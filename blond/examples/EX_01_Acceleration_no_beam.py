@@ -59,7 +59,7 @@ def main():
         each_turn_i=1,
         rf_station=rf_station,
     )
-    bunch_observation = BeamObservationOncePerTurn(each_turn_i=1, beam=beam1)
+    bunch_observation = BeamObservationOncePerTurn(each_turn_i=1)
 
     beam1.reference.total_energy = sim.magnetic_cycle.get_total_energy_init(
         particle_type=beam1.particle_type
