@@ -16,13 +16,13 @@ import numpy as np
 
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
-from blond.experimental.physics.feedbacks.base import LocalFeedback
 from blond.experimental.physics.feedbacks.helpers import (
     cartesian_to_polar,
     polar_to_cartesian,
     rf_beam_current,
 )
 from blond.physics.cavities import SingleHarmonicRfStation
+from blond.physics.feedbacks.base import LocalFeedback
 
 if TYPE_CHECKING:
     from typing import Any

@@ -27,11 +27,11 @@ from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from blond.core.beam.beams import ProbeBeam
 from blond.core.ring.helpers import requires
-from blond.experimental.physics.feedbacks.base import LocalFeedback
 from blond.experimental.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
     Blond2BeamFeedback,
 )
+from blond.physics.feedbacks.base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any

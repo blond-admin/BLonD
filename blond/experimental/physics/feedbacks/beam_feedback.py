@@ -26,7 +26,7 @@ import numpy as np
 
 from blond import Simulation
 from blond.core.backends.backend import backend
-from blond.experimental.physics.feedbacks.base import (
+from blond.physics.feedbacks.base import (
     GlobalFeedback,
     LocalFeedback,
 )
