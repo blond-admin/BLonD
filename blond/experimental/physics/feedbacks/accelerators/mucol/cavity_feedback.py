@@ -180,9 +180,9 @@ class PassiveCavity(IQCavityFeedback):
         self.omega_center = self.omega_rf - self.omega_detuning
         omega_deviation = self.omega_center - self.omega_rf
         # Dimensionless
-        self.samples_coarse = self.omega_rf * self.T_s / 2 / np.pi
+        self.samples_coarse = self.omega_rf * self.T_s
         self.samples_fine = (
-            self.omega_rf * self.profile.hist_step / 2 / np.pi
+            self.omega_rf * self.profile.hist_step
         )  # TODO: necessary at this place?
         self.V_SET = np.ones_like(self.V_SET) * self._parent_rf_station.voltage
         self.relative_detuning = omega_deviation / self.omega_center
@@ -413,7 +413,7 @@ class PassiveCavity(IQCavityFeedback):
     def cavity_response_fine(self):
         r"""ACS cavity response model in matrix form on the fine-grid."""
         # Number of samples on fine grid
-        self.samples_fine = self.omega_rf * self.profile.hist_step / 2 / np.pi
+        self.samples_fine = self.omega_rf * self.profile.hist_step
 
         # Find initial value of antenna voltage and generator current
         t_at_init = self.profile.hist_x[0] - self.profile.hist_step

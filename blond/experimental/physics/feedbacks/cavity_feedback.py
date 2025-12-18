@@ -391,7 +391,7 @@ class IQCavityFeedback(LocalFeedback):
         self.T_s = self.n_periods_coarse * 2 * np.pi / self.omega_rf
 
         # Update the coarse grid sampling
-        self.n_coarse = round(t_rev / self.T_s)
+        # self.n_coarse = round(t_rev / self.T_s)
 
         # Present coarse grid and save previous turn coarse grid
         self.rf_centers_prev = np.copy(self.rf_centers)
