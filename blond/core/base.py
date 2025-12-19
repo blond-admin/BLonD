@@ -28,6 +28,7 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.simulation.simulation import Simulation
     from blond.generals.protocols import AnyInterpolator
 
@@ -563,6 +564,7 @@ class ScheduledInterpolation(SchedulerBaseClass):
     Examples
     --------
     Using the Akima interpolation
+
     >>> import scipy
     >>> t_arr = np.linspace(0, 10)
     >>> vals = np.linspace(-10, 0)
@@ -730,4 +732,28 @@ class HasPropertyCache:
     @abstractmethod  # pragma: no cover
     def invalidate_cache(self):
         """Delete the stored values of functions with @cached_property."""
+        pass
+
+
+class AltersReference(ABC):
+    """Base class for objects that alter the reference coordinate system."""
+
+    @abstractmethod  # pragma: no cover
+    def track_reference(self, reference: ReferenceCoordinates, **kwargs):
+        """
+        Update the coordinates of the reference coordinate system.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+        **kwargs
+            Allows more arguments in the method definition outside the
+            abstract class.
+
+        Returns
+        -------
+        change
+            Change of reference time or energy.
+        """
         pass

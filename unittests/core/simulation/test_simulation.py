@@ -371,7 +371,7 @@ class TestSimulation(unittest.TestCase):
             20000,
         )
         phis = ts * cavity.calc_omega(
-            beam_beta=self.beam.reference_beta,
+            beam_beta=self.beam.reference.beta,
             ring_circumference=self.simulation.ring.circumference,
         )
         potential_well, factor, tilt_dt_per_dE = (
@@ -486,7 +486,7 @@ class TestSimulation(unittest.TestCase):
             20000,
         )
         phis = ts * cavity.calc_omega(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=simulation.ring.circumference,
         )
         potential_well, factor, tilt_dt_per_dE = (
@@ -530,15 +530,15 @@ class TestSimulation(unittest.TestCase):
         simulation = sim.simulation
         de = np.linspace(-1e9, 1e9)
         beam = sim.beam1
-        beam.reference_total_energy = 450e9
+        beam.reference.total_energy = 450e9
         drift_term = simulation.get_drift_term_empiric(
             dE=de,
             particle_type=proton,
         )
-        E0 = beam.reference_total_energy
-        beta = beam.reference_beta
+        E0 = beam.reference.total_energy
+        beta = beam.reference.beta
 
-        eta = float(simulation.ring.calc_average_eta_0(beam.reference_gamma))
+        eta = float(simulation.ring.calc_average_eta_0(beam.reference.gamma))
         drift_term_analytic = (
             0.5 * eta / (np.square(beta) * E0) * de**2
         )  # [1/eV]

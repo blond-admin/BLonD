@@ -28,7 +28,18 @@ def main():  # pragma: no cover `main_cli_xxx` gets executed anyway by CI/CD  pi
     when initializing or rebuilding the BLonD environment to ensure
     all compiled modules are up to date.
     """
+    import os
+    import sys
     import warnings
+
+    # local folders like 'numba' can be a problem, because they overwrite
+    # site-package names. Thus, the local folder is removed from the paths.
+    this_folder = os.path.dirname(os.path.abspath(__file__))
+
+    # Remove both exact match and empty-string variant
+    sys.path = [
+        p for p in sys.path if os.path.abspath(p or os.getcwd()) != this_folder
+    ]
 
     from blond.core.backends.cpp.compile import main_cli as main_cli_cpp
     from blond.core.backends.cuda.compile import main_cli as main_cli_cuda

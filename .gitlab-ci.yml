@@ -79,7 +79,8 @@ workflow:
     #   junit: ${project_root}/coverage-report.xml
 
 precommit-check:
-  image: python:3.12
+
+  image: python:3.12 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
   stage: precommit
   interruptible: true
   before_script:
@@ -209,34 +210,20 @@ test_documentation_building:
     when: always
 
 
-#pages_blond3:  # adjusted for BLonD3, not active yet
-#  image: gitlab-registry.cern.ch/blond/blond/python310
-#  script:
-#    - cd ${project_root}
-#    - python3 -m pip install --upgrade pip
-#    - python3 -m pip install .[doc]
-#    - cd ${project_root}/docs
-#    - export PATH=/home/non_root/.local/bin:$PATH
-#    - . ./create_docs.sh
-#    - cp -r ./_build/html/* public/
-#  artifacts:
-#    paths:
-#      - ${project_root}public
-#  only:
-#    - master
-
-pages:  # BLonD2 scripts
+pages:
   image: gitlab-registry.cern.ch/blond/blond/python310
-  interruptible: true
   script:
     - cd ${project_root}
     - mkdir public
     - python3 -m pip install --upgrade pip
-    - python3 -m pip install .[doc]
-    - export PATH=$HOME/.local/bin:$PATH && make -C docs html
+    - python3 -m pip install -v ${project_root}[doc]
+    - export PATH=$HOME/.local/bin:$PATH
+    - cd ./docs
+    - ./create_docs.sh
+    - cd ..
     - cp -r docs/_build/html/* public/
   artifacts:
     paths:
       - ${project_root}public
   only:
-    - master
+    - blonder

@@ -14,6 +14,7 @@ from blond import (
 )
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -44,9 +45,10 @@ simulation.turn_i = DynamicParameter(None)
 simulation.turn_i.value = 0
 beam = Mock(BeamBaseClass)
 beam.common_array_size = 128
-beam.reference_time = 0.8
-beam.reference_beta = 0.9
-beam.reference_total_energy = 11
+beam.reference = Mock(ReferenceCoordinates)
+beam.reference.time = 0.8
+beam.reference.beta = 0.9
+beam.reference.total_energy = 11
 beam._dt = np.ones(beam.common_array_size, dtype=float)
 beam._dE = np.ones(beam.common_array_size, dtype=float)
 beam._flags = np.ones(beam.common_array_size, dtype=int)
@@ -201,9 +203,9 @@ class TestBunchObservation(unittest.TestCase):
             particle_type=electron,
         )
         self.beam.common_array_size = 128
-        self.beam.reference_time = 0.8
-        self.beam.reference_beta = 0.9
-        self.beam.reference_total_energy = 11
+        self.beam.reference.time = 0.8
+        # self.beam.reference.beta = 0.9
+        self.beam.reference.total_energy = 11
         self.beam._dt = np.ones(self.beam.common_array_size, dtype=float)
         self.beam._dE = np.ones(self.beam.common_array_size, dtype=float)
         self.beam._flags = np.ones(self.beam.common_array_size, dtype=int)
@@ -216,15 +218,16 @@ class TestBunchObservation(unittest.TestCase):
         )
 
     def test_from_disk(self) -> None:
-        self.bunch_observation.on_init_simulation(
+        self.bunch_statistics.on_init_simulation(
             simulation=simulation,
         )
-        self.bunch_observation.on_run_simulation(
+        self.bunch_statistics.on_run_simulation(
             simulation=simulation,
             beam=self.beam,
+            turn_i_init=0,
             n_turns=100,
         )
-        self.bunch_observation.update(
+        self.bunch_statistics.update(
             simulation=simulation,
         )
 
@@ -250,7 +253,7 @@ class TestBunchObservation(unittest.TestCase):
             self.bunch_observation._reference_total_energy.get_valid_entries(),
         )
 
-        self.bunch_observation.to_disk()
+        self.bunch_statistics.to_disk()
 
         to_compare = BeamObservationOncePerTurn(
             each_turn_i=1,
@@ -267,7 +270,7 @@ class TestBunchObservation(unittest.TestCase):
             to_compare.dts, self.bunch_observation.dts
         )
         np.testing.assert_almost_equal(
-            to_compare.dEs, self.bunch_observation.dEs
+            to_compare.dEs, self.bunch_statistics.dEs
         )
         np.testing.assert_almost_equal(
             to_compare.flags, self.bunch_observation.flags
@@ -371,38 +374,6 @@ class TestBunchStatistics(unittest.TestCase):
             to_compare.reference_total_energy,
             self.bunch_statistics.reference_total_energy,
         )
-
-
-class TestBunchStatistics(unittest.TestCase):
-    def setUp(self) -> None:
-        self.bunch_statistics = BeamStatisticsOncePerTurn(
-            each_turn_i=1,
-            folder=callers_relative_path("results/", stacklevel=1),
-            beam=beam,
-        )
-
-    def test___init__(self) -> None:
-        self.bunch_statistics = BeamStatisticsOncePerTurn(
-            each_turn_i=1,
-            folder=callers_relative_path("results/", stacklevel=1),
-            beam=beam,
-        )
-
-    def test_from_disk(self) -> None:
-        self.bunch_statistics.on_init_simulation(
-            simulation=simulation,
-        )
-        self.bunch_statistics.on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            turn_i_init=0,
-            n_turns=100,
-        )
-        self.bunch_statistics.update(
-            simulation=simulation,
-        )
-        self.bunch_statistics.to_disk()
-        self.bunch_statistics.from_disk()
 
 
 class TestRfStationPhaseObservation(unittest.TestCase):

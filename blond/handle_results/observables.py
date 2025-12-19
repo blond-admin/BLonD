@@ -247,6 +247,11 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
 
     Examples
     --------
+    >>> from matplotlib import pyplot as plt
+    >>> from blond import Simulation
+    >>> from blond import BeamObservationOncePerTurn
+    >>>
+    >>> sim = Simulation(...)
     >>> bunch_observation = BeamObservationOncePerTurn(each_turn_i=2)
     >>>
     >>> sim.run_simulation(
@@ -255,7 +260,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     ... )
     >>> before = 0  # before simulation
     >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
-    >>> for index in (before, turn_2)
+    >>> for index in (before, turn_2):
     ...     plt.hist2d(
     ...         bunch_observation.dts[index, :],
     ...         bunch_observation.dEs[index, :],
@@ -346,8 +351,8 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             `Simulation` context manager.
         """
         # TODO allow several bunches
-        self._reference_time.write(self._beam.reference_time)
-        self._reference_total_energy.write(self._beam.reference_total_energy)
+        self._reference_time.write(self._beam.reference.time)
+        self._reference_total_energy.write(self._beam.reference.total_energy)
         self._dts.write(self._beam.read_partial_dt())
         self._dEs.write(self._beam.read_partial_dE())
         self._flags.write(self._beam.read_partial_flags())
@@ -580,7 +585,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     @property  # as readonly attributes
     def reference_total_energy(self):
         """
-        Return reference total energy of shape ``(1, n_observations)``.
+        Return reference total energy of shape (n_observations,).
 
         Returns
         -------
@@ -607,6 +612,9 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
 
     Examples
     --------
+    >>> from matplotlib import pyplot as plt
+    >>> from blond import Simulation
+    >>> sim = Simulation( ... )
     >>> rf_station_observation = RfStationPhaseObservation(each_turn_i=2, rf_station=...)
     >>> sim.run_simulation(
     ...     beams=...,
@@ -760,6 +768,9 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
 
     Examples
     --------
+    >>> from matplotlib import pyplot as plt
+    >>> from blond import Simulation
+    >>> sim = Simulation(...)
     >>> profile_obs = StaticProfileObservation(each_turn_i=2, profile=...)
     >>> sim.run_simulation(
     ...     beams=...,
@@ -888,6 +899,9 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
 
     Examples
     --------
+    >>> from matplotlib import pyplot as plt
+    >>> from blond import Simulation
+    >>> sim = Simulation(...)
     >>> profile_obs = StaticMultiProfileObservation(each_turn_i=2, profiles=...)
     >>> sim.run_simulation(
     ...     beams=...,
@@ -1026,11 +1040,14 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
 
     Examples
     --------
+    >>> from matplotlib import pyplot as plt
+    >>> from blond import Simulation
+    >>> sim = Simulation(...)
     >>> wake_obs = WakeFieldObservation(wakefield=..., each_turn_i=2)
     >>> sim.run_simulation(
     ...     beams=...,
     ...     observe=(wake_obs,),
-    )
+    ... )
     >>> before = 0  # before simulation
     >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
     >>> for index in (before, turn_2):
@@ -1136,6 +1153,9 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
 
     Examples
     --------
+    >>> from matplotlib import pyplot as plt
+    >>> from blond import Simulation
+    >>> sim = Simulation(...)
     >>> profile_obs = DynamicProfileConstNBinsObservation(each_turn_i=2, profile=...)
     >>> sim.run_simulation(
     ...     beams=...,

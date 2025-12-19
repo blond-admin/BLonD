@@ -71,13 +71,13 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
     Examples
     --------
     >>> sim.prepare_beam(
-    >>>     beam= ... ,
-    >>>     preparation_routine=XsuiteRFBucketMatcher(
-    >>>         distribution_type=QGaussianDistribution,
-    >>>         sigma_z= ... ,
-    >>>         n_macroparticles= ...,
-    >>>     ),
-    >>> )
+    ...     beam= ... ,
+    ...     preparation_routine=XsuiteRFBucketMatcher(
+    ...         distribution_type=QGaussianDistribution,
+    ...         sigma_z= ... ,
+    ...         n_macroparticles= ...,
+    ...     ),
+    ... )
     """
 
     def __init__(
@@ -160,7 +160,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
 
         rfbucket = RFBucket(
             circumference=simulation.ring.circumference,
-            gamma=beam.reference_gamma,
+            gamma=beam.reference.gamma,
             mass_kg=mass_kg,
             charge_coulomb=charge_coulomb,
             alpha_array=np.atleast_1d(alpha_c),
@@ -184,12 +184,12 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         )
 
         omega = rf_station.calc_omega(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=simulation.ring.circumference,
         )
         # convert zeta to t coordinate
         T = (2 * np.pi) / omega
         dt = -1 * (zeta) / c + T / 2
         # convert from delta to dE
-        dE = delta * beam.reference_total_energy
+        dE = delta * beam.reference.total_energy
         beam.setup_beam(dt=dt, dE=dE)
