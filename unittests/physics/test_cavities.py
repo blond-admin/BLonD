@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
-from numpy._typing import NDArray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond import (
@@ -15,9 +14,6 @@ from blond import (
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
-from blond.experimental.physics.feedbacks.accelerators.mucol.cavity_feedback import (
-    PassiveCavity,
-)
 from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
     SpsRlBeamFeedback,
 )
@@ -26,10 +22,12 @@ from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback impor
 )
 from blond.physics.cavities import (
     MultiHarmonicRfStation,
-    RfStationBaseClass,
     SingleHarmonicRfStation,
 )
 from blond.physics.drifts import _assert_purely_real_or_imaginary
+from blond.physics.feedbacks.Accelerators.mucol.cavity_feedback import (
+    PassiveCavity,
+)
 from blond.physics.impedances.base import WakeField
 
 
