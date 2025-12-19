@@ -11,16 +11,21 @@
 
 from __future__ import annotations
 
+import warnings
 from math import sqrt
 from typing import TYPE_CHECKING
-
-from mpi4py import MPI
 
 from blond.core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
+
+try:
+    from mpi4py import MPI
+except Exception as exc:
+    warnings.warn(str(exc), ImportWarning, stacklevel=1)
+    MPI = None
 
 
 class DistributedArray:
@@ -38,12 +43,19 @@ class DistributedArray:
 
     def __init__(self, array: NumpyArray | CupyArray):
         self.array_local = array
-        self.comm = MPI.COMM_WORLD
+        if MPI is None:
+            self.comm = None
+            # Determine rank and size
+            self.rank = 0
+            self.size = 1
+            self.is_distributed = False
+        else:
+            self.comm = MPI.COMM_WORLD
 
-        # Determine rank and size
-        self.rank = self.comm.Get_rank()
-        self.size = self.comm.Get_size()
-        self.is_distributed = self.size > 1
+            # Determine rank and size
+            self.rank = self.comm.Get_rank()
+            self.size = self.comm.Get_size()
+            self.is_distributed = self.size > 1
 
         self._histogram_local_cache = {}
 

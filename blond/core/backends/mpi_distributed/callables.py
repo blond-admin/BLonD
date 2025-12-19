@@ -10,15 +10,21 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
-from mpi4py import MPI
 
 from blond import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.generals.distributed.distributed_array import DistributedArray
+
+try:
+    from mpi4py import MPI
+except Exception as exc:
+    warnings.warn(str(exc), ImportWarning, stacklevel=1)
+    MPI = None
 
 
 def mpi_is_active() -> float:
