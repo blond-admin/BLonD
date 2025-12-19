@@ -254,7 +254,7 @@ def rf_beam_current(profile: Profile, omega_c: float, T_rev: float, lpf: bool = 
         charges_coarse = np.zeros(n_points, dtype=complex)
         charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
         for i in range(1, len(indices)):
-            charges_coarse[i + ind_fine[0]] = np.sum(charges_fine[np.arange(indices[i - 1],
+            charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(charges_fine[np.arange(indices[i - 1],
                                                                             indices[i])])
         return charges_fine, charges_coarse
 
