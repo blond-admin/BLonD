@@ -63,8 +63,6 @@ class LocalFeedback(FeedbackBaseClass):
 
     Parameters
     ----------
-    section_index
-        section index of the feedback
     name
         name of the feedback
     """
@@ -72,11 +70,9 @@ class LocalFeedback(FeedbackBaseClass):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        section_index: int = 0,
         name: str | None = None,
     ):
         super().__init__(
-            section_index=section_index,
             name=name,
         )
         self._parent_rf_station: (
@@ -112,6 +108,7 @@ class LocalFeedback(FeedbackBaseClass):
                 f"or MultiHarmonicRfStation but not {type(rf_station)}"
             )
         self._parent_rf_station = rf_station
+        self._section_index = self._parent_rf_station.section_index
 
     @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
