@@ -813,7 +813,7 @@ def compute_x_grid(normalization_DeltaE,  # todo TypeHint
         DELTA = np.sqrt((potential_well[i]
                          - potential_well)[potential_well <= potential_well[i]]
                          / normalization_DeltaE)
-        J_array[i] = 1. / np.pi * np.trapezoid(DELTA, dx=time_array[1]
+        J_array[i] = 1. / np.pi * np.trapz(DELTA, dx=time_array[1]
                                                          - time_array[0])
 
     # Compute J grid

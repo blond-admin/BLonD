@@ -158,7 +158,7 @@ def synchrotron_frequency_distribution(beam: Beam,
         dE_trajectory = np.sqrt((potential_well_sep[i]
                                  - pot_well_high_res) / eom_factor_dE)
         dE_trajectory[np.isnan(dE_trajectory)] = 0
-        J_array_dE0[i] = 1 / np.pi * np.trapezoid(dE_trajectory,
+        J_array_dE0[i] = 1 / np.pi * np.trapz(dE_trajectory,
                                                   dx=time_potential_high_res[1]
                                                      - time_potential_high_res[0])
 
@@ -897,7 +897,7 @@ def compute_separatrix_and_bucket_area(time_coord: NDArray, potential_well: NDAr
     Helper function to compute the separatrix and bucket area for calculate_separatrix_with_intensity.
     """
     sep = np.sqrt((potential_well - potential_well[0]) / eom_factor_dE)
-    bucket_area = 2 * np.trapezoid(np.nan_to_num(sep, copy=False), dx=time_coord[1] - time_coord[0])
+    bucket_area = 2 * np.trapz(np.nan_to_num(sep, copy=False), dx=time_coord[1] - time_coord[0])
 
     return sep, bucket_area
 

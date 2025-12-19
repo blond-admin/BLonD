@@ -260,8 +260,7 @@ class CavityFeedback:
 
         # Residual part of last turn entering the current turn due to non-integer harmonic number
         self.dT = -self.rf_station.phi_rf[self.n_h, self.counter] / self.omega_rf
-        self.rf_centers = (
-                                  np.arange(self.n_coarse) + 0.5 / self.n_s
+        self.rf_centers = (np.arange(self.n_coarse) + 0.5 / self.n_s
                           ) * self.T_s + self.dT
 
 

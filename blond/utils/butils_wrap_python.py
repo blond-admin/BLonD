@@ -429,10 +429,10 @@ def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
 def beam_phase(bin_centers: NDArray, profile: NDArray,
                alpha: float, omegarf: float,
                phirf: float, bin_size: float) -> float:
-    scoeff = np.trapezoid(np.exp(alpha * (bin_centers))
+    scoeff = np.trapz(np.exp(alpha * (bin_centers))
                           * np.sin(omegarf * bin_centers + phirf)
                           * profile, dx=bin_size)
-    ccoeff = np.trapezoid(np.exp(alpha * (bin_centers))
+    ccoeff = np.trapz(np.exp(alpha * (bin_centers))
                           * np.cos(omegarf * bin_centers + phirf)
                           * profile, dx=bin_size)
 
@@ -441,9 +441,9 @@ def beam_phase(bin_centers: NDArray, profile: NDArray,
 
 def beam_phase_fast(bin_centers: NDArray, profile: NDArray,
                     omegarf: float, phirf: float, bin_size: float) -> float:
-    scoeff = np.trapezoid(profile * np.sin(omegarf * bin_centers + phirf),
+    scoeff = np.trapz(profile * np.sin(omegarf * bin_centers + phirf),
                           dx=bin_size)
-    ccoeff = np.trapezoid(profile * np.cos(omegarf * bin_centers + phirf),
+    ccoeff = np.trapz(profile * np.cos(omegarf * bin_centers + phirf),
                           dx=bin_size)
 
     return scoeff / ccoeff
