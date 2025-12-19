@@ -202,7 +202,7 @@ class TestBeamFeedback(unittest.TestCase):
     # activate again when the feedbacks are working
     @unittest.skip("too slow and beam feedback is anyway not working for now")
     def test_setup(self):
-        obs_bunch = BeamObservationOncePerTurn(each_turn_i=1, beam=self.beam)
+        obs_bunch = BeamObservationOncePerTurn(each_turn_i=1)
         cav_obs = RfStationPhaseObservation(
             each_turn_i=1,
             rf_station=self.cavity,

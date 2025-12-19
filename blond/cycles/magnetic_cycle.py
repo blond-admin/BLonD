@@ -499,6 +499,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
 
         self._magnetic_rigidity: NumpyArray | None = None
         self._momentum_cached: dict[int, NumpyArray] = {}
+        self._total_energy_cached: dict[int, NumpyArray] = {}
 
     def on_init_simulation(
         self,
@@ -588,10 +589,11 @@ class MagneticCyclePerTurn(MagneticCycleBase):
                 magnetic_rigidity=self._magnetic_rigidity[:, :],
                 charge=particle_type.charge,
             )
-        return calc_total_energy(
-            mass=particle_type.mass,
-            momentum=self._momentum_cached[key][section_i, int(turn_i)],
-        )
+            self._total_energy_cached[key] = calc_total_energy(
+                mass=particle_type.mass,
+                momentum=self._momentum_cached[key],
+            )
+        return self._total_energy_cached[key][section_i, int(turn_i)]
 
     @staticmethod
     def headless(
@@ -894,7 +896,8 @@ class MagneticCycleByTime(MagneticCycleBase):
     Examples
     --------
     >>> import scipy
-    >>> from blond import mu_plus
+    >>> import numpy as np
+    >>> from blond import mu_plus, MagneticCycleByTime
     >>> time_per_turn = 953.338 * 2 * np.pi / scipy.constants.c
     >>> n_turns = 17
     >>> energy_ramp = np.linspace(63e9, 313.83e9 * 100, n_turns)

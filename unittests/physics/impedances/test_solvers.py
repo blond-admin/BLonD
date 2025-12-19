@@ -26,6 +26,7 @@ from blond import (
 )
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
@@ -246,12 +247,13 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
     def setUp(self):
         self.inductive_impedance_solver = InductiveImpedanceSolver()
         beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
         beam.intensity = 1e12
         beam.n_macroparticles_partial.return_value = 128
         beam.particle_type.charge = 1
         beam.ratio = 1
 
-        beam.reference_velocity = 123
+        beam.reference.velocity = 123
         self.inductive_impedance_solver._beam = beam
         self.inductive_impedance_solver._Z_over_n = 12
         _parent_wakefield = Mock(WakeField)
@@ -1007,10 +1009,12 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
 
         self.beam = Mock(BeamBaseClass)
+        self.beam.reference = Mock(ReferenceCoordinates)
+
         self.beam.intensity = int(1e2)
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e2)
-        self.beam.reference_time = 0
+        self.beam.reference.time = 0
         self.beam.is_counter_rotating = False
 
     def test_info_string_with_RF_station(self):
@@ -1526,7 +1530,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         tsteps = [0.5, 1.0, 1.6]
         local_res._maximum_storage_time = 1.5
         beam = deepcopy(self.beam)
-        beam.reference_time = tsteps[0]
+        beam.reference.time = tsteps[0]
         local_res._update_potential_sources(beam=beam)
 
         assert (
@@ -1550,7 +1554,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         # repeat another time, first array should be kicked out due to delay
         local_res._wake_function_vals_needs_update = True
-        beam.reference_time = tsteps[1]
+        beam.reference.time = tsteps[1]
         local_res._update_potential_sources(beam=beam)
         assert (
             len(local_res._wake_function_time)
@@ -1573,7 +1577,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         # kick out oldest profile
         local_res._wake_function_vals_needs_update = True
-        beam.reference_time = tsteps[2]
+        beam.reference.time = tsteps[2]
         local_res._update_potential_sources(beam=beam)
         assert (
             len(local_res._wake_function_time)
@@ -1621,7 +1625,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         local_res._parent_wakefield.profile.hist_x *= 2
         local_res._wake_function_vals_needs_update = True
-        beam.reference_time += 1
+        beam.reference.time += 1
         with self.assertRaises(
             AssertionError,
             msg="profile bin size needs to be constant: hist_step might be too small with casting to delta_t precision",
@@ -1643,7 +1647,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._maximum_storage_time = 1.5
         local_res._wake_function_vals_needs_update = True
         beam = deepcopy(self.beam)
-        beam.reference_time = 1
+        beam.reference.time = 1
         local_res._update_potential_sources(beam=beam)
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
@@ -1663,7 +1667,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._maximum_storage_time = 1.5
         local_res._wake_function_vals_needs_update = True
         beam = deepcopy(self.beam)
-        beam.reference_time = 1
+        beam.reference.time = 1
         local_res._update_potential_sources(beam=beam)
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
@@ -1703,7 +1707,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res_counterrot_corot = deepcopy(local_res_counterrot)
         local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
         beam.is_counter_rotating = False
-        beam.reference_time += np.finfo(float).eps
+        beam.reference.time += np.finfo(float).eps
         counterrot_corot_ind_volt = (
             local_res_counterrot_corot.calc_induced_voltage(beam)
         )
@@ -1740,7 +1744,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res_counterrot_corot = deepcopy(local_res_counterrot)
         local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
         beam.is_counter_rotating = False
-        beam.reference_time += np.finfo(float).eps
+        beam.reference.time += np.finfo(float).eps
         beam.read_partial_dt.return_value = np.linspace(
             local_res_counterrot._parent_wakefield.profile.hist_x[0],
             local_res_counterrot._parent_wakefield.profile.hist_x[-1],
@@ -1825,7 +1829,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             simulation=sim, parent_wakefield=local_res._parent_wakefield
         )
         beam = deepcopy(self.beam)
-        beam.reference_time = 0
+        beam.reference.time = 0
         ind_volt_init = local_res.calc_induced_voltage(beam=beam)
 
         t_rf = 1 / resonators._center_frequencies[0]
@@ -1833,7 +1837,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             np.floor((1 / resonators._alpha[0]) / t_rf) * t_rf
         )  # multiple of t_r to ensure in-phase correctness
         beam = deepcopy(self.beam)
-        beam.reference_time = delay_time
+        beam.reference.time = delay_time
 
         ind_volt = local_res.calc_induced_voltage(beam=beam)
 
@@ -1855,7 +1859,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )  # multiple of t_r
 
         beam = deepcopy(self.beam)
-        beam.reference_time = delay_time
+        beam.reference.time = delay_time
         ind_volt = local_res.calc_induced_voltage(beam=beam)
 
         # ensure perfect addition of in-phase component

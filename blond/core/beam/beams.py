@@ -153,9 +153,9 @@ class Beam(BeamBaseClass):
         )
 
         if reference_time:
-            self.reference_time = reference_time
+            self.reference.time = reference_time
         if reference_total_energy:
-            self.reference_total_energy = reference_total_energy
+            self.reference.total_energy = reference_total_energy
 
         if mpi_mode == "root-distributes":
             self._dE.mpi_scatter()
@@ -471,7 +471,7 @@ class ProbeBeam(Beam):
         dE: NumpyArray | None = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
-        intensity: int = 0,
+        intensity: float = 0,
     ) -> None:
         super().__init__(
             intensity=intensity,
@@ -493,6 +493,46 @@ class ProbeBeam(Beam):
         self.setup_beam(
             dt=dt,
             dE=dE,
+            reference_time=reference_time,
+            reference_total_energy=reference_total_energy,
+        )
+
+
+class EmptyBeam(Beam):
+    """
+    Create a beam without `dt`, `dE` coordinates for probing simulation dynamics.
+
+    A EmptyBeam is a special beam type, designed for testing and
+    analysis purposes.
+
+    Parameters
+    ----------
+    particle_type
+        The type of particle in the beam (e.g., protons, electrons).
+        This determines properties like mass and charge.
+    reference_time
+        The reference time for the coordinate system, in [s].
+    reference_total_energy
+        The reference total energy for the coordinate system, in [eV].
+    intensity
+        The beam intensity (number of real particles). Default is 0,
+        meaning no collective effects.
+    """
+
+    def __init__(
+        self,
+        particle_type: ParticleType,
+        reference_time: float | None = None,
+        reference_total_energy: float | None = None,
+        intensity: float = 0,
+    ) -> None:
+        super().__init__(
+            intensity=intensity,
+            particle_type=particle_type,
+        )
+        self.setup_beam(
+            dt=backend.zeros(0),
+            dE=backend.zeros(0),
             reference_time=reference_time,
             reference_total_energy=reference_total_energy,
         )

@@ -21,9 +21,9 @@ from abc import ABC
 from typing import TYPE_CHECKING
 
 from blond.core.base import Schedulable
-from blond.core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
+    from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
 
 
@@ -52,19 +52,19 @@ class BeamPreparationRoutine(ABC):
         beam : BeamBaseClass
             The `Beam` object which state will be updated by this element.
         """
-        beam.reference_total_energy = (
+        beam.reference.total_energy = (
             simulation.magnetic_cycle.get_total_energy_init(
                 particle_type=beam.particle_type,
             )
         )
-        beam.reference_time = 0  # FIXME
+        beam.reference.time = 0  # FIXME
         # assign beams?
 
         schedulables = simulation.ring.elements.get_elements(Schedulable)
         for s in schedulables:
             s.apply_schedules(
                 turn_i=simulation.turn_i.value,
-                reference_time=beam.reference_time,
+                reference_time=beam.reference.time,
             )
 
 

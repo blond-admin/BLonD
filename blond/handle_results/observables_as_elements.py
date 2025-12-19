@@ -131,8 +131,8 @@ class BeamObservationInRingElement(
         """
         self._dEs.write(beam.read_partial_dE())
         self._dts.write(beam.read_partial_dt())
-        self._reference_time.write(beam.reference_time)
-        self._reference_total_energy.write(beam.reference_total_energy)
+        self._reference_time.write(beam.reference.time)
+        self._reference_total_energy.write(beam.reference.total_energy)
         self._flags.write(beam.read_partial_flags())
 
     @property  # as readonly attributes
