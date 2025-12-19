@@ -441,7 +441,7 @@ class LHCCavityLoop(IQCavityFeedback):
             np.concatenate(
                 (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)
             ),
-            self.I_BEAM_COARSE,
+            self.I_GEN_COARSE,
             fill_value="extrapolate",
         )(t_at_init)
 

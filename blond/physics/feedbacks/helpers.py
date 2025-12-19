@@ -72,9 +72,9 @@ def rf_beam_current(
     dT: float = 0,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""
-    Calculates the beam charge at the (RF) frequency slice by slice.
+    Calculates the beam charge at the carrier frequency slice by slice.
 
-    Function calculating the beam charge at the (RF) frequency, slice by
+    Function calculating the beam charge at the carrier frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
     profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
     macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
@@ -91,7 +91,7 @@ def rf_beam_current(
 
     .. math:: I_{\mathsf{DC}} = \frac{Q_{\mathsf{tot}}}{T_0}
 
-    The RF beam charge distribution [C] at a revolution frequency
+    The RF beam charge distribution [C] at a carrier frequency
     :math:`\omega_c` is the complex quantity
 
     .. math::
@@ -111,7 +111,7 @@ def rf_beam_current(
     profile : class
         A Profile type class
     omega_c : float
-        Revolution frequency [1/s] at which the current should be calculated
+        Carrier angular frequency [rad/s] at which the current should be calculated
     T_rev : float
         Revolution period [s] of the machine
     use_lowpass_filter : bool
@@ -180,7 +180,7 @@ def rf_beam_current(
 
         # Find which index in fine grid matches index in coarse grid
         ind_fine = np.round(
-            (profile.hist_x + dT - np.pi / omega_c) / T_s
+            (profile.hist_x - dT - np.pi / omega_c) / T_s
         )  # TODO: + or - here?
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
