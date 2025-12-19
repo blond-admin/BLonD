@@ -32,6 +32,7 @@ from tqdm import tqdm  # type: ignore
 
 from blond.core.backends.backend import backend
 from blond.core.base import (
+    AltersReference,
     DynamicParameter,
     Preparable,
     SimulationElementBase,
@@ -53,6 +54,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.beam_preparation.base import BeamPreparationRoutine
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
+    from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.ring.ring import Ring
     from blond.experimental.beam_preparation.empiric_matcher import (
         EmpiricMatcher,
@@ -165,6 +167,8 @@ class Simulation(Preparable):
         self._exec_on_init_simulation()
 
         self._particle_performance_waning_threshold = int(1e3)
+
+        self._current_t_rev = None
 
     def profiling(
         self,
@@ -1274,10 +1278,11 @@ class Simulation(Preparable):
             # display to iteration
         for turn_i in iterator:
             self.turn_i.value = turn_i
+            self._calculate_current_t_rev(reference=beam.reference)
             for element in self._ring.elements.elements:
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
-                    element.track(beam)
+                    element.track(beam=beam)
             for observable in observe:
                 if observable.is_active_this_turn(turn_i=self.turn_i.value):
                     observable.update(
@@ -1536,3 +1541,49 @@ class Simulation(Preparable):
             if common_name is not None:
                 observable.rename(new_common_filepath=common_name)
             observable.from_disk()
+
+    def _calculate_current_t_rev(self, reference: ReferenceCoordinates):
+        """
+        Calculate the revolution time of the current turn, in [s].
+
+        This method takes the reference frame of the beam
+        and tracks it along one turn.
+
+        Parameters
+        ----------
+        reference
+            The reference frame to calculate the time of one revolution.
+            The reference energy, i.e. velocity, impacts the revolution time.
+
+        Returns
+        -------
+        t_rev
+            Revolution time, in [s].
+        """
+        reference_tmp = deepcopy(reference)
+        t0 = reference_tmp.time
+        for element in self.ring.elements.get_elements(AltersReference):
+            element: AltersReference
+            element.track_reference(reference_tmp)
+        t1 = reference_tmp.time
+        self._current_t_rev = t1 - t0
+
+    @property
+    def current_t_rev(self) -> float:
+        """
+        The revolution time of the current turn, in [s].
+
+        The revolution time is the time that it takes
+        the reference particle to complete one turn.
+
+        Returns
+        -------
+        t_rev
+            Revolution time, in [s].
+        """
+        if self._current_t_rev is None:
+            raise ValueError(
+                "The value of `current_t_rev` is only available during the simulation execution."
+            )
+        else:
+            return self._current_t_rev
