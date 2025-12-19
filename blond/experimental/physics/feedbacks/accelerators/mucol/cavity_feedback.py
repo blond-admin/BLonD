@@ -25,7 +25,7 @@ from blond.experimental.physics.feedbacks.accelerators.lhc.helpers import (
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
-from blond.experimental.physics.feedbacks.helpers import (
+from blond.physics.feedbacks.helpers import (
     low_pass_filter,
 )
 

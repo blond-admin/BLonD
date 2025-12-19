@@ -6,6 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""Convenience function used in cavity and beam feedback modules."""
+
 from __future__ import annotations
 
 import logging
@@ -70,7 +72,7 @@ def rf_beam_current(
     dT: float = 0,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""
-    Calculates the beam charge at the (RF) frequency slice by slice
+    Calculates the beam charge at the (RF) frequency slice by slice.
 
     Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
@@ -127,10 +129,9 @@ def rf_beam_current(
     -------
     complex array
         RF beam charge array [C] at 'frequency' omega_c, with the sampling time
-        of the Profile object. To obtain current, divide by the sampling time
-    (complex array)
+        of the Profile object. To obtain current, divide by the sampling time (complex array)
         If time_coarse is specified, returns also the RF beam charge array [C]
-        on the coarse time grid
+        on the coarse time grid.
 
     """
     # Convert from dimensionless to Coulomb/Ampères
@@ -172,10 +173,10 @@ def rf_beam_current(
         try:
             T_s = float(downsample["Ts"])
             n_points = int(downsample["points"])
-        except Exception:
+        except Exception as e:
             raise RuntimeError(
-                "Downsampling input erroneous in rf_beam_current"
-            )
+                "Downsampling input erroneous in rf_beam_current."
+            ) from e
 
         # Find which index in fine grid matches index in coarse grid
         ind_fine = np.round(
@@ -194,7 +195,8 @@ def rf_beam_current(
         if any(indices < 0):
             warnings.warn(
                 "part of the beam is located before turn time 0, "
-                "this will cause problems, please shift the beam"
+                "this will cause problems, please shift the beam",
+                stacklevel=2,
             )
 
         for i in range(1, len(indices)):
@@ -211,7 +213,8 @@ def rf_beam_current(
 def cartesian_to_polar(
     IQ_vector: NumpyArray,
 ) -> tuple[NumpyArray, NumpyArray]:
-    """Convert data from Cartesian (I,Q) to polar coordinates.
+    """
+    Convert data from Cartesian (I,Q) to polar coordinates.
 
     Parameters
     ----------
@@ -233,7 +236,8 @@ def polar_to_cartesian(
     amplitude: float | NumpyArray,
     phase: float | NumpyArray,
 ) -> NumpyArray | complex:
-    """Convert data from polar to cartesian (I,Q) coordinates.
+    """
+    Convert data from polar to cartesian (I,Q) coordinates.
 
     Parameters
     ----------

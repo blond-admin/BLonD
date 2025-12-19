@@ -21,9 +21,6 @@ from blond import Simulation
 from blond.core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.accelerators.sps.helpers import (
     comb_filter,
-    feedforward_filter_TWC3,
-    feedforward_filter_TWC4,
-    feedforward_filter_TWC5,
     get_power_gen_i,
     modulator,
     moving_average,
@@ -36,8 +33,8 @@ from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response impo
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
-from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
-from blond.physics.cavities import MultiHarmonicRfStation, RfStationBaseClass
+from blond.physics.cavities import RfStationBaseClass
+from blond.physics.feedbacks.helpers import cartesian_to_polar
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:
