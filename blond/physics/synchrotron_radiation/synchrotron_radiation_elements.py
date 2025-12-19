@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Synchrotron radiation ring elements.
+"""
+Synchrotron radiation ring elements.
 
 Author:
 L. Valle
@@ -38,14 +39,15 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
 
     Parameters
     ----------
-    name: str, optional
+    name
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
-    section_index: int
-        Section index to group elements into sections
-    share_of_synchrotron_radiation_integrals: NumpyArray
+    section_index
+        Section index to group elements into sections.
+    share_of_synchrotron_radiation_integrals
         Fractional synchrotron radiation integrals.
-
+    seed
+        Random seed parameter.
     """
 
     def __init__(
@@ -78,16 +80,17 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         Parameters
         ----------
         beam
-             BeamBaseClass object
+             BeamBaseClass object.
 
         Returns
         -------
-            Energy kick to be applied on the energy coordinates of the beam
+        energy_kick
+            Energy kick to be applied on the energy coordinates of the beam.
         """
         U0, tau_z, sigma0 = (
             gather_longitudinal_synchrotron_radiation_parameters(
                 particle_type=beam.particle_type,
-                energy=beam.reference_total_energy,
+                energy=beam.reference.total_energy,
                 synchrotron_radiation_integrals=self._fractional_radiation_integrals,
             )
         )
@@ -103,7 +106,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             + 2.0
             * sigma0
             / np.sqrt(tau_z)
-            * beam.reference_total_energy
+            * beam.reference.total_energy
             * self.rng.normal(size=beam.n_macroparticles_partial())
         )
 
@@ -121,7 +124,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         Parameters
         ----------
         beam
-            BeamBaseClass object
+            BeamBaseClass object.
         """
         # TODO write C++ routine
         energy_change = self._calculate_kick(beam=beam)
@@ -132,8 +135,10 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         """
         Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
@@ -142,8 +147,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
         turn_i_init: int,
         **kwargs,
     ) -> None:
@@ -153,13 +156,11 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         Parameters
         ----------
         simulation
-            `Simulation` context manager
-        beam
-            Simulation `Beam` object
-        n_turns
-            Number of turns to simulate
+            `Simulation` context manager.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments for simulation setup.
         """
         self._turn_i = simulation.turn_i
         self._simulation = simulation
@@ -171,7 +172,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         self._turn_i = self._simulation.turn_i
         self._update_beam_energy(beam)
@@ -187,13 +188,19 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
     Parameters
     ----------
     name
-        Name of the damping wigglers
+        Name of the damping wigglers.
     section_index
+        Section index.
     wiggler_type
+        Type of damping wiggler. Default: 'sinusoidal'.
     number
+        Number of damping wigglers.
     peak_field
+        Magnetic peak field per wiggler.
     pole_length
+        Pole length.
     number_poles
+        Number of poles per wiggler.
     """
 
     def __init__(
@@ -224,12 +231,26 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
     @property
     def number_of_wigglers(self):
-        """Number of damping wigglers."""
+        """
+        Number of damping wigglers.
+
+        Returns
+        -------
+        number_of_wigglers
+            Number of damping wigglers.
+        """
         return self._number
 
     @property
     def length_wiggler(self):
-        """Length of each damping wiggler."""
+        """
+        Length of each damping wiggler.
+
+        Returns
+        -------
+        length_wiggler
+            Length of each damping wiggler.
+        """
         if self._type == "sinusoidal":
             return self.pole_length * self._number_poles
         else:
@@ -237,21 +258,49 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
     @property
     def number_of_poles(self):
-        """Number of poles per wiggler."""
+        """
+        Number of poles per wiggler.
+
+        Returns
+        -------
+        number_of_poles
+            Number of poles.
+        """
         return self._number_poles
 
     @property
     def peak_magnetic_field(self):
-        """Peak magnetic field per wiggler."""
+        """
+        Peak magnetic field per wiggler.
+
+        Returns
+        -------
+        peak_magnetic_field
+            Magnetic peak field.
+        """
         return self._peak_field
 
     @property
     def pole_length(self):
-        """Pole length per wiggler."""
+        """
+        Pole length per wiggler.
+
+        Returns
+        -------
+        pole_length
+            Pole length per wiggler.
+        """
         return self._pole_length
 
     def __str__(self):
-        """Method to print general information about the created class."""
+        """
+        Method to print general information about the created class.
+
+        Returns
+        -------
+        message
+            Prints the characteristics of the initialised wiggler class.
+        """
         return (
             f"{self.number_of_wigglers} damping wigglers of {self.peak_magnetic_field} T "
             f"and composed of {self.number_of_poles} poles of {
@@ -265,8 +314,10 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         """
         Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         self._simulation = simulation
         self._calculate_contribution_to_synchrotron_radiation_integrals()
@@ -274,8 +325,6 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
         turn_i_init: int,
         **kwargs,
     ) -> None:
@@ -285,18 +334,16 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         Parameters
         ----------
         simulation
-            `Simulation` context manager
-        beam
-            Simulation `Beam` object
-        n_turns
-            Number of turns to simulate
+            `Simulation` context manager.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments for simulation setup.
         """
         self._turn_i = simulation.turn_i
 
     def _calculate_contribution_to_synchrotron_radiation_integrals(self):
-        """Calculates the wiggler radiation integrals without beam energy."""
+        """Calculate the wiggler radiation integrals without beam energy."""
         if self._type == "sinusoidal":
             self._contribution_to_synchrotron_radiation_integrals_without_energy = np.array(
                 [
@@ -341,9 +388,9 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
-        E = beam.read_partial_dE() + beam.reference_total_energy
+        E = beam.read_partial_dE() + beam.reference.total_energy
         var = 1 / (E * e / c)
         energy_contribution_wiggler_integrals = np.array(
             [
@@ -360,12 +407,13 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         )
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         self._turn_i = self._simulation.turn_i
         self.update_synchrotron_radiation_integrals(beam=beam)
