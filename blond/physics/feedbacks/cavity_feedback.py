@@ -50,16 +50,14 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         Beam profile the feedback acts on
     n_cavities
         Number of cavities the feedback controls
-    n_periods_coarse
+    n_rf_periods_per_coarse_grid
         Number of periods for the coarse grid
     harmonic_index
         Index of the RF harmonic that should be controlled by the feedback
     use_lowpass_filter
         Whether to apply a lowpass filter when calculating the beam current
-    section_index
-        # TODO might be removed?
     name
-        # TODO might be removed
+        ----
 
     Attributes
     ----------
@@ -69,7 +67,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         Apply a low-pass filter to the RF beam current
     harmonic_index
         The harmonic index the cavity feedback is working on
-    n_periods_coarse
+    n_rf_periods_per_coarse_grid
         Sampling time in the model and the number of samples per turn
     """
 
@@ -77,29 +75,11 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         self,
         profile: StaticProfile,
         n_cavities: int,
-        n_periods_coarse: int | float,
+        n_rf_periods_per_coarse_grid: int | float,
         harmonic_index: int,
         use_lowpass_filter: bool = False,
         name: str | None = None,
     ):
-        """
-        Base class to design cavity feedbacks.
-
-        Parameters
-        ----------
-        profile
-            Beam profile the feedback acts on
-        n_cavities
-            Number of cavities the feedback controls
-        n_periods_coarse
-            Number of rf periods the coarse grid sampling period corresponds to
-        harmonic_index
-            Index of the RF harmonic that should be controlled by the feedback
-        use_lowpass_filter
-            Whether to apply a lowpass filter when calculating the beam current
-        name
-            ---
-        """
         assert isinstance(profile, StaticProfile), (
             "IQ cavity feedbacks require static profiles"
         )
@@ -125,21 +105,20 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         )
 
         # Ratio between rf periods and coarse grid sampling period
-        if type(n_periods_coarse) is not int:
+        if type(n_rf_periods_per_coarse_grid) is not int:
             warnings.warn(
                 "n_periods_coarse is not an integer; coupling between loops might break",
                 stacklevel=2,
             )
-        self.n_periods_coarse = n_periods_coarse
+        self.n_rf_periods_per_coarse_grid = n_rf_periods_per_coarse_grid
 
         # Update the coarse grid sampling
-        self.n_coarse: int | None = None
+        self.n_samples_coarse: int | None = None
 
-        self.V_corr: NumpyArray | None = None
+        self.relative_voltage_correction: NumpyArray | None = None
         self.alpha_sum: NumpyArray | None = None
-        self.phi_corr: NumpyArray | None = None
+        self.phase_correction: NumpyArray | None = None
 
-        self.voltage_setpoint: NumpyArray | None = None
         self.beam_current_coarse_grid: NumpyArray | None = None
         self.beam_current_fine_grid: NumpyArray | None = None
         self.antenna_voltage_coarse_grid: NumpyArray | None = None
@@ -178,26 +157,24 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             self.t_rev / self.sampling_time_coarse
         )  # TODO: round or ceil?; should this be changed during simulation?
 
-        self.voltage_setpoint = np.zeros(
-            self.n_samples_coarse + 1, dtype=complex
-        )
+        self.voltage_setpoint = np.zeros(self.profile.n_bins, dtype=complex)
         self.beam_current_coarse_grid = np.zeros(
-            self.n_samples_coarse + 1, dtype=complex
+            self.n_samples_coarse, dtype=complex
         )
         self.beam_current_fine_grid = np.zeros(
-            self.profile.n_bins + 1, dtype=complex
+            self.profile.n_bins, dtype=complex
         )
         self.antenna_voltage_coarse_grid = np.zeros(
-            self.n_samples_coarse + 1, dtype=complex
+            self.n_samples_coarse, dtype=complex
         )
         self.antenna_voltage_fine_grid = np.zeros(
-            self.profile.n_bins + 1, dtype=complex
+            self.profile.n_bins, dtype=complex
         )
         self.generator_current_coarse_grid = np.zeros(
-            self.n_samples_coarse + 1, dtype=complex
+            self.n_samples_coarse, dtype=complex
         )
         self.generator_current_fine_grid = np.zeros(
-            self.profile.n_bins + 1, dtype=complex
+            self.profile.n_bins, dtype=complex
         )
 
         self.invalidate_cache()
@@ -240,10 +217,10 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         time_coarse_grid
             Time points of the coarse grid [s].
         """
-        if self.n_periods_coarse < 1:
+        if self.n_rf_periods_per_coarse_grid < 1:
             return (
                 np.arange(self.n_samples_coarse) * self.sampling_time_coarse
-                + 0.5 * self.t_rf_actual * self.n_periods_coarse
+                + 0.5 * self.t_rf_actual * self.n_rf_periods_per_coarse_grid
             )
         else:
             return (
@@ -298,13 +275,15 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         self.circuit_track()
 
         # Convert to amplitude and phase
-        self.V_corr, self.alpha_sum = cartesian_to_polar(
+        self.relative_voltage_correction, self.alpha_sum = cartesian_to_polar(
             IQ_vector=self.antenna_voltage_fine_grid[-self.profile.n_bins :],
         )
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.get_voltage_from_parent_rf_station()
-        self.phi_corr = self.alpha_sum - np.mean(
+        self.relative_voltage_correction /= (
+            self.get_voltage_from_parent_rf_station()
+        )
+        self.phase_correction = self.alpha_sum - np.mean(
             np.angle(self.voltage_setpoint[-self.n_samples_coarse :])
         )
 
@@ -376,6 +355,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         "omega_carrier",
         "sampling_time",
         "residual_phase_from_last_turn",
+        "voltage_setpoint",
     )
 
     @cached_property
@@ -418,7 +398,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
     @cached_property
     def omega_carrier(self) -> float:
         """Feedback carrier frequency."""
-        return self.omega_rf_actual / self.n_periods_coarse
+        return self.omega_rf_actual / self.n_rf_periods_per_coarse_grid
 
     @cached_property
     def t_rev(self) -> float:
@@ -428,12 +408,25 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
     @cached_property
     def sampling_time_coarse(self) -> float:
         """Feedback carrier frequency."""
-        return self.n_periods_coarse * 2 * np.pi / self.omega_rf_actual
+        return (
+            self.n_rf_periods_per_coarse_grid
+            * 2
+            * np.pi
+            / self.omega_rf_actual
+        )
 
     @cached_property
     def residual_phase_from_last_turn(self) -> float:
         """Feedback carrier frequency."""
         return self.phi_rf_actual / self.omega_rf_actual
+
+    @cached_property
+    def voltage_setpoint(self) -> NumpyArray:
+        """Voltage setpoint on the fine grid [V]."""
+        return (
+            np.ones_like(self.voltage_setpoint)
+            * self.get_voltage_from_parent_rf_station()
+        )
 
     def invalidate_cache(self) -> None:
         """Delete the stored values of functions with @cached_property."""
