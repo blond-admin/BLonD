@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-r"""Collection to include synchrotron radiation and quantum excitation effects.
+r"""
+Collection to include synchrotron radiation and quantum excitation effects.
 
 First five synchrotron radiation integrals are required as an input of the
 simulated ring:
@@ -75,26 +76,23 @@ class SynchrotronRadiationMaster(Schedulable):
 
     Parameters
     ----------
-    section_index
-        Section index to group elements into sections
-    name: str, optional
-        Human-readable name for the element. If not provided, a unique name is
-        automatically generated.
-    radiation_integrals: NumpyArray, None
+    radiation_integrals
         Synchrotron radiation integrals. If None, the ring will be
         considered isomagnetic.
         In the case of an isomagnetic ring, the synchrotron radiation
         integrals will be computed from the ring bending radius. Default:
         False.
+    track_before_element_type
+        BeamPhysicsRelevant element class for which synchrotron radiation
+        should be tracked.
+    verbose
+        Enable printed messages.
     """
 
     def __init__(
         self,
-        section_index: int = 0,
-        name: str | None = None,
         radiation_integrals: NumpyArray | None = None,
         track_before_element_type: type[T] | None = None,
-        get_synchrotron_radiation_info_turn_by_turn: bool = False,
         verbose: bool = False,
     ):
         super().__init__()
@@ -142,7 +140,14 @@ class SynchrotronRadiationMaster(Schedulable):
         self.generated_children: list[SynchrotronRadiationBaseClass] = []
 
     def __str__(self):
-        """Method to print general information about the created class."""
+        """
+        Method to print general information about the created class.
+
+        Returns
+        -------
+        message
+            Prints the characteristics of the initialised wiggler class.
+        """
         is_iso = ""
         if self.is_isomagnetic:
             is_iso = "isomagnetic"
@@ -156,17 +161,38 @@ class SynchrotronRadiationMaster(Schedulable):
 
     @cached_property  # TODO property enough?
     def energy_loss_per_turn(self) -> NumpyArray:
-        """Energy loss per turn, eV per turn."""
+        """
+        Energy loss per turn, eV per turn.
+
+        Returns
+        -------
+        energy_loss_per_turn
+            Energy loss per turn.
+        """
         return self._energy_loss_per_turn
 
     @cached_property  # TODO property enough?
     def damping_times(self) -> NumpyArray:
-        """Damping times, in turns."""
+        """
+        Damping times, in turns.
+
+        Returns
+        -------
+        damping_times
+            Damping times in turn.
+        """
         return self._damping_times
 
     @property
     def number_of_generated_synchrotron_radiation_classes(self) -> int:
-        """Number of generated synchrotron radiation classes."""
+        """
+        Number of generated synchrotron radiation classes.
+
+        Returns
+        -------
+        number_of_generated_synchrotron_radiation_classes
+            Number of generated synchrotron_radiation_classes.
+        """
         return len(self.generated_children)
 
     # TODO : Add a function to calculate the length of the sections/ drifts
@@ -182,7 +208,8 @@ class SynchrotronRadiationMaster(Schedulable):
         self,
         ring: Ring,
     ):
-        """Function to create synchrotron radiation elements in the ring.
+        """
+        Function to create synchrotron radiation elements in the ring.
 
         This method automatically creates, inserts and initialises the
         synchrotron radiation elements in the ring.
@@ -190,7 +217,12 @@ class SynchrotronRadiationMaster(Schedulable):
         Parameters
         ----------
         ring
-            `Ring` context manager
+            `Ring` context manager.
+
+        Returns
+        -------
+        if self.verbose:
+            Prints the number of generated synchrotron radiation subclasses.
         """
         if self.generated_children:
             raise Warning(
@@ -256,10 +288,12 @@ class SynchrotronRadiationMaster(Schedulable):
                 raise TypeError("Inhomogeneous element classes.")
 
         # FIXME SR tracker BEFORE Drifts and AFTER Cavity -- do I agree now?
-        return print(
-            f"{len(self.generated_children)} synchrotron radiation "
-            f"trackers generated"
-        )
+        if self.verbose:
+            return print(
+                f"{len(self.generated_children)} synchrotron radiation "
+                f"trackers generated"
+            )
+        return None
 
 
 class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
@@ -268,19 +302,19 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
 
     Parameters
     ----------
-    name: str, optional
+    name
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
-    section_index: int
-        Section index to group elements into sections
-    share_of_synchrotron_radiation_integrals: NumpyArray
+    section_index
+        Section index to group elements into sections.
+    share_of_synchrotron_radiation_integrals
         Fractional synchrotron radiation integrals.
     """
 
     def __init__(
         self,
-        section_index: int = 0,
         name: str | None = None,
+        section_index: int = 0,
         share_of_synchrotron_radiation_integrals: NumpyArray = None,
     ):
         super().__init__(
@@ -291,25 +325,48 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
 
     @property
     def energy_lost_due_to_synchrotron_radiation_drift(self):
-        """Energy lost by passing through the drift."""
+        """
+        Energy lost by passing through the drift.
+
+        Returns
+        -------
+        energy_lost_due_to_synchrotron_radiation_drift
+            Energy lost due to synchrotron radiation along the drift.
+        """
         return self._energy_lost_due_to_synchrotron_radiation
 
     @property
     def share_of_synchrotron_radiation_integrals(self):
-        """Synchrotron radiation integrals of the drift."""
+        """
+        Synchrotron radiation integrals of the drift.
+
+        Returns
+        -------
+        synchrotron_radiation_integrals_drift
+            Synchrotron radiation integrals of the drift.
+        """
         return self._fractional_radiation_integrals
 
     @property
     def synchrotron_radiation_integrals_drift(self):
-        """Synchrotron radiation integrals of the drift."""
+        """
+        Synchrotron radiation integrals of the drift.
+
+        Returns
+        -------
+        synchrotron_radiation_integrals_drift
+            Synchrotron radiation integrals of the drift.
+        """
         return self._fractional_radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         self._turn_i = simulation.turn_i
 
@@ -320,12 +377,12 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
 
     Parameters
     ----------
-    name: str, optional
+    name
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
-    section_index: int
-        Section index to group elements into sections
-    share_of_synchrotron_radiation_integrals: NumpyArray
+    section_index
+        Section index to group elements into sections.
+    share_of_synchrotron_radiation_integrals
         Fractional synchrotron radiation integrals.
     """
 
@@ -333,8 +390,8 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
     #  SynchrotronRadiationSection per section
     def __init__(
         self,
-        section_index: int = 0,
         name: str | None = None,
+        section_index: int = 0,
         share_of_synchrotron_radiation_integrals: NumpyArray = None,
     ):
         super().__init__(
@@ -346,24 +403,47 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
 
     @property
     def energy_lost_due_to_synchrotron_radiation_section(self):
-        """Energy lost by passing through the section."""
+        """
+        Energy lost by passing through the section.
+
+        Returns
+        -------
+        energy_lost_due_to_synchrotron_radiation_section
+            Energy lost due to synchrotron radiation along the section.
+        """
         return self._energy_lost_due_to_synchrotron_radiation
 
     @property
     def share_of_synchrotron_radiation_integrals(self):
-        """Synchrotron radiation integrals of the section."""
+        """
+        Synchrotron radiation integrals of the section.
+
+        Returns
+        -------
+        synchrotron_radiation_integrals_section
+            Synchrotron radiation integrals of the section.
+        """
         return self._fractional_radiation_integrals
 
     @property
     def synchrotron_radiation_integrals_section(self):
-        """Synchrotron radiation integrals of the section."""
+        """
+        Synchrotron radiation integrals of the section.
+
+        Returns
+        -------
+        synchrotron_radiation_integrals_section
+            Synchrotron radiation integrals of the section.
+        """
         return self._fractional_radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         self._turn_i = simulation.turn_i
