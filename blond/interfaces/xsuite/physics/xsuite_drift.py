@@ -36,16 +36,15 @@ class DriftXsuite(DriftBaseClass):
     """
     BLonD–Xsuite interface element that has drift with Xsuite Line or sub-element.
 
+    The energy update of the coordinates is done in BLonD, but the drift is done
+    via Xsuite tracking. Hence the 'DriftXsuite'.
+
     Parameters
     ----------
     beam : BeamBaseClass
         BLonD beam to track.
     line : xtrack.Line
         The Xsuite line (or sub-line) to be used for drift transport.
-    beta0 : float
-        Reference beta (usually from synchronous particle).
-    energy0 : float
-        Reference total energy [eV].
     omega_rf : float
         RF angular frequency [rad/s].
     phi_s : float, optional
@@ -67,8 +66,6 @@ class DriftXsuite(DriftBaseClass):
         self,
         beam: BeamBaseClass,
         line: Line,
-        beta0: float,
-        energy0: float,
         omega_rf: float,
         phi_s: float = 0.0,
         orbit_length: float = 0.0,
@@ -82,8 +79,8 @@ class DriftXsuite(DriftBaseClass):
         self.beam = beam
         self._line_internal = line
         self.element_name = element_name
-        self.beta0 = beta0
-        self.energy0 = energy0
+        self.beta0 = beam.reference_beta
+        self.energy0 = beam.reference_total_energy
         self.omega_rf = omega_rf
         self.phi_s = phi_s
         self._xsuite_element: Any | None = (
@@ -152,8 +149,6 @@ class DriftXsuite(DriftBaseClass):
         beam : BeamBaseClass | None
             Beam to track; if None, the internally stored beam is used.
         """
-        if beam is None:
-            beam = self.beam
 
         # --- Convert BLonD → Xsuite coordinates ---
         zeta = -(beam.dt - self.phi_s / self.omega_rf) * self.beta0 * c
@@ -263,6 +258,8 @@ class DriftXsuite(DriftBaseClass):
 class EnergyUpdateXsuite(BeamPhysicsRelevant):
     """
     Class to update the synchronous energy from the momentum program in BLonD.
+    Both Xsuite and BLonD track a relative to a reference energy, this needs
+    to be updated in both Xsuite and BlonD.
 
     Parameters
     ----------
