@@ -45,8 +45,6 @@ class DriftXsuite(DriftBaseClass):
         BLonD beam to track.
     line : xtrack.Line
         The Xsuite line (or sub-line) to be used for drift transport.
-    omega_rf : float
-        RF angular frequency [rad/s].
     phi_s : float, optional
         Synchronous phase [rad].
     orbit_length : int, optional
@@ -102,7 +100,9 @@ class DriftXsuite(DriftBaseClass):
             stacklevel=2,
         )
 
-        self.omega_rf  = simulation.ring.circumference / (self.beam.reference_beta*c)
+        self.omega_rf = simulation.ring.circumference / (
+            self.beam.reference_beta * c
+        )
 
         if self.element_name is not None:
             try:
@@ -148,8 +148,14 @@ class DriftXsuite(DriftBaseClass):
             Beam to track; if None, the internally stored beam is used.
         """
         # --- Convert BLonD → Xsuite coordinates ---
-        zeta = -(beam.dt - self.phi_s / self.omega_rf) * self.beam.reference_beta * c
-        ptau = beam.dE / (self.beam.reference_beta * self.beam.reference_total_energy)
+        zeta = (
+            -(beam.dt - self.phi_s / self.omega_rf)
+            * self.beam.reference_beta
+            * c
+        )
+        ptau = beam.dE / (
+            self.beam.reference_beta * self.beam.reference_total_energy
+        )
 
         # Create a temporary Xsuite Particles object
         particles = Particles(
@@ -168,10 +174,16 @@ class DriftXsuite(DriftBaseClass):
             self._line_internal.track(particles)
 
         # --- Convert back to BLonD coordinates ---
-        beam.dt = (alpha_0
-            -particles.zeta / (self.beam.reference_beta * c) + self.phi_s / self.omega_rf
+        beam.dt = (
+            self.alpha_0
+            - particles.zeta / (self.beam.reference_beta * c)
+            + self.phi_s / self.omega_rf
         )
-        beam.dE = particles.ptau * self.beam.reference_beta * self.beam.reference_total_energy # should this have been updated?
+        beam.dE = (
+            particles.ptau
+            * self.beam.reference_beta
+            * self.beam.reference_total_energy
+        )  # should this have been updated?
 
     @property
     def momentum_compaction_factor(self) -> backend.float | None:

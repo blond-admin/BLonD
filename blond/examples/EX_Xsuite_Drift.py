@@ -53,7 +53,10 @@ def main():
     beam1 = Beam(
         intensity=1.5e11,
         particle_type=lead_82,
+
     )
+
+    beam1.reference_total_energy = 1e6
 
     energy_cycle = MagneticCyclePerTurn(
         value_init=momentum,
@@ -64,7 +67,6 @@ def main():
     drift1 = DriftXsuite(
         line=line,
         beam=beam1,
-        omega_rf=200e6,
     )
 
     one_turn_map = []
@@ -75,6 +77,8 @@ def main():
         magnetic_cycle=energy_cycle,
     )
     sim.print_one_turn_execution_order()
+
+
 
 
 if __name__ == "__main__":  # pragma: no cover
