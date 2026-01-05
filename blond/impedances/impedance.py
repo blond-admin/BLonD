@@ -20,7 +20,7 @@ import numpy as np
 from scipy.constants import e
 
 from ..beam.profile import Profile
-from ..beam.sparse_slices import _SparseBaseClass
+from ..beam.sparse_profiles import _SparseProfileBaseClass
 from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
 

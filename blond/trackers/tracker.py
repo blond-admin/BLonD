@@ -246,7 +246,7 @@ class RingAndRFTracker:
             raise RuntimeError("ERROR in RingAndRFTracker: Empty RFStation" +
                                " with periodicity not yet implemented!")
         if (self.cavityFB is not None) and (self.interpolation is False):
-            if not isinstance(self.profile, _SparseBaseClass):
+            if not isinstance(self.profile, _SparseProfileBaseClass):
                 #fixme
                 self.interpolation = False
                 warnings.warn('Setting interpolation to TRUE')
