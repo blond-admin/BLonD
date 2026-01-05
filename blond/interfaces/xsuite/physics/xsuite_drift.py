@@ -37,7 +37,7 @@ class DriftXsuite(DriftBaseClass):
     BLonD–Xsuite interface element that has drift with Xsuite Line or sub-element.
 
     The energy update of the coordinates is done in BLonD, but the drift is done
-    via Xsuite tracking. Hence the 'DriftXsuite'.
+    via Xsuite tracking. Hence, the 'DriftXsuite'.
 
     Parameters
     ----------
@@ -66,7 +66,6 @@ class DriftXsuite(DriftBaseClass):
         self,
         beam: BeamBaseClass,
         line: Line,
-        omega_rf: float,
         phi_s: float = 0.0,  # can this be removed
         orbit_length: float = 0.0,  # is this needed?
         element_name: str = None,
@@ -79,9 +78,6 @@ class DriftXsuite(DriftBaseClass):
         self.beam = beam
         self._line_internal = line
         self.element_name = element_name
-        self.beta0 = beam.reference_beta
-        self.energy0 = beam.reference_total_energy
-        self.omega_rf = omega_rf
         self.phi_s = phi_s
         self._xsuite_element: Any | None = (
             None  # Will be set in on_init_simulation
@@ -105,6 +101,8 @@ class DriftXsuite(DriftBaseClass):
             UserWarning,
             stacklevel=2,
         )
+
+        self.omega_rf  = simulation.ring.circumference / (self.beam.reference_beta*c)
 
         if self.element_name is not None:
             try:
@@ -150,15 +148,15 @@ class DriftXsuite(DriftBaseClass):
             Beam to track; if None, the internally stored beam is used.
         """
         # --- Convert BLonD → Xsuite coordinates ---
-        zeta = -(beam.dt - self.phi_s / self.omega_rf) * self.beta0 * c
-        ptau = beam.dE / (self.beta0 * self.energy0)
+        zeta = -(beam.dt - self.phi_s / self.omega_rf) * self.beam.reference_beta * c
+        ptau = beam.dE / (self.beam.reference_beta * self.beam.reference_total_energy)
 
         # Create a temporary Xsuite Particles object
         particles = Particles(
             zeta=zeta,
             ptau=ptau,
-            beta0=self.beta0,
-            energy0=self.energy0,
+            beta0=self.beam.reference_beta,
+            energy0=self.beam.reference_total_energy,
         )
 
         # --- Perform tracking ---
@@ -170,10 +168,10 @@ class DriftXsuite(DriftBaseClass):
             self._line_internal.track(particles)
 
         # --- Convert back to BLonD coordinates ---
-        beam.dt = (
-            -particles.zeta / (self.beta0 * c) + self.phi_s / self.omega_rf
+        beam.dt = (alpha_0
+            -particles.zeta / (self.beam.reference_beta * c) + self.phi_s / self.omega_rf
         )
-        beam.dE = particles.ptau * self.beta0 * self.energy0 # should this have been updated?
+        beam.dE = particles.ptau * self.beam.reference_beta * self.beam.reference_total_energy # should this have been updated?
 
     @property
     def momentum_compaction_factor(self) -> backend.float | None:
