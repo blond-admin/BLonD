@@ -9,7 +9,6 @@
 import logging
 
 import numpy as np
-import xobjects as xo
 import xtrack as xt
 
 from blond import (
@@ -30,7 +29,6 @@ def main():
     xsuite_folder = callers_relative_path(
         "./resources/xsuite_lines/SPS_2021_Pb_nominal.json", stacklevel=1
     )
-    ctx = xo.ContextCpu()
     line = xt.Line.from_json(f"{xsuite_folder}")
     line.cycle(
         name_first_element="actcse.31632"
@@ -66,10 +64,7 @@ def main():
     drift1 = DriftXsuite(
         line=line,
         beam=beam1,
-        phi_s=0,
         omega_rf=200e6,
-        energy0=momentum,
-        beta0=0.6,  # TODO
     )
 
     one_turn_map = []

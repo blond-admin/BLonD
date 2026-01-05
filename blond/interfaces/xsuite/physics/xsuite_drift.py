@@ -67,8 +67,8 @@ class DriftXsuite(DriftBaseClass):
         beam: BeamBaseClass,
         line: Line,
         omega_rf: float,
-        phi_s: float = 0.0,
-        orbit_length: float = 0.0,
+        phi_s: float = 0.0,  # can this be removed
+        orbit_length: float = 0.0,  # is this needed?
         element_name: str = None,
         section_index: int = 0,
         **kwargs: Any,  # for MRO and future compatibility
@@ -149,7 +149,6 @@ class DriftXsuite(DriftBaseClass):
         beam : BeamBaseClass | None
             Beam to track; if None, the internally stored beam is used.
         """
-
         # --- Convert BLonD → Xsuite coordinates ---
         zeta = -(beam.dt - self.phi_s / self.omega_rf) * self.beta0 * c
         ptau = beam.dE / (self.beta0 * self.energy0)
@@ -174,7 +173,7 @@ class DriftXsuite(DriftBaseClass):
         beam.dt = (
             -particles.zeta / (self.beta0 * c) + self.phi_s / self.omega_rf
         )
-        beam.dE = particles.ptau * self.beta0 * self.energy0
+        beam.dE = particles.ptau * self.beta0 * self.energy0 # should this have been updated?
 
     @property
     def momentum_compaction_factor(self) -> backend.float | None:
@@ -258,6 +257,7 @@ class DriftXsuite(DriftBaseClass):
 class EnergyUpdateXsuite(BeamPhysicsRelevant):
     """
     Class to update the synchronous energy from the momentum program in BLonD.
+
     Both Xsuite and BLonD track a relative to a reference energy, this needs
     to be updated in both Xsuite and BlonD.
 
