@@ -202,7 +202,7 @@ def rf_beam_current(Profile: Profile | _SparseProfileBaseClass, omega_c: float, 
 
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    charges = Profile.Beam.ratio * Profile.Beam.Particle.charge * e \
+    charges = Profile.beam.ratio * Profile.beam.Particle.charge * e \
          * np.copy(Profile.n_macroparticles)
     logger.debug("Sum of particles: %d, total charge: %.4e C",
                  np.sum(Profile.n_macroparticles), np.sum(charges))
@@ -246,7 +246,6 @@ def rf_beam_current(Profile: Profile | _SparseProfileBaseClass, omega_c: float, 
                     (profile.bin_centers + dT - np.pi / omega_c) / T_s)
                 ind_fine = np.array(ind_fine, dtype=int)
                 indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-                print(indices)
                 # Pick total current within one coarse grid
 
                 charges_coarse[ind_fine[0]] = np.sum(
