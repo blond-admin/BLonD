@@ -17,6 +17,7 @@ from blond import (
     Simulation,
     SingleHarmonicRfStation,
     lead_82,
+    BiGaussian
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.handle_results.helpers import callers_relative_path
@@ -53,7 +54,6 @@ def main():
     beam1 = Beam(
         intensity=1.5e11,
         particle_type=lead_82,
-
     )
 
     beam1.reference_total_energy = 1e6
@@ -67,6 +67,7 @@ def main():
     drift1 = DriftXsuite(
         line=line,
         beam=beam1,
+        orbit_length=2 * np.pi * 1100.009
     )
 
     one_turn_map = []
@@ -78,7 +79,18 @@ def main():
     )
     sim.print_one_turn_execution_order()
 
+    sim.prepare_beam(
+        beam=beam1,
+        preparation_routine=BiGaussian(
+            sigma_dt=0.4e-9 / 4,
+            sigma_dE=1e9 / 4,
+            reinsertion=False,
+            seed=1,
+            n_macroparticles=1e3,
+        ),
+    )
 
+    sim.run_simulation(n_turns =1, beams=[beam1])
 
 
 if __name__ == "__main__":  # pragma: no cover

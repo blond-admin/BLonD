@@ -19,8 +19,8 @@ from typing import TYPE_CHECKING, Any
 
 from scipy.constants import c
 
-from blond.core.backends import backend
 from blond.core.beam.beams import BeamBaseClass
+import numpy as np
 
 if TYPE_CHECKING:
     from blond.core.simulation.simulation import Simulation
@@ -81,8 +81,8 @@ class DriftXsuite(DriftBaseClass):
             None  # Will be set in on_init_simulation
         )
 
-        self._transition_gamma: backend.float | None = None
-        self._momentum_compaction_factor: backend.float | None = None
+        self._transition_gamma: float | None = None
+        self._momentum_compaction_factor: float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -100,9 +100,7 @@ class DriftXsuite(DriftBaseClass):
             stacklevel=2,
         )
 
-        self.omega_rf = simulation.ring.circumference / (
-            self.beam.reference_beta * c
-        )
+        self.omega_rf = self.omega_rf = 2.0 * np.pi * self.beam.reference_beta * c / simulation.ring.circumference
 
         if self.element_name is not None:
             try:
@@ -186,25 +184,25 @@ class DriftXsuite(DriftBaseClass):
         )  # should this have been updated?
 
     @property
-    def momentum_compaction_factor(self) -> backend.float | None:
+    def momentum_compaction_factor(self) -> float | None:
         """
         Return the momentum compaction factor.
 
         Returns
         -------
-        backend.float | None
+        float | None
             Momentum compaction factor if defined.
         """
         return self._momentum_compaction_factor
 
     @property
-    def transition_gamma(self) -> backend.float | None:
+    def transition_gamma(self) -> float | None:
         """
         Return the transition gamma.
 
         Returns
         -------
-        backend.float | None
+        float | None
             Transition gamma if defined.
         """
         return self._transition_gamma
@@ -219,12 +217,12 @@ class DriftXsuite(DriftBaseClass):
         transition_gamma : float
             Relativistic gamma at transition.
         """
-        self._momentum_compaction_factor = backend.float(
+        self._momentum_compaction_factor = float(
             1.0 / (transition_gamma * transition_gamma)
         )
-        self._transition_gamma = backend.float(transition_gamma)
+        self._transition_gamma = transition_gamma
 
-    def eta_0(self, gamma: float) -> backend.float:
+    def eta_0(self, gamma: float) -> float:
         """
         Compute the phase slip factor eta_0.
 
@@ -235,21 +233,25 @@ class DriftXsuite(DriftBaseClass):
 
         Returns
         -------
-        backend.float
+        float
             Phase slip factor eta_0.
         """
-        return backend.float(self.alpha_0 - (1 / (gamma * gamma)))
+        return float(self.alpha_0 - (1 / (gamma * gamma)))
 
     @property
-    def alpha_0(self) -> backend.float | None:
+    def alpha_0(self) -> float | None:
         """
         Return the momentum compaction factor alpha_0.
 
         Returns
         -------
-        backend.float | None
+        float | None
             Momentum compaction factor.
         """
+        if self.momentum_compaction_factor is None:
+            raise ValueError(
+                "Momentum compaction factor is not defined. "
+            )
         return self.momentum_compaction_factor
 
     def get_line(self):
