@@ -145,8 +145,6 @@ class PassiveCavity(IQCavityFeedback):
         self.fine_RK = fine_RK
         self.coarse_RK = coarse_RK
 
-        self.samples_coarse: int | None = None
-        self.samples_fine: int | None = None
         self.relative_detuning: float | None = None
 
         self.delta_t: float | None = None
@@ -158,12 +156,9 @@ class PassiveCavity(IQCavityFeedback):
         """Method to update the variables specific to the turn."""
         self.omega_center = self.omega_rf_actual - self.omega_detuning
         omega_deviation = self.omega_center - self.omega_rf_actual
-        # Dimensionless
-        self.samples_coarse = self.omega_rf_actual * self.sampling_time_coarse
-        self.samples_fine = (
-            self.omega_rf_actual * self.profile.hist_step
-        )  # TODO: necessary at this placee
+
         self.relative_detuning = omega_deviation / self.omega_center
+        # Dimensionless
 
     def on_run_simulation(
         self,
@@ -318,19 +313,23 @@ class PassiveCavity(IQCavityFeedback):
                 bin_centers=time,
             )
         else:
+            samples_per_rf_coarse = (
+                self.omega_rf_actual * self.sampling_time_coarse
+            )
+
             v_ant = cavity_response_sparse_matrix(
                 I_beam=self.beam_current_coarse_grid[-self.n_samples_coarse :],
                 I_gen=self.generator_current_coarse_grid[
                     -self.n_samples_coarse :
                 ],
-                n_samples=self.n_samples_coarse,
+                n_samples=self.n_samples_coarse,  # TODO: this is bad --> fix array lengths
                 V_ant_init=self.antenna_voltage_coarse_grid[
                     -(1 + self.n_samples_coarse)
                 ],
                 I_gen_init=self.generator_current_coarse_grid[
                     -(1 + self.n_samples_coarse)
                 ],
-                samples_per_rf=self.samples_coarse,
+                samples_per_rf=samples_per_rf_coarse,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
                 detuning=self.relative_detuning,
@@ -462,13 +461,17 @@ class PassiveCavity(IQCavityFeedback):
                 self.generator_current_coarse_grid,
             )(t_at_init)
 
+            samples_per_rf_fine_grid = (
+                self.omega_rf_actual * self.profile.hist_step
+            )
+
             self.antenna_voltage_fine_grid = cavity_response_sparse_matrix(
                 I_beam=self.generator_current_fine_grid,
                 I_gen=self.generator_current_fine_grid,
                 n_samples=self.profile.n_bins,
                 V_ant_init=V_A_init,
                 I_gen_init=I_gen_init,
-                samples_per_rf=self.samples_fine,
+                samples_per_rf=samples_per_rf_fine_grid,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
                 detuning=self.relative_detuning,
