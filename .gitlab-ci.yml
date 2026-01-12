@@ -4,7 +4,7 @@ variables:
   project_root: ./
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
 stages:
-#  - precommit
+  - precommit
   - test
   - deploy
 default:
@@ -78,19 +78,19 @@ workflow:
     # reports:
     #   junit: ${project_root}/coverage-report.xml
 
-#precommit-check:
-#
-#  image: python:3.12 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
-#  stage: precommit
-#  interruptible: true
-#  before_script:
-#    - pip install pre-commit
-#  script:
-#    - pre-commit run --all-files
-#  cache:
-#    key: pre-commit-cache
-#    paths:
-#      - .cache/pre-commit
+precommit-check:
+
+  image: python:3.12 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
+  stage: precommit
+  interruptible: true
+  before_script:
+    - pip install pre-commit
+  script:
+    - pre-commit run --all-files
+  cache:
+    key: pre-commit-cache
+    paths:
+      - .cache/pre-commit
 
 test_py_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
