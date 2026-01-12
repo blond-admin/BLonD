@@ -96,10 +96,37 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     """
     found = set()
     seen = set()
+    import os
+    import sys
+
+    print("TRACE:", sys.gettrace())
+    import builtins
+    import sys
+
+    _real_import = builtins.__import__
+    import faulthandler
+    import sys
+
+    def spy_import(name, globals=None, locals=None, fromlist=(), level=0):
+        global last_import_while_traced
+        if sys.gettrace() is None:
+            last_import_while_traced = (name, fromlist, level)
+        return _real_import(name, globals, locals, fromlist, level)
+
+    builtins.__import__ = spy_import
 
     def walk(obj: Any, skip_list, where):
         if id(obj) in seen:
             return
+        print(
+            "PID", os.getpid(), "PPID", os.getppid(), "TRACE", sys.gettrace()
+        )
+        print("TRACE:", sys.gettrace())
+        print(obj)
+        print(where)
+        if not sys.gettrace():
+            faulthandler.dump_traceback(all_threads=True)
+            sys.exit(-1)
         seen.add(id(obj))
         is_mock = isinstance(obj, Mock)
         if hasattr(obj, "skip_find_instances_attributes") and not is_mock:
@@ -134,8 +161,13 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
                 try:
                     attr = getattr(obj, attr_name)
                 except Exception:
+                    # print(e.with_traceback(None))
                     continue  # Skip attributes that raise errors on access
+                print(attr)
+                print(where + str(attr))
+                print("ill walk on")
                 walk(attr, skip_list, where + str(attr))
 
     walk(root, skip_list=[], where="")
+    sys.exit(-1)
     return found
