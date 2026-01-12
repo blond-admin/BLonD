@@ -402,7 +402,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
     @cached_property
     def t_rev(self) -> float:
-        """Revolution time based on the harmonic and the design freqeuncy."""
+        """Revolution time based on the harmonic and the design frequency."""
         return float((2 * np.pi * self.harmonic) / self.omega_rf_design)
 
     @cached_property
