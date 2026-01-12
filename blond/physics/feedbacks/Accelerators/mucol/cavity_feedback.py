@@ -150,7 +150,7 @@ class PassiveCavity(IQCavityFeedback):
         self.beam_current_gradient_coarse_grid: NumpyArray | None = None
         self.beam_current_gradient_fine_grid: NumpyArray | None = None
 
-    def update_fb_variables(self) -> None:
+    def update_feedback_variables(self) -> None:
         """Method to update the variables specific to the turn."""
         self.omega_center = self.omega_rf_actual - self.omega_detuning
         omega_deviation = self.omega_center - self.omega_rf_actual
@@ -203,7 +203,7 @@ class PassiveCavity(IQCavityFeedback):
             **kwargs,
         )
 
-        self.update_fb_variables()
+        self.update_feedback_variables()
 
         self.generator_current_fine_grid = (
             np.ones_like(self.beam_current_fine_grid, dtype=complex)
@@ -242,7 +242,7 @@ class PassiveCavity(IQCavityFeedback):
         n_pretrack
             number of turns to pretrack
         """
-        self.update_fb_variables()
+        self.update_feedback_variables()
         if n_pretrack is None:
             self.circuit_track(no_beam=True)
         else:
