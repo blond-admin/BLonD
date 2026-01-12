@@ -310,7 +310,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         ) = rf_beam_current(
             beam=beam,
             profile=self.profile,
-            omega_c=self.omega_rf_actual,
+            omega_c=self.omega_carrier,
             T_rev=self.t_rev,
             use_lowpass_filter=use_lowpass_filter,
             downsample={
