@@ -20,13 +20,11 @@ from scipy.interpolate import interp1d
 
 from blond import Simulation, StaticProfile
 from blond.core.beam.base import BeamBaseClass
-from blond.experimental.physics.feedbacks.accelerators.lhc.helpers import (
-    cavity_response_sparse_matrix,
-)
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
 from blond.physics.feedbacks.helpers import (
+    cavity_response_sparse_matrix,
     low_pass_filter,
 )
 
@@ -292,7 +290,22 @@ class PassiveCavity(IQCavityFeedback):
         pass
 
     def circuit_track(self, no_beam: bool = False) -> None:
-        r"""Tracking of the LLRF circuit."""
+        """Function to simulate the internal circuit during one turn.
+
+        This function will compute the cavity behaviour on the coarse grid.
+
+        Internally, the function uses the sparse matrix formalism to compute the coarse
+        grid, which is only possible since the generator current is a constant value.
+
+        If no beam is present, this function can be called no_beam=False,
+        at which point, only the coarse grid will be updated.
+
+        Parameters
+        ----------
+        no_beam
+            if false, both coarse and fine grids will be updated, if true, only the coarse grid.
+
+        """
         # Compute antenna voltage
         self.antenna_voltage_coarse_grid[: self.n_samples_coarse] = (
             self.antenna_voltage_coarse_grid[-self.n_samples_coarse :]
