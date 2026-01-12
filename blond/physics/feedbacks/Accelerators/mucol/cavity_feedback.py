@@ -32,45 +32,44 @@ MINIMUM_QL_FEEDBACK_MODEL = 0.5
 
 
 class PassiveCavity(IQCavityFeedback):
-    r"""
-    Passive Cavity, implementing the beam-cavity interaction formulas without a feedback involved.
+    r"""Passive Cavity, implementing the beam-cavity interaction formulas without a feedback involved.
 
     Parameters
     ----------
         profile
-            profile on which the feedback should act
+            profile on which the feedback should act.
         R_over_Q
-            shunt impedance over quality factor of one cavity [$$\Omega$$]
+            shunt impedance over quality factor of one cavity [$$\Omega$$].
         Q_L
-            Loaded quality factor of one cavity [1]
+            Loaded quality factor of one cavity [1].
         f_center
-            center frequency of the cavity [Hz]
+            center frequency of the cavity [Hz].
         f_detuning
-            detuning of the cavity [Hz]
+            detuning of the cavity [Hz].
         n_cavities
-            number of cavities
+            number of cavities.
         generator_current
-            given in [A]
+            given in [A].
         generator_phase
-            given in [rad]
+            given in [rad].
         injection_phase
             In :func:`xxxx` the cavity will optimise the phase at injection towards
-            this value by adjusting the initial parameters at the beginning of the internal tracking given in [rad]
+            this value by adjusting the initial parameters at the beginning of the internal tracking given in [rad].
         injection_voltage
             In :func:`xxxx` the cavity will optimise the voltage at injection towards
-            this value by adjusting the initial parameters at the beginning of the internal tracking given in [V]
+            this value by adjusting the initial parameters at the beginning of the internal tracking given in [V].
         harmonic_index
-            only the default of 0 is allowed
+            only the default of 0 is allowed.
         n_rf_periods_per_coarse_grid
-            number of RF periods, one coarse grid corresponds to
+            number of RF periods, one coarse grid corresponds to.
         use_lowpass_filter
             Used in :func:xxx
         name
-            If not given, is automatically chosen
+            If not given, is automatically chosen.
         fine_RK
-            Use Runge Kutta direct calculation for fine grid instead of matrix formalism
+            Use Runge Kutta direct calculation for fine grid instead of matrix formalism.
         fine_RK
-            Use Runge Kutta direct calculation for coarse grid instead of matrix formalism
+            Use Runge Kutta direct calculation for coarse grid instead of matrix formalism.
     """
 
     def __init__(
@@ -240,7 +239,7 @@ class PassiveCavity(IQCavityFeedback):
         Parameters
         ----------
         n_pretrack
-            number of turns to pretrack
+            number of turns to pretrack.
         """
         self.update_feedback_variables()
         if n_pretrack is None:
@@ -307,14 +306,11 @@ class PassiveCavity(IQCavityFeedback):
 
         """
         # Compute antenna voltage
-        self.antenna_voltage_coarse_grid[: self.n_samples_coarse] = (
-            self.antenna_voltage_coarse_grid[-self.n_samples_coarse :]
-        )
         time = np.arange(0, self.n_samples_coarse) * self.sampling_time_coarse
-        V_init = self.antenna_voltage_coarse_grid[-(1 + self.n_samples_coarse)]
+        V_init = self.antenna_voltage_coarse_grid[-1]
         dV_init = (
-            self.antenna_voltage_coarse_grid[-(2 + self.n_samples_coarse)]
-            - self.antenna_voltage_coarse_grid[-(1 + self.n_samples_coarse)]
+            self.antenna_voltage_coarse_grid[-2]
+            - self.antenna_voltage_coarse_grid[-1]
         ) / self.sampling_time_coarse
         v_ant = None
         if self.coarse_RK:
@@ -330,26 +326,15 @@ class PassiveCavity(IQCavityFeedback):
                 self.omega_rf_actual * self.sampling_time_coarse
             )
 
-            v_ant = cavity_response_sparse_matrix(
-                I_beam=self.beam_current_coarse_grid[-self.n_samples_coarse :],
-                I_gen=self.generator_current_coarse_grid[
-                    -self.n_samples_coarse :
-                ],
-                n_samples=self.n_samples_coarse,  # TODO: this is bad --> fix array lengths
-                V_ant_init=self.antenna_voltage_coarse_grid[
-                    -(1 + self.n_samples_coarse)
-                ],
-                I_gen_init=self.generator_current_coarse_grid[
-                    -(1 + self.n_samples_coarse)
-                ],
+            self.antenna_voltage_coarse_grid = cavity_response_sparse_matrix(
+                I_beam=self.beam_current_coarse_grid,
+                I_gen=self.generator_current_coarse_grid,
+                V_ant_init=self.antenna_voltage_coarse_grid[-1],
                 samples_per_rf=samples_per_rf_coarse,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
                 relative_detuning=self.relative_detuning,
-            )
-        self.antenna_voltage_coarse_grid[-self.n_samples_coarse :] = v_ant[
-            -self.n_samples_coarse :
-        ]
+            )[-self.n_samples_coarse :]  # TODO: is this correct?
         # np.savez("coarse_array_elements_2.npz", I_GEN_COARSE=self.generator_current_coarse_grid, I_BEAM_COARSE=self.I_BEAM_COARSE,
         #          samples_per_rf=self.samples, n_samples=self.n_samples_coarse,
         #          I_gen_init=self.generator_current_coarse_grid[-(1 + self.n_samples_coarse)], V_ant_init=self.antenna_voltage_coarse_grid[-(1 + self.n_samples_coarse)],
@@ -359,7 +344,7 @@ class PassiveCavity(IQCavityFeedback):
             self.generator_current_fine_grid = np.interp(
                 self.profile.hist_x,
                 self.time_coarse_grid,
-                self.generator_current_coarse_grid[-self.n_samples_coarse :],
+                self.generator_current_coarse_grid,
             )
             # Compute antenna voltage on the fine-grid
             self.cavity_response_fine()
@@ -379,11 +364,8 @@ class PassiveCavity(IQCavityFeedback):
 
         dcurrent = interp1d(
             bin_centers,
-            -0.5
-            * self.beam_current_gradient_coarse_grid[-self.n_samples_coarse :]
-            + 2j
-            * omega
-            * self.generator_current_coarse_grid[-self.n_samples_coarse :],
+            -0.5 * self.beam_current_gradient_coarse_grid
+            + 2j * omega * self.generator_current_coarse_grid,
         )
 
         r_over_q = self.R_over_Q
@@ -427,9 +409,9 @@ class PassiveCavity(IQCavityFeedback):
 
     def cavity_response_fine(self):
         r"""ACS cavity response model in matrix form on the fine-grid."""
+        # TODO: reenable interpolation
         # Find initial value of antenna voltage and generator current
-        t_at_init = self.profile.hist_x[0] - self.profile.hist_step
-
+        # t_at_init = self.profile.hist_x[0] - self.profile.hist_step
         # V_A_init = interp1d(
         #     np.concatenate(
         #         (self.time_coarse_grid - self.sampling_time_coarse * self.n_samples_coarse, self.time_coarse_grid)
@@ -442,12 +424,10 @@ class PassiveCavity(IQCavityFeedback):
         #     ),
         #     np.append(np.diff(self.antenna_voltage_coarse_grid), 0) / self.sampling_time_coarse,
         # )(t_at_init)
-        V_A_init = self.antenna_voltage_coarse_grid[
-            -(1 + self.n_samples_coarse)
-        ]
+        V_A_init = self.antenna_voltage_coarse_grid[-1]
         dV_A_init = (
-            self.antenna_voltage_coarse_grid[-(2 + self.n_samples_coarse)]
-            - self.antenna_voltage_coarse_grid[-(1 + self.n_samples_coarse)]
+            self.antenna_voltage_coarse_grid[-2]
+            - self.antenna_voltage_coarse_grid[-1]
         ) / self.sampling_time_coarse
         # print(dV_A_init)
         # dV_A_init = 0 + 0j
@@ -463,17 +443,6 @@ class PassiveCavity(IQCavityFeedback):
                 )
             )
         else:
-            I_gen_init = interp1d(
-                np.concatenate(
-                    (
-                        self.time_coarse_grid
-                        - self.sampling_time_coarse * self.n_samples_coarse,
-                        self.time_coarse_grid,
-                    )
-                ),
-                self.generator_current_coarse_grid,
-            )(t_at_init)
-
             samples_per_rf_fine_grid = (
                 self.omega_rf_actual * self.profile.hist_step
             )
@@ -481,19 +450,14 @@ class PassiveCavity(IQCavityFeedback):
             self.antenna_voltage_fine_grid = cavity_response_sparse_matrix(
                 I_beam=self.generator_current_fine_grid,
                 I_gen=self.generator_current_fine_grid,
-                n_samples=self.profile.n_bins,
                 V_ant_init=V_A_init,
-                I_gen_init=I_gen_init,
                 samples_per_rf=samples_per_rf_fine_grid,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
                 relative_detuning=self.relative_detuning,
             )
 
-        self.antenna_voltage_fine_grid[-self.profile.n_bins :] = (
-            self.antenna_voltage_fine_grid[-self.profile.n_bins :]
-            * self.n_cavities
-        )
+        self.antenna_voltage_fine_grid *= self.n_cavities
 
     def rf_beam_current(
         self,
@@ -508,9 +472,7 @@ class PassiveCavity(IQCavityFeedback):
         else:
             (
                 self.beam_current_gradient_fine_grid,
-                self.beam_current_gradient_coarse_grid[
-                    -self.n_samples_coarse :
-                ],
+                self.beam_current_gradient_coarse_grid,
             ) = self.rf_beam_current_gradient(
                 beam=beam,
                 lpf=use_lowpass_filter,
@@ -523,15 +485,10 @@ class PassiveCavity(IQCavityFeedback):
             )
 
             # Convert RF beam current gradients to be in units of Amperes
-            self.beam_current_gradient_fine_grid = (
-                self.beam_current_gradient_fine_grid / self.profile.hist_step
-            )
-            self.beam_current_gradient_coarse_grid[
-                -self.n_samples_coarse :
-            ] = (
-                self.beam_current_gradient_coarse_grid[
-                    -self.n_samples_coarse :
-                ]
+            self.beam_current_gradient_fine_grid /= self.profile.hist_step
+
+            self.beam_current_gradient_coarse_grid = (
+                self.beam_current_gradient_coarse_grid
                 / self.sampling_time_coarse
             )
 
