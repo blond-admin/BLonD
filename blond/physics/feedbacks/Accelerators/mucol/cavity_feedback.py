@@ -345,7 +345,7 @@ class PassiveCavity(IQCavityFeedback):
                 samples_per_rf=samples_per_rf_coarse,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
-                detuning=self.relative_detuning,
+                relative_detuning=self.relative_detuning,
             )
         self.antenna_voltage_coarse_grid[-self.n_samples_coarse :] = v_ant[
             -self.n_samples_coarse :
@@ -487,7 +487,7 @@ class PassiveCavity(IQCavityFeedback):
                 samples_per_rf=samples_per_rf_fine_grid,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
-                detuning=self.relative_detuning,
+                relative_detuning=self.relative_detuning,
             )
 
         self.antenna_voltage_fine_grid[-self.profile.n_bins :] = (
