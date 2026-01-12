@@ -17,6 +17,7 @@ from blond import (
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.physics.feedbacks.helpers import (
     cartesian_to_polar,
+    cavity_response_sparse_matrix,
     low_pass_filter,
     polar_to_cartesian,
     rf_beam_current,
@@ -824,7 +825,7 @@ class TestIQ(unittest.TestCase):
         )
 
     def test_4(self):
-        # Define signal in range (-pi, pi)
+        # Define signal in range (-pi, pi)1
         phase = np.pi * (
             np.fmod(2 * np.arange(self.n) * self.f_rf * self.T_s, 2) - 1
         )
@@ -848,6 +849,32 @@ class TestIQ(unittest.TestCase):
             signal_imag_2.tolist(),
             msg="In TestIQ test_4, imaginary part is not correct",
         )
+
+
+class TestACSSparseModel(unittest.TestCase):
+    def setUp(self):
+        pass
+
+    def test_acs_model_vs_euler_forward_no_beam(self):
+        n_samples = 1000
+        samples_per_rf = 2 * np.pi / 5
+        I_beam = np.zeros(n_samples + 1)
+        I_gen = (0.02565950699764863 + 0.004372312359083769j) * np.ones(
+            n_samples + 1
+        )
+        res_sparse_matrix = cavity_response_sparse_matrix(
+            R_over_Q=518,
+            Q_L=1e6,
+            V_ant_init=15e6,
+            I_gen_init=I_gen[-1],
+            samples_per_rf=samples_per_rf,
+            I_beam=I_beam,
+            I_gen=I_gen,
+            n_samples=n_samples,
+            relative_detuning=-3.52881428058616e-07,
+        )
+
+        pass
 
 
 if __name__ == "__main__":
