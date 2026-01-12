@@ -913,11 +913,9 @@ class TestACSSparseModel(unittest.TestCase):
             R_over_Q=R_over_Q_in,
             Q_L=Q_L_in,
             V_ant_init=V_ant_init_in,
-            I_gen_init=I_gen[-1],
             samples_per_rf=samples_per_rf,
             I_beam=I_beam,
             I_gen=I_gen,
-            n_samples=n_samples,
             relative_detuning=rel_detuning_in,
         )
 
@@ -941,6 +939,28 @@ class TestACSSparseModel(unittest.TestCase):
             plt.show()
 
         np.testing.assert_allclose(res_euler_forward, res_sparse_matrix)
+        assert res_euler_forward[0] == V_ant_init_in
+
+        with self.assertRaisesRegex(AssertionError, "length of "):
+            _ = cavity_response_sparse_matrix(
+                R_over_Q=R_over_Q_in,
+                Q_L=Q_L_in,
+                V_ant_init=V_ant_init_in,
+                samples_per_rf=samples_per_rf,
+                I_beam=I_beam[1:],
+                I_gen=I_gen,
+                relative_detuning=rel_detuning_in,
+            )
+        with self.assertRaisesRegex(AssertionError, "length of "):
+            _ = cavity_response_sparse_matrix(
+                R_over_Q=R_over_Q_in,
+                Q_L=Q_L_in,
+                V_ant_init=V_ant_init_in,
+                samples_per_rf=samples_per_rf,
+                I_beam=I_beam,
+                I_gen=I_gen[1:],
+                relative_detuning=rel_detuning_in,
+            )
 
 
 if __name__ == "__main__":
