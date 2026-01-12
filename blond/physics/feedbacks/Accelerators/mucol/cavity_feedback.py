@@ -448,7 +448,7 @@ class PassiveCavity(IQCavityFeedback):
             )
 
             self.antenna_voltage_fine_grid = cavity_response_sparse_matrix(
-                I_beam=self.generator_current_fine_grid,
+                I_beam=self.beam_current_fine_grid,
                 I_gen=self.generator_current_fine_grid,
                 V_ant_init=V_A_init,
                 samples_per_rf=samples_per_rf_fine_grid,
