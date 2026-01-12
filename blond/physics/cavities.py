@@ -927,14 +927,13 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
         if beam.common_array_size > 0:
             if self._cavity_feedback is None:
-                backend.specials.kick_multi_harmonic(
+                backend.specials.kick_single_harmonic(
                     dt=beam.read_partial_dt(),
                     dE=beam.write_partial_dE(),
-                    voltage=self.voltage.astype(backend.float),
-                    phi_rf=self.phi_rf_actual.astype(backend.float),
-                    omega_rf=self.omega_rf_actual.astype(backend.float),
+                    voltage=self.voltage,
+                    phi_rf=self.phi_rf_actual,
+                    omega_rf=self.omega_rf_actual,
                     charge=beam.particle_type.charge,
-                    n_rf=self.n_rf,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
             else:

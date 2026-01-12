@@ -32,10 +32,7 @@ n_turns = int(1e3)
 def main():
     ring = Ring(26658.883)
 
-    rf_station = SingleHarmonicRfStation()
-    rf_station.harmonic = 35640
-    rf_station.voltage = 6e6
-    rf_station.phi_rf = 0
+    rf_station = SingleHarmonicRfStation(voltage=6e6, phi_rf=0, harmonic=35640)
 
     energy_cycle = MagneticCyclePerTurn(
         value_init=450e9,
