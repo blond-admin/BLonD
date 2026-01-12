@@ -271,7 +271,7 @@ def cavity_response_sparse_matrix(
     samples_per_rf: float,
     R_over_Q: float,
     Q_L: float,
-    detuning: float,
+    relative_detuning: float,
 ):
     """Solver for the ACS cavity response model as a sparse matrix problem.
 
@@ -297,7 +297,7 @@ def cavity_response_sparse_matrix(
         The R over Q of the cavity
     Q_L : float
         The loaded quality factor of the cavity
-    detuning : float
+    relative_detuning : float
         The detuning of the cavity in frequency divided by the rf frequency
 
     Returns
@@ -318,7 +318,11 @@ def cavity_response_sparse_matrix(
 
     # Compute matrix elements
     A = 0.5 * R_over_Q * samples_per_rf
-    B = 1 - 0.5 * samples_per_rf / Q_L + 1j * detuning * samples_per_rf
+    B = (
+        1
+        - 0.5 * samples_per_rf / Q_L
+        + 1j * relative_detuning * samples_per_rf
+    )
 
     # Initialize the two sparse matrices needed to find antenna voltage
     B_matrix = diags(
