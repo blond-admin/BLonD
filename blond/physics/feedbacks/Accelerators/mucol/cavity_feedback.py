@@ -65,8 +65,6 @@ class PassiveCavity(IQCavityFeedback):
             only the default of 0 is allowed
         n_rf_periods_per_coarse_grid
             number of RF periods, one coarse grid corresponds to
-        section_index
-            section which the feedback belongs to
         use_lowpass_filter
             Used in :func:xxx
         name
@@ -582,6 +580,8 @@ class PassiveCavity(IQCavityFeedback):
             If time_coarse is specified, returns also the RF beam charge gradient array [C]
             on the coarse time grid
         """
+        # TODO: carrier frequency might be missing in heres
+
         # Convert from dimensionless to Coulomb/Ampères
         # Take into account macro-particle charge with real-to-macro-particle ratio
         charges = (
