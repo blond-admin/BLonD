@@ -265,9 +265,7 @@ def polar_to_cartesian(
 def cavity_response_sparse_matrix(
     I_beam: NumpyArray,
     I_gen: NumpyArray,
-    n_samples: int,
     V_ant_init: float,
-    I_gen_init: float,
     samples_per_rf: float,
     R_over_Q: float,
     Q_L: float,
@@ -285,12 +283,8 @@ def cavity_response_sparse_matrix(
         RF beam current
     I_gen : complex array
         Generator current
-    n_samples : int
-        Number of samples of the result array - 1
     V_ant_init : complex float
         Initial condition for the antenna voltage
-    I_gen_init : complex float
-        Initial condition of the generator current, i.e. one sample before the I_gen array
     samples_per_rf : float
         Number of samples per RF period == samping time * actual rf frequency
     R_over_Q : float
@@ -303,18 +297,14 @@ def cavity_response_sparse_matrix(
     Returns
     -------
     complex array
-        The antenna voltage evaluated for the same period as I_beam and I_gen of length n_samples + 1
+        The antenna voltage evaluated for the same period as I_beam and I_gen of length len(I_gen)
 
     """
-    # TODO TESTCASE
+    assert len(I_beam) == len(I_gen), (
+        "length of beam and generator currents need to match"
+    )
 
-    # Add a zero at the start of RF beam current
-    if len(I_beam) != n_samples + 1:
-        I_beam = np.concatenate((np.zeros(1, dtype=complex), I_beam))
-
-    # Check length of the generator current array
-    if len(I_gen) != n_samples + 1:
-        I_gen = np.concatenate((I_gen_init * np.ones(1, dtype=complex), I_gen))
+    n_samples = len(I_beam)
 
     # Compute matrix elements
     A = 0.5 * R_over_Q * samples_per_rf
@@ -328,11 +318,11 @@ def cavity_response_sparse_matrix(
     B_matrix = diags(
         [-B, 1],
         [-1, 0],
-        (n_samples + 1, n_samples + 1),
+        (n_samples, n_samples),
         dtype=complex,
         format="csc",
     )
-    I_matrix = diags([A], [-1], (n_samples + 1, n_samples + 1), dtype=complex)
+    I_matrix = diags([A], [-1], (n_samples, n_samples), dtype=complex)
 
     # Find vector on the "current" side of the equation
     b = I_matrix.dot(2 * I_gen - I_beam)
