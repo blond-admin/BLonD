@@ -149,10 +149,14 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         mhc.on_init_simulation(simulation=simulation)
         mhc.on_run_simulation(
-            simulation=simulation, beam=self.beam, n_turns=100, turn_i_init=0
+            simulation=simulation,
+            beam=self.beam,
+            n_turns=100,
         )
         cavity_feedback_good.on_run_simulation(
-            simulation=simulation, beam=self.beam, n_turns=100, turn_i_init=0
+            simulation=simulation,
+            beam=self.beam,
+            n_turns=100,
         )
 
         mhc.track(beam=self.beam)

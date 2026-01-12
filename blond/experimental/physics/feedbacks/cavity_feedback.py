@@ -142,7 +142,6 @@ class IQCavityFeedback(LocalFeedback):
         assert isinstance(profile, StaticProfile)
         super().__init__(
             profile=profile,
-            section_index=section_index,
             name=name,
         )
 
