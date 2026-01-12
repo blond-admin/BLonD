@@ -852,29 +852,95 @@ class TestIQ(unittest.TestCase):
 
 
 class TestACSSparseModel(unittest.TestCase):
-    def setUp(self):
-        pass
-
     def test_acs_model_vs_euler_forward_no_beam(self):
+        def ACS_model_euler_forward(
+            n_samples,
+            V_init,
+            I_beam,
+            I_gen,
+            R_over_Q_,
+            Q_L_,
+            detuning_,
+            samples_per_rf_,
+        ):
+            def cavity_response(
+                samples_per_rf: float,
+                R_over_Q,
+                i_gen,
+                i_beam,
+                v_ant,
+                detuning,
+                Q_L,
+            ):
+                r"""ACS cavity response model"""
+
+                return (
+                    i_gen * R_over_Q * samples_per_rf
+                    + v_ant
+                    * (
+                        1
+                        - 0.5 * samples_per_rf / Q_L
+                        + 1j * detuning * samples_per_rf
+                    )
+                    - i_beam * 0.5 * R_over_Q * samples_per_rf
+                )
+
+            voltage = np.zeros_like(I_gen)
+            voltage[0] = V_init
+            for _i in range(1, n_samples + 1):
+                voltage[_i] = cavity_response(
+                    samples_per_rf_,
+                    R_over_Q_,
+                    I_gen[_i - 1],
+                    I_beam[_i - 1],
+                    voltage[_i - 1],
+                    detuning_,
+                    Q_L_,
+                )
+            return voltage
+
         n_samples = 1000
-        samples_per_rf = 2 * np.pi / 5
+        samples_per_rf = 2 * np.pi / 1
         I_beam = np.zeros(n_samples + 1)
-        I_gen = (0.02565950699764863 + 0.004372312359083769j) * np.ones(
+        I_gen = (0.2565950699764863 + 0.004372312359083769j) * np.ones(
             n_samples + 1
         )
+        R_over_Q_in = 518
+        Q_L_in = 1e3
+        V_ant_init_in = 15e4
+        rel_detuning_in = -3.52881428058616e-07
         res_sparse_matrix = cavity_response_sparse_matrix(
-            R_over_Q=518,
-            Q_L=1e6,
-            V_ant_init=15e6,
+            R_over_Q=R_over_Q_in,
+            Q_L=Q_L_in,
+            V_ant_init=V_ant_init_in,
             I_gen_init=I_gen[-1],
             samples_per_rf=samples_per_rf,
             I_beam=I_beam,
             I_gen=I_gen,
             n_samples=n_samples,
-            relative_detuning=-3.52881428058616e-07,
+            relative_detuning=rel_detuning_in,
         )
 
-        pass
+        res_euler_forward = ACS_model_euler_forward(
+            n_samples,
+            V_ant_init_in,
+            I_beam,
+            I_gen,
+            R_over_Q_in,
+            Q_L_in,
+            rel_detuning_in,
+            samples_per_rf,
+        )
+
+        DEBUG_PLOT = False
+        if DEBUG_PLOT:
+            import matplotlib.pyplot as plt
+
+            plt.clf()
+            plt.plot(res_sparse_matrix)
+            plt.show()
+
+        np.testing.assert_allclose(res_euler_forward, res_sparse_matrix)
 
 
 if __name__ == "__main__":
