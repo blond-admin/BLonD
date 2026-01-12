@@ -9,7 +9,9 @@ class ProgrammedCycleHelper(ProgrammedCycle):
         pass
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
     ) -> None:
         pass
 

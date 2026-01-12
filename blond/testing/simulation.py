@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Several setups of simulations that are intended for testcases.
-
-Authors
--------
-Simon Lauber
-"""
+"""Several setups of simulations that are intended for testcases."""
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -229,8 +224,6 @@ class SimulationTwoRfStationsWithWake:
         )
         t_rev = energy_cycle.get_t_rev_init(
             circumference=ring.circumference,
-            turn_i_init=0,
-            t_init=0,
             particle_type=beam1.particle_type,
         )
 

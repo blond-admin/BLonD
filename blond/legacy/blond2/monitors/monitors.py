@@ -34,7 +34,8 @@ if TYPE_CHECKING:
 
 
 class BunchMonitor:
-    """Class able to save bunch data into h5 file. Use 'buffer_time' to select
+    """
+    Class able to save bunch data into h5 file. Use 'buffer_time' to select
     the frequency of saving to file in number of turns.
     If in the constructor a Profile object is passed, that means that one
     wants to save the gaussian-fit bunch length as well (obviously the
@@ -468,7 +469,8 @@ class BunchMonitor:
 
 
 class SlicesMonitor:
-    """Class able to save the bunch profile, i.e. the histogram derived from
+    """
+    Class able to save the bunch profile, i.e. the histogram derived from
     the slicing.
     """
 
@@ -509,7 +511,8 @@ class SlicesMonitor:
 
 
 class MultiBunchMonitor:
-    """Class able to save multi-bunch profile, i.e. the histogram derived from
+    """
+    Class able to save multi-bunch profile, i.e. the histogram derived from
     the slicing.
     """
 

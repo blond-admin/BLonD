@@ -11,8 +11,9 @@ Implementations of beam impedance sources.
 
 Module to describe classes for the calculation of wakes and impedances.
 
-Authors
--------
+Notes
+-----
+Authors:
 Alexandre Lasheen
 Danilo Quartullo
 Juan F. Esteban Mueller,
@@ -22,10 +23,10 @@ Simon Lauber
 
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
 from os import PathLike
 from typing import TYPE_CHECKING
-from warnings import warn
 
 import numpy as np
 
@@ -164,7 +165,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         np.gradient(x) in time domain
         ifft(derivative_kernel * fft(x)) in frequency domain
         """
-        T = simulation.ring.circumference / beam.reference_velocity
+        T = simulation.ring.circumference / beam.reference.velocity
         z_over_n = self.Z_over_n
         derivative_kernel = self._get_derivative_impedance(freq_x)
         return derivative_kernel[:] / (2 * np.pi) * z_over_n * T
@@ -281,7 +282,7 @@ class Resonators(
         | ArrayLike
         | None = None,
     ):
-        warn("Untested code", NotTestedWarning, stacklevel=1)
+        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__(is_dynamic=False)
 
         self._shunt_impedances: NumpyArray
@@ -817,12 +818,12 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         if hash_ == self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
         if time.min() < self._wake_x.min():
-            warn(
+            warnings.warn(
                 "Interpolation of wake outside boundaries",
                 stacklevel=1,
             )
         if time.max() > self._wake_x.max():
-            warn(
+            warnings.warn(
                 "Interpolation of wake outside boundaries",
                 stacklevel=1,
             )

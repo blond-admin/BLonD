@@ -22,7 +22,10 @@ def execute_command(commands: List[str]):
         cwd=this_directory,
         stdout=sys.stdout,
         stderr=sys.stderr,
-        shell=True
+        # shell=True, # legacy, because of HIGH VULNERABILITY:
+        # Improper neutralization of
+        # special elements used in an OS Command ('OS Command Injection')
+        shell=False, #FIXME Probably broken by shell=False, rewrite `args` list
     )
 
     # This will raise a CalledProcessError if the

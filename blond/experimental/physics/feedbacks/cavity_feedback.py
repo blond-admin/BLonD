@@ -24,7 +24,7 @@ from blond.physics.feedbacks.helpers import (
     rf_beam_current,
 )
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
@@ -275,6 +275,23 @@ class IQCavityFeedback(LocalFeedback):
         self.V_ANT_FINE = np.zeros(self.profile.n_bins, dtype=complex)
         self.I_GEN_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_GEN_FINE = np.zeros(self.profile.n_bins, dtype=complex)
+
+        # TODO REWORK LATEINIT
+        self.V_corr: LateInit = None
+        self.alpha_sum: LateInit = None
+        self.phi_corr: LateInit = None
+        self.omega_carrier_prev: LateInit = None
+        self.T_s_prev: LateInit = None
+        self.rf_centers_prev: LateInit = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        pass
 
     @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:

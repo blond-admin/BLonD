@@ -6,10 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Solvers to calculate the wake potential from impedance sources.
+"""
+Solvers to calculate the wake potential from impedance sources.
 
-Authors
--------
+Notes
+-----
+Authors:
 Alexandre Lasheen
 Danilo Quartullo,
 Juan F. Esteban Mueller
@@ -23,7 +25,6 @@ from __future__ import annotations
 import warnings
 from collections import deque
 from typing import TYPE_CHECKING
-from warnings import warn
 
 import numpy as np
 from scipy.constants import elementary_charge as e
@@ -110,7 +111,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         )
         factor = backend.float(
             (_factor / (2 * np.pi))
-            * (self._simulation.ring.circumference / beam.reference_velocity)
+            * (self._simulation.ring.circumference / beam.reference.velocity)
             / self._parent_wakefield.profile.hist_step
         )
         diff = self._parent_wakefield.profile.gradient_hist_y
@@ -185,8 +186,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         if self._t_periodicity is None:
             self._t_periodicity = simulation.magnetic_cycle.get_t_rev_init(
                 circumference=simulation.ring.circumference,
-                turn_i_init=0,
-                t_init=0,
                 particle_type=simulation.magnetic_cycle.reference_particle,
             )
             print(f"Set t_periodicity={self._t_periodicity} for {self}")
@@ -202,7 +201,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
             if is_dynamic:
                 if self.expect_profile_change is False:
-                    warn(
+                    warnings.warn(
                         f"Because you are using"
                         f" a `{type(parent_wakefield.profile)}`,"
                         f" the variable `update_on_calc` is set to"
@@ -223,7 +222,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         for source in self._parent_wakefield.sources:
             if source.is_dynamic:
                 if self.expect_impedance_change is False:
-                    warn(
+                    warnings.warn(
                         f"Because `{source}` is dynamic,"
                         f" the variable `expect_impedance_change` is set to"
                         f" True, which might impact performance."
@@ -444,7 +443,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
             self._wake_imp_y_needs_update = True
 
             if is_dynamic and self.expect_impedance_change is False:
-                warn(
+                warnings.warn(
                     f"Because you are using"
                     f" a `{type(parent_wakefield.profile)}`,"
                     f" the variable `update_on_calc` is set to"
@@ -464,7 +463,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         for source in self._parent_wakefield.sources:
             if source.is_dynamic:
                 if self.expect_impedance_change is False:
-                    warn(
+                    warnings.warn(
                         f"Because `{source}` is dynamic,"
                         f" the variable `expect_impedance_change` is set to"
                         f" True, which might impact performance."
@@ -579,7 +578,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     """
 
     def __init__(self):
-        warn("Untested code", NotTestedWarning, stacklevel=1)
+        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
         self._wake_function_vals: NumpyArray | None = None
         self._wake_function_time: NumpyArray | None = None
@@ -718,7 +717,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     """
 
     def __init__(self, decay_fraction_threshold: float = 0.001):
-        warn("Untested code", NotTestedWarning, stacklevel=1)
+        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
 
         self._last_reference_time: float | None = None
@@ -923,7 +922,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         beam
             Beam class to interact with this element.
         """
-        self._update_past_profile_times_wake_times(beam.reference_time)
+        self._update_past_profile_times_wake_times(beam.reference.time)
         self._remove_fully_decayed_wake_profiles()
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles
@@ -1110,8 +1109,6 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         # todo check that the time of n_revolutions matches n * length_profile
         t_rev = self._simulation.magnetic_cycle.get_t_rev_init(
             circumference=self._simulation.ring.circumference,
-            turn_i_init=0,
-            t_init=0,
             particle_type=self._simulation.magnetic_cycle.reference_particle,
         )
         if isinstance(t_rev, float):

@@ -78,7 +78,7 @@ def main():
         each_turn_i=1,
         rf_station=rf_station,
     )
-    bunch_observation = BeamObservationOncePerTurn(beam=beam1, each_turn_i=1)
+    bunch_observation = BeamObservationOncePerTurn(each_turn_i=1)
 
     def custom_action(simulation: Simulation):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:
@@ -94,7 +94,6 @@ def main():
 
     try:
         sim.load_results(
-            turn_i_init=0,
             n_turns=N_TURNS,
             observe=[phase_observation],
             beams=[beam1],
@@ -102,7 +101,6 @@ def main():
     except AssertionError as exc:
         sim.run_simulation(
             beams=(beam1,),
-            turn_i_init=0,
             n_turns=N_TURNS,
             observe=[phase_observation, bunch_observation],
         )

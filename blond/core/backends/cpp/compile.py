@@ -405,51 +405,46 @@ def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
     -------
     cflags
         Updated compiler flags with AVX/SSE optimization.
-    """  # TODO undocumented port from BLOND2
+    """
     # Check compiler defined directives
     # This is compatible with python3.6 - python 3.9
     # The universal_newlines argument transforms output to text (from binary)
-    ret = subprocess.run(
+    proc = subprocess.run(
         [
-            compiler
-            + ' -march=native -dM -E - < /dev/null | egrep "SSE|AVX|FMA"'
+            compiler,
+            "-march=native",
+            "-dM",
+            "-E",
+            "-",
         ],
-        shell=True,
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         text=True,
-        check=False,
+        check=True,
     )
     # If we have an error
-    if ret.returncode != 0:
+    if proc.returncode != 0:
         print(
             "Compiler auto-optimization did not work. Error: ",
-            ret.stdout,
+            proc.stdout,
         )
-    else:
-        # Format the output list
-        stdout = (
-            ret.stdout.replace("#define ", "")
-            .replace("__ 1", "")
-            .replace("__", "")
-            .split("\n")
-        )
-        # following options exist only on x86 processors
-        if "arm" not in platform.machine():
-            # Add the appropriate vectorization flag (not use avx512)
-            if "AVX2" in stdout:
-                cflags += ["-mavx2"]
-            elif "AVX" in stdout:
-                cflags += ["-mavx"]
-            elif "SSE4_2" in stdout or "SSE4_1" in stdout:
-                cflags += ["-msse4"]
-            elif "SSE3" in stdout:
-                cflags += ["-msse3"]
-            else:
-                cflags += ["-msse"]
+    # Following options exist only on x86 processors
+    elif "arm" not in platform.machine():
+        # Add the appropriate vectorization flag (not use avx512)
+        if "AVX2" in proc.stdout:
+            cflags += ["-mavx2"]
+        elif "AVX" in proc.stdout:
+            cflags += ["-mavx"]
+        elif "SSE4_2" in proc.stdout or "SSE4_1" in proc.stdout:
+            cflags += ["-msse4"]
+        elif "SSE3" in proc.stdout:
+            cflags += ["-msse3"]
+        else:
+            cflags += ["-msse"]
 
-            # Add FMA if supported
-            if "FMA" in stdout:
-                cflags += ["-mfma"]
+        # Add FMA if supported
+        if "FMA" in proc.stdout:
+            cflags += ["-mfma"]
     return cflags
 
 

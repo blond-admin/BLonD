@@ -35,7 +35,6 @@ class BeamPhysicsRelevantHelper(BeamPhysicsRelevant):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs,
     ) -> None:
         pass
@@ -451,7 +450,6 @@ class TestRing(unittest.TestCase):
         self.ring.on_run_simulation(
             simulation=simulation,
             n_turns=10,
-            turn_i_init=5,
             beam=beam,
         )
 
@@ -541,14 +539,14 @@ class TestRing(unittest.TestCase):
         ring = Ring(circumference=123)
         ring.add_element(DriftSimple(orbit_length=100, transition_gamma=123))
         ring.add_element(DriftSimple(orbit_length=23, transition_gamma=123))
-        beam_mock.reference_gamma = 122
+        beam_mock.reference.gamma = 122
         self.assertTrue(ring.is_below_transition(beam=beam_mock))
 
         # Exactly on transition crossing. This is not below anymore
-        beam_mock.reference_gamma = 123
+        beam_mock.reference.gamma = 123
         self.assertFalse(ring.is_below_transition(beam=beam_mock))
 
-        beam_mock.reference_gamma = 124
+        beam_mock.reference.gamma = 124
         self.assertFalse(ring.is_below_transition(beam=beam_mock))
 
     def test_non_mandatory_element_checking_drifts(self):

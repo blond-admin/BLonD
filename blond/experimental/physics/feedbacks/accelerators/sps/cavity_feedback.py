@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -37,7 +37,9 @@ from blond.physics.cavities import RfStationBaseClass
 from blond.physics.feedbacks.helpers import cartesian_to_polar
 from blond.physics.profiles import StaticProfile
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, Literal
+
     from blond.core.beam.base import BeamBaseClass
 
 
@@ -127,14 +129,14 @@ class SPSOneTurnFeedback(IQCavityFeedback):
     def __init__(
         self,
         profile: StaticProfile,
-        n_sections: int,
+        n_sections: Literal[3, 4, 5],
         n_cavities: int = 4,
         V_part: float = 4 / 9,
         G_ff: float = 1,
         G_llrf: float = 10,
         G_tx: float = 1,
         a_comb: float = 63 / 64,
-        df: float = 0,
+        df: int = 0,
         commissioning: SPSCavityLoopCommissioning | None = None,
         harmonic_index: int = 0,
     ):
@@ -202,21 +204,16 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         self.a_comb = float(a_comb)
 
         # 200 MHz travelling wave cavity (TWC) model
-        if self.n_sections in [3, 4, 5]:
-            self.TWC = eval(
-                "SPS"
-                + str(self.n_sections)
-                + "Section200MHzTWC("
-                + str(self.df)
-                + ")"
-            )
-
-            # TWC resonant frequency
-            self.omega_c = self.TWC.omega_r
+        if n_sections == 3:
+            self.TWC = SPS3Section200MHzTWC(df)
+        elif n_sections == 4:
+            self.TWC = SPS4Section200MHzTWC(df)
+        elif n_sections == 5:
+            self.TWC = SPS5Section200MHzTWC(df)
         else:
-            raise RuntimeError(
-                "ERROR in SPSOneTurnFeedback: argument n_sections has invalid value!"
-            )
+            raise ValueError(f"{n_sections=}")
+
+        self.omega_c = self.TWC.omega_r
 
         self.dphi_mod = 0
 

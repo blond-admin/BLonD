@@ -23,6 +23,7 @@ from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from matplotlib.collections import QuadMesh
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Simulation
@@ -138,9 +139,9 @@ class Beam(BeamBaseClass):
         )
 
         if reference_time:
-            self.reference_time = reference_time
+            self.reference.time = reference_time
         if reference_total_energy:
-            self.reference_total_energy = reference_total_energy
+            self.reference.total_energy = reference_total_energy
 
         self.invalidate_cache()
 
@@ -149,7 +150,6 @@ class Beam(BeamBaseClass):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -167,8 +167,6 @@ class Beam(BeamBaseClass):
             The beam object being simulated (typically this beam itself).
         n_turns
             The total number of turns (revolutions) to simulate.
-        turn_i_init
-            The starting turn number for the simulation.
         **kwargs
             Additional keyword arguments for simulation setup.
         """
@@ -176,7 +174,6 @@ class Beam(BeamBaseClass):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
 
     @property
@@ -272,7 +269,7 @@ class Beam(BeamBaseClass):
         """
         return len(self._dt)
 
-    def plot_hist2d(self, **kwargs) -> None:
+    def plot_hist2d(self, **kwargs) -> QuadMesh:
         """
         Plot a 2D histogram of the beam distribution.
 
@@ -288,6 +285,11 @@ class Beam(BeamBaseClass):
             - bins: number of bins (default: 256)
             - cmap: colormap (default: 'viridis')
             - range: data range [[xmin, xmax], [ymin, ymax]]
+
+        Returns
+        -------
+        image
+            `matplotlib.collections.QuadMesh` object.
 
         Notes
         -----
@@ -305,9 +307,14 @@ class Beam(BeamBaseClass):
             # variables below are just for the type hints to function correctly
             dE: CupyArray = self._dE
             dt: CupyArray = self._dt
-            plt.hist2d(dt.get(), dE.get(), **kwargs)
+            counts, xedges, yedges, image = plt.hist2d(
+                dt.get(), dE.get(), **kwargs
+            )
         else:
-            plt.hist2d(self._dt, self._dE, **kwargs)
+            counts, xedges, yedges, image = plt.hist2d(
+                self._dt, self._dE, **kwargs
+            )
+        return image
 
     def plot_scatter(self, **kwargs) -> None:
         """
@@ -420,7 +427,7 @@ class ProbeBeam(Beam):
         dE: NumpyArray | None = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
-        intensity: int = 0,
+        intensity: float = 0,
     ) -> None:
         super().__init__(
             intensity=intensity,
@@ -442,6 +449,46 @@ class ProbeBeam(Beam):
         self.setup_beam(
             dt=dt,
             dE=dE,
+            reference_time=reference_time,
+            reference_total_energy=reference_total_energy,
+        )
+
+
+class EmptyBeam(Beam):
+    """
+    Create a beam without `dt`, `dE` coordinates for probing simulation dynamics.
+
+    A EmptyBeam is a special beam type, designed for testing and
+    analysis purposes.
+
+    Parameters
+    ----------
+    particle_type
+        The type of particle in the beam (e.g., protons, electrons).
+        This determines properties like mass and charge.
+    reference_time
+        The reference time for the coordinate system, in [s].
+    reference_total_energy
+        The reference total energy for the coordinate system, in [eV].
+    intensity
+        The beam intensity (number of real particles). Default is 0,
+        meaning no collective effects.
+    """
+
+    def __init__(
+        self,
+        particle_type: ParticleType,
+        reference_time: float | None = None,
+        reference_total_energy: float | None = None,
+        intensity: float = 0,
+    ) -> None:
+        super().__init__(
+            intensity=intensity,
+            particle_type=particle_type,
+        )
+        self.setup_beam(
+            dt=backend.zeros(0),
+            dE=backend.zeros(0),
             reference_time=reference_time,
             reference_total_energy=reference_total_energy,
         )

@@ -28,7 +28,8 @@ WORKER = None
 
 
 def mpiprint(*args, all=False):
-    """Masks default print function, so that the worker id is also printed
+    """
+    Masks default print function, so that the worker id is also printed
 
     Args:
         all (bool, optional): _description_. Defaults to False.
@@ -38,7 +39,8 @@ def mpiprint(*args, all=False):
 
 
 def master_wrap(func: Callable):
-    """Wrap function to be executed only by the master worker.
+    """
+    Wrap function to be executed only by the master worker.
 
     Args:
         func (_type_): _description_
@@ -62,7 +64,8 @@ def sequential_wrap(
     split_args: Optional[Dict] = None,
     gather_args: Optional[Dict] = None,
 ) -> Callable:
-    """Wrap a function to make it run in sequential mode.
+    """
+    Wrap a function to make it run in sequential mode.
     When in sequential mode, all the beam coordinates are gathered before executing
     the passed function, and re-splitted afterwards.
 
@@ -122,7 +125,8 @@ class Worker:
         self.has_gpu = False
 
     def assign_gpus(self, num_gpus=0):
-        """Assign GPUs to workers
+        """
+        Assign GPUs to workers
 
         Args:
             num_gpus (int, optional): _description_. Defaults to 0.
@@ -132,7 +136,8 @@ class Worker:
             self.gpu_id = self.noderank
 
     def init_log(self, log, logdir):
-        """Initialize the logs
+        """
+        Initialize the logs
 
         Args:
             log (_type_): _description_
@@ -145,7 +150,8 @@ class Worker:
 
     @property
     def is_master(self):
-        """Return true if this worker is the master
+        """
+        Return true if this worker is the master
 
         Returns:
             _type_: _description_
@@ -154,7 +160,8 @@ class Worker:
 
     # Define the begin and size numbers in order to split a variable of length size
     def gather(self, var):
-        """Gather a vector on the master
+        """
+        Gather a vector on the master
 
         Args:
             var (_type_): _description_
@@ -190,7 +197,8 @@ class Worker:
     # All workers gather the variable var (from all workers)
 
     def allgather(self, var):
-        """Gather vector to all workers.
+        """
+        Gather vector to all workers.
 
         Args:
             var (_type_): _description_
@@ -219,7 +227,8 @@ class Worker:
         return recvbuf
 
     def scatter(self, var):
-        """Scatter vector from master to all workers.
+        """
+        Scatter vector from master to all workers.
 
         Args:
             var (_type_): _description_
@@ -255,7 +264,8 @@ class Worker:
         return recvbuf
 
     def broadcast(self, var, root=0):
-        """Broadcast array to all workers.
+        """
+        Broadcast array to all workers.
 
         Args:
             var (_type_): _description_
@@ -287,7 +297,8 @@ class Worker:
         operator="custom_sum",
         comm=None,
     ):
-        """Reduce array to master.
+        """
+        Reduce array to master.
 
         Args:
             sendbuf (_type_): _description_
@@ -349,7 +360,8 @@ class Worker:
     def allreduce(
         self, sendbuf, recvbuf=None, dtype=np.uint32, operator="sum", comm=None
     ):
-        """Reduce array to all workers.
+        """
+        Reduce array to all workers.
 
         Args:
             sendbuf (_type_): _description_
@@ -426,7 +438,8 @@ class Worker:
 
 
 class MPILog:
-    """Class to log messages coming from other classes. Messages contain
+    """
+    Class to log messages coming from other classes. Messages contain
     {Time stamp} {Class name} {Log level} {Message}. Errors, warnings and info
     are logged into the console. To disable logging, call Logger().disable()
     Parameters
@@ -472,7 +485,8 @@ class MPILog:
         self.disabled = True
 
     def debug(self, string):
-        """Set logging to debug verbosity
+        """
+        Set logging to debug verbosity
 
         Args:
             string (_type_): _description_
@@ -481,7 +495,8 @@ class MPILog:
             logging.debug(string)
 
     def info(self, string):
-        """Set logging to info verbosity
+        """
+        Set logging to info verbosity
 
         Args:
             string (_type_): _description_
@@ -490,7 +505,8 @@ class MPILog:
             logging.info(string)
 
     def critical(self, string):
-        """Set logging to critical verbosity
+        """
+        Set logging to critical verbosity
 
         Args:
             string (_type_): _description_

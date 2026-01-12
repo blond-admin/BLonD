@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Base classes for :class:`~blond.cycles.noise_generators.base.NoiseGenerator`.
-
-Authors
--------
-Simon Lauber
-"""
+"""Base classes for :class:`~blond.cycles.noise_generators.base.NoiseGenerator`."""
 
 from __future__ import annotations
 

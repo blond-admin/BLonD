@@ -7,7 +7,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Module containing the fundamental beam class with methods to compute beam
+"""
+Module containing the fundamental beam class with methods to compute beam
 statistics
 
 :Authors: **Danilo Quartullo**, **Helga Timko**, **ALexandre Lasheen**
@@ -40,7 +41,8 @@ m_mu = physical_constants["muon mass"][0]
 
 
 class Particle:
-    r"""Class containing basic parameters, e.g. mass, of the particles to be tracked.
+    r"""
+    Class containing basic parameters, e.g. mass, of the particles to be tracked.
 
     The following particles are already implemented: proton, electron, positron
 

@@ -17,7 +17,13 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
+from blond.core.base import (
+    AltersReference,
+    BeamPhysicsRelevant,
+    HasPropertyCache,
+    Schedulable,
+)
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -62,7 +68,7 @@ def _assert_purely_real_or_imaginary(val: complex):
         )
 
 
-class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
     """
     Base class of a drift.
 
@@ -134,7 +140,6 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -148,8 +153,6 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -202,6 +205,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         Examples
         --------
         Parameters can be scheduled along the simulation execution
+
         >>> from blond import DriftSimple
         >>> drift = DriftSimple(...)
         >>> drift.schedule(attribute='momentum_compaction_factor', value=np.array(...), mode="per-turn")
@@ -335,7 +339,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         d.on_init_simulation(simulation=simulation)
         d.on_run_simulation(
             simulation=simulation,
-            turn_i_init=0,
             n_turns=1,
             beam=Mock(BeamBaseClass),
         )
@@ -370,23 +373,48 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Beam class to interact with this element.
         """
         super().track(beam=beam)
+
         if self.schedule_active:
             self.apply_schedules(
                 turn_i=self._simulation.turn_i.value,
-                reference_time=beam.reference_time,
+                reference_time=beam.reference.time,
             )
-        dt = self.orbit_length / beam.reference_velocity
-        gamma = beam.reference_gamma
-        eta_0 = self.alpha_0 - (1 / (gamma * gamma))
-        backend.specials.drift_simple(
-            dt=beam.write_partial_dt(),
-            dE=beam.read_partial_dE(),
-            T=dt,
-            eta_0=eta_0,
-            beta=beam.reference_beta,
-            energy=beam.reference_total_energy,
-        )
-        beam.reference_time += dt
+
+        dt = self.track_reference(beam.reference)
+
+        if beam.common_array_size > 0:
+            gamma = beam.reference.gamma
+            backend.specials.drift_simple(
+                dt=beam.write_partial_dt(),
+                dE=beam.read_partial_dE(),
+                T=dt,
+                eta_0=(self.alpha_0 - (1 / (gamma * gamma))),
+                beta=beam.reference.beta,
+                energy=beam.reference.total_energy,
+            )
+
+    def track_reference(
+        self, reference: ReferenceCoordinates, **kwargs
+    ) -> float:
+        """
+        Update the coordinates of the reference coordinate system.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+        **kwargs
+            Allows more arguments in the method definition outside the
+            abstract class.
+
+        Returns
+        -------
+        reference_time_change
+            Change of reference time.
+        """
+        reference_time_change = self.orbit_length / reference.velocity
+        reference.time += reference_time_change
+        return reference_time_change
 
     def eta_0(self, gamma: float) -> float:
         """

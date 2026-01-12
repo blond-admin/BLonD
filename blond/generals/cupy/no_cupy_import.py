@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -73,14 +74,11 @@ def copy_to_cpu(array: NumpyArray | CupyArray):
         return array.copy()
 
 
-# pin original numpy function for `AllowPlotting`
-_numpy_asarray_original = np.asarray
-
-
 class _AsarrayOverrideManager:
     def __init__(self) -> None:
         """Override functionality for 'np.asarray' to handle Cupy."""
         self.cache: dict[int, np.ndarray] = {}
+        self._numpy_asarray_original = deepcopy(np.asarray)
 
     def asarray_override(
         self,
@@ -101,7 +99,7 @@ class _AsarrayOverrideManager:
                 # DON'T copy data from GPU, because it was done already
                 a = self.cache[key]
 
-        return _numpy_asarray_original(  # type: ignore
+        return self._numpy_asarray_original(  # type: ignore
             a,
             dtype=dtype,
             order=order,
@@ -123,7 +121,7 @@ class AllowPlotting:
     --------
     >>> y = cupy.ones(12)
     >>> with AllowPlotting():
-    >>>     plt.plot(y)
+    ...     plt.plot(y)
     """
 
     def __init__(self) -> None:
@@ -137,7 +135,7 @@ class AllowPlotting:
         if not backend.is_gpu:
             return
         # override numpy "asarray" function with own function
-        self.asarray_org = np.asarray
+        self.asarray_org = deepcopy(np.asarray)
         np.asarray = self.asarray_override_manager.asarray_override
 
     def __exit__(
@@ -161,4 +159,4 @@ class AllowPlotting:
         if not backend.is_gpu:
             return  # do nothing
         # reset to original numpy function
-        np.asarray = _numpy_asarray_original
+        np.asarray = self.asarray_org

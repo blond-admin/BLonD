@@ -22,7 +22,11 @@ import os
 import sys
 from importlib.metadata import version as get_version
 
+from intersphinx_registry import get_intersphinx_mapping
+
 print(">>> Sphinx loaded THIS conf.py:", __file__)
+
+sys.path.insert(0, os.path.abspath(".."))
 
 # -- General configuration ------------------------------------------------
 
@@ -37,23 +41,22 @@ print(">>> Sphinx loaded THIS conf.py:", __file__)
 
 os.environ["SPHINX_SHOW_WARNING_TYPES"] = "1"  # force categories in output
 
-
 folder = os.path.abspath("modules")
 sys.path.insert(0, folder)
 extensions = [
     "sphinx.ext.autodoc",
-    # "sphinx.ext.autosummary",
-    #    "sphinx.ext.doctest",
-    #    "sphinx.ext.intersphinx",
-    #    "sphinx.ext.todo",
-    #    "sphinx.ext.coverage",
-    "sphinx.ext.mathjax",
-    #    "sphinx.ext.viewcode",
-    #    "sphinx.ext.githubpages",
-    # "sphinxcontrib.napoleon"
-    "sphinx.ext.inheritance_diagram",
     "sphinx.ext.napoleon",
+    "numpydoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.inheritance_diagram",
+    "sphinx_autodoc_typehints",
+    "sphinx.ext.intersphinx",
 ]
+
+autosummary_generate = True
+autosummary_imported_members = True
+napoleon_use_param = True
 
 inheritance_graph_attrs = {
     "rankdir": "TB",  # "TB" = Top → Bottom (vertical)
@@ -63,6 +66,8 @@ inheritance_graph_attrs = {
     "nodesep": "0.2",
     "layout": "dot",
 }
+
+numpydoc_show_class_members = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -137,41 +142,51 @@ pygments_style = "sphinx"
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 # todo_include_todos = True
 
+setuptools_scm_git_archive = False
+
 autodoc_member_order = "bysource"
 autodoc_preserve_defaults = True  # optional
 # autodoc_inherit_docstrings = False
 autodoc_typehints = "signature"  # or 'description'
 
+autodoc_search_path = [os.path.abspath("../")]
+
+# The name of the Pygments (syntax highlighting) style to use.
+pygments_style = "sphinx"
+
 # -- Options for HTML output ----------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-#
-# html_theme = "bizstyle"
-# html_theme = "pyramid"
-# html_theme = "haiku"
-# html_theme = "nature"
-# html_theme = "traditional"
-# html_theme = "agogo"
-# html_theme = "scrolls"
-# html_theme = "sphinxdoc"
-# html_theme = "classic"
-# html_theme = "alabaster"
-# html_theme = "sphinx_rtd_theme"
 
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-#
-# html_theme_options = {}
+html_theme = "pydata_sphinx_theme"
+html_theme_options = {
+    "show_prev_next": False,
+    "navbar_end": ["theme-switcher", "navbar-icon-links.html"],
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/numpy/numpydoc",
+            "icon": "fab fa-github-square",
+            "type": "fontawesome",
+        },
+    ],
+}
+
+html_sidebars = {
+    "**": [],
+}
+html_context = {
+    "default_mode": "light",
+}
+
+html_title = f"{project} v{version} Manual"
+html_last_updated_fmt = "%b %d, %Y"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ["_static"]
-
-
-# -- Options for HTMLHelp output ------------------------------------------
+html_static_path = []  # ['_static']
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = "BLonD Documentation"
@@ -201,11 +216,6 @@ latex_documents = [
     (master_doc, "BLonD.tex", "BLonD Documentation", "Test", "manual"),
 ]
 
-html_theme_options = {
-    "collapse_navigation": False,
-    "sticky_navigation": False,
-    "navigation_depth": 5,
-}
 
 # -- Options for manual page output ---------------------------------------
 
@@ -255,5 +265,65 @@ autodoc_default_options = {
 
 show_warning_types = True
 
+
+# Required to skip instances of _abc_impl, which are present in
+# all classes inheriting from ABC (which is almost all our classes)
+def skip_specific_functions(app, what, name, obj, skip, options):
+    """
+    Determine whether Sphinx should skip documenting a specific member.
+
+    This function is used as a callback for the
+    ``autodoc-skip-member`` event in Sphinx. It allows selectively
+    skipping members during the autodoc process. In this case, the
+    function skips the internal member ``_abc_impl`` while deferring
+    to Sphinx’s default behavior for all other members.
+
+    Parameters
+    ----------
+    app : sphinx.application.Sphinx
+        The Sphinx application object.
+    what : str
+        The type of the object being documented (e.g., ``"module"``,
+        ``"class"``, ``"method"``, etc.).
+    name : str
+        The fully qualified name of the member.
+    obj : object
+        The member object itself.
+    skip : bool
+        The current skip decision made by Sphinx. If ``True``, Sphinx
+        already intends to skip this member.
+    options : sphinx.ext.autodoc.Options
+        Additional options passed to autodoc about the member.
+
+    Returns
+    -------
+    bool
+        ``True`` if the member should be skipped,
+        ``False`` otherwise. Members named ``"_abc_impl"`` are always
+        skipped.
+    """
+    if name == "_abc_impl":
+        return True
+    return skip
+
+
+def setup(app):
+    """
+    Register Sphinx event handlers for this extension.
+
+    Parameters
+    ----------
+    app : sphinx.application.Sphinx
+        The Sphinx application object.
+
+    Returns
+    -------
+    None
+    """
+    app.connect("autodoc-skip-member", skip_specific_functions)
+
+
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {"https://docs.python.org/": None}
+intersphinx_mapping = get_intersphinx_mapping(
+    packages=["python", "numpy", "scipy", "sklearn"]
+)

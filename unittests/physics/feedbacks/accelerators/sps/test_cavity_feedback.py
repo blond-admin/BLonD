@@ -171,7 +171,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         n_shift = 1550  # how many rf-buckets to shift beam
         omega_rf = float(
             rf.calc_omega_rf_design(
-                beam_beta=self.beam.reference_beta,
+                beam_beta=self.beam.reference.beta,
                 ring_circumference=ring.circumference,
             )
         )
@@ -758,8 +758,6 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             dt=np.zeros(N_m),
             dE=np.zeros(N_m),
             reference_total_energy=self.magnetic_cycle.get_total_energy_init(
-                0,
-                0,
                 particle_type=proton,
             ),
         )

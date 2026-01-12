@@ -115,7 +115,6 @@ class Ring(Preparable):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -132,8 +131,6 @@ class Ring(Preparable):
             The beam object being simulated.
         n_turns
             Total number of turns to simulate.
-        turn_i_init
-            The starting turn number (useful for resuming simulations).
         **kwargs
             Additional keyword arguments.
         """
@@ -250,7 +247,7 @@ class Ring(Preparable):
         --------
         average_transition_gamma : This method is interlnally used.
         """
-        return bool(self.calc_average_eta_0(gamma=beam.reference_gamma) < 0)
+        return bool(self.calc_average_eta_0(gamma=beam.reference.gamma) < 0)
 
     @property
     def n_rf_stations(self) -> int:

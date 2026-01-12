@@ -51,7 +51,8 @@ else:
 
 
 def _compile_rf_noise_library(rf_noise_dir: pathlib.Path):
-    """Make the library for python, so that it can be imported later
+    """
+    Make the library for python, so that it can be imported later
 
 
     Notes
@@ -74,7 +75,8 @@ def _compile_rf_noise_library(rf_noise_dir: pathlib.Path):
         https://gitlab.cern.ch/be-rf-cs/Tools-and-libs/rf-noise-cpp
 
         Optional: You can also change the path using the environment variable 'RF_NOISE_DIR'
-        """)
+        """
+        )
 
     if isfile(_target_library):
         # remove old library
@@ -92,10 +94,14 @@ def _compile_rf_noise_library(rf_noise_dir: pathlib.Path):
         f"-I{rf_noise_src} "
         f"-lboost_system"
     )
-    process = subprocess.Popen(
-        make_command.strip().split(" "),
-    )
-    process.communicate()
+    raise NotImplementedError("Fix the lines below")
+    # FIXME
+    # Improper neutralization of special elements used in an OS Command ('OS Command Injection')
+
+    # process = subprocess.Popen(
+    #   make_command.strip().split(" "),
+    #)
+    # process.communicate()
     if process.returncode != 0:
         try:
             os.remove(_target_library)

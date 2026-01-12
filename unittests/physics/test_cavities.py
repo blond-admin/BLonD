@@ -14,6 +14,7 @@ from blond import (
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
     SpsRlBeamFeedback,
 )
@@ -34,12 +35,14 @@ from blond.physics.impedances.base import WakeField
 class TestRFStationBaseClass(unittest.TestCase):
     def setUp(self) -> None:
         self.beam = Mock(BeamBaseClass)
+        self.beam.reference = Mock(ReferenceCoordinates)
+
         self.beam.particle_type = proton
-        self.beam.reference_time = 0
-        self.beam.reference_beta = 0.5
-        self.beam.reference_velocity = self.beam.reference_beta * c0
-        self.beam.reference_gamma = np.sqrt(1 - 0.25)  # beta**2
-        self.beam.reference_total_energy = 938
+        self.beam.reference.time = 0
+        self.beam.reference.beta = 0.5
+        self.beam.reference.velocity = self.beam.reference.beta * c0
+        self.beam.reference.gamma = np.sqrt(1 - 0.25)  # beta**2
+        self.beam.reference.total_energy = 938
         self.beam.dE = np.linspace(
             -1e6, 1e6, 10, dtype=backend.float
         )  # delta E
@@ -169,7 +172,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         beam_feedback_good.domega_rf = 0
         # mhc = MultiHarmonicRfStation.headless(section_index=1, voltage=np.array([1]), harmonic=np.array([1]),
         #                                       phi_rf=np.array([1]), main_harmonic_idx=0, circumference=1,
-        #                                       total_energy=1, reference_beta=1)
+        #                                       total_energy=1, reference.beta=1)
         cavity_feedback_good = Mock(
             SPSOneTurnFeedback
         )  # profile=prof, _parent_rf_station=mhc, n_sections=3)
@@ -199,7 +202,9 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         mhc_feedbacks.on_init_simulation(simulation=simulation)
         mhc_feedbacks.on_run_simulation(
-            simulation=simulation, beam=self.beam, n_turns=100, turn_i_init=0
+            simulation=simulation,
+            beam=self.beam,
+            n_turns=100,
         )
 
         with self.assertRaises(TypeError):
@@ -243,12 +248,14 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         from blond.core.beam.base import BeamBaseClass
 
         beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.common_array_size = 1
         beam.particle_type = proton
-        beam.reference_time = 0
-        beam.reference_beta = 0.5
-        beam.reference_velocity = beam.reference_beta * c0
-        beam.reference_gamma = np.sqrt(1 - 0.25)  # beta**2
-        beam.reference_total_energy = 938
+        beam.reference.time = 0
+        beam.reference.beta = 0.5
+        beam.reference.velocity = beam.reference.beta * c0
+        beam.reference.gamma = np.sqrt(1 - 0.25)  # beta**2
+        beam.reference.total_energy = 938
         beam.dE = np.linspace(-1e6, 1e6, 10, dtype=backend.float)  # delta E
         # in eV
         beam.dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t
@@ -291,8 +298,8 @@ class TestMultiHarmonicCavity(unittest.TestCase):
     def test_track(self) -> None:
         self.multi_harmonic_cavity.track(beam=self.beam)
 
-        self.assertEqual(self.beam.reference_total_energy, 939)  # incremented
-        self.assertEqual(self.beam.reference_time, 0)  # unchanged
+        self.assertEqual(self.beam.reference.total_energy, 939)  # incremented
+        self.assertEqual(self.beam.reference.time, 0)  # unchanged
 
         # print(self.beam.dE.tolist())
         np.testing.assert_allclose(  # changer/ test pinned to some value
@@ -381,7 +388,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         )
         assert (
             self.multi_harmonic_cavity.calc_main_harmonic_t_rf(
-                beam_beta=self.beam.reference_beta, ring_circumference=456
+                beam_beta=self.beam.reference.beta, ring_circumference=456
             )
             == self.multi_harmonic_cavity.get_main_harmonic_t_rf_actual()
         )
@@ -413,12 +420,14 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         from blond.core.beam.base import BeamBaseClass
 
         beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.common_array_size = 1
         beam.particle_type = proton
-        beam.reference_time = backend.float(0)
-        beam.reference_beta = 0.5
-        beam.reference_velocity = backend.float(beam.reference_beta * c0)
-        beam.reference_gamma = backend.float(np.sqrt(1 - 0.25))  # beta**2
-        beam.reference_total_energy = backend.float(938)
+        beam.reference.time = backend.float(0)
+        beam.reference.beta = 0.5
+        beam.reference.velocity = backend.float(beam.reference.beta * c0)
+        beam.reference.gamma = backend.float(np.sqrt(1 - 0.25))  # beta**2
+        beam.reference.total_energy = backend.float(938)
         beam.dE = np.linspace(
             -1e6, 1e6, 10, dtype=backend.float
         )  # delta E in eV
@@ -438,7 +447,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=None,
-            total_energy=939,
+            total_energy=939.0,
             beam_reference_beta=beam.reference_beta,
         )
         self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
@@ -449,8 +458,8 @@ class TestSingleHarmonicCavity(unittest.TestCase):
     def test_track(self) -> None:
         self.single_harmonic_cavity.track(beam=self.beam)
 
-        self.assertEqual(self.beam.reference_total_energy, 939)  # incremented
-        self.assertEqual(self.beam.reference_time, 0)  # unchanged
+        self.assertEqual(939, self.beam.reference.total_energy)  # incremented
+        self.assertEqual(self.beam.reference.time, 0)  # unchanged
         np.testing.assert_allclose(  # test pinned to some value
             self.beam.dE,
             [
@@ -487,7 +496,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         )
         assert (
             self.single_harmonic_cavity.calc_main_harmonic_t_rf(
-                beam_beta=self.beam.reference_beta, ring_circumference=456
+                beam_beta=self.beam.reference.beta, ring_circumference=456
             )
             == self.single_harmonic_cavity.get_main_harmonic_t_rf_actual()
         )

@@ -90,8 +90,6 @@ class TestInductiveImpedances(unittest.TestCase):
                 dt=distr[:, 0] + 5,
                 dE=distr[:, 1],
                 reference_total_energy=cycle.get_total_energy_init(
-                    turn_i_init=0,
-                    t_init=0,
                     particle_type=cycle.reference_particle,
                 ),
             )

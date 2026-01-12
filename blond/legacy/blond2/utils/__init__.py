@@ -22,7 +22,8 @@ class PrecisionClass:
     __instance = None
 
     def __init__(self, _precision: str = "double"):
-        """Constructor
+        """
+        Constructor
 
         Args:
             _precision (str, optional): _description_. Defaults to 'double'.
@@ -34,7 +35,8 @@ class PrecisionClass:
         self.set(_precision)
 
     def set(self, _precision: str = "double"):
-        """Set the precision to single or double.
+        """
+        Set the precision to single or double.
 
         Args:
             _precision (str, optional): _description_. Defaults to 'double'.
@@ -62,7 +64,8 @@ class c_complex128(ct.Structure):
     _fields_ = [("real", ct.c_double), ("imag", ct.c_double)]
 
     def __init__(self, pycomplex: NumpyArray):
-        """Init from Python complex
+        """
+        Init from Python complex
 
         Args:
             pycomplex (_type_): _description_
@@ -71,7 +74,8 @@ class c_complex128(ct.Structure):
         self.imag = pycomplex.imag.astype(np.float64, order="C")
 
     def to_complex(self):
-        """Convert to Python complex
+        """
+        Convert to Python complex
 
         Returns:
             _type_: _description_
@@ -85,7 +89,8 @@ class c_complex64(ct.Structure):
     _fields_ = [("real", ct.c_float), ("imag", ct.c_float)]
 
     def __init__(self, pycomplex: NumpyArray):
-        """Init from Python complex
+        """
+        Init from Python complex
 
         Args:
             pycomplex (_type_): _description_
@@ -94,7 +99,8 @@ class c_complex64(ct.Structure):
         self.imag = pycomplex.imag.astype(np.float32, order="C")
 
     def to_complex(self):
-        """Convert to Python complex
+        """
+        Convert to Python complex
 
         Returns:
             _type_: _description_

@@ -17,8 +17,9 @@ beam, the option seed=0 in the generation has been used. This script shows
 also an example of how to use the class SliceMonitor (check the corresponding
 h5 files).
 
-Authors
--------
+Notes
+-----
+Authors:
 Simon Lauber
 Danilo Quartullo
 """
@@ -100,8 +101,6 @@ def main():
             2**8,
             magnetic_cycle.get_t_rev_init(
                 ring.circumference,
-                turn_i_init=0,
-                t_init=0,
                 particle_type=proton,
             )
             / 4620,
@@ -128,7 +127,7 @@ def main():
             beam=beam,
         )
         bunch_observable = BeamObservationOncePerTurn(
-            each_turn_i=10, beam=beam
+            each_turn_i=10,
         )
         sim.run_simulation(
             observe=(bunch_observable,),

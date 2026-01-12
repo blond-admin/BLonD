@@ -2,6 +2,7 @@ import unittest
 from functools import cached_property
 
 import numpy as np
+import scipy
 
 from blond import Simulation
 from blond.core.base import (
@@ -31,7 +32,9 @@ class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
         pass
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
     ) -> None:
         pass
 
@@ -79,6 +82,27 @@ class TestScheduledInterpolation(unittest.TestCase):
     def test_init(self):
         pass
 
+    def test_init_other1(self):
+        t_arr = np.linspace(0, 10)
+        vals = np.linspace(-10, 0)
+        scheduler = ScheduledInterpolation(
+            times=t_arr,
+            values=vals,
+            interpolator=scipy.interpolate.Akima1DInterpolator,
+            method="makima",
+        )
+        scheduler.get_scheduled(5, 1.0)  # should not crash
+
+        def test_init_other2(self):
+            t_arr = np.linspace(0, 10)
+            vals = np.linspace(-10, 0)
+            scheduler = ScheduledInterpolation(
+                times=t_arr,
+                values=vals,
+                interpolator=scipy.interpolate.PchipInterpolator,
+            )
+            scheduler.get_scheduled(5, 1.0)  # should not crash
+
 
 class BeamObservationElementTester(BeamObservationElement):
     def __init__(self, section_index: int = 0, name: str | None = None):
@@ -91,7 +115,9 @@ class BeamObservationElementTester(BeamObservationElement):
         pass
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
     ) -> None:
         pass
 
@@ -165,7 +191,9 @@ class MainLoopRelevantHelper(MainLoopRelevant):
         pass
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
     ) -> None:
         pass
 
@@ -190,7 +218,9 @@ class PreparableHelper(Preparable):
         pass
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
     ) -> None:
         pass
 

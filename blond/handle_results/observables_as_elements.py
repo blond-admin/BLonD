@@ -79,7 +79,6 @@ class BeamObservationInRingElement(
         simulation: Simulation,
         beam: BeamBaseClass,  # this is not used in this context
         n_turns: int,
-        turn_i_init: int,
         obs_per_turn: int = 1,
         **kwargs: dict[
             str,
@@ -97,8 +96,6 @@ class BeamObservationInRingElement(
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         obs_per_turn
             Number of observations per turn.
         **kwargs
@@ -134,8 +131,8 @@ class BeamObservationInRingElement(
         """
         self._dEs.write(beam.read_partial_dE())
         self._dts.write(beam.read_partial_dt())
-        self._reference_time.write(beam.reference_time)
-        self._reference_total_energy.write(beam.reference_total_energy)
+        self._reference_time.write(beam.reference.time)
+        self._reference_total_energy.write(beam.reference.total_energy)
         self._flags.write(beam.read_partial_flags())
 
     @property  # as readonly attributes
@@ -246,7 +243,6 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs,
     ) -> None:
         """
@@ -260,8 +256,6 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             Simulation beam object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -269,7 +263,6 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
 
         count = sum([el == self for el in simulation.ring.elements.elements])

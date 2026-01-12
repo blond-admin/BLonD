@@ -36,7 +36,7 @@ table.
 
 Just like in the real machine, we demand the user to define beforehand the
 energy programme, i.e. the **synchronous (design) total energy** at every time
-step :math:`n` and RF station :math:`(i)`, :math:`\left\{ E_{s,(i)}^n \right\}`.
+Step :math:`n` and RF station :math:`(i)`, :math:`\left\{ E_{s,(i)}^n \right\}`.
 This will define the design momentum :math:`p_s` through following relations:
 
 .. math:: E_s = \gamma_s m ,
@@ -225,8 +225,6 @@ particles in front should be added on the left-hand side:
 
 where :math:`\lambda(t)` is the beam/bunch profile and :math:`W(t)` the wake
 potential.
-
-.. seealso:: http://dquartul.github.io/BLonD/impedances.html
 
 .. warning:: In general, these equations have :math:`n_{\mathsf{rf}}`
    solutions. If the synchronous energy gain :math:`E_s^{n+1} - E_s^n` changes

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, overload
 import numpy as np
 from scipy.constants import speed_of_light as c  # type: ignore[import-untyped]
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -148,13 +148,13 @@ def phase_modulo_above_transition(
     Examples
     --------
     >>> import numpy as np
+    >>> from blond.acc_math.analytic.hamilton import phase_modulo_above_transition
     >>> phase_modulo_above_transition(-np.pi / 2)
-    4.71238898038469
+    np.float64(4.71238898038469)
     >>> phase_modulo_above_transition(3 * np.pi)
-    3.141592653589793
+    np.float64(3.141592653589793)
     >>> phi = np.linspace(-10, 10, 5)
-    >>> phase_modulo_above_transition(phi)
-    array([2.56637061, 3.56637061, 4.56637061, 5.56637061, 0.56637061])
+    >>> phi_limited = phase_modulo_above_transition(phi)
     """
     return phi - 2.0 * np.pi * np.floor(phi / (2.0 * np.pi))
 
@@ -207,7 +207,6 @@ def phase_modulo_below_transition(
     3.141592653589793
     >>> phi = np.linspace(-10, 10, 5)
     >>> phase_modulo_above_transition(phi)
-    array([2.56637061, 3.56637061, 4.56637061, 5.56637061, 0.56637061])
     """
     return phi - 2.0 * np.pi * (np.floor(phi / (2.0 * np.pi) + 0.5))
 

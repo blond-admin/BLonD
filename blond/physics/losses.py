@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to handle beam losses in synchrotrons.
-
-Authors
--------
-Simon Lauber
-"""
+"""Collection of implementations to handle beam losses in synchrotrons."""
 
 from __future__ import annotations
 
@@ -109,13 +104,13 @@ class BoxLosses(LossesBaseClass):
 
     Attributes
     ----------
-    t_min
+    t_min : float
         Macro-particles with ``dt < t_min`` will be labeled/removed, in [s].
-    t_max
+    t_max : float
         Macro-particles with ``dt > t_max`` will be labeled/removed, in [s].
-    e_min
+    e_min : float
         Macro-particles with ``dE < t_min`` will be labeled/removed, in [s].
-    e_max
+    e_max : float
         Macro-particles with ``dE > t_min`` will be labeled/removed, in [s].
     """
 
@@ -175,7 +170,6 @@ class BoxLosses(LossesBaseClass):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -189,8 +183,6 @@ class BoxLosses(LossesBaseClass):
             Simulation beam object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
@@ -205,13 +197,14 @@ class BoxLosses(LossesBaseClass):
         beam
             Beam class to interact with this element.
         """
-        backend.specials.loss_box(
-            e_max=self.e_max,
-            e_min=self.e_min,
-            t_min=self.t_min,
-            t_max=self.t_max,
-            dt=beam.read_partial_dt(),
-            dE=beam.read_partial_dE(),
-            flags=beam.write_partial_flags(),
-        )
-        self._purge_particles(beam=beam, force=False)
+        if beam.common_array_size > 0:
+            backend.specials.loss_box(
+                e_max=self.e_max,
+                e_min=self.e_min,
+                t_min=self.t_min,
+                t_max=self.t_max,
+                dt=beam.read_partial_dt(),
+                dE=beam.read_partial_dE(),
+                flags=beam.write_partial_flags(),
+            )
+            self._purge_particles(beam=beam, force=False)

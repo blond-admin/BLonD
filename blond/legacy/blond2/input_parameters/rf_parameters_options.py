@@ -35,7 +35,8 @@ if TYPE_CHECKING:
 
 
 class RFStationOptions:
-    r"""Class to preprocess the RF data (voltage, phase, harmonic) for
+    r"""
+    Class to preprocess the RF data (voltage, phase, harmonic) for
     RFStation, interpolating it to every turn.
 
     Parameters

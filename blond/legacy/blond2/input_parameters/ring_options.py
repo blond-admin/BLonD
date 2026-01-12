@@ -35,7 +35,8 @@ if TYPE_CHECKING:
 
 
 class RingOptions:
-    r"""Class to preprocess the synchronous data for Ring, interpolating it to
+    r"""
+    Class to preprocess the synchronous data for Ring, interpolating it to
     every turn.
 
     Parameters

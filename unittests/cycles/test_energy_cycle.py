@@ -179,8 +179,6 @@ class TestConstantEnergyCycle(unittest.TestCase):
         self.assertEqual(
             2000e6,
             self.constant_magnetic_cycle.get_total_energy_init(
-                turn_i_init=0,
-                t_init=0,
                 particle_type=proton,
             ),
         )
@@ -249,7 +247,7 @@ class TestEnergyCycleBase(unittest.TestCase):
         self.assertIsInstance(self.magnetic_cycle_base, MagneticCycleBase)
 
     def test_energy(self):
-        energy = self.magnetic_cycle_base.get_total_energy_init(0, 0, proton)
+        energy = self.magnetic_cycle_base.get_total_energy_init(proton)
         expected = np.sqrt(self.momentum_init**2 + proton.mass**2)
         assert_allclose(energy, expected, rtol=1e-8)
 
@@ -271,7 +269,6 @@ class TestEnergyCycleBase(unittest.TestCase):
         self.magnetic_cycle_base.on_run_simulation(
             simulation=simulation_ex1,
             n_turns=1,
-            turn_i_init=10,
             beam=Mock(BeamBaseClass),
         )
 
@@ -300,12 +297,12 @@ class TestEnergyCycleByTime(unittest.TestCase):
             in_unit="total energy",
         )
         self.assertEqual(
-            ebt.get_total_energy_init(0, 0, particle_type=uranium_29), 1e12
+            ebt.get_total_energy_init(particle_type=uranium_29), 1e12
         )
 
     def test_get_target_total_energy(self):
         cycle = MagneticCycleByTime.headless(
-            base_time=np.linspace(1e12, 1e12, endpoint=True),
+            base_time=np.linspace(0, 1e12, endpoint=True),
             base_values=np.linspace(1e12, 1e12, endpoint=True),
             reference_particle=uranium_29,
             in_unit="total energy",
@@ -320,13 +317,13 @@ class TestEnergyCycleByTime(unittest.TestCase):
         e_tot_2 = cycle.get_target_total_energy(
             turn_i=0,
             section_i=0,
-            reference_time=0,
+            reference_time=1.1e4,
             particle_type=uranium_29,
         )
         e_tot_3 = cycle.get_target_total_energy(
             turn_i=0,
             section_i=0,
-            reference_time=0,
+            reference_time=1e11,
             particle_type=proton,
         )
         self.assertEqual(e_tot_1, e_tot_2)

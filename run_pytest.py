@@ -1,9 +1,4 @@
-"""Executing pytest using Python instead of shell commands.
-
-Authors
--------
-Simon Lauber
-"""
+"""Execute pytest using Python instead of shell commands."""
 
 import os
 from pathlib import Path
@@ -12,7 +7,14 @@ import pytest  # type: ignore
 
 
 def run_pytest(folder_path: str) -> None:
-    """Run pytest on the specified folder with importlib import mode."""
+    """
+    Run pytest on the specified folder with importlib import mode.
+
+    Parameters
+    ----------
+    folder_path
+        Path to the folder containing tests to run.
+    """
     pytest.main(["--import-mode=importlib", folder_path])
 
 

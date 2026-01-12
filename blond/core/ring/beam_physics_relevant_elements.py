@@ -122,7 +122,6 @@ class BeamPhysicsRelevantElements(Preparable):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -136,8 +135,6 @@ class BeamPhysicsRelevantElements(Preparable):
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments.
         """
