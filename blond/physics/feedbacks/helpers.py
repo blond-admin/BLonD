@@ -268,7 +268,7 @@ def cavity_response_sparse_matrix(
     n_samples: int,
     V_ant_init: float,
     I_gen_init: float,
-    samples_per_rf: float,  # TODO: is this float or int
+    samples_per_rf: float,
     R_over_Q: float,
     Q_L: float,
     detuning: float,
