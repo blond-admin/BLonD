@@ -190,27 +190,29 @@ class RfStationBaseClass(
 
     @property
     def omega_rf_actual(self) -> NumpyArray | float:
-        """RF angular frequency.
+        """
+        RF angular frequency.
 
         This might be altered by detuning/feedbacks.
 
         Returns
         -------
         omega_rf_actual
-            actual angular rf frequency
+            Actual angular rf frequency.
         """
         return self.omega_rf_design + self.delta_omega_rf
 
     @property
     def phi_rf_actual(self) -> NumpyArray | float:
-        """RF angular phase.
+        """
+        RF angular phase.
 
         This might be altered by detuning/feedbacks.
 
         Returns
         -------
         phi_rf_actual
-            actual angular rf phase
+            Actual angular rf phase.
         """
         return self.phi_rf_design + self.delta_phi_rf
 
@@ -359,7 +361,8 @@ class RfStationBaseClass(
         pass
 
     def attach_beam_feedback(self, beam_feedback: BeamFeedbackBase):
-        """Attach beam feedback to the RF station after initialization.
+        """
+        Attach beam feedback to the RF station after initialization.
 
         Parameters
         ----------
@@ -371,7 +374,8 @@ class RfStationBaseClass(
     def attach_cavity_feedback(
         self, cavity_feedback: LocalFeedback | tuple[LocalFeedback, ...]
     ):
-        """Attach cavity feedback to the RF station after initialization.
+        """
+        Attach cavity feedback to the RF station after initialization.
 
         Parameters
         ----------
@@ -402,7 +406,8 @@ class RfStationBaseClass(
         phi_s: float | None = None,
         eta_0: float | None = None,
     ):
-        """Function calculating the turn-by-turn synchrotron tune.
+        """
+        Function calculating the turn-by-turn synchrotron tune.
 
         The calculation assumes a single-harmonic RF system and no intensity
         effects.
@@ -410,13 +415,16 @@ class RfStationBaseClass(
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
+        phi_s
+            Synchronous phase, in [rad]. Will be calculated if not provided.
+        eta_0
+            First order slippage factor, in []. Will be calculated if not provided.
 
         Returns
         -------
         Q_s
             Synchrotron tune.
-
         """
         if eta_0 is None:
             assert self._ring is not None
@@ -446,12 +454,17 @@ class RfStationBaseClass(
     def calc_phi_s_single_harmonic(
         self, beam: BeamBaseClass, enable_rf_phase: bool = True
     ) -> float:
-        """Calculates the main harmonic synchronous phase.
+        """
+        Calculate the main harmonic synchronous phase.
 
         Parameters
         ----------
         beam
             Beam class to interact with this element.
+        enable_rf_phase
+            This flag will cause the rf phase of this
+            station to be taken into account for the
+            computation of the synchronous phase.
 
         Returns
         -------
@@ -698,6 +711,12 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
     Parameters
     ----------
+    voltage
+        RF station's effective voltage, in [V].
+    phi_rf
+        RF station's design phase, in [rad].
+    harmonic
+        RF station's design harmonic [].
     section_index
         Section index to group elements into sections.
     local_wakefield
@@ -708,12 +727,6 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         Optional beam feedback.
     name
         User given name of the element.
-    voltage
-        RF station's effective voltage, in [V].
-    phi_rf
-        RF station's design phase, in [rad].
-    harmonic
-        RF station's design harmonic [].
     **kwargs
         Additional keyword arguments for MRO of fused elements.
 
@@ -996,7 +1009,8 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         return self.harmonic * float(TWOPI_C0 * beam_beta / ring_circumference)
 
     def calc_gap_voltage(self):
-        """Calculates total gap voltage in the RF station.
+        """
+        Calculate total gap voltage in the RF station.
 
         This function calculates the total gap voltage including
         both the beam-induced and generator-induced voltages inside the
@@ -1144,17 +1158,17 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
     Parameters
     ----------
-    n_harmonics
-        Number of different RF waves for interaction.
-    main_harmonic_idx
-        Index of the RF station's main harmonic.
-        Used to calculate attributes that rely on only one harmonic.
     voltage
         Cavity's effective voltages (per harmonic) in [V].
     phi_rf
         Cavity's design phases (per harmonic) in [rad].
     harmonic
         Cavity's design harmonics (per harmonic) [].
+    n_harmonics
+        Number of different RF waves for interaction.
+    main_harmonic_idx
+        Index of the RF station's main harmonic.
+        Used to calculate attributes that rely on only one harmonic.
     section_index
         Section index to group elements into sections.
     local_wakefield
@@ -1369,7 +1383,14 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         )[self.main_harmonic_idx]
 
     def get_main_harmonic_omega_rf_actual(self) -> float:
-        """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        """
+        Return the omega_rf of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        omega_rf_actual
+            The angular frequency of the main harmonic, in [rad/s].
+        """
         return self.omega_rf_actual[self.main_harmonic_idx]
 
     def get_main_harmonic_t_rf_actual(
@@ -1389,7 +1410,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         self, beam_beta: float, ring_circumference: float
     ) -> float:
         """
-        Returns the t_rf of the main harmonic, in [s].
+        Calculate the t_rf of the main harmonic, in [s].
 
         Parameters
         ----------
@@ -1408,7 +1429,8 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         )
 
     def calc_gap_voltage(self):
-        """Calculates total gap voltage in the RF station.
+        """
+        Calculate total gap voltage in the RF station.
 
         This function calculates the total gap voltage including
         both the beam-induced and generator-induced voltages inside the
@@ -1473,12 +1495,13 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             )
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         super().track(beam=beam)
 

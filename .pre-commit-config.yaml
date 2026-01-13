@@ -36,9 +36,9 @@ repos:
         entry: python dev_tools/precommit_check_copyright.py
         language: system
 
-#  # https://numpydoc.readthedocs.io/en/latest/validation.html
-#  # use `numpydoc lint --help` to debug this hook
-#  - repo: https://github.com/numpy/numpydoc
-#    rev: v1.10.0
-#    hooks:
-#      - id: numpydoc-validation
+  # https://numpydoc.readthedocs.io/en/latest/validation.html
+  # use `numpydoc lint --help` to debug this hook
+  - repo: https://github.com/numpy/numpydoc
+    rev: v1.10.0
+    hooks:
+      - id: numpydoc-validation
