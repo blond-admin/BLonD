@@ -397,7 +397,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                 beam_beta=self.beam.reference.beta, ring_circumference=456
             )
             == self.multi_harmonic_cavity.get_main_harmonic_t_rf_actual()
-        )
+        )  # TODO: this fails since the first one is float32 and second float64
 
     def test_on_init_simulation_fails2(self) -> None:
         simulation = Mock(Simulation)

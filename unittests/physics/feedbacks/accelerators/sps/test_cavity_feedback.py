@@ -1,6 +1,7 @@
 import os
 import unittest
 from copy import deepcopy
+from unittest.mock import Mock
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
@@ -16,7 +17,9 @@ from blond import (
     StaticProfile,
     proton,
 )
+from blond.acc_math.analytic.simple_math import calc_beta, calc_gamma
 from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityFeedback,
     SPSCavityLoopCommissioning,
@@ -1115,6 +1118,11 @@ class TestSPSTransmitterGain(unittest.TestCase):
             intensity=1.0e11,
             particle_type=proton,
         )
+        self.beam.reference = Mock(ReferenceCoordinates)
+        self.beam.reference.beta = calc_beta(proton.mass, 25.92e9)
+        self.beam.reference._particle_type = proton
+        self.beam.reference.particle_type = proton
+        self.beam.reference.gamma = calc_gamma(proton.mass, 25.92e9)
         sim = Simulation(
             ring=self.ring,
             magnetic_cycle=self.magnetic_cycle,
@@ -1174,7 +1182,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
             commissioning=commissioning,
         )
         omega = self.rf.get_main_harmonic_omega_rf_design(
-            beam_beta=self.beam.reference_beta,
+            beam_beta=self.beam.reference.beta,
             ring_circumference=self.ring.circumference,
         )
         OTFB.set_hardware_commissioning(omega_rf=omega, harmonic=4620)

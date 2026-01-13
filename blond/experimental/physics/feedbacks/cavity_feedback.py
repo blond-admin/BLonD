@@ -45,7 +45,7 @@ class IQCavityFeedback(LocalFeedback):
         Beam profile the feedback acts on
     n_cavities
         Number of cavities the feedback controls
-    n_periods_coarse
+    n_coarse
         Number of periods for the coarse grid
     harmonic_index
         Index of the RF harmonic that should be controlled by the feedback
@@ -64,7 +64,7 @@ class IQCavityFeedback(LocalFeedback):
         Apply a low-pass filter to the RF beam current
     harmonic_index
         The harmonic index the cavity feedback is working on
-    n_periods_coarse
+    n_coarse
         Sampling time in the model and the number of samples per turn
     T_s
         xxx # TODO
@@ -111,7 +111,7 @@ class IQCavityFeedback(LocalFeedback):
         self,
         profile: StaticProfile,
         n_cavities: int,
-        n_periods_coarse: int | float,
+        n_coarse: int | float,
         harmonic_index: int,
         use_lowpass_filter: bool = False,
         section_index: int = 0,
@@ -126,7 +126,7 @@ class IQCavityFeedback(LocalFeedback):
             Beam profile the feedback acts on
         n_cavities
             Number of cavities the feedback controls
-        n_periods_coarse
+        n_coarse
             Number of rf periods the coarse grid sampling period corresponds to
         harmonic_index
             Index of the RF harmonic that should be controlled by the feedback
@@ -162,11 +162,11 @@ class IQCavityFeedback(LocalFeedback):
         )
 
         # Ratio between rf periods and coarse grid sampling period
-        if not type(n_periods_coarse) is int:
+        if not type(n_coarse) is int:
             warnings.warn(
                 "n_periods_coarse is not an integer; coupling between loops might break"
             )
-        self.n_periods_coarse = n_periods_coarse
+        self.n_coarse = n_coarse
 
         self.omega_carrier_prev: float | None = None
         self.omega_carrier: float | None = None
@@ -176,9 +176,6 @@ class IQCavityFeedback(LocalFeedback):
         # Present sampling time
         self.T_s_prev: float | None = None
         self.T_s: float | None = None
-
-        # Update the coarse grid sampling
-        self.n_coarse: int | None = None
 
         # Present coarse grid and save previous turn coarse grid
         self.rf_centers_prev: float | None = None
@@ -213,29 +210,30 @@ class IQCavityFeedback(LocalFeedback):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
+        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
+
         harmonic, omega_rf, phi_rf = self.get_harmonic_and_omega_rf_phi_rf()
 
-        self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
+        self.T_s = (self.n_coarse * 2 * np.pi) / omega_rf
         # TODO REMWORK/REMOVE
         t_rev = float((2 * np.pi * harmonic) / omega_rf)
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(harmonic)
 
         self.n_coarse = round(t_rev / self.T_s)  # TODO: round or ceil?
-        self.omega_carrier = omega_rf / self.n_periods_coarse
+        self.omega_carrier = omega_rf / self.n_coarse
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(omega_rf)
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
-        if self.n_periods_coarse < 1:
+        if self.n_coarse < 1:
             self.rf_centers = (
                 np.arange(self.n_coarse) * self.T_s
-                + 0.5 * t_rf * self.n_periods_coarse
+                + 0.5 * t_rf * self.n_coarse
             )
         else:
             self.rf_centers = np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf
@@ -251,14 +249,14 @@ class IQCavityFeedback(LocalFeedback):
         self.gap_voltage_phase = np.zeros(self.n_coarse)
 
     def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
-        self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
+        self.T_s = (self.n_coarse * 2 * np.pi) / omega_rf
         # TODO REMWORK/REMOVE
         t_rev = float((2 * np.pi * harmonic) / omega_rf)
         # TODO REMWORK/REMOVE
         t_rf = 2 * np.pi / omega_rf
 
         self.n_coarse = round(t_rev / self.T_s)
-        self.omega_carrier = omega_rf / self.n_periods_coarse
+        self.omega_carrier = omega_rf / self.n_coarse
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(omega_rf)
@@ -282,15 +280,6 @@ class IQCavityFeedback(LocalFeedback):
         self.omega_carrier_prev: LateInit = None
         self.T_s_prev: LateInit = None
         self.rf_centers_prev: LateInit = None
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        pass
 
     @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:
@@ -400,11 +389,11 @@ class IQCavityFeedback(LocalFeedback):
 
         # Present carrier frequency: main RF frequency
         self.omega_carrier_prev = self.omega_carrier
-        self.omega_carrier = self.omega_rf / self.n_periods_coarse
+        self.omega_carrier = self.omega_rf / self.n_coarse
 
         # Present sampling time
         self.T_s_prev = self.T_s
-        self.T_s = self.n_periods_coarse * 2 * np.pi / self.omega_rf
+        self.T_s = self.n_coarse * 2 * np.pi / self.omega_rf
 
         # Update the coarse grid sampling
         # self.n_coarse = round(t_rev / self.T_s)
@@ -416,7 +405,7 @@ class IQCavityFeedback(LocalFeedback):
         self.dT = -phi_rf / self.omega_rf
 
         self.rf_centers = (
-            np.arange(self.n_coarse) + 0.5 * self.n_periods_coarse
+            np.arange(self.n_coarse) + 0.5 * self.n_coarse
         ) * self.T_s + self.dT
 
     @abstractmethod  # pragma: no cover
