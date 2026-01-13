@@ -26,7 +26,7 @@ from blond.physics.cavities import (
     SingleHarmonicRfStation,
 )
 from blond.physics.drifts import _assert_purely_real_or_imaginary
-from blond.physics.feedbacks.Accelerators.mucol.cavity_feedback import (
+from blond.physics.feedbacks.accelerators.mucol.cavity_feedback import (
     PassiveCavity,
 )
 from blond.physics.impedances.base import WakeField
