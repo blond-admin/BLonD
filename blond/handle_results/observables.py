@@ -19,10 +19,10 @@ from numpy.typing import NDArray as NumpyArray
 
 from blond.core.base import MainLoopRelevant
 from blond.core.ring.helpers import requires
-from blond.experimental.physics.feedbacks.cavity_feedback import (
+from blond.handle_results.array_recorders import DenseArrayRecorder
+from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
-from blond.handle_results.array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -785,8 +785,8 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         self._v_corr: DenseArrayRecorder | None = None
         self._phi_corr: DenseArrayRecorder | None = None
 
-        self._n_coarse: float | None = None
-        self._n_fine: float | None = None
+        self._n_samples_coarse: float | None = None
+        self._n_samples_fine: float | None = None
 
     @requires(["IQCavityFeedback"])
     def on_run_simulation(
@@ -794,7 +794,6 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         simulation: Simulation,
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -817,16 +816,15 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
         )
-        self._n_coarse = (
-            self._feedback.n_coarse
+        self._n_samples_coarse = (
+            self._feedback.n_samples_coarse
         )  # TODO: can these change during execution?
-        self._n_fine = self._feedback.profile.n_bins
+        self._n_samples_fine = self._feedback.profile.n_bins
         n_entries = n_turns // self.each_turn_i + 2
 
-        shape_coarse = (n_entries, self._n_coarse)
-        shape_fine = (n_entries, self._n_fine)
+        shape_coarse = (n_entries, self._n_samples_coarse)
+        shape_fine = (n_entries, self._n_samples_fine)
 
         self._v_ant_fine = DenseArrayRecorder(
             f"{self.common_filepath}_v_ant_fine", shape_fine, dtype=complex
@@ -868,23 +866,27 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             `Simulation` context manager.
         """
         self._v_ant_fine.write(
-            self._feedback.V_ANT_FINE[-self._n_fine :]
+            self._feedback.antenna_voltage_fine_grid
         )  # TODO: redo without capitalization
-        self._i_beam_fine.write(self._feedback.I_BEAM_FINE[-self._n_fine :])
-        self._i_gen_fine.write(self._feedback.I_GEN_FINE[-self._n_fine :])
+        self._i_beam_fine.write(self._feedback.beam_current_fine_grid)
+        self._i_gen_fine.write(self._feedback.generator_current_fine_grid)
 
         self._v_ant_coarse.write(
-            self._feedback.V_ANT_COARSE[-self._n_coarse :]
+            self._feedback.antenna_voltage_coarse_grid[
+                -self._n_samples_coarse :
+            ]
         )
         self._i_beam_coarse.write(
-            self._feedback.I_BEAM_COARSE[-self._n_coarse :]
+            self._feedback.beam_current_coarse_grid[-self._n_samples_coarse]
         )
         self._i_gen_coarse.write(
-            self._feedback.I_GEN_COARSE[-self._n_coarse :]
+            self._feedback.generator_current_coarse_grid[
+                -self._n_samples_coarse :
+            ]
         )
 
-        self._v_corr.write(self._feedback.V_corr)
-        self._phi_corr.write(self._feedback.phi_corr)
+        self._v_corr.write(self._feedback.relative_voltage_correction)
+        self._phi_corr.write(self._feedback.phase_correction)
 
     @property  # as readonly attributes
     def v_corr(self) -> NumpyArray:
