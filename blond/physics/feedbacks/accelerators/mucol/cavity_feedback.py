@@ -31,26 +31,31 @@ MINIMUM_QL_FEEDBACK_MODEL = 0.5
 
 
 class PassiveCavity(IQCavityFeedback):
-    r"""Passive Cavity, implementing the beam-cavity interaction formulas without a feedback involved.
+    r"""
+    Passive Cavity, implementing the beam-cavity interaction formulas without a feedback involved.
 
     Parameters
     ----------
         profile
-            profile on which the feedback should act.
+            Profile on which the feedback should act.
         R_over_Q
-            shunt impedance over quality factor of one cavity [$$\Omega$$].
+            Shunt impedance over quality factor of one cavity [$$\Omega$$].
         Q_L
             Loaded quality factor of one cavity [1].
         f_center
-            center frequency of the cavity [Hz].
+            Center frequency of the cavity [Hz].
         f_detuning
-            detuning of the cavity [Hz].
+            Detuning of the cavity [Hz].
         n_cavities
-            number of cavities.
+            Number of cavities.
         generator_current
-            given in [A].
+            Static generator current, in [A].
+        n_pretrack
+            Maximum number of turns to pretrack the feedback during initialisation.
+        initial_v_coarse
+            Initial coarse Voltage array. If this is provided, no pre-tracking will be performed.
         generator_phase
-            given in [rad].
+            Static generator phase, in [rad].
         injection_phase
             In :func:`xxxx` the cavity will optimise the phase at injection towards
             this value by adjusting the initial parameters at the beginning of the internal tracking given in [rad].
@@ -58,16 +63,16 @@ class PassiveCavity(IQCavityFeedback):
             In :func:`xxxx` the cavity will optimise the voltage at injection towards
             this value by adjusting the initial parameters at the beginning of the internal tracking given in [V].
         harmonic_index
-            only the default of 0 is allowed.
+            Only the default of 0 is allowed.
         n_rf_periods_per_coarse_grid
-            number of RF periods, one coarse grid corresponds to.
+            Number of RF periods, one coarse grid corresponds to.
         use_lowpass_filter
-            Used in :func:xxx
+            Low pass filter usage for the beam current calculation.
         name
             If not given, is automatically chosen.
         fine_RK
             Use Runge Kutta direct calculation for fine grid instead of matrix formalism.
-        fine_RK
+        coarse_RK
             Use Runge Kutta direct calculation for coarse grid instead of matrix formalism.
     """
 
@@ -81,7 +86,8 @@ class PassiveCavity(IQCavityFeedback):
         n_cavities: int,
         generator_current: float,
         n_pretrack: int | None = None,
-        initial_v_coarse: NumpyArray | None = None,
+        initial_v_coarse: NumpyArray
+        | None = None,  # TODO: does this cause no pre-tracking to be performed?
         generator_phase: float = 0,
         injection_phase: float = -1,
         injection_voltage: float = -1,
@@ -163,7 +169,8 @@ class PassiveCavity(IQCavityFeedback):
         n_turns: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Hook called when ``run_simulation`` is invoked.
+        """
+        Hook called when ``run_simulation`` is invoked.
 
         This is a lifecycle hook that can be overridden by subclasses or used by
         simulation elements to perform setup tasks before the main simulation loop
@@ -188,11 +195,6 @@ class PassiveCavity(IQCavityFeedback):
         - This is called before each ``run_simulation()`` or ``load_results()`` call.
         - Useful for pre-allocating arrays, resetting state, or computing derived parameters.
         - The base implementation does nothing.
-
-        See Also
-        --------
-        on_init_simulation
-        finalize
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -233,12 +235,13 @@ class PassiveCavity(IQCavityFeedback):
             self.antenna_voltage_coarse_grid = self._initial_v_coarse
 
     def track_no_beam(self, n_pretrack: int | None = None) -> None:
-        r"""Tracking method of the cavity feedback without beam in the accelerator.
+        r"""
+        Tracking method of the cavity feedback without beam in the accelerator.
 
         Parameters
         ----------
         n_pretrack
-            number of turns to pretrack.
+            Number of turns to pretrack.
         """
         self.update_feedback_variables()
         if n_pretrack is None:
@@ -280,15 +283,19 @@ class PassiveCavity(IQCavityFeedback):
                         break
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         pass
 
     def circuit_track(self, no_beam: bool = False) -> None:
-        """Function to simulate the internal circuit during one turn.
+        """
+        Function to simulate the internal circuit during one turn.
 
         This function will compute the cavity behaviour on the coarse grid.
 
@@ -301,8 +308,7 @@ class PassiveCavity(IQCavityFeedback):
         Parameters
         ----------
         no_beam
-            if false, both coarse and fine grids will be updated, if true, only the coarse grid.
-
+            If false, both coarse and fine grids will be updated, if true, only the coarse grid.
         """
         # Compute antenna voltage
         time = np.arange(0, self.n_samples_coarse) * self.sampling_time_coarse
@@ -357,7 +363,7 @@ class PassiveCavity(IQCavityFeedback):
         method="RK23",
         min_val=True,
         dV_ant_init=0 + 0j,
-    ):
+    ):  # numpydoc ignore=PR01,RT01
         """DOCM."""
         max_tstep = bin_centers[1] - bin_centers[0]
 
@@ -463,7 +469,16 @@ class PassiveCavity(IQCavityFeedback):
         beam: BeamBaseClass,
         use_lowpass_filter: bool = False,
     ) -> None:
-        r"""Update the RF beam current."""
+        """
+        Update the RF beam current.
+
+        Parameters
+        ----------
+        beam : BeamBaseClass
+            Beam to compute the current from.
+        use_lowpass_filter : bool
+            Usage of low-pass filter for the beam current; Default is False.
+        """
         if not self.fine_RK and not self.coarse_RK:
             super().calculate_rf_beam_current(
                 beam=beam, use_lowpass_filter=use_lowpass_filter
@@ -499,11 +514,12 @@ class PassiveCavity(IQCavityFeedback):
         external_reference: bool = True,
         delta_t: float = 0,
     ) -> tuple[NumpyArray, NumpyArray]:
-        r"""Function calculating the beam charge gradient at the (RF) frequency.
+        r"""
+        Function calculating the beam charge gradient at the (RF) frequency.
 
         The charge distribution [C] of the beam is determined from the beam
         profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
-        macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
+        macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`.
 
         .. math::
             Q_i = \frac{N_{\mathsf{real}}}{N_{\mathsf{macro}}} q_p \lambda_i
@@ -534,23 +550,27 @@ class PassiveCavity(IQCavityFeedback):
 
         Parameters
         ----------
+        beam : BeamBaseClass
+            Beam on which to compute the gradient.
         lpf : bool
-            Apply low-pass filter; default is True
+            Apply low-pass filter; default is True.
         downsample : dict
             Dictionary containing float value for 'Ts' sampling time and int value
             for 'points'. Will downsample the RF beam charge onto a coarse time
             grid with 'Ts' sampling time and 'points' points.
         external_reference : bool
-            Option to include the changing external reference of the time-grid
+            Option to include the changing external reference of the time-grid.
+        delta_t : float
+            Time distance between two steps on the histogram.
 
         Returns
         -------
         complex array
             RF beam charge gradient array [C] at 'frequency' omega_c, with the sampling time
-            of the Profile object. To obtain current, divide by the sampling time
+            of the Profile object. To obtain current, divide by the sampling time.
         (complex array)
             If time_coarse is specified, returns also the RF beam charge gradient array [C]
-            on the coarse time grid
+            on the coarse time grid.
         """
         # TODO: carrier frequency might be missing in heres
 
