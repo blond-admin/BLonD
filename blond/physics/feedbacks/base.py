@@ -6,10 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to model longitudinal feedbacks.
+"""
+Collection of implementations to model longitudinal feedbacks.
 
-Authors
--------
+Notes
+-----
+Authors:
 Birk Karlsen Baeck
 Leonard Thiele
 """
@@ -42,9 +44,9 @@ class FeedbackBaseClass(BeamPhysicsRelevant):
     Parameters
     ----------
     section_index
-        section index of the feedback
+        Section index of the feedback.
     name
-        name of the feedback
+        Name of the feedback.
     """
 
     def __init__(
@@ -65,16 +67,18 @@ class LocalFeedback(FeedbackBaseClass):
 
     Parameters
     ----------
+    profile
+        Profile the feedback should act on.
     name
-        name of the feedback
+        Name of the feedback.
 
     Attributes
     ----------
     phase_correction
-        correction to the rf phase, has to be defined on the
+        Correction to the rf phase, has to be defined on the
         profile time grid.
     relative_voltage_correction
-        relative correction to the setpoint voltage
+        Relative correction to the setpoint voltage
         stemming from the feedback,
         has to be defined on the profile time grid.
     """
@@ -100,13 +104,12 @@ class LocalFeedback(FeedbackBaseClass):
         self, rf_station: MultiHarmonicRfStation | SingleHarmonicRfStation
     ) -> None:
         """
-        Sets the parent RF station on initialization of the rf_station.
+        Set the parent RF station on initialization of the rf_station.
 
         Parameters
         ----------
         rf_station
-            cavity to be the parent rf station
-
+            Cavity to be the parent rf station.
         """
         from blond.physics.cavities import (  # no cyclic import
             MultiHarmonicRfStation,
@@ -134,7 +137,7 @@ class LocalFeedback(FeedbackBaseClass):
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         pass
 
@@ -146,11 +149,11 @@ class GlobalFeedback(FeedbackBaseClass):
     Parameters
     ----------
     profile
-        profile on which the feedback should work, needs to be tracked before.
+        Profile on which the feedback should work, needs to be tracked before.
     section_index
-        section index of the feedback
+        Section index of the feedback.
     name
-        name of the feedback
+        Name of the feedback.
     """
 
     def __init__(
@@ -173,8 +176,10 @@ class GlobalFeedback(FeedbackBaseClass):
         """
         Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         from blond.physics.cavities import RfStationBaseClass
 
