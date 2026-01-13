@@ -309,6 +309,9 @@ def calc_phi_s_single_harmonic(
         Energy gain per turn, in [eV].
     above_transition
         Whether the beam energy is below or above transition.
+    enable_rf_phase
+        Determines if the given phase should be taken into
+        account for the calculation or not.
 
     Returns
     -------
@@ -339,7 +342,8 @@ def calc_synchrotron_tune_single_harmonic(
     harmonic: float,
     eta_0: float,
 ) -> float:
-    """Function calculating the synchrotron tune.
+    """
+    Function calculating the synchrotron tune.
 
     The calculation assumes a single-harmonic RF system and no intensity
     effects.
@@ -352,21 +356,20 @@ def calc_synchrotron_tune_single_harmonic(
     voltage
         RF voltage of the cavity, in [V].
     beta
-        Relativistic beta factor [-].
+        Relativistic beta factor [].
     energy
-        Synchronous energy of the beam [eV]
+        Synchronous energy of the beam [eV].
     phi_s
-        Synchronous phase [rad]
+        Synchronous phase [rad].
     harmonic
-        Harmonic number of rf system [-]
+        Harmonic number of rf system [].
     eta_0
-        Phase slip factor [-]
+        Phase slip factor [].
 
     Returns
     -------
     float
         Synchrotron tune.
-
     """
     return np.sqrt(
         harmonic
