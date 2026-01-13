@@ -76,14 +76,12 @@ class SPSBeamControl(BeamFeedbackBase):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs,
     ) -> None:
         super().on_run_simulation(
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
             **kwargs,
         )
 

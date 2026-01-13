@@ -49,7 +49,6 @@ class LHCBeamControl(BeamFeedbackBase):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs,
     ) -> None:
         """Hook called when simulation.run_simulation starts."""
@@ -57,7 +56,6 @@ class LHCBeamControl(BeamFeedbackBase):
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
-            turn_i_init=turn_i_init,
             **kwargs,
         )
 

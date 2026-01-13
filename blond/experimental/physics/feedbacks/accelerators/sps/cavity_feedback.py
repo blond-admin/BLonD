@@ -226,12 +226,9 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        super().on_run_simulation(
-            simulation, beam, n_turns, turn_i_init, **kwargs
-        )
+        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
 
         # 200 MHz travelling wave cavity (TWC) model
         if self.open_ff == 1:
@@ -1067,15 +1064,10 @@ class SPSCavityFeedback:
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        self.OTFB_1.on_run_simulation(
-            simulation, beam, n_turns, turn_i_init, **kwargs
-        )
-        self.OTFB_2.on_run_simulation(
-            simulation, beam, n_turns, turn_i_init, **kwargs
-        )
+        self.OTFB_1.on_run_simulation(simulation, beam, n_turns, **kwargs)
+        self.OTFB_2.on_run_simulation(simulation, beam, n_turns, **kwargs)
 
         if self.turns < 1:
             # FeedbackError

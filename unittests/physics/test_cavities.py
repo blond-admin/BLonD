@@ -54,6 +54,8 @@ class TestRFStationBaseClass(unittest.TestCase):
         self.beam.read_partial_dt.return_value = self.beam.dt
         self.beam.write_partial_dE.return_value = self.beam.dE
 
+        self.beam.common_array_size = len(self.beam.dE)
+
     def test_init_of_feedbacks(self):
         # default init
         SingleHarmonicRfStation(

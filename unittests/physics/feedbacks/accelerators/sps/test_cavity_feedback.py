@@ -773,8 +773,6 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         t_rf = (
             self.magnetic_cycle.get_t_rev_init(
                 self.ring.circumference,
-                turn_i_init=0,
-                t_init=0,
                 particle_type=proton,
             )
             / h

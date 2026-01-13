@@ -260,12 +260,9 @@ class LHCCavityLoop(IQCavityFeedback):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        super().on_run_simulation(
-            simulation, beam, n_turns, turn_i_init, **kwargs
-        )
+        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
         self.logger.debug(
             "Length of arrays in generator path %d", self.n_coarse
         )
