@@ -97,7 +97,7 @@ class ParticleType:
         return self._mass_inv
 
 
-class ParticleTypeClassicalRadius(ParticleType):
+class RadiatingParticleType(ParticleType):
     """
     Represent a particle type with physical constants with its classical radius.
 
@@ -189,12 +189,12 @@ lead_82: ParticleType = ParticleType(
     charge=82,
 )
 
-electron: ParticleType = ParticleTypeClassicalRadius(
+electron: RadiatingParticleType = RadiatingParticleType(
     mass=m_e * c**2 / e,
     charge=-1,
 )
 
-positron: ParticleType = ParticleTypeClassicalRadius(
+positron: RadiatingParticleType = RadiatingParticleType(
     mass=m_e * c**2 / e,
     charge=1,
 )
