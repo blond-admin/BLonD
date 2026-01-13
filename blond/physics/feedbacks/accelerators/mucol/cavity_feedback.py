@@ -8,7 +8,6 @@
 
 """Cavity feedback stubs for the muon collider."""
 
-from functools import cached_property
 from typing import Any
 from warnings import warn
 
@@ -633,14 +632,6 @@ class PassiveCavity(IQCavityFeedback):
             return gradient_fine
 
     cached_props = ("harmonic",)
-
-    @cached_property
-    def voltage_setpoint(self) -> NumpyArray:
-        """Voltage setpoint on the fine grid [V]."""
-        return (
-            np.ones_like(self.voltage_setpoint)
-            * self.get_voltage_from_parent_rf_station()
-        )
 
     def invalidate_cache(self) -> None:
         """Delete the stored values of functions with @cached_property."""

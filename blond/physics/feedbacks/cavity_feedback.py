@@ -424,7 +424,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
     def voltage_setpoint(self) -> NumpyArray:
         """Voltage setpoint on the fine grid [V]."""
         return (
-            np.ones_like(self.voltage_setpoint)
+            np.ones_like(self.profile.hist_y)
             * self.get_voltage_from_parent_rf_station()
         )
 
