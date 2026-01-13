@@ -19,8 +19,6 @@ L. Thiele
 from __future__ import annotations
 
 import logging
-import os
-import threading
 import warnings
 from collections.abc import Callable, Sequence
 from copy import deepcopy
@@ -643,12 +641,8 @@ class Simulation(Preparable):
             Extra keyword arguments.
         """
         logger.debug(f"Calling all {method}({kwargs}) in {self}")
-        print("PID", os.getpid(), "THREAD", threading.current_thread().name)
-        import sys
 
-        print("TRACE:", sys.gettrace())
         instances = find_instances_with_method(self, f"{method}")
-        print("TRACE:", sys.gettrace())
         logger.debug(f"Found {instances} to be initialized")
         ordered_classes = get_required_order(instances, f"{method}.requires")
 
@@ -658,10 +652,6 @@ class Simulation(Preparable):
 
         logger.debug(f"Execution order for `{method}` is {ordered_classes}")
 
-        print("PID", os.getpid(), "THREAD", threading.current_thread().name)
-        import sys
-
-        print("TRACE:", sys.gettrace())
         for cls in ordered_classes:
             for element in instances:
                 if type(element).__name__ != cls:
