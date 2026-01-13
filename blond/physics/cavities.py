@@ -1016,9 +1016,11 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
         gap_voltage = (
             voltages
-            * self._cavity_feedback[0].V_corr
+            * self._cavity_feedback[0].relative_voltage_correction
             * np.sin(
-                omega_rf * x_arr + phi_rf + self._cavity_feedback[0].phi_corr
+                omega_rf * x_arr
+                + phi_rf
+                + self._cavity_feedback[0].phase_correction
             )
         )
 
@@ -1428,9 +1430,11 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             if feedback is not None:
                 gap_voltage = (
                     voltages[ind]
-                    * feedback.V_corr  # TODO: this is not defined in the parent class --> needs to be added
+                    * feedback.relative_voltage_correction  # TODO: this is not defined in the parent class --> needs to be added
                     * np.sin(
-                        omega_rf[ind] * x_arr + phi_rf[ind] + feedback.phi_corr
+                        omega_rf[ind] * x_arr
+                        + phi_rf[ind]
+                        + feedback.phase_correction
                     )
                 )
             else:

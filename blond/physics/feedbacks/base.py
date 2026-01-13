@@ -23,6 +23,8 @@ from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray as NumpyArray
+
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import (
@@ -65,6 +67,16 @@ class LocalFeedback(FeedbackBaseClass):
     ----------
     name
         name of the feedback
+
+    Attributes
+    ----------
+    phase_correction
+        correction to the rf phase, has to be defined on the
+        profile time grid.
+    relative_voltage_correction
+        relative correction to the setpoint voltage
+        stemming from the feedback,
+        has to be defined on the profile time grid.
     """
 
     def __init__(
@@ -78,6 +90,10 @@ class LocalFeedback(FeedbackBaseClass):
         self._parent_rf_station: (
             SingleHarmonicRfStation | MultiHarmonicRfStation | None
         ) = None
+
+        self.relative_voltage_correction: NumpyArray | None = None
+        self.phase_correction: NumpyArray | None = None
+
         self.profile = profile
 
     def set_parent_rf_station(

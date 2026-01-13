@@ -57,7 +57,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
     use_lowpass_filter
         Whether to apply a lowpass filter when calculating the beam current
     name
-        ----
+        name of the object.
 
     Attributes
     ----------
@@ -115,9 +115,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         # Update the coarse grid sampling
         self.n_samples_coarse: int | None = None
 
-        self.relative_voltage_correction: NumpyArray | None = None
         self.alpha_sum: NumpyArray | None = None
-        self.phase_correction: NumpyArray | None = None
 
         self.beam_current_coarse_grid: NumpyArray | None = None
         self.beam_current_fine_grid: NumpyArray | None = None
