@@ -38,23 +38,22 @@ def low_pass_filter(
     """
     Low-pass filter based on Butterworth 5th order digital filter.
 
-    Notes
-    -----
-    See `scipy`, https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
-
     Parameters
     ----------
     signal : float array
-        Signal to be filtered
+        Signal to be filtered.
     cutoff_frequency : float
         Cutoff frequency [1] corresponding to a 3 dB gain drop, relative to the
-        Nyquist frequency of 1; default is 0.5
+        Nyquist frequency of 1; default is 0.5.
 
     Returns
     -------
     float array
-        Low-pass filtered signal
+        Low-pass filtered signal.
 
+    Notes
+    -----
+    See `scipy`, https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
     """
     b, a = scipy.signal.butter(5, cutoff_frequency, "low", analog=False)
 
@@ -72,7 +71,7 @@ def rf_beam_current(
     dT: float = 0,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""
-    Calculates the beam charge at the carrier frequency slice by slice.
+    Calculate the beam charge at the carrier frequency slice by slice.
 
     Function calculating the beam charge at the carrier frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
@@ -108,22 +107,24 @@ def rf_beam_current(
 
     Parameters
     ----------
+    beam : class
+        Beam to calculate the current on.
     profile : class
-        A Profile type class
+        A Profile type class.
     omega_c : float
-        Carrier angular frequency [rad/s] at which the current should be calculated
+        Carrier angular frequency [rad/s] at which the current should be calculated.
     T_rev : float
-        Revolution period [s] of the machine
+        Revolution period [s] of the machine.
     use_lowpass_filter : bool
-        Apply low-pass filter; default is True
+        Apply low-pass filter; default is True.
     downsample : dict
         Dictionary containing float value for 'Ts' sampling time and int value
         for 'points'. Will downsample the RF beam charge onto a coarse time
         grid with 'Ts' sampling time and 'points' points.
     external_reference : bool
-        Option to include the changing external reference of the time-grid
+        Option to include the changing external reference of the time-grid.
     dT : float
-        The shift in time due to shifting reference frames
+        The shift in time due to shifting reference frames.
 
     Returns
     -------
@@ -132,7 +133,6 @@ def rf_beam_current(
         of the Profile object. To obtain current, divide by the sampling time (complex array)
         If time_coarse is specified, returns also the RF beam charge array [C]
         on the coarse time grid.
-
     """
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
@@ -227,15 +227,14 @@ def cartesian_to_polar(
     Parameters
     ----------
     IQ_vector : complex array
-        Signal with in-phase and quadrature (I,Q) components
+        Signal with in-phase and quadrature (I,Q) components.
 
     Returns
     -------
     amplitude
-        Amplitude of signal
+        Amplitude of signal.
     phase
-        Phase of signal, in [rad]
-
+        Phase of signal, in [rad].
     """
     return np.absolute(IQ_vector), np.angle(IQ_vector)
 
@@ -250,14 +249,14 @@ def polar_to_cartesian(
     Parameters
     ----------
     amplitude
-        Amplitude of signal
+        Amplitude of signal.
     phase
-        Phase of signal, in [rad]
+        Phase of signal, in [rad].
 
     Returns
     -------
     complex array
-        Signal with in-phase and quadrature (I,Q) components
+        Signal with in-phase and quadrature (I,Q) components.
     """
     return amplitude * (np.cos(phase) + 1j * np.sin(phase))
 
@@ -271,7 +270,8 @@ def cavity_response_sparse_matrix(
     Q_L: float,
     relative_detuning: float,
 ):
-    """Solver for the ACS cavity response model as a sparse matrix problem.
+    """
+    Solver for the ACS cavity response model as a sparse matrix problem.
 
     Solving the ACS cavity response model as a sparse matrix problem
     for a given set of initial conditions, resonator parameters and
@@ -280,25 +280,24 @@ def cavity_response_sparse_matrix(
     Parameters
     ----------
     I_beam : complex array
-        RF beam current
+        RF beam current.
     I_gen : complex array
-        Generator current
+        Generator current.
     V_ant_init : complex float
-        Initial condition for the antenna voltage
+        Initial condition for the antenna voltage.
     samples_per_rf : float
-        Number of samples per RF period == samping time * actual rf frequency
+        Number of samples per RF period == samping time * actual rf frequency.
     R_over_Q : float
-        The R over Q of the cavity
+        The R over Q of the cavity.
     Q_L : float
-        The loaded quality factor of the cavity
+        The loaded quality factor of the cavity.
     relative_detuning : float
-        The detuning of the cavity in frequency divided by the rf frequency
+        The detuning of the cavity in frequency divided by the rf frequency.
 
     Returns
     -------
     complex array
-        The antenna voltage evaluated for the same period as I_beam and I_gen of length len(I_gen)
-
+        The antenna voltage evaluated for the same period as I_beam and I_gen of length len(I_gen).
     """
     assert len(I_beam) == len(I_gen), (
         "length of beam and generator currents need to match"
