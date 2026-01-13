@@ -347,10 +347,6 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         return V_set * np.ones(self.n_samples_coarse)
 
     cached_props = (
-        "harmonic",
-        "omega_rf_design",
-        "omega_rf_actual",
-        "phi_rf_actual",
         "t_rf_actual",
         "omega_carrier",
         "sampling_time",
@@ -358,7 +354,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         "voltage_setpoint",
     )
 
-    @cached_property
+    @property
     def harmonic(self) -> float:
         """Harmonic number of the parent cavity at harmonic_index."""
         if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
@@ -366,7 +362,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         else:
             return self._parent_rf_station.harmonic[self.harmonic_index]
 
-    @cached_property
+    @property
     def omega_rf_design(self) -> float:
         """Design RF frequency of the parent cavity at harmonic_index."""
         if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
@@ -374,7 +370,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         else:
             return self._parent_rf_station.omega_rf_design[self.harmonic_index]
 
-    @cached_property
+    @property
     def omega_rf_actual(self) -> float:
         """Actual RF frequency of the parent cavity at harmonic_index."""
         if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
@@ -382,7 +378,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         else:
             return self._parent_rf_station.omega_rf_actual[self.harmonic_index]
 
-    @cached_property
+    @property
     def phi_rf_actual(self) -> float:
         """Actual RF phase of the parent cavity at harmonic_index."""
         if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
