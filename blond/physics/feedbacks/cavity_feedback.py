@@ -6,7 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Base classes for the implemntation of cavity feedbacks."""
+"""Base classes for the implementation of cavity feedbacks."""
 
 from __future__ import annotations
 
@@ -47,28 +47,28 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
     Parameters
     ----------
     profile
-        Beam profile the feedback acts on
+        Beam profile the feedback acts on.
     n_cavities
-        Number of cavities the feedback controls
+        Number of cavities the feedback controls.
     n_rf_periods_per_coarse_grid
-        Number of periods for the coarse grid
+        Number of periods for the coarse grid.
     harmonic_index
-        Index of the RF harmonic that should be controlled by the feedback
+        Index of the RF harmonic that should be controlled by the feedback.
     use_lowpass_filter
-        Whether to apply a lowpass filter when calculating the beam current
+        Whether to apply a lowpass filter when calculating the beam current.
     name
-        name of the object.
+        Name of the object.
 
     Attributes
     ----------
     n_cavities
-        Number of cavities the feedback is working on
+        Number of cavities the feedback is working on.
     use_lowpass_filter
-        Apply a low-pass filter to the RF beam current
+        Apply a low-pass filter to the RF beam current.
     harmonic_index
-        The harmonic index the cavity feedback is working on
+        The harmonic index the cavity feedback is working on.
     n_rf_periods_per_coarse_grid
-        Sampling time in the model and the number of samples per turn
+        Sampling time in the model and the number of samples per turn.
     """
 
     def __init__(
@@ -137,19 +137,18 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
         All array elements are defined based on the parameters of
         the parent rf station, which at this point in time is
-        already fully intialised.
+        already fully initialised.
 
         Parameters
         ----------
         simulation
-            Simulation object to initialise on
+            Simulation object to initialise on.
         beam
-            beam object to initialise on
+            Beam object to initialise on.
         n_turns
-            Number of turns in the simulation
-        kwargs
-            Unused in this function
-
+            Number of turns in the simulation.
+        **kwargs
+            Unused in this function.
         """
         self.invalidate_cache()
 
@@ -195,8 +194,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         Returns
         -------
         voltage
-            voltage from the parent RF station, either at harmonic_index or the only one
-
+            Voltage from the parent RF station, either at harmonic_index or the only one.
         """
         if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
             return self._parent_rf_station.voltage
@@ -233,33 +231,40 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         r"""
         Method to track circuit of the feedback.
 
+        Parameters
+        ----------
+        no_beam
+            Beam dependant parts of the feedback can be skipped if this is True.
+
         Notes
         -----
         This is meant to be implemented in the child class by the user.
         The only requirement for this method is that it has to update the
         V_ANT_FINE and V_SET arrays turn-by-turn.
-
-        Parameters
-        ----------
-        no_beam
-            beam dependant parts of the feedback can be skipped if this is True
         """
         pass
 
     def track_no_beam(self, n_pretrack: int | None = 1) -> None:
-        r"""Tracking method of the cavity feedback without beam in the accelerator."""
+        r"""
+        Tracking method of the cavity feedback without beam in the accelerator.
+
+        Parameters
+        ----------
+        n_pretrack
+            Number of turns to pretrack the feedback.
+        """
         self.update_feedback_variables()
         for _ in range(n_pretrack):
             self.circuit_track(no_beam=True)
 
     def track(self, beam: BeamBaseClass) -> None:
-        r"""Tracking method of the cavity feedback.
+        r"""
+        Tracking method of the cavity feedback.
 
         Parameters
         ----------
         beam
-            Simulation `Beam` object
-
+            Simulation `Beam` object.
         """
         self.invalidate_cache()
         # Update parameters from rest of BLonD classes
@@ -298,10 +303,9 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         Parameters
         ----------
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         use_lowpass_filter
-            usage of low-pass filter in the calculation of the beam current
-
+            Usage of low-pass filter in the calculation of the beam current.
         """
         # Beam current from profile
         (
@@ -332,7 +336,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
     def set_point_from_rfstation(self) -> NumpyArray:
         r"""
-        Computes the setpoint in I/Q based on the RF voltage in the RFStation.
+        Compute the setpoint in I/Q based on the RF voltage in the RFStation.
 
         Returns
         -------
@@ -356,7 +360,14 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
     @property
     def harmonic(self) -> float:
-        """Harmonic number of the parent cavity at harmonic_index."""
+        """
+        Harmonic number of the parent cavity at harmonic_index.
+
+        Returns
+        -------
+        harmonic
+            Harmonic number of the parent cavity at harmonic_index.
+        """
         if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
             return self._parent_rf_station.get_main_harmonic()
         else:
@@ -364,7 +375,14 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
     @property
     def omega_rf_design(self) -> float:
-        """Design RF frequency of the parent cavity at harmonic_index."""
+        """
+        Design RF frequency of the parent cavity at harmonic_index.
+
+        Returns
+        -------
+        omega_rf_design
+            Design RF frequency of the parent cavity at harmonic_index.
+        """
         if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
             return self._parent_rf_station.omega_rf_design
         else:
@@ -372,7 +390,14 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
     @property
     def omega_rf_actual(self) -> float:
-        """Actual RF frequency of the parent cavity at harmonic_index."""
+        """
+        Actual RF frequency of the parent cavity at harmonic_index.
+
+        Returns
+        -------
+        omega_rf_actual
+            Actual RF frequency of the parent cavity at harmonic_index.
+        """
         if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
             return self._parent_rf_station.omega_rf_actual
         else:
@@ -380,7 +405,14 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
     @property
     def phi_rf_actual(self) -> float:
-        """Actual RF phase of the parent cavity at harmonic_index."""
+        """
+        Actual RF phase of the parent cavity at harmonic_index.
+
+        Returns
+        -------
+        phi_rf_actual
+            Actual RF phase of the parent cavity at harmonic_index.
+        """
         if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
             return self._parent_rf_station.phi_rf_actual
         else:
@@ -388,22 +420,50 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
     @cached_property
     def t_rf_actual(self) -> float:
-        """Actual RF period of the parent cavity at harmonic_index."""
+        """
+        Actual RF period of the parent cavity at harmonic_index.
+
+        Returns
+        -------
+        t_rf_actual
+            Actual RF period of the parent cavity at harmonic_index.
+        """
         return self.omega_rf_actual / (2 * np.pi)
 
     @cached_property
     def omega_carrier(self) -> float:
-        """Feedback carrier frequency."""
+        """
+        Feedback carrier frequency.
+
+        Returns
+        -------
+        omega_carrier
+            Feedback carrier frequency.
+        """
         return self.omega_rf_actual / self.n_rf_periods_per_coarse_grid
 
     @cached_property
     def t_rev(self) -> float:
-        """Revolution time based on the harmonic and the design frequency."""
+        """
+        Revolution time based on the harmonic and the design frequency.
+
+        Returns
+        -------
+        t_rev
+            Revolution time based on the harmonic and the design frequency.
+        """
         return float((2 * np.pi * self.harmonic) / self.omega_rf_design)
 
     @cached_property
     def sampling_time_coarse(self) -> float:
-        """Feedback carrier frequency."""
+        """
+        Sampling time on the corase grid.
+
+        Returns
+        -------
+        sampling_time_coarse
+            Sampling time based on the number of periods per coarse grid and the design frequency.
+        """
         return (
             self.n_rf_periods_per_coarse_grid
             * 2
@@ -412,13 +472,29 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         )
 
     @cached_property
-    def residual_phase_from_last_turn(self) -> float:
-        """Feedback carrier frequency."""
+    def residual_phase_from_last_turn(
+        self,
+    ) -> float:  # TODO: this is the time and not the phase or?
+        """
+        Residual phase from last turn to current turn.
+
+        Returns
+        -------
+        residual_phase_from_last_turn
+            Residual phase from the last turn to current turn.
+        """
         return self.phi_rf_actual / self.omega_rf_actual
 
     @cached_property
     def voltage_setpoint(self) -> NumpyArray:
-        """Voltage setpoint on the fine grid [V]."""
+        """
+        Voltage setpoint on the fine grid [V].
+
+        Returns
+        -------
+        voltage_setpoint
+            Voltage setpoint on the fine grid [V].
+        """
         return (
             np.ones_like(self.profile.hist_y)
             * self.get_voltage_from_parent_rf_station()
