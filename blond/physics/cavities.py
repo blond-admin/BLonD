@@ -1118,7 +1118,8 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         simulation.turn_i.value = 0
 
         beam = Mock(BeamBaseClass)
-        beam.reference_beta = beam_reference_beta
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.beta = beam_reference_beta
         single_harmonic_rf_station.on_init_simulation(simulation=simulation)
         single_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
