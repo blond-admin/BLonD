@@ -250,13 +250,13 @@ class PassiveCavity(IQCavityFeedback):
             for _i in range(n_pretrack):
                 self.circuit_track(no_beam=True)
                 if self.injection_voltage != -1:
-                    pretrack_helper[0 : self.n_samples_coarse * 2] = (
+                    pretrack_helper[0 : self.n_samples_coarse] = (
                         pretrack_helper[
-                            self.n_samples_coarse : self.n_samples_coarse * 3
+                            self.n_samples_coarse : self.n_samples_coarse * 2
                         ]
                     )
                     pretrack_helper[
-                        self.n_samples_coarse : self.n_samples_coarse * 3
+                        self.n_samples_coarse : self.n_samples_coarse * 2
                     ] = self.antenna_voltage_coarse_grid
                     print(np.abs(self.antenna_voltage_coarse_grid[-1]))
                     if (
@@ -270,11 +270,11 @@ class PassiveCavity(IQCavityFeedback):
                             )
                         )
                         self.antenna_voltage_coarse_grid = pretrack_helper[
-                            inj_ind - self.n_samples_coarse * 2 : inj_ind
+                            inj_ind - self.n_samples_coarse : inj_ind
                         ]
                         if (
                             len(self.antenna_voltage_coarse_grid)
-                            != 2 * self.n_samples_coarse
+                            != self.n_samples_coarse
                         ):
                             raise RuntimeError("too much was cut off")
                         break
@@ -630,9 +630,3 @@ class PassiveCavity(IQCavityFeedback):
 
         else:
             return gradient_fine
-
-    cached_props = ("harmonic",)
-
-    def invalidate_cache(self) -> None:
-        """Delete the stored values of functions with @cached_property."""
-        self._invalidate_cache(PassiveCavity.cached_props)
