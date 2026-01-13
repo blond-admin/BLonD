@@ -153,6 +153,8 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             Unused in this function
 
         """
+        self.invalidate_cache()
+
         self.n_samples_coarse = round(
             self.t_rev / self.sampling_time_coarse
         )  # TODO: round or ceil?; should this be changed during simulation?
