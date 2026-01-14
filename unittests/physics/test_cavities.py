@@ -273,9 +273,9 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
         self.multi_harmonic_cavity = MultiHarmonicRfStation.headless(
             section_index=0,
-            voltage=np.array([1e6, 2e6], dtype=backend.float),
-            phi_rf=np.array([0.1 * np.pi, np.pi], dtype=backend.float),
-            harmonic=np.array([1, 5], dtype=backend.float),
+            voltage=np.array([1e6, 2e6], dtype=float),
+            phi_rf=np.array([0.1 * np.pi, np.pi], dtype=float),
+            harmonic=np.array([1, 5], dtype=float),
             circumference=456,
             local_wakefield=None,
             cavity_feedback=None,

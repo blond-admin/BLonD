@@ -224,7 +224,7 @@ class IQCavityFeedback(LocalFeedback):
         t_rf = t_rev / float(harmonic)
 
         self.n_coarse = round(t_rev / self.T_s)  # TODO: round or ceil?
-        self.omega_carrier = omega_rf / self.n_coarse
+        self.omega_carrier = omega_rf / self.n_periods_coarse
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(omega_rf)
@@ -257,7 +257,7 @@ class IQCavityFeedback(LocalFeedback):
         t_rf = 2 * np.pi / omega_rf
 
         self.n_coarse = round(t_rev / self.T_s)
-        self.omega_carrier = omega_rf / self.n_coarse
+        self.omega_carrier = omega_rf / self.n_periods_coarse
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(omega_rf)
@@ -390,7 +390,7 @@ class IQCavityFeedback(LocalFeedback):
 
         # Present carrier frequency: main RF frequency
         self.omega_carrier_prev = self.omega_carrier
-        self.omega_carrier = self.omega_rf / self.n_coarse
+        self.omega_carrier = self.omega_rf / self.n_periods_coarse
 
         # Present sampling time
         self.T_s_prev = self.T_s

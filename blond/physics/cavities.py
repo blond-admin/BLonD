@@ -1616,9 +1616,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
         multi_harmonic_rf_station = MultiHarmonicRfStation(
-            harmonic=np.array(harmonic, dtype=backend.float),
-            voltage=np.array(voltage, dtype=backend.float),
-            phi_rf=np.array(phi_rf, dtype=backend.float),
+            harmonic=np.array(harmonic, dtype=float),
+            voltage=np.array(voltage, dtype=float),
+            phi_rf=np.array(phi_rf, dtype=float),
             n_harmonics=len(voltage),
             section_index=section_index,
             local_wakefield=local_wakefield,
