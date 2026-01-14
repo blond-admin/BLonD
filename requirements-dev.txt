@@ -1,4 +1,5 @@
-pytest>=9
-pre-commit
-pytest-cov>=6
+pytest>=9 # to execute all tests
+pre-commit # for automatic checks before `git commit`
+pytest-cov>=6 # to profile the test coverage
 mpmath>=1 # part of the testing against blond2
+pytest-randomly>=4 # to have random ordering of the tests via `randomly-seed=...`

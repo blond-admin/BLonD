@@ -52,6 +52,7 @@ workflow:
     - python3 -m pytest
       -v unittests/
       --import-mode=importlib
+      --randomly-seed=$CI_PIPELINE_ID
       --cov
       --cov-config=.coveragerc
       --cov-report html:coverage-html
