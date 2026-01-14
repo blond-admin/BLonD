@@ -111,7 +111,7 @@ class IQCavityFeedback(LocalFeedback):
         self,
         profile: StaticProfile,
         n_cavities: int,
-        n_coarse: int | float,
+        n_periods_coarse: int | float,
         harmonic_index: int,
         use_lowpass_filter: bool = False,
         section_index: int = 0,
@@ -126,7 +126,7 @@ class IQCavityFeedback(LocalFeedback):
             Beam profile the feedback acts on
         n_cavities
             Number of cavities the feedback controls
-        n_coarse
+        n_periods_coarse
             Number of rf periods the coarse grid sampling period corresponds to
         harmonic_index
             Index of the RF harmonic that should be controlled by the feedback
@@ -162,11 +162,12 @@ class IQCavityFeedback(LocalFeedback):
         )
 
         # Ratio between rf periods and coarse grid sampling period
-        if not type(n_coarse) is int:
+        if not type(n_periods_coarse) is int:
             warnings.warn(
                 "n_periods_coarse is not an integer; coupling between loops might break"
             )
-        self.n_coarse = n_coarse
+        self.n_periods_coarse = n_periods_coarse
+        self.n_coarse: float | None = None
 
         self.omega_carrier_prev: float | None = None
         self.omega_carrier: float | None = None
@@ -216,7 +217,7 @@ class IQCavityFeedback(LocalFeedback):
 
         harmonic, omega_rf, phi_rf = self.get_harmonic_and_omega_rf_phi_rf()
 
-        self.T_s = (self.n_coarse * 2 * np.pi) / omega_rf
+        self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
         # TODO REMWORK/REMOVE
         t_rev = float((2 * np.pi * harmonic) / omega_rf)
         # TODO REMWORK/REMOVE
@@ -249,7 +250,7 @@ class IQCavityFeedback(LocalFeedback):
         self.gap_voltage_phase = np.zeros(self.n_coarse)
 
     def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
-        self.T_s = (self.n_coarse * 2 * np.pi) / omega_rf
+        self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
         # TODO REMWORK/REMOVE
         t_rev = float((2 * np.pi * harmonic) / omega_rf)
         # TODO REMWORK/REMOVE
@@ -393,7 +394,7 @@ class IQCavityFeedback(LocalFeedback):
 
         # Present sampling time
         self.T_s_prev = self.T_s
-        self.T_s = self.n_coarse * 2 * np.pi / self.omega_rf
+        self.T_s = self.n_periods_coarse * 2 * np.pi / self.omega_rf
 
         # Update the coarse grid sampling
         self.n_coarse = round(t_rev / self.T_s)
@@ -402,7 +403,7 @@ class IQCavityFeedback(LocalFeedback):
         self.rf_centers_prev = np.copy(self.rf_centers)
 
         # Residual part of last turn entering the current turn due to non-integer harmonic number
-        self.dT = -phi_rf / self.omega_rf
+        self.dT = -(phi_rf + phi_rf) / self.omega_rf
 
         self.rf_centers = (
             (np.arange(self.n_coarse) + 0.5 / self.n_coarse) * self.T_s
@@ -466,6 +467,9 @@ class IQCavityFeedback(LocalFeedback):
         self.phi_corr = self.alpha_sum - np.mean(
             np.angle(self.V_SET[-self.n_coarse :])
         )
+
+        self.phase_correction = self.phi_corr
+        self.relative_voltage_correction = self.V_corr
 
         self.gap_voltage_phase = np.angle(
             self.V_ANT_COARSE[-self.n_coarse :] / self.V_SET[-self.n_coarse :]

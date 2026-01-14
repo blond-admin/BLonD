@@ -100,6 +100,7 @@ class TestLHCOpenDrive(unittest.TestCase):
             tau_otfb=1472e-9,
             RFFB=self.RFFB,
         )
+        CL.set_parent_rf_station(self.rf)
         CL.set_hardware_commissioning(
             omega_rf=2 * np.pi * self.f_c, harmonic=35640
         )
@@ -128,6 +129,7 @@ class TestLHCOpenDrive(unittest.TestCase):
             tau_otfb=1472e-9,
             RFFB=self.RFFB,
         )
+        CL.set_parent_rf_station(self.rf)
         CL.set_hardware_commissioning(
             omega_rf=2 * np.pi * self.f_c, harmonic=35640
         )
@@ -168,6 +170,7 @@ class TestLHCOpenDrive(unittest.TestCase):
             tau_otfb=1472e-9,
             RFFB=self.RFFB,
         )
+        CL.set_parent_rf_station(self.rf)
         CL.set_hardware_commissioning(
             omega_rf=2 * np.pi * self.f_c, harmonic=35640
         )

@@ -191,7 +191,7 @@ class LHCCavityLoop(IQCavityFeedback):
         super().__init__(
             profile=profile,
             n_cavities=n_cavities,
-            n_coarse=10,
+            n_periods_coarse=10,
             harmonic_index=harmonic_index,
         )
         # variables that are declared later
