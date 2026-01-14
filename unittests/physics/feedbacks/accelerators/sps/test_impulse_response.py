@@ -347,8 +347,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
         bunch_spacing = 5 * t_rf
 
         profile2 = StaticProfile.from_rad(
-            cut_left_rad=0 * t_rf,
-            cut_right_rad=bunches * bunch_spacing * t_rf,
+            cut_left_rad=0 * 2 * np.pi / t_rf,
+            cut_right_rad=bunches * bunch_spacing * 2 * np.pi / t_rf,
             n_bins=1000 * buckets,
             t_period=t_rf,
         )
