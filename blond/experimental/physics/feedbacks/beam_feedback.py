@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import backend
-from blond.experimental.physics.feedbacks.base import LocalFeedback
+from blond.physics.feedbacks.base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
