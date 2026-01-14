@@ -15,7 +15,7 @@ def run_pytest(folder_path: str) -> None:
     folder_path
         Path to the folder containing tests to run.
     """
-    pytest.main(["--import-mode=importlib", folder_path, "--randomly-seed=1"])
+    pytest.main(["--import-mode=importlib", folder_path])
 
 
 if __name__ == "__main__":
