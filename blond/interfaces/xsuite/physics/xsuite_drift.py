@@ -68,6 +68,7 @@ class DriftXsuite(DriftBaseClass):
         orbit_length: float = 0.0,  # is this needed?
         element_name: str = None,
         section_index: int = 0,
+        momentum_compaction_factor: float = None,
         **kwargs: Any,  # for MRO and future compatibility
     ) -> None:
         super().__init__(
@@ -80,9 +81,9 @@ class DriftXsuite(DriftBaseClass):
         self._xsuite_element: Any | None = (
             None  # Will be set in on_init_simulation
         )
+        self._momentum_compaction_factor = momentum_compaction_factor
 
         self._transition_gamma: float | None = None
-        self._momentum_compaction_factor: float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -100,7 +101,7 @@ class DriftXsuite(DriftBaseClass):
             stacklevel=2,
         )
 
-        self.omega_rf = self.omega_rf = 2.0 * np.pi * self.beam.reference_beta * c / simulation.ring.circumference
+        self.omega_rf = 2.0 * np.pi * self.beam.reference_beta * c / simulation.ring.circumference
 
         if self.element_name is not None:
             try:
@@ -115,7 +116,7 @@ class DriftXsuite(DriftBaseClass):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        turn_i_init: int,
+        #turn_i_init: int,
         **kwargs: Any,
     ) -> None:
         """
@@ -147,11 +148,11 @@ class DriftXsuite(DriftBaseClass):
         """
         # --- Convert BLonD → Xsuite coordinates ---
         zeta = (
-            -(beam.dt - self.phi_s / self.omega_rf)
+            -(beam._dt - self.phi_s / self.omega_rf)
             * self.beam.reference_beta
             * c
         )
-        ptau = beam.dE / (
+        ptau = beam._dE / (
             self.beam.reference_beta * self.beam.reference_total_energy
         )
 
@@ -159,8 +160,8 @@ class DriftXsuite(DriftBaseClass):
         particles = Particles(
             zeta=zeta,
             ptau=ptau,
-            beta0=self.beam.reference_beta,
-            energy0=self.beam.reference_total_energy,
+            beta0=self.beam.reference_beta, #0.99999978,#self.beam.reference_beta, # is this correct
+            energy0=self.beam.reference_total_energy, # is this correct
         )
 
         # --- Perform tracking ---
@@ -264,6 +265,11 @@ class DriftXsuite(DriftBaseClass):
             Xsuite line.
         """
         return self._line_internal
+
+    def compute_momentum_compaction(self):
+        twiss = self._line_internal.twiss()
+        momentum_compaction = twiss['momentum_compaction_factor']
+        print(momentum_compaction)
 
 
 class EnergyUpdateXsuite(BeamPhysicsRelevant):
