@@ -3,7 +3,9 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 
+from blond import proton
 from blond.acc_math.analytic.hamilton import (
+    calc_synchrotron_tune_single_harmonic,
     phase_modulo_above_transition,
     phase_modulo_below_transition,
 )
@@ -68,6 +70,30 @@ class TestPhaseModuloAboveTransition(unittest.TestCase):
                 phase_modulo_above_transition(vals),
                 phase_modulo_above_transition(vals + 2 * np.pi),
             )
+        )
+
+
+class TestSynchrotronTune(unittest.TestCase):
+    def test_tune(self):
+        assert calc_synchrotron_tune_single_harmonic(
+            2, 2 * np.pi * 1e6, 1, 1e6, 0, 1, 1
+        ) == np.sqrt(2)
+        self.assertAlmostEqual(
+            calc_synchrotron_tune_single_harmonic(
+                2, 2 * np.pi * 1e6, 1, 1e6, np.pi / 2, 1, 1
+            ),
+            0,
+        )
+
+        # LHC flat bottom
+        alpha = 1 / 55.759505**2
+        gamma = 450e9 / proton.mass
+        eta = alpha - (1 / (gamma**2))
+        assert (
+            calc_synchrotron_tune_single_harmonic(
+                1, 6e6, 1, 450e9, 0, 35640, eta
+            )
+            == 0.00489862554460765
         )
 
 
