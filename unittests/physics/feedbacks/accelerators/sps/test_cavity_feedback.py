@@ -130,9 +130,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
         ring = Ring(circumference=C)
         self.ring = ring
         rf = MultiHarmonicRfStation(
-            harmonic=np.array([h], dtype=backend.float),
-            voltage=np.array([V], dtype=backend.float),
-            phi_rf=np.array([phi], dtype=backend.float),
+            harmonic=np.array([h]),
+            voltage=np.array([V]),
+            phi_rf=np.array([phi]),
             n_harmonics=1,
             main_harmonic_idx=0,
         )
@@ -794,9 +794,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         )
 
         self.rfstation = MultiHarmonicRfStation(
-            harmonic=np.array([h], dtype=backend.float),
-            voltage=np.array([V], dtype=backend.float),
-            phi_rf=np.array([phi], dtype=backend.float),
+            harmonic=np.array([h]),
+            voltage=np.array([V]),
+            phi_rf=np.array([phi]),
             n_harmonics=1,
             main_harmonic_idx=0,
             cavity_feedback=self.OTFB,
@@ -1095,9 +1095,9 @@ class TestSPSTransmitterGain(unittest.TestCase):
     def setUp(self):
         self.ring = Ring(circumference=2 * np.pi * 1100.009)
         cavity = MultiHarmonicRfStation(
-            harmonic=np.array([4620], dtype=backend.float),
-            voltage=np.array([4.5e6], dtype=backend.float),
-            phi_rf=np.array([0], dtype=backend.float),
+            harmonic=np.array([4620]),
+            voltage=np.array([4.5e6]),
+            phi_rf=np.array([0]),
             n_harmonics=1,
             main_harmonic_idx=0,
         )
