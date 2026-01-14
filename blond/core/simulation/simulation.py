@@ -650,13 +650,13 @@ class Simulation(Preparable):
         for ins in instances:
             classes_check.add(type(ins))
 
-        logger.debug(f"Execution order for `{method}` is {ordered_classes}")
+        logger.info(f"Execution order for `{method}` is {ordered_classes}")
 
         for cls in ordered_classes:
             for element in instances:
                 if type(element).__name__ != cls:
                     continue
-                logger.debug(f"Running `{method}` of {element}")
+                logger.info(f"Running `{method}` of {element}")
                 getattr(element, method)(**kwargs)
 
     def _exec_on_init_simulation(self) -> None:
