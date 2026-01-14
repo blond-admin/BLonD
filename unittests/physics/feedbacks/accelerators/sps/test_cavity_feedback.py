@@ -1207,7 +1207,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
             4,
             2,
             4 / 9,
-            1.04978045,  # 1.03573985
+            1.03573985,  # 1.04978045
         )
         self.assertAlmostEqual(
             V,
