@@ -1304,7 +1304,12 @@ class Simulation(Preparable):
                 if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
                     callback(self, beam)
 
-    def _sanitize_callbacks(self, callbacks) -> list[Callable]:
+    def _sanitize_callbacks(
+        self,
+        callbacks: Iterable[Callable[[Simulation, BeamBaseClass], None]]
+        | Callable[[Simulation, BeamBaseClass], None]
+        | None,
+    ) -> list[Callable[[Simulation, BeamBaseClass], None]]:
         if callbacks is None:
             callbacks = ()
         elif isinstance(callbacks, Iterable):
