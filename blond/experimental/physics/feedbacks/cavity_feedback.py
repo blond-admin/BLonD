@@ -396,7 +396,7 @@ class IQCavityFeedback(LocalFeedback):
         self.T_s = self.n_coarse * 2 * np.pi / self.omega_rf
 
         # Update the coarse grid sampling
-        # self.n_coarse = round(t_rev / self.T_s)
+        self.n_coarse = round(t_rev / self.T_s)
 
         # Present coarse grid and save previous turn coarse grid
         self.rf_centers_prev = np.copy(self.rf_centers)
@@ -429,6 +429,7 @@ class IQCavityFeedback(LocalFeedback):
 
     def track_no_beam(self, n_pretrack: int | None = 1) -> None:
         r"""Tracking method of the cavity feedback without beam in the accelerator."""
+        self.update_rf_variables()
         self.update_fb_variables()
         for i in range(n_pretrack):
             self.circuit_track(no_beam=True)
