@@ -18,6 +18,10 @@ from scipy.constants import speed_of_light as c  # type: ignore[import-untyped]
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
+    from blond import Ring
+    from blond.cycles.magnetic_cycle import MagneticCycleBase
+    from blond.physics.cavities import RfManipulationBaseClass
+
 
 def is_in_separatrix(
     charge: float,
@@ -326,48 +330,88 @@ def calc_phi_s_single_harmonic(
     return phi - phase
 
 
-def calc_synchrotron_tune_single_harmonic(
-    charge: float,
-    voltage: float,
-    beta: float,
-    energy: float,
-    phi_s: float,
-    harmonic: float,
-    eta_0: float,
-) -> float:
+def separatrix_single_rf(
+    rf_station: RfManipulationBaseClass,
+    magnetic_cylce: MagneticCycleBase,
+    ring: Ring,
+    dt_array: NumpyArray,
+) -> float | NumpyArray:
     """
-    Function calculating the synchrotron tune.
-
-    The calculation assumes a single-harmonic RF system and no intensity
-    effects.
+    Derive the analytical separatrix for a single harmonic RF.
 
     Parameters
     ----------
-    charge
-        Particle charge, i.e. number of elementary charges `e`
-        Example: For an electron `charge=-1`.
-    voltage
-        RF voltage of the cavity, in [V].
-    beta
-        Relativistic beta factor [].
-    energy
-        Synchronous energy of the beam [eV].
-    phi_s
-        Synchronous phase [rad].
-    harmonic
-        Harmonic number of rf system [].
-    eta_0
-        Phase slip factor [].
+    rf_station
+        The RF station object.
+    magnetic_cylce
+        The magnetic cycle object defining energy evolution.
+    ring
+        The ring object.
+    dt_array
+        Array of time coordinates at which to sample the separatrix, in [s].
 
     Returns
     -------
-    float
-        Synchrotron tune.
+    phi_array
+        The array containing the phases equivalent to the dt_array, in [rad].
+
+    separatrix_array
+        The separatrix values at each point in dt_array.
     """
-    return np.sqrt(
-        harmonic
-        * np.abs(charge)
-        * voltage
-        * np.abs(eta_0 * np.cos(phi_s))
-        / (2 * np.pi * beta**2 * energy)
+    Vrf = rf_station.voltage
+    h = rf_station.harmonic
+    phi_rf = rf_station.phi_rf
+
+    q = magnetic_cylce.reference_particle.charge
+
+    reference_total_energy = magnetic_cylce.get_total_energy_init(
+        particle_type=magnetic_cylce.reference_particle,
     )
+    reference_gamma = (
+        reference_total_energy * magnetic_cylce.reference_particle.mass_inv
+    )
+
+    beta = np.sqrt(1.0 - 1.0 / (reference_gamma * reference_gamma))
+
+    Es = magnetic_cylce._value_init
+    C = ring.circumference
+    t_rev = magnetic_cylce.get_t_rev_init(
+        circumference=C, particle_type=magnetic_cylce.reference_particle
+    )
+    omega_0 = (2 * np.pi) / t_rev
+    omega_rf = omega_0 * h
+
+    eta = ring.calc_average_eta_0(reference_gamma)
+
+    above_Transition = False
+    if eta > 0:
+        above_Transition = True
+
+    energy_array = magnetic_cylce._values_after_turn
+    energy_gain = energy_array[1] - energy_array[0]
+    phi_s = calc_phi_s_single_harmonic(
+        charge=q,
+        voltage=Vrf,
+        phase=phi_rf,
+        energy_gain=energy_gain,
+        above_transition=above_Transition,
+    )
+
+    phi = dt_array * omega_rf
+
+    U = (
+        np.cos(np.pi - phi_s)
+        - np.cos(phi)
+        + (np.pi - phi - phi_s) * np.sin(phi_s)
+    )
+
+    mask_U = U > 0
+    U = U[mask_U]
+    dt_array = dt_array[mask_U]
+
+    sep = np.sqrt(2 * q * Vrf * beta**2 * Es / (np.pi * h * np.abs(eta)) * U)
+
+    separatrix_array = np.concatenate((sep, -sep[::-1]))
+    phi_array = np.concatenate((dt_array, dt_array[::-1]))
+
+    return phi_array, separatrix_array
