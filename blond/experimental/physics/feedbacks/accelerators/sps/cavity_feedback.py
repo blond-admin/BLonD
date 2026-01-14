@@ -146,7 +146,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         super().__init__(
             profile=profile,
             n_cavities=n_cavities,
-            n_coarse=1,
+            n_periods_coarse=1,
             harmonic_index=harmonic_index,
         )
 
