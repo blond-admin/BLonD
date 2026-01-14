@@ -183,6 +183,29 @@ class TestSimulation(unittest.TestCase):
         observe.update.assert_called()
         mock_func.assert_called()
 
+    def test__run_simulation_single_beam_many_callbacks(self):
+        observe = Mock(spec=ObservablesOncePerTurnBase)
+
+        def my_callback1(simulation: Simulation, beam: Beam) -> None:
+            return
+
+        def my_callback2(simulation: Simulation, beam: Beam) -> None:
+            return
+
+        mock_func1 = create_autospec(my_callback1, return_value=True)
+        mock_func2 = create_autospec(my_callback2, return_value=True)
+        self.simulation.turn_i.value = 0
+        self.simulation.mainloop_single_beam(
+            beam=self.beam,
+            n_turns=10,
+            observe=(observe,),
+            show_progressbar=True,
+            callbacks=(mock_func1, mock_func2),
+        )
+        observe.update.assert_called()
+        mock_func1.assert_called()
+        mock_func2.assert_called()
+
     def test_magnetic_cycle(self):
         self.assertNotEqual(None, self.simulation.magnetic_cycle)
 
