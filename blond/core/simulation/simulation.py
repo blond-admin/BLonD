@@ -641,7 +641,6 @@ class Simulation(Preparable):
             Extra keyword arguments.
         """
         logger.debug(f"Calling all {method}({kwargs}) in {self}")
-
         instances = find_instances_with_method(self, f"{method}")
         logger.debug(f"Found {instances} to be initialized")
         ordered_classes = get_required_order(instances, f"{method}.requires")
