@@ -178,7 +178,7 @@ class TestSimulation(unittest.TestCase):
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
-            callback=mock_func,
+            callbacks=mock_func,
         )
         observe.update.assert_called()
         mock_func.assert_called()
@@ -350,7 +350,7 @@ class TestSimulation(unittest.TestCase):
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
-            callback=mock_func,
+            callbacks=mock_func,
             beams=(self.beam,),
         )
         mock_func.assert_called()
