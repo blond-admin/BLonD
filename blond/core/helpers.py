@@ -100,7 +100,6 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     def walk(obj: Any, skip_list, where):
         if id(obj) in seen:
             return
-
         seen.add(id(obj))
         is_mock = isinstance(obj, Mock)
         if hasattr(obj, "skip_find_instances_attributes") and not is_mock:

@@ -442,8 +442,8 @@ class RfStationBaseClass(
         Q_s0 = calc_synchrotron_tune_single_harmonic(
             charge=beam.particle_type.charge,
             voltage=float(self.voltage),
-            beta=beam.reference_beta,
-            energy=beam.reference_total_energy,
+            beta=beam.reference.beta,
+            energy=beam.reference.total_energy,
             phi_s=phi_s,
             harmonic=self.get_main_harmonic(),
             eta_0=eta_0,

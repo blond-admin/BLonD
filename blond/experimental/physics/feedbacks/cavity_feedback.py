@@ -405,8 +405,9 @@ class IQCavityFeedback(LocalFeedback):
         self.dT = -phi_rf / self.omega_rf
 
         self.rf_centers = (
-            np.arange(self.n_coarse) + 0.5 * self.n_coarse
-        ) * self.T_s + self.dT
+            (np.arange(self.n_coarse) + 0.5 / self.n_coarse) * self.T_s
+            + self.dT
+        )  # TODO: this should be * n_coarse, otherwise inconsistent with above
 
     @abstractmethod  # pragma: no cover
     def circuit_track(self, no_beam: bool = False) -> None:

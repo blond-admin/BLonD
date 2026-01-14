@@ -63,7 +63,7 @@ def main():
     """
     # Use 64 bit numpy and CPP backend
     backend.change_backend(Numpy64Bit)
-    backend.set_specials("cpp")
+    backend.set_specials("numba")
 
     fig_scale = 0.75
 
