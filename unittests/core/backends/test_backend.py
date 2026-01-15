@@ -203,7 +203,6 @@ class TestNumpyBackend(unittest.TestCase):
 
 
 class TestSpecials(unittest.TestCase):
-    @pytest.mark.backend_mutation
     def setUp(self) -> None:
         self.n_voltages = 3
         self.special_modes = [
