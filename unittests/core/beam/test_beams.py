@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from blond import Beam, Simulation, proton
 from blond.core.beam.base import BeamBaseClass

@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from blond.generals.cupy.no_cupy_import import (
     _AsarrayOverrideManager,
