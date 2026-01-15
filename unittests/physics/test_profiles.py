@@ -29,19 +29,10 @@ from blond.physics.profiles import (
 
 
 class TestProfileBaseClass(unittest.TestCase):
-    def setUpClass():
-        try:
-            backend.change_backend(Cupy64Bit)
-        except Exception:
-            pass
-
     def setUp(self):
         self.profile_base_class = ProfileBaseClass()
         self.profile_base_class._hist_x = backend.linspace(-5, 5, 11)
         self.profile_base_class._hist_y = backend.linspace(5, 5, 11)
-
-    def tearDownClass():
-        backend.change_backend(Numpy64Bit)
 
     def test___init__(self):
         pass

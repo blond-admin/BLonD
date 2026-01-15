@@ -29,6 +29,7 @@ class TestBackendBaseClass(unittest.TestCase):
     def setUp(self) -> None:
         self.backend_base_class = Numpy32Bit()
 
+    @pytest.mark.backend_mutation
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
@@ -81,6 +82,7 @@ class TestBackendBaseClass(unittest.TestCase):
                         else:
                             raise error
 
+    @pytest.mark.backend_mutation
     def test__finalize(self):
         some_backend = Numpy32Bit()
         some_backend.array = None
@@ -107,6 +109,7 @@ class TestBackendBaseClass(unittest.TestCase):
 
 
 class TestCupy32Bit(unittest.TestCase):
+    @pytest.mark.backend_mutation
     def test___init__(self) -> None:
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
@@ -114,6 +117,7 @@ class TestCupy32Bit(unittest.TestCase):
 
 
 class TestCupy64Bit(unittest.TestCase):
+    @pytest.mark.backend_mutation
     def test___init__(self) -> None:
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
@@ -121,6 +125,7 @@ class TestCupy64Bit(unittest.TestCase):
 
 
 class TestCupyBackend(unittest.TestCase):
+    @pytest.mark.backend_mutation
     def test___init__(self) -> None:
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
@@ -149,9 +154,11 @@ class TestCupyBackend(unittest.TestCase):
 
 
 class TestNumpy64Bit(unittest.TestCase):
+    @pytest.mark.backend_mutation
     def setUp(self) -> None:
         self.numpy64_bit = Numpy64Bit()
 
+    @pytest.mark.backend_mutation
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
@@ -163,6 +170,7 @@ class TestNumpyBackend(unittest.TestCase):
             complex_=np.complex64,
         )
 
+    @pytest.mark.backend_mutation
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
@@ -195,6 +203,7 @@ class TestNumpyBackend(unittest.TestCase):
 
 
 class TestSpecials(unittest.TestCase):
+    @pytest.mark.backend_mutation
     def setUp(self) -> None:
         self.n_voltages = 3
         self.special_modes = [
@@ -207,6 +216,7 @@ class TestSpecials(unittest.TestCase):
             self.special_modes.append("cuda")
         set_num_threads(8)
 
+    @pytest.mark.backend_mutation
     def _setUp(self, dtype, special_mode) -> None:
         if special_mode in (
             "python",
@@ -264,10 +274,12 @@ class TestSpecials(unittest.TestCase):
         else:
             raise ValueError(backend.float)
 
+    @pytest.mark.backend_mutation
     def test___init__(self):
         pass
 
     @unittest.skip
+    @pytest.mark.backend_mutation
     def test_drift_exact(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -301,6 +313,7 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @unittest.skip
+    @pytest.mark.backend_mutation
     def test_drift_legacy(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -333,6 +346,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
+    @pytest.mark.backend_mutation
     def test_drift_simple(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -362,6 +376,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
+    @pytest.mark.backend_mutation
     def test_kick_multi_harmonic(self) -> None:
         for dtype in (np.float32, np.float64):
             for n_voltages in (1, 2, 3, 4, 5):
@@ -397,6 +412,7 @@ class TestSpecials(unittest.TestCase):
                             err_msg=f"Failed test `{special}` with {dtype}",
                         )
 
+    @pytest.mark.backend_mutation
     def test_kick_single_harmonic(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -427,6 +443,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
+    @pytest.mark.backend_mutation
     def test_kick_induced_voltage(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -462,6 +479,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
+    @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -526,6 +544,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
+    @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_potentially_race_conditions(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -576,6 +595,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
+    @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_none_flagged(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -604,6 +624,7 @@ class TestSpecials(unittest.TestCase):
                     msg=f"Failed test `{special}` with {dtype}",
                 )
 
+    @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_all_but_one_flagged(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -633,6 +654,7 @@ class TestSpecials(unittest.TestCase):
                     msg=f"Failed test `{special}` with {dtype}",
                 )
 
+    @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_all_flagged(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -661,6 +683,7 @@ class TestSpecials(unittest.TestCase):
                     msg=f"Failed test `{special}` with {dtype}",
                 )
 
+    @pytest.mark.backend_mutation
     def test_loss_box(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -700,6 +723,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
+    @pytest.mark.backend_mutation
     def test_beam_phase(self) -> None:
         for dtype in (
             np.float32,
@@ -739,6 +763,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
+    @pytest.mark.backend_mutation
     def test_histogram(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -771,6 +796,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"{special=} {dtype=}",
                     )
 
+    @pytest.mark.backend_mutation
     def test_histogram_long_profiles(self) -> None:
         """Specifically to test edge effects at beginning and end."""
         for dtype in (np.float32, np.float64):
@@ -803,6 +829,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"{special=} {dtype=}",
                     )
 
+    @pytest.mark.backend_mutation
     def test_histogram_short_profile(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -835,6 +862,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"{special=} {dtype=}",
                     )
 
+    @pytest.mark.backend_mutation
     def test_histogram_race_conditions(self) -> None:
         backend.random.seed(42)
         array_read = (
@@ -879,6 +907,7 @@ class TestSpecials(unittest.TestCase):
 
 
 class TestNumbaCompilation(unittest.TestCase):
+    @pytest.mark.backend_mutation
     def test_raising_of_error(self) -> None:
         with self.assertRaises(TypeError):
             recompile_numba_backend(floattype=np.float16)

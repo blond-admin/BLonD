@@ -3,6 +3,7 @@ import unittest
 from copy import deepcopy
 
 import numpy as np
+import pytest
 from numpy.typing import NDArray as NumpyArray
 
 from blond import (
@@ -249,9 +250,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
             interpolation=True,
         )"""
 
+    @pytest.mark.backend_mutation
     def test_setUp(self):
         pass  # will fail if something in setUp() is wrong
 
+    @pytest.mark.backend_mutation
     def test_FB_pre_tracking(self):
         digit_round = 3
 
@@ -323,6 +326,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             + "deviation of five-section cavity differs",
         )
 
+    @pytest.mark.backend_mutation
     def test_FB_pre_tracking_IQ_v1(self):
         rtol = 1e-2  # relative tolerance
         atol = 0  # absolute tolerance
@@ -375,6 +379,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             + " differs",
         )
 
+    @pytest.mark.backend_mutation
     def test_rf_voltage(self):
         digit_round = 7
 
@@ -404,6 +409,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             + "RF-voltages differ",
         )
 
+    @pytest.mark.backend_mutation
     def test_beam_loading(self):
         digit_round = 7
         # Compute voltage with beam loading
@@ -441,6 +447,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             + "total voltages differ",
         )
 
+    @pytest.mark.backend_mutation
     def test_Vsum_IQ(self):
         rtol = 1e-7  # relative tolerance
         atol = 0  # absolute tolerance
@@ -721,6 +728,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
 
 class TestSPSOneTurnFeedback(unittest.TestCase):
+    @pytest.mark.backend_mutation
     def setUp(self):
         backend.change_backend(Numpy64Bit)  # this test fail in 32 bit due to
         # missing accuracy. could be fixed be considering less digits,
@@ -806,12 +814,15 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             0, 2 * self.rfstation._t_rev, 2 * self.OTFB.n_coarse
         )
 
+    @pytest.mark.backend_mutation
     def tearDown(self):
         backend.change_backend(Numpy32Bit)
 
+    @pytest.mark.backend_mutation
     def test_setup(self):
         pass
 
+    @pytest.mark.backend_mutation
     def test_set_point(self):
         self.OTFB.set_point()
         t_sig = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
@@ -823,6 +834,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         np.testing.assert_allclose(self.OTFB.V_SET, t_sig)
 
+    @pytest.mark.backend_mutation
     def test_error_and_gain(self):
         self.OTFB.error_and_gain()
 
@@ -830,6 +842,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             self.OTFB.DV_GEN, self.OTFB.V_SET * self.OTFB.G_llrf
         )
 
+    @pytest.mark.backend_mutation
     def test_comb(self):
         sig = np.zeros(self.OTFB.n_coarse)
         self.OTFB.DV_COMB_OUT = np.sin(
@@ -846,6 +859,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             self.OTFB.DV_COMB_OUT[-self.OTFB.n_coarse :], sig
         )
 
+    @pytest.mark.backend_mutation
     def test_one_turn_delay(self):
         self.OTFB.DV_COMB_OUT = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
         self.OTFB.DV_COMB_OUT[self.OTFB.n_coarse] = 1
@@ -857,6 +871,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             2 * self.OTFB.n_coarse - self.OTFB.n_mov_av,
         )
 
+    @pytest.mark.backend_mutation
     def test_mod_to_fr(self):
         self.OTFB.DV_DELAYED = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
         self.OTFB.DV_DELAYED[-self.OTFB.n_coarse :] = 1 + 1j * 0
@@ -908,6 +923,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         self.OTFB.dphi_mod = self.mod_phi
 
+    @pytest.mark.backend_mutation
     def test_mov_avg(self):
         sig = np.zeros(self.OTFB.n_coarse - 1)
         sig[: self.OTFB.n_mov_av] = 1
@@ -928,6 +944,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             np.abs(self.OTFB.DV_MOV_AVG[-self.OTFB.n_coarse :]), sig
         )
 
+    @pytest.mark.backend_mutation
     def test_mod_to_frf(self):
         self.OTFB.DV_MOV_AVG = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
         self.OTFB.DV_MOV_AVG[-self.OTFB.n_coarse :] = 1 + 1j * 0
@@ -984,6 +1001,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         self.OTFB.dphi_mod = self.mod_phi
 
+    @pytest.mark.backend_mutation
     def test_sum_and_gain(self):
         self.OTFB.V_SET[-self.OTFB.n_coarse :] = np.ones(
             self.OTFB.n_coarse, dtype=complex
@@ -1005,6 +1023,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             self.OTFB.I_GEN_COARSE[-self.OTFB.n_coarse :], sig
         )
 
+    @pytest.mark.backend_mutation
     def test_gen_response(self):
         # Tests generator response at resonant frequency.
         self.OTFB.I_GEN_COARSE = np.zeros(
@@ -1138,9 +1157,11 @@ class TestSPSTransmitterGain(unittest.TestCase):
             rot_iq=-1,
         )
 
+    @pytest.mark.backend_mutation
     def test_setup(self):
         pass
 
+    @pytest.mark.backend_mutation
     def init_otfb(
         self,
         rf,
@@ -1175,6 +1196,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
 
         return OTFB, V, I
 
+    @pytest.mark.backend_mutation
     def test_preLS24sec(self):
         OTFB, V, I = self.init_otfb(
             self.rf, self.profile, self.commissioning, 4, 2, 4 / 9, 1.03573985
@@ -1190,6 +1212,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
             places=7,
         )
 
+    @pytest.mark.backend_mutation
     def test_preLS25sec(self):
         OTFB, V, I = self.init_otfb(
             self.rf, self.profile, self.commissioning, 5, 2, 5 / 9, 1.01547845
@@ -1205,6 +1228,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
             places=7,
         )
 
+    @pytest.mark.backend_mutation
     def test_postLS23sec(self):
         OTFB, V, I = self.init_otfb(
             self.rf, self.profile, self.commissioning, 3, 4, 6 / 10, 1.01724955
@@ -1220,6 +1244,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
             places=7,
         )
 
+    @pytest.mark.backend_mutation
     def test_postLS24sec(self):
         OTFB, V, I = self.init_otfb(
             self.rf, self.profile, self.commissioning, 4, 2, 4 / 10, 1.03573985
