@@ -2,6 +2,7 @@ import unittest
 import warnings
 
 import numpy as np
+import pytest
 
 from blond.core.backends.backend import (
     Cupy32Bit,
@@ -87,6 +88,7 @@ class TestBackendBaseClass(unittest.TestCase):
         some_backend = Numpy32Bit()
         some_backend.change_backend(some_backend)  # shouldnt do anything
 
+    @pytest.mark.backend_mutation
     def test_temporary_specials_mode(self):
         specials_org = (
             backend.specials_mode

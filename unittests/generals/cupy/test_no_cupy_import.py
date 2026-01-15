@@ -3,12 +3,14 @@ from unittest.mock import Mock
 
 import numba
 import numpy as np
+import pytest
 from matplotlib import pyplot as plt
 
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 
 class TestFunctions(unittest.TestCase):
+    @pytest.mark.backend_mutation
     def test_allow_plotting(self) -> None:
         try:
             import cupy as cp  # type: ignore
