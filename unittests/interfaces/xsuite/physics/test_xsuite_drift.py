@@ -4,5 +4,3 @@ try:
     xtrack_available = True
 except ModuleNotFoundError:
     xtrack_available = False
-
-

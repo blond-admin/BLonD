@@ -17,10 +17,10 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 from scipy.constants import c
 
 from blond.core.beam.beams import BeamBaseClass
-import numpy as np
 
 if TYPE_CHECKING:
     from blond.core.simulation.simulation import Simulation
@@ -101,7 +101,13 @@ class DriftXsuite(DriftBaseClass):
             stacklevel=2,
         )
 
-        self.omega_rf = 2.0 * np.pi * self.beam.reference_beta * c / simulation.ring.circumference
+        self.omega_rf = (
+            2.0
+            * np.pi
+            * self.beam.reference_beta
+            * c
+            / simulation.ring.circumference
+        )
 
         if self.element_name is not None:
             try:
@@ -116,7 +122,7 @@ class DriftXsuite(DriftBaseClass):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        #turn_i_init: int,
+        # turn_i_init: int,
         **kwargs: Any,
     ) -> None:
         """
@@ -160,8 +166,8 @@ class DriftXsuite(DriftBaseClass):
         particles = Particles(
             zeta=zeta,
             ptau=ptau,
-            beta0=self.beam.reference_beta, #0.99999978,#self.beam.reference_beta, # is this correct
-            energy0=self.beam.reference_total_energy, # is this correct
+            beta0=self.beam.reference_beta,  # 0.99999978,#self.beam.reference_beta, # is this correct
+            energy0=self.beam.reference_total_energy,  # is this correct
         )
 
         # --- Perform tracking ---
@@ -250,9 +256,7 @@ class DriftXsuite(DriftBaseClass):
             Momentum compaction factor.
         """
         if self.momentum_compaction_factor is None:
-            raise ValueError(
-                "Momentum compaction factor is not defined. "
-            )
+            raise ValueError("Momentum compaction factor is not defined. ")
         return self.momentum_compaction_factor
 
     def get_line(self):
@@ -268,7 +272,7 @@ class DriftXsuite(DriftBaseClass):
 
     def compute_momentum_compaction(self):
         twiss = self._line_internal.twiss()
-        momentum_compaction = twiss['momentum_compaction_factor']
+        momentum_compaction = twiss["momentum_compaction_factor"]
         print(momentum_compaction)
 
 

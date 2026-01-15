@@ -14,10 +14,11 @@ Functions and classes to interface BLonD with xsuite.
 
 import numpy as np
 from scipy.constants import c
-from xtrack import Particles, ZetaShift
+from xtrack import Particles, ZetaShift, Line, ReferenceEnergyIncrease
 
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 
+from typing import Sequence
 
 class BlondElement3:
     """
@@ -111,9 +112,31 @@ class EnergyUpdate:
     from xtrack. Additionally, it updates the frequency of the xtrack cavity in the line.
     Intended to be used without BLonD-Xsuite interface.
 
-
-
-
     """
+    def init(self, momentum: Sequence):
 
-    pass
+        self.momentum = momentum
+
+        init_p0c = self.momentum[1] - self.momentum[0]
+
+        self.xsuite_energy_update = ReferenceEnergyIncrease(Delta_p0c=init_p0c)
+
+    def track(self, particles: Particles):
+        mask_alive = particles.state > 0
+
+        # Use the still alive particles to find the current turn momentum
+        p0c_before = particles.p0c[mask_alive]
+
+        # Find the momentum for the next turn
+        p0c_after = self.momentum[particles.at_turn[mask_alive][0]]
+
+        # Update the energy increment
+        self.xsuite_energy_update.Delta_p0c = p0c_after - p0c_before[0]
+
+        # Apply the energy increment to the particles
+        self.xsuite_energy_update.track(particles)
+
+
+
+
+

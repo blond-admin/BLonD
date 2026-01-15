@@ -25,6 +25,7 @@ from blond.beam_preparation.base import MatchingRoutine
 from blond.core.backends.backend import backend
 from blond.core.helpers import int_from_float_with_warning
 from blond.generals.iterables_ import all_equal
+from blond.physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
@@ -267,8 +268,6 @@ class BiGaussian(MatchingRoutine):
         beam
             Simulation :class:`~blond.core.beam.beam.Beam` object.
         """
-        from blond.physics.drifts import DriftSimple
-
         super().prepare_beam(
             simulation=simulation,
             beam=beam,
@@ -279,8 +278,10 @@ class BiGaussian(MatchingRoutine):
             simulation=simulation,
         )
 
-        drifts: tuple[DriftSimple, ...] = (
-            simulation.ring.elements.get_elements(DriftSimple)
+        drifts: tuple[DriftBaseClass, ...] = (  # this has replaced DriftSimple
+            simulation.ring.elements.get_elements(
+                DriftBaseClass
+            )  # this has replaced DriftSimple
         )
         for _drift in drifts:
             _drift.apply_schedules(
