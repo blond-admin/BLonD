@@ -13,8 +13,11 @@ Functions and classes to interface BLonD with xsuite.
 """
 
 import numpy as np
+from scipy.constants import c
 from xtrack import Particles, ZetaShift
+
 from blond.core.beam.base import BeamBaseClass, BeamFlags
+
 
 class BlondElement3:
     """
@@ -23,9 +26,9 @@ class BlondElement3:
     Updates the longitudinal coordinates.
     """
 
-    def __init__(self, trackable,
-                 beam: BeamBaseClass,
-                 update_zeta: bool = False ):
+    def __init__(
+        self, trackable, beam: BeamBaseClass, update_zeta: bool = False
+    ):
         """
         Initialise element.
 
@@ -54,12 +57,12 @@ class BlondElement3:
             Beam to be tracked.
         """
         beam._dE[:] = particles.beta0 * particles.energy0 * particles.ptau
-        beam._dt[:] = -particles.zeta / (particles.beta0 * 3e8)
-
+        beam._dt[:] = -particles.zeta / (particles.beta0 * c)
 
         active_mask = particles.state > 0
-        beam._flags[:] = np.where(active_mask, BeamFlags.ACTIVE.value, BeamFlags.LOST.value)
-
+        beam._flags[:] = np.where(
+            active_mask, BeamFlags.ACTIVE.value, BeamFlags.LOST.value
+        )
 
     def blond_to_xsuite(self, particles: Particles, beam: BeamBaseClass):
         """
@@ -74,12 +77,13 @@ class BlondElement3:
         """
         particles.ptau = beam._dE / (particles.beta0 * particles.energy0)
         if self.update_zeta:
-            particles.zeta = -beam._dt * particles.beta0 * 3e8
+            particles.zeta = -beam._dt * particles.beta0 * c
 
         # Mark lost particles in Xsuite
-        lost_mask = (beam._flags != BeamFlags.ACTIVE.value) & (particles.state > 0)
+        lost_mask = (beam._flags != BeamFlags.ACTIVE.value) & (
+            particles.state > 0
+        )
         particles.state[lost_mask] = -500
-
 
     def track(self, particles: Particles):
         """
@@ -95,7 +99,21 @@ class BlondElement3:
         # Convert xsuite -> blond
         self.xsuite_to_blond(particles, self.beam)
 
-        self.trackable.track(self.beam) # calls the BLonD track method
+        self.trackable.track(self.beam)  # calls the BLonD track method
 
         # Convert blond -> xsuite
         self.blond_to_xsuite(particles, self.beam)
+
+
+class EnergyUpdate:
+    """
+    Class to update energy of Particles class turn-by-turn with the ReferenceEnergyIncrease function
+    from xtrack. Additionally, it updates the frequency of the xtrack cavity in the line.
+    Intended to be used without BLonD-Xsuite interface.
+
+
+
+
+    """
+
+    pass
