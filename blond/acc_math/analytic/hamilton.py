@@ -332,6 +332,7 @@ def separatrix_single_rf(
     magnetic_cylce: MagneticCycleBase,
     ring: Ring,
     dt_array: NumpyArray,
+    turn_number: int,
 ) -> float | NumpyArray:
     """
     Derive the analytical separatrix for a single harmonic RF.
@@ -346,6 +347,8 @@ def separatrix_single_rf(
         The ring object.
     dt_array
         Array of time coordinates at which to sample the separatrix, in [s].
+    turn_number
+        Turn at which to calculate the separatrix for.
 
     Returns
     -------
@@ -361,21 +364,28 @@ def separatrix_single_rf(
 
     charge = magnetic_cylce.reference_particle.charge
 
-    reference_total_energy = magnetic_cylce.get_total_energy_init(
+    energy_array = magnetic_cylce._values_after_turn
+    energy_gain = energy_array[1] - energy_array[0]
+
+    energy = energy_array[turn_number]
+    circumference = ring.circumference
+
+    reference_total_energy = magnetic_cylce.get_target_total_energy(
         particle_type=magnetic_cylce.reference_particle,
+        turn_i=turn_number,
+        section_i=0,
+        reference_time=0,
     )
+
     reference_gamma = (
         reference_total_energy * magnetic_cylce.reference_particle.mass_inv
     )
 
     beta = np.sqrt(1.0 - 1.0 / (reference_gamma * reference_gamma))
+    reference_velocity = beta * c
 
-    energy = magnetic_cylce._value_init
-    circumference = ring.circumference
-    t_rev = magnetic_cylce.get_t_rev_init(
-        circumference=circumference,
-        particle_type=magnetic_cylce.reference_particle,
-    )
+    t_rev = circumference / reference_velocity
+
     omega_0 = (2 * np.pi) / t_rev
     omega_rf = omega_0 * harmonic
 
@@ -385,8 +395,6 @@ def separatrix_single_rf(
     if eta > 0:
         above_Transition = True
 
-    energy_array = magnetic_cylce._values_after_turn
-    energy_gain = energy_array[1] - energy_array[0]
     phi_s = calc_phi_s_single_harmonic(
         charge=charge,
         voltage=voltage,
