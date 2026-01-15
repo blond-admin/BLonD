@@ -7,6 +7,7 @@ from unittest.mock import Mock, create_autospec
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from blond import (
     Beam,
@@ -565,6 +566,7 @@ class TestSimulation(unittest.TestCase):
                 observe=(),
             )
 
+    @pytest.mark.backend_mutation
     def test_finalize_warns(self) -> None:
         from blond import backend
 
