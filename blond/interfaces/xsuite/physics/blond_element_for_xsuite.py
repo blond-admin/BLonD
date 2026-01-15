@@ -14,13 +14,62 @@ Functions and classes to interface BLonD with xsuite.
 
 import numpy as np
 from scipy.constants import c
-from xtrack import Particles, ZetaShift, Line, ReferenceEnergyIncrease
+from xtrack import Particles, ZetaShift, ReferenceEnergyIncrease
 
 from blond.core.beam.base import BeamBaseClass, BeamFlags
+from numpy.typing import NDArray
+from typing import Sequence, Union
 
-from typing import Sequence
+FloatOrArray = Union[float, NDArray[np.floating]]
 
-class BlondElement3:
+
+def xsuite_to_blond_transform(
+    zeta: FloatOrArray,
+    ptau: FloatOrArray,
+    beta0: float,
+    energy0: float,
+    omega_rf: float,
+    phi_s: float = 0,
+):
+    """
+    Convert Xsuite coordinates to BLonD.
+
+    Parameters
+    ----------
+    particles : Particles
+        Particles to be tracked.
+    beam : BeamBaseClass
+        Beam to be tracked.
+    """
+    dE = ptau * beta0 * energy0
+    dt = -zeta / (beta0 * c) + phi_s / omega_rf
+    return dt, dE
+
+
+def blond_to_xsuite_transform(
+    dt: FloatOrArray,
+    de: FloatOrArray,
+    beta0: float,
+    energy0: float,
+    omega_rf: float,
+    phi_s: float = 0,
+):
+    """
+    Convert BLonD coordinates to Xsuite.
+
+    Parameters
+    ----------
+    particles : Particles
+        Particles to be tracked.
+    beam : BeamBaseClass
+        Beam to be tracked.
+    """
+    ptau = de / (beta0 * energy0)
+    zeta = -(dt - phi_s / omega_rf) * beta0 * c
+    return zeta, ptau
+
+
+class BLonDElement3:
     """
     Wrapper to allow BLonD3 elements to be tracked inside Xsuite.
 
@@ -46,46 +95,6 @@ class BlondElement3:
         self.update_zeta = update_zeta
         self.orbit_shift = ZetaShift(dzeta=0)
 
-    def xsuite_to_blond(self, particles: Particles, beam: BeamBaseClass):
-        """
-        Convert Xsuite coordinates to BLonD.
-
-        Parameters
-        ----------
-        particles : Particles
-            Particles to be tracked.
-        beam : BeamBaseClass
-            Beam to be tracked.
-        """
-        beam._dE[:] = particles.beta0 * particles.energy0 * particles.ptau
-        beam._dt[:] = -particles.zeta / (particles.beta0 * c)
-
-        active_mask = particles.state > 0
-        beam._flags[:] = np.where(
-            active_mask, BeamFlags.ACTIVE.value, BeamFlags.LOST.value
-        )
-
-    def blond_to_xsuite(self, particles: Particles, beam: BeamBaseClass):
-        """
-        Convert BLonD coordinates to Xsuite.
-
-        Parameters
-        ----------
-        particles : Particles
-            Particles to be tracked.
-        beam : BeamBaseClass
-            Beam to be tracked.
-        """
-        particles.ptau = beam._dE / (particles.beta0 * particles.energy0)
-        if self.update_zeta:
-            particles.zeta = -beam._dt * particles.beta0 * c
-
-        # Mark lost particles in Xsuite
-        lost_mask = (beam._flags != BeamFlags.ACTIVE.value) & (
-            particles.state > 0
-        )
-        particles.state[lost_mask] = -500
-
     def track(self, particles: Particles):
         """
         Track the BLonD element.
@@ -98,12 +107,12 @@ class BlondElement3:
             Beam to be tracked.
         """
         # Convert xsuite -> blond
-        self.xsuite_to_blond(particles, self.beam)
+        xsuite_to_blond_transform(particles, self.beam)
 
         self.trackable.track(self.beam)  # calls the BLonD track method
 
         # Convert blond -> xsuite
-        self.blond_to_xsuite(particles, self.beam)
+        blond_to_xsuite_transform(particles, self.beam)
 
 
 class EnergyUpdate:
@@ -113,8 +122,8 @@ class EnergyUpdate:
     Intended to be used without BLonD-Xsuite interface.
 
     """
-    def init(self, momentum: Sequence):
 
+    def __init__(self, momentum: Sequence):
         self.momentum = momentum
 
         init_p0c = self.momentum[1] - self.momentum[0]
@@ -135,8 +144,3 @@ class EnergyUpdate:
 
         # Apply the energy increment to the particles
         self.xsuite_energy_update.track(particles)
-
-
-
-
-
