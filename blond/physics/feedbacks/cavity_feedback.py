@@ -281,7 +281,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
         # Convert to amplitude and phase
         self.relative_voltage_correction, self.alpha_sum = cartesian_to_polar(
-            IQ_vector=self.antenna_voltage_fine_grid[-self.profile.n_bins :],
+            IQ_vector=self.antenna_voltage_fine_grid,
         )
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
@@ -289,7 +289,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             self.get_voltage_from_parent_rf_station()
         )
         self.phase_correction = self.alpha_sum - np.mean(
-            np.angle(self.voltage_setpoint[-self.n_samples_coarse :])
+            np.angle(self.voltage_setpoint)
         )
 
     def calculate_rf_beam_current(
@@ -329,9 +329,8 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         self.beam_current_fine_grid = (
             self.beam_current_fine_grid / self.profile.hist_step
         )
-        self.beam_current_coarse_grid[-self.n_samples_coarse :] = (
-            self.beam_current_coarse_grid[-self.n_samples_coarse :]
-            / self.sampling_time_coarse
+        self.beam_current_coarse_grid = (
+            self.beam_current_coarse_grid / self.sampling_time_coarse
         )
 
     def set_point_from_rfstation(self) -> NumpyArray:
@@ -349,14 +348,6 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         )
 
         return V_set * np.ones(self.n_samples_coarse)
-
-    cached_props = (
-        "t_rf_actual",
-        "omega_carrier",
-        "sampling_time",
-        "residual_phase_from_last_turn",
-        "voltage_setpoint",
-    )
 
     @property
     def harmonic(self) -> float:
@@ -417,6 +408,14 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             return self._parent_rf_station.phi_rf_actual
         else:
             return self._parent_rf_station.phi_rf_actual[self.harmonic_index]
+
+    cached_props = (
+        "t_rf_actual",
+        "omega_carrier",
+        "sampling_time",
+        "residual_phase_from_last_turn",
+        "voltage_setpoint",
+    )
 
     @cached_property
     def t_rf_actual(self) -> float:
