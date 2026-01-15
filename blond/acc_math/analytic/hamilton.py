@@ -358,11 +358,11 @@ def separatrix_single_rf(
     separatrix_array
         The separatrix values at each point in dt_array.
     """
-    Vrf = rf_station.voltage
-    h = rf_station.harmonic
+    voltage = rf_station.voltage
+    harmonic = rf_station.harmonic
     phi_rf = rf_station.phi_rf
 
-    q = magnetic_cylce.reference_particle.charge
+    charge = magnetic_cylce.reference_particle.charge
 
     reference_total_energy = magnetic_cylce.get_total_energy_init(
         particle_type=magnetic_cylce.reference_particle,
@@ -373,13 +373,14 @@ def separatrix_single_rf(
 
     beta = np.sqrt(1.0 - 1.0 / (reference_gamma * reference_gamma))
 
-    Es = magnetic_cylce._value_init
-    C = ring.circumference
+    energy = magnetic_cylce._value_init
+    circumference = ring.circumference
     t_rev = magnetic_cylce.get_t_rev_init(
-        circumference=C, particle_type=magnetic_cylce.reference_particle
+        circumference=circumference,
+        particle_type=magnetic_cylce.reference_particle,
     )
     omega_0 = (2 * np.pi) / t_rev
-    omega_rf = omega_0 * h
+    omega_rf = omega_0 * harmonic
 
     eta = ring.calc_average_eta_0(reference_gamma)
 
@@ -390,8 +391,8 @@ def separatrix_single_rf(
     energy_array = magnetic_cylce._values_after_turn
     energy_gain = energy_array[1] - energy_array[0]
     phi_s = calc_phi_s_single_harmonic(
-        charge=q,
-        voltage=Vrf,
+        charge=charge,
+        voltage=voltage,
         phase=phi_rf,
         energy_gain=energy_gain,
         above_transition=above_Transition,
@@ -399,19 +400,27 @@ def separatrix_single_rf(
 
     phi = dt_array * omega_rf
 
-    U = (
+    potential_energy = (
         np.cos(np.pi - phi_s)
         - np.cos(phi)
         + (np.pi - phi - phi_s) * np.sin(phi_s)
     )
 
-    mask_U = U > 0
-    U = U[mask_U]
-    dt_array = dt_array[mask_U]
+    mask_potential = potential_energy > 0
+    potential_energy = potential_energy[mask_potential]
+    dt_array = dt_array[mask_potential]
 
-    sep = np.sqrt(2 * q * Vrf * beta**2 * Es / (np.pi * h * np.abs(eta)) * U)
+    separatrix = np.sqrt(
+        2
+        * charge
+        * voltage
+        * beta**2
+        * energy
+        / (np.pi * harmonic * np.abs(eta))
+        * potential_energy
+    )
 
-    separatrix_array = np.concatenate((sep, -sep[::-1]))
+    separatrix_array = np.concatenate((separatrix, -separatrix[::-1]))
     phi_array = np.concatenate((dt_array, dt_array[::-1]))
 
     return phi_array, separatrix_array
