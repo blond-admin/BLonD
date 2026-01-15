@@ -728,7 +728,6 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
 
 class TestSPSOneTurnFeedback(unittest.TestCase):
-    @pytest.mark.backend_mutation
     def setUp(self):
         backend.change_backend(Numpy64Bit)  # this test fail in 32 bit due to
         # missing accuracy. could be fixed be considering less digits,
