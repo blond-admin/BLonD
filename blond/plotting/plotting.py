@@ -8,6 +8,8 @@
 
 """Collection of plotting routines."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from matplotlib import pyplot as plt
