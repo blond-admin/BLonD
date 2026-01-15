@@ -9,7 +9,6 @@
 import numpy as np
 import xpart as xp
 import xtrack as xt
-from scipy.constants import c
 
 from blond import (
     Beam,
@@ -17,84 +16,118 @@ from blond import (
     proton,
 
 )
-from blond.handle_results.helpers import callers_relative_path
+
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
-    BlondElement3, EnergyUpdate, blond_to_xsuite_transform, xsuite_to_blond_transform
+    BLonDElement3, EnergyUpdate, blond_to_xsuite_transform, xsuite_to_blond_transform
 )
 
 
-
-
-
 def main():
+    # Parameters ----------------------------------------------------------------------------------------------------------
+    # Accelerator parameters
+    C = 26658.8832  # Machine circumference [m]
+    p_s = 450e9  # Synchronous momentum [eV/c]
+    p_f = 450.1e9  # Synchronous momentum, final
+    h = 35640  # Harmonic number [-]
+    alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
+    V = 5e6  # RF voltage [V]
+    dphi = 0  # Phase modulation/offset [rad]
+
+    # Bunch parameters
+    N_bunches = 1  # Number of bunches [-]
+    N_m = 1  # Number of macroparticles [-]
+    N_p = 1.15e11  # Intensity
+    blen = 1.25e-9  # Bunch length [s]
+    energy_err = 100e6  # Beamenergy error [eV/c]
+
+    # Simulation parameters
+    N_TURNS = 330
+    N_buckets = 2  # Number of buckets [-]
+    dt_plt = 30  # Timestep between plots [-]
+    input_dt = 2 * blen - 0.4e-9  # Input particles dt [s]
+    input_dE = 0.0  # Input particles dE [eV]
+
+    # Make First order matrix map (takes care of drift in Xsuite)
+    matrix = xt.LineSegmentMap(
+        longitudinal_mode="nonlinear",
+        qx=1.1,
+        qy=1.2,
+        betx=1.0,
+        bety=1.0,
+        voltage_rf=0,
+        frequency_rf=0,
+        lag_rf=0,
+        momentum_compaction_factor=alpha,
+        length=C,
+    )
+
+    # Create line
+    line = xt.Line(elements=[matrix], element_names={"matrix"})
+    line["matrix"].length = C
+    line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
 
 
+    # Create necessary blond objects
     cavity1 = SingleHarmonicRfStation()
-    cavity1.harmonic = 4620
-    cavity1.voltage = V_200
+    cavity1.harmonic = h
+    cavity1.voltage = V
     cavity1.phi_rf = 0
     cavity1._turn_i = 0  # needed to initialise
+    cavity1.phi_s = 0
+    cavity1.calc_omega()
 
-    p0c = 13.5e9 * 82
-    q0 = 82
+    beam = Beam(intensity=N_p,
+                particle_type=proton)
 
-    mass0 = line.particle_ref.mass0
+    beam.setup_beam(dt=[input_dt], dE=[input_dE], reference_time=0, reference_total_energy=line.particle_ref.energy0)
 
-    line.particle_ref = xp.Particles(mass0=mass0, q0=q0, p0c=p0c)
+    # BLonD3 element
+    cavity = BLonDElement3(trackable=cavity1, update_zeta=True, beam=beam)
 
-    num_particles = 1000
-    nemitt_x = 2e-6
-    nemitt_y = 2e-6
-
-    x_in_sigmas, px_in_sigmas = xp.generate_2D_gaussian(num_particles)
-    y_in_sigmas, py_in_sigmas = xp.generate_2D_gaussian(num_particles)
-
-    zeta, delta = xp.generate_longitudinal_coordinates(
-        num_particles=num_particles,
-        distribution="gaussian",
-        sigma_z=bunch_length * 3e8 / 2,
-        line=line,
+    line.insert_element(index=0,
+        element=cavity, name="BLonD_Cavity",
     )
 
-    particles = line.build_particles(
-        zeta=zeta,
-        delta=delta,
-        x_norm=x_in_sigmas,
-        px_norm=px_in_sigmas,
-        y_norm=y_in_sigmas,
-        py_norm=py_in_sigmas,
-        nemitt_x=nemitt_x,
-        nemitt_y=nemitt_y,
-    )
+    # Insert energy ramp
+    momentum = np.linspace(p_s, p_f, N_TURNS)
+    energy_update = EnergyUpdate(momentum=momentum)
 
-    N_TURNS = int(10)
-
-    beam = Beam(intensity=intensity,
-                particle_type=lead_82)
-    dt = -particles.zeta / (particles.beta0 * c)
-    dE = particles.ptau * particles.beta0 * line.particle_ref.energy0
-
-    beam.setup_beam(dt=dt, dE=dE, reference_time=0, reference_total_energy=line.particle_ref.energy0)
-
-    cavity = BlondElement3(trackable=cavity1, update_zeta=True, beam=beam)
-
-    line[
-        "actcse.31632"
-    ].voltage = 0  # xsuite cavity =0, use BLonD element longitudinal
     line.insert_element(
-        element=cavity, name="BLonD_Cavity_200MHz", at="actcse.31632"
-    )  # BLonD inserted there
+        index="matrix", element=energy_update, name="energy_update"
+    )
 
-    zeta_record = []
-    delta_record = []
+    # Add particles to line and build tracker
+    line.build_tracker()
 
-    for turn in range(N_TURNS):
-        line.track(particles, num_turns=1)
+    # Show table
+    line.get_table().show()
 
-    zeta_record.append(particles.zeta.copy())
-    delta_record.append(particles.delta.copy())
 
-    print("done tracking.")
+    # Simulating ----------------------------------------------------------------------------------------------------------
+    print(f"\nSetting up simulation...")
+
+    # --- Convert the initial BLonD distribution to xsuite coordinates ---
+    zeta, ptau = blond_to_xsuite_transform(
+        beam._dt,
+        beam._dE,
+        line.particle_ref.beta0[0],
+        line.particle_ref.energy0[0],
+        phi_s=cavity1.phi_s,
+        omega_rf=cavity1._omega_rf,
+    )
+
+
+    # --- Track matrix ---
+    particles = line.build_particles(
+        x=0, y=0, px=0, py=0, zeta=np.copy(zeta), ptau=np.copy(ptau)
+    )
+
+    line.track(
+        particles, num_turns=N_TURNS, turn_by_turn_monitor=True, with_progress=True
+    )
+
+    mon = line.record_last_track
+
 
 
 if __name__ == "__main__":  # pragma: no cover
