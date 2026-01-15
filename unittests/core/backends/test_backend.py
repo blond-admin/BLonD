@@ -154,7 +154,6 @@ class TestCupyBackend(unittest.TestCase):
 
 
 class TestNumpy64Bit(unittest.TestCase):
-    @pytest.mark.backend_mutation
     def setUp(self) -> None:
         self.numpy64_bit = Numpy64Bit()
 
