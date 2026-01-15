@@ -14,11 +14,12 @@ from blond import (
     Beam,
     SingleHarmonicRfStation,
     proton,
-
 )
 
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
-    BLonDElement3, EnergyUpdate, blond_to_xsuite_transform, xsuite_to_blond_transform
+    BLonDElement3,
+    EnergyUpdate,
+    blond_to_xsuite_transform,
 )
 
 
@@ -31,10 +32,8 @@ def main():
     h = 35640  # Harmonic number [-]
     alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
     V = 5e6  # RF voltage [V]
-    dphi = 0  # Phase modulation/offset [rad]
 
     # Bunch parameters
-    N_bunches = 1  # Number of bunches [-]
     N_m = 1  # Number of macroparticles [-]
     N_p = 1.15e11  # Intensity
     blen = 1.25e-9  # Bunch length [s]
@@ -42,8 +41,6 @@ def main():
 
     # Simulation parameters
     N_TURNS = 330
-    N_buckets = 2  # Number of buckets [-]
-    dt_plt = 30  # Timestep between plots [-]
     input_dt = 2 * blen - 0.4e-9  # Input particles dt [s]
     input_dE = 0.0  # Input particles dE [eV]
 
@@ -66,7 +63,6 @@ def main():
     line["matrix"].length = C
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
 
-
     # Create necessary blond objects
     cavity1 = SingleHarmonicRfStation()
     cavity1.harmonic = h
@@ -76,16 +72,22 @@ def main():
     cavity1.phi_s = 0
     cavity1.calc_omega()
 
-    beam = Beam(intensity=N_p,
-                particle_type=proton)
+    beam = Beam(intensity=N_p, particle_type=proton)
 
-    beam.setup_beam(dt=[input_dt], dE=[input_dE], reference_time=0, reference_total_energy=line.particle_ref.energy0)
+    beam.setup_beam(
+        dt=[input_dt],
+        dE=[input_dE],
+        reference_time=0,
+        reference_total_energy=line.particle_ref.energy0,
+    )
 
     # BLonD3 element
     cavity = BLonDElement3(trackable=cavity1, update_zeta=True, beam=beam)
 
-    line.insert_element(index=0,
-        element=cavity, name="BLonD_Cavity",
+    line.insert_element(
+        index=0,
+        element=cavity,
+        name="BLonD_Cavity",
     )
 
     # Insert energy ramp
@@ -102,7 +104,6 @@ def main():
     # Show table
     line.get_table().show()
 
-
     # Simulating ----------------------------------------------------------------------------------------------------------
     print(f"\nSetting up simulation...")
 
@@ -116,21 +117,20 @@ def main():
         omega_rf=cavity1._omega_rf,
     )
 
-
     # --- Track matrix ---
     particles = line.build_particles(
         x=0, y=0, px=0, py=0, zeta=np.copy(zeta), ptau=np.copy(ptau)
     )
 
     line.track(
-        particles, num_turns=N_TURNS, turn_by_turn_monitor=True, with_progress=True
+        particles,
+        num_turns=N_TURNS,
+        turn_by_turn_monitor=True,
+        with_progress=True,
     )
 
     mon = line.record_last_track
 
 
-
 if __name__ == "__main__":  # pragma: no cover
     main()
-
-
