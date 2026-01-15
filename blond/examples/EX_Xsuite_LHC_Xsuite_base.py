@@ -14,6 +14,8 @@ from blond import (
     Beam,
     SingleHarmonicRfStation,
     proton,
+    Ring,
+    Simulation, MagneticCyclePerTurn
 )
 
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
@@ -64,15 +66,28 @@ def main():
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
 
     # Create necessary blond objects
-    cavity1 = SingleHarmonicRfStation()
-    cavity1.harmonic = h
-    cavity1.voltage = V
-    cavity1.phi_rf = 0
-    cavity1._turn_i = 0  # needed to initialise
-    cavity1.phi_s = 0
-    cavity1.calc_omega()
+    momentum = np.linspace(p_s, p_f, N_TURNS)
+    magnetic_cycle = MagneticCyclePerTurn(reference_particle=proton,value_init=momentum[0], values_after_turn=momentum[1:])
+    #ring = Ring(circumference=C)
+    #sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
-    beam = Beam(intensity=N_p, particle_type=proton)
+
+    """cavity1 = SingleHarmonicRfStation(voltage=V, harmonic=h, phi_rf=0, phi_s=0)
+    cavity1._turn_i = 0  # needed to initialise, bug?
+
+    energy0 = np.sqrt(p_s**2 + xp.PROTON_MASS_EV**2)
+    omega_rf = cavity1.calc_omega(
+        beam_beta=p_s / energy0, ring_circumference=C
+    )"""
+
+
+    cavity1 = SingleHarmonicRfStation.headless(
+
+    )
+
+
+
+    beam = Beam(intensity=N_p, particle_type=proton,)
 
     beam.setup_beam(
         dt=[input_dt],
@@ -91,7 +106,6 @@ def main():
     )
 
     # Insert energy ramp
-    momentum = np.linspace(p_s, p_f, N_TURNS)
     energy_update = EnergyUpdate(momentum=momentum)
 
     line.insert_element(
@@ -104,17 +118,15 @@ def main():
     # Show table
     line.get_table().show()
 
-    # Simulating ----------------------------------------------------------------------------------------------------------
-    print(f"\nSetting up simulation...")
 
     # --- Convert the initial BLonD distribution to xsuite coordinates ---
     zeta, ptau = blond_to_xsuite_transform(
-        beam._dt,
-        beam._dE,
-        line.particle_ref.beta0[0],
-        line.particle_ref.energy0[0],
-        phi_s=cavity1.phi_s,
-        omega_rf=cavity1._omega_rf,
+        dt = beam._dt,
+        de = beam._dE,
+        beta0=line.particle_ref.beta0[0],
+        energy0=line.particle_ref.energy0[0],
+        phi_s=0,
+        omega_rf=omega_rf,
     )
 
     # --- Track matrix ---
@@ -128,9 +140,6 @@ def main():
         turn_by_turn_monitor=True,
         with_progress=True,
     )
-
-    mon = line.record_last_track
-
 
 if __name__ == "__main__":  # pragma: no cover
     main()

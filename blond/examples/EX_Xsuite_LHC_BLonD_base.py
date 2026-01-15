@@ -50,6 +50,8 @@ def main():
     N_p = 1.15e11  # Intensity
     blen = 1.25e-9  # Bunch length [s]
 
+
+    # xsuite elements ------------------------------------------------
     matrix = xt.LineSegmentMap(
         longitudinal_mode="nonlinear",
         qx=1.1,
@@ -67,6 +69,8 @@ def main():
     line = xt.Line(elements=[matrix], element_names={"matrix"})
     line["matrix"].length = C
     line.build_tracker()
+
+    # ---------------------------------------------------------------
 
     ring = Ring(C)
 

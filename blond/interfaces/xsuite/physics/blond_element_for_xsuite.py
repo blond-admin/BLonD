@@ -16,9 +16,11 @@ import numpy as np
 from scipy.constants import c
 from xtrack import Particles, ZetaShift, ReferenceEnergyIncrease
 
+from blond.core.base import SimulationElementBase
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from numpy.typing import NDArray
 from typing import Sequence, Union
+
 
 FloatOrArray = Union[float, NDArray[np.floating]]
 
@@ -77,7 +79,7 @@ class BLonDElement3:
     """
 
     def __init__(
-        self, trackable, beam: BeamBaseClass, update_zeta: bool = False
+        self, trackable: SimulationElementBase, beam: BeamBaseClass, update_zeta: bool = False # instead give particles
     ):
         """
         Initialise element.
@@ -90,6 +92,7 @@ class BLonDElement3:
         update_zeta : bool
             Whether to convert Xsuite zeta -> BLonD dt and back.
         """
+        # todo: change to particles and instantiate BeamBaseClass, which is used in blondelem.track(beam: BeamBaseClass)
         self.beam = beam
         self.trackable = trackable
         self.update_zeta = update_zeta
@@ -107,12 +110,54 @@ class BLonDElement3:
             Beam to be tracked.
         """
         # Convert xsuite -> blond
-        xsuite_to_blond_transform(particles, self.beam)
+        self.xsuite_to_blond_transform(particles, self.beam)
+        #
+        #todo get new energy from xsuite
+        self.trackable._magnetic_cycle.get_target_total_energy.return_value = xxx
 
         self.trackable.track(self.beam)  # calls the BLonD track method
 
         # Convert blond -> xsuite
-        blond_to_xsuite_transform(particles, self.beam)
+        self.blond_to_xsuite_transform(particles, self.beam)
+
+    def xsuite_to_blond_transform(
+        self, particles: Particles, beam: BeamBaseClass
+    ):
+        """
+        Convert Xsuite coordinates to BLonD coordinates.
+        """
+        # Energy deviation
+        beam._dE[:] = particles.beta0 * particles.energy0 * particles.ptau
+
+        # Time deviation
+        beam._dt[:] = -particles.zeta / (particles.beta0 * c)
+
+        # Particle activity flags
+        active_mask = particles.state > 0
+        beam._flags[:] = np.where(
+            active_mask,
+            BeamFlags.ACTIVE.value,
+            BeamFlags.LOST.value,
+        )
+
+    def blond_to_xsuite_transform(
+        self, particles: Particles, beam: BeamBaseClass
+    ):
+        """
+        Convert BLonD coordinates to Xsuite coordinates.
+        """
+        # Relative energy deviation
+        particles.ptau = beam._dE / (particles.beta0 * particles.energy0)
+
+        # Longitudinal position
+        if self.update_zeta:
+            particles.zeta = -beam._dt * particles.beta0 * c
+
+        # Mark lost particles in Xsuite
+        lost_mask = (beam._flags != BeamFlags.ACTIVE.value) & (
+            particles.state > 0
+        )
+        particles.state[lost_mask] = -500
 
 
 class EnergyUpdate:
@@ -120,7 +165,6 @@ class EnergyUpdate:
     Class to update energy of Particles class turn-by-turn with the ReferenceEnergyIncrease function
     from xtrack. Additionally, it updates the frequency of the xtrack cavity in the line.
     Intended to be used without BLonD-Xsuite interface.
-
     """
 
     def __init__(self, momentum: Sequence):
