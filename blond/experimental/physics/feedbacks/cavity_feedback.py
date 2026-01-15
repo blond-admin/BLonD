@@ -45,7 +45,7 @@ class IQCavityFeedback(LocalFeedback):
         Beam profile the feedback acts on
     n_cavities
         Number of cavities the feedback controls
-    n_coarse
+    n_periods_coarse
         Number of periods for the coarse grid
     harmonic_index
         Index of the RF harmonic that should be controlled by the feedback
