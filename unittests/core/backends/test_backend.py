@@ -45,6 +45,7 @@ class TestBackendBaseClass(unittest.TestCase):
     def tearDown(self) -> None:
         self.backend_base_class.set_specials(mode="numba")
 
+    @pytest.mark.backend_mutation
     def test_apply_environment_variables(self):
         import os
 
