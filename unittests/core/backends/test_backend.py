@@ -32,11 +32,13 @@ class TestBackendBaseClass(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
+    @pytest.mark.backend_mutation
     def test_change_backend(self) -> None:
         self.backend_base_class.change_backend(new_backend=Numpy64Bit)
         self.assertEqual(self.backend_base_class.float, np.float64)
         self.assertEqual(self.backend_base_class.complex, np.complex128)
 
+    @pytest.mark.backend_mutation
     def test_set_specials(self) -> None:
         self.backend_base_class.set_specials(mode="numba")
 
@@ -84,6 +86,7 @@ class TestBackendBaseClass(unittest.TestCase):
         with self.assertRaises(AttributeError):
             some_backend._finalize()
 
+    @pytest.mark.backend_mutation
     def test_change_backend(self):
         some_backend = Numpy32Bit()
         some_backend.change_backend(some_backend)  # shouldnt do anything
@@ -124,6 +127,7 @@ class TestCupyBackend(unittest.TestCase):
             float_=np.float32, complex_=np.complex64
         )
 
+    @pytest.mark.backend_mutation
     def test_set_specials(self) -> None:
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
@@ -132,6 +136,7 @@ class TestCupyBackend(unittest.TestCase):
         )
         self.cupy_backend.set_specials(mode="cuda")
 
+    @pytest.mark.backend_mutation
     def test_set_specials_fails(self):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
@@ -160,24 +165,29 @@ class TestNumpyBackend(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
+    @pytest.mark.backend_mutation
     def test_set_specials_python(self) -> None:
         self.numpy_backend.set_specials(mode="python")
 
+    @pytest.mark.backend_mutation
     def test_set_specials_cpp(self) -> None:
         try:
             self.numpy_backend.set_specials(mode="cpp")
         except FileNotFoundError:
             self.skipTest("cpp not available!")
 
+    @pytest.mark.backend_mutation
     def test_set_specials_numba(self) -> None:
         self.numpy_backend.set_specials(mode="numba")
 
+    @pytest.mark.backend_mutation
     def test_set_specials_fortran(self) -> None:
         try:
             self.numpy_backend.set_specials(mode="fortran")
         except FileNotFoundError:
             self.skipTest("fortran not available!")
 
+    @pytest.mark.backend_mutation
     def test_set_specials_fails(self):
         with self.assertRaises(ValueError):
             self.numpy_backend.set_specials("doesnt exist")
