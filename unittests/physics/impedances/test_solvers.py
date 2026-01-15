@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import numpy as np
+import pytest
 from matplotlib import pyplot as plt
 from scipy.constants import c, e
 from scipy.fft import next_fast_len
@@ -380,6 +381,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             # update is now forced, which should force the error
             self.periodic_freq_solver._update_impedance_sources(beam=beam)
 
+    @pytest.mark.backend_mutation
     def test_calc_induced_voltage_gpu(self):
         try:
             import cupy  # type: ignore
@@ -393,6 +395,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self._test_calc_induced_voltage(backend_class=Cupy64Bit)
         backend.change_backend(backend_org)
 
+    @pytest.mark.backend_mutation
     def test_calc_induced_voltage_cpu(self):
         from blond import backend
 
@@ -1721,6 +1724,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
         # should be inverted as all shunt impedances are inverted
 
+    @pytest.mark.backend_mutation
     def test_calc_induced_voltage_counter_rotation_opposite_charge(self):
         sim = Mock(Simulation)
 
@@ -3073,7 +3077,7 @@ class TestHeadlessSolvers(unittest.TestCase):
 
 class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
     def test_update_wake_kernel_fails(self):
-        from blond.testing.mocks import beam_mock, static_profile_mock
+        from blond.testing.mocks import beam_mock
 
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
@@ -3113,7 +3117,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
     def test_calc_induced_voltage_assert_profile_length_correct(self):
         t_rf = 7.706144104735e-10
         Q_factor = 1.76e6
-        from blond.testing.mocks import beam_mock, static_profile_mock
+        from blond.testing.mocks import beam_mock
 
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
@@ -3142,7 +3146,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
     def test_calc_induced_voltage_assert_warns_profile(self):
         t_rf = 7.706144104735e-10
         Q_factor = 1.76e6
-        from blond.testing.mocks import beam_mock, static_profile_mock
+        from blond.testing.mocks import beam_mock
 
         prof = DynamicProfileConstNBins(n_bins=128)
         prof.cut_left = -1e-9
@@ -3171,7 +3175,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
     def test_calc_induced_voltage_single_turn(self):
         t_rf = 7.706144104735e-10
         Q_factor = 1.76e6
-        from blond.testing.mocks import beam_mock, static_profile_mock
+        from blond.testing.mocks import beam_mock
 
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
@@ -3241,7 +3245,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             ),
         )
 
-        from blond.testing.mocks import beam_mock, static_profile_mock
+        from blond.testing.mocks import beam_mock
 
         prof_single = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 

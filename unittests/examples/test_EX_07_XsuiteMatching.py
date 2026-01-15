@@ -1,5 +1,7 @@
 import unittest
 
+import pytest
+
 from blond.core.backends.backend import (
     Cupy32Bit,
     Cupy64Bit,
@@ -24,6 +26,7 @@ class TestEX_07_Xsuite_Matching(unittest.TestCase):
         except ModuleNotFoundError as exception:
             self.skipTest(str(exception))
 
+    @pytest.mark.backend_mutation
     @unittest.skip("Too slow")
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
@@ -33,6 +36,7 @@ class TestEX_07_Xsuite_Matching(unittest.TestCase):
         # full script. just checking if it crashes
         EX_07_Xsuite_Matching.main()
 
+    @pytest.mark.backend_mutation
     @unittest.skip("Too slow")
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
@@ -42,6 +46,7 @@ class TestEX_07_Xsuite_Matching(unittest.TestCase):
         # full script. just checking if it crashes
         EX_07_Xsuite_Matching.main()
 
+    @pytest.mark.backend_mutation
     @unittest.skip("Too slow")
     def test_executable_cuda32(self):
         try:
@@ -58,6 +63,7 @@ class TestEX_07_Xsuite_Matching(unittest.TestCase):
         EX_07_Xsuite_Matching.main()
         backend.zeros(100)
 
+    @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
         try:
             import cupy  # type: ignore
