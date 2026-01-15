@@ -145,7 +145,6 @@ class BirksCavityFeedback(LocalFeedback):
         assert isinstance(profile, StaticProfile)
         super().__init__(
             profile=profile,
-            section_index=section_index,
             name=name,
         )
         self.set_parent_rf_station(rf_station=_parent_rf_station)

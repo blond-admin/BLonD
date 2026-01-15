@@ -144,7 +144,6 @@ class Blond2BeamFeedback(LocalFeedback):
         """
         super().__init__(
             profile=profile,
-            section_index=section_index,
             name=name,
         )
         self.profile = profile
