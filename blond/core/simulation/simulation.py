@@ -137,7 +137,7 @@ class Simulation(Preparable):
     >>> from blond import Ring, ConstantMagneticCycle, SingleHarmonicRfStation, DriftSimple, proton
     >>> ring = Ring(26658.883)
     >>> energy_cycle = ConstantMagneticCycle(proton, value=450e9, in_unit="total energy")
-    >>> rf_station1 = SingleHarmonicRfStation()
+    >>> rf_station1 = SingleHarmonicRFStation()
     >>> drift1 = DriftSimple(orbit_length=26658.883)
     >>> sim = Simulation.from_locals(locals())
     """

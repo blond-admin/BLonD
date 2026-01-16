@@ -10,7 +10,7 @@ from blond.core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
     pretty_string,
 )
-from blond.physics.cavities import RfStationBaseClass
+from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
 
 
@@ -28,7 +28,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         element1.name = "element1"
         self.beam_physics_relevant_elements.add_element(element1)
 
-        element2 = Mock(spec=RfStationBaseClass)
+        element2 = Mock(spec=RFStationBaseClass)
         element2.section_index = 0
         element2.name = "element2"
         self.beam_physics_relevant_elements.add_element(element2)
@@ -39,7 +39,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         element3.name = "element3"
         self.beam_physics_relevant_elements.add_element(element3)
 
-        element4 = Mock(spec=RfStationBaseClass)
+        element4 = Mock(spec=RFStationBaseClass)
         element4.section_index = 1
         element4.name = "element4"
         self.beam_physics_relevant_elements.add_element(element4)
@@ -51,7 +51,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements._check_section_indexing()
 
     def test__check_section_indexing_too_many_cavities(self):
-        third_cavity = Mock(spec=RfStationBaseClass)
+        third_cavity = Mock(spec=RFStationBaseClass)
         third_cavity.name = "third_cavity"
         third_cavity.section_index = 1
         self.beam_physics_relevant_elements.add_element(third_cavity)
@@ -71,13 +71,13 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         ):
             self.beam_physics_relevant_elements._check_section_indexing()
 
-        element = Mock(spec=RfStationBaseClass)
+        element = Mock(spec=RFStationBaseClass)
         element.section_index = 2
         element.name = "element"
         self.beam_physics_relevant_elements.add_element(
             element
         )  # complete section 2 and open new one
-        element = Mock(spec=RfStationBaseClass)
+        element = Mock(spec=RFStationBaseClass)
         element.section_index = 3
         element.name = "element"
         self.beam_physics_relevant_elements.add_element(element)
@@ -167,7 +167,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
         assert (
             self.beam_physics_relevant_elements.count(
-                class_=RfStationBaseClass, section_i=0
+                class_=RFStationBaseClass, section_i=0
             )
             == 1
         )
@@ -179,7 +179,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
         assert (
             self.beam_physics_relevant_elements.count(
-                class_=RfStationBaseClass, section_i=1
+                class_=RFStationBaseClass, section_i=1
             )
             == 1
         )

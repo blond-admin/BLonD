@@ -33,7 +33,7 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     BirksCavityFeedback,
 )
 from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
-from blond.physics.cavities import MultiHarmonicRfStation
+from blond.physics.cavities import MultiHarmonicRFStation
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -127,7 +127,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def __init__(
         self,
-        _parent_rf_station: MultiHarmonicRfStation,
+        _parent_rf_station: MultiHarmonicRFStation,
         profile: StaticProfile,
         n_sections: Literal[3, 4, 5],
         n_cavities: int = 4,

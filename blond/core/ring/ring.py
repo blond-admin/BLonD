@@ -259,9 +259,9 @@ class Ring(Preparable):
         n_rf_stations
             The count of all RF station elements currently in the ring.
         """
-        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.cavities import RFStationBaseClass
 
-        return self.elements.count(RfStationBaseClass)
+        return self.elements.count(RFStationBaseClass)
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:

@@ -14,7 +14,7 @@ from blond import (
     MagneticCyclePerTurn,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     backend,
 )
 from blond.core.beam.particle_types import ParticleType, c, e, m_p
@@ -37,7 +37,7 @@ def main():
                 charge=charge,
             )
             ring = Ring(circumference=20e3)
-            rf_station = SingleHarmonicRfStation(
+            rf_station = SingleHarmonicRFStation(
                 voltage=1e6, harmonic=10, phi_rf=np.deg2rad(-90)
             )
             beam = Beam(

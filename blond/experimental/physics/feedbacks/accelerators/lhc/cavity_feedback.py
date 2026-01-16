@@ -31,8 +31,8 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     BirksCavityFeedback,
 )
 from blond.physics.cavities import (
-    MultiHarmonicRfStation,
-    SingleHarmonicRfStation,
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
 )
 from blond.physics.profiles import ProfileBaseClass
 
@@ -45,11 +45,11 @@ class LhcBeamFeedBack(GlobalFeedback):
         )
 
 
-class LhcRfFeedback(LocalFeedback):
+class LhcRFFeedback(LocalFeedback):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        cavity: SingleHarmonicRfStation | MultiHarmonicRfStation,
+        cavity: SingleHarmonicRFStation | MultiHarmonicRFStation,
         section_index: int = 0,
     ):
         super().__init__(
