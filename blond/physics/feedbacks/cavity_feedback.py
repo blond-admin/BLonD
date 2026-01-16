@@ -427,7 +427,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         t_rf_actual
             Actual RF period of the parent cavity at harmonic_index.
         """
-        return self.omega_rf_actual / (2 * np.pi)
+        return 1 / (self.omega_rf_actual / (2 * np.pi))
 
     @cached_property
     def omega_carrier(self) -> float:
