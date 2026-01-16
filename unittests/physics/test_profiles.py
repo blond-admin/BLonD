@@ -214,7 +214,7 @@ class TestStaticProfile(unittest.TestCase):
             t_period=11,
         )
         np.testing.assert_almost_equal(
-            profile.hist_x,
+            copy_to_cpu(profile.hist_x),
             np.linspace(-5, 5, 11),
         )
 
@@ -245,11 +245,11 @@ class TestDynamicProfileConstCutoff(unittest.TestCase):
         self.assertEqual(10, self.dynamic_profile_const_cutoff.n_bins)
         np.testing.assert_almost_equal(
             np.linspace(0 + 0.05e-9, 0 - 0.05e-9, 10),
-            self.dynamic_profile_const_cutoff.hist_x,
+            copy_to_cpu(self.dynamic_profile_const_cutoff.hist_x),
         )
         np.testing.assert_almost_equal(
             np.zeros(10),
-            self.dynamic_profile_const_cutoff.hist_y,
+            copy_to_cpu(self.dynamic_profile_const_cutoff.hist_y),
         )
 
 
@@ -279,11 +279,11 @@ class TestDynamicProfileConstNBins(unittest.TestCase):
         self.assertEqual(10, self.dynamic_profile_const_cutoff.n_bins)
         np.testing.assert_almost_equal(
             np.linspace(0 + 0.05e-9, 0 - 0.05e-9, 10),
-            self.dynamic_profile_const_cutoff.hist_x,
+            copy_to_cpu(self.dynamic_profile_const_cutoff.hist_x),
         )
         np.testing.assert_almost_equal(
             np.zeros(10),
-            self.dynamic_profile_const_cutoff.hist_y,
+            copy_to_cpu(self.dynamic_profile_const_cutoff.hist_y),
         )
 
 
