@@ -10,6 +10,7 @@ from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 
 class TestFunctions(unittest.TestCase):
+    @pytest.mark.cupy
     @pytest.mark.backend_mutation
     def test_allow_plotting(self) -> None:
         try:
@@ -39,6 +40,7 @@ class TestFunctions(unittest.TestCase):
         backend.change_backend(backend_org)
         plt.close()
 
+    @pytest.mark.cupy
     def test_is_cupy_array(self):
         try:
             import cupy as cp  # type: ignore

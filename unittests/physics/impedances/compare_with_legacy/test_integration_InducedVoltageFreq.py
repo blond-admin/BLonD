@@ -2,6 +2,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from blond import (
     Beam,
@@ -323,6 +324,7 @@ class TestBothBlonds(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()
 
+    @pytest.mark.backend_mutation
     def test___init__(self):
         np.testing.assert_allclose(
             self.blond3.blond2.induced_voltage,
@@ -336,6 +338,7 @@ class TestBothBlonds(unittest.TestCase):
                     ax.legend()
             plt.show()
 
+    @pytest.mark.backend_mutation
     def test___init__(self):
         for ind_ind in range(len(self.blond3.blond2.induced_voltage)):
             np.testing.assert_allclose(
