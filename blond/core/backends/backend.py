@@ -288,6 +288,17 @@ class BackendBaseClass(ABC):
         self.arange: Callable = None  # type: ignore
         self.average: Callable = None  # type: ignore
         self.fftconvolve: Callable = None  # type: ignore
+        self.sign: Callable = None  # type: ignore
+        self.sin: Callable = None  # type: ignore
+        self.cos: Callable = None  # type: ignore
+        self.exp: Callable = None  # type: ignore
+        self.max: Callable = None  # type: ignore
+        self.any: Callable = None  # type: ignore
+        self.abs: Callable = None  # type: ignore
+        self.convolve: Callable = None  # type: ignore
+        self.copy: Callable = None  # type: ignore
+        self.ones_like: Callable = None  # type: ignore
+        self.add: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -496,6 +507,17 @@ class NumpyBackend(BackendBaseClass):
         self.arange = np.arange
         self.average = np.average
         self.fftconvolve = fftconvolve
+        self.sign = np.sign
+        self.sin = np.sin
+        self.cos = np.cos
+        self.exp = np.exp
+        self.max = np.max
+        self.any = np.any
+        self.abs = np.abs
+        self.convolve = np.convolve
+        self.copy = np.copy
+        self.ones_like = np.ones_like
+        self.add = np.add
 
         self._finalize()
 
@@ -620,6 +642,17 @@ class CupyBackend(BackendBaseClass):
         self.arange = cp.arange
         self.average = cp.average
         self.fftconvolve = fftconvolve
+        self.sign = cp.sign
+        self.sin = cp.sin
+        self.cos = cp.cos
+        self.exp = cp.exp
+        self.max = cp.max
+        self.any = cp.any
+        self.abs = cp.abs
+        self.convolve = cp.convolve
+        self.copy = cp.copy
+        self.ones_like = cp.ones_like
+        self.add = cp.add
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
