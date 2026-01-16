@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from pstats import SortKey
 from typing import TYPE_CHECKING
@@ -49,7 +49,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import BiGaussian
+    from blond import Beam, BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
@@ -65,6 +65,7 @@ if TYPE_CHECKING:  # pragma: no cover
         XsuiteRFBucketMatcher,
     )
 
+    CallbackTypeHint = Callable[["Simulation", Beam], None]
 
 logger = logging.getLogger(__name__)
 
@@ -959,9 +960,7 @@ class Simulation(Preparable):
         n_turns: int | None = None,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callbacks: Iterable[Callable[[Simulation, BeamBaseClass], None]]
-        | Callable[[Simulation, BeamBaseClass], None]
-        | None = None,
+        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
     ) -> None:
         """
         Execute the main beam dynamics simulation loop.
@@ -1244,9 +1243,7 @@ class Simulation(Preparable):
         n_turns: int,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callbacks: Iterable[Callable[[Simulation, BeamBaseClass], None]]
-        | Callable[[Simulation, BeamBaseClass], None]
-        | None = None,
+        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam.
@@ -1306,24 +1303,30 @@ class Simulation(Preparable):
 
     def _sanitize_callbacks(
         self,
-        callbacks: Iterable[Callable[[Simulation, BeamBaseClass], None]]
-        | Callable[[Simulation, BeamBaseClass], None]
-        | None,
-    ) -> list[Callable[[Simulation, BeamBaseClass], None]]:
+        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None,
+    ) -> list[CallbackTypeHint]:
         if callbacks is None:
             callbacks = ()
-        elif isinstance(callbacks, Iterable):
+        elif isinstance(callbacks, Callable):
+            callbacks = (callbacks,)
+        elif isinstance(callbacks, Sequence):
             pass
         else:
-            callbacks = (callbacks,)
+            raise TypeError(
+                f"Unexpected callback type {type(callbacks)}, "
+                f"should be Iterable or Callable."
+            )
+
+        sanitised_callbacks = []
         for callback in callbacks:
             try:
                 # Test if `each_turn_i` exists as an attribute,
                 # property, or whatever
                 callback.each_turn_i  # NOQA duck-typing
-            except Exception:
+            except AttributeError:
                 callback.each_turn_i = 1  # each turn by default
-        return callbacks
+            sanitised_callbacks.append(callback)
+        return sanitised_callbacks
 
     def mainloop_counterrotating_beam(
         self,
@@ -1331,9 +1334,7 @@ class Simulation(Preparable):
         n_turns: int,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callbacks: Iterable[Callable[[Simulation, BeamBaseClass], None]]
-        | Callable[[Simulation, BeamBaseClass], None]
-        | None = None,
+        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
     ) -> None:
         """
         Execute the beam dynamics simulation for counter-rotating beams.
