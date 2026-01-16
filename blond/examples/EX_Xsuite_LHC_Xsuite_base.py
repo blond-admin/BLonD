@@ -9,17 +9,12 @@
 import numpy as np
 import xpart as xp
 import xtrack as xt
+from scipy.constants import c as c_light
 
-from blond import (
-    Beam,
-    SingleHarmonicRfStation,
-    proton,
-    Ring,
-    Simulation, MagneticCyclePerTurn
-)
-
+from blond import MagneticCyclePerTurn  # remove
+from blond import SingleHarmonicRfStation, proton
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
-    BLonDElement3,
+    BLonD3Cavity,
     EnergyUpdate,
     blond_to_xsuite_transform,
 )
@@ -36,10 +31,8 @@ def main():
     V = 5e6  # RF voltage [V]
 
     # Bunch parameters
-    N_m = 1  # Number of macroparticles [-]
-    N_p = 1.15e11  # Intensity
+    N_p = 1.15e11  # Intensity # where is this used in xtrack?
     blen = 1.25e-9  # Bunch length [s]
-    energy_err = 100e6  # Beamenergy error [eV/c]
 
     # Simulation parameters
     N_TURNS = 330
@@ -63,41 +56,51 @@ def main():
     # Create line
     line = xt.Line(elements=[matrix], element_names={"matrix"})
     line["matrix"].length = C
+    print("length", line.get_length())
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
 
     # Create necessary blond objects
     momentum = np.linspace(p_s, p_f, N_TURNS)
-    magnetic_cycle = MagneticCyclePerTurn(reference_particle=proton,value_init=momentum[0], values_after_turn=momentum[1:])
-    #ring = Ring(circumference=C)
-    #sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
+    omega_rf = 2 * np.pi * c_light * h * line.particle_ref.beta0 / C
 
-    """cavity1 = SingleHarmonicRfStation(voltage=V, harmonic=h, phi_rf=0, phi_s=0)
-    cavity1._turn_i = 0  # needed to initialise, bug?
+    # --- Convert the initial BLonD distribution to xsuite coordinates ---
+    zeta, ptau = blond_to_xsuite_transform(
+        dt=input_dt,
+        de=input_dE,
+        beta0=line.particle_ref.beta0[0],
+        energy0=line.particle_ref.energy0[0],
+        phi_s=0,
+        omega_rf=omega_rf,
+    )
 
-    energy0 = np.sqrt(p_s**2 + xp.PROTON_MASS_EV**2)
-    omega_rf = cavity1.calc_omega(
-        beam_beta=p_s / energy0, ring_circumference=C
-    )"""
+    # --- Track matrix ---
+    particles = line.build_particles(
+        x=0,
+        y=0,
+        px=0,
+        py=0,
+        zeta=np.copy(zeta),
+        ptau=np.copy(ptau),
+    )
 
-
+    # BLonD3 element ----------------------------------------------
     cavity1 = SingleHarmonicRfStation.headless(
-
+        section_index=1,
+        voltage=V,
+        harmonic=h,
+        phi_rf=0,
+        circumference=C,
+        total_energy=line.particle_ref.energy0,
     )
-
-
-
-    beam = Beam(intensity=N_p, particle_type=proton,)
-
-    beam.setup_beam(
-        dt=[input_dt],
-        dE=[input_dE],
-        reference_time=0,
-        reference_total_energy=line.particle_ref.energy0,
+    cavity = BLonD3Cavity(
+        cavity=cavity1,
+        update_zeta=True,
+        particles=particles,
+        line=line,
+        initial_intensity=N_p,
+        particle_type=proton,
     )
-
-    # BLonD3 element
-    cavity = BLonDElement3(trackable=cavity1, update_zeta=True, beam=beam)
 
     line.insert_element(
         index=0,
@@ -112,27 +115,8 @@ def main():
         index="matrix", element=energy_update, name="energy_update"
     )
 
-    # Add particles to line and build tracker
     line.build_tracker()
-
-    # Show table
     line.get_table().show()
-
-
-    # --- Convert the initial BLonD distribution to xsuite coordinates ---
-    zeta, ptau = blond_to_xsuite_transform(
-        dt = beam._dt,
-        de = beam._dE,
-        beta0=line.particle_ref.beta0[0],
-        energy0=line.particle_ref.energy0[0],
-        phi_s=0,
-        omega_rf=omega_rf,
-    )
-
-    # --- Track matrix ---
-    particles = line.build_particles(
-        x=0, y=0, px=0, py=0, zeta=np.copy(zeta), ptau=np.copy(ptau)
-    )
 
     line.track(
         particles,
@@ -140,6 +124,7 @@ def main():
         turn_by_turn_monitor=True,
         with_progress=True,
     )
+
 
 if __name__ == "__main__":  # pragma: no cover
     main()
