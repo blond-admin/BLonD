@@ -37,6 +37,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def hamilton_to_density_by_max(
+    time_grid: NumpyArray | CupyArray,
+    deltaE_grid: NumpyArray | CupyArray,
     hamilton_2D: NumpyArray | CupyArray,
     density_modifier: float,
     hamilton_max: float,
@@ -56,15 +58,17 @@ def hamilton_to_density_by_max(
 
     Parameters
     ----------
-    hamilton_2D : NumpyArray or CupyArray
+    deltaE_grid
+        The time coordinates corresponding to `hamilton_2D`, in [eV].
+    time_grid
+        The time coordinates corresponding to `hamilton_2D`, in [s].
+    hamilton_2D
         A 2D array representing the spatial Hamilton field.
-
-    density_modifier : float
+    density_modifier
         Exponent applied to the normalized and inverted Hamilton values
         to shape the final density distribution.
         Higher values exaggerate differences in density.
-
-    hamilton_max : float
+    hamilton_max
         The maximum reference value for normalizing the Hamilton.
         Values above this threshold are truncated.
 
@@ -74,6 +78,34 @@ def hamilton_to_density_by_max(
         A 2D array of the same shape as `hamilton_2D`, representing the
         computed density distribution. Values are scaled between 0 and 1.
 
+    Examples
+    --------
+    Defining
+    >>> import numpy as np
+    >>>
+    >>> def custom_density_function(
+    ...         time_grid, deltaE_grid, hamilton_2D, # required arguments
+    ...         custom_param, hamilton_max # your custom arguments
+    ...    ):
+    ...    '''Example custom density mapping with exponential falloff.'''
+    ...    normalized_H = hamilton_2D / hamilton_max
+    ...    normalized_H[normalized_H > 1] = 1
+    ...    density = np.exp(-custom_param * normalized_H)
+    ...    return density / density.max()  # Normalize to [0, 1]
+    >>>
+    >>> matcher = SemiEmpiricMatcher(
+    ...    time_limit=(-2e-9, 2e-9),
+    ...    n_macroparticles=100_000,
+    ...    hamilton_to_density_function=custom_density_function,
+    ...    hamilton_to_density_kwargs=dict(
+    ...        custom_param=5.0,
+    ...        hamilton_max=1.0
+    ...    ),
+    ...    internal_grid_shape=(1023, 1023),
+    ...    tolerance=1e-6,
+    ...    verbose=True,
+    ... )
+    >>> matcher.prepare_beam(...)
 
     """
     _density = hamilton_2D.copy()  # So the changes stay in this scope
@@ -209,6 +241,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
           Exponent that shapes the density distribution according to :math:`H^{\text{density_modifier}}`.
         - ``hamilton_max`` : float
           Maximum value of the Hamiltonian, in arbitrary units.
+          Tip: Set `animate=True` to see the internal state of the Hamilton values.
     hamilton_to_density_function : callable
         Function that converts the 2D Hamiltonian array into a density function.
         See also :func:`hamilton_to_density_by_max`.
@@ -468,7 +501,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
             shape=self.internal_grid_shape,
         )
         density = self.hamilton_to_density_function(
-            hamilton_2D=hamilton_2D, **self.hamilton_to_density_kwargs
+            time_grid=time_grid,
+            deltaE_grid=deltaE_grid,
+            hamilton_2D=hamilton_2D,
+            **self.hamilton_to_density_kwargs,
         )  # type: ignore
 
         populate_beam(
