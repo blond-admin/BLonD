@@ -13,6 +13,8 @@ Notes
 -----
 Authors:
 Birk Karlsen Baeck
+Simon Lauber
+Helga Timko
 Leonard Thiele
 """
 
