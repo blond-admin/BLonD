@@ -80,7 +80,8 @@ def hamilton_to_density_by_max(
 
     Examples
     --------
-    Defining
+    Defining a custom function to convert between hamilton and particle
+    density.
     >>> import numpy as np
     >>>
     >>> def custom_density_function(
