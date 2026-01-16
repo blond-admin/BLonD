@@ -137,7 +137,7 @@ def main():
     sim.run_simulation(
         beams=(beam1, beam2),
         n_turns=n_turns,
-        callbacks=my_callback,  # not supported yet.
+        callbacks=my_callback,
         observe=observables,
     )
 
