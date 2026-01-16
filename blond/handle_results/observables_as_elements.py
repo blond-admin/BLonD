@@ -16,8 +16,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
-
 from blond.core.base import BeamObservationElement
 from blond.core.beam.base import BeamBaseClass
 from blond.core.simulation.simulation import Simulation
