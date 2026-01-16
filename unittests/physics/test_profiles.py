@@ -164,22 +164,28 @@ class TestProfileBaseClass(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_singlebunch_gauss_fit_gpu(self):
         backend.change_backend(Cupy64Bit)
-        result = self.profile_base_class.singlebunch_gauss_fit()
+        profile_base_class = ProfileBaseClass()
+        profile_base_class._hist_x = backend.linspace(-5, 5, 11)
+        profile_base_class._hist_y = backend.linspace(5, 5, 11)
+        result = profile_base_class.singlebunch_gauss_fit()
         with AllowPlotting():
             expected = gauss_fit(
-                copy_to_cpu(self.profile_base_class.hist_x),
-                copy_to_cpu(self.profile_base_class.hist_y),
+                copy_to_cpu(profile_base_class.hist_x),
+                copy_to_cpu(profile_base_class.hist_y),
             )
         np.testing.assert_allclose(result, expected)
 
     @pytest.mark.backend_mutation
     def test_multibunch_gauss_fit_gpu(self):
         backend.change_backend(Cupy64Bit)
-        result = self.profile_base_class.multibunch_gauss_fit(n_bunches=1)
+        profile_base_class = ProfileBaseClass()
+        profile_base_class._hist_x = backend.linspace(-5, 5, 11)
+        profile_base_class._hist_y = backend.linspace(5, 5, 11)
+        result = profile_base_class.multibunch_gauss_fit(n_bunches=1)
         with AllowPlotting():
             expected = multi_gauss_fit(
-                copy_to_cpu(self.profile_base_class.hist_x),
-                copy_to_cpu(self.profile_base_class.hist_y),
+                copy_to_cpu(profile_base_class.hist_x),
+                copy_to_cpu(profile_base_class.hist_y),
                 n_bunches=1,
             )
         np.testing.assert_allclose(result[0, :], expected[0, :])
