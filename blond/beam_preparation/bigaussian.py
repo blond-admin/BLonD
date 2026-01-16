@@ -257,7 +257,7 @@ class BiGaussian(MatchingRoutine):
         self._sigma_dt = sigma_dt
         self._sigma_dE = sigma_dE
         self._reinsertion = reinsertion
-        self._seed: int | None = seed
+        self._seed = seed
 
     def prepare_beam(
         self,

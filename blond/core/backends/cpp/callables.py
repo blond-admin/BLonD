@@ -127,7 +127,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             _LIBBLOND = load_libblond(precision="double")
         else:
             raise TypeError(floattype)
-    except OSError as exc:
+    except (OSError, FileNotFoundError) as exc:
         raise OSError(
             "`load_libblond` failed. Has the backend been compiled?"
         ) from exc
