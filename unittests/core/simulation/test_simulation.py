@@ -11,15 +11,19 @@ import pytest
 
 from blond import (
     Beam,
+    Cupy32Bit,
     DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicRfStation,
+    backend,
     mu_plus,
     proton,
 )
+from blond.core.backends.backend import NumpyBackend
 from blond.core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -272,13 +276,13 @@ class TestSimulation(unittest.TestCase):
 
         np.testing.assert_allclose(
             potential_well_pinned,
-            potential_well,
+            copy_to_cpu(potential_well),
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
     def test_plot_potential_well_empiric(self):
         self.simulation.plot_potential_well_empiric(
-            dt=np.linspace(0, 1e-9),
+            dt=backend.linspace(0, 1e-9),
             particle_type=proton,
         )
 
@@ -403,8 +407,10 @@ class TestSimulation(unittest.TestCase):
             plt.legend()
             plt.show()
         np.testing.assert_allclose(
-            potential_well_analytic / potential_well_analytic.max() + 1,
-            potential_well / potential_well.max() + 1,
+            copy_to_cpu(
+                potential_well_analytic / potential_well_analytic.max() + 1
+            ),
+            copy_to_cpu(potential_well / potential_well.max() + 1),
             rtol=1e-4,
         )
 
@@ -436,8 +442,8 @@ class TestSimulation(unittest.TestCase):
             )
             potential_wells[particle_type] = potential_well
         np.testing.assert_allclose(
-            potential_wells[proton] + 1e6,
-            potential_wells[noton] / 2 + 1e6,
+            copy_to_cpu(potential_wells[proton]) + 1e6,
+            copy_to_cpu(potential_wells[noton]) / 2 + 1e6,
             rtol=1e-5,
         )
 
@@ -519,8 +525,10 @@ class TestSimulation(unittest.TestCase):
             plt.legend()
             plt.show()
         np.testing.assert_allclose(
-            potential_well_analytic / potential_well_analytic.max() + 1,
-            potential_well / potential_well.max() + 1,
+            copy_to_cpu(
+                potential_well_analytic / potential_well_analytic.max() + 1
+            ),
+            copy_to_cpu(potential_well / potential_well.max() + 1),
             rtol=1e-4,
         )
 
@@ -529,7 +537,7 @@ class TestSimulation(unittest.TestCase):
 
         sim = SimulationTwoRfStations()
         simulation = sim.simulation
-        de = np.linspace(-1e9, 1e9)
+        de = backend.linspace(-1e9, 1e9)
         beam = sim.beam1
         beam.reference.total_energy = 450e9
         drift_term = simulation.get_drift_term_empiric(
@@ -552,8 +560,8 @@ class TestSimulation(unittest.TestCase):
             plt.plot(drift_term_analytic, "--")
             plt.show()
         np.testing.assert_allclose(
-            drift_term_analytic + 1,
-            drift_term + 1,
+            copy_to_cpu(drift_term_analytic + 1),
+            copy_to_cpu(drift_term + 1),
             atol=0.15,
         )
 
@@ -570,6 +578,9 @@ class TestSimulation(unittest.TestCase):
     def test_finalize_warns(self) -> None:
         from blond import backend
 
+        if not isinstance(backend, NumpyBackend):
+            self.skipTest("Only on CPU")
+
         beam_mock.common_array_size = int(1e32)
         special_mode_org = backend.specials_mode
         backend.set_specials(mode="python")
@@ -580,6 +591,14 @@ class TestSimulation(unittest.TestCase):
                 observe=(),
             )
         backend.set_specials(mode=special_mode_org)
+
+    @pytest.mark.backend_mutation
+    def compare_cpu_gpu(self):
+        backend.change_backend(Cupy32Bit)
+        from blond.testing.simulation import SimulationTwoRfStationsWithWake
+
+        sim = SimulationTwoRfStationsWithWake()
+        sim.simulation.get_potential_well_empiric()
 
 
 if __name__ == "__main__":

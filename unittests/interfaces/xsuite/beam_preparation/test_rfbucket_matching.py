@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 from numpy import random
 
 from blond import DriftSimple, SingleHarmonicRfStation
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.simulation import ExampleSimulation01
 
@@ -67,8 +68,8 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
             plt.show()
 
         counts, _, _, image = plt.hist2d(
-            self.example.beam1._dt,
-            self.example.beam1._dE,
+            copy_to_cpu(self.example.beam1._dt),
+            copy_to_cpu(self.example.beam1._dE),
         )
 
         filepath = callers_relative_path(
@@ -95,8 +96,8 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
             plt.show()
 
         counts, _, _, image = plt.hist2d(
-            self.example.beam1._dt,
-            self.example.beam1._dE,
+            copy_to_cpu(self.example.beam1._dt),
+            copy_to_cpu(self.example.beam1._dE),
         )
 
         filepath = callers_relative_path(
@@ -124,8 +125,8 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
             plt.show()
 
         counts, _, _, image = plt.hist2d(
-            self.example.beam1._dt,
-            self.example.beam1._dE,
+            copy_to_cpu(self.example.beam1._dt),
+            copy_to_cpu(self.example.beam1._dE),
         )
 
         filepath = callers_relative_path(

@@ -12,6 +12,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
     get_hamilton_semi_analytic,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 
 class TestSemiEmpiricMatcher(unittest.TestCase):
@@ -81,7 +82,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
 
         sim = SimulationTwoRfStationsWithWake()
         self._test_matching(sim)
-        DEV_PLOT = False
+        DEV_PLOT = True
         if DEV_PLOT:
 
             def my_callback(simulation: Simulation, beam: Beam):
@@ -90,10 +91,15 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 plt.subplot(2, 1, 1)
                 plt.cla()
                 beam.plot_hist2d(range=((0.7e-9, 1.8e-9), (-3.5e8, 3.5e8)))
-                plt.axhline(beam._dE.mean())
-                plt.axvline(beam._dt.mean())
+                plt.axhline(float(beam._dE.mean()))
+                plt.axvline(float(beam._dt.mean()))
                 plt.subplot(2, 1, 2)
-                plt.hist(beam._dt, bins=256, histtype="step", density=True)
+                plt.hist(
+                    copy_to_cpu(beam._dt),
+                    bins=256,
+                    histtype="step",
+                    density=True,
+                )
                 plt.draw()
                 plt.draw()
                 plt.pause(0.1)
@@ -267,7 +273,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                     hamilton_max=100,
                     density_modifier=4,
                 ),
-                n_macroparticles=1e5,
+                n_macroparticles=1e6,
                 internal_grid_shape=(512 - 1, 512 - 1),
                 increment_intensity_effects_until_iteration_i=10,
                 maxiter_intensity_effects=1000,
