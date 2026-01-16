@@ -2,6 +2,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from blond import (
     Beam,
@@ -34,6 +35,7 @@ class TestResonatorImpedances(unittest.TestCase):
 
         backend.change_backend(Numpy32Bit)
 
+    @pytest.mark.backend_mutation
     def test_equal(self):
         voltages = {}
         for i, solver in enumerate(

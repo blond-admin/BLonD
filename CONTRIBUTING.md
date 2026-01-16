@@ -132,6 +132,17 @@ backend.set_specials(mode="cpp")  # Activate the C++ backend
 python3 -m pytest -v unittests/
 ```
 
+BLonD provides for marked tests with [PyTest](https://docs.pytest.org/en/stable/how-to/mark.html) via `@pytest.mark.xxx`.
+Following markers are used
+
+- 'backend_mutation'
+- 'cupy'
+
+Those tests can be excluded for running the tests with the `pytest -m` flag.
+```bash
+python3 -m pytest -m "not cupy and not backend_mutation"  -v unittests/
+```
+
 ---
 
 ## Linting & Code Formatting

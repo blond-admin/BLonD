@@ -1,5 +1,7 @@
 import unittest
 
+import pytest
+
 from blond.core.backends.backend import (
     Cupy32Bit,
     Cupy64Bit,
@@ -10,6 +12,7 @@ from blond.core.backends.backend import (
 
 
 class Test_main_user(unittest.TestCase):
+    @pytest.mark.backend_mutation
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
@@ -18,6 +21,7 @@ class Test_main_user(unittest.TestCase):
         # full script. just checking if it crashes
         main_user.main()
 
+    @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
@@ -26,6 +30,7 @@ class Test_main_user(unittest.TestCase):
         # full script. just checking if it crashes
         main_user.main()
 
+    @pytest.mark.backend_mutation
     def test_executable_cuda32(self):
         try:
             import cupy  # type: ignore
@@ -41,6 +46,7 @@ class Test_main_user(unittest.TestCase):
         main_user.main()
         backend.zeros(100)
 
+    @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
         try:
             import cupy  # type: ignore

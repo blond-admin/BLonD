@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from blond.generals.cupy.no_cupy_import import (
     _AsarrayOverrideManager,
@@ -13,6 +14,7 @@ class TestCallables(unittest.TestCase):
     def test_is_cupy_array_cpu(self):
         self.assertFalse(is_cupy_array(np.ones(10)))
 
+    @pytest.mark.cupy
     def test_is_cupy_array_gpu(self):
         try:
             import cupy as cp  # type: ignore
@@ -25,6 +27,7 @@ class TestCallables(unittest.TestCase):
         array2 = copy_to_cpu(array1)
         self.assertTrue(array1 is not array2)
 
+    @pytest.mark.cupy
     def test_copy_to_cpu2(self):
         try:
             import cupy as cp
@@ -39,6 +42,7 @@ class TestAsarrayOverrideManager(unittest.TestCase):
     def setUp(self):
         self.manger = _AsarrayOverrideManager()
 
+    @pytest.mark.cupy
     def test_asarray_override(self):
         try:
             import cupy as cp  # type: ignore
