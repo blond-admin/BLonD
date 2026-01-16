@@ -50,7 +50,6 @@ def main():
     N_p = 1.15e11  # Intensity
     blen = 1.25e-9  # Bunch length [s]
 
-
     # xsuite elements ------------------------------------------------
     matrix = xt.LineSegmentMap(
         longitudinal_mode="nonlinear",
