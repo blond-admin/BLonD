@@ -54,6 +54,8 @@ class DriftXsuite(DriftBaseClass):
         If None, the entire line will be tracked each call.
     section_index : int, optional
         Section index to group elements (passed to DriftBaseClass).
+    momentum_compaction_factor : float, optional
+        Momentum compaction factor.
     **kwargs : Any
         Additional keyword arguments passed to DriftBaseClass.
     """
@@ -122,7 +124,6 @@ class DriftXsuite(DriftBaseClass):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        # turn_i_init: int,
         **kwargs: Any,
     ) -> None:
         """
@@ -136,8 +137,6 @@ class DriftXsuite(DriftBaseClass):
             Beam being tracked.
         n_turns : int
             Number of turns to track.
-        turn_i_init : int
-            Initial turn index.
         **kwargs : Any
             Additional runtime arguments.
         """
@@ -271,6 +270,7 @@ class DriftXsuite(DriftBaseClass):
         return self._line_internal
 
     def compute_momentum_compaction(self):
+        """Compute the momentum compaction factor."""
         twiss = self._line_internal.twiss()
         momentum_compaction = twiss["momentum_compaction_factor"]
         print(momentum_compaction)
@@ -292,8 +292,6 @@ class EnergyUpdateXsuite(BeamPhysicsRelevant):
     ----------
     momentum : numpy-array
         Momentum program [eV/c] from BLonD.
-    xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
-        Class to update the momentum in xsuite.
     """
 
     def __init__(self, momentum: MagneticCycleBase):
