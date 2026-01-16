@@ -1546,14 +1546,16 @@ class Simulation(Preparable):
         """
         Calculate the revolution time of the current turn, in [s].
 
-        This method takes the reference frame of the beam
-        and tracks it along one turn.
+        This method takes the reference frame of the beam at the first element
+        and tracks it along one turn back to the first element,
+        considering acceleration in sections.
 
         Parameters
         ----------
         reference
             The reference frame to calculate the time of one revolution.
-            The reference energy, i.e. velocity, impacts the revolution time.
+            The reference energy, i.e. velocity, impacts the revolution time
+            and might change along the ring when multiple sections are used.
 
         Returns
         -------
