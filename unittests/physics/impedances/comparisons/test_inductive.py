@@ -2,6 +2,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 from scipy.constants import c, e, m_p
 
 from blond import (
@@ -36,6 +37,7 @@ class TestInductiveImpedances(unittest.TestCase):
 
         backend.change_backend(Numpy32Bit)
 
+    @pytest.mark.backend_mutation
     def test_equal(self):
         voltages = {}
         solver1 = PeriodicFreqSolver(

@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from blond import Beam, Simulation, proton
 from blond.core.beam.base import BeamBaseClass
@@ -149,6 +150,7 @@ class TestBeam(unittest.TestCase):
         self.beam.plot_hist()
         plt.gcf().clf()
 
+    @pytest.mark.cupy
     def test_plot_hist2d_executes_gpu(self) -> None:
         try:
             import cupy as cp  # type: ignore
@@ -174,6 +176,7 @@ class TestBeam(unittest.TestCase):
         Beam.plot_scatter(beam)
         plt.gcf().clf()
 
+    @pytest.mark.cupy
     def test_plot_scatter_executes_gpu(self) -> None:
         try:
             import cupy as cp  # type: ignore
@@ -192,6 +195,7 @@ class TestBeam(unittest.TestCase):
         with self.assertRaises(ValueError):
             Beam.plot_hist(beam, axis=1)
 
+    @pytest.mark.cupy
     def test_plot_hist_executes_gpu(self) -> None:
         try:
             import cupy as cp  # type: ignore

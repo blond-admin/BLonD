@@ -2,6 +2,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 from scipy.constants import c, e, m_p
 
 from blond import (
@@ -148,6 +149,7 @@ class TestBothBlonds(unittest.TestCase):
         if DEV_PLOT:
             plt.show()
 
+    @pytest.mark.backend_mutation
     def test_induced_voltage(self):
         np.testing.assert_allclose(
             self.blond3.blond2.induced_voltage + 1,
