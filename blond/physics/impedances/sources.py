@@ -49,7 +49,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
 
 
-def get_hash(array1d: NumpyArray) -> int:
+def get_hash(array1d: NumpyArray | CupyArray) -> int:
     """
     Compute a lightweight, approximate hash value for a 1D NumPy array.
 
@@ -131,10 +131,10 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
 
     def get_impedance(
         self,
-        freq_x: NumpyArray,
+        freq_x: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
-    ) -> NumpyArray:
+    ) -> NumpyArray | CupyArray:
         """
         Return the impedance in the frequency domain.
 
@@ -170,7 +170,9 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         derivative_kernel = self._get_derivative_impedance(freq_x)
         return derivative_kernel[:] / (2 * np.pi) * z_over_n * T
 
-    def _get_derivative_impedance(self, freq_x: NumpyArray) -> NumpyArray:
+    def _get_derivative_impedance(
+        self, freq_x: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
         """
         Get the equivalent of np.gradient(x) in frequency domain ifft(derivative*fft(x)).
 
@@ -189,7 +191,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         if hash_ == self._cache_derivative_hash:
             return self._cache_derivative
 
-        df = freq_x[1] - freq_x[0]  # frequency spacing
+        df = float(freq_x[1] - freq_x[0])  # frequency spacing
         n = 2 * (len(freq_x) - 1)  # original signal length (for irfft)
         dx = 1 / (n * df)
         h = dx
@@ -199,7 +201,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         ), "Contact dev"  # TODO remove after testing
         # central finite difference (f(x+h) - g(x-h)) / 2h
         # expressed in frequency domain
-        derivative = 1j * np.sin(k * h) / h
+        derivative = 1j * backend.sin(k * h) / h
 
         self._cache_derivative_hash = hash_
         self._cache_derivative = derivative
@@ -208,11 +210,11 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
 
     def get_wake_impedance(
         self,
-        time: NumpyArray,
+        time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
-    ) -> NumpyArray:
+    ) -> NumpyArray | CupyArray:
         """
         Get impedance equivalent to the partial wake in time domain.
 
@@ -237,9 +239,11 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         hash_ = get_hash(time)
         if hash_ == self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
-        freq = np.fft.rfftfreq(n_fft, d=time[1] - time[0])
+        freq = backend.fft.rfftfreq(n_fft, d=time[1] - time[0])
         wake_impedance = self.get_impedance(
-            freq_x=freq, simulation=simulation, beam=beam
+            freq_x=freq,
+            simulation=simulation,
+            beam=beam,
         ) / (time[1] - time[0])
         self._cache_wake_impedance_hash = hash_
         self._cache_wake_impedance = wake_impedance
@@ -396,7 +400,7 @@ class Resonators(
             return self._cache_wake_impedance
 
         wake = self.get_wake(time)
-        wake_impedance = np.fft.rfft(wake, n=n_fft)
+        wake_impedance = backend.fft.rfft(wake, n=n_fft)
 
         self._cache_wake_impedance_hash = hash_
         self._cache_wake_impedance = wake_impedance
@@ -404,7 +408,7 @@ class Resonators(
 
     def get_wake_impedance_counter_rotation(
         self,
-        time: NumpyArray,
+        time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
@@ -437,7 +441,7 @@ class Resonators(
             return self._cache_wake_impedance_counter_rotation
 
         wake_counter_rotation = self.get_wake_counter_rotation(time)
-        wake_impedance_counter_rotation = np.fft.rfft(
+        wake_impedance_counter_rotation = backend.fft.rfft(
             wake_counter_rotation, n=n_fft
         )
 
@@ -465,7 +469,7 @@ class Resonators(
             len(self._cache_wake_impedance), time[1] - time[0]
         )
 
-    def get_wake(self, time: NumpyArray) -> NumpyArray:
+    def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
         """
         Compute the wake function of all resonators in time domain for the given time and return the summed potential.
 
@@ -481,26 +485,38 @@ class Resonators(
         """
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
 
+        heavyside_like = (
+            backend.sign(time) + 1.0
+        )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
+
+        # protect against numerical noise, where a 0 might be expressed as -1.6155871338926322e-27
+        tol = 0.5 * backend.abs(
+            time[1] - time[0]
+        )  # half a timestep (physically meaningful)
+        bugfix = backend.abs(time) < tol
+
+        heavyside_like[bugfix] = 1
+
         for res_ind in range(self._n_resonators):
             wake += (
-                (
-                    np.sign(time) + 1
-                )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
+                (heavyside_like)
                 * (
                     self._shunt_impedances[res_ind]
                     * self._alpha[res_ind]
-                    * np.exp(-self._alpha[res_ind] * time)
+                    * backend.exp(-self._alpha[res_ind] * time)
                 )
                 * (
-                    np.cos(self._omega_bar[res_ind] * time)
+                    backend.cos(self._omega_bar[res_ind] * time)
                     - self._alpha[res_ind]
                     / self._omega_bar[res_ind]
-                    * np.sin(self._omega_bar[res_ind] * time)
+                    * backend.sin(self._omega_bar[res_ind] * time)
                 )
             )
         return wake
 
-    def get_wake_counter_rotation(self, time: NumpyArray) -> NumpyArray:
+    def get_wake_counter_rotation(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
         """
         Compute the wake function of all resonators in time domain for the given time and return the summed potential.
 
@@ -520,28 +536,37 @@ class Resonators(
             )
 
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
+        heavyside_like = (
+            backend.sign(time) + 1.0
+        )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
+        tol = 0.5 * backend.abs(
+            time[1] - time[0]
+        )  # half a timestep (physically meaningful)
+        bugfix = backend.abs(time) < tol
+        heavyside_like[bugfix] = 1
+
         for res_ind in range(self._n_resonators):
             wake += (
                 (
-                    np.sign(time) + 1
+                    heavyside_like
                 )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
                 * (
                     self._shunt_impedances_counter_rotating[res_ind]
                     * self._alpha[res_ind]
-                    * np.exp(-self._alpha[res_ind] * time)
+                    * backend.exp(-self._alpha[res_ind] * time)
                 )
                 * (
-                    np.cos(self._omega_bar[res_ind] * time)
+                    backend.cos(self._omega_bar[res_ind] * time)
                     - self._alpha[res_ind]
                     / self._omega_bar[res_ind]
-                    * np.sin(self._omega_bar[res_ind] * time)
+                    * backend.sin(self._omega_bar[res_ind] * time)
                 )
             )
         return wake
 
     def calculate_envelope(
-        self, time_axis: NumpyArray | None = None
-    ) -> tuple[NumpyArray, NumpyArray]:
+        self, time_axis: NumpyArray | CupyArray | None = None
+    ) -> tuple[NumpyArray, NumpyArray] | tuple[CupyArray, CupyArray]:
         """
         Calculate the normalized envelope of all resonators.
 
@@ -558,29 +583,29 @@ class Resonators(
             Normalized envelope values.
         """
         if time_axis is None:
-            time_axis = np.linspace(
+            time_axis = backend.linspace(
                 0, np.max(self._quality_factors / self._omega) * 20, 100000
             )
             # Should be sufficient, as the time between turns is
             # usually larger than the required time stepping in here, only gets called on init
-        envelope = np.zeros_like(time_axis)
+        envelope = backend.zeros_like(time_axis)
         for res_ind in range(len(self._quality_factors)):
             envelope += (
                 self._shunt_impedances[res_ind]
                 * self._alpha[res_ind]
-                * np.exp(-time_axis * self._alpha[res_ind])
+                * backend.exp(-time_axis * self._alpha[res_ind])
             )
-        envelope /= np.max(envelope)
+        envelope /= backend.max(envelope)
 
         return time_axis, envelope
 
     def get_impedance(
         self,
-        freq_x: NumpyArray,
+        freq_x: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
         counter_rotation: bool = False,
-    ) -> NumpyArray:
+    ) -> NumpyArray | CupyArray:
         """
         Return the analytically calculated impedance in the frequency domain.
 
@@ -606,7 +631,7 @@ class Resonators(
         if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
 
-        impedance = np.zeros(len(freq_x), dtype=complex)
+        impedance = backend.zeros(len(freq_x), dtype=complex)
         n_centers = len(self._center_frequencies)
 
         shunt_impedance = (
@@ -675,15 +700,15 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
     ):
         super().__init__(is_dynamic=False)
 
-        self._freq_x = freq_x
-        self._freq_y = freq_y
+        self._freq_x = backend.array(freq_x)
+        self._freq_y = backend.array(freq_y)
 
         self._cache_impedance = None
         self._cache_impedance_hash: int | None = None
 
     def get_impedance(
         self,
-        freq_x: NumpyArray,
+        freq_x: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> NumpyArray:
@@ -708,7 +733,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         hash_ = get_hash(freq_x)
         if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
-        impedance = np.interp(
+        impedance = backend.interp(
             freq_x, self._freq_x, self._freq_y, left=0, right=0
         ).astype(backend.complex)
 
@@ -760,8 +785,8 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         wake_y: NumpyArray,
     ):
         super().__init__(is_dynamic=False)
-        self._wake_x = wake_x
-        self._wake_y = wake_y
+        self._wake_x = backend.array(wake_x)
+        self._wake_y = backend.array(wake_y)
 
         self._cache_wake_impedance = None
         self._cache_wake_impedance_hash: int | None = None
@@ -790,7 +815,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 
     def get_wake_impedance(
         self,
-        time: NumpyArray,
+        time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
@@ -827,8 +852,8 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
                 "Interpolation of wake outside boundaries",
                 stacklevel=1,
             )
-        wake = np.interp(time, self._wake_x, self._wake_y)
-        wake_impedance = np.fft.rfft(wake, n=n_fft)
+        wake = backend.interp(time, self._wake_x, self._wake_y)
+        wake_impedance = backend.fft.rfft(wake, n=n_fft)
         self._cache_wake_impedance_hash = hash_
         self._cache_wake_impedance = wake_impedance
         return wake_impedance
@@ -918,7 +943,9 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         # Damping time a in s
         self.a_factor = np.array(a_factor, dtype=float).flatten()
 
-    def wake_calc(self, time: NumpyArray) -> NumpyArray:
+    def wake_calc(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
         r"""
         Wake calculation method as a function of time.
 
@@ -932,18 +959,18 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         wake
             Wake potential array.
         """
-        wake = np.zeros(time.shape, dtype=backend.float, order="C")
+        wake = backend.zeros(time.shape, dtype=backend.float, order="C")
 
         for i in range(0, len(self.R_S)):
             a_tilde = self.a_factor[i] / (2 * np.pi)
             indexes = time <= a_tilde
             wake[indexes] += (
-                (np.sign(time[indexes]) + 1)
+                (backend.sign(time[indexes]) + 1)
                 * 2
                 * self.R_S[i]
                 / a_tilde
                 * (1 - time[indexes] / a_tilde)
-                * np.cos(2 * np.pi * self.frequency_R[i] * time[indexes])
+                * backend.cos(2 * np.pi * self.frequency_R[i] * time[indexes])
             )
         return wake
 
@@ -974,15 +1001,15 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
             Wake impedance in frequency domain.
         """
         wake = self.wake_calc(time=time)
-        wake_impedance = np.fft.rfft(wake, n=n_fft)
+        wake_impedance = backend.fft.rfft(wake, n=n_fft)
         return wake_impedance
 
     def get_impedance(
         self,
-        freq_x: NumpyArray,
+        freq_x: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
-    ) -> NumpyArray:
+    ) -> NumpyArray | CupyArray:
         """
         Return the impedance in the frequency domain.
 
@@ -1000,20 +1027,24 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         impedance
             Complex impedance array.
         """
-        impedance = np.zeros(len(freq_x), dtype=backend.complex, order="C")
+        impedance = backend.zeros(
+            len(freq_x), dtype=backend.complex, order="C"
+        )
 
         for i in range(0, len(self.R_S)):
             xs_plus = self.a_factor[i] * (freq_x - self.frequency_R[i])
             xs_minus = self.a_factor[i] * (freq_x + self.frequency_R[i])
 
             Zplus = self.R_S[i] * (
-                (np.sin(xs_plus / 2) / xs_plus / 2) ** 2
-                - 2j * (xs_plus - np.sin(xs_plus)) / (xs_plus * xs_plus)
+                (backend.sin(xs_plus / 2) / xs_plus / 2) ** 2
+                - 2j * (xs_plus - backend.sin(xs_plus)) / (xs_plus * xs_plus)
             )
 
             Zminus = self.R_S[i] * (
-                (np.sin(xs_minus / 2) / xs_minus / 2) ** 2
-                - 2j * (xs_minus - np.sin(xs_minus)) / (xs_minus * xs_minus)
+                (backend.sin(xs_minus / 2) / xs_minus / 2) ** 2
+                - 2j
+                * (xs_minus - backend.sin(xs_minus))
+                / (xs_minus * xs_minus)
             )
 
             impedance += Zplus + Zminus

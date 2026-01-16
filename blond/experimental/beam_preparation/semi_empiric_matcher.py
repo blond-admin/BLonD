@@ -18,7 +18,7 @@ from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.helpers import populate_beam
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
@@ -159,7 +159,7 @@ def get_hamilton_semi_analytic(
 
     # Auto-estimate ΔE range if not provided
     if energy_range is None:
-        dE_max = backend.sqrt(
+        dE_max = np.sqrt(
             (potential_well.max() - potential_well.min())
             / (0.5 * abs(drift_term))
         )
@@ -172,17 +172,17 @@ def get_hamilton_semi_analytic(
     )
 
     # Uniformly sample energy differences ΔE
-    _dE_base = backend.linspace(
+    _dE_base = np.linspace(
         _energy_range[0], _energy_range[1], shape[1]
     )  # [eV]
 
     # Create 2D meshgrid: time_grid is time [s], deltaE_grid is ΔE [eV]
-    time_grid, deltaE_grid = backend.meshgrid(ts, _dE_base, indexing="ij")
+    time_grid, deltaE_grid = np.meshgrid(ts, _dE_base, indexing="ij")
     # Expand potential V(t) to 2D grid
     V = potential_well[:, None]  # [V]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
-    hamilton_2D = 0.5 * drift_term * backend.square(deltaE_grid) + V  # [eV]
+    hamilton_2D = 0.5 * drift_term * np.square(deltaE_grid) + V  # [eV]
 
     return deltaE_grid, time_grid, hamilton_2D
 

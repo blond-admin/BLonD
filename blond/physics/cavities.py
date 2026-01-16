@@ -1017,9 +1017,15 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
         self.main_harmonic_idx = main_harmonic_idx
 
-        self.voltage: NumpyArray | None = voltage
-        self.phi_rf: NumpyArray | None = phi_rf
-        self.harmonic: NumpyArray | None = harmonic
+        self.voltage: NumpyArray | None = (
+            backend.array(voltage) if (voltage is not None) else None
+        )
+        self.phi_rf: NumpyArray | None = (
+            backend.array(phi_rf) if (phi_rf is not None) else None
+        )
+        self.harmonic: NumpyArray | None = (
+            backend.array(harmonic) if (harmonic is not None) else None
+        )
 
         for array_name, input_array in (
             ("voltage", voltage),
@@ -1346,7 +1352,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
                 dt=beam.read_partial_dt(),
                 dE=beam.write_partial_dE(),
                 voltage=self.voltage.astype(backend.float),
-                phi_rf=(self.phi_rf + self.delta_phi_rf).astype(backend.float),
+                phi_rf=backend.array(
+                    self.phi_rf + self.delta_phi_rf, dtype=backend.float
+                ),
                 omega_rf=(self._omega_rf + self.delta_omega_rf).astype(
                     backend.float
                 ),

@@ -42,6 +42,7 @@ from blond.core.helpers import (
 )
 from blond.core.ring.helpers import get_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import NotTestedWarning, PerformanceWarning
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -337,7 +338,7 @@ class Simulation(Preparable):
             particle_type=particle_type,
             subtract_min=subtract_min,
         )
-        plt.plot(dt, potential_well, **kwargs_plot)
+        plt.plot(copy_to_cpu(dt), copy_to_cpu(potential_well), **kwargs_plot)
         plt.xlabel("Time (s)")
         plt.ylabel("Amplitude (arb. unit)")
 
@@ -421,7 +422,13 @@ class Simulation(Preparable):
         t1 = probe_bunch.reference.time
         T = t1 - t0
         potential_well = (
-            cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
+            # `copy_to_cpu` because `cumulative_simpson` does not have a
+            # cupy implementation for now.
+            cumulative_simpson(
+                copy_to_cpu(probe_bunch.read_partial_dt()),
+                x=copy_to_cpu(dE),
+                initial=0,
+            )
             / T
         )
         potential_well -= potential_well.min()

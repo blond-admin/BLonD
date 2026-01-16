@@ -416,7 +416,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
         no_array_buffer = n_fft not in self._beam_spectrum_buffer
         if no_array_buffer:
-            self._beam_spectrum_buffer[n_fft] = np.fft.rfft(
+            self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
                 self._hist_y,  # type: ignore
                 n_fft,
             )
