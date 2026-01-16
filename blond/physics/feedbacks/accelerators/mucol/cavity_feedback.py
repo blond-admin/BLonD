@@ -351,8 +351,25 @@ class PassiveCavity(IQCavityFeedback):
                 self.time_coarse_grid,
                 self.generator_current_coarse_grid,
             )
+
+            # Find initial value of antenna voltage and generator current
+            t_at_init = self.profile.hist_x[0] - self.profile.hist_step
+            initial_voltage_fine_grid = interp1d(
+                self.time_coarse_grid,
+                self.antenna_voltage_coarse_grid,
+            )(t_at_init)
+            initial_voltage_gradient_fine_grid = interp1d(
+                self.time_coarse_grid,
+                np.append(np.diff(self.antenna_voltage_coarse_grid), 0)
+                / self.sampling_time_coarse,
+            )(t_at_init)
+
             # Compute antenna voltage on the fine-grid
-            self.cavity_response_fine()
+            self.cavity_response_fine(
+                initial_voltage_fine_grid,
+                initial_voltage_gradient_fine_grid,
+                self.generator_current_fine_grid[0],
+            )
 
     def runge_kutta_tryout_2nd_order(
         self,
@@ -412,36 +429,19 @@ class PassiveCavity(IQCavityFeedback):
 
         return sol["t"], sol["y"][0]
 
-    def cavity_response_fine(self):
+    def cavity_response_fine(
+        self,
+        initial_voltage_fine_grid: float,
+        initial_voltage_gradient_fine_grid: float,
+        initial_generator_current_fine_grid: float,
+    ):
         r"""ACS cavity response model in matrix form on the fine-grid."""
-        # TODO: reenable interpolation
-        # Find initial value of antenna voltage and generator current
-        # t_at_init = self.profile.hist_x[0] - self.profile.hist_step
-        # V_A_init = interp1d(
-        #     np.concatenate(
-        #         (self.time_coarse_grid - self.sampling_time_coarse * self.n_samples_coarse, self.time_coarse_grid)
-        #     ),
-        #     self.antenna_voltage_coarse_grid,
-        # )(t_at_init)
-        # dV_A_init = interp1d(
-        #     np.concatenate(
-        #         (self.time_coarse_grid - self.sampling_time_coarse * self.n_samples_coarse, self.time_coarse_grid)
-        #     ),
-        #     np.append(np.diff(self.antenna_voltage_coarse_grid), 0) / self.sampling_time_coarse,
-        # )(t_at_init)
-        V_A_init = self.antenna_voltage_coarse_grid[-1]
-        dV_A_init = (
-            self.antenna_voltage_coarse_grid[-2]
-            - self.antenna_voltage_coarse_grid[-1]
-        ) / self.sampling_time_coarse
-        # print(dV_A_init)
-        # dV_A_init = 0 + 0j
         if self.fine_RK:
             _, self.antenna_voltage_fine_grid = (
                 self.runge_kutta_tryout_2nd_order(
-                    dV_ant_init=dV_A_init,
+                    dV_ant_init=initial_voltage_fine_grid,
                     delta_omega=self.omega_detuning,
-                    V_init=V_A_init,
+                    V_init=initial_voltage_gradient_fine_grid,
                     bin_centers=self.profile.hist_x,
                     min_val=True,
                     omega=self.omega_center,
@@ -455,7 +455,7 @@ class PassiveCavity(IQCavityFeedback):
             self.antenna_voltage_fine_grid = cavity_response_sparse_matrix(
                 I_beam=self.beam_current_fine_grid,
                 I_gen=self.generator_current_fine_grid,
-                V_ant_init=V_A_init,
+                V_ant_init=initial_voltage_fine_grid,
                 samples_per_rf=samples_per_rf_fine_grid,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
