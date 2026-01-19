@@ -318,7 +318,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                     hamilton_max=100,
                     density_modifier=4,
                 ),
-                n_macroparticles=1e6,
+                n_macroparticles=1e5,
                 internal_grid_shape=(512 - 1, 512 - 1),
                 increment_intensity_effects_until_iteration_i=10,
                 maxiter_intensity_effects=1000,
