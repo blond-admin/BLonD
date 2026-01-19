@@ -1,3 +1,4 @@
+import copy
 import unittest
 
 import numpy as np
@@ -28,13 +29,16 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 1.71368060083e-11,
             ]
         )
-        SR_ring = Ring(
+        self.SR_ring = Ring(
             10.0, radiation_integrals=self.synchrotron_radiation_integrals
         )
-        self.ring = SR_ring
+        self.ring = copy.deepcopy(self.SR_ring)
 
     def test_inputs(self):
         self.SRHandler = SynchrotronRadiationMaster(
             radiation_integrals=self.synchrotron_radiation_integrals,
         )
-        # self.ring.insert_element(self.SRHandler, insert_at=0)
+
+        self.SRHandler.generate_synchrotron_radiation_subclasses(
+            ring=self.ring,
+        )
