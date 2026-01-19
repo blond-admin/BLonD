@@ -1,0 +1,98 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""Helper functions to work with MPI."""
+
+from __future__ import annotations
+
+import warnings
+from typing import TYPE_CHECKING
+
+import numpy as np
+
+if TYPE_CHECKING:  # pragma: no cover
+    from numpy.random import Generator as NumpyGenerator
+try:
+    from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
+
+    MPI_RANK = MPI_COMM_WORLD.Get_rank()
+    MPI_SIZE = MPI_COMM_WORLD.Get_size()
+except Exception as exc:
+    warnings.warn(str(exc), ImportWarning, stacklevel=1)
+    MPI_RANK = 0
+    MPI_SIZE = 1
+
+
+def mpi_local_size(global_size: int, warning_hint: str) -> int:
+    """
+    Cast the global size to an MPI-aware local size.
+
+    Parameters
+    ----------
+    global_size
+        Integer that defines the global size,
+        e.g. the global number of macro-particles.
+    warning_hint
+        The variable name that is displayed in a warning,
+        if `global_n` is truncated.
+
+    Returns
+    -------
+    local_n
+        The local array size to get the global array size.
+    """
+    local_n_ = int(global_size // MPI_SIZE)  # might lose the decimal places
+    global_size_effective = local_n_ * MPI_SIZE
+    if global_size_effective != global_size:  # if decimal places are lost
+        warnings.warn(
+            f"Because MPI is used, `{warning_hint}` is truncated"
+            f" from {global_size} to {global_size_effective}.",
+            UserWarning,
+            stacklevel=1,
+        )
+    return local_n_
+
+
+def mpi_aware_random_generator_cpu(
+    seed: int | None, n_forward_per_rank: int
+) -> NumpyGenerator:
+    """
+    Get a random generator compatible with MPI.
+
+    Parameters
+    ----------
+    seed
+        Random seed.
+    n_forward_per_rank
+        Considers that the other MPI-ranks also generate n samples.
+
+    Returns
+    -------
+    random_generator_cpu
+        The random generator.
+
+    Notes
+    -----
+    As the Cupy random generators behave differently than the Numpy random
+    generators, this routine returns only the CPU generators for consistency.
+    The GPU interaction must be handled explicitly outside this function.
+    """
+    # Generate coordinates. For reproducibility,
+    # a separate random number stream is used for dt and dE
+
+    # All ranks have the same random generator.
+    random_generator_cpu = np.random.default_rng(seed)
+
+    # Consider the fact that the other ranks also produce particles.
+    random_generator_cpu.bit_generator.advance(MPI_RANK * n_forward_per_rank)
+
+    # Cupy doesn't implement the `advance` function (2025)
+    # When Cupy provides for the same random generators & `advance`,
+    # this function could be extended to GPU.
+
+    return random_generator_cpu

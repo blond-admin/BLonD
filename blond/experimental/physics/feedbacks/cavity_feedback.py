@@ -15,12 +15,12 @@ import numpy as np
 
 from blond import StaticProfile
 from blond.core.helpers import int_from_float_with_warning
-from blond.experimental.physics.feedbacks.base import LocalFeedback
 from blond.experimental.physics.feedbacks.helpers import (
     cartesian_to_polar,
     polar_to_cartesian,
     rf_beam_current,
 )
+from blond.physics.feedbacks.base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -145,7 +145,6 @@ class BirksCavityFeedback(LocalFeedback):
         assert isinstance(profile, StaticProfile)
         super().__init__(
             profile=profile,
-            section_index=section_index,
             name=name,
         )
         self.set_parent_rf_station(rf_station=_parent_rf_station)
