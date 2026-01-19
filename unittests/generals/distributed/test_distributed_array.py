@@ -113,6 +113,9 @@ class TestDistributedArray(unittest.TestCase):
 class TestDistributedArrayNoMPI(unittest.TestCase):
     def test_no_mpi(self):
         with patch.dict(sys.modules, {"mpi4py": None}):
+            sys.modules.pop(
+                "blond.generals.distributed.distributed_array", None
+            )
             from blond.generals.distributed.distributed_array import (
                 DistributedArray,
             )
@@ -123,3 +126,7 @@ class TestDistributedArrayNoMPI(unittest.TestCase):
             self.assertFalse(distributed_array.is_distributed)
             self.assertEqual(distributed_array.rank, 0)
             self.assertEqual(distributed_array.size, 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
