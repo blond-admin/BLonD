@@ -179,10 +179,33 @@ class TestSimulation(unittest.TestCase):
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
-            callback=mock_func,
+            callbacks=mock_func,
         )
         observe.update.assert_called()
         mock_func.assert_called()
+
+    def test__run_simulation_single_beam_many_callbacks(self):
+        observe = Mock(spec=ObservablesOncePerTurnBase)
+
+        def my_callback1(simulation: Simulation, beam: Beam) -> None:
+            return
+
+        def my_callback2(simulation: Simulation, beam: Beam) -> None:
+            return
+
+        mock_func1 = create_autospec(my_callback1, return_value=True)
+        mock_func2 = create_autospec(my_callback2, return_value=True)
+        self.simulation.turn_i.value = 0
+        self.simulation.mainloop_single_beam(
+            beam=self.beam,
+            n_turns=10,
+            observe=(observe,),
+            show_progressbar=True,
+            callbacks=(mock_func1, mock_func2),
+        )
+        observe.update.assert_called()
+        mock_func1.assert_called()
+        mock_func2.assert_called()
 
     def test_magnetic_cycle(self):
         self.assertNotEqual(None, self.simulation.magnetic_cycle)
@@ -351,7 +374,7 @@ class TestSimulation(unittest.TestCase):
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
-            callback=mock_func,
+            callbacks=mock_func,
             beams=(self.beam,),
         )
         mock_func.assert_called()
@@ -580,6 +603,30 @@ class TestSimulation(unittest.TestCase):
                 observe=(),
             )
         backend.set_specials(mode=special_mode_org)
+
+    def test__sanitize_callbacks(self):
+        from blond import Simulation
+        from blond.testing.mocks import simulation_mock
+
+        def callback(sim, beam):
+            return
+
+        cases = (
+            None,
+            callback,
+            (callback, callback),
+            [callback, callback],
+            [callback for i in range(2)],
+        )
+        for callbacks in cases:
+            Simulation._sanitize_callbacks(simulation_mock, callbacks)
+
+        with self.assertRaisesRegex(TypeError, "Unexpected callback type"):
+            Simulation._sanitize_callbacks(simulation_mock, 1.0)
+        with self.assertRaisesRegex(TypeError, "Unexpected callback type"):
+            Simulation._sanitize_callbacks(
+                simulation_mock, (callback for i in range(2))
+            )
 
     def test_current_t_rev(self):
         buffer = np.zeros(2)
