@@ -265,6 +265,7 @@ def cavity_response_sparse_matrix(
     I_beam: NumpyArray,
     I_gen: NumpyArray,
     V_ant_init: float,
+    I_gen_init: float,
     samples_per_rf: float,
     R_over_Q: float,
     Q_L: float,
@@ -275,7 +276,10 @@ def cavity_response_sparse_matrix(
 
     Solving the ACS cavity response model as a sparse matrix problem
     for a given set of initial conditions, resonator parameters and
-    generator and RF beam currents.
+    generator and RF beam currents. The input arrays are extended by
+    one entry (I_gen_init and V_ant_init respectively) to take
+    respect the fact that the first matrix entry is not part of the solution
+    domain.
 
     Parameters
     ----------
@@ -285,6 +289,8 @@ def cavity_response_sparse_matrix(
         Generator current.
     V_ant_init : complex float
         Initial condition for the antenna voltage.
+    I_gen_init : complex float
+        Initial condition for the generator current.
     samples_per_rf : float
         Number of samples per RF period == samping time * actual rf frequency.
     R_over_Q : float
@@ -303,7 +309,11 @@ def cavity_response_sparse_matrix(
         "length of beam and generator currents need to match"
     )
 
-    n_samples = len(I_beam)
+    # Extend arrays to take initial values into account
+    internal_I_gen = np.concatenate(([I_gen_init], I_gen))
+    internal_I_beam = np.concatenate(([0j], I_beam))
+
+    n_samples = len(internal_I_gen)
 
     # Compute matrix elements
     A = 0.5 * R_over_Q * samples_per_rf
@@ -324,8 +334,9 @@ def cavity_response_sparse_matrix(
     I_matrix = diags([A], [-1], (n_samples, n_samples), dtype=complex)
 
     # Find vector on the "current" side of the equation
-    b = I_matrix.dot(2 * I_gen - I_beam)
+    b = I_matrix.dot(2 * internal_I_gen - internal_I_beam)
     b[0] = V_ant_init
 
     # Solve the sparse linear system of equations and return
-    return spsolve(B_matrix, b)
+    return spsolve(B_matrix, b)[1:]
+    # first value is intial condition
