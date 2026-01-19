@@ -1314,7 +1314,7 @@ class Simulation(Preparable):
         else:
             raise TypeError(
                 f"Unexpected callback type {type(callbacks)}, "
-                f"should be Iterable or Callable."
+                f"should be `Sequence` or `Callable`."
             )
 
         sanitised_callbacks = []

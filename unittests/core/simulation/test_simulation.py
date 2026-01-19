@@ -602,6 +602,30 @@ class TestSimulation(unittest.TestCase):
             )
         backend.set_specials(mode=special_mode_org)
 
+    def test__sanitize_callbacks(self):
+        from blond import Simulation
+        from blond.testing.mocks import simulation_mock
+
+        def callback(sim, beam):
+            return
+
+        cases = (
+            None,
+            callback,
+            (callback, callback),
+            [callback, callback],
+            [callback for i in range(2)],
+        )
+        for callbacks in cases:
+            Simulation._sanitize_callbacks(simulation_mock, callbacks)
+
+        with self.assertRaisesRegex(TypeError, "Unexpected callback type"):
+            Simulation._sanitize_callbacks(simulation_mock, 1.0)
+        with self.assertRaisesRegex(TypeError, "Unexpected callback type"):
+            Simulation._sanitize_callbacks(
+                simulation_mock, (callback for i in range(2))
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
