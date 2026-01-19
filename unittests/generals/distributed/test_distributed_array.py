@@ -1,24 +1,27 @@
+import sys
 import unittest
+from unittest.mock import patch
 
 import numpy as np
-
-from blond import backend
-from blond.core.backends.mpi_distributed.callables import (
-    mpi_is_active,
-)
-from blond.generals.distributed.distributed_array import DistributedArray
-
-mpi_active = mpi_is_active()
-mpi_inactive = not mpi_active
 
 
 class TestDistributedArray(unittest.TestCase):
     def setUp(self):
+        from blond.generals.distributed.distributed_array import (
+            DistributedArray,
+        )
+
         rng = np.random.default_rng(0)
         self.array = rng.normal(loc=0, scale=1.0, size=128)
         self.distributed_array = DistributedArray(self.array.copy())
 
     def test_local_size(self):
+        from blond.core.backends.mpi_distributed.callables import (
+            mpi_is_active,
+        )
+
+        mpi_active = mpi_is_active()
+
         self.assertEqual(self.distributed_array.local_size, 128)
         if mpi_active:
             self.distributed_array.mpi_scatter()
@@ -35,6 +38,12 @@ class TestDistributedArray(unittest.TestCase):
             self.assertEqual(self.distributed_array.global_size, 128)
 
     def _call_test(self, func, func_name):
+        from blond.core.backends.mpi_distributed.callables import (
+            mpi_is_active,
+        )
+
+        mpi_active = mpi_is_active()
+
         expected = func(self.array)
         if mpi_active:
             self.distributed_array.mpi_scatter()
@@ -57,6 +66,12 @@ class TestDistributedArray(unittest.TestCase):
         self._call_test(np.sum, "sum")
 
     def test_histogram(self):
+        from blond.core.backends.mpi_distributed.callables import (
+            mpi_is_active,
+        )
+
+        mpi_active = mpi_is_active()
+
         expected, _ = np.histogram(self.array, bins=8)
         if mpi_active:
             self.distributed_array.mpi_scatter()
@@ -64,6 +79,13 @@ class TestDistributedArray(unittest.TestCase):
         np.testing.assert_allclose(expected, actual)
 
     def test_histogram_with_out(self):
+        from blond import backend
+        from blond.core.backends.mpi_distributed.callables import (
+            mpi_is_active,
+        )
+
+        mpi_active = mpi_is_active()
+
         expected, _ = np.histogram(self.array, bins=8)
         if mpi_active:
             self.distributed_array.mpi_scatter()
@@ -72,6 +94,12 @@ class TestDistributedArray(unittest.TestCase):
         np.testing.assert_allclose(expected, actual)
 
     def test_barrier(self):
+        from blond.core.backends.mpi_distributed.callables import (
+            mpi_is_active,
+        )
+
+        mpi_active = mpi_is_active()
+
         if mpi_active:
             self.distributed_array.array_local = (
                 self.distributed_array.array_local[:64]
@@ -80,3 +108,18 @@ class TestDistributedArray(unittest.TestCase):
             self.assertEqual(
                 self.distributed_array.global_size, 2 * 64
             )  # assumes `mpirun -n 2`
+
+
+class TestDistributedArrayNoMPI(unittest.TestCase):
+    def test_no_mpi(self):
+        with patch.dict(sys.modules, {"mpi4py": None}):
+            from blond.generals.distributed.distributed_array import (
+                DistributedArray,
+            )
+
+            rng = np.random.default_rng(0)
+            self.array = rng.normal(loc=0, scale=1.0, size=128)
+            distributed_array = DistributedArray(self.array.copy())
+            self.assertFalse(distributed_array.is_distributed)
+            self.assertEqual(distributed_array.rank, 0)
+            self.assertEqual(distributed_array.size, 1)
