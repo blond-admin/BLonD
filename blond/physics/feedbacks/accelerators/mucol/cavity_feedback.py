@@ -335,11 +335,13 @@ class PassiveCavity(IQCavityFeedback):
                 I_beam=self.beam_current_coarse_grid,
                 I_gen=self.generator_current_coarse_grid,
                 V_ant_init=self.antenna_voltage_coarse_grid[-1],
+                I_gen_init=self.generator_current_coarse_grid[-1],
+                # since this is constant it does not matter which one
                 samples_per_rf=samples_per_rf_coarse,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
                 relative_detuning=self.relative_detuning,
-            )[-self.n_samples_coarse :]  # TODO: is this correct?
+            )
         # np.savez("coarse_array_elements_2.npz", I_GEN_COARSE=self.generator_current_coarse_grid, I_BEAM_COARSE=self.I_BEAM_COARSE,
         #          samples_per_rf=self.samples, n_samples=self.n_samples_coarse,
         #          I_gen_init=self.generator_current_coarse_grid[-(1 + self.n_samples_coarse)], V_ant_init=self.antenna_voltage_coarse_grid[-(1 + self.n_samples_coarse)],
@@ -368,7 +370,7 @@ class PassiveCavity(IQCavityFeedback):
             self.cavity_response_fine(
                 initial_voltage_fine_grid,
                 initial_voltage_gradient_fine_grid,
-                self.generator_current_fine_grid[0],
+                self.generator_current_fine_grid[-1],
             )
 
     def runge_kutta_tryout_2nd_order(
@@ -435,7 +437,18 @@ class PassiveCavity(IQCavityFeedback):
         initial_voltage_gradient_fine_grid: float,
         initial_generator_current_fine_grid: float,
     ):
-        r"""ACS cavity response model in matrix form on the fine-grid."""
+        r"""
+        ACS cavity response model in matrix form on the fine-grid.
+
+        Parameters
+        ----------
+        initial_voltage_fine_grid : float
+            Initial condition of the voltage on the fine grid.
+        initial_voltage_gradient_fine_grid : float
+            Initial condition of the voltage gradient on the fine grid.
+        initial_generator_current_fine_grid : float
+            Initial condition of the generator current on the fine grid.
+        """
         if self.fine_RK:
             _, self.antenna_voltage_fine_grid = (
                 self.runge_kutta_tryout_2nd_order(
@@ -456,6 +469,7 @@ class PassiveCavity(IQCavityFeedback):
                 I_beam=self.beam_current_fine_grid,
                 I_gen=self.generator_current_fine_grid,
                 V_ant_init=initial_voltage_fine_grid,
+                I_gen_init=initial_generator_current_fine_grid,
                 samples_per_rf=samples_per_rf_fine_grid,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
