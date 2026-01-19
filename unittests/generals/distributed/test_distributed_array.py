@@ -113,6 +113,7 @@ class TestDistributedArray(unittest.TestCase):
 class TestDistributedArrayNoMPI(unittest.TestCase):
     def test_no_mpi(self):
         with patch.dict(sys.modules, {"mpi4py": None}):
+            # trigger new import
             sys.modules.pop(
                 "blond.generals.distributed.distributed_array", None
             )

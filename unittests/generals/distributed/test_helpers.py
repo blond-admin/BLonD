@@ -28,6 +28,7 @@ class TestCallablesWithMPI(unittest.TestCase):
 class TestCallablesNoMPI(unittest.TestCase):
     def test_mpi_local_size(self):
         with patch.dict(sys.modules, {"mpi4py": None}):
+            # trigger new import
             sys.modules.pop("blond.generals.distributed.helpers", None)
             from blond.generals.distributed.helpers import mpi_local_size
 
