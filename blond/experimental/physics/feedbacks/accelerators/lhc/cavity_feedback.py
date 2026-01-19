@@ -23,16 +23,16 @@ from blond.experimental.physics.feedbacks.accelerators.lhc.helpers import (
     fir_filter_lhc_otfb_coeff,
     smooth_step,
 )
-from blond.experimental.physics.feedbacks.base import (
-    GlobalFeedback,
-    LocalFeedback,
-)
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     BirksCavityFeedback,
 )
 from blond.physics.cavities import (
     MultiHarmonicRfStation,
     SingleHarmonicRfStation,
+)
+from blond.physics.feedbacks.base import (
+    GlobalFeedback,
+    LocalFeedback,
 )
 from blond.physics.profiles import ProfileBaseClass
 

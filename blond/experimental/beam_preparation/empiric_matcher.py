@@ -308,7 +308,7 @@ class EmpiricMatcher(MatchingRoutine):
             n_turns=1,
             observe=tuple(),
             show_progressbar=False,
-            callback=None,
+            callbacks=None,
         )
         hamilton_2D = calc_hamiltonian(
             deltaE_grid,
@@ -342,7 +342,7 @@ class EmpiricMatcher(MatchingRoutine):
                 n_turns=1,
                 observe=tuple(),
                 show_progressbar=False,
-                callback=None,
+                callbacks=None,
             )
             # apply the same intensity effects of users_beam to beam_gridded
             simulation.intensity_effect_manager.set_profiles(active=False)
@@ -359,7 +359,7 @@ class EmpiricMatcher(MatchingRoutine):
                 n_turns=1,
                 observe=tuple(),
                 show_progressbar=False,
-                callback=None,
+                callbacks=None,
             )
             hamilton_2D = calc_hamiltonian(
                 deltaE_grid,

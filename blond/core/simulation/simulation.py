@@ -49,7 +49,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import BiGaussian
+    from blond import Beam, BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
@@ -65,6 +65,7 @@ if TYPE_CHECKING:  # pragma: no cover
         XsuiteRFBucketMatcher,
     )
 
+    CallbackTypeHint = Callable[["Simulation", Beam], None]
 
 logger = logging.getLogger(__name__)
 
@@ -255,7 +256,7 @@ class Simulation(Preparable):
             beams=beams,
             n_turns=end_turn,
             show_progressbar=False,
-            callback=start_profiling,
+            callbacks=start_profiling,
         )
 
         pr.disable()
@@ -963,8 +964,7 @@ class Simulation(Preparable):
         n_turns: int | None = None,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
-        callback_each_turn: int = 1,
+        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
     ) -> None:
         """
         Execute the main beam dynamics simulation loop.
@@ -998,13 +998,19 @@ class Simulation(Preparable):
         show_progressbar
             If True, displays a progress bar showing simulation progress and turn rate.
             Useful for long simulations. Default is True.
-        callback
-            Optional user-defined function called at the end of each turn. Signature
-            must be ``def callback(simulation: Simulation, beam: BeamBaseClass): ...``.
+        callbacks
+            Optional user-defined functions `[callback_1, callback_2, ...]`.
+            called at the end of each turn.
             Useful for custom data collection or live plotting. Default is None.
-        callback_each_turn
-            Specifies the the repitition rate at which `callback` is called.
-            Deafault is 1, each turn.
+
+            The callback can be defined as follows.
+            The rate at with which this function is
+            called can be set by `each_turn_i`.
+            >>> from blond import Beam, Simulation
+            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
+            >>>     ...
+            >>> my_callback.each_turn_i = 2
+            .
 
         Raises
         ------
@@ -1062,16 +1068,17 @@ class Simulation(Preparable):
         Simulation with custom callback for live plotting:
 
         >>> import matplotlib.pyplot as plt
+        >>>
         >>> def plot_beam(simulation, beam):
-        ...     if simulation.turn_i.value % 100 == 0:  # Every 100 turns
-        ...         plt.clf()
-        ...         plt.scatter(beam.read_partial_dt(), beam.read_partial_dE())
-        ...         plt.pause(0.01)
+        ...     plt.clf()
+        ...     plt.scatter(beam.read_partial_dt(), beam.read_partial_dE())
+        ...     plt.pause(0.01)
+        >>> plot_beam.each_turn_i = 100
         >>>
         >>> sim.run_simulation(
         ...     beams=(beam1,),
         ...     n_turns=1000,
-        ...     callback=plot_beam,
+        ...     callbacks=plot_beam,
         ... )
 
         Continue a simulation from turn 500:
@@ -1100,8 +1107,7 @@ class Simulation(Preparable):
                 n_turns=_n_turns,
                 observe=observe,
                 show_progressbar=show_progressbar,
-                callback=callback,
-                callback_each_turn=callback_each_turn,
+                callbacks=callbacks,
             )
         elif len(beams) == 2:  # NOQA: PLR2004
             assert (
@@ -1117,7 +1123,7 @@ class Simulation(Preparable):
                 n_turns=_n_turns,
                 observe=observe,
                 show_progressbar=show_progressbar,
-                callback=callback,
+                callbacks=callbacks,
                 beams=beams,  # type: ignore
             )
         else:
@@ -1241,8 +1247,7 @@ class Simulation(Preparable):
         n_turns: int,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
-        callback_each_turn: int = 1,
+        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam.
@@ -1259,12 +1264,19 @@ class Simulation(Preparable):
         show_progressbar
             If True, will show a progress bar indicating how many turns have
             been completed and other metrics.
-        callback
-            User defined function `def myfunction(simulation: Simulation): ...`
-            that is called each turn.
-        callback_each_turn
-            Specifies the the repitition rate at which `callback` is called.
-            Deafault is 1, each turn.
+        callbacks
+            Optional user-defined functions `[callback_1, callback_2, ...]`.
+            called at the end of each turn.
+            Useful for custom data collection or live plotting. Default is None.
+
+            The callback can be defined as follows.
+            The rate at with which this function is
+            called can be set by `each_turn_i`.
+            >>> from blond import Beam, Simulation
+            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
+            >>>     ...
+            >>> my_callback.each_turn_i = 2
+            .
 
         Notes
         -----
@@ -1272,6 +1284,8 @@ class Simulation(Preparable):
         before.
         """
         logger.info("Starting simulation mainloop...")
+        callbacks = self._sanitize_callbacks(callbacks)
+
         iterator = range(self.turn_i.value, self.turn_i.value + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
@@ -1287,8 +1301,36 @@ class Simulation(Preparable):
                     observable.update(
                         simulation=self,
                     )
-            if callback is not None and (turn_i % callback_each_turn) == 0:
-                callback(self, beam)
+            for callback in callbacks:
+                if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
+                    callback(self, beam)
+
+    def _sanitize_callbacks(
+        self,
+        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None,
+    ) -> list[CallbackTypeHint]:
+        if callbacks is None:
+            callbacks = ()
+        elif isinstance(callbacks, Callable):
+            callbacks = (callbacks,)
+        elif isinstance(callbacks, Sequence):
+            pass
+        else:
+            raise TypeError(
+                f"Unexpected callback type {type(callbacks)}, "
+                f"should be `Sequence` or `Callable`."
+            )
+
+        sanitised_callbacks = []
+        for callback in callbacks:
+            try:
+                # Test if `each_turn_i` exists as an attribute,
+                # property, or whatever
+                callback.each_turn_i  # NOQA duck-typing
+            except AttributeError:
+                callback.each_turn_i = 1  # each turn by default
+            sanitised_callbacks.append(callback)
+        return sanitised_callbacks
 
     def mainloop_counterrotating_beam(
         self,
@@ -1296,7 +1338,7 @@ class Simulation(Preparable):
         n_turns: int,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
+        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
     ) -> None:
         """
         Execute the beam dynamics simulation for counter-rotating beams.
@@ -1313,13 +1355,23 @@ class Simulation(Preparable):
         show_progressbar
             If True, will show a progress bar indicating how many turns have
             been completed and other metrics.
-        callback
-            User defined function `def myfunction(simulation: Simulation): ...`
-            that is called each turn.
+        callbacks
+            Optional user-defined functions `[callback_1, callback_2, ...]`.
+            called at the end of each turn.
+            Useful for custom data collection or live plotting. Default is None.
+
+            The callback can be defined as follows.
+            The rate at with which this function is
+            called can be set by `each_turn_i`.
+            >>> from blond import Beam, Simulation
+            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
+            >>>     ...
+            >>> my_callback.each_turn_i = 2
+            .
         """
         warnings.warn("Untested code", NotTestedWarning, stacklevel=2)
 
-        if callback is not None:
+        if callbacks is not None:
             warnings.warn(
                 "Callbacks are currently not supported for simulations"
                 " with counter-rotating beams.",

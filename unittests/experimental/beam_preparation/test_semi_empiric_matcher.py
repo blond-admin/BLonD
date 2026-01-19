@@ -68,7 +68,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
 
             sim.simulation.run_simulation(
                 beams=(sim.beam1,),
-                callback=my_callback,
+                callbacks=my_callback,
                 n_turns=1e6,
             )
         for percentile in (10, 50, 90):
@@ -119,7 +119,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             sim.simulation.turn_i.value = 0
             my_callback(simulation=sim.simulation, beam=sim.beam1)
             sim.simulation.run_simulation(
-                beams=(sim.beam1,), callback=my_callback
+                beams=(sim.beam1,), callbacks=my_callback
             )
         # pinned values
         expected_dt = {
@@ -204,7 +204,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
 
             sim.simulation.run_simulation(
                 beams=(sim.beam1,),
-                callback=my_callback,
+                callbacks=my_callback,
                 n_turns=1e6,
             )
         for percentile in (10, 50, 90):
@@ -257,7 +257,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             sim.simulation.turn_i.value = 0
             my_callback(simulation=sim.simulation, beam=sim.beam1)
             sim.simulation.run_simulation(
-                beams=(sim.beam1,), callback=my_callback
+                beams=(sim.beam1,), callbacks=my_callback
             )
         # pinned values
         expected_dt = {
