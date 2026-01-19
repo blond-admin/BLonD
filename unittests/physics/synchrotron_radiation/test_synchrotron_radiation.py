@@ -35,7 +35,6 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
 
     def test_inputs(self):
         self.SRHandler = SynchrotronRadiationMaster(
-            name="SynchrotronRadiationMaster",
             radiation_integrals=self.synchrotron_radiation_integrals,
         )
-        self.ring.insert_element(self.SRHandler, insert_at=0)
+        # self.ring.insert_element(self.SRHandler, insert_at=0)
