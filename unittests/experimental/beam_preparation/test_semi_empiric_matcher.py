@@ -95,7 +95,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
 
         sim = SimulationTwoRfStationsWithWake()
         self._test_matching(sim)
-        DEV_PLOT = True
+        DEV_PLOT = False
         if DEV_PLOT:
 
             def my_callback(simulation: Simulation, beam: Beam):
