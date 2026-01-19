@@ -427,9 +427,9 @@ class BeamPhysicsRelevantElements(Preparable):
             "forbidden!"
         )
         assert isinstance(section_index, int)
-        from blond.experimental.physics.feedbacks.base import FeedbackBaseClass
         from blond.physics.cavities import RfStationBaseClass
         from blond.physics.drifts import DriftBaseClass
+        from blond.physics.feedbacks.base import FeedbackBaseClass
         from blond.physics.impedances.base import ImpedanceBaseClass
         from blond.physics.losses import LossesBaseClass
         from blond.physics.profiles import ProfileBaseClass
