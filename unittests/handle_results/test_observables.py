@@ -218,16 +218,15 @@ class TestBunchObservation(unittest.TestCase):
         )
 
     def test_from_disk(self) -> None:
-        self.bunch_statistics.on_init_simulation(
+        self.bunch_observation.on_init_simulation(
             simulation=simulation,
         )
-        self.bunch_statistics.on_run_simulation(
+        self.bunch_observation.on_run_simulation(
             simulation=simulation,
             beam=self.beam,
-            turn_i_init=0,
             n_turns=100,
         )
-        self.bunch_statistics.update(
+        self.bunch_observation.update(
             simulation=simulation,
         )
 
@@ -253,7 +252,7 @@ class TestBunchObservation(unittest.TestCase):
             self.bunch_observation._reference_total_energy.get_valid_entries(),
         )
 
-        self.bunch_statistics.to_disk()
+        self.bunch_observation.to_disk()
 
         to_compare = BeamObservationOncePerTurn(
             each_turn_i=1,
@@ -270,7 +269,7 @@ class TestBunchObservation(unittest.TestCase):
             to_compare.dts, self.bunch_observation.dts
         )
         np.testing.assert_almost_equal(
-            to_compare.dEs, self.bunch_statistics.dEs
+            to_compare.dEs, self.bunch_observation.dEs
         )
         np.testing.assert_almost_equal(
             to_compare.flags, self.bunch_observation.flags
