@@ -926,17 +926,17 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._remove_fully_decayed_wake_profiles()
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles
-            past_hist_step = (
-                self._past_profile_times[-1][1]
-                - self._past_profile_times[-1][0]
+            past_hist_step = float(self._past_profile_times[-1][1]) - float(
+                self._past_profile_times[-1][0]
             )
             # TODO: big time jumps lead to problematic casting --> do we care about this?
             new_hist_step = float(
                 self._parent_wakefield.profile.hist_x[1]
-                - self._parent_wakefield.profile.hist_x[0]
-            )
+            ) - float(self._parent_wakefield.profile.hist_x[0])
+
             assert np.isclose(new_hist_step, past_hist_step, atol=0), (
                 "Profile bin size needs to be constant: hist_step might be too small with casting to delta_t precision."
+                f"{new_hist_step=} {past_hist_step=}"
             )
         self._past_profile_times.appendleft(
             backend.copy(self._parent_wakefield.profile.hist_x)

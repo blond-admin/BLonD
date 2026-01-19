@@ -25,7 +25,7 @@ from blond import (
     mu_plus,
     uranium_29,
 )
-from blond.core.backends.backend import backend
+from blond.core.backends.backend import Cupy32Bit, Numpy32Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
@@ -981,8 +981,14 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             )
 
 
+@pytest.mark.backend_mutation
 class TestMultiPassResonatorSolver(unittest.TestCase):
     def setUp(self):
+        # the histogram step is to tiny and would result in hist_step = 0
+        if isinstance(backend, Numpy32Bit):
+            backend.change_backend(Numpy64Bit)
+        elif isinstance(backend, Cupy32Bit):
+            backend.change_backend(Cupy64Bit)
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
             center_frequencies=np.array([500e6, 750e6, 1.5e9]),
@@ -1567,6 +1573,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         """
         Test presence of arrays and correct shifting of timing
         """
+        print(f"{backend=}")
+        print(f"{backend.specials_mode=}")
+        print(f"{backend.float=}")
         sim = Mock(Simulation)
 
         local_res = deepcopy(self.multi_pass_resonator_solver)
