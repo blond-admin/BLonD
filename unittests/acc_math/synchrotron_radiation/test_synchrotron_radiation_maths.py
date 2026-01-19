@@ -4,7 +4,6 @@ import numpy as np
 from scipy.constants import c
 
 from blond import backend, electron
-from blond._core.beam.particle_types import ParticleType
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_damping_times_in_seconds,
     calculate_damping_times_in_turns,
@@ -20,6 +19,7 @@ from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths i
     calculate_natural_horizontal_emittance,
     calculate_partition_numbers,
 )
+from blond.core.beam.particle_types import ParticleType
 
 
 class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
