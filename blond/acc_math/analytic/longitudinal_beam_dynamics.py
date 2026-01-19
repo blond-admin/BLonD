@@ -38,20 +38,20 @@ def get_small_amplitude_angular_synchrotron_tune(
     Parameters
     ----------
     energy
-        Total energy, in [eV]
+        Total energy, in [eV].
     voltage
-        RF cavity voltage, in [V]
+        RF cavity voltage, in [V].
     harmonic_number
-        Harmonic number, from the synchronous condition
+        Harmonic number, from the synchronous condition.
     synchronous_phase
-        Phase of the synchronous particle, in [rad]
+        Phase of the synchronous particle, in [rad].
     phase_slip_factor
-        Phase slip factor, [dimensionless]
+        Phase slip factor, [dimensionless].
 
     Returns
     -------
     angular_synchrotron_tune
-        Angular synchrotron tune
+        Angular synchrotron tune.
     """
     args = locals()
     keys = inspect.signature(
@@ -67,7 +67,7 @@ def get_small_amplitude_angular_synchrotron_tune(
             "Input arrays of more than one element have different lengths."
         )
 
-    return np.sqrt(
+    angular_synchrotron_tune = np.sqrt(
         (
             harmonic_number
             * e
@@ -76,6 +76,7 @@ def get_small_amplitude_angular_synchrotron_tune(
         )
         / (2 * np.pi * energy)
     )
+    return angular_synchrotron_tune
 
 
 def get_small_amplitude_angular_synchrotron_frequency(
@@ -92,22 +93,22 @@ def get_small_amplitude_angular_synchrotron_frequency(
     Parameters
     ----------
     energy
-        Total energy, in [eV]
+        Total energy, in [eV].
     voltage
-        RF cavity voltage, in [V]
+        RF cavity voltage, in [V].
     harmonic_number
-        Harmonic number, from the synchronous condition
+        Harmonic number, from the synchronous condition.
     synchronous_phase
-        Phase of the synchronous particle, in [rad]
+        Phase of the synchronous particle, in [rad].
     phase_slip_factor
-        Phase slip factor, [dimensionless]
+        Phase slip factor, [dimensionless].
     revolution_frequency
-        Revolution frequency, in [Hz]
+        Revolution frequency, in [Hz].
 
     Returns
     -------
     angular_synchrotron_frequency
-            Angular synchrotron frequency, in [rad]
+            Angular synchrotron frequency, in [rad].
     """
     small_amplitude_angular_synchrotron_tune = (
         get_small_amplitude_angular_synchrotron_tune(
@@ -119,12 +120,13 @@ def get_small_amplitude_angular_synchrotron_frequency(
         )
     )
 
-    return (
+    angular_synchrotron_frequency = (
         2
         * np.pi
         * revolution_frequency
         * small_amplitude_angular_synchrotron_tune
     )
+    return angular_synchrotron_frequency
 
 
 def get_angular_synchrotron_tune(
@@ -140,20 +142,20 @@ def get_angular_synchrotron_tune(
     Parameters
     ----------
     energy
-        Total energy, in [eV]
+        Total energy, in [eV].
     voltage
-        RF cavity voltage, in [V]
+        RF cavity voltage, in [V].
     harmonic_number
-        Harmonic number, from the synchronous condition
+        Harmonic number, from the synchronous condition.
     synchronous_phase
-        Phase of the synchronous particle, in [rad]
+        Phase of the synchronous particle, in [rad].
     phase_slip_factor
-        Phase slip factor, [dimensionless]
+        Phase slip factor, [dimensionless].
 
     Returns
     -------
     angular_synchrotron_frequency
-            Angular synchrotron frequency, in [rad]
+            Angular synchrotron frequency, in [rad].
     """
     small_amplitude_angular_synchrotron_tune = (
         get_small_amplitude_angular_synchrotron_tune(
@@ -164,13 +166,14 @@ def get_angular_synchrotron_tune(
             phase_slip_factor=phase_slip_factor,
         )
     )
-    return (
+    angular_synchrotron_frequency = (
         1
         / (2 * np.pi)
         * np.arccos(
             1 - 2 * (np.pi * small_amplitude_angular_synchrotron_tune) ** 2
         )
     )
+    return angular_synchrotron_frequency
 
 
 def get_angular_synchrotron_frequency(
@@ -187,22 +190,22 @@ def get_angular_synchrotron_frequency(
     Parameters
     ----------
     energy
-        Total energy, in [eV]
+        Total energy, in [eV].
     voltage
-        RF cavity voltage, in [V]
+        RF cavity voltage, in [V].
     harmonic_number
-        Harmonic number, from the synchronous condition
+        Harmonic number, from the synchronous condition.
     synchronous_phase
-        Phase of the synchronous particle, in [rad]
+        Phase of the synchronous particle, in [rad].
     phase_slip_factor
-        Phase slip factor, [dimensionless]
+        Phase slip factor, [dimensionless].
     revolution_frequency
-        Revolution frequency, in [Hz]
+        Revolution frequency, in [Hz].
 
     Returns
     -------
     angular_synchrotron_frequency
-            Angular synchrotron frequency, in [rad]
+            Angular synchrotron frequency, in [rad].
     """
     angular_synchrotron_tune = get_angular_synchrotron_tune(
         energy=energy,
@@ -211,4 +214,7 @@ def get_angular_synchrotron_frequency(
         synchronous_phase=synchronous_phase,
         phase_slip_factor=phase_slip_factor,
     )
-    return 2 * np.pi * revolution_frequency * angular_synchrotron_tune
+    angular_synchrotron_frequency = (
+        2 * np.pi * revolution_frequency * angular_synchrotron_tune
+    )
+    return angular_synchrotron_frequency

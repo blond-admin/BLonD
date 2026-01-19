@@ -122,7 +122,7 @@ For full control over each RF station's contribution at each turn:
 
     energy_per_rf_station = np.zeros((n_rf_stations, N_TURNS))
     # Write the desired values in `energy_per_rf_station`
-    energy_cycle = MagneticCyclePerTurnAllRfStations(
+    energy_cycle = MagneticCyclePerTurnAllRFStations(
         reference_particle=proton,
         value_init=450e9,
         values_after_rf_station_per_turn=energy_per_rf_station,  # 2D array: (rf_stations, turns)

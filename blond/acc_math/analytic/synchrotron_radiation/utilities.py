@@ -36,23 +36,25 @@ def gather_longitudinal_synchrotron_radiation_parameters(
     particle_type: ParticleType = electron,
 ) -> float | NumpyArray:
     """
-    Calculates the relevant synchrotron radiation parameters for tracking.
+    Calculate the relevant synchrotron radiation parameters for tracking.
 
     Parameters
     ----------
     energy
-        Total energy, in [eV]
+        Total energy, in [eV].
     synchrotron_radiation_integrals
-        Synchrotron radiation integrals
+        Synchrotron radiation integrals.
     particle_type
-        ParticleType class object
+        ParticleType class object.
 
     Returns
     -------
-        Energy loss per turn, in [eV per turn]
-        Longitudinal damping time, in [turn]
-        Natural energy spread, [dimensionless]
-
+    energy_lost_from_synchrotron_radiation
+        Energy loss per turn, in [eV per turn].
+    longitudinal_damping_time
+        Longitudinal damping time, in [turn].
+    natural_energy_spread
+        Natural energy spread, [dimensionless].
     """
     energy_lost_from_synchrotron_radiation = calculate_energy_loss_per_turn(
         particle_type=particle_type,
@@ -82,7 +84,7 @@ def calculate_isomagnetic_radiation_integrals(
     momentum_compaction_factor: float,
 ) -> NumpyArray:
     """
-    Generates the radiation integrals in the case of an isomagnetic ring.
+    Generate the radiation integrals in the case of an isomagnetic ring.
 
     Warning: the fifth synchrotron radiation is set to 0 for lack of
     information.
@@ -90,17 +92,19 @@ def calculate_isomagnetic_radiation_integrals(
     Parameters
     ----------
     circumference
-        Circumference, in [m]
+        Circumference, in [m].
     bending_radius
-        Bending radius of all bending elements, in [m]
+        Bending radius of all bending elements, in [m].
     momentum_compaction_factor
-        Momentum compaction factor, [dimensionless]
+        Momentum compaction factor, [dimensionless].
 
     Returns
     -------
-        Array of the first five radiation integrals
+    isomagnetic_radiation_integrals
+        Array of the first five radiation integrals of an isomagnetic
+        synchrotron.
     """
-    return np.array(
+    isomagnetic_radiation_integrals = np.array(
         [
             momentum_compaction_factor * circumference,
             2.0 * np.pi / bending_radius,
@@ -109,3 +113,4 @@ def calculate_isomagnetic_radiation_integrals(
             0,
         ]
     )
+    return isomagnetic_radiation_integrals
