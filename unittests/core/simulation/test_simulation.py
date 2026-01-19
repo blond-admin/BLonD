@@ -474,7 +474,7 @@ class TestSimulation(unittest.TestCase):
         simulation = Simulation.from_locals(locals())
         beam = beam1
 
-        cavity = simulation.ring.elements.get_element(SingleHarmonicRfStation)
+        cavity = simulation.ring.elements.get_element(SingleHarmonicRFStation)
         particle_type = proton
 
         ts = np.linspace(

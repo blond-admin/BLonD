@@ -1098,7 +1098,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 class TestSPSTransmitterGain(unittest.TestCase):
     def setUp(self):
         self.ring = Ring(circumference=2 * np.pi * 1100.009)
-        cavity = MultiHarmonicRfStation(
+        cavity = MultiHarmonicRFStation(
             harmonic=np.array([4620], dtype=backend.float),
             voltage=np.array([4.5e6], dtype=backend.float),
             phi_rf=np.array([0], dtype=backend.float),
