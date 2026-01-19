@@ -17,15 +17,10 @@ import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.random import Generator as NumpyGenerator
-try:
-    from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
 
-    MPI_RANK = MPI_COMM_WORLD.Get_rank()
-    MPI_SIZE = MPI_COMM_WORLD.Get_size()
-except Exception as exc:
-    warnings.warn(str(exc), ImportWarning, stacklevel=1)
-    MPI_RANK = 0
-    MPI_SIZE = 1
+# The code below will be adapted later for MPI
+MPI_RANK = 0
+MPI_SIZE = 1
 
 
 def mpi_local_size(global_size: int, warning_hint: str) -> int:
