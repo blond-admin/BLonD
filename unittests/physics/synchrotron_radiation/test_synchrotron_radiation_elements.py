@@ -17,6 +17,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 )
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
 
 class TestRFStationBaseClass(unittest.TestCase):
@@ -41,12 +42,14 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
 
         self.beam = Mock(BeamBaseClass)
+        self.beam.reference = Mock(ReferenceCoordinates)
         self.beam.particle_type = electron
-        self.beam.reference_time = 0
+        self.beam.reference.time = 0
         self.beam.reference_beta = 0.99
         self.beam.reference_velocity = self.beam.reference_beta * c0
         self.beam.reference_gamma = np.sqrt(1 - 0.99**2)  # beta**2
         self.beam.reference_total_energy = 20e9
+        self.beam.reference.total_energy = 20e9
         self.beam.dE = np.linspace(
             -1e6, 1e6, 10, dtype=backend.float
         )  # delta E
@@ -63,7 +66,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         self.U0, self.tau_z, self.sigma0 = (
             gather_longitudinal_synchrotron_radiation_parameters(
                 particle_type=self.beam.particle_type,
-                energy=self.beam.reference_total_energy,
+                energy=self.beam.reference.total_energy,
                 synchrotron_radiation_integrals=radiation_integrals,
             )
         )
@@ -73,7 +76,7 @@ class TestRFStationBaseClass(unittest.TestCase):
     def test_calculate_kick(self):
         np.random.seed(seed=self.seed)
         energy_kick_from_base_class = self.SRB._calculate_kick(
-            beam=self.beam, seed=self.seed
+            beam=self.beam,
         )
         self.assertAlmostEqual(
             self.SRB._energy_lost_due_to_synchrotron_radiation,
