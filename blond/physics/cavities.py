@@ -43,7 +43,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
-    from blond.experimental.physics.feedbacks.base import LocalFeedback
+    from blond.physics.feedbacks.base import LocalFeedback
     from blond.physics.impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
@@ -146,7 +146,7 @@ class RfStationBaseClass(
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
-        from blond.experimental.physics.feedbacks.base import LocalFeedback
+        from blond.physics.feedbacks.base import LocalFeedback
 
         # prevent cyclic import
 

@@ -243,7 +243,8 @@ Example
 
    import numpy as np
 
-   def custom_density_function(hamilton_2D, custom_param, hamilton_max):
+   def custom_density_function(time_grid, deltaE_grid, hamilton_2D, # required arguments
+       custom_param, hamilton_max): # custom arguments
        """Example custom density mapping with exponential falloff."""
        normalized_H = hamilton_2D / hamilton_max
        normalized_H[normalized_H > 1] = 1
