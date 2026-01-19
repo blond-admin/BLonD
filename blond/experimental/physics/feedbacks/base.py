@@ -19,7 +19,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import (
         MultiHarmonicRFStation,
-        RfStationBaseClass,
+        RFStationBaseClass,
         SingleHarmonicRFStation,
     )
     from blond.physics.profiles import ProfileBaseClass
@@ -88,7 +88,7 @@ class GlobalFeedback(FeedbackBaseClass):
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
-    @requires(["SingleHarmonicRfStation"])
+    @requires(["SingleHarmonicRFStation"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called

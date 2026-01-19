@@ -615,7 +615,7 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
     >>> from matplotlib import pyplot as plt
     >>> from blond import Simulation
     >>> sim = Simulation( ... )
-    >>> rf_station_observation = RfStationPhaseObservation(each_turn_i=2, rf_station=...)
+    >>> rf_station_observation = RFStationPhaseObservation(each_turn_i=2, rf_station=...)
     >>> sim.run_simulation(
     ...     beams=...,
     ...     observe=(rf_station_observation,),

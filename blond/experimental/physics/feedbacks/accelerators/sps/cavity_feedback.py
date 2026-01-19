@@ -790,7 +790,7 @@ class SPSCavityFeedback:
 
     def __init__(
         self,
-        _parent_rf_station: MultiHarmonicRfStation,
+        _parent_rf_station: MultiHarmonicRFStation,
         profile: StaticProfile,
         G_ff: float | list = 1,
         G_llrf: float | list = 10,

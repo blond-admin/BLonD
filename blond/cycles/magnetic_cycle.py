@@ -14,7 +14,7 @@ Notes
 The following classes are currently available:
 - :class:`~blond.cycles.magnetic_cycles.ConstantMagneticCycle`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurn`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`
+- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
 
 Authors:
@@ -831,7 +831,7 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         Returns
         -------
         magnetic_cycle
-            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`.
+            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`.
         """
         ret = MagneticCyclePerTurnAllRFStations(
             value_init=value_init,

@@ -612,7 +612,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
 
     >>> import numpy as np
     >>> from blond import SingleHarmonicRFStation
-    >>> rf_station = SingleHarmonicRfStation(...)
+    >>> rf_station = SingleHarmonicRFStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
     """
 
@@ -985,7 +985,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
     Parameters can be scheduled along the simulation execution
 
     >>> from blond import MultiHarmonicRFStation
-    >>> rf_station = MultiHarmonicRfStation(...)
+    >>> rf_station = MultiHarmonicRFStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
     """
 

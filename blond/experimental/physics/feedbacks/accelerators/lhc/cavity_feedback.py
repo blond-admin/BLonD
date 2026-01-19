@@ -200,7 +200,7 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def __init__(
         self,
-        _parent_rf_station: MultiHarmonicRfStation,
+        _parent_rf_station: MultiHarmonicRFStation,
         profile: StaticProfile,
         n_cavities: int = 8,
         f_c: float = 400.789e6,
