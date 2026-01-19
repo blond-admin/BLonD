@@ -89,7 +89,6 @@ class SynchrotronRadiationSimulation:
             self.ring.add_element(drift, section_index=i)
 
         self.SRHandler = SynchrotronRadiationMaster(
-            name="SynchrotronRadiationMaster",
             radiation_integrals=self.synchrotron_radiation_integrals,
             # track_before_element_type = DriftBaseClass,
         )
@@ -140,7 +139,7 @@ def main():
             "/BLonD_simulations/damped_distribution_dE_4mm.npy"
         ),
         reference_total_energy=params.energy_cycle.get_total_energy_init(
-            turn_i_init=0, t_init=0, particle_type=params.beam.particle_type
+            particle_type=params.beam.particle_type,
         ),
     )
 
@@ -170,7 +169,6 @@ def main():
 
     simulation.run_simulation(
         beams=(params.beam,),
-        turn_i_init=0,
         n_turns=params.n_turns,
         observe=(phase_observation, bunch_statistics),
         # callback=custom_action,
