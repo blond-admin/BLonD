@@ -13,7 +13,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 
-from blond import Simulation
+from blond import BoxLosses, Simulation
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.beam.base import BeamBaseClass
 
@@ -38,6 +38,22 @@ class BruteForceMatcher(MatchingRoutine):
         Number of simulation iterations to perform.
     animate: bool
         Whether or not to display the simulation animation.
+    every_iter_to_plot : int, optional
+        A snapshot of the beam is
+        produced every ``n_iter / every_iter_to_plot`` iterations.
+        Default is ``10``.
+    purge : bool, optional
+        If ``True``, macroparticles outside user-defined phase-space limits
+        are removed during the matching process. Default is ``False``.
+
+    purge_limit_time : tuple[float, float], optional
+        Lower and upper bounds in time ``dt`` used to purge particles when
+        ``purge=True``. If ``None``, no time-based purging is applied.
+
+    purge_limit_energy : tuple[float, float], optional
+        Lower and upper bounds in energy deviation ``dE`` used to purge
+        particles when ``purge=True``. If ``None``, no energy-based purging
+        is applied.
     """
 
     def __init__(
@@ -59,6 +75,9 @@ class BruteForceMatcher(MatchingRoutine):
         self.n_iter = n_iter
         self.animate = animate
         self.every_iter_to_plot = every_iter_to_plot
+        self.purge = purge
+        self.purge_limit_time = purge_limit_time
+        self.purge_limit_energy = purge_limit_energy
 
     def prepare_beam(self, simulation: Simulation, beam: BeamBaseClass):
         """
@@ -128,6 +147,7 @@ class BruteForceMatcher(MatchingRoutine):
             if self.animate and (i % step == 0 or i == self.n_iter - 1):
                 scat.set_offsets(np.c_[beam._dt, beam._dE])
                 ax.set_title(f"Iteration {i + 1}/{self.n_iter}")
+
                 plt.pause(1)
 
         if self.animate:
@@ -135,4 +155,12 @@ class BruteForceMatcher(MatchingRoutine):
             plt.show()
 
         if self.purge:
-            beam.purge()
+            BoxLosses(
+                t_min=self.purge_limit_time[0],
+                t_max=self.purge_limit_time[1],
+                e_min=self.purge_limit_energy[0],
+                e_max=self.purge_limit_energy[1],
+                purge_flagged_macroparticles=True,
+            ).track(beam)
+
+            beam.purge_flagged_entries()

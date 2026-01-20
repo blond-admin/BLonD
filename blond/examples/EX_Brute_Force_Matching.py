@@ -90,6 +90,9 @@ def main():
             n_iter=100,
             every_iter_to_plot=10,  # plot every 100/10 iterations
             animate=True,
+            purge_limit_time=[0.1e-9, 4e-9],
+            purge_limit_energy=[-4e8, 4e8],
+            purge=True,
         ),
         beam=beam,
     )
@@ -98,7 +101,7 @@ def main():
         n_turns=20,
         beams=(beam,),
     )
-
+    plt.clf("all")
     plt.scatter(observation.dts[0], observation.dEs[0])
     plt.scatter(observation.dts[0], observation.dEs[0])
     plt.show()
