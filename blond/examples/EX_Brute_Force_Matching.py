@@ -88,8 +88,8 @@ def main():
             energy_limit=[-4e8, 4e8],
             n_macroparticles=3000,
             n_iter=100,
-            every_iter_to_plot=10, # plot every 100/10 iterations
-            animate=True
+            every_iter_to_plot=10,  # plot every 100/10 iterations
+            animate=True,
         ),
         beam=beam,
     )

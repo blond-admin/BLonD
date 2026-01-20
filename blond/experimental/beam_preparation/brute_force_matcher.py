@@ -8,10 +8,10 @@
 
 
 from copy import deepcopy
-from matplotlib import pyplot as plt
-import numpy as np
-from matplotlib.patches import Rectangle
 
+import numpy as np
+from matplotlib import pyplot as plt
+from matplotlib.patches import Rectangle
 
 from blond import Simulation
 from blond.beam_preparation.base import MatchingRoutine
@@ -48,6 +48,9 @@ class BruteForceMatcher(MatchingRoutine):
         n_iter: int,
         animate: bool = True,
         every_iter_to_plot: int = 10,
+        purge: bool = False,
+        purge_limit_time: tuple[float, float] = None,
+        purge_limit_energy: tuple[float, float] = None,
     ) -> None:
         super().__init__()
         self.time_limit = time_limit
@@ -56,7 +59,6 @@ class BruteForceMatcher(MatchingRoutine):
         self.n_iter = n_iter
         self.animate = animate
         self.every_iter_to_plot = every_iter_to_plot
-
 
     def prepare_beam(self, simulation: Simulation, beam: BeamBaseClass):
         """
@@ -89,7 +91,6 @@ class BruteForceMatcher(MatchingRoutine):
         if self.animate:
             plt.ion()
             fig, ax = plt.subplots()
-
 
             # Beam (updated each frame)
             scat = ax.scatter(beam._dt, beam._dE, s=8, label="Beam")
@@ -133,3 +134,5 @@ class BruteForceMatcher(MatchingRoutine):
             plt.ioff()
             plt.show()
 
+        if self.purge:
+            beam.purge()
