@@ -1,0 +1,106 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""
+Example to show how we can use the BruteForceMatcher to find a quasi-matched distribution.
+"""
+
+from matplotlib import pyplot as plt
+
+from blond import (
+    Beam,
+    ConstantMagneticCycle,
+    DriftSimple,
+    Ring,
+    Simulation,
+    SingleHarmonicRfStation,
+    proton,
+)
+from blond.experimental.beam_preparation.brute_force_matcher import (
+    BruteForceMatcher,
+)
+from blond.handle_results.observables_as_elements import (
+    BeamObservationInRingElement,
+)
+
+
+def main():
+    # Simulation parameters -------------------------------------------------------
+    p_s = 450.0e9  # Synchronous momentum [eV]
+    harmonic_number = 35640  # Harmonic number
+    voltage1 = 2e6  # RF voltage, station 1 [eV]
+    voltage2 = 4e6  # RF voltage, station 1 [eV]
+    phi_rf = 0  # Phase modulation/offset
+    transition_gamma = 55.759505  # Transition gamma
+
+    energy_cycle = ConstantMagneticCycle(
+        value=p_s,
+        reference_particle=proton,
+    )
+    ring = Ring(
+        circumference=26658.883,
+    )
+    beam = Beam(
+        intensity=1.0e9,
+        particle_type=proton,
+    )
+
+    observation = BeamObservationInRingElement(
+        each_turn_i=1, section_index=0, n_turns=10, folder="./"
+    )
+
+    one_turn_execution_order = (
+        DriftSimple(
+            transition_gamma=transition_gamma,
+            orbit_length=0.3 * ring.circumference,
+            section_index=0,
+        ),
+        SingleHarmonicRfStation(
+            harmonic=harmonic_number,
+            phi_rf=phi_rf,
+            voltage=voltage1,
+            section_index=0,
+        ),
+        observation,
+        DriftSimple(
+            transition_gamma=transition_gamma,
+            orbit_length=0.7 * ring.circumference,
+            section_index=1,
+        ),
+        SingleHarmonicRfStation(
+            harmonic=harmonic_number,
+            phi_rf=phi_rf,
+            voltage=voltage2,
+            section_index=1,
+        ),
+    )
+    ring.add_elements(one_turn_execution_order, reorder=False)
+    sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
+
+    sim.prepare_beam(
+        preparation_routine=BruteForceMatcher(
+            time_limit=[0.7e-9, 1.7e-9],
+            energy_limit=[-2e8, 2e8],
+            n_macroparticles=3000,
+            n_iter=10000,
+        ),
+        beam=beam,
+    )
+
+    sim.run_simulation(
+        n_turns=20,
+        beams=(beam,),
+    )
+
+    plt.scatter(observation.dts[0], observation.dEs[0])
+    plt.scatter(observation.dts[0], observation.dEs[0])
+    plt.show()
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()

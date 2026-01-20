@@ -65,20 +65,20 @@ class BruteForceMatcher(MatchingRoutine):
             Beam instance to be initialized and matched.
         """
 
+        n = int(np.sqrt(self.n_macroparticles))
+
+        dt_vals = np.linspace(self.time_limit[0], self.time_limit[1], n)
+        dE_vals = np.linspace(self.energy_limit[0], self.energy_limit[1], n)
+
+        dt_grid, dE_grid = np.meshgrid(dt_vals, dE_vals)
+
         beam.setup_beam(
-            simulation=simulation,
-            dt=np.linspace(
-                self.time_limit[0], self.time_limit[1], self.n_macroparticles
-            ),
-            dE=np.linspace(
-                self.energy_limit[0],
-                self.energy_limit[1],
-                self.n_macroparticles,
-            ),
+            dt=dt_grid.ravel(),
+            dE=dE_grid.ravel(),
         )
 
         sim_copy = deepcopy(simulation)
-        sim_copy.run_simulation(beams=[beam])
+        sim_copy.run_simulation(beams=[beam], n_turns=1)
         for i in range(self.n_iter - 1):
             sim_copy = deepcopy(simulation)
-            sim_copy.run_simulation(beams=[beam])
+            sim_copy.run_simulation(beams=[beam], n_turns=1)
