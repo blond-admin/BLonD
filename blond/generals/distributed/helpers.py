@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-if TYPE_CHECKING:  # pragma: no cover
-    from numpy.random import Generator as NumpyGenerator
 try:
     from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
 
@@ -26,6 +24,9 @@ except Exception as exc:
     warnings.warn(str(exc), ImportWarning, stacklevel=1)
     MPI_RANK = 0
     MPI_SIZE = 1
+
+if TYPE_CHECKING:  # pragma: no cover
+    from numpy.random import Generator as NumpyGenerator
 
 
 def mpi_local_size(global_size: int, warning_hint: str) -> int:
