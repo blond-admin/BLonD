@@ -8,8 +8,10 @@
 
 
 from copy import deepcopy
-
+from matplotlib import pyplot as plt
 import numpy as np
+from matplotlib.patches import Rectangle
+
 
 from blond import Simulation
 from blond.beam_preparation.base import MatchingRoutine
@@ -34,6 +36,8 @@ class BruteForceMatcher(MatchingRoutine):
         Number of macroparticles used to initialize the beam.
     n_iter : int
         Number of simulation iterations to perform.
+    animate: bool
+        Whether or not to display the simulation animation.
     """
 
     def __init__(
@@ -42,12 +46,17 @@ class BruteForceMatcher(MatchingRoutine):
         energy_limit: tuple[float, float],
         n_macroparticles: int,
         n_iter: int,
+        animate: bool = True,
+        every_iter_to_plot: int = 10,
     ) -> None:
         super().__init__()
         self.time_limit = time_limit
         self.energy_limit = energy_limit
         self.n_macroparticles = n_macroparticles
         self.n_iter = n_iter
+        self.animate = animate
+        self.every_iter_to_plot = every_iter_to_plot
+
 
     def prepare_beam(self, simulation: Simulation, beam: BeamBaseClass):
         """
@@ -72,13 +81,55 @@ class BruteForceMatcher(MatchingRoutine):
 
         dt_grid, dE_grid = np.meshgrid(dt_vals, dE_vals)
 
-        beam.setup_beam(
-            dt=dt_grid.ravel(),
-            dE=dE_grid.ravel(),
-        )
+        dt_init = dt_grid.ravel()
+        dE_init = dE_grid.ravel()
 
-        sim_copy = deepcopy(simulation)
-        sim_copy.run_simulation(beams=[beam], n_turns=1)
-        for i in range(self.n_iter - 1):
+        beam.setup_beam(dt=dt_init, dE=dE_init)
+
+        if self.animate:
+            plt.ion()
+            fig, ax = plt.subplots()
+
+
+            # Beam (updated each frame)
+            scat = ax.scatter(beam._dt, beam._dE, s=8, label="Beam")
+
+            # Bounding box
+            rect = Rectangle(
+                (self.time_limit[0], self.energy_limit[0]),
+                self.time_limit[1] - self.time_limit[0],
+                self.energy_limit[1] - self.energy_limit[0],
+                linewidth=2,
+                edgecolor="black",
+                facecolor="none",
+                label="Initial limits",
+            )
+            ax.add_patch(rect)
+
+            ax.set_xlabel("dt")
+            ax.set_ylabel("dE")
+            ax.legend()
+            ax.set_title("Brute-force beam matching")
+
+            step = max(1, self.n_iter // self.every_iter_to_plot)
+
+            ax.set_xlim(self.time_limit[0], self.time_limit[1])
+            ax.set_ylim(self.energy_limit[0], self.energy_limit[1])
+            ax.set_autoscale_on(False)
+
+            # --------------------------------------------------
+            # Matching loop
+            # --------------------------------------------------
+        for i in range(self.n_iter):
             sim_copy = deepcopy(simulation)
             sim_copy.run_simulation(beams=[beam], n_turns=1)
+
+            if self.animate and (i % step == 0 or i == self.n_iter - 1):
+                scat.set_offsets(np.c_[beam._dt, beam._dE])
+                ax.set_title(f"Iteration {i + 1}/{self.n_iter}")
+                plt.pause(1)
+
+        if self.animate:
+            plt.ioff()
+            plt.show()
+

@@ -84,10 +84,12 @@ def main():
 
     sim.prepare_beam(
         preparation_routine=BruteForceMatcher(
-            time_limit=[0.7e-9, 1.7e-9],
-            energy_limit=[-2e8, 2e8],
+            time_limit=[0.1e-9, 4e-9],
+            energy_limit=[-4e8, 4e8],
             n_macroparticles=3000,
             n_iter=100,
+            every_iter_to_plot=10, # plot every 100/10 iterations
+            animate=True
         ),
         beam=beam,
     )
