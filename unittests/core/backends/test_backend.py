@@ -96,6 +96,7 @@ class TestBackendBaseClass(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_temporary_specials_mode(self):
+        backend.change_backend(Numpy64Bit)
         specials_org = (
             backend.specials_mode
         )  # prevent side effect on other tests
