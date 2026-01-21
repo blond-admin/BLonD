@@ -236,7 +236,7 @@ class BruteForceMatcher(MatchingRoutine):
             ax.add_patch(rect)
 
             ax.set_xlabel("dt [s]")
-            ax.set_ylabel("dE []")
+            ax.set_ylabel("dE [eV]")
             ax.legend(loc="upper right")
             ax.set_title("Brute-force beam matching")
 
