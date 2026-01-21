@@ -1179,6 +1179,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
 
+        self._domega_rf_next: NumpyArray | None = backend.zeros(n_harmonics)
+        self._dphi_rf_next: NumpyArray | None = backend.zeros(n_harmonics)
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -1424,6 +1427,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             target_total_energy - beam.reference_total_energy
         )
 
+        self.delta_phi_rf = self._dphi_rf_next
+        self.delta_omega_rf = self._domega_rf_next
+
         if self._cavity_feedback is None:
             backend.specials.kick_multi_harmonic(
                 dt=beam.read_partial_dt(),
@@ -1461,7 +1467,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
                     self.main_harmonic_idx
                 ]  # dynamically updated by `update_domega_rf`
             )
-            self.delta_omega_rf = omega_increment
+            self._domega_rf_next = omega_increment
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
@@ -1476,7 +1482,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
                 / self.omega_rf_actual[:]
             )
 
-            self.delta_phi_rf += phi_increment
+            self._dphi_rf_next += phi_increment
 
     @staticmethod
     def headless(
