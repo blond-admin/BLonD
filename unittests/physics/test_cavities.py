@@ -18,7 +18,6 @@ from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback impor
 )
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
-    RFStationBaseClass,
     SingleHarmonicRFStation,
 )
 from blond.physics.drifts import _assert_purely_real_or_imaginary
