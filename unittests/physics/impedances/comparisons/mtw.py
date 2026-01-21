@@ -15,9 +15,11 @@ from blond import (
 )
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.handle_results.observables import (
-    BunchObservationMetaParams,
     StaticProfileObservation,
     WakeFieldObservation,
+)
+from blond.handle_results.observables_as_elements import (
+    BunchObservationMetaParams,
 )
 from blond.legacy.blond2.beam.beam import Beam as beam_b2
 from blond.legacy.blond2.beam.beam import MuPlus as mu_plus_b2
@@ -52,7 +54,7 @@ from blond.physics.impedances.solvers import (
 )
 from blond.physics.impedances.sources import Resonators
 from blond.specifics.muon_collider.beam_preparation import (
-    load_beam_data_counterrot_from_file,
+    load_beam_coordinates_counterrot_from_file,
 )
 
 backend.change_backend(Numpy64Bit)
@@ -142,6 +144,20 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
         else SingleTurnResonatorConvolutionSolver(),
         profile=prof,
     )
+
+    beam = Beam(
+        intensity=bunch_intensity,
+        particle_type=mu_plus,
+        is_counter_rotating=False,
+    )
+    beam_CR = Beam(
+        intensity=bunch_intensity,
+        particle_type=mu_plus,
+        is_counter_rotating=True,
+    )
+
+    bunch_observation = BunchObservationMetaParams(each_turn_i=1, beam=beam)
+
     one_turn_model.extend(
         [
             prof,
@@ -157,43 +173,29 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
                 orbit_length=circumference,
                 section_index=0,
             ),
+            bunch_observation,
         ]
     )
     ring.add_elements(one_turn_model, reorder=False)
     ####################################################################
-    beam = Beam(
-        intensity=bunch_intensity,
-        particle_type=mu_plus,
-        is_counter_rotating=False,
-    )
-    beam_CR = Beam(
-        intensity=bunch_intensity,
-        particle_type=mu_plus,
-        is_counter_rotating=True,
-    )
     sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
     # sim.print_one_turn_execution_order()
     load_filename = "initial_beam.npz"
-    load_beam_data_counterrot_from_file(
+    load_beam_coordinates_counterrot_from_file(
         load_filename,
         beam,
         beam_CR,
     )
 
-    bunch_observation = BunchObservationMetaParams(
-        each_turn_i=1, obs_per_turn=1, beam=beam
-    )
-    profile_observation = StaticProfileObservation(
-        each_turn_i=1, obs_per_turn=1, profile=prof
-    )
+    profile_observation = StaticProfileObservation(each_turn_i=1, profile=prof)
     wf_observation = WakeFieldObservation(
-        wakefield=wf, each_turn_i=1, obs_per_turn=1
+        wakefield=wf,
+        each_turn_i=1,
     )
     sim.run_simulation(
-        beams=([beam]),
+        beams=(beam,),
         n_turns=n_turns_downscale,
         observe=(
-            bunch_observation,
             profile_observation,
             wf_observation,
         ),
@@ -273,7 +275,7 @@ def setup_and_run_blond2(mtw=False):
         beam,
         profile=profile,
         total_induced_voltage=total_ind_volt_matcher,
-        interpolation=False,
+        interpolation=True,
     )
     full_ring_and_rf_tracker_matcher = FullRingAndRF([long_tracker_match])
 
@@ -299,7 +301,7 @@ def setup_and_run_blond2(mtw=False):
         beam,
         profile=profile,
         total_induced_voltage=total_ind_volt,
-        interpolation=False,
+        interpolation=True,
     )  # without interpolation no ind voltage
     full_ring_and_rf_tracker = FullRingAndRF([long_tracker])
 
