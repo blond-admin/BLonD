@@ -341,7 +341,7 @@ class LHCNoiseFB:
     blow-up using noise injection through cavity controller or phase loop.
     The feedback compares the FWHM bunch length of the bunch to a target value
     and scales the phase noise to keep the targeted value.
-    Activate the feedback either by passing it in RfStation or in
+    Activate the feedback either by passing it in RFStation or in
     the PhaseLoop object.
     Update the noise amplitude scaling using track().
     Pass the bunch pattern (occupied bucket numbers from 0...h-1) in buckets
@@ -378,7 +378,7 @@ class LHCNoiseFB:
     ) -> None:
         self.LHC_frev = round(f_rev)  # LHC revolution frequency in Hz
 
-        #: | *Import RfStation*
+        #: | *Import RFStation*
         self.rf_params = rf_station
 
         #: | *Import Profile*

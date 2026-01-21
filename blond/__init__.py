@@ -30,18 +30,18 @@ from blond.cycles.magnetic_cycle import ConstantMagneticCycle  # NOQA
 from blond.cycles.magnetic_cycle import MagneticCycleByTime  # NOQA
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn  # NOQA
 from blond.cycles.magnetic_cycle import (
-    MagneticCyclePerTurnAllRfStations,  # NOQA
+    MagneticCyclePerTurnAllRFStations,  # NOQA
 )
 from blond.generals.cupy.no_cupy_import import AllowPlotting  # NOQA
 from blond.handle_results.observables import BeamObservationOncePerTurn  # NOQA
-from blond.handle_results.observables import RfStationPhaseObservation  # NOQA
+from blond.handle_results.observables import RFStationPhaseObservation  # NOQA
 from blond.handle_results.observables import StaticProfileObservation  # NOQA
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,  # NOQA
 )
 from blond.physics.cavities import (  # NOQA
-    MultiHarmonicRfStation,
-    SingleHarmonicRfStation,
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
 )
 from blond.physics.drifts import DriftSimple  # NOQA
 from blond.physics.energy_reference_kick import ReferenceEnergyChange  # NOQA
