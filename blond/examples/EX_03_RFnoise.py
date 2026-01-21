@@ -30,7 +30,7 @@ from blond import (
     MagneticCyclePerTurn,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     proton,
 )
 from blond.experimental.cycles.noise_generators.vari_noise import VariNoise
@@ -41,7 +41,7 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 def main():
     ring = Ring(circumference=26658.883)
-    rf_station_1 = SingleHarmonicRfStation()
+    rf_station_1 = SingleHarmonicRFStation()
     rf_station_1.voltage = 6e6
     rf_station_1.schedule(
         attribute="phi_rf",
