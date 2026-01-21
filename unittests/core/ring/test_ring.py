@@ -605,13 +605,10 @@ class TestRing(unittest.TestCase):
 
         ring.on_init_simulation(simulation_mock)
         sim = Simulation(
-            ring, ConstantMagneticCycle(value=1, reference_particle=lead_82)
+            ring, ConstantMagneticCycle(value=5e3, reference_particle=lead_82)
         )
         beam = Beam(intensity=1, particle_type=lead_82)
-        beam._dt = [1]
-        beam._dE = [2]
-        beam._flags = [3]
-        beam._ids = [4]
+        beam.setup_beam(dt=[1], dE=[2])
         sim.finalize((beam,), n_turns=1)
 
 
