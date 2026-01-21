@@ -4,17 +4,17 @@ import numpy as np
 import pytest
 
 from blond.core.backends.mpi_distributed.callables import (
-    mpi_is_active,
     rms_emittance,
 )
 from blond.generals.distributed.distributed_array import DistributedArray
+from blond.generals.distributed.helpers import mpi_is_distributed
 
-mpi_active = mpi_is_active()
-mpi_inactive = not mpi_active
+is_distributed = mpi_is_distributed()
+not_distributed = not is_distributed
 
 
 class TestCallables(unittest.TestCase):
-    @unittest.skipIf(mpi_active, "Runs only without `mpirun`")
+    @unittest.skipIf(is_distributed, "Runs only without `mpirun`")
     def test_rms_wo_mpi(self):
         rng = np.random.default_rng(0)
         dt = DistributedArray(rng.normal(loc=0, scale=1, size=512))
@@ -27,7 +27,7 @@ class TestCallables(unittest.TestCase):
         self.assertAlmostEqual(rms_expected, rms)
 
     @pytest.mark.mpi
-    @unittest.skipIf(mpi_inactive, "Runs only with `mpirun`")
+    @unittest.skipIf(not_distributed, "Runs only with `mpirun`")
     def test_rms_mpi(self):
         rng = np.random.default_rng(0)
         dt = DistributedArray(rng.normal(loc=0, scale=1, size=512))
@@ -43,7 +43,7 @@ class TestCallables(unittest.TestCase):
         self.assertAlmostEqual(rms_expected, rms)
 
     @pytest.mark.mpi
-    @unittest.skipIf(mpi_inactive, "Runs only with `mpirun`")
+    @unittest.skipIf(not_distributed, "Runs only with `mpirun`")
     def test_rms_mpi_cuda(self):
         try:
             import cupy as cp

@@ -5,10 +5,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from blond import Beam, Simulation, proton
-from blond.core.beam.base import BeamBaseClass
+from blond import Beam, Simulation, proton, uranium_29
+from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.core.beam.beams import ProbeBeam
 from blond.generals.distributed.distributed_array import DistributedArray
+from blond.generals.distributed.helpers import (
+    MPI_RANK,
+    MPI_SIZE,
+    mpi_is_distributed,
+)
 
 
 class TestBeam(unittest.TestCase):
@@ -244,6 +249,66 @@ class TestBeam(unittest.TestCase):
             self.beam.setup_beam(
                 dE=np.ones(10), dt=np.ones(10), flags=np.ones(11)
             )
+
+    @pytest.mark.mpi
+    def test_setup_beam_mpi(self) -> None:
+        beam = Beam(intensity=1.0, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
+        )
+        if MPI_RANK == 0 and MPI_SIZE == 2:  # assume `mpirun -n 2`
+            np.testing.assert_allclose(beam._dt.array_local, np.arange(0, 6))
+            np.testing.assert_allclose(beam._dE.array_local, np.arange(0, 6))
+            np.testing.assert_allclose(
+                beam._flags.array_local, np.ones(6) * BeamFlags.ACTIVE.value
+            )
+            np.testing.assert_allclose(beam._ids.array_local, np.arange(0, 6))
+        elif MPI_RANK == 1:
+            np.testing.assert_allclose(beam._dt.array_local, np.arange(6, 12))
+            np.testing.assert_allclose(beam._dE.array_local, np.arange(6, 12))
+            np.testing.assert_allclose(
+                beam._flags.array_local, np.ones(6) * BeamFlags.ACTIVE.value
+            )
+            np.testing.assert_allclose(beam._ids.array_local, np.arange(6, 12))
+
+    @pytest.mark.mpi
+    def test_plot_hist2d_warns(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Only MPI")
+            beam = Beam(intensity=1.0, particle_type=uranium_29)
+            beam.setup_beam(
+                dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
+            )
+            with self.assertWarnsRegex(
+                UserWarning, "Plotting MPI single node"
+            ):
+                beam.plot_hist2d()
+
+    @pytest.mark.mpi
+    def test_plot_hist_warns(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Only MPI")
+            beam = Beam(intensity=1.0, particle_type=uranium_29)
+            beam.setup_beam(
+                dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
+            )
+            with self.assertWarnsRegex(
+                UserWarning, "Plotting MPI single node"
+            ):
+                beam.plot_hist()
+
+    @pytest.mark.mpi
+    def test_plot_scatter_warns(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Only MPI")
+            beam = Beam(intensity=1.0, particle_type=uranium_29)
+            beam.setup_beam(
+                dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
+            )
+            with self.assertWarnsRegex(
+                UserWarning, "Plotting MPI single node"
+            ):
+                beam.plot_scatter()
 
 
 class TestProbeBunch(unittest.TestCase):

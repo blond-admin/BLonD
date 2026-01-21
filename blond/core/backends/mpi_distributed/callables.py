@@ -24,27 +24,11 @@ except Exception as exc:
     MPI = None
 from blond.generals.distributed.distributed_array import (
     DistributedArray,
-    mpi_is_distributed,
 )
+from blond.generals.distributed.helpers import mpi_is_distributed
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.generals.distributed.distributed_array import DistributedArray
-
-
-def mpi_is_active() -> float:
-    """
-    Check whether MPI is active.
-
-    Returns
-    -------
-    mpi_active
-        True, if MPI is active.
-    """
-    return (
-        MPI is not None
-        and MPI.Is_initialized()
-        and MPI.COMM_WORLD.Get_size() > 1
-    )
 
 
 def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:

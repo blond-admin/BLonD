@@ -485,9 +485,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         from blond.core.backends.backend import (
             backend,  # prevent cyclic import
         )
-        from blond.generals.distributed.distributed_array import (
-            mpi_barrier,  # prevent cyclic import
-        )
+        from blond.generals.distributed.helpers import mpi_barrier
 
         n_before_truncation_global = self._dt.global_size
 

@@ -22,7 +22,10 @@ from blond.core.backends.mpi_distributed.callables import rms_emittance
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.generals.distributed.distributed_array import DistributedArray
-from blond.generals.distributed.helpers import distributed_arange
+from blond.generals.distributed.helpers import (
+    distributed_arange,
+    mpi_is_distributed,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -335,10 +338,6 @@ class Beam(BeamBaseClass):
         -----
         The x-axis represents time `dt` and the y-axis represents energy `dE`.
         """
-        from blond.generals.distributed.distributed_array import (
-            mpi_is_distributed,
-        )
-
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
@@ -379,6 +378,12 @@ class Beam(BeamBaseClass):
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
             )
+        if mpi_is_distributed():
+            warnings.warn(
+                "Plotting MPI single node distribution only.",
+                UserWarning,
+                stacklevel=2,
+            )
         if is_cupy_array(self._dt.array_local):
             # variables below are just for the type hints to function correctly
             dE: CupyArray = self._dE.array_local
@@ -414,7 +419,12 @@ class Beam(BeamBaseClass):
             )
         if "bins" not in kwargs:
             kwargs["bins"] = 256
-
+        if mpi_is_distributed():
+            warnings.warn(
+                "Plotting MPI single node distribution only.",
+                UserWarning,
+                stacklevel=2,
+            )
         dE = self._dE.array_local
         dt = self._dt.array_local
 

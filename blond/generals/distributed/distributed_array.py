@@ -28,48 +28,6 @@ except Exception as exc:
     MPI = None
 
 
-def mpi_is_distributed():
-    """
-    Whether the software runs with a MPI size > 1 or not.
-
-    Returns
-    -------
-    is_distributed
-        Whether the software runs with a MPI size > 1 or not.
-    """
-    if MPI is None:
-        return False
-    if MPI.COMM_WORLD.Get_size() > 1:
-        return True
-
-
-def mpi_barrier():
-    """
-    Synchronize all processes.
-
-    This method blocks until all processes in the communicator have called it.
-    Useful for ensuring all processes reach a certain point before continuing.
-
-    Notes
-    -----
-    In non-distributed mode (single process), this is a no-op.
-    """
-    if mpi_is_distributed():
-        MPI.COMM_WORLD.Barrier()
-
-
-def mpi_is_root() -> bool:
-    """
-    Check if this is the root process (rank 0).
-
-    Returns
-    -------
-    bool
-        Whether the current worker is the root worker.
-    """
-    return MPI.COMM_WORLD.Get_rank() == 0
-
-
 class DistributedArray:
     """
     Initialize a DistributedArray.
