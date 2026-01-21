@@ -22,7 +22,7 @@ import pytest
 from scipy.constants import c
 
 from blond.beam.beam import Beam, Proton
-from blond.beam.sparse_slices import SparseSlices
+from blond.beam.sparse_profiles import SparseBucket
 from blond.impedances.music import Music
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
@@ -652,7 +652,7 @@ class TestWithObjects:
                 ]
             ] += bucket_length * np.where(filling_pattern)[0][i]
 
-        slice_beam_cpp = SparseSlices(
+        slice_beam_cpp = SparseBucket(
             self.rf, self.beam, n_slices, filling_pattern
         )
         slice_beam_cpp.track()
@@ -660,7 +660,7 @@ class TestWithObjects:
         bm.use_numba()
         np.testing.assert_equal(bm.device, "CPU_NU")
 
-        slice_beam_py = SparseSlices(
+        slice_beam_py = SparseBucket(
             self.rf, self.beam, n_slices, filling_pattern
         )
         slice_beam_py.track()
