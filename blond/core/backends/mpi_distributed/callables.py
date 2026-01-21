@@ -22,6 +22,10 @@ try:
 except Exception as exc:
     warnings.warn(str(exc), ImportWarning, stacklevel=1)
     MPI = None
+from blond.generals.distributed.distributed_array import (
+    DistributedArray,
+    mpi_is_distributed,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.generals.distributed.distributed_array import DistributedArray
@@ -65,8 +69,8 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
     local_dt_dE_sum = float(backend.dot(dt.array_local, dE.array_local))
     local_count = dt.local_size
 
-    if dt.is_distributed:
-        comm = dt.comm  # or dE.comm
+    if mpi_is_distributed():
+        comm = MPI.COMM_WORLD
         dt_dt_sum = comm.allreduce(local_dt_dt_sum, op=MPI.SUM)
         dE_dE_sum = comm.allreduce(local_dE_dE_sum, op=MPI.SUM)
         dt_dE_sum = comm.allreduce(local_dt_dE_sum, op=MPI.SUM)

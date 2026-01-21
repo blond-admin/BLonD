@@ -22,6 +22,7 @@ try:
     MPI_SIZE = MPI_COMM_WORLD.Get_size()
 except Exception as exc:
     warnings.warn(str(exc), ImportWarning, stacklevel=1)
+    MPI_COMM_WORLD = None
     MPI_RANK = 0
     MPI_SIZE = 1
 
@@ -97,3 +98,44 @@ def mpi_aware_random_generator_cpu(
     # this function could be extended to GPU.
 
     return random_generator_cpu
+
+
+def distributed_arange(local_n: int, dtype: np.typing.DTypeLike):
+    """
+    Distributed version of `np.arange` and `cp.arange`.
+
+    Parameters
+    ----------
+    local_n
+        Number of elements owned by *this MPI rank*.
+    dtype
+        Data type of the array.
+
+    Returns
+    -------
+    DistributedArray
+        Globally consistent arange distributed across MPI ranks.
+
+        Example (2 ranks):
+            rank 0: [0, 1, 2]
+            rank 1: [3, 4, 5]
+    """
+    from blond import backend
+    from blond.generals.distributed.distributed_array import DistributedArray
+
+    # Compute starting offset for this rank
+    if MPI_COMM_WORLD is None:
+        offset = None
+    else:
+        offset: int | None = MPI_COMM_WORLD.exscan(local_n)
+
+    if offset is None:
+        offset = 0
+
+    local_ids = backend.arange(
+        offset,
+        offset + local_n,
+        dtype=dtype,
+    )
+
+    return DistributedArray(local_ids)

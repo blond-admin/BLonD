@@ -22,6 +22,7 @@ from blond.core.backends.mpi_distributed.callables import rms_emittance
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.generals.distributed.distributed_array import DistributedArray
+from blond.generals.distributed.helpers import distributed_arange
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -148,10 +149,6 @@ class Beam(BeamBaseClass):
             backend.array(flags, dtype=np.int32)
         )
 
-        self._ids: DistributedArray = DistributedArray(
-            backend.arange(len(dt), dtype=np.int32)
-        )
-
         if reference_time:
             self.reference.time = reference_time
         if reference_total_energy:
@@ -161,9 +158,16 @@ class Beam(BeamBaseClass):
             self._dE.mpi_scatter()
             self._dt.mpi_scatter()
             self._flags.mpi_scatter()
+            # IDs need special treatment
+            self._ids: DistributedArray = DistributedArray(
+                backend.arange(len(dt), dtype=np.int32)
+            )
             self._ids.mpi_scatter()
         elif mpi_mode == "all-ranks":
-            pass
+            # IDs need special treatment
+            self._ids: DistributedArray = distributed_arange(
+                len(dt), dtype=np.int32
+            )
         else:
             raise NameError(f"Unknown {mpi_mode=}")
 
@@ -331,6 +335,10 @@ class Beam(BeamBaseClass):
         -----
         The x-axis represents time `dt` and the y-axis represents energy `dE`.
         """
+        from blond.generals.distributed.distributed_array import (
+            mpi_is_distributed,
+        )
+
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
@@ -339,7 +347,7 @@ class Beam(BeamBaseClass):
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs:
             kwargs["bins"] = 256
-        if self._dt.is_distributed:
+        if mpi_is_distributed():
             warnings.warn(
                 "Plotting MPI single node distribution only.",
                 UserWarning,

@@ -4,6 +4,8 @@ from unittest.mock import patch
 
 import numpy as np
 
+from blond.generals.distributed.distributed_array import mpi_barrier
+
 
 class TestDistributedArray(unittest.TestCase):
     def setUp(self):
@@ -30,11 +32,11 @@ class TestDistributedArray(unittest.TestCase):
             self.assertEqual(
                 self.distributed_array.local_size, 64
             )  # assumes `mpirun -n 2`
-            self.assertTrue(self.distributed_array.is_distributed)
+            self.assertTrue(self.distributed_array._is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
         else:
             self.assertEqual(self.distributed_array.local_size, 128)
-            self.assertFalse(self.distributed_array.is_distributed)
+            self.assertFalse(self.distributed_array._is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
 
     def _call_test(self, func, func_name):
@@ -104,7 +106,7 @@ class TestDistributedArray(unittest.TestCase):
             self.distributed_array.array_local = (
                 self.distributed_array.array_local[:64]
             )
-            self.distributed_array.barrier()
+            mpi_barrier()
             self.assertEqual(
                 self.distributed_array.global_size, 2 * 64
             )  # assumes `mpirun -n 2`
@@ -124,9 +126,9 @@ class TestDistributedArrayNoMPI(unittest.TestCase):
             rng = np.random.default_rng(0)
             self.array = rng.normal(loc=0, scale=1.0, size=128)
             distributed_array = DistributedArray(self.array.copy())
-            self.assertFalse(distributed_array.is_distributed)
-            self.assertEqual(distributed_array.rank, 0)
-            self.assertEqual(distributed_array.size, 1)
+            self.assertFalse(distributed_array._is_distributed)
+            self.assertEqual(distributed_array._rank, 0)
+            self.assertEqual(distributed_array._size, 1)
 
 
 if __name__ == "__main__":

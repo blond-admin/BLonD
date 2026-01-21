@@ -28,6 +28,48 @@ except Exception as exc:
     MPI = None
 
 
+def mpi_is_distributed():
+    """
+    Whether the software runs with a MPI size > 1 or not.
+
+    Returns
+    -------
+    is_distributed
+        Whether the software runs with a MPI size > 1 or not.
+    """
+    if MPI is None:
+        return False
+    if MPI.COMM_WORLD.Get_size() > 1:
+        return True
+
+
+def mpi_barrier():
+    """
+    Synchronize all processes.
+
+    This method blocks until all processes in the communicator have called it.
+    Useful for ensuring all processes reach a certain point before continuing.
+
+    Notes
+    -----
+    In non-distributed mode (single process), this is a no-op.
+    """
+    if mpi_is_distributed():
+        MPI.COMM_WORLD.Barrier()
+
+
+def mpi_is_root() -> bool:
+    """
+    Check if this is the root process (rank 0).
+
+    Returns
+    -------
+    bool
+        Whether the current worker is the root worker.
+    """
+    return MPI.COMM_WORLD.Get_rank() == 0
+
+
 class DistributedArray:
     """
     Initialize a DistributedArray.
@@ -44,20 +86,32 @@ class DistributedArray:
     def __init__(self, array: NumpyArray | CupyArray):
         self.array_local = array
         if MPI is None:
-            self.comm = None
+            self._comm = None
             # Determine rank and size
-            self.rank = 0
-            self.size = 1
-            self.is_distributed = False
+            self._rank = 0
+            self._size = 1
+            self._is_distributed = False
         else:
-            self.comm = MPI.COMM_WORLD
+            self._comm = MPI.COMM_WORLD
 
             # Determine rank and size
-            self.rank = self.comm.Get_rank()
-            self.size = self.comm.Get_size()
-            self.is_distributed = self.size > 1
+            self._rank = self._comm.Get_rank()
+            self._size = self._comm.Get_size()
+            self._is_distributed = self._size > 1
 
         self._histogram_local_cache = {}
+
+    @property
+    def is_distributed(self):
+        """
+        Whether the software runs with a MPI size > 1 or not.
+
+        Returns
+        -------
+        is_distributed
+            Whether the software runs with a MPI size > 1 or not.
+        """
+        return self._is_distributed
 
     def mpi_scatter(self) -> None:
         """
@@ -67,11 +121,11 @@ class DistributedArray:
         Rank 0 owns the global array before scatter.
         After scatter, each rank owns its local chunk.
         """
-        if not self.is_distributed:
+        if not self._is_distributed:
             return
 
-        size = self.comm.Get_size()
-        rank = self.comm.Get_rank()
+        size = self._comm.Get_size()
+        rank = self._comm.Get_rank()
 
         if rank == 0:
             # Split array into `size` chunks
@@ -80,19 +134,7 @@ class DistributedArray:
             chunks = None
 
         # Each rank receives one chunk
-        self.array_local = self.comm.scatter(chunks, root=0)
-
-    @property
-    def is_root(self) -> bool:
-        """
-        Check if this is the root process (rank 0).
-
-        Returns
-        -------
-        bool
-            Whether the current worker is the root worker.
-        """
-        return self.rank == 0
+        self.array_local = self._comm.scatter(chunks, root=0)
 
     @property
     def local_size(self) -> int:
@@ -118,8 +160,8 @@ class DistributedArray:
         """
         local_size = self.array_local.size
 
-        if self.is_distributed:
-            total_size = self.comm.allreduce(local_size, op=MPI.SUM)
+        if self._is_distributed:
+            total_size = self._comm.allreduce(local_size, op=MPI.SUM)
         else:
             total_size = local_size
 
@@ -136,8 +178,8 @@ class DistributedArray:
         """
         local_min = float(backend.min(self.array_local))
 
-        if self.is_distributed:
-            global_min = self.comm.allreduce(local_min, op=MPI.MIN)
+        if self._is_distributed:
+            global_min = self._comm.allreduce(local_min, op=MPI.MIN)
         else:
             global_min = local_min
 
@@ -154,8 +196,8 @@ class DistributedArray:
         """
         local_max = float(backend.max(self.array_local))
 
-        if self.is_distributed:
-            global_max = self.comm.allreduce(local_max, op=MPI.MAX)
+        if self._is_distributed:
+            global_max = self._comm.allreduce(local_max, op=MPI.MAX)
         else:
             global_max = local_max
 
@@ -173,9 +215,9 @@ class DistributedArray:
         local_sum = float(backend.sum(self.array_local))
         local_count = self.array_local.size
 
-        if self.is_distributed:
-            global_sum = self.comm.allreduce(local_sum, op=MPI.SUM)
-            global_count = self.comm.allreduce(local_count, op=MPI.SUM)
+        if self._is_distributed:
+            global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
+            global_count = self._comm.allreduce(local_count, op=MPI.SUM)
         else:
             global_sum = local_sum
             global_count = local_count
@@ -197,11 +239,11 @@ class DistributedArray:
         local_sum_sq = float(backend.dot(self.array_local, self.array_local))
         local_count = self.array_local.size
 
-        if self.is_distributed:
+        if self._is_distributed:
             # Gather global statistics
-            global_sum = self.comm.allreduce(local_sum, op=MPI.SUM)
-            global_sum_sq = self.comm.allreduce(local_sum_sq, op=MPI.SUM)
-            global_count = self.comm.allreduce(local_count, op=MPI.SUM)
+            global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
+            global_sum_sq = self._comm.allreduce(local_sum_sq, op=MPI.SUM)
+            global_count = self._comm.allreduce(local_count, op=MPI.SUM)
         else:
             global_sum = local_sum
             global_sum_sq = local_sum_sq
@@ -224,8 +266,8 @@ class DistributedArray:
         """
         local_sum = float(backend.sum(self.array_local))
 
-        if self.is_distributed:
-            global_sum = self.comm.allreduce(local_sum, op=MPI.SUM)
+        if self._is_distributed:
+            global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
         else:
             global_sum = local_sum
 
@@ -277,23 +319,9 @@ class DistributedArray:
         )
 
         # Combine histograms from all processes
-        if self.is_distributed:
-            self.comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
+        if self._is_distributed:
+            self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
 
             return array_write_local
         else:
             return array_write_local
-
-    def barrier(self):
-        """
-        Synchronize all processes.
-
-        This method blocks until all processes in the communicator have called it.
-        Useful for ensuring all processes reach a certain point before continuing.
-
-        Notes
-        -----
-        In non-distributed mode (single process), this is a no-op.
-        """
-        if self.is_distributed:
-            self.comm.Barrier()

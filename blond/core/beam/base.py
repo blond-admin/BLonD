@@ -485,6 +485,9 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         from blond.core.backends.backend import (
             backend,  # prevent cyclic import
         )
+        from blond.generals.distributed.distributed_array import (
+            mpi_barrier,  # prevent cyclic import
+        )
 
         n_before_truncation_global = self._dt.global_size
 
@@ -506,7 +509,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             :n_after_truncation_local
         ]
 
-        self._dt.barrier()
+        mpi_barrier()
         n_after_truncation_global = self._dt.global_size
 
         self.intensity *= (
