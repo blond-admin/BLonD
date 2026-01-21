@@ -1,7 +1,10 @@
 import unittest
+from functools import cached_property
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
+from numpy._typing import NDArray as NumpyArray
 from scipy.constants import e
 from scipy.constants import speed_of_light as c0
 
@@ -20,6 +23,9 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
+if TYPE_CHECKING:
+    from numpy._typing import NDArray as NumpyArray
+
 
 class BeamBaseClassTester(BeamBaseClass):
     def __init__(
@@ -35,7 +41,8 @@ class BeamBaseClassTester(BeamBaseClass):
             is_counter_rotating=is_counter_rotating,
             is_distributed=is_distributed,
         )
-        self.reference = Mock(ReferenceCoordinates)
+        # self.reference = Mock(ReferenceCoordinates)
+        self.reference._particle_type = particle_type
         self.reference.time = 0
         self.reference_beta = 0.99
         self.reference_velocity = self.reference_beta * c0
@@ -46,10 +53,55 @@ class BeamBaseClassTester(BeamBaseClass):
         # in eV
         self._dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t
         # in s
-        self.n_macroparticles_partial.return_value = 10
-        self.read_partial_dE.return_value = self.dE
         self._flags = np.zeros(10, dtype=np.int32)
         self._ids = np.arange(10, dtype=np.int32)
+
+    @cached_property
+    def ratio(self) -> float:
+        return self.intensity / self.common_array_size
+
+    def setup_beam(
+        self,
+        dt: NumpyArray,
+        dE: NumpyArray,
+        flags: NumpyArray = None,
+        reference_time: float | None = None,
+        reference_total_energy: float | None = None,
+    ):
+        """Sets beam array attributes for simulation
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        flags
+            Macro-particle flags
+        reference_time
+            Time of the reference frame (global time), in [s]
+        reference_total_energy
+            Time of the reference frame (global total energy), in [eV]
+        """
+        pass
+
+    def plot_hist2d(self):
+        pass
+
+    def dE_max(self) -> float:
+        pass
+
+    def dt_min(self) -> float:
+        pass
+
+    def dt_max(self) -> float:
+        pass
+
+    def dE_min(self) -> float:
+        pass
+
+    def common_array_size(self) -> int:
+        pass
 
 
 class TestSynchrotronRadiationBaseClass(unittest.TestCase):
@@ -73,7 +125,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             share_of_synchrotron_radiation_integrals=0.1 * radiation_integrals
         )
 
-        self.beam_base_class = BeamBaseClassTester(
+        self.beam = BeamBaseClassTester(
             intensity=1e12,
             particle_type=electron,
             is_counter_rotating=False,
