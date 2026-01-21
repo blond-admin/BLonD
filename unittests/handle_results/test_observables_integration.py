@@ -8,14 +8,14 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
     uranium_29,
 )
 from blond.handle_results.observables import (
     DynamicProfileConstNBinsObservation,
-    RfStationPhaseObservation,
+    RFStationPhaseObservation,
     StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
@@ -51,11 +51,11 @@ class TestObservables(unittest.TestCase):
         drift = DriftSimple(
             orbit_length=ring.circumference, transition_gamma=1.2
         )
-        rf_station = SingleHarmonicRfStation(voltage=1e6, phi_rf=0, harmonic=1)
+        rf_station = SingleHarmonicRFStation(voltage=1e6, phi_rf=0, harmonic=1)
 
         each_turn_i = 1
         # define all available observations
-        cavity_phase_observation = RfStationPhaseObservation(
+        cavity_phase_observation = RFStationPhaseObservation(
             each_turn_i=each_turn_i, rf_station=rf_station
         )
         static_orofile_observation = StaticProfileObservation(

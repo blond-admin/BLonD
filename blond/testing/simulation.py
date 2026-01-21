@@ -17,11 +17,11 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     MagneticCyclePerTurn,
-    MultiHarmonicRfStation,
-    RfStationPhaseObservation,
+    MultiHarmonicRFStation,
+    RFStationPhaseObservation,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
     backend,
@@ -39,7 +39,7 @@ class ExampleSimulation01:
     def __init__(self):
         ring = Ring(circumference=26658.883)
 
-        rf_station = SingleHarmonicRfStation()
+        rf_station = SingleHarmonicRFStation()
         rf_station.harmonic = 35640
         rf_station.voltage = 6e6
         rf_station.phi_rf = 0
@@ -75,7 +75,7 @@ class ExampleSimulation01:
             turn_i=10,
         )
 
-        phase_observation = RfStationPhaseObservation(
+        phase_observation = RFStationPhaseObservation(
             each_turn_i=1, rf_station=rf_station
         )
 
@@ -96,7 +96,7 @@ class ExampleSimulation01:
         self.simulation = simulation
 
 
-class SimulationTwoRfStations:
+class SimulationTwoRFStations:
     """
     A simulation with two RF stations and according drifts.
 
@@ -110,7 +110,7 @@ class SimulationTwoRfStations:
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        rf_station_1 = MultiHarmonicRfStation(
+        rf_station_1 = MultiHarmonicRFStation(
             harmonic=np.array(
                 [35640],
             ),
@@ -125,7 +125,7 @@ class SimulationTwoRfStations:
             main_harmonic_idx=0,
         )
 
-        rf_station_2 = SingleHarmonicRfStation(
+        rf_station_2 = SingleHarmonicRFStation(
             section_index=1,
         )
         rf_station_2.harmonic = backend.float(35640)
@@ -163,7 +163,7 @@ class SimulationTwoRfStations:
         self.beam1 = beam1
 
 
-class SimulationTwoRfStationsWithWake:
+class SimulationTwoRFStationsWithWake:
     """
     A simulation with two RF stations and according drifts, plus wake.
 
@@ -177,7 +177,7 @@ class SimulationTwoRfStationsWithWake:
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        rf_station_1 = MultiHarmonicRfStation(
+        rf_station_1 = MultiHarmonicRFStation(
             harmonic=np.array(
                 [35640],
             ),
@@ -192,7 +192,7 @@ class SimulationTwoRfStationsWithWake:
             main_harmonic_idx=0,
         )
 
-        rf_station_2 = SingleHarmonicRfStation(
+        rf_station_2 = SingleHarmonicRFStation(
             section_index=1,
         )
         rf_station_2.harmonic = 35640

@@ -135,10 +135,10 @@ class Simulation(Preparable):
     --------
     Create a simple simulation automatically from local variables:
 
-    >>> from blond import Ring, ConstantMagneticCycle, SingleHarmonicRfStation, DriftSimple, proton
+    >>> from blond import Ring, ConstantMagneticCycle, SingleHarmonicRFStation, DriftSimple, proton
     >>> ring = Ring(26658.883)
     >>> energy_cycle = ConstantMagneticCycle(proton, value=450e9, in_unit="total energy")
-    >>> rf_station1 = SingleHarmonicRfStation()
+    >>> rf_station1 = SingleHarmonicRFStation()
     >>> drift1 = DriftSimple(orbit_length=26658.883)
     >>> sim = Simulation.from_locals(locals())
     """
@@ -749,7 +749,7 @@ class Simulation(Preparable):
         >>> from blond import *
         >>> ring = Ring(26658.883)
         >>> energy_cycle = ConstantMagneticCycle(proton, value=450e9, in_unit="total energy")
-        >>> rf_station1 = SingleHarmonicRfStation()
+        >>> rf_station1 = SingleHarmonicRFStation()
         >>> rf_station1.harmonic = 35640
         >>> rf_station1.voltage = 6e6
         >>> drift1 = DriftSimple(orbit_length=26658.883)
@@ -830,7 +830,7 @@ class Simulation(Preparable):
         --------
         ConstantMagneticCycle : Constant energy cycle.
         MagneticCyclePerTurn : Energy cycle defined per turn.
-        MagneticCyclePerTurnAllRfStations : Energy cycle with all RF stations.
+        MagneticCyclePerTurnAllRFStations : Energy cycle with all RF stations.
         MagneticCycleByTime : Time-based energy cycle.
         """
         return self._magnetic_cycle
@@ -845,7 +845,7 @@ class Simulation(Preparable):
         understanding the simulation flow.
 
         The output includes:
-            - Element type (e.g., SingleHarmonicRfStation, DriftSimple)
+            - Element type (e.g., SingleHarmonicRFStation, DriftSimple)
             - Element name or identifier
             - Section index for each element
 
@@ -993,7 +993,7 @@ class Simulation(Preparable):
             Default is None.
         observe
             Tuple of observable objects that record data during the simulation
-            (e.g., ``RfStationPhaseObservation``, ``BeamObservationEndOfTurn``).
+            (e.g., ``RFStationPhaseObservation``, ``BeamObservationEndOfTurn``).
             Each observable is updated according to its own schedule. Default is empty tuple.
         show_progressbar
             If True, displays a progress bar showing simulation progress and turn rate.
@@ -1050,12 +1050,12 @@ class Simulation(Preparable):
 
         Simulation with observables to record data:
 
-        >>> from blond import RfStationPhaseObservation, BeamObservationOncePerTurn
-        >>> from blond import Simulation, Beam, BiGaussian, SingleHarmonicRfStation
+        >>> from blond import RFStationPhaseObservation, BeamObservationOncePerTurn
+        >>> from blond import Simulation, Beam, BiGaussian, SingleHarmonicRFStation
         >>> sim = Simulation(...)
         >>> beam1 = Beam(...)
-        >>> rf_station1 = SingleHarmonicRfStation(...)
-        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
+        >>> rf_station1 = SingleHarmonicRFStation(...)
+        >>> phase_obs = RFStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
         >>> beam_obs = BeamObservationOncePerTurn(each_turn_i=1)
         >>>
         >>> sim.run_simulation(
@@ -1458,8 +1458,8 @@ class Simulation(Preparable):
         --------
         Save results after a simulation:
 
-        >>> from blond import Simulation, Beam,RfStationPhaseObservation
-        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, ...)
+        >>> from blond import Simulation, Beam,RFStationPhaseObservation
+        >>> phase_obs = RFStationPhaseObservation(each_turn_i=1, ...)
         >>> sim = Simulation(...)
         >>> beam1 = Beam(...)
         >>> # Run simulation with observables
@@ -1547,8 +1547,8 @@ class Simulation(Preparable):
         --------
         Load previously saved results:
 
-        >>> from blond import RfStationPhaseObservation
-        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, ...)
+        >>> from blond import RFStationPhaseObservation
+        >>> phase_obs = RFStationPhaseObservation(each_turn_i=1, ...)
         >>>
         >>> # Load the saved data
         >>> sim.load_results(

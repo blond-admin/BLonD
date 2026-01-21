@@ -26,7 +26,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import WakeField
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import SingleHarmonicRfStation
+    from blond.physics.cavities import SingleHarmonicRFStation
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
@@ -595,7 +595,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         return self._reference_total_energy.get_valid_entries()
 
 
-class RfStationPhaseObservation(ObservablesOncePerTurnBase):
+class RFStationPhaseObservation(ObservablesOncePerTurnBase):
     """
     Observe the RF station parameters during the execution of the simulation.
 
@@ -615,7 +615,7 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
     >>> from matplotlib import pyplot as plt
     >>> from blond import Simulation
     >>> sim = Simulation( ... )
-    >>> rf_station_observation = RfStationPhaseObservation(each_turn_i=2, rf_station=...)
+    >>> rf_station_observation = RFStationPhaseObservation(each_turn_i=2, rf_station=...)
     >>> sim.run_simulation(
     ...     beams=...,
     ...     observe=(rf_station_observation,),
@@ -634,7 +634,7 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
-        rf_station: SingleHarmonicRfStation,
+        rf_station: SingleHarmonicRFStation,
         folder: str = "",
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)

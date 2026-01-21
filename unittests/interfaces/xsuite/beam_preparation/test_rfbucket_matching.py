@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from numpy import random
 
-from blond import DriftSimple, SingleHarmonicRfStation
+from blond import DriftSimple, SingleHarmonicRFStation
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.simulation import ExampleSimulation01
 
@@ -23,7 +23,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
             self.skipTest("xpart or xsuite interface not installed")
 
         simulation = self.example.simulation
-        cavity = simulation.ring.elements.get_element(SingleHarmonicRfStation)
+        cavity = simulation.ring.elements.get_element(SingleHarmonicRFStation)
         cavity.voltage = voltage
         cavity.phi_rf = phase
         zmax = simulation.ring.circumference / (2 * np.amin(cavity.harmonic))

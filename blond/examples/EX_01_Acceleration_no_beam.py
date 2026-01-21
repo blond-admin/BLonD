@@ -15,10 +15,10 @@ from matplotlib import pyplot as plt
 from blond import (
     BeamObservationOncePerTurn,
     DriftSimple,
-    RfStationPhaseObservation,
+    RFStationPhaseObservation,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     proton,
 )
 from blond.core.beam.beams import EmptyBeam
@@ -32,7 +32,7 @@ n_turns = int(1e3)
 def main():
     ring = Ring(26658.883)
 
-    rf_station = SingleHarmonicRfStation()
+    rf_station = SingleHarmonicRFStation()
     rf_station.harmonic = 35640
     rf_station.voltage = 6e6
     rf_station.phi_rf = 0
@@ -55,7 +55,7 @@ def main():
     sim = Simulation.from_locals(locals())
     sim.print_one_turn_execution_order()
 
-    phase_observation = RfStationPhaseObservation(
+    phase_observation = RFStationPhaseObservation(
         each_turn_i=1,
         rf_station=rf_station,
     )

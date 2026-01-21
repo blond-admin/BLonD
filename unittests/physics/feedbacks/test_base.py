@@ -5,10 +5,10 @@ import numpy as np
 
 from blond import (
     ConstantMagneticCycle,
-    MultiHarmonicRfStation,
+    MultiHarmonicRFStation,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
 )
 from blond.core.beam.base import BeamBaseClass
@@ -60,11 +60,11 @@ class TestGlobalFeedbackBase(unittest.TestCase):
         prof = Mock(StaticProfile)
         fdbk = GlobalFdbkHelper(profile=prof)
         ring = Ring(circumference=456, check_section_indices=False)
-        shc = SingleHarmonicRfStation(
+        shc = SingleHarmonicRFStation(
             section_index=0, voltage=1, harmonic=1, phi_rf=1
         )
         ring.add_element(shc)
-        mhc = MultiHarmonicRfStation(
+        mhc = MultiHarmonicRFStation(
             n_harmonics=1,
             main_harmonic_idx=0,
             section_index=1,

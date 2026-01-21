@@ -7,7 +7,7 @@ import numpy as np
 from blond import (
     Beam,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
     electron,
@@ -23,7 +23,7 @@ from blond.handle_results.observables import (
     BeamStatisticsOncePerTurn,
     DynamicProfileConstNBinsObservation,
     ObservablesOncePerTurnBase,
-    RfStationPhaseObservation,
+    RFStationPhaseObservation,
     StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
@@ -380,10 +380,10 @@ class TestBunchStatistics(unittest.TestCase):
         )
 
 
-class TestRfStationPhaseObservation(unittest.TestCase):
+class TestRFStationPhaseObservation(unittest.TestCase):
     def setUp(self) -> None:
         rf_station = Mock(
-            SingleHarmonicRfStation,
+            SingleHarmonicRFStation,
         )
         rf_station.n_rf = 12
         rf_station.phi_rf = 1
@@ -391,17 +391,17 @@ class TestRfStationPhaseObservation(unittest.TestCase):
         rf_station._omega_rf = 1
         rf_station.delta_omega_rf = 1
         rf_station.voltage = 1
-        self.rf_station_phase_observation = RfStationPhaseObservation(
+        self.rf_station_phase_observation = RFStationPhaseObservation(
             each_turn_i=1,
             rf_station=rf_station,
             folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test___init__(self) -> None:
-        self.rf_station_phase_observation = RfStationPhaseObservation(
+        self.rf_station_phase_observation = RFStationPhaseObservation(
             each_turn_i=1,
             rf_station=Mock(
-                SingleHarmonicRfStation,
+                SingleHarmonicRFStation,
                 folder=callers_relative_path("results/", stacklevel=1),
             ),
         )
@@ -436,7 +436,7 @@ class TestRfStationPhaseObservation(unittest.TestCase):
 
         self.rf_station_phase_observation.to_disk()
 
-        to_compare = RfStationPhaseObservation(
+        to_compare = RFStationPhaseObservation(
             each_turn_i=1,
             rf_station=self.rf_station_phase_observation._rf_station,
             folder=callers_relative_path("results/", stacklevel=1),

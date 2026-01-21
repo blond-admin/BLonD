@@ -17,7 +17,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
 class TestSemiEmpiricMatcher(unittest.TestCase):
     def test_roughly_correct_no_intensity_above_transition(self):
         # check if the mean and the 10% and 90% percentiles are correct
-        from blond.testing.simulation import SimulationTwoRfStations
+        from blond.testing.simulation import SimulationTwoRFStations
 
         # pinned values
         expected_dt = {
@@ -30,7 +30,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             50: -497190.7807013786,
             90: 200759056.35187533,
         }
-        sim = SimulationTwoRfStations()
+        sim = SimulationTwoRFStations()
         self._test_matching(sim)
 
         DEV_PLOT = False
@@ -90,9 +90,9 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             )
 
     def test_roughly_correct_intensity_above_transition(self):
-        from blond.testing.simulation import SimulationTwoRfStationsWithWake
+        from blond.testing.simulation import SimulationTwoRFStationsWithWake
 
-        sim = SimulationTwoRfStationsWithWake()
+        sim = SimulationTwoRFStationsWithWake()
         self._test_matching(sim)
         DEV_PLOT = False
         if DEV_PLOT:
@@ -153,7 +153,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
 
     def test_roughly_correct_no_intensity_below_transition(self):
         # check if the mean and the 10% and 90% percentiles are correct
-        from blond.testing.simulation import SimulationTwoRfStations
+        from blond.testing.simulation import SimulationTwoRFStations
 
         # pinned values
         expected_dt = {
@@ -166,7 +166,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             50: -5128618.048338078,
             90: 2070868084.7240956,
         }
-        sim = SimulationTwoRfStations(below_transition_crossing=True)
+        sim = SimulationTwoRFStations(below_transition_crossing=True)
         self._test_matching(sim, below_transition_crossing=True)
 
         DEV_PLOT = False
@@ -228,9 +228,9 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             )
 
     def test_roughly_correct_intensity_below_transition(self):
-        from blond.testing.simulation import SimulationTwoRfStationsWithWake
+        from blond.testing.simulation import SimulationTwoRFStationsWithWake
 
-        sim = SimulationTwoRfStationsWithWake(below_transition_crossing=True)
+        sim = SimulationTwoRFStationsWithWake(below_transition_crossing=True)
         self._test_matching(sim, below_transition_crossing=True)
         DEV_PLOT = False
         if DEV_PLOT:
