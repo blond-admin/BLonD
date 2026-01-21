@@ -20,7 +20,7 @@ import numpy as np
 from blond.core.base import HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
-from blond.physics.cavities import SingleHarmonicRfStation
+from blond.physics.cavities import SingleHarmonicRFStation
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.feedbacks.helpers import (
     cartesian_to_polar,
@@ -196,7 +196,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         voltage
             Voltage from the parent RF station, either at harmonic_index or the only one.
         """
-        if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
             return self._parent_rf_station.voltage
         else:
             return self._parent_rf_station.voltage[self.harmonic_index]
@@ -359,7 +359,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         harmonic
             Harmonic number of the parent cavity at harmonic_index.
         """
-        if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
             return self._parent_rf_station.get_main_harmonic()
         else:
             return self._parent_rf_station.harmonic[self.harmonic_index]
@@ -374,7 +374,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         omega_rf_design
             Design RF frequency of the parent cavity at harmonic_index.
         """
-        if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
             return self._parent_rf_station.omega_rf_design
         else:
             return self._parent_rf_station.omega_rf_design[self.harmonic_index]
@@ -389,7 +389,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         omega_rf_actual
             Actual RF frequency of the parent cavity at harmonic_index.
         """
-        if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
             return self._parent_rf_station.omega_rf_actual
         else:
             return self._parent_rf_station.omega_rf_actual[self.harmonic_index]
@@ -404,7 +404,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         phi_rf_actual
             Actual RF phase of the parent cavity at harmonic_index.
         """
-        if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
             return self._parent_rf_station.phi_rf_actual
         else:
             return self._parent_rf_station.phi_rf_actual[self.harmonic_index]
