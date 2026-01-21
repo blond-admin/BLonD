@@ -13,6 +13,8 @@ Notes
 -----
 Authors:
 Birk Karlsen Baeck
+Simon Lauber
+Helga Timko
 Leonard Thiele
 """
 
@@ -30,9 +32,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import (
-        MultiHarmonicRfStation,
-        RfStationBaseClass,
-        SingleHarmonicRfStation,
+        MultiHarmonicRFStation,
+        RFStationBaseClass,
+        SingleHarmonicRFStation,
     )
     from blond.physics.profiles import ProfileBaseClass
 
@@ -92,7 +94,7 @@ class LocalFeedback(FeedbackBaseClass):
             name=name,
         )
         self._parent_rf_station: (
-            SingleHarmonicRfStation | MultiHarmonicRfStation | None
+            SingleHarmonicRFStation | MultiHarmonicRFStation | None
         ) = None
 
         self.relative_voltage_correction: NumpyArray | None = None
@@ -101,7 +103,7 @@ class LocalFeedback(FeedbackBaseClass):
         self.profile = profile
 
     def set_parent_rf_station(
-        self, rf_station: MultiHarmonicRfStation | SingleHarmonicRfStation
+        self, rf_station: MultiHarmonicRFStation | SingleHarmonicRFStation
     ) -> None:
         """
         Set the parent RF station on initialization of the rf_station.
@@ -112,19 +114,19 @@ class LocalFeedback(FeedbackBaseClass):
             Cavity to be the parent rf station.
         """
         from blond.physics.cavities import (  # no cyclic import
-            MultiHarmonicRfStation,
-            SingleHarmonicRfStation,
+            MultiHarmonicRFStation,
+            SingleHarmonicRFStation,
         )
 
         assert self._parent_rf_station is None, (
             "This feedback has already one owner!"
         )
         if not isinstance(
-            rf_station, SingleHarmonicRfStation | MultiHarmonicRfStation
+            rf_station, SingleHarmonicRFStation | MultiHarmonicRFStation
         ):
             raise ValueError(
-                f"Local feedbacks can only be initialized with SingleHarmonicRfStation "
-                f"or MultiHarmonicRfStation but not {type(rf_station)}"
+                f"Local feedbacks can only be initialized with SingleHarmonicRFStation "
+                f"or MultiHarmonicRFStation but not {type(rf_station)}"
             )
         self._parent_rf_station = rf_station
         self._section_index = self._parent_rf_station.section_index
@@ -167,11 +169,11 @@ class GlobalFeedback(FeedbackBaseClass):
             name=name,
         )
         self.profile = profile
-        self.cavities: list[RfStationBaseClass] | None = None
+        self.cavities: list[RFStationBaseClass] | None = None
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
-    @requires(["RfStationBaseClass"])
+    @requires(["RFStationBaseClass"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -181,8 +183,8 @@ class GlobalFeedback(FeedbackBaseClass):
         simulation
             `Simulation` context manager.
         """
-        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.cavities import RFStationBaseClass
 
         self.cavities = simulation.ring.elements.get_elements(
-            RfStationBaseClass,
+            RFStationBaseClass,
         )

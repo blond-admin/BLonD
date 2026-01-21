@@ -6,7 +6,7 @@ from blond import (
     Beam,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicRfStation,
+    MultiHarmonicRFStation,
     Ring,
     Simulation,
     StaticProfile,
@@ -39,7 +39,7 @@ class TestLHCOpenDrive(unittest.TestCase):
             circumference=C,
         )
         # self.rf = RFStation(ring, [h], [V], [dphi])
-        rf = MultiHarmonicRfStation(
+        rf = MultiHarmonicRFStation(
             harmonic=np.array([h], dtype=backend.float),
             voltage=np.array([V], dtype=backend.float),
             phi_rf=np.array([dphi], dtype=backend.float),

@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import pytest
 from scipy.constants import elementary_charge as e
 
 from blond import (
@@ -8,7 +9,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicRfStation,
+    MultiHarmonicRFStation,
     Ring,
     Simulation,
     StaticProfile,
@@ -45,7 +46,7 @@ class TestLowPass(unittest.TestCase):
         )
 
 
-class TestRfBeamCurrent(unittest.TestCase):
+class TestRFBeamCurrent(unittest.TestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
@@ -66,7 +67,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         )
         self.ring = Ring(circumference=C)
         # self.rf = RFStation(self.ring, 4620, 4.5e6, 0)
-        self.rf = MultiHarmonicRfStation(
+        self.rf = MultiHarmonicRFStation(
             harmonic=np.array([4620], dtype=backend.float),
             voltage=np.array([4.5e6], dtype=backend.float),
             phi_rf=np.array([0], dtype=backend.float),
@@ -105,11 +106,13 @@ class TestRfBeamCurrent(unittest.TestCase):
         )
         self.beam.setup_beam(dt=np.zeros(N_m), dE=np.zeros(N_m))
 
+    @pytest.mark.backend_mutation
     def test_setup(self):
         pass  # see if setup works
 
     # Test charge distribution with analytic functions
     # Compare with theoretical value
+    @pytest.mark.backend_mutation
     def test_1(self):
         t = self.profile.hist_x
         self.profile._hist_y = 2600 * np.exp(
@@ -164,6 +167,7 @@ class TestRfBeamCurrent(unittest.TestCase):
 
     # Test charge distribution of a bigaussian profile, without LPF
     # Compare to simulation data
+    @pytest.mark.backend_mutation
     def test_2(self):
         self.simulation.prepare_beam(
             beam=self.beam,
@@ -412,6 +416,7 @@ class TestRfBeamCurrent(unittest.TestCase):
 
     # Test charge distribution of a bigaussian profile, with LPF
     # Compare to simulation data
+    @pytest.mark.backend_mutation
     def test_3(self):
         self.simulation.prepare_beam(
             beam=self.beam,
@@ -670,6 +675,7 @@ class TestRfBeamCurrent(unittest.TestCase):
 
     # Test RF beam current on coarse grid integrated from fine grid
     # Compare to simulation data for peak RF current
+    @pytest.mark.backend_mutation
     def test_4(self):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)

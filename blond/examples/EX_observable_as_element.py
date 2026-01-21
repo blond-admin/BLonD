@@ -19,7 +19,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -36,7 +36,7 @@ def main():
 
     ring = Ring(26658.883)
 
-    rf_station = SingleHarmonicRfStation(
+    rf_station = SingleHarmonicRFStation(
         harmonic=35640,
         voltage=6e6,
         phi_rf=0,

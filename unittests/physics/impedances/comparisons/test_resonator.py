@@ -2,6 +2,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from blond import (
     Beam,
@@ -9,7 +10,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
     proton,
@@ -34,6 +35,7 @@ class TestResonatorImpedances(unittest.TestCase):
 
         backend.change_backend(Numpy32Bit)
 
+    @pytest.mark.backend_mutation
     def test_equal(self):
         voltages = {}
         for i, solver in enumerate(
@@ -53,7 +55,7 @@ class TestResonatorImpedances(unittest.TestCase):
                 cut_right=1 * 96,
                 n_bins=256 * 96,
             )
-            cavity1 = SingleHarmonicRfStation(
+            cavity1 = SingleHarmonicRFStation(
                 voltage=0,
                 phi_rf=0,
                 harmonic=1,

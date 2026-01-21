@@ -2,6 +2,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from blond import (
     Beam,
@@ -9,7 +10,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
     proton,
@@ -127,7 +128,7 @@ class Blond3:
             blond2.profile.cut_right,
             blond2.profile.n_slices,
         )
-        cavity1 = SingleHarmonicRfStation(
+        cavity1 = SingleHarmonicRFStation(
             voltage=0.9e6,
             phi_rf=0,
             harmonic=4620,
@@ -189,6 +190,7 @@ class TestBothBlonds(unittest.TestCase):
             diff.size
         )
 
+    @pytest.mark.backend_mutation
     def test_integration(self):
         n_macroparticles = int(1e6)
         n_slices = 1024  # this falls apart at low n_slices as the fftconvolve becomes inaccurate (BLonD2)
@@ -224,6 +226,7 @@ class TestBothBlonds(unittest.TestCase):
                     atol=20,  # of 120000
                 )
 
+    @pytest.mark.backend_mutation
     def test_diff_params(self):
         DEBUG_MODE = False
         if DEBUG_MODE:

@@ -9,6 +9,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from blond import (
     AllowPlotting,
@@ -29,19 +30,10 @@ from blond.physics.profiles import (
 
 
 class TestProfileBaseClass(unittest.TestCase):
-    def setUpClass():
-        try:
-            backend.change_backend(Cupy64Bit)
-        except Exception:
-            pass
-
     def setUp(self):
         self.profile_base_class = ProfileBaseClass()
         self.profile_base_class._hist_x = backend.linspace(-5, 5, 11)
         self.profile_base_class._hist_y = backend.linspace(5, 5, 11)
-
-    def tearDownClass():
-        backend.change_backend(Numpy64Bit)
 
     def test___init__(self):
         pass
@@ -169,6 +161,35 @@ class TestProfileBaseClass(unittest.TestCase):
             )
         np.testing.assert_allclose(result[0, :], expected[0, :])
 
+    @pytest.mark.backend_mutation
+    def test_singlebunch_gauss_fit_gpu(self):
+        backend.change_backend(Cupy64Bit)
+        profile_base_class = ProfileBaseClass()
+        profile_base_class._hist_x = backend.linspace(-5, 5, 11)
+        profile_base_class._hist_y = backend.linspace(5, 5, 11)
+        result = profile_base_class.singlebunch_gauss_fit()
+        with AllowPlotting():
+            expected = gauss_fit(
+                copy_to_cpu(profile_base_class.hist_x),
+                copy_to_cpu(profile_base_class.hist_y),
+            )
+        np.testing.assert_allclose(result, expected)
+
+    @pytest.mark.backend_mutation
+    def test_multibunch_gauss_fit_gpu(self):
+        backend.change_backend(Cupy64Bit)
+        profile_base_class = ProfileBaseClass()
+        profile_base_class._hist_x = backend.linspace(-5, 5, 11)
+        profile_base_class._hist_y = backend.linspace(5, 5, 11)
+        result = profile_base_class.multibunch_gauss_fit(n_bunches=1)
+        with AllowPlotting():
+            expected = multi_gauss_fit(
+                copy_to_cpu(profile_base_class.hist_x),
+                copy_to_cpu(profile_base_class.hist_y),
+                n_bunches=1,
+            )
+        np.testing.assert_allclose(result[0, :], expected[0, :])
+
 
 class TestStaticProfile(unittest.TestCase):
     def setUp(self):
@@ -199,7 +220,7 @@ class TestStaticProfile(unittest.TestCase):
             t_period=11,
         )
         np.testing.assert_almost_equal(
-            profile.hist_x,
+            copy_to_cpu(profile.hist_x),
             np.linspace(-5, 5, 11),
         )
 
@@ -230,11 +251,11 @@ class TestDynamicProfileConstCutoff(unittest.TestCase):
         self.assertEqual(10, self.dynamic_profile_const_cutoff.n_bins)
         np.testing.assert_almost_equal(
             np.linspace(0 + 0.05e-9, 0 - 0.05e-9, 10),
-            self.dynamic_profile_const_cutoff.hist_x,
+            copy_to_cpu(self.dynamic_profile_const_cutoff.hist_x),
         )
         np.testing.assert_almost_equal(
             np.zeros(10),
-            self.dynamic_profile_const_cutoff.hist_y,
+            copy_to_cpu(self.dynamic_profile_const_cutoff.hist_y),
         )
 
 
@@ -264,11 +285,11 @@ class TestDynamicProfileConstNBins(unittest.TestCase):
         self.assertEqual(10, self.dynamic_profile_const_cutoff.n_bins)
         np.testing.assert_almost_equal(
             np.linspace(0 + 0.05e-9, 0 - 0.05e-9, 10),
-            self.dynamic_profile_const_cutoff.hist_x,
+            copy_to_cpu(self.dynamic_profile_const_cutoff.hist_x),
         )
         np.testing.assert_almost_equal(
             np.zeros(10),
-            self.dynamic_profile_const_cutoff.hist_y,
+            copy_to_cpu(self.dynamic_profile_const_cutoff.hist_y),
         )
 
 

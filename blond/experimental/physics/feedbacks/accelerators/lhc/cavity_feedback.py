@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from typing import Optional as LateInit
 
 import numpy as np
@@ -22,16 +22,15 @@ from blond.core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
-from blond.physics.cavities import (
-    MultiHarmonicRfStation,
-    SingleHarmonicRfStation,
-)
 
 from .helpers import (
     cavity_response_sparse_matrix,
     fir_filter_lhc_otfb_coeff,
     smooth_step,
 )
+
+if TYPE_CHECKING:
+    from blond.core.beam.beams import BeamBaseClass
 
 
 class LHCCavityLoopCommissioning:

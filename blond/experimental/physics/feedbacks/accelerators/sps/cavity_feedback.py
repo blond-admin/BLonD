@@ -33,7 +33,7 @@ from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response impo
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
-from blond.physics.cavities import RfStationBaseClass
+from blond.physics.cavities import RFStationBaseClass
 from blond.physics.feedbacks.helpers import cartesian_to_polar
 from blond.physics.profiles import StaticProfile
 
@@ -1076,7 +1076,7 @@ class SPSCavityFeedback:
             )
         self.track_init(debug=self.OTFB_1.debug)
 
-    def set_parent_rf_station(self, rf_station: RfStationBaseClass):
+    def set_parent_rf_station(self, rf_station: RFStationBaseClass):
         self.OTFB_1.set_parent_rf_station(rf_station)
         self.OTFB_2.set_parent_rf_station(rf_station)
 

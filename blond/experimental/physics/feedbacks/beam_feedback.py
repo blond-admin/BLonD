@@ -34,12 +34,12 @@ from blond.physics.feedbacks.base import (
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
-    from blond.physics.cavities import RfStationBaseClass
+    from blond.physics.cavities import RFStationBaseClass
     from blond.physics.profiles import ProfileBaseClass
 
 
 class BeamFeedbackBase(GlobalFeedback):
-    _parent_rf_station: RfStationBaseClass
+    _parent_rf_station: RFStationBaseClass
 
     def __init__(
         self,

@@ -15,6 +15,7 @@ Unittest for llrf.filters
 import unittest
 
 import numpy as np
+import pytest
 from scipy.constants import c
 
 from blond import (
@@ -22,7 +23,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicRfStation,
+    MultiHarmonicRFStation,
     Ring,
     Simulation,
     StaticProfile,
@@ -107,6 +108,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
 
+    @pytest.mark.backend_mutation
     def test_vg(self):
         from blond.legacy.blond2.llrf.impulse_response import (
             TravellingWaveCavity,
@@ -121,6 +123,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         ):
             TravellingWaveCavity(0.374, 43, 2.71e4, v_g, 2 * np.pi * 200.222e6)
 
+    @pytest.mark.backend_mutation
     def test_wake(self):
         time = np.linspace(-0.1e-6, 0.7e-6, 1000)
 
@@ -148,6 +151,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
             rtol=1e-6,
         )
 
+    @pytest.mark.backend_mutation
     def test_vind(self):
         # randomly chose omega_c from allowed range
         np.random.seed(1980)
@@ -183,7 +187,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
             circumference=ring.circumference,
             particle_type=proton,
         )
-        rf = MultiHarmonicRfStation(
+        rf = MultiHarmonicRFStation(
             voltage=np.array([V], dtype=backend.float),
             harmonic=np.array([h], dtype=backend.float),
             phi_rf=np.array([phi], dtype=backend.float),
@@ -302,6 +306,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
             atol=1e-9,
         )
 
+    @pytest.mark.backend_mutation
     def test_beam_fine_coarse(self):
         # Test beam impulse response and induced voltage
         # Compare on coarse and fine grid
@@ -314,7 +319,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         ring = Ring(circumference=2 * np.pi * 1100.009)
 
-        rf = MultiHarmonicRfStation(
+        rf = MultiHarmonicRFStation(
             harmonic=np.array([4620], dtype=backend.float),
             voltage=np.array([4.5e6], dtype=backend.float),
             phi_rf=np.array([0], dtype=backend.float),

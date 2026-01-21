@@ -7,8 +7,8 @@
 # Project website: http://blond.web.cern.ch/
 
 from blond.physics.cavities import (
-    MultiHarmonicRfStation,
-    SingleHarmonicRfStation,
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
 )
 from blond.physics.feedbacks.base import FeedbackBaseClass
 from blond.physics.profiles import ProfileBaseClass
@@ -19,7 +19,7 @@ class GroupedFeedback(FeedbackBaseClass):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        cavities: list[SingleHarmonicRfStation | MultiHarmonicRfStation],
+        cavities: list[SingleHarmonicRFStation | MultiHarmonicRFStation],
         section_index: int = 0,
         name: str | None = None,
     ):

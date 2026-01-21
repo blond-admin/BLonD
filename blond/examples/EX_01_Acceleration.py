@@ -17,10 +17,10 @@ from blond import (
     BeamObservationOncePerTurn,
     BiGaussian,
     DriftSimple,
-    RfStationPhaseObservation,
+    RFStationPhaseObservation,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -34,7 +34,7 @@ logging.basicConfig(level=logging.INFO)
 def main():
     ring = Ring(26658.883)
 
-    rf_station = SingleHarmonicRfStation(harmonic=35640, voltage=6e6, phi_rf=0)
+    rf_station = SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0)
 
     N_TURNS = int(1e3)
 
@@ -83,7 +83,7 @@ def main():
             ),
         )
 
-    phase_observation = RfStationPhaseObservation(
+    phase_observation = RFStationPhaseObservation(
         each_turn_i=1,
         rf_station=rf_station,
     )

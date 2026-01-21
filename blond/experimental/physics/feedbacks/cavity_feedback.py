@@ -16,7 +16,7 @@ import numpy as np
 
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
-from blond.physics.cavities import SingleHarmonicRfStation
+from blond.physics.cavities import SingleHarmonicRFStation
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.feedbacks.helpers import (
     cartesian_to_polar,
@@ -31,6 +31,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond import Simulation, StaticProfile
     from blond.core.beam.base import BeamBaseClass
+    from blond.physics.cavities import MultiHarmonicRFStation
 
 # TODO rewrite all docstrings
 
@@ -269,12 +270,12 @@ class IQCavityFeedback(LocalFeedback):
         self.I_GEN_FINE = np.zeros(self.profile.n_bins, dtype=complex)
 
         # TODO REWORK LATEINIT
-        self.V_corr: LateInit = None
-        self.alpha_sum: LateInit = None
-        self.phi_corr: LateInit = None
-        self.omega_carrier_prev: LateInit = None
-        self.T_s_prev: LateInit = None
-        self.rf_centers_prev: LateInit = None
+        self.V_corr: NumpyArray | None = None
+        self.alpha_sum: NumpyArray | None = None
+        self.phi_corr: NumpyArray | None = None
+        self.omega_carrier_prev: float | None = None
+        self.T_s_prev: float | None = None
+        self.rf_centers_prev: float | None = None
 
     @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:
@@ -305,7 +306,7 @@ class IQCavityFeedback(LocalFeedback):
 
         """
 
-        if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
             harmonic = self._parent_rf_station.harmonic
             omega_rf = self._parent_rf_station.omega_rf_actual
             phi_rf = self._parent_rf_station.phi_rf_actual
@@ -336,7 +337,7 @@ class IQCavityFeedback(LocalFeedback):
             phi_rf_design for the harmonic index/only one
 
         """
-        if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
             harmonic = self._parent_rf_station.harmonic
             omega_rf_design = self._parent_rf_station.omega_rf_design
             phi_rf_design = self._parent_rf_station.phi_rf_design
@@ -360,7 +361,7 @@ class IQCavityFeedback(LocalFeedback):
             voltage from the parent RF station, either at harmonic_index or the only one
 
         """
-        if isinstance(self._parent_rf_station, SingleHarmonicRfStation):
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
             return self._parent_rf_station.voltage
         else:
             return self._parent_rf_station.voltage[self.harmonic_index]
