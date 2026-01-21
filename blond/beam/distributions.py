@@ -57,7 +57,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from .beam import Beam
     from ..impedances.impedance import TotalInducedVoltage
     from ..trackers.tracker import FullRingAndRF, MainHarmonicOptionType
-    from ..synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
+    from ..synchrotron_radiation.synchrotron_radiation import (
+        SynchrotronRadiation,
+    )
     from ..utils.types import (
         DistributionUserTableType,
         LineDensityInputType,
@@ -1430,9 +1432,14 @@ def _get_dE_from_dt(
 
     return dE_amplitude
 
-def Haissinski(ring_tracker: FullRingAndRF, synchrotron_radiation: SynchrotronRadiation,
-               verbose: bool = True, seed: int = 1234,
-               root_kwargs: dict = {}):
+
+def Haissinski(
+    ring_tracker: FullRingAndRF,
+    synchrotron_radiation: SynchrotronRadiation,
+    verbose: bool = True,
+    seed: int = 1234,
+    root_kwargs: dict = {},
+):
     r"""Solves the Haissinksi equation to find the equilibrum bunch distribution of the
     Vlasov-Fokker-Planck equation. The algorithm is based on root-finding, as described
     in [Warnock2018]_. The function requires a :class:`~blond.trackers.tracker.FullRingAndRF`
@@ -1477,7 +1484,7 @@ def Haissinski(ring_tracker: FullRingAndRF, synchrotron_radiation: SynchrotronRa
     """
 
     def Gauss(t, sigma):
-        return np.exp(-0.5 * t**2 / sigma**2) / np.sqrt(2*np.pi) / sigma
+        return np.exp(-0.5 * t**2 / sigma**2) / np.sqrt(2 * np.pi) / sigma
 
     # computes the induced voltage for a given profile line density
     def Vind(line_density, induced_voltage):
@@ -1485,7 +1492,9 @@ def Haissinski(ring_tracker: FullRingAndRF, synchrotron_radiation: SynchrotronRa
             return 0.0
         else:
             # update profile used in the computation of Vind
-            profile.n_macroparticles = line_density * profile.bin_size * n_macroparticles
+            profile.n_macroparticles = (
+                line_density * profile.bin_size * n_macroparticles
+            )
 
             induced_voltage.induced_voltage_sum()
             return induced_voltage.induced_voltage
@@ -1511,17 +1520,22 @@ def Haissinski(ring_tracker: FullRingAndRF, synchrotron_radiation: SynchrotronRa
     sigmaE = energy * synchrotron_radiation.sigma_dE
 
     # zero-current bunch length [s]
-    sigma0 = np.abs(eta0) \
-        / (rf_station.beta[counter] * energy) \
-        * sigmaE / rf_station.omega_s0[counter]
+    sigma0 = (
+        np.abs(eta0)
+        / (rf_station.beta[counter] * energy)
+        * sigmaE
+        / rf_station.omega_s0[counter]
+    )
 
     # initial Gaussian profile
     line_density_0 = Gauss(profile.bin_centers, sigma0)
     # also initialize Profile object
-    profile.n_macroparticles = line_density_0 * profile.bin_size * n_macroparticles
+    profile.n_macroparticles = (
+        line_density_0 * profile.bin_size * n_macroparticles
+    )
 
     # scale factor [s]
-    Tau = -eta0 * sigmaE**2 / energy / (q*voltage_rf) * tRev
+    Tau = -eta0 * sigmaE**2 / energy / (q * voltage_rf) * tRev
 
     # arguments passed to the root finding algorithm
     args = tracker, Tau, synchrotron_radiation.U0
@@ -1530,12 +1544,22 @@ def Haissinski(ring_tracker: FullRingAndRF, synchrotron_radiation: SynchrotronRa
         # compute rf voltage
         tracker.rf_voltage_calculation()
         # primitive of the potential energy
-        exponent = scipy.integrate.cumulative_trapezoid(tracker.rf_voltage
-            + Vind(line_density, tracker.totalInducedVoltage)
-            - U0/q, tracker.profile.bin_centers, initial=0) / rf_station.voltage[0, counter]
+        exponent = (
+            scipy.integrate.cumulative_trapezoid(
+                tracker.rf_voltage
+                + Vind(line_density, tracker.totalInducedVoltage)
+                - U0 / q,
+                tracker.profile.bin_centers,
+                initial=0,
+            )
+            / rf_station.voltage[0, counter]
+        )
         # integration constant
-        exponent += -np.cos(omega_rf*tracker.profile.bin_centers[0]+phi_rf) / omega_rf \
+        exponent += (
+            -np.cos(omega_rf * tracker.profile.bin_centers[0] + phi_rf)
+            / omega_rf
             + np.cos(phi_rf) / omega_rf
+        )
 
         term2 = np.exp(-exponent / Tau)
 
@@ -1544,15 +1568,16 @@ def Haissinski(ring_tracker: FullRingAndRF, synchrotron_radiation: SynchrotronRa
         return line_density * fac1 - term2
 
     # obtain the Haissinski solution
-    fun = lambda l: N(l, *args)  # helper function since root needs a function of one argument
+    fun = lambda l: N(
+        l, *args
+    )  # helper function since root needs a function of one argument
     sol = scipy.optimize.root(fun, line_density_0, **root_kwargs)
     haiss_dt = sol.x
 
     # create macro-particles from distribution
 
-    deltaE_array = np.linspace(-4*sigmaE, 4*sigmaE, num=profile.n_slices)
-    time_grid, deltaE_grid = np.meshgrid(profile.bin_centers,
-                                         deltaE_array)
+    deltaE_array = np.linspace(-4 * sigmaE, 4 * sigmaE, num=profile.n_slices)
+    time_grid, deltaE_grid = np.meshgrid(profile.bin_centers, deltaE_array)
 
     haiss_dE = Gauss(deltaE_array, sigmaE)
 
@@ -1560,12 +1585,18 @@ def Haissinski(ring_tracker: FullRingAndRF, synchrotron_radiation: SynchrotronRa
     density_grid = np.zeros((profile.n_slices, len(deltaE_array)))
     for i in range(profile.n_slices):
         for j in range(len(deltaE_array)):
-            density_grid[i,j] = haiss_dt[i] * haiss_dE[j]
+            density_grid[i, j] = haiss_dt[i] * haiss_dE[j]
     density_grid /= np.sum(density_grid)  # normalize
 
-    populate_bunch(tracker.beam, time_grid, deltaE_grid, density_grid.T,
-                   profile.bin_size, deltaE_array[1] - deltaE_array[0],
-                   seed=seed)
+    populate_bunch(
+        tracker.beam,
+        time_grid,
+        deltaE_grid,
+        density_grid.T,
+        profile.bin_size,
+        deltaE_array[1] - deltaE_array[0],
+        seed=seed,
+    )
 
     if verbose:
         return sol
