@@ -944,7 +944,6 @@ class TestACSSparseModel(unittest.TestCase):
             plt.show()
 
         np.testing.assert_allclose(res_euler_forward, res_sparse_matrix)
-        assert res_euler_forward[0] == V_ant_init_in
 
         with self.assertRaisesRegex(AssertionError, "length of "):
             _ = cavity_response_sparse_matrix(

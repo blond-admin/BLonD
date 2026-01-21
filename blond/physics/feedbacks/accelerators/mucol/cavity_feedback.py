@@ -78,7 +78,7 @@ class PassiveCavity(IQCavityFeedback):
 
     def __init__(
         self,
-        profile: StaticProfile,  # is this stricly necessary?
+        profile: StaticProfile,  # is this strictly necessary?
         R_over_Q: float,
         Q_L: float,
         f_center: float,
@@ -355,7 +355,9 @@ class PassiveCavity(IQCavityFeedback):
             )
 
             # Find initial value of antenna voltage and generator current
-            t_at_init = self.profile.hist_x[0] - self.profile.hist_step
+            t_at_init = self.profile.hist_x[
+                0
+            ]  # TODO: check if this is correct. both grids should be in the center of the bin, therefore x should be correct - self.profile.hist_step / 2
             initial_voltage_fine_grid = interp1d(
                 self.time_coarse_grid,
                 self.antenna_voltage_coarse_grid,
