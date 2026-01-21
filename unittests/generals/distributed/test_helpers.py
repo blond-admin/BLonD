@@ -3,10 +3,12 @@ import unittest
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 
 from blond.generals.distributed.distributed_array import mpi_is_distributed
 
 
+@pytest.mark.mpi
 class TestCallablesWithMPI(unittest.TestCase):
     def setUp(self):
         from blond.core.backends.mpi_distributed.callables import (

@@ -3,10 +3,12 @@ import unittest
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 
 from blond.generals.distributed.distributed_array import mpi_barrier
 
 
+@pytest.mark.mpi
 class TestDistributedArray(unittest.TestCase):
     def setUp(self):
         from blond.generals.distributed.distributed_array import (
@@ -112,6 +114,7 @@ class TestDistributedArray(unittest.TestCase):
             )  # assumes `mpirun -n 2`
 
 
+@pytest.mark.mpi
 class TestDistributedArrayNoMPI(unittest.TestCase):
     def test_no_mpi(self):
         with patch.dict(sys.modules, {"mpi4py": None}):
