@@ -73,10 +73,10 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             )
         for percentile in (10, 50, 90):
             percentile_dt = float(
-                np.percentile(sim.beam1.read_partial_dt(), percentile)
+                backend.percentile(sim.beam1.read_partial_dt(), percentile)
             )
             percentile_dE = float(
-                np.percentile(sim.beam1.read_partial_dE(), percentile)
+                backend.percentile(sim.beam1.read_partial_dE(), percentile)
             )
             np.testing.assert_allclose(
                 expected_dt[percentile],
@@ -134,10 +134,10 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         }
         for percentile in (10, 50, 90):
             percentile_dt = float(
-                np.percentile(sim.beam1.read_partial_dt(), percentile)
+                backend.percentile(sim.beam1.read_partial_dt(), percentile)
             )
             percentile_dE = float(
-                np.percentile(sim.beam1.read_partial_dE(), percentile)
+                backend.percentile(sim.beam1.read_partial_dE(), percentile)
             )
 
             np.testing.assert_allclose(
@@ -209,10 +209,10 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             )
         for percentile in (10, 50, 90):
             percentile_dt = float(
-                np.percentile(sim.beam1.read_partial_dt(), percentile)
+                backend.percentile(sim.beam1.read_partial_dt(), percentile)
             )
             percentile_dE = float(
-                np.percentile(sim.beam1.read_partial_dE(), percentile)
+                backend.percentile(sim.beam1.read_partial_dE(), percentile)
             )
 
             np.testing.assert_allclose(
@@ -272,10 +272,10 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         }
         for percentile in (10, 50, 90):
             percentile_dt = float(
-                np.percentile(sim.beam1.read_partial_dt(), percentile)
+                backend.percentile(sim.beam1.read_partial_dt(), percentile)
             )
             percentile_dE = float(
-                np.percentile(sim.beam1.read_partial_dE(), percentile)
+                backend.percentile(sim.beam1.read_partial_dE(), percentile)
             )
             np.testing.assert_allclose(
                 expected_dt[percentile],
