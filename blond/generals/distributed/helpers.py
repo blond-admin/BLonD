@@ -29,6 +29,8 @@ except Exception as exc:
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.random import Generator as NumpyGenerator
 
+    from blond.generals.distributed.distributed_array import DistributedArray
+
 
 def mpi_local_size(global_size: int, warning_hint: str) -> int:
     """
@@ -100,7 +102,9 @@ def mpi_aware_random_generator_cpu(
     return random_generator_cpu
 
 
-def distributed_arange(local_n: int, dtype: np.typing.DTypeLike):
+def distributed_arange(
+    local_n: int, dtype: np.typing.DTypeLike
+) -> DistributedArray:
     """
     Distributed version of `np.arange` and `cp.arange`.
 
