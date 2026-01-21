@@ -253,7 +253,7 @@ class LHCCavityLoop(IQCavityFeedback):
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
-    @requires(["RfStationBaseClass"])
+    @requires(["RFStationBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,

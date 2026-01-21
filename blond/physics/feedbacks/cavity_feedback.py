@@ -124,7 +124,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         self.generator_current_coarse_grid: NumpyArray | None = None
         self.generator_current_fine_grid: NumpyArray | None = None
 
-    @requires(["RfStationBaseClass", "BeamBaseClass"])
+    @requires(["RFStationBaseClass", "BeamBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,

@@ -206,7 +206,7 @@ class IQCavityFeedback(LocalFeedback):
 
         self.dT: float | None = None
 
-    @requires(["RfStationBaseClass", "BeamBaseClass"])
+    @requires(["RFStationBaseClass", "BeamBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,

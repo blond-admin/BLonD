@@ -220,7 +220,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
-    @requires(["RfStationBaseClass"])
+    @requires(["RFStationBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -1058,7 +1058,7 @@ class SPSCavityFeedback:
     def on_init_simulation(self, simulation: Simulation):
         pass
 
-    @requires(["RfStationBaseClass"])
+    @requires(["RFStationBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
