@@ -19,6 +19,8 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRfStation,
+    StaticProfile,
+    StaticProfileObservation,
     proton,
 )
 from blond.experimental.beam_preparation.brute_force_matcher import (
@@ -84,24 +86,29 @@ def main():
 
     sim.prepare_beam(
         preparation_routine=BruteForceMatcher(
-            time_limit=[0.1e-9, 4e-9],
+            time_limit=[
+                0.1e-9,
+                4e-9,
+            ],  # adjust this until the desired bunch is found
             energy_limit=[-4e8, 4e8],
             n_macroparticles=3000,
             n_iter=100,
             every_iter_to_plot=10,  # plot every 100/10 iterations
             animate=True,
-            purge_limit_time=[0.1e-9, 4e-9],
+            purge_limit_time=[0.1e-9, 4e-9],  #
             purge_limit_energy=[-4e8, 4e8],
             purge=True,
         ),
         beam=beam,
     )
+    plt.show()
 
     sim.run_simulation(
         n_turns=20,
         beams=(beam,),
     )
-    plt.clf("all")
+
+    plt.close()
     plt.scatter(observation.dts[0], observation.dEs[0])
     plt.scatter(observation.dts[0], observation.dEs[0])
     plt.show()

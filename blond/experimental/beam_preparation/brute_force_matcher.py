@@ -30,8 +30,12 @@ class BruteForceMatcher(MatchingRoutine):
     ----------
     time_limit : tuple[float, float]
         Lower and upper limits for the time coordinate (dt).
+        The user should adjust this until they find their matched bunch, they can inspect
+        using the animate flag.
     energy_limit : tuple[float, float]
         Lower and upper limits for the energy deviation (dE).
+        The user should adjust this until they find their matched bunch, they can inspect
+        using the animate flag.
     n_macroparticles : int
         Number of macroparticles used to initialize the beam.
     n_iter : int
@@ -150,11 +154,10 @@ class BruteForceMatcher(MatchingRoutine):
                 scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")
                 ax.set_title(f"Iteration {i + 1}/{self.n_iter}")
 
-                plt.pause(1)
+                plt.pause(0.1)
 
         if self.animate:
             plt.ioff()
-            plt.show()
 
         if self.purge:
             BoxLosses(
