@@ -357,6 +357,9 @@ class BeamPhysicsRelevantElements(Preparable):
         """
         key = f"{class_.__name__}_{section_i}"
         # use cache only after init of simulation
+        CACHE_MAX = 32
+        if len(self._get_element_cache) > CACHE_MAX:
+            self._get_element_cache = {}  # clear cache
         if self._on_init_simulation_passed and key in self._get_element_cache:
             return self._get_element_cache[key]
 
@@ -366,7 +369,8 @@ class BeamPhysicsRelevantElements(Preparable):
         elements = get_elements(self.elements, class_)
         if section_i is not None:
             elements = tuple(filter(is_in_section, elements))
-        self._get_element_cache[key] = elements
+        if self._on_init_simulation_passed:
+            self._get_element_cache[key] = elements
         return elements
 
     def get_element(self, class_: type[T], section_i: int | None = None) -> T:

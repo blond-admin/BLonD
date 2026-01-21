@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import warnings
 from collections.abc import Callable, Sequence
-from copy import deepcopy
+from copy import copy, deepcopy
 from pstats import SortKey
 from typing import TYPE_CHECKING
 
@@ -1614,7 +1614,7 @@ class Simulation(Preparable):
         t_rev
             Revolution time, in [s].
         """
-        reference_tmp = deepcopy(reference)
+        reference_tmp = copy(reference)
         t0 = reference_tmp.time
         for element in self.ring.elements.get_elements(AltersReference):
             element: AltersReference
