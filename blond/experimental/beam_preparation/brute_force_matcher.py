@@ -42,6 +42,8 @@ class BruteForceMatcher(MatchingRoutine):
         Number of simulation iterations to perform.
     animate: bool
         Whether or not to display the simulation animation.
+    animate_pause_time: float
+        Time to pause the simulation animation, default 0.1, in [s].
     every_iter_to_plot : int, optional
         A snapshot of the beam is
         produced every ``n_iter / every_iter_to_plot`` iterations.
@@ -49,11 +51,9 @@ class BruteForceMatcher(MatchingRoutine):
     purge : bool, optional
         If ``True``, macroparticles outside user-defined phase-space limits
         are removed during the matching process. Default is ``False``.
-
     purge_limit_time : tuple[float, float], optional
         Lower and upper bounds in time, in [s]. Used to purge particles when
         ``purge=True``. If ``None``, no time-based purging is applied.
-
     purge_limit_energy : tuple[float, float], optional
         Lower and upper bounds in energy deviation, in [eV]. Used to purge
         particles when ``purge=True``. If ``None``, no energy-based purging
@@ -67,6 +67,7 @@ class BruteForceMatcher(MatchingRoutine):
         n_macroparticles: int,
         n_iter: int,
         animate: bool = True,
+        animate_pause_time: float = 0.1,
         every_iter_to_plot: int = 10,
         purge: bool = False,
         purge_limit_time: tuple[float, float] = None,
@@ -78,6 +79,7 @@ class BruteForceMatcher(MatchingRoutine):
         self.n_macroparticles = n_macroparticles
         self.n_iter = n_iter
         self.animate = animate
+        self.animate_pause_time = animate_pause_time
         self.every_iter_to_plot = every_iter_to_plot
         self.purge = purge
         self.purge_limit_time = purge_limit_time
@@ -154,7 +156,7 @@ class BruteForceMatcher(MatchingRoutine):
                 scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")
                 ax.set_title(f"Iteration {i + 1}/{self.n_iter}")
 
-                plt.pause(0.1)
+                plt.pause(self.animate_pause_time)
 
         if self.animate:
             plt.ioff()
