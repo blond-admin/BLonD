@@ -29,11 +29,11 @@ class BruteForceMatcher(MatchingRoutine):
     Parameters
     ----------
     time_limit : tuple[float, float]
-        Lower and upper limits for the time coordinate (dt).
+        Lower and upper limits for the time coordinate, in [s].
         The user should adjust this until they find their matched bunch, they can inspect
         using the animate flag.
     energy_limit : tuple[float, float]
-        Lower and upper limits for the energy deviation (dE).
+        Lower and upper limits for the energy deviation, in [eV].
         The user should adjust this until they find their matched bunch, they can inspect
         using the animate flag.
     n_macroparticles : int
@@ -51,11 +51,11 @@ class BruteForceMatcher(MatchingRoutine):
         are removed during the matching process. Default is ``False``.
 
     purge_limit_time : tuple[float, float], optional
-        Lower and upper bounds in time ``dt`` used to purge particles when
+        Lower and upper bounds in time, in [s]. Used to purge particles when
         ``purge=True``. If ``None``, no time-based purging is applied.
 
     purge_limit_energy : tuple[float, float], optional
-        Lower and upper bounds in energy deviation ``dE`` used to purge
+        Lower and upper bounds in energy deviation, in [eV]. Used to purge
         particles when ``purge=True``. If ``None``, no energy-based purging
         is applied.
     """
@@ -131,8 +131,8 @@ class BruteForceMatcher(MatchingRoutine):
             )
             ax.add_patch(rect)
 
-            ax.set_xlabel("dt")
-            ax.set_ylabel("dE")
+            ax.set_xlabel("dt [s]")
+            ax.set_ylabel("dE []")
             ax.legend(loc="upper right")
             ax.set_title("Brute-force beam matching")
 
