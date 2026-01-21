@@ -14,7 +14,7 @@ Notes
 The following classes are currently available:
 - :class:`~blond.cycles.magnetic_cycles.ConstantMagneticCycle`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurn`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`
+- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
 
 Authors:
@@ -658,7 +658,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         return ret
 
 
-class MagneticCyclePerTurnAllRfStations(MagneticCycleBase):
+class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
     """
     Magnetic program per turn, defined for each RF station.
 
@@ -807,7 +807,7 @@ class MagneticCyclePerTurnAllRfStations(MagneticCycleBase):
         values_after_rf_station_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
-    ) -> MagneticCyclePerTurnAllRfStations:
+    ) -> MagneticCyclePerTurnAllRFStations:
         """
         Initialize object without simulation context.
 
@@ -831,9 +831,9 @@ class MagneticCyclePerTurnAllRfStations(MagneticCycleBase):
         Returns
         -------
         magnetic_cycle
-            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`.
+            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`.
         """
-        ret = MagneticCyclePerTurnAllRfStations(
+        ret = MagneticCyclePerTurnAllRFStations(
             value_init=value_init,
             values_after_rf_station_per_turn=values_after_rf_station_per_turn,
             in_unit=in_unit,
