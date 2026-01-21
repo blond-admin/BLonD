@@ -15,7 +15,7 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
 )
@@ -30,4 +30,4 @@ wakefield_profile_mock = Mock(WakeField)
 cycle_const_mock = Mock(ConstantMagneticCycle)
 
 drift_simple_mock = Mock(DriftSimple)
-single_harmonic_rf_station_mock = Mock(SingleHarmonicRfStation)
+single_harmonic_rf_station_mock = Mock(SingleHarmonicRFStation)

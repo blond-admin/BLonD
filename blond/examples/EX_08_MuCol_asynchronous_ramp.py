@@ -19,7 +19,7 @@ from blond import (
     ReferenceEnergyChange,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
     StaticProfileObservation,
     mu_plus,
@@ -51,7 +51,7 @@ def main():
     one_turn_model = []
     observables = []
     for rf_station_i in range(n_sections):
-        rf_station = SingleHarmonicRfStation(
+        rf_station = SingleHarmonicRFStation(
             section_index=rf_station_i,
         )
         profile = StaticProfile(
@@ -99,7 +99,7 @@ def main():
 
     zmax = ring.circumference / (2 * 25900)  # maximum bunch length z
 
-    total_rf_station = SingleHarmonicRfStation(
+    total_rf_station = SingleHarmonicRFStation(
         section_index=rf_station_i,
     )
 

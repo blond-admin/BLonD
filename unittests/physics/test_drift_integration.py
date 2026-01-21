@@ -9,7 +9,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     proton,
 )
 from blond.core.backends.backend import Numpy32Bit, backend
@@ -28,11 +28,11 @@ class TestDriftIntegration(unittest.TestCase):
         logging.basicConfig(level=logging.INFO)
         ring = Ring(circumference=circumference)
 
-        cavity1 = SingleHarmonicRfStation(section_index=0)
+        cavity1 = SingleHarmonicRFStation(section_index=0)
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
-        cavity2 = SingleHarmonicRfStation(section_index=1)
+        cavity2 = SingleHarmonicRFStation(section_index=1)
         cavity2.harmonic = 35640
         cavity2.voltage = 6e6
         cavity2.phi_rf = 0

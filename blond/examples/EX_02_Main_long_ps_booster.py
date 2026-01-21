@@ -31,7 +31,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
     proton,
@@ -69,7 +69,7 @@ def main():
         value=sync_momentum,
         reference_particle=proton,
     )
-    rf_station_1 = SingleHarmonicRfStation()
+    rf_station_1 = SingleHarmonicRFStation()
     rf_station_1.harmonic = 1
     rf_station_1.voltage = 8e3
     rf_station_1.phi_rf = np.pi
