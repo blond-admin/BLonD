@@ -7,7 +7,8 @@
 # Project website: http://blond.web.cern.ch/
 
 """
-Example to show how we can use the BruteForceMatcher to find a quasi-matched distribution.
+Example to show how we can use the BruteForceMatcher to find a quasi-matched
+distribution.
 """
 
 from matplotlib import pyplot as plt

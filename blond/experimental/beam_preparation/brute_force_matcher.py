@@ -30,12 +30,12 @@ class BruteForceMatcher(MatchingRoutine):
     ----------
     time_limit : tuple[float, float]
         Lower and upper limits for the time coordinate, in [s].
-        The user should adjust this until they find their matched bunch, they can inspect
-        using the animate flag.
+        The user should adjust this until they find their matched bunch, they
+        can inspect using the animate flag.
     energy_limit : tuple[float, float]
         Lower and upper limits for the energy deviation, in [eV].
-        The user should adjust this until they find their matched bunch, they can inspect
-        using the animate flag.
+        The user should adjust this until they find their matched bunch, they
+        can inspect using the animate flag.
     n_macroparticles : int
         Number of macroparticles used to initialize the beam.
     n_iter : int
