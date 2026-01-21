@@ -285,6 +285,7 @@ class testProfileClass(unittest.TestCase):
                 err_msg=f"Profiles for bunch {bunch} do not agree "
                 + 'for tracker_mode="C"',
             )
+
     def test_tracker_consistency(self):
         rtol = 1e-6  # relative tolerance
         atol = 0  # absolute tolerance
@@ -315,7 +316,7 @@ class testProfileClass(unittest.TestCase):
                 rtol=rtol,
                 atol=atol,
                 err_msg=f"Bins for bunch {bunch} do not agree "
-                        + 'for both trackers',
+                + "for both trackers",
             )
 
             np.testing.assert_allclose(
@@ -324,7 +325,7 @@ class testProfileClass(unittest.TestCase):
                 rtol=rtol,
                 atol=atol,
                 err_msg=f"Profiles for bunch {bunch} do not agree "
-                        + 'for both trackers',
+                + "for both trackers",
             )
 
     def test_set_additional_cuts(self):
