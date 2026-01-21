@@ -648,7 +648,7 @@ class TestSimulation(unittest.TestCase):
         self.simulation.run_simulation(
             self.beam,
             n_turns=10,
-            callback=callback,
+            callbacks=callback,
         )
         np.testing.assert_allclose(t_rev_effective, t_rev_sim)
         if DEV_PLOT:
