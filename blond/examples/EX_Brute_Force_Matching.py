@@ -7,8 +7,7 @@
 # Project website: http://blond.web.cern.ch/
 
 """
-Example to show how we can use the BruteForceMatcher to find a quasi-matched
-distribution.
+Example to show the BruteForceMatcher to find a quasi-matched distribution.
 """
 
 from matplotlib import pyplot as plt
@@ -20,8 +19,6 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRfStation,
-    StaticProfile,
-    StaticProfileObservation,
     proton,
 )
 from blond.experimental.beam_preparation.brute_force_matcher import (
