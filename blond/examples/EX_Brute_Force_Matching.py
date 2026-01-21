@@ -18,7 +18,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     proton,
 )
 from blond.experimental.beam_preparation.brute_force_matcher import (
@@ -60,7 +60,7 @@ def main():
             orbit_length=0.3 * ring.circumference,
             section_index=0,
         ),
-        SingleHarmonicRfStation(
+        SingleHarmonicRFStation(
             harmonic=harmonic_number,
             phi_rf=phi_rf,
             voltage=voltage1,
@@ -72,7 +72,7 @@ def main():
             orbit_length=0.7 * ring.circumference,
             section_index=1,
         ),
-        SingleHarmonicRfStation(
+        SingleHarmonicRFStation(
             harmonic=harmonic_number,
             phi_rf=phi_rf,
             voltage=voltage2,
