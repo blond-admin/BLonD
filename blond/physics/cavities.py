@@ -178,9 +178,13 @@ class RfStationBaseClass(
 
         # TODO MOVE
         self.omega_rf_design: NumpyArray | float | None = None
-        self.delta_omega_rf: NumpyArray | float = 0.0
+        self.delta_omega_rf: NumpyArray | float = (
+            0.0  # only writing point is a non-working SPS beam feedback
+        )
         self.phi_rf_design: NumpyArray | float | None = None
-        self.delta_phi_rf: NumpyArray | float = 0.0
+        self.delta_phi_rf: NumpyArray | float = (
+            0.0  # only written by this module, could be immediatly added to phi_rf and made a property to show difference between current and design value
+        )
         self._t_rf: float | None = None
         self._t_rev: float | None = None
         self.voltage: NumpyArray | None = None
@@ -518,6 +522,14 @@ class RfStationBaseClass(
 
     @abstractmethod  # pragma: no cover
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
+        """
+        Update internal data based on the tracked beam.
+
+        Parameters
+        ----------
+        beam
+            Beam to update the attributes from.
+        """
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -588,7 +600,7 @@ class RfStationBaseClass(
 
         # Determine phase loop correction on RF phase and frequency
         # if self._beam_feedback is not None:
-        #    self._beam_feedback.track(beam=beam)
+        #    self._beam_feedback.track(beam=beam)  # TODO: this is currently wrong, the corrections need to be applied before the cavity loop starts to apply corrections
 
         # Correction from cavity loop
         if (
@@ -913,14 +925,14 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             beam_beta=beam.reference.beta,
             ring_circumference=self._ring.circumference,
         )
-        """
-        self._t_rf = (2 * np.pi) / self.omega_rf
+
+        self._t_rf = (2 * np.pi) / self.omega_rf_actual  # TODO: remove
         self._t_rev = self._t_rf * self.harmonic
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
             warnings.warn(str(exc), UserWarning, stacklevel=1)
-            self.phi_s = np.nan"""
+            self.phi_s = np.nan
 
     def track(self, beam: BeamBaseClass) -> None:
         """
@@ -1453,7 +1465,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             if feedback is not None:
                 gap_voltage = (
                     voltages[ind]
-                    * feedback.relative_voltage_correction  # TODO: this is not defined in the parent class --> needs to be added
+                    * feedback.relative_voltage_correction
                     * np.sin(
                         omega_rf[ind] * x_arr
                         + phi_rf[ind]
