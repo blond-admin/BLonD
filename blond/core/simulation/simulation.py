@@ -1292,7 +1292,7 @@ class Simulation(Preparable):
             # display to iteration
         for turn_i in iterator:
             self.turn_i.value = turn_i
-            # self._calculate_current_t_rev(reference=beam.reference)
+            self._calculate_current_t_rev(reference=beam.reference)
             for element in self._ring.elements.elements:
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):

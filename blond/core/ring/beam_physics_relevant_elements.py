@@ -65,6 +65,7 @@ class BeamPhysicsRelevantElements(Preparable):
         """
         if self._check_section_indices:
             self._check_section_indexing()
+        self._get_element_cache = {}
         self._on_init_simulation_passed = True
 
     def _assert_no_init(self, msg: str) -> None:
