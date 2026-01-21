@@ -1,5 +1,6 @@
 import unittest
 
+import matplotlib.pyplot as plt
 import pytest
 
 from blond.core.backends.backend import (
@@ -20,6 +21,7 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
 
         # full script. just checking if it crashes
         EX_Brute_Force_Matching.main()
+        plt.close()
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
@@ -29,6 +31,7 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
 
         # full script. just checking if it crashes
         EX_Brute_Force_Matching.main()
+        plt.close()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda32(self):
@@ -44,6 +47,7 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
         # full script. just checking if it crashes
 
         EX_Brute_Force_Matching.main()
+        plt.close()
         backend.zeros(100)
 
     @pytest.mark.backend_mutation
@@ -59,4 +63,5 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
 
         # full script. just checking if it crashes
         EX_Brute_Force_Matching.main()
+        plt.close()
         backend.zeros(100)
