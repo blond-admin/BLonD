@@ -186,6 +186,8 @@ class RFStationBaseClass(
         self.delta_phi_rf: NumpyArray | float = (
             0.0  # only written by this module, could be immediatly added to phi_rf and made a property to show difference between current and design value
         )
+        self._t_rf: float | None = None
+        self._t_rev: float | None = None
         self.voltage: NumpyArray | None = None
         self.harmonic: NumpyArray | None = None
         self.phi_s: NumpyArray | None = None
@@ -925,6 +927,8 @@ class SingleHarmonicRFStation(RFStationBaseClass):
             ring_circumference=self._ring.circumference,
         )
 
+        self._t_rf = (2 * np.pi) / self.omega_rf_design  # TODO: remove
+        self._t_rev = self._t_rf * self.harmonic
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
@@ -1266,6 +1270,9 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         self.delta_phi_rf: NumpyArray | None = backend.zeros(n_harmonics)
         self.delta_omega_rf: NumpyArray | None = backend.zeros(n_harmonics)
 
+        self._t_rf: NumpyArray | None = None
+        self._t_rev: float | None = None
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -1300,6 +1307,10 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             ring_circumference=self._ring.circumference,
         )
 
+        self._t_rf = (2 * np.pi) / self.omega_rf_design
+        self._t_rev = (
+            self.get_main_harmonic_t_rf_actual() * self.get_main_harmonic()
+        )
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
