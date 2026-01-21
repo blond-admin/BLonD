@@ -23,6 +23,8 @@ from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from matplotlib.axes import Axes
+    from matplotlib.collections import PathCollection
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.particle_types import ParticleType
@@ -214,6 +216,24 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     @abstractmethod  # pragma: no cover
     def plot_hist2d(self) -> None:
         """Plot 2D histogram of beam coordinates."""
+        pass
+
+    def plot_scatter(self, ax: Axes | None = None, **kwargs) -> PathCollection:
+        """
+        Scatter-plot of beam coordinates.
+
+        Parameters
+        ----------
+        ax
+            Pyplot axis object, for example ``ax = plt.gca()``.
+        **kwargs
+            Keyword arguments for ``matplotlib.pyplot.scatter``.
+
+        Returns
+        -------
+        scatter_path_collection
+            The `PathCollection` of the scatter plot.
+        """
         pass
 
     @cached_property

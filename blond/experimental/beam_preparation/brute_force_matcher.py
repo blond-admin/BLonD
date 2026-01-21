@@ -112,7 +112,8 @@ class BruteForceMatcher(MatchingRoutine):
             fig, ax = plt.subplots()
 
             # Beam (updated each frame)
-            scat = ax.scatter(beam._dt, beam._dE, s=8, label="Beam")
+
+            scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")
 
             # Bounding box
             rect = Rectangle(
@@ -128,7 +129,7 @@ class BruteForceMatcher(MatchingRoutine):
 
             ax.set_xlabel("dt")
             ax.set_ylabel("dE")
-            ax.legend()
+            ax.legend(loc="upper right")
             ax.set_title("Brute-force beam matching")
 
             step = max(1, self.n_iter // self.every_iter_to_plot)
@@ -145,7 +146,8 @@ class BruteForceMatcher(MatchingRoutine):
             sim_copy.run_simulation(beams=[beam], n_turns=1)
 
             if self.animate and (i % step == 0 or i == self.n_iter - 1):
-                scat.set_offsets(np.c_[beam._dt, beam._dE])
+                scat.remove()
+                scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")
                 ax.set_title(f"Iteration {i + 1}/{self.n_iter}")
 
                 plt.pause(1)

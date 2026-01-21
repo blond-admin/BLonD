@@ -23,7 +23,8 @@ from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from matplotlib.collections import QuadMesh
+    from matplotlib.axes import Axes
+    from matplotlib.collections import PathCollection, QuadMesh
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Simulation
@@ -316,15 +317,24 @@ class Beam(BeamBaseClass):
             )
         return image
 
-    def plot_scatter(self, **kwargs) -> None:
+    def plot_scatter(self, ax: Axes | None = None, **kwargs) -> PathCollection:
         """
         Scatter-plot of beam coordinates.
 
         Parameters
         ----------
+        ax
+            Pyplot axis object, for example ``ax = plt.gca()``.
         **kwargs
             Keyword arguments for ``matplotlib.pyplot.scatter``.
+
+        Returns
+        -------
+        scatter_path_collection
+            The `PathCollection` of the scatter plot.
         """
+        if ax is None:
+            ax = plt
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
@@ -333,9 +343,11 @@ class Beam(BeamBaseClass):
             # variables below are just for the type hints to function correctly
             dE: CupyArray = self._dE
             dt: CupyArray = self._dt
-            plt.scatter(dt.get(), dE.get(), **kwargs)
+            scat = ax.scatter(dt.get(), dE.get(), **kwargs)
         else:
-            plt.scatter(self._dt, self._dE, **kwargs)
+            scat = ax.scatter(self._dt, self._dE, **kwargs)
+
+        return scat
 
     def plot_hist(self, axis=0, **kwargs) -> None:
         """
