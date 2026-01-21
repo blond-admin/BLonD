@@ -242,8 +242,16 @@ class BruteForceMatcher(MatchingRoutine):
 
             step = max(1, self.n_iter // self.every_iter_to_plot)
 
-            ax.set_xlim(self.time_limit[0], self.time_limit[1])
-            ax.set_ylim(self.energy_limit[0], self.energy_limit[1])
+            ax.set_xlim(
+                self.time_limit[0] - (self.time_limit[1] - self.time_limit[0]),
+                self.time_limit[1] + (self.time_limit[1] - self.time_limit[0]),
+            )
+            ax.set_ylim(
+                self.energy_limit[0]
+                - (self.energy_limit[1] - self.energy_limit[0]),
+                self.energy_limit[1]
+                + (self.energy_limit[1] - self.energy_limit[0]),
+            )
             ax.set_autoscale_on(False)
 
             # --------------------------------------------------
@@ -258,7 +266,7 @@ class BruteForceMatcher(MatchingRoutine):
                 scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")
                 ax.set_title(f"Iteration {i + 1}/{self.n_iter}")
 
-                plt.pause(self.animate_pause_time)
+                plt.pause(1)
 
         if self.animate:
             plt.ioff()
