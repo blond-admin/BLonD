@@ -889,7 +889,7 @@ class TestACSSparseModel(unittest.TestCase):
                     - i_beam * 0.5 * R_over_Q * samples_per_rf
                 )
 
-            voltage = np.zeros_like(I_gen)
+            voltage = np.zeros(len(I_gen) + 1, dtype=complex)
             voltage[0] = V_init
             for _i in range(1, n_samples + 1):
                 voltage[_i] = cavity_response(
@@ -901,13 +901,13 @@ class TestACSSparseModel(unittest.TestCase):
                     detuning_,
                     Q_L_,
                 )
-            return voltage
+            return voltage[1:]
 
         n_samples = 1000
         samples_per_rf = 2 * np.pi / 1
-        I_beam = np.zeros(n_samples + 1)
+        I_beam = np.zeros(n_samples)
         I_gen = (0.2565950699764863 + 0.004372312359083769j) * np.ones(
-            n_samples + 1
+            n_samples
         )
         R_over_Q_in = 518
         Q_L_in = 1e3
@@ -918,7 +918,8 @@ class TestACSSparseModel(unittest.TestCase):
             Q_L=Q_L_in,
             V_ant_init=V_ant_init_in,
             samples_per_rf=samples_per_rf,
-            I_beam=I_beam,
+            I_gen_init=I_gen[0],
+            I_beam=I_beam,  # shortening due to internal extension
             I_gen=I_gen,
             relative_detuning=rel_detuning_in,
         )
@@ -954,6 +955,7 @@ class TestACSSparseModel(unittest.TestCase):
                 I_beam=I_beam[1:],
                 I_gen=I_gen,
                 relative_detuning=rel_detuning_in,
+                I_gen_init=I_gen[0],
             )
         with self.assertRaisesRegex(AssertionError, "length of "):
             _ = cavity_response_sparse_matrix(
@@ -963,6 +965,7 @@ class TestACSSparseModel(unittest.TestCase):
                 samples_per_rf=samples_per_rf,
                 I_beam=I_beam,
                 I_gen=I_gen[1:],
+                I_gen_init=I_gen[0],
                 relative_detuning=rel_detuning_in,
             )
 
