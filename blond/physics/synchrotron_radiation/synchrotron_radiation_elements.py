@@ -303,9 +303,8 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         """
         return (
             f"{self.number_of_wigglers} damping wigglers of {self.peak_magnetic_field} T "
-            f"and composed of {self.number_of_poles} poles of {
-                self.pole_length
-            } m each have been added to "
+            f"and composed of {self.number_of_poles} poles of {self.pole_length}"
+            f" m each have been added to "
             f"the "
             f"simulation. \n"
         )
