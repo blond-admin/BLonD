@@ -17,10 +17,42 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 )
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import ParticleType
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
 
-class TestRFStationBaseClass(unittest.TestCase):
+class BeamBaseClassTester(BeamBaseClass):
+    def __init__(
+        self,
+        intensity: int | float,
+        particle_type: ParticleType,
+        is_counter_rotating: bool = False,
+        is_distributed=False,
+    ):
+        super().__init__(
+            intensity=intensity,
+            particle_type=particle_type,
+            is_counter_rotating=is_counter_rotating,
+            is_distributed=is_distributed,
+        )
+        self.reference = Mock(ReferenceCoordinates)
+        self.reference.time = 0
+        self.reference_beta = 0.99
+        self.reference_velocity = self.reference_beta * c0
+        self.reference_gamma = np.sqrt(1 - 0.99**2)  # beta**2
+        self.reference_total_energy = 20e9
+        self.reference.total_energy = 20e9
+        self._dE = np.linspace(-1e6, 1e6, 10, dtype=backend.float)  # delta E
+        # in eV
+        self._dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t
+        # in s
+        self.n_macroparticles_partial.return_value = 10
+        self.read_partial_dE.return_value = self.dE
+        self._flags = np.zeros(10, dtype=np.int32)
+        self._ids = np.arange(10, dtype=np.int32)
+
+
+class TestSynchrotronRadiationBaseClass(unittest.TestCase):
     def setUp(self) -> None:
         radiation_integrals = np.array(
             [
@@ -41,25 +73,12 @@ class TestRFStationBaseClass(unittest.TestCase):
             share_of_synchrotron_radiation_integrals=0.1 * radiation_integrals
         )
 
-        self.beam = Mock(BeamBaseClass)
-        self.beam.reference = Mock(ReferenceCoordinates)
-        self.beam.particle_type = electron
-        self.beam.reference.time = 0
-        self.beam.reference_beta = 0.99
-        self.beam.reference_velocity = self.beam.reference_beta * c0
-        self.beam.reference_gamma = np.sqrt(1 - 0.99**2)  # beta**2
-        self.beam.reference_total_energy = 20e9
-        self.beam.reference.total_energy = 20e9
-        self.beam.dE = np.linspace(
-            -1e6, 1e6, 10, dtype=backend.float
-        )  # delta E
-        # in eV
-        self.beam.dt = np.linspace(
-            -1e-6, 1e-6, 10, dtype=backend.float
-        )  # delta t
-        # in s
-        self.beam.n_macroparticles_partial.return_value = 10
-        self.beam.read_partial_dE.return_value = self.beam.dE
+        self.beam_base_class = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=electron,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
 
         self.decimal = 6 if backend.float == np.float32 else 12
 

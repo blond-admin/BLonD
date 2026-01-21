@@ -149,7 +149,6 @@ def main():
     )
     bunch_statistics = BeamStatisticsOncePerTurn(
         each_turn_i=1,
-        beam=params.beam,
     )
 
     def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
