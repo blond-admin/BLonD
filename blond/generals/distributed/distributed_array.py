@@ -88,7 +88,7 @@ class DistributedArray:
         if rank == 0:
             # Split array into `size` chunks
             chunks = backend.array_split(self.array_local, size)
-        else:
+        else:  # pragma: no cover # when writing this, only rank 0 reports coverage
             chunks = None
 
         # Each rank receives one chunk

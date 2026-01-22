@@ -184,4 +184,7 @@ def mpi_is_root() -> bool:
     bool
         Whether the current worker is the root worker.
     """
-    return MPI_COMM_WORLD.Get_rank() == 0
+    if MPI_COMM_WORLD is None:
+        return True
+    else:
+        return MPI_COMM_WORLD.Get_rank() == 0

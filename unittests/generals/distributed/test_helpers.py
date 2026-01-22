@@ -5,7 +5,11 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from blond.generals.distributed.helpers import mpi_is_distributed
+from blond.generals.distributed.helpers import (
+    distributed_arange,
+    mpi_is_distributed,
+    mpi_is_root,
+)
 
 
 @pytest.mark.mpi
@@ -43,6 +47,13 @@ class TestCallablesWithMPI(unittest.TestCase):
                 np.arange(12, 12 + 12),
                 err_msg=f"{da._rank=} {da._size=}",
             )
+
+    def test_mpi_is_root(self):
+        da = distributed_arange(12, dtype=np.int32)
+        if da._rank == 0:
+            self.assertTrue(mpi_is_root())
+        if da._rank == 1:
+            self.assertFalse(mpi_is_root())
 
 
 class TestCallablesNoMPI(unittest.TestCase):
