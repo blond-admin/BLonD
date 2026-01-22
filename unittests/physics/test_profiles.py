@@ -162,7 +162,12 @@ class TestProfileBaseClass(unittest.TestCase):
         np.testing.assert_allclose(result[0, :], expected[0, :])
 
     @pytest.mark.backend_mutation
+    @pytest.mark.cupy
     def test_singlebunch_gauss_fit_gpu(self):
+        try:
+            import cupy as cp
+        except ModuleNotFoundError:
+            self.skipTest("Cupy not available")
         backend.change_backend(Cupy64Bit)
         profile_base_class = ProfileBaseClass()
         profile_base_class._hist_x = backend.linspace(-5, 5, 11)
@@ -176,7 +181,12 @@ class TestProfileBaseClass(unittest.TestCase):
         np.testing.assert_allclose(result, expected)
 
     @pytest.mark.backend_mutation
+    @pytest.mark.cupy
     def test_multibunch_gauss_fit_gpu(self):
+        try:
+            import cupy as cp
+        except ModuleNotFoundError:
+            self.skipTest("Cupy not available")
         backend.change_backend(Cupy64Bit)
         profile_base_class = ProfileBaseClass()
         profile_base_class._hist_x = backend.linspace(-5, 5, 11)

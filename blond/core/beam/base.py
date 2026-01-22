@@ -513,3 +513,4 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self.intensity *= (
             n_after_truncation_global / n_before_truncation_global
         )
+        self.invalidate_cache()
