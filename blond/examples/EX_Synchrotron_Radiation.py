@@ -19,10 +19,10 @@ from blond import (
     BiGaussian,
     DriftSimple,
     MagneticCyclePerTurn,
-    RfStationPhaseObservation,
+    RFStationPhaseObservation,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     backend,
     electron,
     positron,
@@ -55,7 +55,7 @@ class SynchrotronRadiationSimulation:
         self.momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
         self.reference_energy = 20e9
 
-        self.cavity = SingleHarmonicRfStation()
+        self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
         self.cavity.phi_rf = 0
@@ -143,7 +143,7 @@ def main():
         ),
     )
 
-    phase_observation = RfStationPhaseObservation(
+    phase_observation = RFStationPhaseObservation(
         each_turn_i=1,
         rf_station=params.cavity,
     )

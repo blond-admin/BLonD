@@ -41,7 +41,7 @@ import numpy as np
 
 from blond.core.base import DynamicParameter, Schedulable
 from blond.cycles.magnetic_cycle import MagneticCycleBase
-from blond.physics.cavities import RfStationBaseClass
+from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
 from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (
     SynchrotronRadiationBaseClass,
@@ -56,7 +56,7 @@ if TYPE_CHECKING:
 
     from blond.core.ring.ring import Ring
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import RfStationBaseClass
+    from blond.physics.cavities import RFStationBaseClass
     from blond.physics.drifts import DriftBaseClass
 
     T = TypeVar("T")
@@ -235,7 +235,7 @@ class SynchrotronRadiationMaster(Schedulable):
                 class_=self.track_before_element_type
             )
             if (element_list is None) or all(
-                isinstance(e, DriftBaseClass | RfStationBaseClass)
+                isinstance(e, DriftBaseClass | RFStationBaseClass)
                 for e in element_list
             ):
                 for element in element_list:
