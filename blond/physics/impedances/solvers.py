@@ -750,11 +750,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             )
         for source in self._parent_wakefield.sources:
             # Guarding against non-resonator sources is done in on_wakefield_init_simulation
-            time_axis, envelope = source.calculate_envelope()
+            storage_time = source.get_decay_time(
+                self._decay_fraction_threshold
+            )
 
-            storage_time = time_axis[
-                np.abs(envelope - self._decay_fraction_threshold).argmin()
-            ]
             self._maximum_storage_time = max(
                 self._maximum_storage_time, storage_time
             )

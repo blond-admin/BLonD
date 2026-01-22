@@ -574,6 +574,36 @@ class Resonators(
 
         return time_axis, envelope
 
+    def get_decay_time(self, decay_fraction_threshold: float) -> float:
+        """
+        Calculate the decay time of the full envelope based on a decay fraction threshold.
+
+        Parameters
+        ----------
+        decay_fraction_threshold
+            Decay fraction threshold.
+
+        Returns
+        -------
+        storage_time
+            Time, after which the decay fraction threshold is reached.
+        """
+        time_axis = np.linspace(
+            0,
+            -2
+            * np.max(self._quality_factors / self._omega)
+            * np.log(decay_fraction_threshold)
+            * 2,
+            100000,
+        )
+        _, envelope = self.calculate_envelope(time_axis=time_axis)
+
+        storage_time = time_axis[
+            np.abs(envelope - decay_fraction_threshold).argmin()
+        ]
+
+        return storage_time
+
     def get_impedance(
         self,
         freq_x: NumpyArray,
