@@ -17,7 +17,9 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
-        from blond.examples import EX_Brute_Force_Matching  # NOQA will run the
+        from blond.examples import (
+            EX_Filamentation_Matcher,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
         EX_Brute_Force_Matching.main()
@@ -27,7 +29,9 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples import EX_Brute_Force_Matching  # NOQA will run the
+        from blond.examples import (
+            EX_Filamentation_Matcher,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
         EX_Brute_Force_Matching.main()
@@ -42,7 +46,9 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy32Bit)
         backend.set_specials("cuda")
-        from blond.examples import EX_Brute_Force_Matching  # NOQA will run the
+        from blond.examples import (
+            EX_Filamentation_Matcher,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
 
@@ -59,7 +65,9 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples import EX_Brute_Force_Matching  # NOQA will run the
+        from blond.examples import (
+            EX_Filamentation_Matcher,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
         EX_Brute_Force_Matching.main()

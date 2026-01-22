@@ -21,8 +21,8 @@ from blond import (
     SingleHarmonicRFStation,
     proton,
 )
-from blond.experimental.beam_preparation.brute_force_matcher import (
-    BruteForceMatcher,
+from blond.experimental.beam_preparation.filamentation_matcher import (
+    FilamentationMatcher,
 )
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
@@ -83,7 +83,7 @@ def main():
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
 
     sim.prepare_beam(
-        preparation_routine=BruteForceMatcher(
+        preparation_routine=FilamentationMatcher(
             time_limit=[
                 0.1e-9,
                 4e-9,

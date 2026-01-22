@@ -18,9 +18,9 @@ from blond.beam_preparation.base import MatchingRoutine
 from blond.core.beam.base import BeamBaseClass
 
 
-class BruteForceMatcher(MatchingRoutine):
+class FilamentationMatcher(MatchingRoutine):
     """
-    Brute-force beam matching routine.
+    Filamentation beam matching routine.
 
     This matcher initializes the beam using uniformly spaced macroparticles
     within specified time and energy limits and iteratively runs a simulation
@@ -64,8 +64,8 @@ class BruteForceMatcher(MatchingRoutine):
     This matching routine does **not** take into account intensity-dependent
     (collective) effects such as space charge, wakefields, or beam loading.
     The resulting matched distribution is valid for
-    single-particle dynamics and may not remain matched once intensity
-    effects are enabled in the simulation.
+    single-particle dynamics and **may** not remain matched once intensity
+    effects are enabled in the simulation. Use with caution!
 
     When ``purge=True``, macroparticles outside the specified phase-space
     limits are permanently removed. This reduces the number of macroparticles.
@@ -83,7 +83,7 @@ class BruteForceMatcher(MatchingRoutine):
     ...     proton,
     ... )
     >>> from blond.experimental.beam_preparation.brute_force_matcher import (
-    ...     BruteForceMatcher,
+    ...     FilamentationMatcher,
     ... )
     >>> from blond.handle_results.observables_as_elements import (
     ...     BeamObservationInRingElement,
@@ -146,7 +146,7 @@ class BruteForceMatcher(MatchingRoutine):
     >>> sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
     >>>
     >>> sim.prepare_beam(
-    ...     preparation_routine=BruteForceMatcher(
+    ...     preparation_routine=FilamentationMatcher(
     ...         time_limit=[0.1e-9, 4e-9],
     ...         energy_limit=[-4e8, 4e8],
     ...         n_macroparticles=3000,
@@ -283,8 +283,8 @@ class BruteForceMatcher(MatchingRoutine):
 
         if self.animate:
             plt.ioff()
-
         if self.purge:
+            intensity_before = beam.intensity
             BoxLosses(
                 t_min=self.purge_limit_time[0],
                 t_max=self.purge_limit_time[1],
@@ -292,5 +292,4 @@ class BruteForceMatcher(MatchingRoutine):
                 e_max=self.purge_limit_energy[1],
                 purge_flagged_macroparticles=True,
             ).track(beam)
-
-            beam.purge_flagged_entries()
+            beam.intensity = intensity_before
