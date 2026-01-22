@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 import warnings
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
@@ -144,8 +143,6 @@ class Beam(BeamBaseClass):
         if reference_total_energy:
             self.reference.total_energy = reference_total_energy
 
-        self.invalidate_cache()
-
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -202,7 +199,7 @@ class Beam(BeamBaseClass):
         # is thus `common_array_size`.
         return self.intensity / self.common_array_size
 
-    @cached_property
+    @property
     def dt_min(self) -> float:
         """
         Minimum time coordinate among all macro-particles in the beam in [s].
@@ -214,7 +211,7 @@ class Beam(BeamBaseClass):
         """
         return self._dt.min()
 
-    @cached_property
+    @property
     def dt_max(self) -> float:
         """
         Maximum time coordinate among all macro-particles in the beam in [s].
@@ -226,7 +223,7 @@ class Beam(BeamBaseClass):
         """
         return self._dt.max()
 
-    @cached_property
+    @property
     def dE_min(self) -> float:
         """
         Minimum energy coordinate among all macro-particles in the beam in [eV].
@@ -238,7 +235,7 @@ class Beam(BeamBaseClass):
         """
         return self._dE.min()
 
-    @cached_property
+    @property
     def dE_max(self) -> float:
         """
         Maximum energy coordinate among all macro-particles in the beam in [eV].
@@ -250,7 +247,7 @@ class Beam(BeamBaseClass):
         """
         return self._dE.max()
 
-    @cached_property
+    @property
     def common_array_size(self) -> int:
         """
         Total number of macro-particles in the beam regardless of `flags` state.

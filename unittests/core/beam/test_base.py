@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import unittest
-from functools import cached_property
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -36,7 +35,7 @@ class BeamBaseClassTester(BeamBaseClass):
         self._flags = np.zeros(10, dtype=np.int32)
         self._ids = np.arange(10, dtype=np.int32)
 
-    @cached_property
+    @property
     def ratio(self) -> float:
         return self.intensity / self.common_array_size
 
@@ -115,15 +114,6 @@ class TestBeamBaseClass(unittest.TestCase):
     @unittest.skip("Abstract method")
     def test_dt_min(self):
         pass  # is abstract
-
-    def test_invalidate_cache(self):
-        self.beam_base_class.invalidate_cache()
-
-    def test_invalidate_cache_dE(self):
-        self.beam_base_class.invalidate_cache_dE()
-
-    def test_invalidate_cache_dt(self):
-        self.beam_base_class.invalidate_cache_dt()
 
     def test_is_counter_rotating(self):
         self.assertEqual(self.beam_base_class.is_counter_rotating, False)
