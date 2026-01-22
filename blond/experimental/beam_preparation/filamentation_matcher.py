@@ -13,9 +13,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 
-from blond import BoxLosses, Simulation
+from blond import BoxLosses, Simulation, backend
 from blond.beam_preparation.base import MatchingRoutine
-from blond import backend
 from blond.core.beam.base import BeamBaseClass
 
 
@@ -213,10 +212,12 @@ class FilamentationMatcher(MatchingRoutine):
 
         n = int(np.sqrt(self.n_macroparticles))
 
-        dt_vals = backend.linspace(self.time_limit[0], self.time_limit[1], n,
-                              dtype=backend.float)
-        dE_vals = backend.linspace(self.energy_limit[0], self.energy_limit[1], n,
-                              dtype=backend.float)
+        dt_vals = backend.linspace(
+            self.time_limit[0], self.time_limit[1], n, dtype=backend.float
+        )
+        dE_vals = backend.linspace(
+            self.energy_limit[0], self.energy_limit[1], n, dtype=backend.float
+        )
 
         dt_grid, dE_grid = np.meshgrid(dt_vals, dE_vals)
 
