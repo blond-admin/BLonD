@@ -59,6 +59,17 @@ class BruteForceMatcher(MatchingRoutine):
         particles when ``purge=True``. If ``None``, no energy-based purging
         is applied.
 
+    Warnings
+    --------
+    This matching routine does **not** take into account intensity-dependent
+    (collective) effects such as space charge, wakefields, or beam loading.
+    The resulting matched distribution is valid for
+    single-particle dynamics and may not remain matched once intensity
+    effects are enabled in the simulation.
+
+    When ``purge=True``, macroparticles outside the specified phase-space
+    limits are permanently removed. This reduces the number of macroparticles.
+
     Example
     -------
 
