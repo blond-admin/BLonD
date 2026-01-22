@@ -7,7 +7,7 @@ from blond import (
     Beam,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicRfStation,
+    MultiHarmonicRFStation,
     Ring,
     Simulation,
     proton,
@@ -36,7 +36,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             reference_particle=proton, value=p_s, in_unit="momentum"
         )
         self.ring = Ring()
-        self.rf_station = MultiHarmonicRfStation(
+        self.rf_station = MultiHarmonicRFStation(
             n_harmonics=1
         )  # TODO as single harmonic
         self.rf_station.harmonic = np.array([h])

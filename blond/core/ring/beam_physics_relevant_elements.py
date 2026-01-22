@@ -81,7 +81,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def _check_section_indexing(self) -> None:
         """Verify that indices have been set correctly."""
-        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.cavities import RFStationBaseClass
         from blond.physics.drifts import DriftBaseClass
 
         elem_section_indices = [e.section_index for e in self.elements]
@@ -91,7 +91,7 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"Section indices must be increasing, but got {elem_section_indices}",
                 stacklevel=1,
             )
-        rf_stations = self.get_elements(RfStationBaseClass)
+        rf_stations = self.get_elements(RFStationBaseClass)
         rf_section_indices = [c.section_index for c in rf_stations]
         all_different = len(rf_section_indices) == len(set(rf_section_indices))
         if not all_different:
@@ -105,7 +105,7 @@ class BeamPhysicsRelevantElements(Preparable):
         if len(unique_section_indices) > 1:
             for section_index in np.sort(unique_section_indices):
                 rf_stations = self.get_elements(
-                    RfStationBaseClass,
+                    RFStationBaseClass,
                     section_i=section_index,  # type: ignore
                 )
                 drifts = self.get_elements(
@@ -438,7 +438,7 @@ class BeamPhysicsRelevantElements(Preparable):
             "forbidden!"
         )
         assert isinstance(section_index, int)
-        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.cavities import RFStationBaseClass
         from blond.physics.drifts import DriftBaseClass
         from blond.physics.feedbacks.base import FeedbackBaseClass
         from blond.physics.impedances.base import ImpedanceBaseClass
@@ -450,12 +450,12 @@ class BeamPhysicsRelevantElements(Preparable):
             ProfileBaseClass,
             FeedbackBaseClass,
             ImpedanceBaseClass,
-            RfStationBaseClass,
+            RFStationBaseClass,
             DriftBaseClass,
         )
-        assert self.count(RfStationBaseClass, section_i=section_index) == 1, (
+        assert self.count(RFStationBaseClass, section_i=section_index) == 1, (
             f"Only one RF station per section allowed, but got "
-            f"{self.count(RfStationBaseClass, section_i=section_index)}"
+            f"{self.count(RFStationBaseClass, section_i=section_index)}"
         )
         elements_in_section = [
             e for e in self.elements if e.section_index == section_index

@@ -49,13 +49,13 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
-class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     """
     Base class to implement beam-rf any interactions in synchrotrons.
 
     This class is intended to come with barely any feature to host all
-    beam-rf interactions, whereas `RfStationBaseClass` has already several
-    class methods to group `SingleHarmonicRfStation`, and `MultiHarmonicRfStation`.
+    beam-rf interactions, whereas `RFStationBaseClass` has already several
+    class methods to group `SingleHarmonicRFStation`, and `MultiHarmonicRFStation`.
 
     Parameters
     ----------
@@ -111,8 +111,8 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             )
 
 
-class RfStationBaseClass(
-    RfManipulationBaseClass, AltersReference, Schedulable, ABC
+class RFStationBaseClass(
+    RFManipulationBaseClass, AltersReference, Schedulable, ABC
 ):
     """
     Base class to implement beam-rf interactions in synchrotrons.
@@ -587,7 +587,7 @@ class RfStationBaseClass(
         return content
 
 
-class SingleHarmonicRfStation(RfStationBaseClass):
+class SingleHarmonicRFStation(RFStationBaseClass):
     r"""
     RF station with only one RF wave for beam interaction.
 
@@ -635,8 +635,8 @@ class SingleHarmonicRfStation(RfStationBaseClass):
     Parameters can be scheduled along the simulation execution
 
     >>> import numpy as np
-    >>> from blond import SingleHarmonicRfStation
-    >>> rf_station = SingleHarmonicRfStation(...)
+    >>> from blond import SingleHarmonicRFStation
+    >>> rf_station = SingleHarmonicRFStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
     """
 
@@ -894,7 +894,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         total_energy: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
-    ) -> SingleHarmonicRfStation:
+    ) -> SingleHarmonicRFStation:
         """
         Initialize object without simulation context.
 
@@ -927,7 +927,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         from blond.core.simulation.simulation import Simulation
         from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
-        single_harmonic_rf_station = SingleHarmonicRfStation(
+        single_harmonic_rf_station = SingleHarmonicRFStation(
             section_index=section_index,
             local_wakefield=local_wakefield,
             cavity_feedback=cavity_feedback,
@@ -958,7 +958,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         return single_harmonic_rf_station
 
 
-class MultiHarmonicRfStation(RfStationBaseClass):
+class MultiHarmonicRFStation(RFStationBaseClass):
     r"""
     RF station with several RF wave for beam interaction.
 
@@ -1008,8 +1008,8 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     --------
     Parameters can be scheduled along the simulation execution
 
-    >>> from blond import MultiHarmonicRfStation
-    >>> rf_station = MultiHarmonicRfStation(...)
+    >>> from blond import MultiHarmonicRFStation
+    >>> rf_station = MultiHarmonicRFStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
     """
 
@@ -1275,7 +1275,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
-    ) -> MultiHarmonicRfStation:
+    ) -> MultiHarmonicRFStation:
         """
         Initialize object without simulation context.
 
@@ -1315,7 +1315,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         from blond.core.simulation.simulation import Simulation
         from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
-        multi_harmonic_rf_station = MultiHarmonicRfStation(
+        multi_harmonic_rf_station = MultiHarmonicRFStation(
             harmonic=np.array(harmonic, dtype=backend.float),
             voltage=np.array(voltage, dtype=backend.float),
             phi_rf=np.array(phi_rf, dtype=backend.float),
