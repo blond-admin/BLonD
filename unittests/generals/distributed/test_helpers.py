@@ -61,6 +61,9 @@ class TestCallablesNoMPI(unittest.TestCase):
         if mpi_is_distributed():
             self.skipTest("Only without MPI")
 
+    def test_mpi_is_root(self):
+        self.assertTrue(mpi_is_root())
+
     def test_mpi_local_size(self):
         with patch.dict(sys.modules, {"mpi4py": None}):
             # trigger new import
