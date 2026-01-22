@@ -329,7 +329,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        self.invalidate_cache_dt()
         return self._dt
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
@@ -370,7 +369,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        self.invalidate_cache_dE()
         return self._dE
 
     def write_partial_flags(self) -> NumpyArray | CupyArray:
