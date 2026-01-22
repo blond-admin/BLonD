@@ -647,10 +647,10 @@ class TestSimulation(unittest.TestCase):
         for i, backend_type in enumerate((Cupy32Bit, Numpy32Bit)):
             backend.change_backend(backend_type)
             from blond.testing.simulation import (
-                SimulationTwoRfStationsWithWake,
+                SimulationTwoRFStationsWithWake,
             )
 
-            sim = SimulationTwoRfStationsWithWake()
+            sim = SimulationTwoRFStationsWithWake()
 
             hist_y_override = np.loadtxt(
                 callers_relative_path("hist_y_override.txt", stacklevel=1),
