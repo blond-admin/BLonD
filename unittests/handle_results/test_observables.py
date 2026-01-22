@@ -202,13 +202,13 @@ class TestBunchObservation(unittest.TestCase):
             intensity=100,
             particle_type=electron,
         )
-        self.beam.common_array_size = 128
+        common_array_size = 128
         self.beam.reference.time = 0.8
         # self.beam.reference.beta = 0.9
         self.beam.reference.total_energy = 11
-        self.beam._dt = np.ones(self.beam.common_array_size, dtype=float)
-        self.beam._dE = np.ones(self.beam.common_array_size, dtype=float)
-        self.beam._flags = np.ones(self.beam.common_array_size, dtype=int)
+        self.beam._dt = np.ones(common_array_size, dtype=float)
+        self.beam._dE = np.ones(common_array_size, dtype=float)
+        self.beam._flags = np.ones(common_array_size, dtype=int)
 
     def test___init__(self) -> None:
         self.assertEqual(self.bunch_observation.each_turn_i, 1)
@@ -289,13 +289,13 @@ class TestBunchStatistics(unittest.TestCase):
             intensity=100,
             particle_type=electron,
         )
-        self.beam.common_array_size = 128
+        common_array_size = 128
         self.beam.reference_time = 0.8
         self.beam.reference_beta = 0.9
         self.beam.reference_total_energy = 11
-        self.beam._dt = np.ones(self.beam.common_array_size, dtype=float)
-        self.beam._dE = np.ones(self.beam.common_array_size, dtype=float)
-        self.beam._flags = np.ones(self.beam.common_array_size, dtype=int)
+        self.beam._dt = np.ones(common_array_size, dtype=float)
+        self.beam._dE = np.ones(common_array_size, dtype=float)
+        self.beam._flags = np.ones(common_array_size, dtype=int)
 
         self.bunch_statistics = BeamStatisticsOncePerTurn(
             each_turn_i=1,
