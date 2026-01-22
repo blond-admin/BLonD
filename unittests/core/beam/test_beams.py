@@ -275,40 +275,34 @@ class TestBeam(unittest.TestCase):
     def test_plot_hist2d_warns(self) -> None:
         if not mpi_is_distributed():
             self.skipTest("Only MPI")
-            beam = Beam(intensity=1.0, particle_type=uranium_29)
-            beam.setup_beam(
-                dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
-            )
-            with self.assertWarnsRegex(
-                UserWarning, "Plotting MPI single node"
-            ):
-                beam.plot_hist2d()
+        beam = Beam(intensity=1.0, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
+        )
+        with self.assertWarnsRegex(UserWarning, "Plotting MPI single node"):
+            beam.plot_hist2d()
 
     @pytest.mark.mpi
     def test_plot_hist_warns(self) -> None:
         if not mpi_is_distributed():
             self.skipTest("Only MPI")
-            beam = Beam(intensity=1.0, particle_type=uranium_29)
-            beam.setup_beam(
-                dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
-            )
-            with self.assertWarnsRegex(
-                UserWarning, "Plotting MPI single node"
-            ):
-                beam.plot_hist()
+        beam = Beam(intensity=1.0, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
+        )
+        with self.assertWarnsRegex(UserWarning, "Plotting MPI single node"):
+            beam.plot_hist()
 
     @pytest.mark.mpi
     def test_plot_scatter_warns(self) -> None:
         if not mpi_is_distributed():
             self.skipTest("Only MPI")
-            beam = Beam(intensity=1.0, particle_type=uranium_29)
-            beam.setup_beam(
-                dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
-            )
-            with self.assertWarnsRegex(
-                UserWarning, "Plotting MPI single node"
-            ):
-                beam.plot_scatter()
+        beam = Beam(intensity=1.0, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
+        )
+        with self.assertWarnsRegex(UserWarning, "Plotting MPI single node"):
+            beam.plot_scatter()
 
 
 class TestProbeBunch(unittest.TestCase):
