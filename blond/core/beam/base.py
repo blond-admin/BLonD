@@ -22,8 +22,6 @@ from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from matplotlib.axes import Axes
-    from matplotlib.collections import PathCollection
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.particle_types import ParticleType
