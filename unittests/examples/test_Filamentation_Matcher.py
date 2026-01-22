@@ -12,7 +12,7 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_Brute_Force_Matching(unittest.TestCase):
+class TestEX_Filamentation_Matcher(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
@@ -22,7 +22,7 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
         )
 
         # full script. just checking if it crashes
-        EX_Brute_Force_Matching.main()
+        EX_Filamentation_Matcher.main()
         plt.close()
 
     @pytest.mark.backend_mutation
@@ -34,7 +34,7 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
         )
 
         # full script. just checking if it crashes
-        EX_Brute_Force_Matching.main()
+        EX_Filamentation_Matcher.main()
         plt.close()
 
     @pytest.mark.backend_mutation
@@ -52,7 +52,7 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
 
         # full script. just checking if it crashes
 
-        EX_Brute_Force_Matching.main()
+        EX_Filamentation_Matcher.main()
         plt.close()
         backend.zeros(100)
 
@@ -70,6 +70,6 @@ class TestEX_Brute_Force_Matching(unittest.TestCase):
         )
 
         # full script. just checking if it crashes
-        EX_Brute_Force_Matching.main()
+        EX_Filamentation_Matcher.main()
         plt.close()
         backend.zeros(100)
