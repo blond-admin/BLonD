@@ -107,8 +107,11 @@ def main():
     )
 
     plt.close()
-    plt.scatter(observation.dts[0], observation.dEs[0])
-    plt.scatter(observation.dts[0], observation.dEs[0])
+    plt.title("Injected beam into simulation")
+    plt.scatter(observation.dts[0], observation.dEs[0], s=0.5)
+    plt.scatter(observation.dts[0], observation.dEs[0], s=0.5)
+    plt.xlabel("Energy [eV]")
+    plt.ylabel("Time [s]")
     plt.show()
 
 
