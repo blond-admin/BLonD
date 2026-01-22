@@ -13,7 +13,6 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from enum import IntEnum
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from blond.core.base import HasPropertyCache, Preparable
@@ -216,66 +215,35 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """Plot 2D histogram of beam coordinates."""
         pass
 
-    @cached_property
+    @property
     @abstractmethod  # pragma: no cover  # as readonly attributes
     def dt_min(self) -> float:
         """Minimum dt coordinate, in [s]."""
         pass
 
-    @cached_property
+    @property
     @abstractmethod  # pragma: no cover  # as readonly attributes
     def dt_max(self) -> float:
         """Maximum dt coordinate, in [s]."""
         pass
 
-    @cached_property
+    @property
     @abstractmethod  # pragma: no cover  # as readonly attributes
     def dE_min(self) -> float:
         """Minimum dE coordinate, in [eV]."""
         pass
 
-    @cached_property
+    @property
     @abstractmethod  # pragma: no cover  # as readonly attributes
     def dE_max(self) -> float:
         """Maximum dE coordinate, in [eV]."""
         pass
 
-    @cached_property
+    @property
     @abstractmethod  # pragma: no cover  # as readonly attributes
     def common_array_size(self) -> int:
         """Size of the beam, considering distributed beams."""
         pass
-
-    cached_props = (
-        "dE_min",
-        "dE_max",
-        "dt_min",
-        "dt_max",
-        "common_array_size",
-        "ratio",
-    )
-
-    def invalidate_cache_dE(self) -> None:
-        """Reset cache of `cached_property` attributes."""
-        super()._invalidate_cache(
-            (
-                "dE_min",
-                "dE_max",
-            )
-        )
-
-    def invalidate_cache_dt(self) -> None:
-        """Reset cache of `cached_property` attributes."""
-        super()._invalidate_cache(
-            (
-                "dt_min",
-                "dt_max",
-            )
-        )
-
-    def invalidate_cache(self) -> None:
-        """Delete the stored values of functions with @cached_property."""
-        self._invalidate_cache(BeamBaseClass.cached_props)
 
     def n_macroparticles_partial(self) -> int:
         """
@@ -361,7 +329,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        self.invalidate_cache_dt()
         return self._dt
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
@@ -402,7 +369,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        self.invalidate_cache_dE()
         return self._dE
 
     def write_partial_flags(self) -> NumpyArray | CupyArray:
@@ -423,8 +389,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        self.invalidate_cache_dt()
-        self.invalidate_cache_dE()
         return self._flags
 
     def read_partial_flags(self) -> NumpyArray | CupyArray:
