@@ -15,6 +15,7 @@ from matplotlib.patches import Rectangle
 
 from blond import BoxLosses, Simulation
 from blond.beam_preparation.base import MatchingRoutine
+from blond import backend
 from blond.core.beam.base import BeamBaseClass
 
 
@@ -82,7 +83,7 @@ class FilamentationMatcher(MatchingRoutine):
     ...     SingleHarmonicRFStation,
     ...     proton,
     ... )
-    >>> from blond.experimental.beam_preparation.brute_force_matcher import (
+    >>> from blond.experimental.beam_preparation.filamentation_matcher import (
     ...     FilamentationMatcher,
     ... )
     >>> from blond.handle_results.observables_as_elements import (
@@ -167,10 +168,6 @@ class FilamentationMatcher(MatchingRoutine):
     ...     beams=(beam,),
     ... )
     ...
-    >>> plt.close()
-    >>> plt.scatter(observation.dts[0], observation.dEs[0])
-    >>> plt.scatter(observation.dts[0], observation.dEs[0])
-    >>> plt.show()
     """
 
     def __init__(
@@ -216,8 +213,10 @@ class FilamentationMatcher(MatchingRoutine):
 
         n = int(np.sqrt(self.n_macroparticles))
 
-        dt_vals = np.linspace(self.time_limit[0], self.time_limit[1], n)
-        dE_vals = np.linspace(self.energy_limit[0], self.energy_limit[1], n)
+        dt_vals = backend.linspace(self.time_limit[0], self.time_limit[1], n,
+                              dtype=backend.float)
+        dE_vals = backend.linspace(self.energy_limit[0], self.energy_limit[1], n,
+                              dtype=backend.float)
 
         dt_grid, dE_grid = np.meshgrid(dt_vals, dE_vals)
 
