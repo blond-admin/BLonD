@@ -217,6 +217,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def plot_hist2d(self) -> None:
         """Plot 2D histogram of beam coordinates."""
         pass
+
     @abstractmethod  # pragma: no cover  # as readonly attributes
     def plot_scatter(self, ax: Axes | None = None, **kwargs) -> PathCollection:
         """

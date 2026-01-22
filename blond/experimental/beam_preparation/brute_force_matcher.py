@@ -259,9 +259,9 @@ class BruteForceMatcher(MatchingRoutine):
             # --------------------------------------------------
         for i in range(self.n_iter):
             sim_copy = deepcopy(simulation)
-            sim_copy.run_simulation(beams=[beam],
-                                    n_turns=1,
-                                    show_progressbar=False)
+            sim_copy.run_simulation(
+                beams=[beam], n_turns=1, show_progressbar=False
+            )
 
             if self.animate and (i % step == 0 or i == self.n_iter - 1):
                 scat.remove()
