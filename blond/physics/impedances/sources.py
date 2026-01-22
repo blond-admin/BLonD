@@ -485,7 +485,7 @@ class Resonators(
         """
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
 
-        heavyside_like = (
+        heaviside_like = (
             backend.sign(time) + 1.0
         )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
 
@@ -495,11 +495,11 @@ class Resonators(
         )  # half a timestep (physically meaningful)
         bugfix = backend.abs(time) < tol
 
-        heavyside_like[bugfix] = 1
+        heaviside_like[bugfix] = 1
 
         for res_ind in range(self._n_resonators):
             wake += (
-                (heavyside_like)
+                (heaviside_like)
                 * (
                     self._shunt_impedances[res_ind]
                     * self._alpha[res_ind]
@@ -536,19 +536,19 @@ class Resonators(
             )
 
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
-        heavyside_like = (
+        heaviside_like = (
             backend.sign(time) + 1.0
         )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
         tol = 0.01 * backend.abs(
             time[1] - time[0]
         )  # half a timestep (physically meaningful)
         bugfix = backend.abs(time) < tol
-        heavyside_like[bugfix] = 1
+        heaviside_like[bugfix] = 1
 
         for res_ind in range(self._n_resonators):
             wake += (
                 (
-                    heavyside_like
+                    heaviside_like
                 )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
                 * (
                     self._shunt_impedances_counter_rotating[res_ind]
