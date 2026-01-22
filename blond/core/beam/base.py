@@ -438,4 +438,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._dE = self._dE[:n_after_truncation]
         self._ids = self._ids[:n_after_truncation]
 
+        self.invalidate_cache()
+
         self.intensity *= n_after_truncation / n_before_truncation
