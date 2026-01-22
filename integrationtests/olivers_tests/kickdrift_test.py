@@ -1,3 +1,12 @@
+"""Integration test of BLonD 2 vs 3 only with RF + drift.
+
+Notes
+-----
+Authors:
+Oliver Muller Smedt
+Simon Lauber
+"""
+
 import sys
 import time
 
@@ -25,7 +34,8 @@ def main():  # noqa
     test = "accuracy"
     if test == "performance":
         n_macro = int(1e6)
-        distr = np.random.randn(n_macro, 2)
+        rnd = np.random.default_rng()
+        distr = rnd.standard_normal((n_macro, 2))
         INITIAL_E = distr[:, 1].flatten() * 25e6
         INITIAL_T = distr[:, 0].flatten() * 1e-8 + 0.35e-6
     elif test == "accuracy":
@@ -134,9 +144,7 @@ def main():  # noqa
     sim.run_simulation(
         beams=(beam1,),
         n_turns=N_TURNS_SIM,
-        observe=[cavity_obs, bunch_observation]
-        if test == "accuracy"
-        else tuple(),
+        observe=[cavity_obs, bunch_observation] if test == "accuracy" else (),
         callbacks=my_callback if blond3_anim else None,
     )
 

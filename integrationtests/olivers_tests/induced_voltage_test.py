@@ -1,3 +1,12 @@
+"""Integration test of BLonD 2 vs 3 with induced voltage.
+
+Notes
+-----
+Authors:
+Oliver Muller Smedt
+Simon Lauber
+"""
+
 import time
 
 import matplotlib.pyplot as plt
@@ -13,10 +22,7 @@ from blond.legacy.blond2.impedances.impedance import TotalInducedVoltage
 
 # noqa
 def main():  # noqa
-    blond2_anim = False
-    blond3_anim = False
     profile_blond2 = False
-    profile_blond3 = False
     phi_rf = np.genfromtxt("phase.txt", delimiter=",")
     transition_gamma = np.genfromtxt("gamma.txt", delimiter=",")
     momentum = np.genfromtxt("momentum.txt", delimiter=",")
@@ -36,8 +42,8 @@ def main():  # noqa
     PROFILE_LENGTH = 2.124873604201372e-06
 
     n_macro = int(1e4)
-    np.random.seed(1234)
-    distr = np.random.randn(n_macro, 2)
+    rnd = np.random.default_rng()
+    distr = rnd.standard_normal((n_macro, 2))
     INITIAL_E = distr[:, 1].flatten() * 25e6
     INITIAL_T = distr[:, 0].flatten() * 1e-8 + 0.35e-6
 
@@ -158,7 +164,7 @@ def main():  # noqa
                 wakefield_observation,
             ],
         )
-    except:
+    except FileNotFoundError:
         t0 = time.time()
 
         sim.run_simulation(
