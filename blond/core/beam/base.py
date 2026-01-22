@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
-from blond.core.base import HasPropertyCache, Preparable
+from blond.core.base import Preparable
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
@@ -40,7 +40,7 @@ class BeamFlags(IntEnum):
     ACTIVE = 1
 
 
-class BeamBaseClass(Preparable, HasPropertyCache, ABC):
+class BeamBaseClass(Preparable, ABC):
     """
     Base class to make beam classes.
 
@@ -476,4 +476,3 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self.intensity *= (
             n_after_truncation_global / n_before_truncation_global
         )
-        self.invalidate_cache()
