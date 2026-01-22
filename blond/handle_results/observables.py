@@ -19,6 +19,7 @@ from numpy.typing import NDArray as NumpyArray
 
 from blond.core.base import MainLoopRelevant
 from blond.handle_results.array_recorders import DenseArrayRecorder
+from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -1256,3 +1257,150 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
             Histogram x-axis array.
         """
         return self._hist_x.get_valid_entries()
+
+
+class SimulationObservation(ObservablesOncePerTurnBase):
+    def __init__(
+        self,
+        each_turn_i: int,
+        folder: str = "",
+    ):
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._simulation: Simulation | None = None
+
+        self._current_t_rev: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation beam object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+        )
+
+        n_entries = n_turns // self.each_turn_i + 1
+        shape = n_entries
+        self._current_t_rev = DenseArrayRecorder(
+            f"{self.common_filepath}_hist_y",
+            shape,
+        )
+        self._simulation = simulation
+
+    def update(
+        self,
+        simulation: Simulation,
+    ) -> None:
+        """
+        Update memory with new values.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        """
+        if self._simulation.section_i.value is not None:
+            self._current_t_rev.write(self._simulation.current_t_rev)
+
+    @property  # as readonly attributes
+    def t_revs(self) -> NumpyArray:
+        """
+        Histogram amplitude of shape ``(n_observations)``.
+
+        Returns
+        -------
+        hist_y
+            Histogram amplitude array.
+        """
+        return self._current_t_rev.get_valid_entries()
+
+
+class DriftObservation(ObservablesOncePerTurnBase):
+    def __init__(
+        self,
+        each_turn_i: int,
+        drift: DriftSimple,
+        folder: str = "",
+    ):
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._drift: DriftSimple = drift
+
+        self._eta_0s: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation beam object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+        )
+
+        n_entries = n_turns // self.each_turn_i + 1
+        shape = n_entries
+        self._eta_0s = DenseArrayRecorder(
+            f"{self.common_filepath}_hist_y",
+            shape,
+        )
+
+    def update(
+        self,
+        simulation: Simulation,
+    ) -> None:
+        """
+        Update memory with new values.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        """
+        self._eta_0s.write(self._drift._last_eta_0)
+
+    @property  # as readonly attributes
+    def eta_0s(self) -> NumpyArray:
+        """
+        Histogram amplitude of shape ``(n_observations)``.
+
+        Returns
+        -------
+        hist_y
+            Histogram amplitude array.
+        """
+        return self._eta_0s.get_valid_entries()
