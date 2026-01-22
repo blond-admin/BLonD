@@ -172,8 +172,8 @@ class BruteForceMatcher(MatchingRoutine):
         animate_pause_time: float = 0.1,
         every_iter_to_plot: int = 10,
         purge: bool = False,
-        purge_limit_time: tuple[float, float] = None,
-        purge_limit_energy: tuple[float, float] = None,
+        purge_limit_time: tuple[float, float] | None = None,
+        purge_limit_energy: tuple[float, float] | None = None,
     ) -> None:
         super().__init__()
         self.time_limit = time_limit
