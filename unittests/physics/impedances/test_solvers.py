@@ -20,7 +20,7 @@ from blond import (
     Numpy64Bit,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     WakeField,
     mu_plus,
     uranium_29,
@@ -179,7 +179,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             intensity=21,
             particle_type=uranium_29,
         )
-        cavity = SingleHarmonicRfStation()
+        cavity = SingleHarmonicRFStation()
         cavity.harmonic = 1
         cavity.voltage = 0
         cavity.phi_rf = 0
@@ -460,7 +460,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             intensity=21,
             particle_type=uranium_29,
         )
-        cavity = SingleHarmonicRfStation()
+        cavity = SingleHarmonicRFStation()
         cavity.harmonic = 1
         cavity.voltage = 0
         cavity.phi_rf = 0
@@ -1042,7 +1042,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.beam.is_counter_rotating = False
 
     def test_info_string_with_RF_station(self):
-        shc = SingleHarmonicRfStation(
+        shc = SingleHarmonicRFStation(
             section_index=0,
             harmonic=1,
             voltage=1,

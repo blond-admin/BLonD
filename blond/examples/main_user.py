@@ -24,7 +24,7 @@ from blond.core.backends.backend import backend
 from blond.core.beam.beams import Beam
 from blond.core.ring.ring import Ring
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
-from blond.physics.cavities import MultiHarmonicRfStation
+from blond.physics.cavities import MultiHarmonicRFStation
 from blond.physics.impedances.solvers import InductiveImpedanceSolver
 from blond.physics.impedances.sources import InductiveImpedance
 
@@ -50,7 +50,7 @@ class Main:
         my_ring = Ring(circumference=6912)
 
         profile1 = StaticProfile(cut_left=0, cut_right=1, n_bins=128)
-        rf_station = MultiHarmonicRfStation(
+        rf_station = MultiHarmonicRFStation(
             voltage=np.array([6e6, 2e6]),
             phi_rf=np.array([0, 0]),
             harmonic=np.array([4620, 4 * 4620]),

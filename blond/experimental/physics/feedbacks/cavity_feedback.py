@@ -30,7 +30,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond import Simulation
     from blond.core.beam.base import BeamBaseClass
-    from blond.physics.cavities import MultiHarmonicRfStation
+    from blond.physics.cavities import MultiHarmonicRFStation
 
 # TODO rewrite all docstrings
 
@@ -108,12 +108,12 @@ class BirksCavityFeedback(LocalFeedback):
     # TODO docstring
 
     # TODO remove after development
-    _parent_rf_station: MultiHarmonicRfStation
+    _parent_rf_station: MultiHarmonicRFStation
     profile: StaticProfile
 
     def __init__(
         self,
-        _parent_rf_station: MultiHarmonicRfStation,
+        _parent_rf_station: MultiHarmonicRFStation,
         profile: StaticProfile,
         n_cavities: int,
         n_periods_coarse: int,

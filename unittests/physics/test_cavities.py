@@ -18,9 +18,8 @@ from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback impor
 )
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
-    MultiHarmonicRfStation,
-    RfStationBaseClass,
-    SingleHarmonicRfStation,
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
 )
 from blond.physics.drifts import _assert_purely_real_or_imaginary
 from blond.physics.impedances.base import WakeField
@@ -50,7 +49,7 @@ class TestRFStationBaseClass(unittest.TestCase):
 
     def test_init_of_feedbacks(self):
         # default init
-        SingleHarmonicRfStation(
+        SingleHarmonicRFStation(
             section_index=1,
             local_wakefield=None,
             beam_feedback=None,
@@ -61,21 +60,21 @@ class TestRFStationBaseClass(unittest.TestCase):
             section_index=0, profile=prof, PL_gain=1
         )
 
-        SingleHarmonicRfStation(
+        SingleHarmonicRFStation(
             section_index=1,
             local_wakefield=None,
             beam_feedback=beam_feedback_good,
             cavity_feedback=None,
         )
         with self.assertRaises(ValueError):
-            SingleHarmonicRfStation(
+            SingleHarmonicRFStation(
                 section_index=1,
                 local_wakefield=None,
                 beam_feedback=prof,
                 cavity_feedback=None,
             )
 
-        mhc = MultiHarmonicRfStation.headless(
+        mhc = MultiHarmonicRFStation.headless(
             section_index=1,
             voltage=np.array([1]),
             harmonic=np.array([1]),
@@ -90,7 +89,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
 
         # TODO: remove this, once cavity feedback setup is fixed
-        MultiHarmonicRfStation(
+        MultiHarmonicRFStation(
             section_index=1,
             local_wakefield=None,
             main_harmonic_idx=0,
@@ -98,12 +97,12 @@ class TestRFStationBaseClass(unittest.TestCase):
             cavity_feedback=(cavity_feedback_good,),
         )
         with self.assertRaises(ValueError):
-            SingleHarmonicRfStation(
+            SingleHarmonicRFStation(
                 section_index=1, local_wakefield=None, cavity_feedback=(prof,)
             )
 
     def test_track_with_feedbacks(self):
-        SingleHarmonicRfStation(
+        SingleHarmonicRFStation(
             section_index=1,
             local_wakefield=None,
             beam_feedback=None,
@@ -126,7 +125,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
 
         # TODO: remove this, once cavity feedback setup is fixed
-        mhc_feedbacks = MultiHarmonicRfStation(
+        mhc_feedbacks = MultiHarmonicRFStation(
             section_index=1,
             local_wakefield=None,
             main_harmonic_idx=0,
@@ -162,7 +161,7 @@ class TestRFStationBaseClass(unittest.TestCase):
 
     def test_with_wakefields(self):
         wf = Mock(WakeField)
-        shc = SingleHarmonicRfStation(
+        shc = SingleHarmonicRFStation(
             section_index=0,
             harmonic=1,
             voltage=1,
@@ -210,7 +209,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
         self.beam = beam
 
-        self.multi_harmonic_cavity = MultiHarmonicRfStation.headless(
+        self.multi_harmonic_cavity = MultiHarmonicRFStation.headless(
             section_index=0,
             voltage=np.array([1e6, 2e6], dtype=float),
             phi_rf=np.array([0.1 * np.pi, np.pi], dtype=float),
@@ -270,7 +269,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         )
 
     def test_wrong_array(self) -> None:
-        local_cav = MultiHarmonicRfStation(
+        local_cav = MultiHarmonicRFStation(
             n_harmonics=2,
             main_harmonic_idx=0,
             voltage=np.array([1, 2]),
@@ -288,7 +287,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         )
 
         with self.assertRaises(ValueError):
-            _ = MultiHarmonicRfStation(
+            _ = MultiHarmonicRFStation(
                 n_harmonics=2,
                 main_harmonic_idx=0,
                 voltage=np.array([1]),
@@ -296,7 +295,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                 harmonic=np.array([5, 6]),
             )
         with self.assertRaises(ValueError):
-            _ = MultiHarmonicRfStation(
+            _ = MultiHarmonicRFStation(
                 n_harmonics=2,
                 main_harmonic_idx=0,
                 voltage=np.array([1, 2]),
@@ -304,7 +303,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                 harmonic=np.array([5, 6]),
             )
         with self.assertRaises(ValueError):
-            _ = MultiHarmonicRfStation(
+            _ = MultiHarmonicRFStation(
                 n_harmonics=2,
                 main_harmonic_idx=0,
                 voltage=np.array([1, 2]),
@@ -392,7 +391,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
 
         self.beam = beam
 
-        self.single_harmonic_cavity = SingleHarmonicRfStation.headless(
+        self.single_harmonic_cavity = SingleHarmonicRFStation.headless(
             section_index=0,
             voltage=1e6,
             phi_rf=np.pi * 0.3,
