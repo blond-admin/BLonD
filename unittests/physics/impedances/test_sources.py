@@ -669,6 +669,11 @@ class TestResonators(unittest.TestCase):
                 "resources/get_wake_impedance_pinning.npz", stacklevel=1
             )
         )
+        DEV_DEBUG = False
+        if DEV_DEBUG:
+            plt.plot(copy_to_cpu(np.abs(wake_imp)))
+            plt.plot(copy_to_cpu(np.abs(pinned_result["wake_imp"])), "--")
+            plt.show()
 
         np.testing.assert_allclose(
             copy_to_cpu(wake_imp),
@@ -680,11 +685,6 @@ class TestResonators(unittest.TestCase):
             pinned_result["wake_freq"],
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
-        DEV_DEBUG = False
-        if DEV_DEBUG:
-            plt.plot(wake_freq, np.abs(wake_imp))
-            plt.xlim(0, 1.5e9)
-            plt.show()
 
     def test_get_wake_impedance_counterrotation(self):
         simulation = Mock(Simulation)

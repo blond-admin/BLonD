@@ -490,7 +490,7 @@ class Resonators(
         )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
 
         # protect against numerical noise, where a 0 might be expressed as -1.6155871338926322e-27
-        tol = 0.5 * backend.abs(
+        tol = 0.01 * backend.abs(
             time[1] - time[0]
         )  # half a timestep (physically meaningful)
         bugfix = backend.abs(time) < tol
@@ -539,7 +539,7 @@ class Resonators(
         heavyside_like = (
             backend.sign(time) + 1.0
         )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
-        tol = 0.5 * backend.abs(
+        tol = 0.01 * backend.abs(
             time[1] - time[0]
         )  # half a timestep (physically meaningful)
         bugfix = backend.abs(time) < tol

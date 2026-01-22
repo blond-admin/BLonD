@@ -16,11 +16,12 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRfStation,
+    WakeField,
     backend,
     mu_plus,
     proton,
 )
-from blond.core.backends.backend import NumpyBackend
+from blond.core.backends.backend import Numpy32Bit, NumpyBackend
 from blond.core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
@@ -640,12 +641,44 @@ class TestSimulation(unittest.TestCase):
             )
 
     @pytest.mark.backend_mutation
-    def compare_cpu_gpu(self):
-        backend.change_backend(Cupy32Bit)
-        from blond.testing.simulation import SimulationTwoRfStationsWithWake
+    def test_compare_cpu_gpu(self):
+        DEV_DEBUG = False
+        results = []
+        for i, backend_type in enumerate((Cupy32Bit, Numpy32Bit)):
+            backend.change_backend(backend_type)
+            from blond.testing.simulation import (
+                SimulationTwoRfStationsWithWake,
+            )
 
-        sim = SimulationTwoRfStationsWithWake()
-        sim.simulation.get_potential_well_empiric()
+            sim = SimulationTwoRfStationsWithWake()
+
+            hist_y_override = np.loadtxt(
+                callers_relative_path("hist_y_override.txt", stacklevel=1),
+            )
+            wakefield = sim.simulation.ring.elements.get_element(WakeField)
+            wakefield.profile._hist_y = backend.array(
+                hist_y_override, dtype=wakefield.profile._hist_y.dtype
+            )
+            wakefield.profile.hist_y_to_density_factor = 1e-05
+            sim.simulation.intensity_effect_manager.set_profiles(False)
+            potential, factor, tilt = (
+                sim.simulation.get_potential_well_empiric(
+                    dt=np.linspace(0, 3e-9),
+                    particle_type=sim.beam1.particle_type,
+                    intensity=sim.beam1.intensity,
+                )
+            )
+            if DEV_DEBUG:
+                plt.figure("debug+potential")
+                plt.plot(copy_to_cpu(potential), ("-", "--")[i])
+            results.append(copy_to_cpu(potential))
+        if DEV_DEBUG:
+            plt.show()
+        np.testing.assert_allclose(
+            results[0],
+            results[1],
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+        )
 
 
 if __name__ == "__main__":

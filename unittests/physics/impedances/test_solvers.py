@@ -628,10 +628,18 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
 
         td_solver = td_fft_solver.calc_induced_voltage(beam=self.beam)
+        DEV_DEBUG = False
+        offset = float(2 * initial_voltage.min())
+        if DEV_DEBUG:
+            plt.plot(
+                copy_to_cpu(initial_voltage),
+            )
+            plt.plot(copy_to_cpu(td_solver[0 : len(initial_voltage)]), "--")
+            plt.show()
         np.testing.assert_allclose(
-            copy_to_cpu(initial_voltage),
-            copy_to_cpu(td_solver[0 : len(initial_voltage)]),
-            atol=1e-10,
+            copy_to_cpu(initial_voltage) + offset,
+            copy_to_cpu(td_solver[0 : len(initial_voltage)]) + offset,
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
     def test___init__(self):

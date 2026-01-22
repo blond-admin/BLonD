@@ -220,6 +220,17 @@ def get_hamilton_semi_analytic(
     return deltaE_grid, time_grid, hamilton_2D
 
 
+class DebuggingEndpoints:
+    """
+    Helper to expose variables when debugging `SemiEmpiricMatcher`.
+    """
+
+    def __init__(self):
+        self.last_potential_well = None
+        self.last_density = None
+        self.last_hamilton_2D = None
+
+
 class SemiEmpiricMatcher(MatchingRoutine):
     r"""Match a distribution to ``potential_well_empiric`` using an analytic drift term.
 
@@ -265,6 +276,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
         falls below this tolerance.
     verbose : bool, default=False
         If ``True``, prints convergence and status messages to the console.
+    debug
+        If ``True``, variables are saved into the `debug_helper` attribute.
 
     Notes
     -----
@@ -285,6 +298,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         increment_intensity_effects_until_iteration_i: int = 0,
         animate: bool = False,
         verbose: bool = True,
+        debug=False,
     ) -> None:
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
@@ -321,6 +335,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
         # For error calculation and plotting during `prepare_beam`
         self._last_potential_well: NumpyArray | CupyArray | None = None
         self._prelast_potential_well: NumpyArray | CupyArray | None = None
+        self.debug_helper: DebuggingEndpoints | None = None
+
+        if debug:
+            self.debug_helper = DebuggingEndpoints()
 
     def prepare_beam(
         self,
@@ -485,12 +503,14 @@ class SemiEmpiricMatcher(MatchingRoutine):
         potential_well = (
             potential_well[::_POTENTIAL_WELL_OVERSAMPLING] * factor
         )
+
         self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well
         if self._prelast_potential_well is None:
             avg_pot_well = potential_well
         else:
             avg_pot_well = (potential_well + self._prelast_potential_well) / 2
+
         deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
             ts=ts,
             potential_well=avg_pot_well,
@@ -507,6 +527,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
             hamilton_2D=hamilton_2D,
             **self.hamilton_to_density_kwargs,
         )  # type: ignore
+
+        if self.debug_helper is not None:
+            self.debug_helper.last_potential_well = avg_pot_well
+            self.debug_helper.last_density = density
+            self.debug_helper.last_hamilton_2D = hamilton_2D
 
         populate_beam(
             beam=beam,

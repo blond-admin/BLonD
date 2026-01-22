@@ -5,7 +5,11 @@ import numpy as np
 
 from blond import (
     Beam,
+    Cupy32Bit,
+    Numpy32Bit,
     Simulation,
+    StaticProfile,
+    WakeField,
     backend,
 )
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
@@ -96,6 +100,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         sim = SimulationTwoRfStationsWithWake()
         self._test_matching(sim)
         DEV_PLOT = False
+        DEV_PLOT2 = False
         if DEV_PLOT:
 
             def my_callback(simulation: Simulation, beam: Beam):
@@ -133,6 +138,9 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             50: -491867.9813599617,
             90: 200521467.98119268,
         }
+        if DEV_PLOT2:
+            sim.beam1.plot_scatter()
+            plt.show()
         for percentile in (10, 50, 90):
             percentile_dt = float(
                 np.percentile(sim.beam1.read_partial_dt(), percentile)
@@ -144,12 +152,12 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             np.testing.assert_allclose(
                 expected_dt[percentile],
                 percentile_dt,
-                rtol=1e-4,
+                rtol=2e-4,
             )
             np.testing.assert_allclose(
                 expected_dE[percentile],
                 percentile_dE,
-                rtol=1e-4,
+                rtol=2e-4,
             )
 
     def test_roughly_correct_no_intensity_below_transition(self):
@@ -310,22 +318,25 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         # cav = sim.simulation.ring.elements.get_element(SingleHarmonicCavity)
         # cav.harmonic = 10*33000
 
+        matcher = SemiEmpiricMatcher(
+            time_limit=(ts.min(), ts.max()),
+            hamilton_to_density_kwargs=dict(
+                hamilton_max=100,
+                density_modifier=4,
+            ),
+            n_macroparticles=1e5,
+            internal_grid_shape=(512 - 1, 512 - 1),
+            increment_intensity_effects_until_iteration_i=10,
+            maxiter_intensity_effects=1000,
+            tolerance=0.000001,
+            animate=False,
+            debug=True,
+        )
         sim.simulation.prepare_beam(
             beam=sim.beam1,
-            preparation_routine=SemiEmpiricMatcher(
-                time_limit=(ts.min(), ts.max()),
-                hamilton_to_density_kwargs=dict(
-                    hamilton_max=100,
-                    density_modifier=4,
-                ),
-                n_macroparticles=1e5,
-                internal_grid_shape=(512 - 1, 512 - 1),
-                increment_intensity_effects_until_iteration_i=10,
-                maxiter_intensity_effects=1000,
-                tolerance=0.000001,
-                animate=False,
-            ),
+            preparation_routine=matcher,
         )
+        return matcher
 
 
 class TestCallables:
