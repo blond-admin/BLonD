@@ -97,6 +97,9 @@ class BeamBaseClassTester(BeamBaseClass):
     def common_array_size(self) -> int:
         pass
 
+    def rms_emittance(self):
+        pass
+
 
 class TestBeamBaseClass(unittest.TestCase):
     def setUp(self):
