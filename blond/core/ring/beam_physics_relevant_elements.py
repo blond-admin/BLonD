@@ -358,7 +358,7 @@ class BeamPhysicsRelevantElements(Preparable):
         key = f"{class_.__name__}_{section_i}"
         # use cache only after init of simulation
         CACHE_MAX = 32
-        if len(self._get_element_cache) > CACHE_MAX:
+        if len(self._get_element_cache) >= CACHE_MAX:
             self._get_element_cache = {}  # clear cache
         if self._on_init_simulation_passed and key in self._get_element_cache:
             return self._get_element_cache[key]
