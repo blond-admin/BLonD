@@ -58,8 +58,19 @@ class WeightenedBeam(Beam):
         reference_total_energy
             Time of the reference frame (global total energy), in [eV]
         mpi_mode
-            - "root-distributes": The array is distributed from the root node to all ranks.
-            - "all-ranks":  All ranks setup the beam independently.
+            Specifies how the particle data is distributed across multiple ranks (processing
+            units) in a parallel environment:
+
+            - "root-distributes": The root node (rank 0) holds the full array and splits it
+              into smaller chunks, which are then distributed to all ranks, including rank 0.
+              Each rank stores its own chunk of the data. This mode is useful when loading
+              large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
+              across ranks.
+
+            - "all-ranks": Each rank independently generates and stores a full copy of the data.
+              While this mode uses more memory, it can be simpler to implement in scenarios where
+              each rank needs to work with its own independent data (e.g., generating separate
+              random distributions with `np.random.randn()`).
         weights
             Weight per macro-particle
         """

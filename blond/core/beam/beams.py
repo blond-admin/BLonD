@@ -101,9 +101,14 @@ class Beam(BeamBaseClass):
         """
         Configure the beam with an initial particle distributions.
 
-        This method sets the time and energy coordinates for all macro-particles
-        in the beam. It must be called before running a simulation to initialize
+        This method sets the time (`dt`) and energy (`dE`) offsets for each macro-particle
+        relative to reference values, and it also assigns status flags (`flags`) for each
+        particle. It must be called before starting the simulation in order to initialize
         the particle distribution.
+
+        The distribution of data across multiple processing units (ranks) is determined
+        by the `mpi_mode` parameter. This ensures that the beam setup is appropriately
+        handled for both parallel and non-parallel execution.
 
         Parameters
         ----------
@@ -124,8 +129,20 @@ class Beam(BeamBaseClass):
             The reference total energy for the coordinate system, in [eV].
             Particle energies `dE` are relative to this reference.
         mpi_mode
-            - "root-distributes": The array is distributed from the root node to all ranks.
-            - "all-ranks":  All ranks setup the beam independently.
+            Specifies how the particle data is distributed across multiple ranks (processing
+            units) in a parallel environment:
+
+            - "root-distributes": The root node (rank 0) holds the full array and splits it
+              into smaller chunks, which are then distributed to all ranks, including rank 0.
+              Each rank stores its own chunk of the data. This mode is useful when loading
+              large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
+              across ranks.
+
+            - "all-ranks": Each rank independently generates and stores a full copy of the data.
+              While this mode uses more memory, it can be simpler to implement in scenarios where
+              each rank needs to work with its own independent data (e.g., generating separate
+              random distributions with `np.random.randn()`).
+
         **kwargs
             Unused - Keyword arguments to make the non-abstract implementation
             extendable.
