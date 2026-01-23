@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import numpy as np
 from numpy._typing import NDArray as NumpyArray
-from scipy.constants import e
+from scipy.constants import c, e
 from scipy.constants import speed_of_light as c0
 
 from blond import (
@@ -344,6 +344,26 @@ class TestWigglerMagnet(unittest.TestCase):
 
         self.assertEqual(self.wiggler_magnet.pole_length, 0.01)
         self.assertEqual(self.wiggler_magnet_none.pole_length, 0.095)
+
+    def test_calculate_energy_contribution_to_synchrotron_radiation_integrals(
+        self,
+    ):
+        energy_contribution_wiggler_integrals = self.wiggler_magnet._calculate_energy_contribution_to_synchrotron_radiation_integrals(
+            reference_energy=20e9
+        )
+        var = 1 / (20e9 * e / c)
+        expected_array = np.array(
+            [
+                var**2,
+                var**2,
+                var**3,
+                var**3,
+                var**5,
+            ]
+        )
+        np.testing.assert_array_equal(
+            energy_contribution_wiggler_integrals, expected_array
+        )
 
     def test_calculate_contribution_to_synchrotron_radiation_integrals(self):
         (
