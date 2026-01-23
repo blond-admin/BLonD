@@ -73,7 +73,7 @@ class SynchrotronRadiationSimulation:
 
         self.ring = Ring(
             self.circumference,
-            # check_section_indices=False,
+            radiation_integrals=self.synchrotron_radiation_integrals,
         )
         self.ring.add_element(self.cavity)
 
@@ -90,7 +90,6 @@ class SynchrotronRadiationSimulation:
             self.ring.add_element(drift, section_index=i)
 
         self.SRHandler = SynchrotronRadiationMaster(
-            radiation_integrals=self.synchrotron_radiation_integrals,
             # track_before_element_type = DriftBaseClass,
         )
         self.SRHandler.generate_synchrotron_radiation_subclasses(
