@@ -218,7 +218,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        turn_i_init: int,
         **kwargs,
     ) -> None:
         """
@@ -228,8 +227,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ----------
         simulation
             `Simulation` context manager.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments for simulation setup.
         """
