@@ -246,7 +246,6 @@ class InducdedVoltageResonator:
                 ls="--",
                 label=f"resonator turn {el}",
             )
-        # plt.plot(time_axis, -convolution_result[0 : len(time_axis)] * e, label="convolution")
         plt.legend()
         plt.show()
 
