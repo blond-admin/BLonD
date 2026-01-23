@@ -1,6 +1,7 @@
 import copy
 import unittest
 from random import random
+from unittest.mock import Mock
 
 import numpy as np
 
@@ -9,7 +10,8 @@ from blond import (
     SingleHarmonicRFStation,
     SynchrotronRadiationMaster,
 )
-from blond.physics.drifts import DriftBaseClass
+from blond.physics.cavities import RFStationBaseClass
+from blond.physics.drifts import DriftBaseClass, DriftSimple
 
 
 class TestSynchrotronRadiationMaster(unittest.TestCase):
@@ -173,6 +175,30 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             SRM._synchrotron_radiation_integrals,
             self.synchrotron_radiation_integrals,
         )
+
+    def test_generate_synchrotron_radiation_subclasses(self):
+        ring = Ring(
+            90.65874532 * 1e3,
+            radiation_integrals=self.synchrotron_radiation_integrals,
+        )
+        momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+        self.cavity = SingleHarmonicRFStation()
+        self.cavity.harmonic = 242400
+        self.cavity.voltage = 50.1e6
+        self.cavity.phi_rf = 0
+
+        ring.add_element(self.cavity)
+
+        number_of_sections = 5
+        for i in range(number_of_sections):
+            drift = DriftSimple(
+                name=f"drift{i + 1}",
+                orbit_length=ring.circumference / number_of_sections,
+                momentum_compaction_factor=momentum_compaction_factor
+                / number_of_sections,
+                section_index=i,
+            )
+            ring.add_element(drift, section_index=i)
 
     # def test_properties(self):
     #     SRM = SynchrotronRadiationMaster(
