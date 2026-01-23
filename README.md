@@ -45,7 +45,7 @@ pip install blond[gpu]
 ```
 
 ### Configuration
-Optional backends can be compiled after installation using the commands `blond-compile-cpp` `blond-compile-cuda`,
+Optional backends can be compiled after installation using the commands `blond-compile-cpp --parallel` `blond-compile-cuda`,
 or `blond-compile-fortran` for improved performance. The backend can be selected in Python using ```backend.set_specials(...)```.
 
 ## Documentation
