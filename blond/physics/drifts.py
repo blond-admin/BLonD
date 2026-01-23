@@ -113,6 +113,18 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         """
         pass
 
+    @property
+    def momentum_compaction_factor(self) -> float | None:
+        """
+        Momentum compaction factor.
+
+        Returns
+        -------
+        momentum_compaction_factor
+            Momentum compaction factor.
+        """
+        return None
+
     def track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
