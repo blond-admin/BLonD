@@ -406,8 +406,8 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         """
         self._turn_i = simulation.turn_i
 
-    def _calculate_contribution_to_synchrotron_radiation_integrals(
-        self, reference_energy: NumpyArray | float
+    def _calculate_energy_contribution_to_synchrotron_radiation_integrals(
+        self, reference_energy: float
     ):
         """
         Calculate the wiggler contribution to the radiation integrals.
