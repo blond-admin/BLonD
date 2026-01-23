@@ -392,7 +392,6 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        turn_i_init: int,
         **kwargs,
     ) -> None:
         """
@@ -402,14 +401,47 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         ----------
         simulation
             `Simulation` context manager.
-        turn_i_init
-            Initial turn to execute simulation.
         **kwargs
             Additional keyword arguments for simulation setup.
         """
         self._turn_i = simulation.turn_i
 
-    def _calculate_contribution_to_synchrotron_radiation_integrals(self):
+    def _calculate_contribution_to_synchrotron_radiation_integrals(
+        self, reference_energy: NumpyArray | float
+    ):
+        """
+        Calculate the wiggler contribution to the radiation integrals.
+
+        The damping wiggler enhances synchrotron radiation damping and
+        changes the synchrotron radiation. This function calculates the
+        synchrotron radiation integrals variation from the damping
+        wiggler according the beam energy.
+
+        Parameters
+        ----------
+        reference_energy
+            Beam reference energy.
+
+        Returns
+        -------
+        energy_contribution_wiggler_integrals
+            Wiggler contribution to the synchrotron radiation integrals.
+        """
+        var = 1 / (reference_energy * e / c)
+        energy_contribution_wiggler_integrals = np.array(
+            [
+                var**2,
+                var**2,
+                var**3,
+                var**3,
+                var**5,
+            ]
+        )
+        return energy_contribution_wiggler_integrals
+
+    def _calculate_contribution_to_synchrotron_radiation_integrals_without_beam_energy(
+        self,
+    ):
         """Calculate the wiggler radiation integrals without beam energy."""
         if self._type == "sinusoidal":
             self._contribution_to_synchrotron_radiation_integrals_without_energy = np.array(
@@ -457,17 +489,12 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         beam
             Beam class to interact with this element.
         """
-        E = beam.read_partial_dE() + beam.reference.total_energy
-        var = 1 / (E * e / c)
-        energy_contribution_wiggler_integrals = np.array(
-            [
-                var**2,
-                var**2,
-                var**3,
-                var**3,
-                var**5,
-            ]
+        energy_contribution_wiggler_integrals = (
+            self._calculate_contribution_to_synchrotron_radiation_integrals(
+                reference_energy=beam.reference.total_energy
+            )
         )
+
         self._contribution_to_synchrotron_radiation_integrals_with_energy = np.multiply(
             self._contribution_to_synchrotron_radiation_integrals_without_energy,
             energy_contribution_wiggler_integrals,

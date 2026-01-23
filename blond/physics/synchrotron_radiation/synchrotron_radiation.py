@@ -38,12 +38,17 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.acc_math.analytic.synchrotron_radiation.utilities import (
+    gather_longitudinal_synchrotron_radiation_parameters,
+)
 from blond.core.base import DynamicParameter, Schedulable
+from blond.core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
 from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (
     SynchrotronRadiationBaseClass,
+    WigglerMagnet,
 )
 
 if TYPE_CHECKING:
@@ -140,6 +145,10 @@ class SynchrotronRadiationMaster(Schedulable):
         self._ring: Ring | None = None
         self._disable_quantum_excitation = _disable_quantum_excitation
 
+        self._natural_energy_spread: NumpyArray | None = None
+        self._energy_loss_per_turn: NumpyArray | None = None
+        self._longitudinal_damping_time: NumpyArray | None = None
+
         self.generated_children: list[SynchrotronRadiationBaseClass] = []
 
     def __str__(self):
@@ -175,16 +184,16 @@ class SynchrotronRadiationMaster(Schedulable):
         return self._energy_loss_per_turn
 
     @property
-    def damping_times(self) -> NumpyArray:
+    def longitudinal_damping_time(self) -> NumpyArray:
         """
         Damping times, in turns.
 
         Returns
         -------
-        damping_times
+        longitudinal_damping_time
             Damping times in turn.
         """
-        return self._damping_times
+        return self._longitudinal_damping_time
 
     @property
     def number_of_generated_synchrotron_radiation_classes(self) -> int:
@@ -198,15 +207,79 @@ class SynchrotronRadiationMaster(Schedulable):
         """
         return len(self.generated_children)
 
-    # TODO : Add a function to calculate the length of the sections/ drifts
-    # before the children and store it for later SR integrals update.
-    # Question: How to handle modification from wigglers and other classes.
+    def print_synchrotron_radiation_parameters(self, turn_number: int = 0):
+        """
+        Print the synchrotron radiation parameter of a given turn.
+
+        Parameters
+        ----------
+        turn_number
+            Turn to consider.
+        """
+        print(f"Synchrotron radiation parameters for the turn #{turn_number}")
+        print("Energy lost:", self.energy_loss_per_turn[turn_number])
+        print(
+            "Longitudinal damping time:",
+            self.longitudinal_damping_time[turn_number],
+        )
+        print(
+            "Natural energy spread:", self._natural_energy_spread[turn_number]
+        )
 
     # TODO : Update synchrotron radiation integrals after a wiggler? Detect
     #  other SynchrotronRadiationBaseClass elements before generating the
     #  children and save their location for SRI update.
 
     # TODO: transmit the share of SRI to the children.
+
+    def compute_turn_by_turn_synchrotron_radiation_parameters(
+        self, beam: BeamBaseClass, ring: Ring
+    ):
+        """
+        Calculate the synchrotron radiation parameter for a specified beam.
+
+        Parameters
+        ----------
+        beam
+            BeamBaseClass object.
+        ring
+            `Ring` context manager.
+
+        Returns
+        -------
+         if self.verbose:
+            Prints the computed synchrotron radiation parameters.
+        """
+        # Question: How to handle modification from wigglers and other classes.
+        synchrotron_radiation_shift_from_wigglers = np.zeros(
+            len(self.synchrotron_radiation_integrals)
+        )
+
+        wiggler_magnet_list = ring.elements.get_elements(
+            class_=WigglerMagnet,
+        )
+
+        for element in wiggler_magnet_list:
+            energy_contribution_wiggler_integrals = element._calculate_contribution_to_synchrotron_radiation_integrals(
+                beam.reference.total_energy
+            )
+            synchrotron_radiation_shift_from_wigglers += (
+                element._contribution_to_synchrotron_radiation_integrals_without_energy
+            ) * energy_contribution_wiggler_integrals
+
+        (
+            self._energy_loss_per_turn,
+            self._longitudinal_damping_time,
+            self._natural_energy_spread,
+        ) = gather_longitudinal_synchrotron_radiation_parameters(
+            particle_type=beam.particle_type,
+            energy=beam.reference.total_energy,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals
+            + synchrotron_radiation_shift_from_wigglers,
+        )
+        if self.verbose:
+            self.print_synchrotron_radiation_parameters()
+
     def generate_synchrotron_radiation_subclasses(
         self,
         ring: Ring,
