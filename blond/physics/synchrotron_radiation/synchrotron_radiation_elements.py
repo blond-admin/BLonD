@@ -37,11 +37,12 @@ if TYPE_CHECKING:
 
 def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
     energy_lost: float,
-    beam_dE_array: NumpyArray,
+    beam_delta_energy_array: NumpyArray,
     random_generator: Generator,
     natural_energy_spread: float,
     longitudinal_damping_time: float,
     total_energy: float,
+    _disable_quantum_excitation: bool = False,
 ) -> float | ndarray[tuple[int, ...], dtype[Any]] | Any:
     """
     Energy kick induced by synchrotron radiation and quantum excitation.
@@ -54,7 +55,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
     ----------
     energy_lost
         Energy lost through the considered synchrotron segment.
-    beam_dE_array
+    beam_delta_energy_array
         Beam energy array.
     random_generator
         Random generator.
@@ -64,21 +65,30 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
         Longitudinal damping time of the considered synchrotron segment.
     total_energy
         Beam total reference energy.
+    _disable_quantum_excitation
+        Expert user only. Disables the quantum excitation kick.
 
     Returns
     -------
     energy_kick
         Energy kick induced by synchrotron radiation and quantum excitation.
     """
-    return (
-        -energy_lost
-        - 2.0 / longitudinal_damping_time * beam_dE_array
-        + 2.0
-        * natural_energy_spread
-        / np.sqrt(longitudinal_damping_time)
-        * total_energy
-        * random_generator.normal(size=len(beam_dE_array))
-    )
+    if _disable_quantum_excitation:
+        energy_kick = (
+            -energy_lost
+            - 2.0 / longitudinal_damping_time * beam_delta_energy_array
+        )
+    else:
+        energy_kick = (
+            -energy_lost
+            - 2.0 / longitudinal_damping_time * beam_delta_energy_array
+            + 2.0
+            * natural_energy_spread
+            / np.sqrt(longitudinal_damping_time)
+            * total_energy
+            * random_generator.normal(size=len(beam_delta_energy_array))
+        )
+    return energy_kick
 
 
 class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
@@ -94,6 +104,8 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         Section index to group elements into sections.
     share_of_synchrotron_radiation_integrals
         Fractional synchrotron radiation integrals.
+    _disable_quantum_excitation
+        Expert user only. Disables the quantum excitation kick.
     seed
         Random seed parameter.
     """
@@ -103,6 +115,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         name: str | None = None,
         section_index: int | None = None,
         share_of_synchrotron_radiation_integrals: NumpyArray | None = None,
+        _disable_quantum_excitation: bool = False,
         seed: int | None = None,
     ):
         super().__init__(name=name, section_index=section_index)
@@ -112,6 +125,13 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._fractional_radiation_integrals = (
             share_of_synchrotron_radiation_integrals
         )
+
+        self._disable_quantum_excitation = _disable_quantum_excitation
+
+        self._energy_lost_due_to_synchrotron_radiation: float | None = None
+        self._damping_time: float | None = None
+        self._natural_energy_spread: float | None = None
+
         self.rng = np.random.default_rng(seed=seed)
 
     def _calculate_kick(
@@ -145,16 +165,20 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             energy=total_energy,
             synchrotron_radiation_integrals=self._fractional_radiation_integrals,
         )
+        self._energy_lost_due_to_synchrotron_radiation = estimated_energy_lost
+        self._damping_time = estimated_damping_time
+        self._natural_energy_spread = estimated_natural_energy_spread
 
         beam_dE = beam.read_partial_dE()
         random_generator = self.rng
         return calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
-            energy_loss_per_turn=estimated_energy_lost,
-            beam_dE_array=beam_dE,
+            energy_lost=estimated_energy_lost,
+            beam_delta_energy_array=beam_dE,
             random_generator=random_generator,
             natural_energy_spread=estimated_natural_energy_spread,
             longitudinal_damping_time=estimated_damping_time,
             total_energy=total_energy,
+            _disable_quantum_excitation=self._disable_quantum_excitation,
         )
 
     def _update_beam_energy(

@@ -84,6 +84,8 @@ class SynchrotronRadiationMaster(Schedulable):
     track_before_element_type
         BeamPhysicsRelevant element class for which synchrotron radiation
         should be tracked.
+    _disable_quantum_excitation
+        Expert user only. Disables the quantum excitation kick.
     verbose
         Enable printed messages.
     """
@@ -92,6 +94,7 @@ class SynchrotronRadiationMaster(Schedulable):
         self,
         radiation_integrals: NumpyArray | None = None,
         track_before_element_type: type[T] | None = None,
+        _disable_quantum_excitation: bool = False,
         verbose: bool = False,
     ):
         super().__init__()
@@ -135,6 +138,7 @@ class SynchrotronRadiationMaster(Schedulable):
         self._turn_i: DynamicParameter | None = 0
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
+        self._disable_quantum_excitation = _disable_quantum_excitation
 
         self.generated_children: list[SynchrotronRadiationBaseClass] = []
 
@@ -251,6 +255,7 @@ class SynchrotronRadiationMaster(Schedulable):
                         section_index=element.section_index,
                         name=f"SynchrotronRadiationTracker_{i}",
                         share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
+                        _disable_quantum_excitation=self._disable_quantum_excitation,
                     )
                     ring.insert_element(
                         element=SRClass_child,
@@ -276,6 +281,7 @@ class SynchrotronRadiationMaster(Schedulable):
                         section_index=section_index,
                         name=f"SynchrotronRadiationTracker_{i}",
                         share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
+                        _disable_quantum_excitation=self._disable_quantum_excitation,
                     )
                     ring.add_element(
                         SRClass_child,
@@ -308,6 +314,8 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         Section index to group elements into sections.
     share_of_synchrotron_radiation_integrals
         Fractional synchrotron radiation integrals.
+    _disable_quantum_excitation
+        Expert user only. Disables the quantum excitation kick.
     """
 
     def __init__(
@@ -315,11 +323,13 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         name: str | None = None,
         section_index: int = 0,
         share_of_synchrotron_radiation_integrals: NumpyArray = None,
+        _disable_quantum_excitation: bool = False,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
             share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
+            _disable_quantum_excitation=_disable_quantum_excitation,
         )
 
     @property
@@ -383,6 +393,8 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         Section index to group elements into sections.
     share_of_synchrotron_radiation_integrals
         Fractional synchrotron radiation integrals.
+    _disable_quantum_excitation
+        Expert user only. Disables the quantum excitation kick.
     """
 
     # TODO : enforce a constraint on the number of
@@ -392,13 +404,14 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         name: str | None = None,
         section_index: int = 0,
         share_of_synchrotron_radiation_integrals: NumpyArray = None,
+        _disable_quantum_excitation: bool = False,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
             share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
+            _disable_quantum_excitation=_disable_quantum_excitation,
         )
-        self._energy_lost_due_to_synchrotron_radiation = None
 
     @property
     def energy_lost_due_to_synchrotron_radiation_section(self):
