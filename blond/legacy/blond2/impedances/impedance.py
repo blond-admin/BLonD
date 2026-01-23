@@ -1199,11 +1199,10 @@ class InducedVoltageResonator(_InducedVoltage):
             # else:
             from scipy.constants import c
             n_stations = len(rf_station.t_rev)
-            section_time_distance_array = np.zeros(rf_station.n_turns, n_stations)
+            self.section_time_distance_array = np.zeros(rf_station.n_turns)
             for trn in range(rf_station.n_turns):
                 for stat in range(n_stations):
-                    section_time_distance_array[trn, stat] = 1 / (rf_station.beta[trn, stat] * c) * rf_station.section_length
-            section_time_distance_array = section_time_distance_array.flatten()
+                    self.section_time_distance_array[trn] = 1 / (rf_station.beta[trn] * c) * rf_station.section_length
             inter_turn_time = np.linspace(
                         profile.bin_centers[0],
                         profile.bin_centers[-1]
@@ -1215,11 +1214,10 @@ class InducedVoltageResonator(_InducedVoltage):
                         profile.n_slices + 2 * min_index,
                     )
 
-            self.time_array = np.zeros(len(inter_turn_time) * rf_station.n_turns)
+            self.time_array = [None] * rf_station.n_turns
             own_section_index = rf_station.section_index
             for trn in range(rf_station.n_turns):
-                self.time_array[trn * len(inter_turn_time):(trn + 1) * len(inter_turn_time)] = np.cumsum(section_time_distance_array[
-                                                                                                             trn * own_section_index:(trn + 1) * own_section_index]) + inter_turn_time
+                self.time_array[trn] = np.array([_ + inter_turn_time for _ in np.concatenate((np.array([0]), np.cumsum(self.section_time_distance_array[trn:trn + self._n_turns_calculation])))]).flatten()
 
             self.atLineDensityTimes = False
 
@@ -1235,7 +1233,7 @@ class InducedVoltageResonator(_InducedVoltage):
                 self.atLineDensityTimes = False
 
         self.array_length = len(self.profile.bin_centers)
-        self.n_time = len(self.time_array)
+        self.n_time = len(self.time_array[0])
         # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
         self.R = resonators.R_S
         # Copy of the resonant frequencies of the Resonators in 1/s
@@ -1275,7 +1273,7 @@ class InducedVoltageResonator(_InducedVoltage):
             self.n_time, dtype=bm.precision.real_t, order="C"
         )
 
-        wake_length = len(self.time_array) * self.profile.bin_size
+        wake_length = len(self.time_array[0]) * self.profile.bin_size
 
         # Call the __init__ method of the parent class [calls process()]
         super().__init__(
@@ -1318,7 +1316,23 @@ class InducedVoltageResonator(_InducedVoltage):
         interpolating the line density and applying the analytic equation
         to the result.
         """
-        time_array_used = self.time_array[trn * profile_length:(trn + self._n_turns_calculation) * profile_length]
+        time_array_used = self.time_array[self.rf_params.counter[0]]
+        self.n_time = len(time_array_used)
+        self._tmp_matrix = np.ones(
+            (self.n_resonators, self.n_time),
+            dtype=bm.precision.real_t,
+            order="C",
+        )
+        # Matrix to hold n_times many time_array[t]-bin_centers arrays.
+        self._deltaT = np.zeros(
+            (self.n_time, self.profile.n_slices),
+            dtype=bm.precision.real_t,
+            order="C",
+        )
+
+        self.induced_voltage = np.zeros(
+            self.n_time, dtype=bm.precision.real_t, order="C"
+        )
         self.induced_voltage, self._deltaT = (
             bm.resonator_induced_voltage_1_turn(
                 self._kappa1,
@@ -1327,7 +1341,7 @@ class InducedVoltageResonator(_InducedVoltage):
                 self.profile.bin_size,
                 self.n_time,
                 self._deltaT,
-                self.time_array,
+                time_array_used,
                 self._reOmegaP,
                 self._imOmegaP,
                 self._Qtilde,
