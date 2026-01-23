@@ -178,11 +178,10 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
         #                                )
 
     def test_update_beam_energy(self):
-        previous_energy = self.beam.read_partial_dE()
-
+        previous_energy = self.beam.read_partial_dE().copy()
         self.SRB._update_beam_energy(beam=self.beam)
-
         new_energy = self.beam.read_partial_dE()
+        np.testing.assert_array_less(new_energy, previous_energy)
 
 
 class TestWigglerMagnet(unittest.TestCase):
