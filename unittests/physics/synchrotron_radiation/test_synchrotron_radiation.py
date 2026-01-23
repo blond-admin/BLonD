@@ -9,10 +9,10 @@ from blond import (
     BiGaussian,
     DriftSimple,
     MagneticCyclePerTurn,
-    RfStationPhaseObservation,
+    RFStationPhaseObservation,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     SynchrotronRadiationMaster,
     electron,
 )
