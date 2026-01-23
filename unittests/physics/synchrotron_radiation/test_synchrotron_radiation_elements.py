@@ -310,15 +310,6 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
 class TestWigglerMagnet(unittest.TestCase):
     def setUp(self) -> None:
-        radiation_integrals = np.array(
-            [
-                0.646747216157,
-                0.0005936549319,
-                5.6814536525e-08,
-                5.92870407301e-09,
-                1.71368060083e-11,
-            ]
-        )
         self.wiggler_magnet = WigglerMagnet(
             wiggler_type="sinusoidal",
             number=2,
