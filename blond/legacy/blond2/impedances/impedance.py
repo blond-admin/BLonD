@@ -1121,7 +1121,8 @@ class InducedVoltageResonator(_InducedVoltage):
         rf_station: Optional[RFStation] = None,
         use_regular_fft: bool = True,
         time_decay_factor: Optional[float] = 0.01,
-        time_array: Optional[float] = None,
+        time_array: Optional[NDArray] = None,
+        time_array_mtw: Optional[NDArray] = None,
     ):
         # Test if one or more quality factors is smaller than 0.5.
         if sum(resonators.Q < 0.5) > 0:
@@ -1169,7 +1170,7 @@ class InducedVoltageResonator(_InducedVoltage):
                 / np.min(rf_station.t_rev)
             )
 
-            n_turns_calculation = min(int(decay_turns), rf_station.n_turns)
+            self._n_turns_calculation = min(int(decay_turns), rf_station.n_turns)
             potential_min_cav = rf_station.phi_s[0] / rf_station.omega_rf[0, 0]
             min_index = np.abs(
                 profile.bin_centers[0] - potential_min_cav
@@ -1177,11 +1178,33 @@ class InducedVoltageResonator(_InducedVoltage):
 
             self.time_array = np.array([])
 
-            for turn_ind in range(n_turns_calculation):
-                self.time_array = np.append(
-                    self.time_array,
-                    rf_station.t_rev[turn_ind] * turn_ind
-                    + np.linspace(
+            # if time_array_mtw is None:
+            #     warnings.warn("No time_array_mtw given, if the simulation relies on low-beta beams or multi-stations, "
+            #                   "the mtw calculation will be incorrect.")
+            #     for turn_ind in range(self._n_turns_calculation):
+            #         self.time_array = np.append(
+            #             self.time_array,
+            #             rf_station.t_rev[turn_ind] * turn_ind
+            #             + np.linspace(
+            #                 profile.bin_centers[0],
+            #                 profile.bin_centers[-1]
+            #                 + 2
+            #                 * (
+            #                     profile.bin_centers[min_index]
+            #                     - profile.bin_centers[0]
+            #                 ),
+            #                 profile.n_slices + 2 * min_index,
+            #             ),
+            #         )
+            # else:
+            from scipy.constants import c
+            n_stations = len(rf_station.t_rev)
+            section_time_distance_array = np.zeros(rf_station.n_turns, n_stations)
+            for trn in range(rf_station.n_turns):
+                for stat in range(n_stations):
+                    section_time_distance_array[trn, stat] = 1 / (rf_station.beta[trn, stat] * c) * rf_station.section_length
+            section_time_distance_array = section_time_distance_array.flatten()
+            inter_turn_time = np.linspace(
                         profile.bin_centers[0],
                         profile.bin_centers[-1]
                         + 2
@@ -1190,8 +1213,14 @@ class InducedVoltageResonator(_InducedVoltage):
                             - profile.bin_centers[0]
                         ),
                         profile.n_slices + 2 * min_index,
-                    ),
-                )
+                    )
+
+            self.time_array = np.zeros(len(inter_turn_time) * rf_station.n_turns)
+            own_section_index = rf_station.section_index
+            for trn in range(rf_station.n_turns):
+                self.time_array[trn * len(inter_turn_time):(trn + 1) * len(inter_turn_time)] = np.cumsum(section_time_distance_array[
+                                                                                                             trn * own_section_index:(trn + 1) * own_section_index]) + inter_turn_time
+
             self.atLineDensityTimes = False
 
         else:
@@ -1289,6 +1318,7 @@ class InducedVoltageResonator(_InducedVoltage):
         interpolating the line density and applying the analytic equation
         to the result.
         """
+        time_array_used = self.time_array[trn * profile_length:(trn + self._n_turns_calculation) * profile_length]
         self.induced_voltage, self._deltaT = (
             bm.resonator_induced_voltage_1_turn(
                 self._kappa1,
