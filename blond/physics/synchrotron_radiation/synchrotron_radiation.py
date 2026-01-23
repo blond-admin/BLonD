@@ -260,7 +260,7 @@ class SynchrotronRadiationMaster(Schedulable):
         )
 
         for element in wiggler_magnet_list:
-            energy_contribution_wiggler_integrals = element._calculate_contribution_to_synchrotron_radiation_integrals(
+            energy_contribution_wiggler_integrals = element._calculate_energy_contribution_to_synchrotron_radiation_integrals(
                 beam.reference.total_energy
             )
             synchrotron_radiation_shift_from_wigglers += (
