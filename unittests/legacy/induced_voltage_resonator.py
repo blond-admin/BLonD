@@ -20,14 +20,14 @@ class InducdedVoltageResonator:
     def setUp(self):
         sigma_bunch = 5e-10
         bunch_offset = 3e-9
-        self.harmonic = 10  # TODO: double check
+        self.harmonic = 10
         self.voltage_per_rf_station = 50e6
         self.R_shunt = 52e6
         self.alpha_p = -8.986e-4
-        self.energy = 150e6
-        self.energy_gain_per_turn = 31.68e6
+        self.energy = 120e6
+        self.energy_gain_per_turn = 50.68e6
 
-        self.n_turns = 3
+        self.n_turns = 5
         self.n_stations = 1
         self.n_section_lengths = np.array([10])
 
@@ -159,7 +159,7 @@ class InducdedVoltageResonator:
 
         t_start = sys.float_info.min
         t_end = np.sum(ring.t_rev)
-        time_axis = np.linspace(t_start, t_end, num=int(5e5))
+        time_axis = np.linspace(t_start, t_end, num=int(5e6))
         wake_kernel = nonperiodic_wake(
             time_axis,
             self.resonator.frequency_R[0],
@@ -168,7 +168,7 @@ class InducdedVoltageResonator:
         )
         profiles = np.zeros_like(time_axis)
         profiles += gauss(time_axis, sigma_bunch, bunch_offset)
-        for prof_ind in range(1, self.n_turns + 1):
+        for prof_ind in range(1, self.n_turns):
             profiles += gauss(
                 time_axis,
                 sigma_bunch,
@@ -229,10 +229,25 @@ class InducdedVoltageResonator:
 
         from scipy.constants import e
 
+        dt = time_axis[1] - time_axis[0]
         plt.clf()
+        plt.plot(
+            time_axis,
+            -convolution_result[0 : len(time_axis)]
+            * e
+            / self.profile.bin_size
+            * dt,
+            label="convolution_2",
+        )
         for el in range(len(save_voltage_array)):
-            plt.plot(time_array_profile[el], save_voltage_array[el], ls="--")
-        plt.plot(time_axis, -convolution_result[0 : len(time_axis)] * e / 10)
+            plt.plot(
+                time_array_profile[el],
+                save_voltage_array[el],
+                ls="--",
+                label=f"resonator turn {el}",
+            )
+        # plt.plot(time_axis, -convolution_result[0 : len(time_axis)] * e, label="convolution")
+        plt.legend()
         plt.show()
 
         pass
