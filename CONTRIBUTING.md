@@ -103,13 +103,13 @@ pre-commit install
 To compile the available native backends, use the following commands:
 
 ```bash
-blond-compile-cpp      # Compile the C++ backend
+blond-compile-cpp --parallel   # Compile the C++ backend
 ```
 ```bash
-blond-compile-cuda     # Compile the CUDA backend
+blond-compile-cuda             # Compile the CUDA backend
 ```
 ```bash
-blond-compile-fortran  # Compile the Fortran backend
+blond-compile-fortran          # Compile the Fortran backend
 ```
 
 Once compiled, the corresponding backends will be available for use within your simulation environment.
