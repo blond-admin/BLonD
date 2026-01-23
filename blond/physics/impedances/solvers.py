@@ -636,6 +636,16 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             return
         hist_step = self._parent_wakefield.profile.hist_step
         arr_len = len(self._parent_wakefield.profile.hist_x)
+        if self._parent_wakefield.profile.hist_y[0] != 0.0:
+            warnings.warn(
+                "particle detected in leading edge bin, simulation might become unstable",
+                stacklevel=2,
+            )
+        elif self._parent_wakefield.profile.hist_y[-1] != 0.0:
+            warnings.warn(
+                "particle detected in trailing edge bin, simulation might become unstable",
+                stacklevel=2,
+            )
         self._wake_function_time = np.linspace(
             -(arr_len - 1) * hist_step,
             arr_len * hist_step,
