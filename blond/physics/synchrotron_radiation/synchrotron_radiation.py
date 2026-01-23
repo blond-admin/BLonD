@@ -39,13 +39,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
+    calculate_isomagnetic_radiation_integrals,
     gather_longitudinal_synchrotron_radiation_parameters,
 )
 from blond.core.base import DynamicParameter, Schedulable
 from blond.core.beam.base import BeamBaseClass
-from blond.cycles.magnetic_cycle import MagneticCycleBase
-from blond.physics.cavities import RFStationBaseClass
-from blond.physics.drifts import DriftBaseClass
 from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (
     SynchrotronRadiationBaseClass,
     WigglerMagnet,
@@ -80,12 +78,6 @@ class SynchrotronRadiationMaster(Schedulable):
 
     Parameters
     ----------
-    radiation_integrals
-        Synchrotron radiation integrals. If None, the ring will be
-        considered isomagnetic.
-        In the case of an isomagnetic ring, the synchrotron radiation
-        integrals will be computed from the ring bending radius. Default:
-        False.
     track_before_element_type
         BeamPhysicsRelevant element class for which synchrotron radiation
         should be tracked.
@@ -97,41 +89,12 @@ class SynchrotronRadiationMaster(Schedulable):
 
     def __init__(
         self,
-        radiation_integrals: NumpyArray | None = None,
         track_before_element_type: type[T] | None = None,
         _disable_quantum_excitation: bool = False,
         verbose: bool = False,
     ):
         super().__init__()
 
-        minimum_number_of_expected_synchrotron_radiation_integrals = 5
-        if radiation_integrals is None:
-            self.is_isomagnetic = True
-        else:
-            self.is_isomagnetic = False
-            if type(radiation_integrals) in {np.ndarray, list}:
-                try:
-                    integrals = np.array(radiation_integrals)
-                except ValueError as ve:
-                    raise ValueError(
-                        "Could not transform the input into an array"
-                    ) from ve
-                if (
-                    integrals.__len__()
-                    >= minimum_number_of_expected_synchrotron_radiation_integrals
-                ):
-                    self.synchrotron_radiation_integrals = integrals
-                else:
-                    raise ValueError(
-                        "The first five synchrotron "
-                        + "radiation integrals are requires "
-                        + "Ignoring input."
-                    )
-            else:
-                raise TypeError(
-                    f"Expected a list or numpy.ndarray as an input. Received"
-                    f" {type(radiation_integrals)}."
-                )
         self.verbose = verbose
 
         if track_before_element_type is not None:
@@ -141,10 +104,9 @@ class SynchrotronRadiationMaster(Schedulable):
 
         self._simulation: Simulation | None = None
         self._turn_i: DynamicParameter | None = 0
-        self._magnetic_cycle: MagneticCycleBase | None = None
-        self._ring: Ring | None = None
         self._disable_quantum_excitation = _disable_quantum_excitation
 
+        self._synchrotron_radiation_integrals = None
         self._natural_energy_spread: NumpyArray | None = None
         self._energy_loss_per_turn: NumpyArray | None = None
         self._longitudinal_damping_time: NumpyArray | None = None
@@ -160,11 +122,8 @@ class SynchrotronRadiationMaster(Schedulable):
         message
             Prints the characteristics of the initialised wiggler class.
         """
-        is_iso = ""
-        if self.is_isomagnetic:
-            is_iso = "isomagnetic"
         return (
-            f"Synchrotron radiation master class set up for the {is_iso}"
+            f"Synchrotron radiation master class set up for the"
             f" ring. Simulation currently set for turn "
             f"{self._turn_i}. \n Generated "
             f"{self.number_of_generated_synchrotron_radiation_classes} "
@@ -250,9 +209,8 @@ class SynchrotronRadiationMaster(Schedulable):
          if self.verbose:
             Prints the computed synchrotron radiation parameters.
         """
-        # Question: How to handle modification from wigglers and other classes.
         synchrotron_radiation_shift_from_wigglers = np.zeros(
-            len(self.synchrotron_radiation_integrals)
+            len(self._synchrotron_radiation_integrals)
         )
 
         wiggler_magnet_list = ring.elements.get_elements(
@@ -280,9 +238,78 @@ class SynchrotronRadiationMaster(Schedulable):
         if self.verbose:
             self.print_synchrotron_radiation_parameters()
 
+    def _set_synchrotron_radiation_integrals(
+        self,
+        ring: Ring,
+        radiation_integrals: NumpyArray | None = None,
+        bending_radius: float | None = None,
+    ):
+        """
+        Set the radiation integrals of the SynchrotronRadiationMaster class.
+
+        Parameters
+        ----------
+        ring
+            `Ring` context manager.
+        radiation_integrals
+            Synchrotron radiation integrals. If None, the ring will be
+            considered isomagnetic.
+            In the case of an isomagnetic ring, the synchrotron radiation
+            integrals will be computed from the ring bending radius. Default:
+            False.
+        bending_radius
+            Averaged bending radius along the ring.
+        """
+        minimum_number_of_expected_synchrotron_radiation_integrals = 5
+        if ring.radiation_integrals:
+            self._synchrotron_radiation_integrals = (
+                ring.radiation_integrals.copy()
+            )
+        elif radiation_integrals is None:
+            if bending_radius:
+                self._synchrotron_radiation_integrals = calculate_isomagnetic_radiation_integrals(
+                    circumference=ring.circumference,
+                    bending_radius=bending_radius,
+                    momentum_compaction_factor=ring.momentum_compaction_factor,
+                )
+            else:
+                raise ValueError(
+                    "Synchrotron radiation damping "
+                    "and quantum excitation require"
+                    " either the bending radius "
+                    + "for an isomagnetic ring, or the "
+                    "first five synchrotron radiation "
+                    "integrals."
+                )
+        elif type(radiation_integrals) in {np.ndarray, list}:
+            try:
+                integrals = np.array(radiation_integrals)
+            except ValueError as ve:
+                raise ValueError(
+                    "Could not transform the input into an array"
+                ) from ve
+            if (
+                integrals.__len__()
+                >= minimum_number_of_expected_synchrotron_radiation_integrals
+            ):
+                self._synchrotron_radiation_integrals = integrals
+            else:
+                raise ValueError(
+                    "The first five synchrotron "
+                    + "radiation integrals are requires "
+                    + "Ignoring input."
+                )
+        else:
+            raise TypeError(
+                f"Expected a list or numpy.ndarray as an input. Received"
+                f" {type(radiation_integrals)}."
+            )
+
     def generate_synchrotron_radiation_subclasses(
         self,
         ring: Ring,
+        radiation_integrals: NumpyArray | None = None,
+        bending_radius: float | None = None,
     ):
         """
         Function to create synchrotron radiation elements in the ring.
@@ -294,12 +321,25 @@ class SynchrotronRadiationMaster(Schedulable):
         ----------
         ring
             `Ring` context manager.
+        radiation_integrals
+            Synchrotron radiation integrals. If None, the ring will be
+            considered isomagnetic.
+            In the case of an isomagnetic ring, the synchrotron radiation
+            integrals will be computed from the ring bending radius. Default:
+            False.
+        bending_radius
+            Averaged bending radius along the ring.
 
         Returns
         -------
         if self.verbose:
             Prints the number of generated synchrotron radiation subclasses.
         """
+        self._set_synchrotron_radiation_integrals(
+            ring=ring,
+            radiation_integrals=radiation_integrals,
+            bending_radius=bending_radius,
+        )
         if self.generated_children:
             raise Warning(
                 "Synchrotron radiation subclasses have already been "
