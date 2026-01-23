@@ -22,7 +22,10 @@ from blond import (
 )
 from blond.core.beam.beams import EmptyBeam
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.handle_results.observables import SimulationObservation
+from blond.handle_results.observables import (
+    DriftObservation,
+    SimulationObservation,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -55,17 +58,20 @@ def main() -> None:
     observe_rf = RFStationPhaseObservation(
         each_turn_i=1, rf_station=rf_station
     )
+    observe_drift = DriftObservation(each_turn_i=1, drift=drift1)
 
     sim.run_simulation(
         EmptyBeam(particle_type=energy_cycle.reference_particle),
-        observe=(observe_simulation, observe_rf),
+        observe=(observe_simulation, observe_rf, observe_drift),
     )
-    plt.subplot(2, 1, 1)
-    plt.plot(observe_simulation.t_revs)
+    plt.subplot(3, 1, 1)
+    plt.plot(observe_rf.turns_array, observe_simulation.t_revs)
     plt.ylabel("t_revs")
-    plt.subplot(2, 1, 2)
-    plt.plot(observe_rf.omegas)
+    plt.subplot(3, 1, 2)
+    plt.plot(observe_rf.turns_array, observe_rf.omegas)
     plt.ylabel("omegas")
+    plt.subplot(3, 1, 3)
+    plt.plot(observe_rf.turns_array, observe_drift.eta_0s)
     plt.show()
 
 

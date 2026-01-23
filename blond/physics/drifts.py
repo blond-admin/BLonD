@@ -383,11 +383,10 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             )
 
         dt = self.track_reference(beam.reference)
+        gamma = beam.reference.gamma
+        self._last_eta_0 = self.eta_0(gamma)
 
         if beam.common_array_size > 0:
-            gamma = beam.reference.gamma
-            self._last_eta_0 = self.eta_0(gamma)
-
             backend.specials.drift_simple(
                 dt=beam.write_partial_dt(),
                 dE=beam.read_partial_dE(),
