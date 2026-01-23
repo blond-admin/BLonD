@@ -7,6 +7,7 @@
 # Project website: http://blond.web.cern.ch/
 
 import logging
+import os
 import sys
 
 import matplotlib.pyplot as plt
@@ -60,7 +61,7 @@ class SynchrotronRadiationSimulation:
         self.cavity.voltage = 50.1e6
         self.cavity.phi_rf = 0
 
-        self.n_turns = int(5000)
+        self.n_turns = int(100000)
         self.energy_cycle = MagneticCyclePerTurn(
             value_init=self.reference_energy,
             values_after_turn=np.linspace(
@@ -109,37 +110,19 @@ class SynchrotronRadiationSimulation:
 
 def main():
     params = SynchrotronRadiationSimulation()
-
-    params.ring.elements.print_order()
-    print(params.ring.elements.elements)
     simulation = Simulation(
         ring=params.ring, magnetic_cycle=params.energy_cycle
     )
-    params.ring.elements.print_order()
     simulation.print_one_turn_execution_order()
 
-    # simulation.prepare_beam(
-    #     beam=params.beam,
-    #     preparation_routine=BiGaussian(
-    #         sigma_dt= params.four_times_rms_bunch_length,
-    #         sigma_dE= params.energy_spread * params.reference_energy,
-    #         reinsertion=False,
-    #         seed=1,
-    #         n_macroparticles=1e3,
-    #     ),
-    # )
-    params.beam.setup_beam(
-        np.load(
-            "/Users/lvalle/cernbox/data_ramps/FCC-ee"
-            "/BLonD_simulations"
-            "/damped_distribution_dt_4mm.npy"
-        ),
-        np.load(
-            "/Users/lvalle/cernbox/data_ramps/FCC-ee"
-            "/BLonD_simulations/damped_distribution_dE_4mm.npy"
-        ),
-        reference_total_energy=params.energy_cycle.get_total_energy_init(
-            particle_type=params.beam.particle_type,
+    simulation.prepare_beam(
+        beam=params.beam,
+        preparation_routine=BiGaussian(
+            sigma_dt=params.four_times_rms_bunch_length,
+            sigma_dE=params.energy_spread * params.reference_energy,
+            reinsertion=False,
+            seed=1,
+            n_macroparticles=1e5,
         ),
     )
 
@@ -164,19 +147,19 @@ def main():
         plt.pause(1e-1)
         artist.remove()
 
-    custom_action(simulation, beam=params.beam)
+    # custom_action(simulation, beam=params.beam)
 
     simulation.run_simulation(
         beams=(params.beam,),
         n_turns=params.n_turns,
         observe=(phase_observation, bunch_statistics),
-        # callback=custom_action,
+        # callbacks=custom_action,
     )
 
     energy_loss_per_turn, damping_time, natural_energy_spread = (
         gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=params.beam.particle_type,
-            energy=params.beam.reference_total_energy,
+            energy=params.beam.reference.total_energy,
             synchrotron_radiation_integrals=params.synchrotron_radiation_integrals,
         )
     )
@@ -197,7 +180,8 @@ def main():
     ax[0].legend()
 
     ax[1].plot(
-        bunch_statistics.energy_spread * 100, label="Energy spread evolution"
+        bunch_statistics.energy_spread / 20e9 * 100,
+        label="Energy spread evolution",
     )
     ax[1].plot(
         natural_energy_spread
@@ -209,7 +193,8 @@ def main():
     ax[1].set_xlabel("Turn number")
     ax[1].set_ylabel("Energy spread [%]")
     ax[1].legend()
-    plt.show()
+    os.makedirs("results/EX_Synchrotron_Radiation/", exist_ok=True)
+    plt.savefig("results/EX_Synchrotron_Radiation/energy_spread_evolution.png")
 
 
 if __name__ == "__main__":  # pragma: no cover
