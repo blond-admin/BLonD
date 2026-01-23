@@ -501,7 +501,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
                 1.71368060083e-11,
             ]
         )
-        shc = SingleHarmonicRfStation(
+        shc = SingleHarmonicRFStation(
             section_index=0,
             harmonic=242400,
             voltage=51e6,
