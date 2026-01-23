@@ -16,9 +16,11 @@ L. Valle
 from __future__ import annotations
 
 from abc import ABC
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from numpy import dtype, ndarray
+from numpy.random import Generator
 from scipy.constants import c, e
 
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
@@ -31,6 +33,52 @@ if TYPE_CHECKING:
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+
+
+def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
+    energy_lost: float,
+    beam_dE_array: NumpyArray,
+    random_generator: Generator,
+    natural_energy_spread: float,
+    longitudinal_damping_time: float,
+    total_energy: float,
+) -> float | ndarray[tuple[int, ...], dtype[Any]] | Any:
+    """
+    Energy kick induced by synchrotron radiation and quantum excitation.
+
+    Function to calculate the energy kick induced by the energy lost by
+    synchrotron radiation, its damping effect and the quantum excitation.
+    Class independent.
+
+    Parameters
+    ----------
+    energy_lost
+        Energy lost through the considered synchrotron segment.
+    beam_dE_array
+        Beam energy array.
+    random_generator
+        Random generator.
+    natural_energy_spread
+        Natural energy spread of the considered synchrotron segment.
+    longitudinal_damping_time
+        Longitudinal damping time of the considered synchrotron segment.
+    total_energy
+        Beam total reference energy.
+
+    Returns
+    -------
+    energy_kick
+        Energy kick induced by synchrotron radiation and quantum excitation.
+    """
+    return (
+        -energy_lost
+        - 2.0 / longitudinal_damping_time * beam_dE_array
+        + 2.0
+        * natural_energy_spread
+        / np.sqrt(longitudinal_damping_time)
+        * total_energy
+        * random_generator.normal(size=len(beam_dE_array))
+    )
 
 
 class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
@@ -87,27 +135,26 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         energy_kick
             Energy kick to be applied on the energy coordinates of the beam.
         """
-        U0, tau_z, sigma0 = (
-            gather_longitudinal_synchrotron_radiation_parameters(
-                particle_type=beam.particle_type,
-                energy=beam.reference.total_energy,
-                synchrotron_radiation_integrals=self._fractional_radiation_integrals,
-            )
+        total_energy = beam.reference.total_energy
+        (
+            estimated_energy_lost,
+            estimated_damping_time,
+            estimated_natural_energy_spread,
+        ) = gather_longitudinal_synchrotron_radiation_parameters(
+            particle_type=beam.particle_type,
+            energy=total_energy,
+            synchrotron_radiation_integrals=self._fractional_radiation_integrals,
         )
-        # TODO: does it make sense to have the contribution of these
-        # parameters per base class?
-        self._natural_energy_spread = sigma0
-        self._energy_lost_due_to_synchrotron_radiation = U0
-        self._damping_time = tau_z
-        # fixme How to integrate the random generator??? Best practice?
-        return (
-            -U0
-            - 2.0 / tau_z * beam.read_partial_dE()
-            + 2.0
-            * sigma0
-            / np.sqrt(tau_z)
-            * beam.reference.total_energy
-            * self.rng.normal(size=beam.n_macroparticles_partial())
+
+        beam_dE = beam.read_partial_dE()
+        random_generator = self.rng
+        return calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
+            energy_loss_per_turn=estimated_energy_lost,
+            beam_dE_array=beam_dE,
+            random_generator=random_generator,
+            natural_energy_spread=estimated_natural_energy_spread,
+            longitudinal_damping_time=estimated_damping_time,
+            total_energy=total_energy,
         )
 
     def _update_beam_energy(
