@@ -531,8 +531,8 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         self._energy_spread.write(np.std(self._beam.read_partial_dE()))
         self._bunch_length.write(np.std(self._beam.read_partial_dt()))
 
-        self._reference_time.write(self._beam.reference_time)
-        self._reference_total_energy.write(self._beam.reference_total_energy)
+        self._reference_time.write(self._beam.reference.time)
+        self._reference_total_energy.write(self._beam.reference.total_energy)
 
     @property  # as readonly attributes
     def bunch_position(self):
