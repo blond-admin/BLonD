@@ -34,7 +34,6 @@ L. Valle
 
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -159,7 +158,7 @@ class SynchrotronRadiationMaster(Schedulable):
             f"synchrotron radiation elements."
         )
 
-    @cached_property  # TODO property enough?
+    @property
     def energy_loss_per_turn(self) -> NumpyArray:
         """
         Energy loss per turn, eV per turn.
@@ -171,7 +170,7 @@ class SynchrotronRadiationMaster(Schedulable):
         """
         return self._energy_loss_per_turn
 
-    @cached_property  # TODO property enough?
+    @property
     def damping_times(self) -> NumpyArray:
         """
         Damping times, in turns.
