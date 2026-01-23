@@ -44,6 +44,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 )
 from blond.core.base import DynamicParameter, Schedulable
 from blond.core.beam.base import BeamBaseClass
+from blond.physics.drifts import DriftBaseClass
 from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (
     SynchrotronRadiationBaseClass,
     WigglerMagnet,
@@ -261,7 +262,7 @@ class SynchrotronRadiationMaster(Schedulable):
             Averaged bending radius along the ring.
         """
         minimum_number_of_expected_synchrotron_radiation_integrals = 5
-        if ring.radiation_integrals:
+        if ring.radiation_integrals is not None:
             self._synchrotron_radiation_integrals = (
                 ring.radiation_integrals.copy()
             )
