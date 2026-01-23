@@ -218,6 +218,32 @@ class Ring(Preparable):
         return momentum_compaction_factor
 
     @cached_property
+    def momentum_compaction_factor(self) -> float:
+        """
+        Calculate the momentum compaction factor.
+
+        This property computes the ring momentum compaction factor by adding the weighed
+
+        Returns
+        -------
+        momentum_compaction_factor
+            Ring momentum compaction factor.
+        """
+        from blond.physics.drifts import DriftBaseClass
+
+        momentum_compaction_factor_contributions = np.array(
+            [
+                e.momentum_compaction_factor
+                for e in self.elements.get_elements(class_=DriftBaseClass)
+            ]
+        )
+
+        momentum_compaction_factor = np.sum(
+            momentum_compaction_factor_contributions
+        )
+        return momentum_compaction_factor
+
+    @cached_property
     def average_transition_gamma(self) -> complex:
         """
         Calculate the orbit-length weighted average transition gamma.
