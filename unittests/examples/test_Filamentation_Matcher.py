@@ -21,6 +21,8 @@ class TestEX_Filamentation_Matcher(unittest.TestCase):
             EX_Filamentation_Matcher,  # NOQA will run the
         )
 
+        EX_Filamentation_Matcher.animate = False
+        EX_Filamentation_Matcher.n_iter = 2
         # full script. just checking if it crashes
         EX_Filamentation_Matcher.main()
         plt.close()
@@ -33,6 +35,8 @@ class TestEX_Filamentation_Matcher(unittest.TestCase):
             EX_Filamentation_Matcher,  # NOQA will run the
         )
 
+        EX_Filamentation_Matcher.animate = False
+        EX_Filamentation_Matcher.n_iter = 2
         # full script. just checking if it crashes
         EX_Filamentation_Matcher.main()
         plt.close()
@@ -50,10 +54,12 @@ class TestEX_Filamentation_Matcher(unittest.TestCase):
             EX_Filamentation_Matcher,  # NOQA will run the
         )
 
+        EX_Filamentation_Matcher.animate = False
+        EX_Filamentation_Matcher.n_iter = 2
         # full script. just checking if it crashes
 
         EX_Filamentation_Matcher.main()
-        plt.close()
+        plt.close("all")
         backend.zeros(100)
 
     @pytest.mark.backend_mutation
@@ -69,6 +75,8 @@ class TestEX_Filamentation_Matcher(unittest.TestCase):
             EX_Filamentation_Matcher,  # NOQA will run the
         )
 
+        EX_Filamentation_Matcher.animate = False
+        EX_Filamentation_Matcher.n_iter = 2
         # full script. just checking if it crashes
         EX_Filamentation_Matcher.main()
         plt.close()
