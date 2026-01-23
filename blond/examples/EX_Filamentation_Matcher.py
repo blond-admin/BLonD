@@ -103,7 +103,7 @@ def main():
         ),
         beam=beam,
     )
-    if animate:
+    if animate:  # pragma: no coverage
         plt.show()
 
     sim.run_simulation(
