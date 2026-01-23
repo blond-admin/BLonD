@@ -164,27 +164,20 @@ class Ring(Preparable):
 
         Returns
         -------
-        average_transition_gamma
-            The weighted average transition gamma (dimensionless).
-
-        Notes
-        -----
-        Currently only considers DriftSimple elements. The weighting is based on
-        the orbit length of each drift section. This value is cached after first
-        calculation.
+        momentum_compaction_factor
+            Ring momentum compaction factor.
         """
         from blond.physics.drifts import DriftBaseClass
 
-        momentum_compaction_factors = [
-            e.momentum_compaction_factor
-            for e in self.elements.get_elements(class_=DriftBaseClass)
-        ]
-        weights = [
-            e.orbit_length
-            for e in self.elements.get_elements(class_=DriftBaseClass)
-        ]
-        momentum_compaction_factor = np.cumulative_sum(
-            momentum_compaction_factors * weights
+        momentum_compaction_factor_contributions = np.array(
+            [
+                e.momentum_compaction_factor
+                for e in self.elements.get_elements(class_=DriftBaseClass)
+            ]
+        )
+
+        momentum_compaction_factor = np.sum(
+            momentum_compaction_factor_contributions
         )
         return momentum_compaction_factor
 
