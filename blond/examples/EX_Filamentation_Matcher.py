@@ -28,6 +28,10 @@ from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
 )
 
+n_iter = 1000
+
+animate = True
+
 
 def main():
     # Simulation parameters -------------------------------------------------------
@@ -84,22 +88,23 @@ def main():
 
     sim.prepare_beam(
         preparation_routine=FilamentationMatcher(
-            time_limit=[
+            time_limit=(
                 0.1e-9,
                 4e-9,
-            ],  # adjust this until the desired bunch is found
-            energy_limit=[-4e8, 4e8],
+            ),  # adjust this until the desired bunch is found
+            energy_limit=(-4e8, 4e8),
             n_macroparticles=3000,
-            n_iter=100,
+            n_iter=n_iter,
             every_iter_to_plot=10,  # plot every 100/10 iterations
-            animate=True,
-            purge_limit_time=[0.1e-9, 4e-9],  #
-            purge_limit_energy=[-4e8, 4e8],
+            animate=animate,
+            purge_limit_time=(0.1e-9, 4e-9),  #
+            purge_limit_energy=(-4e8, 4e8),
             purge=True,
         ),
         beam=beam,
     )
-    plt.show()
+    if animate:
+        plt.show()
 
     sim.run_simulation(
         n_turns=20,
@@ -112,8 +117,8 @@ def main():
     plt.scatter(observation.dts[0], observation.dEs[0], s=0.5)
     plt.xlabel("Energy [eV]")
     plt.ylabel("Time [s]")
-    plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()
