@@ -103,6 +103,9 @@ class BeamBaseClassTester(BeamBaseClass):
     def common_array_size(self) -> int:
         pass
 
+    def rms_emittance(self) -> int:
+        pass
+
 
 class TestSynchrotronRadiationBaseClass(unittest.TestCase):
     def setUp(self) -> None:
@@ -367,10 +370,10 @@ class TestWigglerMagnet(unittest.TestCase):
 
     def test_calculate_contribution_to_synchrotron_radiation_integrals(self):
         (
-            self.wiggler_magnet._calculate_contribution_to_synchrotron_radiation_integrals()
+            self.wiggler_magnet._calculate_contribution_to_synchrotron_radiation_integrals_without_beam_energy()
         )
         (
-            self.wiggler_magnet_none._calculate_contribution_to_synchrotron_radiation_integrals()
+            self.wiggler_magnet_none._calculate_contribution_to_synchrotron_radiation_integrals_without_beam_energy()
         )
 
         self.assertIsNone(
