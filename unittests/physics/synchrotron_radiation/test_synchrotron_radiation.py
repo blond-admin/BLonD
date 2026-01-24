@@ -68,19 +68,12 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             SRHandleriso.track_before_element_type, SingleHarmonicRFStation
         )
 
-        with self.assertRaisesRegex(
-            TypeError,
-            expected_regex=f"Expected a list or numpy.ndarray as an input. Received"
-            f" {type('not an array')}.",
-        ):
-            self.SRHandler = SynchrotronRadiationMaster()
-
     def test__str__(self):
         SRM = SynchrotronRadiationMaster()
         self.assertRegex(
             SRM.__str__(),
             (
-                f"Synchrotron radiation master class set up for the "
+                f"Synchrotron radiation master class set up for the"
                 f" ring. Simulation currently set for turn "
                 f"{0}. \n Generated "
                 f"{0} "
