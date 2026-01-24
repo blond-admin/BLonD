@@ -103,13 +103,13 @@ pre-commit install
 To compile the available native backends, use the following commands:
 
 ```bash
-blond-compile-cpp      # Compile the C++ backend
+blond-compile-cpp --parallel   # Compile the C++ backend
 ```
 ```bash
-blond-compile-cuda     # Compile the CUDA backend
+blond-compile-cuda             # Compile the CUDA backend
 ```
 ```bash
-blond-compile-fortran  # Compile the Fortran backend
+blond-compile-fortran          # Compile the Fortran backend
 ```
 
 Once compiled, the corresponding backends will be available for use within your simulation environment.
@@ -140,7 +140,14 @@ Following markers are used
 
 Those tests can be excluded for running the tests with the `pytest -m` flag.
 ```bash
-python3 -m pytest -m "not cupy and not backend_mutation"  -v unittests/
+export BLOND_BACKEND_MODE=cuda
+export BLOND_BACKEND_BITS=32
+python3 -m pytest -m "not backend_mutation"  -v unittests/
+```
+
+The tests with distributed computing (MPI) can be executed via
+```bash
+ mpirun -n 2 python3 -m pytest -v unittests/ -m "mpi"
 ```
 
 ---
