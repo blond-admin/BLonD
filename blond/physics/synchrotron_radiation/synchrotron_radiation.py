@@ -44,6 +44,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 )
 from blond.core.base import DynamicParameter, Schedulable
 from blond.core.beam.base import BeamBaseClass
+from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
 from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (
     SynchrotronRadiationBaseClass,
@@ -90,7 +91,7 @@ class SynchrotronRadiationMaster(Schedulable):
 
     def __init__(
         self,
-        track_before_element_type: type[T] | None = None,
+        track_before_element_type: list[type[T]] | None = None,
         _disable_quantum_excitation: bool = False,
         verbose: bool = False,
     ):
@@ -306,6 +307,91 @@ class SynchrotronRadiationMaster(Schedulable):
                 f" {type(radiation_integrals)}."
             )
 
+    def _generate_synchrotron_radiation_trackers(
+        self, ring: Ring, element_list: list[type[T]]
+    ):
+        """
+        Function to create and insert the SR trackers in the ring.
+
+        Parameters
+        ----------
+        ring
+            `Ring` context manager.
+        element_list
+            Element list to consider.
+        """
+        i = 0
+        if all(isinstance(e, DriftBaseClass) for e in element_list):
+            for element in element_list:
+                i += 1
+                if hasattr(element, "radiation_integrals"):
+                    share_of_synchrotron_radiation_integrals = (
+                        element.radiation_integrals
+                    )
+                else:
+                    share_of_synchrotron_radiation_integrals = (
+                        element.orbit_length / ring.circumference
+                    ) * self._synchrotron_radiation_integrals
+                SRClass_child = _SynchrotronRadiationDrift(
+                    section_index=element.section_index,
+                    name=f"SynchrotronRadiationTracker_{i}",
+                    share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
+                    _disable_quantum_excitation=self._disable_quantum_excitation,
+                )
+                # _SynchrotronRadiationDrift tracker placed before the
+                # drift
+                ring.insert_element(
+                    element=SRClass_child,
+                    insert_at=ring.elements.elements.index(element),
+                    deepcopy=False,  # to maintain the consistency
+                    # between the stored array and the ring elements
+                )
+                self.generated_children.append(SRClass_child)
+        elif all(isinstance(e, RFStationBaseClass) for e in element_list):
+            cavities_section_indexes = [e.section_index for e in element_list]
+            for element in element_list:
+                i += 1
+                if hasattr(element, "radiation_integrals"):
+                    share_of_synchrotron_radiation_integrals = (
+                        element.radiation_integrals
+                    )
+                else:
+                    if ring.n_rf_stations == 1:
+                        section_length_to_consider = ring.circumference
+                    elif (
+                        cavities_section_indexes[i - 1]
+                        == len(ring.section_lengths) - 1
+                    ):
+                        section_length_to_consider = (ring.section_lengths)[-1]
+                    else:
+                        section_length_to_consider = np.sum(
+                            ring.section_lengths[
+                                cavities_section_indexes[
+                                    i - 1
+                                ] : cavities_section_indexes[i]
+                            ]
+                        )
+                    share_of_synchrotron_radiation_integrals = (
+                        section_length_to_consider / ring.circumference
+                    ) * self._synchrotron_radiation_integrals
+                SRClass_child = _SynchrotronRadiationSection(
+                    section_index=element.section_index,
+                    name=f"SynchrotronRadiationTracker_{i}",
+                    share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
+                    _disable_quantum_excitation=self._disable_quantum_excitation,
+                )
+                # _SynchrotronRadiationSection tracker placed after the
+                # cavity
+                ring.insert_element(
+                    element=SRClass_child,
+                    insert_at=ring.elements.elements.index(element) + 1,
+                    deepcopy=False,  # to maintain the consistency
+                    # between the stored array and the ring elements
+                )
+                self.generated_children.append(SRClass_child)
+        else:
+            raise TypeError("Inhomogeneous element classes.")
+
     def generate_synchrotron_radiation_subclasses(
         self,
         ring: Ring,
@@ -341,72 +427,28 @@ class SynchrotronRadiationMaster(Schedulable):
             radiation_integrals=radiation_integrals,
             bending_radius=bending_radius,
         )
+
         if self.generated_children:
             raise Warning(
                 "Synchrotron radiation subclasses have already been "
                 "generated. Command ignored"
             )
         else:
-            i = 0
-            element_list = ring.elements.get_elements(
-                class_=self.track_before_element_type
-            )
-            if (element_list is None) or all(
-                isinstance(e, DriftBaseClass | RFStationBaseClass)
-                for e in element_list
-            ):
-                for element in element_list:
-                    i += 1
-                    if hasattr(element, "radiation_integrals"):
-                        share_of_synchrotron_radiation_integrals = (
-                            element.radiation_integrals
-                        )
-                    else:
-                        share_of_synchrotron_radiation_integrals = (
-                            element.orbit_length / ring.circumference
-                        ) * self.synchrotron_radiation_integrals
-                    SRClass_child = _SynchrotronRadiationDrift(
-                        section_index=element.section_index,
-                        name=f"SynchrotronRadiationTracker_{i}",
-                        share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
-                        _disable_quantum_excitation=self._disable_quantum_excitation,
-                    )
-                    ring.insert_element(
-                        element=SRClass_child,
-                        insert_at=ring.elements.elements.index(element),
-                        deepcopy=True,
-                    )
-                    self.generated_children.append(SRClass_child)
-
-            elif all(isinstance(e, int) for e in element_list):
-                for section_index in element_list:
-                    i += 1
-                    if hasattr(ring, "section_radiation_integrals"):
-                        share_of_synchrotron_radiation_integrals = (
-                            ring.section_radiation_integrals[section_index]
-                        )
-                    else:
-                        share_of_synchrotron_radiation_integrals = (
-                            ring.section_lengths[section_index]
-                            / ring.circumference
-                        ) * self.synchrotron_radiation_integrals
-
-                    SRClass_child = _SynchrotronRadiationSection(
-                        section_index=section_index,
-                        name=f"SynchrotronRadiationTracker_{i}",
-                        share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
-                        _disable_quantum_excitation=self._disable_quantum_excitation,
-                    )
-                    ring.add_element(
-                        SRClass_child,
-                        section_index=section_index,
-                        reorder=True,
-                    )
-                    self.generated_children.append(SRClass_child)
+            element_list = []
+            for element_class in self.track_before_element_type:
+                element_list += ring.elements.get_elements(
+                    class_=element_class
+                )
+            if not element_list:
+                raise TypeError(
+                    f"Empty element list for class "
+                    f"{self.track_before_element_type}"
+                )
             else:
-                raise TypeError("Inhomogeneous element classes.")
+                self._generate_synchrotron_radiation_trackers(
+                    ring=ring, element_list=element_list
+                )
 
-        # FIXME SR tracker BEFORE Drifts and AFTER Cavity -- do I agree now?
         if self.verbose:
             return print(
                 f"{len(self.generated_children)} synchrotron radiation "
