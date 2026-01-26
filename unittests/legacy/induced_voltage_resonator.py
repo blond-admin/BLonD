@@ -1,7 +1,22 @@
+from unittest.mock import Mock
+
 import numpy as np
 from _pytest import unittest
 
-from blond import BiGaussian
+from blond import Beam as beam_b3
+from blond import (
+    BiGaussian,
+    DriftSimple,
+    MagneticCyclePerTurn,
+)
+from blond import Ring as ring_b3
+from blond import (
+    Simulation,
+    SingleHarmonicRFStation,
+    StaticProfile,
+    WakeField,
+    mu_plus,
+)
 from blond.legacy.blond2.beam.beam import Beam, MuPlus
 from blond.legacy.blond2.beam.distributions import bigaussian
 from blond.legacy.blond2.beam.profile import CutOptions, Profile
@@ -14,15 +29,49 @@ from blond.legacy.blond2.impedances.impedance import (
 from blond.legacy.blond2.impedances.impedance_sources import Resonators
 from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
 from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.physics.impedances.solvers import MultiPassResonatorSolver
+from blond.physics.impedances.sources import Resonators as res_b3
+
+
+def gauss(x, width, center):
+    return (
+        1
+        / (width * np.sqrt(2 * np.pi))
+        * np.exp(-((x - center) ** 2) / (2 * width**2))
+    )
+
+
+def nonperiodic_wake(time_array, f0, R, Q):
+    wake = np.zeros_like(time_array)
+    omega_R = 2 * np.pi * f0
+    alpha = omega_R / (2 * Q)
+    omega_bar = np.sqrt(omega_R**2 - alpha**2)
+
+    wake += (
+        (np.sign(time_array) + 1)
+        * R
+        * alpha
+        * np.exp(-alpha * time_array)
+        * (
+            np.cos(omega_bar * time_array)
+            - alpha / omega_bar * np.sin(omega_bar * time_array)
+        )
+    )
+    return wake
 
 
 class InducdedVoltageResonator:
-    def setUp(self):
-        sigma_bunch = 5e-10
-        bunch_offset = 3e-9
+    def __init__(self):
+        self.n_slices = 2**12
+        self.cut_left = 0
+        self.cut_right = (
+            1.4072317864464973e-08  # self.rf_station_list[0].t_rf[0, 0] * 2
+        )
+
         self.harmonic = 10
         self.voltage_per_rf_station = 50e6
         self.R_shunt = 52e6
+        self.Q_factor = 2e1
         self.alpha_p = -8.986e-4
         self.energy = 120e6
         self.energy_gain_per_turn = 50.68e6
@@ -42,6 +91,10 @@ class InducdedVoltageResonator:
             self.energy_array, (self.n_stations, self.n_turns + 1)
         )
 
+        self.sigma_bunch = 5e-10
+        self.bunch_offset = 3e-9
+
+    def setUpB2(self):
         ring = Ring(
             self.n_section_lengths,
             self.alpha_p,
@@ -81,19 +134,22 @@ class InducdedVoltageResonator:
         )
 
         cut_options = CutOptions(
-            cut_left=0,
-            cut_right=self.rf_station_list[0].t_rf[0, 0] * 2,
-            n_slices=2**12,
+            cut_left=self.cut_left,
+            cut_right=self.cut_right,
+            n_slices=self.n_slices,
         )
 
         self.profile = Profile(self.beam, cut_options=cut_options)
         self.profile.track()
         self.profile.fwhm()
+        self.hist_x = self.profile.bin_centers
+        self.hist_y = self.profile.n_macroparticles
+        self.hist_step = self.profile.bin_size
 
         self.resonator = Resonators(
             self.R_shunt,
             self.rf_station_list[0].omega_rf[0, 0] / 2 / np.pi,
-            2e1,
+            self.Q_factor,
         )  # low Q for fast decay in small machine, although phasing will dominate
 
         self.ind_volt_res_1 = InducedVoltageResonator(
@@ -129,31 +185,6 @@ class InducdedVoltageResonator:
             frequency_resolution=0.5 * ring.f_rev[0] / 10,
         )
 
-        def gauss(x, widt, center):
-            return (
-                1
-                / (widt * np.sqrt(2 * np.pi))
-                * np.exp(-((x - center) ** 2) / (2 * widt**2))
-            )
-
-        def nonperiodic_wake(time_array, f0, R, Q):
-            wake = np.zeros_like(time_array)
-            omega_R = 2 * np.pi * f0
-            alpha = omega_R / (2 * Q)
-            omega_bar = np.sqrt(omega_R**2 - alpha**2)
-
-            wake += (
-                (np.sign(time_array) + 1)
-                * R
-                * alpha
-                * np.exp(-alpha * time_array)
-                * (
-                    np.cos(omega_bar * time_array)
-                    - alpha / omega_bar * np.sin(omega_bar * time_array)
-                )
-            )
-            return wake
-
         # setup analytical solution
         import sys
 
@@ -167,13 +198,13 @@ class InducdedVoltageResonator:
             self.resonator.Q[0],
         )
         profiles = np.zeros_like(time_axis)
-        profiles += gauss(time_axis, sigma_bunch, bunch_offset)
+        profiles += gauss(time_axis, self.sigma_bunch, self.bunch_offset)
         for prof_ind in range(1, self.n_turns):
             profiles += gauss(
                 time_axis,
-                sigma_bunch,
+                self.sigma_bunch,
                 np.sum(self.rf_station_list[0].t_rev[0:prof_ind])
-                + bunch_offset,
+                + self.bunch_offset,
             )
 
         import matplotlib.pyplot as plt
@@ -206,8 +237,9 @@ class InducdedVoltageResonator:
         # )  # never release
 
         self.profile.n_macroparticles = gauss(
-            self.profile.bin_centers, sigma_bunch, bunch_offset
+            self.profile.bin_centers, self.sigma_bunch, self.bunch_offset
         )
+        self.hist_y = self.profile.n_macroparticles
 
         tot_ind_volt = TotalInducedVoltage(
             self.beam, self.profile, [self.ind_volt_res_1]
@@ -230,28 +262,107 @@ class InducdedVoltageResonator:
         from scipy.constants import e
 
         dt = time_axis[1] - time_axis[0]
-        plt.clf()
-        plt.plot(
-            time_axis,
-            -convolution_result[0 : len(time_axis)]
-            * e
-            / self.profile.bin_size
-            * dt,
-            label="convolution_2",
-        )
-        for el in range(len(save_voltage_array)):
-            plt.plot(
-                time_array_profile[el],
-                save_voltage_array[el],
-                ls="--",
-                label=f"resonator turn {el}",
-            )
-        plt.legend()
-        plt.show()
+        # plt.clf()
+        # plt.plot(
+        #     time_axis,
+        #     -convolution_result[0 : len(time_axis)]
+        #     * e
+        #     / self.profile.bin_size
+        #     * dt,
+        #     label="convolution_2",
+        # )
+        # for el in range(len(save_voltage_array)):
+        #     plt.plot(
+        #         time_array_profile[el],
+        #         save_voltage_array[el],
+        #         ls="--",
+        #         label=f"resonator turn {el}",
+        #     )
+        # plt.legend()
+        # plt.show()
 
         pass
+
+    def setUpB3(self):
+        ring = ring_b3(
+            circumference=np.sum(self.n_section_lengths),
+            check_section_indices=False,
+        )
+        magnetic_cycle = MagneticCyclePerTurn(
+            value_init=self.energy_array[0][0],
+            values_after_turn=self.energy_array[0],
+            in_unit="total energy",
+            reference_particle=mu_plus,
+        )
+        one_turn_model = []
+        profile_list = []
+        t_rf = (
+            magnetic_cycle.get_t_rev_init(
+                ring.circumference,
+                particle_type=mu_plus,
+            )
+            / self.harmonic
+        )
+        beam = beam_b3(
+            intensity=self.n_macroparticles,
+            particle_type=mu_plus,
+            is_counter_rotating=False,
+        )
+        beam._dt = np.zeros(self.n_macroparticles)
+        beam._dE = np.zeros(self.n_macroparticles)
+        beam._flags = np.ones(self.n_macroparticles)
+        beam._ids = np.arange(self.n_macroparticles)
+        profile = Mock(StaticProfile)
+        profile.cut_left = self.cut_left
+        profile.cut_right = self.cut_right
+        profile.hist_x = self.hist_x
+        profile.hist_y = self.hist_y
+        profile.hist_step = self.hist_step
+        profile.active = True
+        profile.hist_y_to_density_factor = 1
+        profile.n_bins = len(profile.hist_y)
+
+        local_res = res_b3(
+            center_frequencies=1 / t_rf,
+            quality_factors=self.Q_factor,
+            shunt_impedances=self.R_shunt,
+        )
+        one_turn_model.extend(
+            [
+                SingleHarmonicRFStation(
+                    voltage=self.voltage_per_rf_station,
+                    phi_rf=0,
+                    harmonic=self.harmonic,
+                    local_wakefield=WakeField(
+                        sources=(local_res,),
+                        solver=MultiPassResonatorSolver(
+                            decay_fraction_threshold=1e-12
+                        ),
+                        profile=profile,
+                    ),
+                    section_index=0,
+                ),
+                DriftSimple(
+                    orbit_length=np.sum(self.n_section_lengths),
+                    section_index=0,
+                    transition_gamma=1,
+                ),
+            ]
+        )
+        ring.add_elements(one_turn_model, reorder=False)
+
+        sim = Simulation(
+            ring=ring,
+            magnetic_cycle=magnetic_cycle,
+        )
+        sim.print_one_turn_execution_order()
+
+        sim.run_simulation(
+            beams=(beam,),
+        )
 
 
 if __name__ == "__main__":
     indi = InducdedVoltageResonator()
-    indi.setUp()
+    indi.setUpB2()
+    indi.setUpB3()
