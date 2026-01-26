@@ -12,12 +12,12 @@ import xtrack as xt
 
 from blond import (
     Beam,
+    MagneticCyclePerTurn,
+    Ring,
+    Simulation,
     SingleHarmonicRfStation,
     proton,
-    Ring,
-    Simulation, MagneticCyclePerTurn
 )
-
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
     BLonDElement3,
     EnergyUpdate,
@@ -89,11 +89,10 @@ def main():
     # Show table
     line.get_table().show()
 
-
     # --- Convert the initial BLonD distribution to xsuite coordinates ---
     zeta, ptau = blond_to_xsuite_transform(
-        dt = beam._dt,
-        de = beam._dE,
+        dt=beam._dt,
+        de=beam._dE,
         beta0=line.particle_ref.beta0[0],
         energy0=line.particle_ref.energy0[0],
         phi_s=0,
@@ -111,6 +110,7 @@ def main():
         turn_by_turn_monitor=True,
         with_progress=True,
     )
+
 
 if __name__ == "__main__":  # pragma: no cover
     main()
