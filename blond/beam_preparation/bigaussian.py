@@ -28,6 +28,7 @@ from blond.generals.distributed.helpers import (
     mpi_local_size,
 )
 from blond.generals.iterables_ import all_equal
+from blond.physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
