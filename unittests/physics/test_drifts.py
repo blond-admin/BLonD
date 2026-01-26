@@ -44,6 +44,9 @@ class TestDriftBaseClass(unittest.TestCase):
     def test_orbit_length(self):
         self.assertEqual(123, self.drift_base_class.orbit_length)
 
+    def test_momentum_compaction_factor_fraction(self):
+        self.assertIsNone(self.drift_base_class.momentum_compaction_factor)
+
 
 class TestDriftSimple(unittest.TestCase):
     def setUp(self):
