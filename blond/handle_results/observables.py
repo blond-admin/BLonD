@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -593,6 +594,129 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             Total energy array.
         """
         return self._reference_total_energy.get_valid_entries()
+
+
+class RFStationInducedVoltageObservation(ObservablesOncePerTurnBase):
+    """
+    Observe the RF station parameters during the execution of the simulation.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    rf_station
+        Class that implements beam-RF interactions in a synchrotron.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+
+    Examples
+    --------
+    >>> from matplotlib import pyplot as plt
+    >>> from blond import Simulation
+    >>> sim = Simulation( ... )
+    >>> rf_station_observation = RFStationInducedVoltageObservation(each_turn_i=2, rf_station=...)
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(rf_station_observation,),
+    ... )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> plt.scatter(
+    ...     rf_station_observation.turns_array[[before, turn_2]],
+    ...     rf_station_observation.induced_voltage[[before, turn_2]],
+    ... )
+    >>> plt.plot(
+    ...     rf_station_observation.turns_array[:], rf_station_observation.induced_voltage[:]
+    ... )
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        rf_station: SingleHarmonicRFStation,
+        folder: str = "",
+    ):
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._rf_station = rf_station
+        self._induced_voltage: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,  # not used in this context
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation `Beam` object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+        )
+
+        if len(simulation._beams) != 1:
+            raise RuntimeError("counterrotation is not supported")
+
+        n_entries = n_turns // self.each_turn_i + 1
+        n_profile_entries = len(
+            self._rf_station._local_wakefield.profile.hist_y
+        )
+        shape = (n_entries, n_profile_entries)
+        self._induced_voltage = DenseArrayRecorder(
+            f"{self.common_filepath}_phases",
+            shape,
+        )
+
+    def update(
+        self,
+        simulation: Simulation,
+    ) -> None:
+        """
+        Update memory with new values.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        """
+        try:
+            self._induced_voltage.write(
+                self._rf_station._local_wakefield.induced_voltage,
+            )
+        except AttributeError:
+            if simulation.turn_i.value != 0:
+                warnings.warn(
+                    f"no induced voltage has been "
+                    f"computed yet in turn {simulation.turn_i.value}",
+                    stacklevel=2,
+                )
+
+    @property  # as readonly attributes
+    def induced_voltage(self) -> NumpyArray:
+        """
+        RF station's induced voltage of shape ``(n_observations, )``, in [V].
+
+        Returns
+        -------
+        phases
+            Array of RF phases.
+        """
+        return self._induced_voltage.get_valid_entries()
 
 
 class RFStationPhaseObservation(ObservablesOncePerTurnBase):
