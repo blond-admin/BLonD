@@ -153,12 +153,12 @@ def get_main_harmonic_attributes(
         Main voltage, in [V].
     """
     # TODO move this into ring.
-    from blond import MultiHarmonicRfStation
-    from blond.physics.cavities import SingleHarmonicRfStation
+    from blond import MultiHarmonicRFStation
+    from blond.physics.cavities import SingleHarmonicRFStation
 
     rf_stations = simulation.ring.elements.get_elements(
-        SingleHarmonicRfStation
-    ) + simulation.ring.elements.get_elements(MultiHarmonicRfStation)
+        SingleHarmonicRFStation
+    ) + simulation.ring.elements.get_elements(MultiHarmonicRFStation)
     for _rf_station in rf_stations:
         _rf_station.apply_schedules(
             turn_i=0,
@@ -167,7 +167,7 @@ def get_main_harmonic_attributes(
     # omega_rf should be all same
     omega_rf = [
         rf.calc_main_harmonic_omega_rf(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=simulation.ring.circumference,
         )
         for rf in rf_stations
@@ -307,11 +307,11 @@ class BiGaussian(MatchingRoutine):
             energy_gain=simulation.magnetic_cycle.get_target_total_energy(
                 0, 0, 0, particle_type=beam.particle_type
             )
-            - beam.reference_total_energy,
+            - beam.reference.total_energy,
             above_transition=above_transition,
         )
         # call to legacy
-        eta0 = [drift.eta_0(gamma=beam.reference_gamma) for drift in drifts]
+        eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
         assert all_equal(eta0), (
             f"Expected all `eta0` to be the same, but got {eta0}."
         )
