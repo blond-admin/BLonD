@@ -111,19 +111,19 @@ class BLonD3Cavity:
 
     Parameters
     ----------
-        cavity : SingleHarmonicRfStation
-            BLonD RF cavity element providing a `track(beam)` method.
-        particles : xtrack.Particles
-            Xsuite particles used to initialise the BLonD beam coordinates.
-        line : xtrack.Line
-            Xsuite line containing the reference particle and machine length.
-        particle_type : ParticleType
-            BLonD particle type definition.
-        initial_intensity : float or int or None, optional
-            Initial beam intensity. If None, intensity handling is disabled.
-        update_zeta : bool, optional
-            Whether to update the Xsuite longitudinal coordinate `zeta`
-            after tracking. Default is False.
+    cavity : SingleHarmonicRfStation
+        BLonD RF cavity element providing a `track(beam)` method.
+    particles : xtrack.Particles
+        Xsuite particles used to initialise the BLonD beam coordinates.
+    line : xtrack.Line
+        Xsuite line containing the reference particle and machine length.
+    particle_type : ParticleType
+        BLonD particle type definition.
+    initial_intensity : float or int or None, optional
+        Initial beam intensity. If None, intensity handling is disabled.
+    update_zeta : bool, optional
+        Whether to update the Xsuite longitudinal coordinate `zeta`
+        after tracking. Default is False.
     """
 
     def __init__(

@@ -9,7 +9,13 @@
 """
 Functions and classes to interface BLonD with xsuite.
 
-:Authors: **Birk Emil Karlsen-Baeck**, **Thom Arnoldus van Rijswijk**, **Helga Timko**, **Elleanor Lamb**
+Notes
+-----
+Authors:
+Birk Emil Karlsen-Baeck
+Thom Arnoldus van Rijswijk
+Helga Timko
+Elleanor Lamb
 """
 
 from __future__ import annotations
