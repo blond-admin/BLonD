@@ -15,7 +15,7 @@ from blond import (
     MagneticCyclePerTurn,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     proton,
 )
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
@@ -67,7 +67,7 @@ def main():
     momentum = np.linspace(p_s, p_f, N_TURNS)
 
     # BLonD3 code -------------------------------------------------------------
-    single_harmonic = SingleHarmonicRfStation.xsuite_ready()
+    single_harmonic = SingleHarmonicRFStation.xsuite_ready()
     cavity = BLonD3Cavity(cavity=single_harmonic, update_zeta=True)
 
     line.insert_element(

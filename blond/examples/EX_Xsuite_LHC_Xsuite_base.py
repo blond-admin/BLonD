@@ -12,7 +12,7 @@ import xtrack as xt
 from scipy.constants import c as c_light
 
 from blond import MagneticCyclePerTurn  # remove
-from blond import SingleHarmonicRfStation, proton
+from blond import SingleHarmonicRFStation, proton
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
     BLonD3Cavity,
     EnergyUpdate,
@@ -85,7 +85,7 @@ def main():
     )
 
     # BLonD3 element ----------------------------------------------
-    cavity1 = SingleHarmonicRfStation.headless(
+    cavity1 = SingleHarmonicRFStation.headless(
         section_index=1,
         voltage=V,
         harmonic=h,
