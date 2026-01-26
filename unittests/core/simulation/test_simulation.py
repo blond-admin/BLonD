@@ -7,13 +7,14 @@ from unittest.mock import Mock, create_autospec
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from blond import (
     Beam,
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     mu_plus,
     proton,
 )
@@ -38,7 +39,7 @@ class TestSimulation(unittest.TestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicRfStation()
+        cavity1 = SingleHarmonicRFStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
@@ -128,7 +129,7 @@ class TestSimulation(unittest.TestCase):
                         section_index=cavity_i,
                     ),
                     bunch_observation_CR,
-                    SingleHarmonicRfStation(
+                    SingleHarmonicRFStation(
                         voltage=total_voltage / n_cavities,
                         phi_rf=0,
                         harmonic=harmonic,
@@ -178,10 +179,33 @@ class TestSimulation(unittest.TestCase):
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
-            callback=mock_func,
+            callbacks=mock_func,
         )
         observe.update.assert_called()
         mock_func.assert_called()
+
+    def test__run_simulation_single_beam_many_callbacks(self):
+        observe = Mock(spec=ObservablesOncePerTurnBase)
+
+        def my_callback1(simulation: Simulation, beam: Beam) -> None:
+            return
+
+        def my_callback2(simulation: Simulation, beam: Beam) -> None:
+            return
+
+        mock_func1 = create_autospec(my_callback1, return_value=True)
+        mock_func2 = create_autospec(my_callback2, return_value=True)
+        self.simulation.turn_i.value = 0
+        self.simulation.mainloop_single_beam(
+            beam=self.beam,
+            n_turns=10,
+            observe=(observe,),
+            show_progressbar=True,
+            callbacks=(mock_func1, mock_func2),
+        )
+        observe.update.assert_called()
+        mock_func1.assert_called()
+        mock_func2.assert_called()
 
     def test_magnetic_cycle(self):
         self.assertNotEqual(None, self.simulation.magnetic_cycle)
@@ -212,9 +236,9 @@ class TestSimulation(unittest.TestCase):
         self.simulation.from_locals(locals=locals(), verbose=True)
 
     def test_get_potential_well_empiric(self):
-        from blond.testing.simulation import SimulationTwoRfStations
+        from blond.testing.simulation import SimulationTwoRFStations
 
-        sim = SimulationTwoRfStations()
+        sim = SimulationTwoRFStations()
         ts = np.linspace(-2e-9, 2e-9, 100)
 
         potential_well, factor, tilt_dt_per_dE = (
@@ -283,7 +307,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_load_results(self):
         observation = BeamObservationOncePerTurn(
-            each_turn_i=10, beam=self.beam
+            each_turn_i=10,
         )
         kwargs = dict(
             beams=(self.beam,),
@@ -339,7 +363,7 @@ class TestSimulation(unittest.TestCase):
         self.assertIsInstance(self.simulation.ring, Ring)
 
     def test_run_simulation(self):
-        observe = BeamObservationOncePerTurn(each_turn_i=10, beam=self.beam)
+        observe = BeamObservationOncePerTurn(each_turn_i=10)
 
         def my_callback(simulation: Simulation, beam: BeamBaseClass) -> None:
             return
@@ -350,14 +374,14 @@ class TestSimulation(unittest.TestCase):
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
-            callback=mock_func,
+            callbacks=mock_func,
             beams=(self.beam,),
         )
         mock_func.assert_called()
 
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
-            SingleHarmonicRfStation
+            SingleHarmonicRFStation
         )
         particle_type = proton
 
@@ -371,7 +395,7 @@ class TestSimulation(unittest.TestCase):
             20000,
         )
         phis = ts * cavity.calc_omega(
-            beam_beta=self.beam.reference_beta,
+            beam_beta=self.beam.reference.beta,
             ring_circumference=self.simulation.ring.circumference,
         )
         potential_well, factor, tilt_dt_per_dE = (
@@ -409,7 +433,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_get_potential_well_empiric_charge(self):
         cavity = self.simulation.ring.elements.get_element(
-            SingleHarmonicRfStation
+            SingleHarmonicRFStation
         )
         from blond.core.beam.particle_types import ParticleType, c, e, m_p
 
@@ -443,7 +467,7 @@ class TestSimulation(unittest.TestCase):
     def test_get_potential_well_empiric_shape_acceleration(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicRfStation()
+        cavity1 = SingleHarmonicRFStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
@@ -473,7 +497,7 @@ class TestSimulation(unittest.TestCase):
         simulation = Simulation.from_locals(locals())
         beam = beam1
 
-        cavity = simulation.ring.elements.get_element(SingleHarmonicRfStation)
+        cavity = simulation.ring.elements.get_element(SingleHarmonicRFStation)
         particle_type = proton
 
         ts = np.linspace(
@@ -486,7 +510,7 @@ class TestSimulation(unittest.TestCase):
             20000,
         )
         phis = ts * cavity.calc_omega(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=simulation.ring.circumference,
         )
         potential_well, factor, tilt_dt_per_dE = (
@@ -524,21 +548,21 @@ class TestSimulation(unittest.TestCase):
         )
 
     def test_get_drift_term_empiric(self):
-        from blond.testing.simulation import SimulationTwoRfStations
+        from blond.testing.simulation import SimulationTwoRFStations
 
-        sim = SimulationTwoRfStations()
+        sim = SimulationTwoRFStations()
         simulation = sim.simulation
         de = np.linspace(-1e9, 1e9)
         beam = sim.beam1
-        beam.reference_total_energy = 450e9
+        beam.reference.total_energy = 450e9
         drift_term = simulation.get_drift_term_empiric(
             dE=de,
             particle_type=proton,
         )
-        E0 = beam.reference_total_energy
-        beta = beam.reference_beta
+        E0 = beam.reference.total_energy
+        beta = beam.reference.beta
 
-        eta = float(simulation.ring.calc_average_eta_0(beam.reference_gamma))
+        eta = float(simulation.ring.calc_average_eta_0(beam.reference.gamma))
         drift_term_analytic = (
             0.5 * eta / (np.square(beta) * E0) * de**2
         )  # [1/eV]
@@ -565,6 +589,7 @@ class TestSimulation(unittest.TestCase):
                 observe=(),
             )
 
+    @pytest.mark.backend_mutation
     def test_finalize_warns(self) -> None:
         from blond import backend
 
@@ -578,6 +603,30 @@ class TestSimulation(unittest.TestCase):
                 observe=(),
             )
         backend.set_specials(mode=special_mode_org)
+
+    def test__sanitize_callbacks(self):
+        from blond import Simulation
+        from blond.testing.mocks import simulation_mock
+
+        def callback(sim, beam):
+            return
+
+        cases = (
+            None,
+            callback,
+            (callback, callback),
+            [callback, callback],
+            [callback for i in range(2)],
+        )
+        for callbacks in cases:
+            Simulation._sanitize_callbacks(simulation_mock, callbacks)
+
+        with self.assertRaisesRegex(TypeError, "Unexpected callback type"):
+            Simulation._sanitize_callbacks(simulation_mock, 1.0)
+        with self.assertRaisesRegex(TypeError, "Unexpected callback type"):
+            Simulation._sanitize_callbacks(
+                simulation_mock, (callback for i in range(2))
+            )
 
 
 if __name__ == "__main__":

@@ -84,15 +84,15 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     Examples
     --------
     >>> class ItsComplicated:
-    >>>     skip_find_instances_attributes = ["problem"]
-    >>>
-    >>>     @property
-    >>>     def problem(self): # wont be accessed by `find_instances_with_method()`
-    >>>         raise NotImplementedError()
-    >>>
-    >>>     @property # will be accessed
-    >>>     def not_a_problem(self):
-    >>>         pass
+    ...     skip_find_instances_attributes = ["problem"]
+    ...
+    ...     @property
+    ...     def problem(self): # wont be accessed by `find_instances_with_method()`
+    ...         raise NotImplementedError()
+    ...
+    ...     @property # will be accessed
+    ...     def not_a_problem(self):
+    ...         pass
     """
     found = set()
     seen = set()

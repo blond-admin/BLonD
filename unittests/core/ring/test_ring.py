@@ -9,12 +9,12 @@ from blond import (
     MagneticCyclePerTurn,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
 )
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import lead_82
-from blond.physics.cavities import RfStationBaseClass
+from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 from blond.testing.mocks import simulation_mock
 
@@ -135,7 +135,7 @@ class TestRing(unittest.TestCase):
 
     def test_add_element_reorder(self):
         drift = Mock(spec=DriftBaseClass)
-        cavity = Mock(spec=RfStationBaseClass)
+        cavity = Mock(spec=RFStationBaseClass)
         drift.section_index = 0
         cavity.section_index = 0
 
@@ -424,7 +424,7 @@ class TestRing(unittest.TestCase):
     def test_n_cavities(self):
         element1 = Mock(spec=BeamPhysicsRelevant)
         element1.section_index = 0
-        cavity1 = Mock(spec=RfStationBaseClass)
+        cavity1 = Mock(spec=RFStationBaseClass)
         cavity1.section_index = 0
         self.ring.add_elements(
             [element1 for i in range(10)] + [cavity1 for i in range(10)],
@@ -437,7 +437,7 @@ class TestRing(unittest.TestCase):
         drift = Mock(spec=DriftBaseClass)
         drift.section_index = 0
         drift.share_of_circumference = 1
-        cavity = Mock(spec=RfStationBaseClass)
+        cavity = Mock(spec=RFStationBaseClass)
         cavity.section_index = 0
         self.ring.add_elements((drift, cavity))
 
@@ -456,7 +456,7 @@ class TestRing(unittest.TestCase):
     def test_effective_circumference(self):
         drift = Mock(spec=DriftBaseClass)
         drift.orbit_length = 123
-        cavity = Mock(spec=RfStationBaseClass)
+        cavity = Mock(spec=RFStationBaseClass)
         drift.section_index = 0
         cavity.section_index = 0
         self.ring.add_elements((drift, cavity))
@@ -467,7 +467,7 @@ class TestRing(unittest.TestCase):
         drift.orbit_length = 123
         drift2 = Mock(spec=DriftBaseClass)
         drift2.orbit_length = 123
-        cavity = Mock(spec=RfStationBaseClass)
+        cavity = Mock(spec=RFStationBaseClass)
         drift.section_index = 0
         drift2.section_index = 0
         cavity.section_index = 0
@@ -481,7 +481,7 @@ class TestRing(unittest.TestCase):
             drift.orbit_length = 123
             drift2 = Mock(spec=DriftBaseClass)
             drift2.orbit_length = 123
-            cavity = Mock(spec=RfStationBaseClass)
+            cavity = Mock(spec=RFStationBaseClass)
             drift.section_index = 0
             drift2.section_index = 0
             cavity.section_index = 0
@@ -539,14 +539,14 @@ class TestRing(unittest.TestCase):
         ring = Ring(circumference=123)
         ring.add_element(DriftSimple(orbit_length=100, transition_gamma=123))
         ring.add_element(DriftSimple(orbit_length=23, transition_gamma=123))
-        beam_mock.reference_gamma = 122
+        beam_mock.reference.gamma = 122
         self.assertTrue(ring.is_below_transition(beam=beam_mock))
 
         # Exactly on transition crossing. This is not below anymore
-        beam_mock.reference_gamma = 123
+        beam_mock.reference.gamma = 123
         self.assertFalse(ring.is_below_transition(beam=beam_mock))
 
-        beam_mock.reference_gamma = 124
+        beam_mock.reference.gamma = 124
         self.assertFalse(ring.is_below_transition(beam=beam_mock))
 
     def test_non_mandatory_element_checking_drifts(self):
@@ -582,12 +582,12 @@ class TestRing(unittest.TestCase):
     def test_non_mandatory_element_checking_kicks(self):
         ring = Ring(circumference=200, check_section_indices=False)
         ring.add_element(
-            SingleHarmonicRfStation(
+            SingleHarmonicRFStation(
                 voltage=1, phi_rf=1, harmonic=1, section_index=0
             )
         )
         ring.add_element(
-            SingleHarmonicRfStation(
+            SingleHarmonicRFStation(
                 voltage=1, phi_rf=1, harmonic=1, section_index=0
             )
         )

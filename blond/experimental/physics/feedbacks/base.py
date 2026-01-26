@@ -18,9 +18,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import (
-        MultiHarmonicRfStation,
-        RfStationBaseClass,
-        SingleHarmonicRfStation,
+        MultiHarmonicRFStation,
+        RFStationBaseClass,
+        SingleHarmonicRFStation,
     )
     from blond.physics.profiles import ProfileBaseClass
 
@@ -46,11 +46,11 @@ class LocalFeedback(FeedbackBaseClass):
             name=name,
         )
         self._parent_rf_station: (
-            SingleHarmonicRfStation | MultiHarmonicRfStation | None
+            SingleHarmonicRFStation | MultiHarmonicRFStation | None
         ) = None
         self.profile = profile
 
-    def set_parent_rf_station(self, rf_station: RfStationBaseClass):
+    def set_parent_rf_station(self, rf_station: RFStationBaseClass):
         assert self._parent_rf_station is None, (
             "This feedback has already one owner!"
         )
@@ -69,7 +69,7 @@ class LocalFeedback(FeedbackBaseClass):
         pass
 
 
-RfFeedback = LocalFeedback  # just an alias name
+RFFeedback = LocalFeedback  # just an alias name
 
 
 class GlobalFeedback(FeedbackBaseClass):
@@ -84,11 +84,11 @@ class GlobalFeedback(FeedbackBaseClass):
             name=name,
         )
         self.profile = profile
-        self.cavities: list[RfStationBaseClass] | None = None
+        self.cavities: list[RFStationBaseClass] | None = None
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
-    @requires(["SingleHarmonicRfStation"])
+    @requires(["SingleHarmonicRFStation"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called
@@ -97,7 +97,7 @@ class GlobalFeedback(FeedbackBaseClass):
             `Simulation` context manager
         """
         self.cavities = simulation.ring.elements.get_elements(
-            SingleHarmonicRfStation
+            SingleHarmonicRFStation
         )
 
 
@@ -108,7 +108,7 @@ class GroupedFeedback(FeedbackBaseClass):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        cavities: list[SingleHarmonicRfStation | MultiHarmonicRfStation],
+        cavities: list[SingleHarmonicRFStation | MultiHarmonicRFStation],
         section_index: int = 0,
         name: str | None = None,
     ):

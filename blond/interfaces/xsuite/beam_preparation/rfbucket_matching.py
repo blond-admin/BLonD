@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import c, e
 
-from blond import SingleHarmonicRfStation
+from blond import SingleHarmonicRFStation
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning
 from blond.physics.drifts import DriftSimple
@@ -71,13 +71,13 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
     Examples
     --------
     >>> sim.prepare_beam(
-    >>>     beam= ... ,
-    >>>     preparation_routine=XsuiteRFBucketMatcher(
-    >>>         distribution_type=QGaussianDistribution,
-    >>>         sigma_z= ... ,
-    >>>         n_macroparticles= ...,
-    >>>     ),
-    >>> )
+    ...     beam= ... ,
+    ...     preparation_routine=XsuiteRFBucketMatcher(
+    ...         distribution_type=QGaussianDistribution,
+    ...         sigma_z= ... ,
+    ...         n_macroparticles= ...,
+    ...     ),
+    ... )
     """
 
     def __init__(
@@ -143,8 +143,8 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             turn_i=0,
             reference_time=0,
         )
-        rf_station: SingleHarmonicRfStation = (
-            simulation.ring.elements.get_element(SingleHarmonicRfStation)
+        rf_station: SingleHarmonicRFStation = (
+            simulation.ring.elements.get_element(SingleHarmonicRFStation)
         )
 
         rf_station.apply_schedules(turn_i=0, reference_time=0.0)
@@ -160,7 +160,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
 
         rfbucket = RFBucket(
             circumference=simulation.ring.circumference,
-            gamma=beam.reference_gamma,
+            gamma=beam.reference.gamma,
             mass_kg=mass_kg,
             charge_coulomb=charge_coulomb,
             alpha_array=np.atleast_1d(alpha_c),
@@ -184,12 +184,16 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         )
 
         omega = rf_station.calc_omega(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=simulation.ring.circumference,
         )
         # convert zeta to t coordinate
         T = (2 * np.pi) / omega
         dt = -1 * (zeta) / c + T / 2
         # convert from delta to dE
-        dE = delta * beam.reference_total_energy
-        beam.setup_beam(dt=dt, dE=dE)
+        dE = delta * beam.reference.total_energy
+        beam.setup_beam(
+            dt=dt,
+            dE=dE,
+            mpi_mode="root-distributes",
+        )

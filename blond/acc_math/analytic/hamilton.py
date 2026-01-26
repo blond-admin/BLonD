@@ -148,13 +148,13 @@ def phase_modulo_above_transition(
     Examples
     --------
     >>> import numpy as np
+    >>> from blond.acc_math.analytic.hamilton import phase_modulo_above_transition
     >>> phase_modulo_above_transition(-np.pi / 2)
-    4.71238898038469
+    np.float64(4.71238898038469)
     >>> phase_modulo_above_transition(3 * np.pi)
-    3.141592653589793
+    np.float64(3.141592653589793)
     >>> phi = np.linspace(-10, 10, 5)
-    >>> phase_modulo_above_transition(phi)
-    array([2.56637061, 3.56637061, 4.56637061, 5.56637061, 0.56637061])
+    >>> phi_limited = phase_modulo_above_transition(phi)
     """
     return phi - 2.0 * np.pi * np.floor(phi / (2.0 * np.pi))
 
@@ -207,7 +207,6 @@ def phase_modulo_below_transition(
     3.141592653589793
     >>> phi = np.linspace(-10, 10, 5)
     >>> phase_modulo_above_transition(phi)
-    array([2.56637061, 3.56637061, 4.56637061, 5.56637061, 0.56637061])
     """
     return phi - 2.0 * np.pi * (np.floor(phi / (2.0 * np.pi) + 0.5))
 
@@ -325,3 +324,50 @@ def calc_phi_s_single_harmonic(
         phi = np.pi - phi
 
     return phi - phase
+
+
+def calc_synchrotron_tune_single_harmonic(
+    charge: float,
+    voltage: float,
+    beta: float,
+    energy: float,
+    phi_s: float,
+    harmonic: float,
+    eta_0: float,
+) -> float:
+    """
+    Function calculating the synchrotron tune.
+
+    The calculation assumes a single-harmonic RF system and no intensity
+    effects.
+
+    Parameters
+    ----------
+    charge
+        Particle charge, i.e. number of elementary charges `e`
+        Example: For an electron `charge=-1`.
+    voltage
+        RF voltage of the cavity, in [V].
+    beta
+        Relativistic beta factor [].
+    energy
+        Synchronous energy of the beam [eV].
+    phi_s
+        Synchronous phase [rad].
+    harmonic
+        Harmonic number of rf system [].
+    eta_0
+        Phase slip factor [].
+
+    Returns
+    -------
+    float
+        Synchrotron tune.
+    """
+    return np.sqrt(
+        harmonic
+        * np.abs(charge)
+        * voltage
+        * np.abs(eta_0 * np.cos(phi_s))
+        / (2 * np.pi * beta**2 * energy)
+    )

@@ -103,13 +103,13 @@ pre-commit install
 To compile the available native backends, use the following commands:
 
 ```bash
-blond-compile-cpp      # Compile the C++ backend
+blond-compile-cpp --parallel   # Compile the C++ backend
 ```
 ```bash
-blond-compile-cuda     # Compile the CUDA backend
+blond-compile-cuda             # Compile the CUDA backend
 ```
 ```bash
-blond-compile-fortran  # Compile the Fortran backend
+blond-compile-fortran          # Compile the Fortran backend
 ```
 
 Once compiled, the corresponding backends will be available for use within your simulation environment.
@@ -130,6 +130,24 @@ backend.set_specials(mode="cpp")  # Activate the C++ backend
 > Automatically done in GitLab CI Pipeline
 ```bash
 python3 -m pytest -v unittests/
+```
+
+BLonD provides for marked tests with [PyTest](https://docs.pytest.org/en/stable/how-to/mark.html) via `@pytest.mark.xxx`.
+Following markers are used
+
+- 'backend_mutation'
+- 'cupy'
+
+Those tests can be excluded for running the tests with the `pytest -m` flag.
+```bash
+export BLOND_BACKEND_MODE=cuda
+export BLOND_BACKEND_BITS=32
+python3 -m pytest -m "not backend_mutation"  -v unittests/
+```
+
+The tests with distributed computing (MPI) can be executed via
+```bash
+ mpirun -n 2 python3 -m pytest -v unittests/ -m "mpi"
 ```
 
 ---

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -33,10 +33,12 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     BirksCavityFeedback,
 )
 from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
-from blond.physics.cavities import MultiHarmonicRfStation
+from blond.physics.cavities import MultiHarmonicRFStation
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, Literal
+
     from blond.core.beam.base import BeamBaseClass
 
 
@@ -125,16 +127,16 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def __init__(
         self,
-        _parent_rf_station: MultiHarmonicRfStation,
+        _parent_rf_station: MultiHarmonicRFStation,
         profile: StaticProfile,
-        n_sections: int,
+        n_sections: Literal[3, 4, 5],
         n_cavities: int = 4,
         V_part: float = 4 / 9,
         G_ff: float = 1,
         G_llrf: float = 10,
         G_tx: float = 1,
         a_comb: float = 63 / 64,
-        df: float = 0,
+        df: int = 0,
         commissioning: SPSCavityLoopCommissioning | None = None,
         harmonic_index: int = 0,
     ):
@@ -200,35 +202,36 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         self.G_tx = float(G_tx)
 
         # 200 MHz travelling wave cavity (TWC) model
-        if n_sections in [3, 4, 5]:
-            self.TWC = eval(
-                "SPS" + str(n_sections) + "Section200MHzTWC(" + str(df) + ")"
-            )
-            if self.open_ff == 1:
-                # Feed-forward filter
-                self.coeff_ff = getattr(
-                    sys.modules[__name__],
-                    "feedforward_filter_TWC" + str(n_sections),
-                )
-                self.n_ff = len(self.coeff_ff)  # Number of coefficients for FF
-                self.n_ff_delay = round(
-                    0.5 * (self.n_ff - 1) + 0.5 * self.TWC.tau / self.T_s / 5
-                )
-
-                self.logger.debug(
-                    "Feed-forward delay in samples %d", self.n_ff_delay
-                )
-
-                # Multiply gain by normalisation factors from filter and
-                # beam-to generator current
-                self.G_ff *= self.TWC.R_beam / (
-                    self.TWC.R_gen * np.sum(self.coeff_ff)
-                )
-
+        if n_sections == 3:
+            self.TWC = SPS3Section200MHzTWC(df)
+        elif n_sections == 4:
+            self.TWC = SPS4Section200MHzTWC(df)
+        elif n_sections == 5:
+            self.TWC = SPS5Section200MHzTWC(df)
         else:
-            raise RuntimeError(
-                "ERROR in SPSOneTurnFeedback: argument n_sections has invalid value!"
+            raise ValueError(f"{n_sections=}")
+
+        if self.open_ff == 1:
+            # Feed-forward filter
+            self.coeff_ff = getattr(
+                sys.modules[__name__],
+                "feedforward_filter_TWC" + str(n_sections),
             )
+            self.n_ff = len(self.coeff_ff)  # Number of coefficients for FF
+            self.n_ff_delay = round(
+                0.5 * (self.n_ff - 1) + 0.5 * self.TWC.tau / self.T_s / 5
+            )
+
+            self.logger.debug(
+                "Feed-forward delay in samples %d", self.n_ff_delay
+            )
+
+            # Multiply gain by normalisation factors from filter and
+            # beam-to generator current
+            self.G_ff *= self.TWC.R_beam / (
+                self.TWC.R_gen * np.sum(self.coeff_ff)
+            )
+
         self.logger.debug(
             "SPS OTFB cavities: %d, sections: %d, voltage partition %.2f, gain: %.2e",
             self.n_cavities,
@@ -787,7 +790,7 @@ class SPSCavityFeedback:
 
     def __init__(
         self,
-        _parent_rf_station: MultiHarmonicRfStation,
+        _parent_rf_station: MultiHarmonicRFStation,
         profile: StaticProfile,
         G_ff: float | list = 1,
         G_llrf: float | list = 10,

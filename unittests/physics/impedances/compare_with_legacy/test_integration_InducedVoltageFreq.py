@@ -2,6 +2,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from blond import (
     Beam,
@@ -9,7 +10,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
     proton,
@@ -279,7 +280,7 @@ class Blond3:
             blond2.profile.cut_right,
             blond2.profile.n_slices,
         )
-        cavity1 = SingleHarmonicRfStation()
+        cavity1 = SingleHarmonicRFStation()
         cavity1.voltage = 0
         cavity1.phi_rf = 0
         cavity1.harmonic = 1
@@ -323,6 +324,7 @@ class TestBothBlonds(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()
 
+    @pytest.mark.backend_mutation
     def test___init__(self):
         np.testing.assert_allclose(
             self.blond3.blond2.induced_voltage,
@@ -336,6 +338,7 @@ class TestBothBlonds(unittest.TestCase):
                     ax.legend()
             plt.show()
 
+    @pytest.mark.backend_mutation
     def test___init__(self):
         for ind_ind in range(len(self.blond3.blond2.induced_voltage)):
             np.testing.assert_allclose(

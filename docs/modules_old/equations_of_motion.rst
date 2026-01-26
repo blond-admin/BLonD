@@ -226,8 +226,6 @@ particles in front should be added on the left-hand side:
 where :math:`\lambda(t)` is the beam/bunch profile and :math:`W(t)` the wake
 potential.
 
-.. seealso:: http://dquartul.github.io/BLonD/impedances.html
-
 .. warning:: In general, these equations have :math:`n_{\mathsf{rf}}`
    solutions. If the synchronous energy gain :math:`E_s^{n+1} - E_s^n` changes
    from one turn to another, also the synchronous particle changes with it.

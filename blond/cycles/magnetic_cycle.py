@@ -14,7 +14,7 @@ Notes
 The following classes are currently available:
 - :class:`~blond.cycles.magnetic_cycles.ConstantMagneticCycle`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurn`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`
+- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
 
 Authors:
@@ -499,6 +499,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
 
         self._magnetic_rigidity: NumpyArray | None = None
         self._momentum_cached: dict[int, NumpyArray] = {}
+        self._total_energy_cached: dict[int, NumpyArray] = {}
 
     def on_init_simulation(
         self,
@@ -588,10 +589,11 @@ class MagneticCyclePerTurn(MagneticCycleBase):
                 magnetic_rigidity=self._magnetic_rigidity[:, :],
                 charge=particle_type.charge,
             )
-        return calc_total_energy(
-            mass=particle_type.mass,
-            momentum=self._momentum_cached[key][section_i, int(turn_i)],
-        )
+            self._total_energy_cached[key] = calc_total_energy(
+                mass=particle_type.mass,
+                momentum=self._momentum_cached[key],
+            )
+        return self._total_energy_cached[key][section_i, int(turn_i)]
 
     @staticmethod
     def headless(
@@ -656,7 +658,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         return ret
 
 
-class MagneticCyclePerTurnAllRfStations(MagneticCycleBase):
+class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
     """
     Magnetic program per turn, defined for each RF station.
 
@@ -805,7 +807,7 @@ class MagneticCyclePerTurnAllRfStations(MagneticCycleBase):
         values_after_rf_station_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
-    ) -> MagneticCyclePerTurnAllRfStations:
+    ) -> MagneticCyclePerTurnAllRFStations:
         """
         Initialize object without simulation context.
 
@@ -829,9 +831,9 @@ class MagneticCyclePerTurnAllRfStations(MagneticCycleBase):
         Returns
         -------
         magnetic_cycle
-            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`.
+            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`.
         """
-        ret = MagneticCyclePerTurnAllRfStations(
+        ret = MagneticCyclePerTurnAllRFStations(
             value_init=value_init,
             values_after_rf_station_per_turn=values_after_rf_station_per_turn,
             in_unit=in_unit,
@@ -894,7 +896,8 @@ class MagneticCycleByTime(MagneticCycleBase):
     Examples
     --------
     >>> import scipy
-    >>> from blond import mu_plus
+    >>> import numpy as np
+    >>> from blond import mu_plus, MagneticCycleByTime
     >>> time_per_turn = 953.338 * 2 * np.pi / scipy.constants.c
     >>> n_turns = 17
     >>> energy_ramp = np.linspace(63e9, 313.83e9 * 100, n_turns)

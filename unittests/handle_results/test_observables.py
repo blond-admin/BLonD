@@ -4,16 +4,26 @@ from unittest.mock import Mock, PropertyMock
 
 import numpy as np
 
-from blond import Simulation, SingleHarmonicRfStation, StaticProfile, WakeField
+from blond import (
+    Beam,
+    Simulation,
+    SingleHarmonicRFStation,
+    StaticProfile,
+    WakeField,
+    electron,
+)
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BeamObservationOncePerTurn,
+    BeamStatisticsOncePerTurn,
     DynamicProfileConstNBinsObservation,
     ObservablesOncePerTurnBase,
-    RfStationPhaseObservation,
+    RFStationPhaseObservation,
     StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
@@ -35,13 +45,20 @@ simulation.section_i.current_group = 0
 simulation.turn_i = DynamicParameter(None)
 simulation.turn_i.value = 0
 beam = Mock(BeamBaseClass)
+beam._dE = Mock(DistributedArray)
+beam._dt = Mock(DistributedArray)
+beam._flags = Mock(DistributedArray)
 beam.common_array_size = 128
-beam.reference_time = 0.8
-beam.reference_beta = 0.9
-beam.reference_total_energy = 11
-beam._dt = np.ones(beam.common_array_size, dtype=float)
-beam._dE = np.ones(beam.common_array_size, dtype=float)
-beam._flags = np.ones(beam.common_array_size, dtype=int)
+beam.reference = Mock(ReferenceCoordinates)
+beam.reference.time = 0.8
+beam.reference.beta = 0.9
+beam.reference.total_energy = 11
+beam._dt.array_local = np.ones(beam.common_array_size, dtype=float)
+beam._dE.array_local = np.ones(beam.common_array_size, dtype=float)
+beam._flags.array_local = np.ones(beam.common_array_size, dtype=int)
+beam.read_partial_dt.return_value = beam._dt.array_local
+beam.read_partial_dE.return_value = beam._dE.array_local
+beam.read_partial_flags.return_value = beam._flags.array_local
 
 
 class ObservablesHelper(ObservablesOncePerTurnBase):
@@ -90,9 +107,10 @@ class TestObservables(unittest.TestCase):
         )
 
     def test___init__(self) -> None:
-        self.observables = ObservablesHelper(
-            each_turn_i=1,
-            folder=callers_relative_path("results/", stacklevel=1),
+        self.assertEqual(self.observables.each_turn_i, 1)
+        self.assertEqual(
+            self.observables.common_filepath,
+            callers_relative_path("results/", stacklevel=1) + "last",
         )
 
     def test_from_disk(self) -> None:
@@ -185,14 +203,32 @@ class TestBunchObservation(unittest.TestCase):
         self.bunch_observation = BeamObservationOncePerTurn(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
-            beam=beam,
+        )
+
+        self.beam = Beam(
+            intensity=100,
+            particle_type=electron,
+        )
+        common_array_size = 128
+        self.beam.reference.time = 0.8
+        # self.beam.reference.beta = 0.9
+        self.beam.reference.total_energy = 11
+        self.beam._dt = np.ones(common_array_size, dtype=float)
+        self.beam._dE = np.ones(common_array_size, dtype=float)
+        self.beam._flags = np.ones(common_array_size, dtype=int)
+
+        self.beam.setup_beam(
+            dE=np.ones(common_array_size, dtype=float),
+            dt=np.ones(common_array_size, dtype=float),
+            reference_time=0.8,
+            reference_total_energy=11,
         )
 
     def test___init__(self) -> None:
-        self.bunch_observation = BeamObservationOncePerTurn(
-            each_turn_i=1,
-            folder=callers_relative_path("results/", stacklevel=1),
-            beam=beam,
+        self.assertEqual(self.bunch_observation.each_turn_i, 1)
+        self.assertEqual(
+            self.bunch_observation.common_filepath,
+            callers_relative_path("results/", stacklevel=1) + "last",
         )
 
     def test_from_disk(self) -> None:
@@ -201,20 +237,168 @@ class TestBunchObservation(unittest.TestCase):
         )
         self.bunch_observation.on_run_simulation(
             simulation=simulation,
-            beam=beam,
+            beam=self.beam,
             n_turns=100,
         )
         self.bunch_observation.update(
             simulation=simulation,
         )
+
+        # test properties
+        np.testing.assert_almost_equal(
+            self.bunch_observation.dts,
+            self.bunch_observation._dts.get_valid_entries(),
+        )
+        np.testing.assert_almost_equal(
+            self.bunch_observation.dEs,
+            self.bunch_observation._dEs.get_valid_entries(),
+        )
+        np.testing.assert_almost_equal(
+            self.bunch_observation.flags,
+            self.bunch_observation._flags.get_valid_entries(),
+        )
+        np.testing.assert_almost_equal(
+            self.bunch_observation.reference_time,
+            self.bunch_observation._reference_time.get_valid_entries(),
+        )
+        np.testing.assert_almost_equal(
+            self.bunch_observation.reference_total_energy,
+            self.bunch_observation._reference_total_energy.get_valid_entries(),
+        )
+
         self.bunch_observation.to_disk()
-        self.bunch_observation.from_disk()
+
+        to_compare = BeamObservationOncePerTurn(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+        to_compare.on_run_simulation(
+            simulation=simulation,
+            beam=self.beam,
+            n_turns=100,
+        )
+        to_compare.from_disk()
+
+        np.testing.assert_almost_equal(
+            to_compare.dts, self.bunch_observation.dts
+        )
+        np.testing.assert_almost_equal(
+            to_compare.dEs, self.bunch_observation.dEs
+        )
+        np.testing.assert_almost_equal(
+            to_compare.flags, self.bunch_observation.flags
+        )
+        np.testing.assert_almost_equal(
+            to_compare.reference_time, self.bunch_observation.reference_time
+        )
+        np.testing.assert_almost_equal(
+            to_compare.reference_total_energy,
+            self.bunch_observation.reference_total_energy,
+        )
 
 
-class TestRfStationPhaseObservation(unittest.TestCase):
+class TestBunchStatistics(unittest.TestCase):
+    def setUp(self) -> None:
+        self.beam = Beam(
+            intensity=100,
+            particle_type=electron,
+        )
+        common_array_size = 128
+        self.beam.reference_time = 0.8
+        self.beam.reference_beta = 0.9
+        self.beam.reference_total_energy = 11
+        self.beam._dt = np.ones(common_array_size, dtype=float)
+        self.beam._dE = np.ones(common_array_size, dtype=float)
+        self.beam._flags = np.ones(common_array_size, dtype=int)
+        self.beam.setup_beam(
+            dE=np.ones(common_array_size, dtype=float),
+            dt=np.ones(common_array_size, dtype=float),
+            reference_time=0.8,
+            reference_total_energy=11,
+        )
+
+        self.bunch_statistics = BeamStatisticsOncePerTurn(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+
+    def test___init__(self) -> None:
+        self.assertEqual(self.bunch_statistics.each_turn_i, 1)
+        self.assertEqual(
+            self.bunch_statistics.common_filepath,
+            callers_relative_path("results/", stacklevel=1) + "last",
+        )
+
+    def test_from_disk(self) -> None:
+        self.bunch_statistics.on_init_simulation(
+            simulation=simulation,
+        )
+        self.bunch_statistics.on_run_simulation(
+            simulation=simulation,
+            beam=self.beam,
+            n_turns=100,
+        )
+        self.bunch_statistics.update(
+            simulation=simulation,
+        )
+
+        # test properties
+        np.testing.assert_almost_equal(
+            self.bunch_statistics.bunch_position,
+            self.bunch_statistics._bunch_position.get_valid_entries(),
+        )
+        np.testing.assert_almost_equal(
+            self.bunch_statistics.energy_spread,
+            self.bunch_statistics._energy_spread.get_valid_entries(),
+        )
+        np.testing.assert_almost_equal(
+            self.bunch_statistics.bunch_length,
+            self.bunch_statistics._bunch_length.get_valid_entries(),
+        )
+        np.testing.assert_almost_equal(
+            self.bunch_statistics.reference_time,
+            self.bunch_statistics._reference_time.get_valid_entries(),
+        )
+        np.testing.assert_almost_equal(
+            self.bunch_statistics.reference_total_energy,
+            self.bunch_statistics._reference_total_energy.get_valid_entries(),
+        )
+
+        self.bunch_statistics.to_disk()
+
+        to_compare = BeamStatisticsOncePerTurn(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+        to_compare.on_run_simulation(
+            simulation=simulation,
+            beam=self.beam,
+            n_turns=100,
+        )
+        to_compare.from_disk()
+
+        np.testing.assert_almost_equal(
+            to_compare.bunch_position, self.bunch_statistics.bunch_position
+        )
+        np.testing.assert_almost_equal(
+            to_compare.energy_spread, self.bunch_statistics.energy_spread
+        )
+        np.testing.assert_almost_equal(
+            to_compare.bunch_length, self.bunch_statistics.bunch_length
+        )
+        np.testing.assert_almost_equal(
+            to_compare.reference_time, self.bunch_statistics.reference_time
+        )
+        np.testing.assert_almost_equal(
+            to_compare.reference_total_energy,
+            self.bunch_statistics.reference_total_energy,
+        )
+
+
+class TestRFStationPhaseObservation(unittest.TestCase):
     def setUp(self) -> None:
         rf_station = Mock(
-            SingleHarmonicRfStation,
+            SingleHarmonicRFStation,
         )
         rf_station.n_rf = 12
         rf_station.phi_rf = 1
@@ -222,17 +406,17 @@ class TestRfStationPhaseObservation(unittest.TestCase):
         rf_station._omega_rf = 1
         rf_station.delta_omega_rf = 1
         rf_station.voltage = 1
-        self.rf_station_phase_observation = RfStationPhaseObservation(
+        self.rf_station_phase_observation = RFStationPhaseObservation(
             each_turn_i=1,
             rf_station=rf_station,
             folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test___init__(self) -> None:
-        self.rf_station_phase_observation = RfStationPhaseObservation(
+        self.rf_station_phase_observation = RFStationPhaseObservation(
             each_turn_i=1,
             rf_station=Mock(
-                SingleHarmonicRfStation,
+                SingleHarmonicRFStation,
                 folder=callers_relative_path("results/", stacklevel=1),
             ),
         )
@@ -251,7 +435,43 @@ class TestRfStationPhaseObservation(unittest.TestCase):
         )
         self.rf_station_phase_observation.to_disk()
 
-        self.rf_station_phase_observation.from_disk()
+        # test properties
+        np.testing.assert_almost_equal(
+            self.rf_station_phase_observation.phases,
+            self.rf_station_phase_observation._phases.get_valid_entries(),
+        )
+        np.testing.assert_almost_equal(
+            self.rf_station_phase_observation.omegas,
+            self.rf_station_phase_observation._omegas.get_valid_entries(),
+        )
+        np.testing.assert_almost_equal(
+            self.rf_station_phase_observation.voltages,
+            self.rf_station_phase_observation._voltages.get_valid_entries(),
+        )
+
+        self.rf_station_phase_observation.to_disk()
+
+        to_compare = RFStationPhaseObservation(
+            each_turn_i=1,
+            rf_station=self.rf_station_phase_observation._rf_station,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+        to_compare.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=100,
+        )
+        to_compare.from_disk()
+
+        np.testing.assert_almost_equal(
+            to_compare.phases, self.rf_station_phase_observation.phases
+        )
+        np.testing.assert_almost_equal(
+            to_compare.omegas, self.rf_station_phase_observation.omegas
+        )
+        np.testing.assert_almost_equal(
+            to_compare.voltages, self.rf_station_phase_observation.voltages
+        )
 
 
 class TestStaticProfileObservation(unittest.TestCase):

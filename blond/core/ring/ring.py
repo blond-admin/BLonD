@@ -247,7 +247,7 @@ class Ring(Preparable):
         --------
         average_transition_gamma : This method is interlnally used.
         """
-        return bool(self.calc_average_eta_0(gamma=beam.reference_gamma) < 0)
+        return bool(self.calc_average_eta_0(gamma=beam.reference.gamma) < 0)
 
     @property
     def n_rf_stations(self) -> int:
@@ -259,9 +259,9 @@ class Ring(Preparable):
         n_rf_stations
             The count of all RF station elements currently in the ring.
         """
-        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.cavities import RFStationBaseClass
 
-        return self.elements.count(RfStationBaseClass)
+        return self.elements.count(RFStationBaseClass)
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:
@@ -439,9 +439,9 @@ class Ring(Preparable):
 
         Examples
         --------
-        >>> from blond import MultiHarmonicRfStation, Ring
+        >>> from blond import MultiHarmonicRFStation, Ring
         >>> ring = Ring(...)
-        >>> rf_station = MultiHarmonicRfStation(voltage=1e6, harmonic=400, section_index=0)
+        >>> rf_station = MultiHarmonicRFStation(voltage=1e6, harmonic=400, section_index=0)
         >>> ring.add_element(rf_station)
         """
         if deepcopy:
@@ -486,9 +486,9 @@ class Ring(Preparable):
 
         Examples
         --------
-        >>> from blond import Ring, SingleHarmonicRfStation
+        >>> from blond import Ring, SingleHarmonicRFStation
         >>> ring = Ring(...)
-        >>> rf_stations = [SingleHarmonicRfStation(section_index=i, ...) for i in range(4)]
+        >>> rf_stations = [SingleHarmonicRFStation(section_index=i, ...) for i in range(4)]
         >>> ring.add_elements(rf_stations)
         """
         for element in elements:

@@ -288,6 +288,11 @@ class BackendBaseClass(ABC):
         self.arange: Callable = None  # type: ignore
         self.average: Callable = None  # type: ignore
         self.fftconvolve: Callable = None  # type: ignore
+        self.min: Callable = None  # type: ignore
+        self.max: Callable = None  # type: ignore
+        self.dot: Callable = None  # type: ignore
+        self.percentile: Callable = None  # type: ignore
+        self.array_split: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -445,8 +450,8 @@ class BackendBaseClass(ABC):
         Examples
         --------
         >>> with backend.temporary_specials_mode("python"):
-        >>>     print(backend.specials_mode)
-        >>>     ...
+        ...     print(backend.specials_mode)
+        ...     ...
         >>> print(backend.specials_mode)
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
@@ -496,6 +501,11 @@ class NumpyBackend(BackendBaseClass):
         self.arange = np.arange
         self.average = np.average
         self.fftconvolve = fftconvolve
+        self.min = np.min
+        self.max = np.max
+        self.dot = np.dot
+        self.percentile = np.percentile
+        self.array_split = np.array_split
 
         self._finalize()
 
@@ -620,6 +630,11 @@ class CupyBackend(BackendBaseClass):
         self.arange = cp.arange
         self.average = cp.average
         self.fftconvolve = fftconvolve
+        self.min = cp.min
+        self.max = cp.max
+        self.dot = cp.dot
+        self.percentile = cp.percentile
+        self.array_split = cp.array_split
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
@@ -668,7 +683,7 @@ class Cupy64Bit(CupyBackend):
         )
 
 
-default = Numpy32Bit()  # use .change_backend(...) to change it anywhere
+default = Numpy64Bit()  # use .change_backend(...) to change it anywhere
 backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
 backend.verbose = True
 backend.apply_environment_variables()

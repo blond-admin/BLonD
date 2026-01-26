@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import pytest
 from scipy.constants import elementary_charge as e
 
 from blond import (
@@ -8,7 +9,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicRfStation,
+    MultiHarmonicRFStation,
     Ring,
     Simulation,
     StaticProfile,
@@ -44,7 +45,7 @@ class TestLowPass(unittest.TestCase):
         )
 
 
-class TestRfBeamCurrent(unittest.TestCase):
+class TestRFBeamCurrent(unittest.TestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
@@ -65,7 +66,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         )
         self.ring = Ring(circumference=C)
         # self.rf = RFStation(self.ring, 4620, 4.5e6, 0)
-        self.rf = MultiHarmonicRfStation(
+        self.rf = MultiHarmonicRFStation(
             harmonic=np.array([4620], dtype=backend.float),
             voltage=np.array([4.5e6], dtype=backend.float),
             phi_rf=np.array([0], dtype=backend.float),
@@ -94,21 +95,23 @@ class TestRfBeamCurrent(unittest.TestCase):
         )
         simulation = Simulation(ring=self.ring, magnetic_cycle=magnetic_cycle)
         self.simulation = simulation
-        self.beam.reference_total_energy = (
+        self.beam.reference.total_energy = (
             magnetic_cycle.get_total_energy_init(
                 particle_type=proton,
             )
         )
         self.omega_rf = self.rf.calc_omega(
-            self.beam.reference_beta, self.ring.circumference
+            self.beam.reference.beta, self.ring.circumference
         )
         self.beam.setup_beam(dt=np.zeros(N_m), dE=np.zeros(N_m))
 
+    @pytest.mark.backend_mutation
     def test_setup(self):
         pass  # see if setup works
 
     # Test charge distribution with analytic functions
     # Compare with theoretical value
+    @pytest.mark.backend_mutation
     def test_1(self):
         t = self.profile.hist_x
         self.profile._hist_y = 2600 * np.exp(
@@ -163,6 +166,7 @@ class TestRfBeamCurrent(unittest.TestCase):
 
     # Test charge distribution of a bigaussian profile, without LPF
     # Compare to simulation data
+    @pytest.mark.backend_mutation
     def test_2(self):
         self.simulation.prepare_beam(
             beam=self.beam,
@@ -178,7 +182,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
             / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.circumference
+                self.beam.reference.beta, self.ring.circumference
             )
         )
         rf_current = rf_beam_current(
@@ -411,6 +415,7 @@ class TestRfBeamCurrent(unittest.TestCase):
 
     # Test charge distribution of a bigaussian profile, with LPF
     # Compare to simulation data
+    @pytest.mark.backend_mutation
     def test_3(self):
         self.simulation.prepare_beam(
             beam=self.beam,
@@ -425,12 +430,12 @@ class TestRfBeamCurrent(unittest.TestCase):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
             / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.circumference
+                self.beam.reference.beta, self.ring.circumference
             )
         )
         self.profile.track(self.beam)
         self.assertEqual(
-            len(self.beam._dt),
+            len(self.beam.read_partial_dt()),
             np.sum(self.profile.hist_y),
             "In"
             + " TestBeamCurrent: particle number mismatch in Beam vs Profile",
@@ -669,11 +674,12 @@ class TestRfBeamCurrent(unittest.TestCase):
 
     # Test RF beam current on coarse grid integrated from fine grid
     # Compare to simulation data for peak RF current
+    @pytest.mark.backend_mutation
     def test_4(self):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
             / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.circumference
+                self.beam.reference.beta, self.ring.circumference
             )
         )
         t_rf = t_rev / self.rf.harmonic
@@ -696,15 +702,17 @@ class TestRfBeamCurrent(unittest.TestCase):
         beam2.setup_beam(
             dt=np.zeros(bunches * N_m),
             dE=np.zeros(bunches * N_m),
-            reference_total_energy=self.beam.reference_total_energy,
+            reference_total_energy=self.beam.reference.total_energy,
         )
         bunch_spacing = 5 * t_rf
         buckets = 5 * bunches
         for i in range(bunches):
-            beam2._dt[i * N_m : (i + 1) * N_m] = (
-                self.beam._dt + i * bunch_spacing
+            beam2_dt = beam2.write_partial_dt()
+            beam2_dt[i * N_m : (i + 1) * N_m] = (
+                self.beam.read_partial_dt() + i * bunch_spacing
             )
-            beam2._dE[i * N_m : (i + 1) * N_m] = self.beam._dE
+            beam2_dE = beam2.write_partial_dE()
+            beam2_dE[i * N_m : (i + 1) * N_m] = self.beam.read_partial_dE()
         profile2 = StaticProfile(
             cut_left=0,
             cut_right=bunches * bunch_spacing,

@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import numpy as np
+import pytest
 from matplotlib import pyplot as plt
 from scipy.constants import c, e
 from scipy.fft import next_fast_len
@@ -19,13 +20,14 @@ from blond import (
     Numpy64Bit,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     WakeField,
     mu_plus,
     uranium_29,
 )
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
@@ -177,7 +179,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             intensity=21,
             particle_type=uranium_29,
         )
-        cavity = SingleHarmonicRfStation()
+        cavity = SingleHarmonicRFStation()
         cavity.harmonic = 1
         cavity.voltage = 0
         cavity.phi_rf = 0
@@ -246,12 +248,13 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
     def setUp(self):
         self.inductive_impedance_solver = InductiveImpedanceSolver()
         beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
         beam.intensity = 1e12
         beam.n_macroparticles_partial.return_value = 128
         beam.particle_type.charge = 1
         beam.ratio = 1
 
-        beam.reference_velocity = 123
+        beam.reference.velocity = 123
         self.inductive_impedance_solver._beam = beam
         self.inductive_impedance_solver._Z_over_n = 12
         _parent_wakefield = Mock(WakeField)
@@ -378,6 +381,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             # update is now forced, which should force the error
             self.periodic_freq_solver._update_impedance_sources(beam=beam)
 
+    @pytest.mark.backend_mutation
     def test_calc_induced_voltage_gpu(self):
         try:
             import cupy  # type: ignore
@@ -391,6 +395,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self._test_calc_induced_voltage(backend_class=Cupy64Bit)
         backend.change_backend(backend_org)
 
+    @pytest.mark.backend_mutation
     def test_calc_induced_voltage_cpu(self):
         from blond import backend
 
@@ -453,7 +458,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             intensity=21,
             particle_type=uranium_29,
         )
-        cavity = SingleHarmonicRfStation()
+        cavity = SingleHarmonicRFStation()
         cavity.harmonic = 1
         cavity.voltage = 0
         cavity.phi_rf = 0
@@ -1007,14 +1012,16 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
 
         self.beam = Mock(BeamBaseClass)
+        self.beam.reference = Mock(ReferenceCoordinates)
+
         self.beam.intensity = int(1e2)
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e2)
-        self.beam.reference_time = 0
+        self.beam.reference.time = 0
         self.beam.is_counter_rotating = False
 
     def test_info_string_with_RF_station(self):
-        shc = SingleHarmonicRfStation(
+        shc = SingleHarmonicRFStation(
             section_index=0,
             harmonic=1,
             voltage=1,
@@ -1526,7 +1533,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         tsteps = [0.5, 1.0, 1.6]
         local_res._maximum_storage_time = 1.5
         beam = deepcopy(self.beam)
-        beam.reference_time = tsteps[0]
+        beam.reference.time = tsteps[0]
         local_res._update_potential_sources(beam=beam)
 
         assert (
@@ -1550,7 +1557,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         # repeat another time, first array should be kicked out due to delay
         local_res._wake_function_vals_needs_update = True
-        beam.reference_time = tsteps[1]
+        beam.reference.time = tsteps[1]
         local_res._update_potential_sources(beam=beam)
         assert (
             len(local_res._wake_function_time)
@@ -1573,7 +1580,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         # kick out oldest profile
         local_res._wake_function_vals_needs_update = True
-        beam.reference_time = tsteps[2]
+        beam.reference.time = tsteps[2]
         local_res._update_potential_sources(beam=beam)
         assert (
             len(local_res._wake_function_time)
@@ -1621,7 +1628,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         local_res._parent_wakefield.profile.hist_x *= 2
         local_res._wake_function_vals_needs_update = True
-        beam.reference_time += 1
+        beam.reference.time += 1
         with self.assertRaises(
             AssertionError,
             msg="profile bin size needs to be constant: hist_step might be too small with casting to delta_t precision",
@@ -1643,7 +1650,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._maximum_storage_time = 1.5
         local_res._wake_function_vals_needs_update = True
         beam = deepcopy(self.beam)
-        beam.reference_time = 1
+        beam.reference.time = 1
         local_res._update_potential_sources(beam=beam)
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
@@ -1663,7 +1670,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._maximum_storage_time = 1.5
         local_res._wake_function_vals_needs_update = True
         beam = deepcopy(self.beam)
-        beam.reference_time = 1
+        beam.reference.time = 1
         local_res._update_potential_sources(beam=beam)
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
@@ -1703,7 +1710,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res_counterrot_corot = deepcopy(local_res_counterrot)
         local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
         beam.is_counter_rotating = False
-        beam.reference_time += np.finfo(float).eps
+        beam.reference.time += np.finfo(float).eps
         counterrot_corot_ind_volt = (
             local_res_counterrot_corot.calc_induced_voltage(beam)
         )
@@ -1717,6 +1724,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
         # should be inverted as all shunt impedances are inverted
 
+    @pytest.mark.backend_mutation
     def test_calc_induced_voltage_counter_rotation_opposite_charge(self):
         sim = Mock(Simulation)
 
@@ -1740,7 +1748,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res_counterrot_corot = deepcopy(local_res_counterrot)
         local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
         beam.is_counter_rotating = False
-        beam.reference_time += np.finfo(float).eps
+        beam.reference.time += np.finfo(float).eps
         beam.read_partial_dt.return_value = np.linspace(
             local_res_counterrot._parent_wakefield.profile.hist_x[0],
             local_res_counterrot._parent_wakefield.profile.hist_x[-1],
@@ -1825,7 +1833,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             simulation=sim, parent_wakefield=local_res._parent_wakefield
         )
         beam = deepcopy(self.beam)
-        beam.reference_time = 0
+        beam.reference.time = 0
         ind_volt_init = local_res.calc_induced_voltage(beam=beam)
 
         t_rf = 1 / resonators._center_frequencies[0]
@@ -1833,7 +1841,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             np.floor((1 / resonators._alpha[0]) / t_rf) * t_rf
         )  # multiple of t_r to ensure in-phase correctness
         beam = deepcopy(self.beam)
-        beam.reference_time = delay_time
+        beam.reference.time = delay_time
 
         ind_volt = local_res.calc_induced_voltage(beam=beam)
 
@@ -1855,7 +1863,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )  # multiple of t_r
 
         beam = deepcopy(self.beam)
-        beam.reference_time = delay_time
+        beam.reference.time = delay_time
         ind_volt = local_res.calc_induced_voltage(beam=beam)
 
         # ensure perfect addition of in-phase component
@@ -3069,7 +3077,7 @@ class TestHeadlessSolvers(unittest.TestCase):
 
 class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
     def test_update_wake_kernel_fails(self):
-        from blond.testing.mocks import beam_mock, static_profile_mock
+        from blond.testing.mocks import beam_mock
 
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
@@ -3109,7 +3117,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
     def test_calc_induced_voltage_assert_profile_length_correct(self):
         t_rf = 7.706144104735e-10
         Q_factor = 1.76e6
-        from blond.testing.mocks import beam_mock, static_profile_mock
+        from blond.testing.mocks import beam_mock
 
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
@@ -3138,7 +3146,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
     def test_calc_induced_voltage_assert_warns_profile(self):
         t_rf = 7.706144104735e-10
         Q_factor = 1.76e6
-        from blond.testing.mocks import beam_mock, static_profile_mock
+        from blond.testing.mocks import beam_mock
 
         prof = DynamicProfileConstNBins(n_bins=128)
         prof.cut_left = -1e-9
@@ -3167,7 +3175,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
     def test_calc_induced_voltage_single_turn(self):
         t_rf = 7.706144104735e-10
         Q_factor = 1.76e6
-        from blond.testing.mocks import beam_mock, static_profile_mock
+        from blond.testing.mocks import beam_mock
 
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
@@ -3237,7 +3245,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             ),
         )
 
-        from blond.testing.mocks import beam_mock, static_profile_mock
+        from blond.testing.mocks import beam_mock
 
         prof_single = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 

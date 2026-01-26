@@ -16,8 +16,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
-
 from blond.core.base import BeamObservationElement
 from blond.core.beam.base import BeamBaseClass
 from blond.core.simulation.simulation import Simulation
@@ -131,8 +129,8 @@ class BeamObservationInRingElement(
         """
         self._dEs.write(beam.read_partial_dE())
         self._dts.write(beam.read_partial_dt())
-        self._reference_time.write(beam.reference_time)
-        self._reference_total_energy.write(beam.reference_total_energy)
+        self._reference_time.write(beam.reference.time)
+        self._reference_total_energy.write(beam.reference.total_energy)
         self._flags.write(beam.read_partial_flags())
 
     @property  # as readonly attributes
@@ -315,15 +313,12 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             Beam class to interact with this element.
         """
         if self._beam_id_filter is None or self._beam_id_filter == id(beam):
-            self._sigma_dt.write(np.std(beam._dt))
-            self._sigma_dE.write(np.std(beam._dE))
-            self._mean_dt.write(np.mean(beam._dt))
-            self._mean_dE.write(np.mean(beam._dE))
-            self._rms_emittance.write(
-                np.sqrt(
-                    np.average(beam._dE**2) * np.average(beam._dt**2)
-                    - np.average(beam._dE * beam._dt) ** 2
-                )
+            self._sigma_dt.write(beam._dt.std())
+            self._sigma_dE.write(beam._dE.std())
+            self._mean_dt.write(beam._dt.mean())
+            self._mean_dE.write(beam._dE.mean())
+            self._rms_emittance.write(  # attribute acess on cached property
+                beam.rms_emittance
             )
 
     @property  # as readonly attributes

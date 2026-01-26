@@ -36,7 +36,7 @@ from blond import (
     MagneticCyclePerTurn,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
     proton,
@@ -82,7 +82,7 @@ def main():
             value_init=sync_momentum,
             in_unit="momentum",
         )
-        rf_station = SingleHarmonicRfStation(
+        rf_station = SingleHarmonicRFStation(
             harmonic=4620,
             voltage=0.9e6,
             phi_rf=0.0,
@@ -127,7 +127,7 @@ def main():
             beam=beam,
         )
         bunch_observable = BeamObservationOncePerTurn(
-            each_turn_i=10, beam=beam
+            each_turn_i=10,
         )
         sim.run_simulation(
             observe=(bunch_observable,),

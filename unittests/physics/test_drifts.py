@@ -5,13 +5,17 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-from blond import Simulation
-from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond import Numpy32Bit, Simulation
+from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 
 
 class DriftBaseClassHelper(DriftBaseClass):
+    def track_reference(self, reference: ReferenceCoordinates, **kwargs):
+        pass
+
     def eta_0(self, gamma: float) -> backend.float:
         pass
 
@@ -42,10 +46,6 @@ class TestDriftBaseClass(unittest.TestCase):
 
 
 class TestDriftSimple(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        backend.change_backend(Numpy64Bit)
-
     def setUp(self):
         self.gamma = 2.5
         self.drift_simple = DriftSimple.headless(
@@ -80,13 +80,15 @@ class TestDriftSimple(unittest.TestCase):
         )
 
         beam = Mock(BeamBaseClass)
-        beam.reference_time = 0.0
-        beam.reference_gamma = 1.0
-        beam.reference_velocity = 0.5
-        beam.reference_beta = 0.1
-        beam.reference_total_energy = 1.0
-        beam.write_partial_dt.return_value = np.ones(10)
-        beam.read_partial_dE.return_value = np.zeros(10)
+        beam.reference = Mock()
+        beam.common_array_size = 1
+        beam.reference.time = 0.0
+        beam.reference.gamma = 1.0
+        beam.reference.velocity = 0.5
+        beam.reference.beta = 0.1
+        beam.reference.total_energy = 1.0
+        beam.write_partial_dt.return_value = np.ones(10, dtype=backend.float)
+        beam.read_partial_dE.return_value = np.zeros(10, dtype=backend.float)
         self.drift_simple.track(beam=beam)
 
     def test_error_throwing_on_unscheduled(self):
@@ -121,7 +123,7 @@ class TestDriftSimple(unittest.TestCase):
         rel_eta = self.drift_simple.alpha_0 - 1 / self.gamma**2
 
         np.testing.assert_array_equal(
-            self.drift_simple.eta_0(gamma=self.gamma), backend.float(rel_eta)
+            self.drift_simple.eta_0(gamma=self.gamma), (rel_eta)
         )
 
     def test_invalidate_cache(self):
@@ -136,11 +138,13 @@ class TestDriftSimple(unittest.TestCase):
 
     def test_track(self):
         beam = Mock(BeamBaseClass)
-        beam.reference_time = backend.float(0)
-        beam.reference_beta = backend.float(0.5)
-        beam.reference_velocity = backend.float(beam.reference_beta * c0)
-        beam.reference_gamma = backend.float(np.sqrt(1 - 0.25))  # beta**2
-        beam.reference_total_energy = backend.float(938)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.common_array_size = 1
+        beam.reference.time = float(0)
+        beam.reference.beta = float(0.5)
+        beam.reference.velocity = float(beam.reference.beta * c0)
+        beam.reference.gamma = float(np.sqrt(1 - 0.25))  # beta**2
+        beam.reference.total_energy = float(938)
         beam.dE = np.linspace(
             -1e6, 1e6, 10, dtype=backend.float
         )  # delta E in eV
@@ -154,28 +158,29 @@ class TestDriftSimple(unittest.TestCase):
         np.testing.assert_allclose(
             beam.dt,
             [
-                0.0002356301947884534,
-                0.0001832679292799082,
-                0.00013090566377136297,
-                7.854339826281781e-05,
-                2.61811327542726e-05,
-                -2.6181132754272573e-05,
-                -7.854339826281778e-05,
-                -0.00013090566377136297,
-                -0.0001832679292799082,
-                -0.0002356301947884534,
+                0.00023563017947381346,
+                0.0001832679173685216,
+                0.0001309056552632297,
+                7.854339315793783e-05,
+                2.6181131052645944e-05,
+                -2.6181131052645917e-05,
+                -7.85433931579378e-05,
+                -0.0001309056552632297,
+                -0.0001832679173685216,
+                -0.00023563017947381346,
             ],
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
         np.testing.assert_allclose(
             beam.dE,
             np.linspace(-1e6, 1e6, 10),
         )
         self.assertEqual(
-            beam.reference_beta,
+            beam.reference.beta,
             0.5,  # unchanged
         )
         self.assertEqual(
-            beam.reference_time,
+            beam.reference.time,
             self.drift_simple.orbit_length
             / (0.5 * c0),  # drifted by length of drift
         )
@@ -214,10 +219,6 @@ class TestDriftSimple(unittest.TestCase):
                 momentum_compaction_factor=2.5,
                 transition_gamma=2.5j,
             )
-
-    @classmethod
-    def tearDownClass(cls):
-        backend.change_backend(Numpy32Bit)
 
 
 class TestDriftSpecial(unittest.TestCase):

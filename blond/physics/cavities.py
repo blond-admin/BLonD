@@ -19,7 +19,13 @@ import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.base import (
+    AltersReference,
+    BeamPhysicsRelevant,
+    DynamicParameter,
+    Schedulable,
+)
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.feedbacks.beam_feedback import (
     Blond2BeamFeedback,
 )
@@ -33,19 +39,19 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
-    from blond.experimental.physics.feedbacks.base import LocalFeedback
+    from blond.physics.feedbacks.base import LocalFeedback
     from blond.physics.impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
-class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     """
     Base class to implement beam-rf any interactions in synchrotrons.
 
     This class is intended to come with barely any feature to host all
-    beam-rf interactions, whereas `RfStationBaseClass` has already several
-    class methods to group `SingleHarmonicRfStation`, and `MultiHarmonicRfStation`.
+    beam-rf interactions, whereas `RFStationBaseClass` has already several
+    class methods to group `SingleHarmonicRFStation`, and `MultiHarmonicRFStation`.
 
     Parameters
     ----------
@@ -97,11 +103,13 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         if self.schedule_active:
             self.apply_schedules(
                 turn_i=self._turn_i.value,
-                reference_time=float(beam.reference_time),
+                reference_time=float(beam.reference.time),
             )
 
 
-class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
+class RFStationBaseClass(
+    RFManipulationBaseClass, AltersReference, Schedulable, ABC
+):
     """
     Base class to implement beam-rf interactions in synchrotrons.
 
@@ -134,7 +142,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
-        from blond.experimental.physics.feedbacks.base import LocalFeedback
+        from blond.physics.feedbacks.base import LocalFeedback
 
         # prevent cyclic import
 
@@ -344,11 +352,11 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             section_i=self.section_index
             if not beam.is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
-            reference_time=float(beam.reference_time),
+            reference_time=float(beam.reference.time),
             particle_type=beam.particle_type,
         )
         reference_energy_change = (
-            target_total_energy - beam.reference_total_energy
+            target_total_energy - beam.reference.total_energy
         )
 
         from blond.acc_math.analytic.hamilton import (
@@ -413,7 +421,9 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             self.delta_omega_rf = omega_increment
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
-        if np.any(self.delta_omega_rf != 0):
+        if np.any(
+            self.delta_omega_rf
+        ):  # equivalent to np.any(self.delta_omega_rf != 0)
             assert self.harmonic is not None
             assert self._omega_rf is not None
             assert self.delta_omega_rf is not None
@@ -458,6 +468,38 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
+
+    def track_reference(
+        self,
+        reference: ReferenceCoordinates,
+        is_counter_rotating: bool = False,
+    ) -> float:
+        """
+        Update the coordinates of the reference coordinate system.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+        is_counter_rotating
+            Whether the beam is counter rotating or not.
+
+        Returns
+        -------
+        reference_energy_change
+            Change of reference energy [eV].
+        """
+        target_total_energy = self._magnetic_cycle.get_target_total_energy(
+            turn_i=self._turn_i.value,
+            section_i=self.section_index
+            if not is_counter_rotating
+            else len(self._ring.section_lengths) - self.section_index - 1,
+            reference_time=reference.time,
+            particle_type=reference.particle_type,
+        )
+        reference_energy_change = target_total_energy - reference.total_energy
+        reference.total_energy = target_total_energy
+        return reference_energy_change
 
     @abstractmethod  # pragma: no cover
     def voltage_waveform_tmp(self, ts: NumpyArray):
@@ -521,9 +563,18 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         return content
 
 
-class SingleHarmonicRfStation(RfStationBaseClass):
-    """
+class SingleHarmonicRFStation(RFStationBaseClass):
+    r"""
     RF station with only one RF wave for beam interaction.
+
+    The energy change is calculated as:
+
+    .. math::
+        dE = \left( n_\text{charge} \cdot V \cdot
+        \sin\left(\omega_{\text{rf}} \cdot dt + \phi_{\text{rf}}
+        \right) \right) + \Delta E_\text{reference}
+
+    where :math:`\Delta E_\text{reference}` is the change of reference energy.
 
     Parameters
     ----------
@@ -558,8 +609,10 @@ class SingleHarmonicRfStation(RfStationBaseClass):
     Examples
     --------
     Parameters can be scheduled along the simulation execution
-    >>> from blond import SingleHarmonicRfStation
-    >>> rf_station = SingleHarmonicRfStation(...)
+
+    >>> import numpy as np
+    >>> from blond import SingleHarmonicRFStation
+    >>> rf_station = SingleHarmonicRFStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
     """
 
@@ -722,7 +775,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
         self._omega_rf = self.calc_omega(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=self._ring.circumference,
         )
         """
@@ -744,27 +797,20 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             Beam class to interact with this element.
         """
         super().track(beam=beam)
-        target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
-            section_i=self.section_index
-            if not beam.is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
-            reference_time=beam.reference_time,
-            particle_type=beam.particle_type,
+        reference = beam.reference
+        reference_energy_change = self.track_reference(
+            reference, beam.is_counter_rotating
         )
-        reference_energy_change = (
-            target_total_energy - beam.reference_total_energy
-        )
-        backend.specials.kick_single_harmonic(
-            dt=beam.read_partial_dt(),
-            dE=beam.write_partial_dE(),
-            voltage=self.voltage,
-            phi_rf=self.phi_rf + self.delta_phi_rf,
-            omega_rf=self._omega_rf + self.delta_omega_rf,
-            charge=beam.particle_type.charge,  #  FIXME
-            acceleration_kick=-reference_energy_change,  # Mind the minus!
-        )
-        beam.reference_total_energy += reference_energy_change
+        if beam.common_array_size > 0:
+            backend.specials.kick_single_harmonic(
+                dt=beam.read_partial_dt(),
+                dE=beam.write_partial_dE(),
+                voltage=self.voltage,
+                phi_rf=self.phi_rf + self.delta_phi_rf,
+                omega_rf=self._omega_rf + self.delta_omega_rf,
+                charge=beam.particle_type.charge,  #  FIXME
+                acceleration_kick=-reference_energy_change,  # Mind the minus!
+            )
 
     def calc_omega(
         self,
@@ -824,7 +870,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         total_energy: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
-    ) -> SingleHarmonicRfStation:
+    ) -> SingleHarmonicRFStation:
         """
         Initialize object without simulation context.
 
@@ -857,7 +903,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         from blond.core.simulation.simulation import Simulation
         from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
-        single_harmonic_rf_station = SingleHarmonicRfStation(
+        single_harmonic_rf_station = SingleHarmonicRFStation(
             section_index=section_index,
             local_wakefield=local_wakefield,
             cavity_feedback=cavity_feedback,
@@ -888,9 +934,18 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         return single_harmonic_rf_station
 
 
-class MultiHarmonicRfStation(RfStationBaseClass):
+class MultiHarmonicRFStation(RFStationBaseClass):
     r"""
     RF station with several RF wave for beam interaction.
+
+    The energy change is calculated as:
+
+    .. math::
+        dE = \sum_{j} \left( n_\text{charge} \cdot V[j] \cdot
+        \sin\left(\omega_{\text{rf}}[j] \cdot dt + \phi_{\text{rf}}[
+        j]\right) \right) + \Delta E_\text{reference}
+
+    where :math:`\Delta E_\text{reference}` is the change of reference energy.
 
     Parameters
     ----------
@@ -925,20 +980,12 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     harmonic
         RF station's design harmonics (per harmonic) [].
 
-    Notes
-    -----
-    The energy change is calculated as:
-
-    .. math::
-        dE = \sum_{j} \left( \text{charge} \cdot \text{voltage}[j] \cdot \sin\left(\omega_{\text{rf}}[j] \cdot dt + \phi_{\text{rf}}[j]\right) \right) + \text{acceleration\_kick}
-
-    where `acceleration_kick` is the change of reference energy.
-
     Examples
     --------
     Parameters can be scheduled along the simulation execution
-    >>> from blond import MultiHarmonicRfStation
-    >>> rf_station = MultiHarmonicRfStation(...)
+
+    >>> from blond import MultiHarmonicRFStation
+    >>> rf_station = MultiHarmonicRFStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
     """
 
@@ -1024,7 +1071,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
         self._omega_rf = self.calc_omega(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=self._ring.circumference,
         )
 
@@ -1204,7 +1251,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
-    ) -> MultiHarmonicRfStation:
+    ) -> MultiHarmonicRFStation:
         """
         Initialize object without simulation context.
 
@@ -1244,7 +1291,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         from blond.core.simulation.simulation import Simulation
         from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
-        multi_harmonic_rf_station = MultiHarmonicRfStation(
+        multi_harmonic_rf_station = MultiHarmonicRFStation(
             harmonic=np.array(harmonic, dtype=backend.float),
             voltage=np.array(voltage, dtype=backend.float),
             phi_rf=np.array(phi_rf, dtype=backend.float),
@@ -1275,7 +1322,8 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             main_harmonic_idx=main_harmonic_idx,
         )
         beam = Mock(BeamBaseClass)
-        beam.reference_beta = reference_beta
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.beta = reference_beta
         multi_harmonic_rf_station._update_beam_based_attributes(beam)
         return multi_harmonic_rf_station
 
@@ -1289,28 +1337,20 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             Beam class to interact with this element.
         """
         super().track(beam=beam)
-        target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
-            section_i=self.section_index
-            if not beam.is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
-            reference_time=beam.reference_time,
-            particle_type=beam.particle_type,
+        reference = beam.reference
+        reference_energy_change = self.track_reference(
+            reference, beam.is_counter_rotating
         )
-        reference_energy_change = (
-            target_total_energy - beam.reference_total_energy
-        )
-
-        backend.specials.kick_multi_harmonic(
-            dt=beam.read_partial_dt(),
-            dE=beam.write_partial_dE(),
-            voltage=self.voltage.astype(backend.float),
-            phi_rf=(self.phi_rf + self.delta_phi_rf).astype(backend.float),
-            omega_rf=(self._omega_rf + self.delta_omega_rf).astype(
-                backend.float
-            ),
-            charge=beam.particle_type.charge,
-            n_rf=self.n_rf,
-            acceleration_kick=-reference_energy_change,  # Mind the minus!
-        )
-        beam.reference_total_energy += reference_energy_change
+        if beam.common_array_size > 0:
+            backend.specials.kick_multi_harmonic(
+                dt=beam.read_partial_dt(),
+                dE=beam.write_partial_dE(),
+                voltage=self.voltage.astype(backend.float),
+                phi_rf=(self.phi_rf + self.delta_phi_rf).astype(backend.float),
+                omega_rf=(self._omega_rf + self.delta_omega_rf).astype(
+                    backend.float
+                ),
+                charge=beam.particle_type.charge,
+                n_rf=self.n_rf,
+                acceleration_kick=-reference_energy_change,  # Mind the minus!
+            )

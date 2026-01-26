@@ -94,10 +94,14 @@ def _compile_rf_noise_library(rf_noise_dir: pathlib.Path):
         f"-I{rf_noise_src} "
         f"-lboost_system"
     )
-    process = subprocess.Popen(
-        make_command.strip().split(" "),
-    )
-    process.communicate()
+    raise NotImplementedError("Fix the lines below")
+    # FIXME
+    # Improper neutralization of special elements used in an OS Command ('OS Command Injection')
+
+    # process = subprocess.Popen(
+    #   make_command.strip().split(" "),
+    #)
+    # process.communicate()
     if process.returncode != 0:
         try:
             os.remove(_target_library)

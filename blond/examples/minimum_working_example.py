@@ -17,7 +17,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     proton,
 )
 
@@ -27,7 +27,7 @@ n_macroparticles = 1e6
 
 def main():
     ring = Ring(26658.883)  # general definition of ring
-    rf_station_1 = SingleHarmonicRfStation(
+    rf_station_1 = SingleHarmonicRFStation(
         harmonic=35640, voltage=6e6, phi_rf=0
     )
     drift1 = DriftSimple(orbit_length=26658.883, transition_gamma=55.759505)

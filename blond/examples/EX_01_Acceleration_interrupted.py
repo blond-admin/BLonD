@@ -24,10 +24,10 @@ from blond import (
     BeamObservationOncePerTurn,
     BiGaussian,
     DriftSimple,
-    RfStationPhaseObservation,
+    RFStationPhaseObservation,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -41,7 +41,7 @@ logging.basicConfig(level=logging.INFO)
 def main():
     ring = Ring(26658.883)
 
-    rf_station = SingleHarmonicRfStation()
+    rf_station = SingleHarmonicRFStation()
     rf_station.harmonic = 35640
     rf_station.voltage = 6e6
     rf_station.phi_rf = 0
@@ -93,11 +93,11 @@ def main():
             ),
         )
 
-    phase_observation = RfStationPhaseObservation(
+    phase_observation = RFStationPhaseObservation(
         each_turn_i=1,
         rf_station=rf_station,
     )
-    bunch_observation = BeamObservationOncePerTurn(each_turn_i=1, beam=beam1)
+    bunch_observation = BeamObservationOncePerTurn(each_turn_i=1)
 
     def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:

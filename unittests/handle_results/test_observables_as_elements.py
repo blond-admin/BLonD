@@ -6,6 +6,7 @@ import numpy as np
 from blond import Simulation
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
@@ -21,9 +22,10 @@ simulation.turn_i = DynamicParameter(None)
 simulation.turn_i.value = 0
 
 beam = Mock(BeamBaseClass)
+beam.reference = Mock(ReferenceCoordinates)
 beam.common_array_size = 4
-beam.reference_time = 0.8
-beam.reference_total_energy = 11.0
+beam.reference.time = 0.8
+beam.reference.total_energy = 11.0
 beam.read_partial_dE.return_value = np.arange(4, dtype=float)
 beam.read_partial_dt.return_value = np.arange(4, dtype=float) + 0.1
 beam.read_partial_flags.return_value = np.ones(4, dtype=int)
@@ -83,13 +85,13 @@ class TestBeamObservationInRingElement(unittest.TestCase):
 
         np.testing.assert_array_equal(
             self.observation.reference_time,
-            np.full(3, beam.reference_time),
+            np.full(3, beam.reference.time),
             err_msg="Reference time not recorded correctly",
         )
 
         np.testing.assert_array_equal(
             self.observation.reference_total_energy,
-            np.full(3, beam.reference_total_energy),
+            np.full(3, beam.reference.total_energy),
             err_msg="Reference total energy not recorded correctly",
         )
 

@@ -2,6 +2,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 from scipy.constants import c, e, m_p
 
 from blond import (
@@ -10,7 +11,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
     proton,
@@ -36,6 +37,7 @@ class TestInductiveImpedances(unittest.TestCase):
 
         backend.change_backend(Numpy32Bit)
 
+    @pytest.mark.backend_mutation
     def test_equal(self):
         voltages = {}
         solver1 = PeriodicFreqSolver(
@@ -54,7 +56,7 @@ class TestInductiveImpedances(unittest.TestCase):
                 orbit_length=ring.circumference,
             )
             drift.transition_gamma = 4.4
-            cavity = SingleHarmonicRfStation()
+            cavity = SingleHarmonicRFStation()
             cavity.harmonic = 1
             cavity.voltage = 8e3
             cavity.phi_rf = np.pi

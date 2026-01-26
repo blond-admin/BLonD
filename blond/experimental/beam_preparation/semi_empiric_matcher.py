@@ -37,6 +37,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def hamilton_to_density_by_max(
+    time_grid: NumpyArray | CupyArray,
+    deltaE_grid: NumpyArray | CupyArray,
     hamilton_2D: NumpyArray | CupyArray,
     density_modifier: float,
     hamilton_max: float,
@@ -56,15 +58,17 @@ def hamilton_to_density_by_max(
 
     Parameters
     ----------
-    hamilton_2D : NumpyArray or CupyArray
+    deltaE_grid
+        The time coordinates corresponding to `hamilton_2D`, in [eV].
+    time_grid
+        The time coordinates corresponding to `hamilton_2D`, in [s].
+    hamilton_2D
         A 2D array representing the spatial Hamilton field.
-
-    density_modifier : float
+    density_modifier
         Exponent applied to the normalized and inverted Hamilton values
         to shape the final density distribution.
         Higher values exaggerate differences in density.
-
-    hamilton_max : float
+    hamilton_max
         The maximum reference value for normalizing the Hamilton.
         Values above this threshold are truncated.
 
@@ -74,6 +78,35 @@ def hamilton_to_density_by_max(
         A 2D array of the same shape as `hamilton_2D`, representing the
         computed density distribution. Values are scaled between 0 and 1.
 
+    Examples
+    --------
+    Defining a custom function to convert between hamilton and particle
+    density.
+    >>> import numpy as np
+    >>>
+    >>> def custom_density_function(
+    ...         time_grid, deltaE_grid, hamilton_2D, # required arguments
+    ...         custom_param, hamilton_max # your custom arguments
+    ...    ):
+    ...    '''Example custom density mapping with exponential falloff.'''
+    ...    normalized_H = hamilton_2D / hamilton_max
+    ...    normalized_H[normalized_H > 1] = 1
+    ...    density = np.exp(-custom_param * normalized_H)
+    ...    return density / density.max()  # Normalize to [0, 1]
+    >>>
+    >>> matcher = SemiEmpiricMatcher(
+    ...    time_limit=(-2e-9, 2e-9),
+    ...    n_macroparticles=100_000,
+    ...    hamilton_to_density_function=custom_density_function,
+    ...    hamilton_to_density_kwargs=dict(
+    ...        custom_param=5.0,
+    ...        hamilton_max=1.0
+    ...    ),
+    ...    internal_grid_shape=(1023, 1023),
+    ...    tolerance=1e-6,
+    ...    verbose=True,
+    ... )
+    >>> matcher.prepare_beam(...)
 
     """
     _density = hamilton_2D.copy()  # So the changes stay in this scope
@@ -209,6 +242,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
           Exponent that shapes the density distribution according to :math:`H^{\text{density_modifier}}`.
         - ``hamilton_max`` : float
           Maximum value of the Hamiltonian, in arbitrary units.
+          Tip: Set `animate=True` to see the internal state of the Hamilton values.
     hamilton_to_density_function : callable
         Function that converts the 2D Hamiltonian array into a density function.
         See also :func:`hamilton_to_density_by_max`.
@@ -355,8 +389,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 simulation.intensity_effect_manager.set_profiles(active=True)
 
                 # this might get changed by the simulation
-                beam_reference_time = beam.reference_time
-                beam_reference_total_energy = beam.reference_total_energy
+                beam_reference_time = beam.reference.time
+                beam_reference_total_energy = beam.reference.total_energy
 
                 simulation.run_simulation(
                     beams=(beam,),
@@ -364,8 +398,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     show_progressbar=False,
                 )
                 # reset to original value before simulation
-                beam.reference_time = beam_reference_time
-                beam.reference_total_energy = beam_reference_total_energy
+                beam.reference.time = beam_reference_time
+                beam.reference.total_energy = beam_reference_total_energy
 
                 # Prevent the profiles from updating.
                 simulation.intensity_effect_manager.set_profiles(active=False)
@@ -460,15 +494,18 @@ class SemiEmpiricMatcher(MatchingRoutine):
         deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
             ts=ts,
             potential_well=avg_pot_well,
-            reference_total_energy=beam.reference_total_energy,
-            beta=beam.reference_beta,
+            reference_total_energy=beam.reference.total_energy,
+            beta=beam.reference.beta,
             eta=float(
-                simulation.ring.calc_average_eta_0(beam.reference_gamma)
+                simulation.ring.calc_average_eta_0(beam.reference.gamma)
             ),
             shape=self.internal_grid_shape,
         )
         density = self.hamilton_to_density_function(
-            hamilton_2D=hamilton_2D, **self.hamilton_to_density_kwargs
+            time_grid=time_grid,
+            deltaE_grid=deltaE_grid,
+            hamilton_2D=hamilton_2D,
+            **self.hamilton_to_density_kwargs,
         )  # type: ignore
 
         populate_beam(

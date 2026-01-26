@@ -6,7 +6,7 @@ from blond import (
     Beam,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicRfStation,
+    MultiHarmonicRFStation,
     Ring,
     Simulation,
     StaticProfile,
@@ -40,7 +40,7 @@ class TestLHCOpenDrive(unittest.TestCase):
             circumference=C,
         )
         # self.rf = RFStation(ring, [h], [V], [dphi])
-        rf = MultiHarmonicRfStation(
+        rf = MultiHarmonicRFStation(
             harmonic=np.array([h], dtype=backend.float),
             voltage=np.array([V], dtype=backend.float),
             phi_rf=np.array([dphi], dtype=backend.float),
@@ -70,7 +70,7 @@ class TestLHCOpenDrive(unittest.TestCase):
                 in_unit="momentum",
             ),
         )
-        beam.reference_total_energy = sim.magnetic_cycle.get_total_energy_init(
+        beam.reference.total_energy = sim.magnetic_cycle.get_total_energy_init(
             beam.particle_type
         )
         # Test in open loop, on tune
@@ -78,7 +78,7 @@ class TestLHCOpenDrive(unittest.TestCase):
             open_drive=True,
         )
         omega = self.rf.calc_omega(
-            beam_beta=beam.reference_beta,
+            beam_beta=beam.reference.beta,
             ring_circumference=ring.circumference,
         )
         rf._omega_rf = omega  # TODO FIXME REMOVE

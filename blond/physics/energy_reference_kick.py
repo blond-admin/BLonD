@@ -22,7 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class ReferenceEnergyChange(BeamPhysicsRelevant):
     """
-    Update beam's `reference_total_energy` and `dE` array, but constant in absolute terms.
+    Update beam's `reference.total_energy` and `dE` array, but constant in absolute terms.
 
     Can be used in simulations where RF ramping is asynchronous with respect to the
     beam's energy.
@@ -47,8 +47,8 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
 
     Examples
     --------
-        >>> elem = ReferenceEnergyChange(section_index=1, name="energy_reference_kick")
-        >>> # Add to element map before simulation
+    >>> elem = ReferenceEnergyChange(section_index=1, name="energy_reference_kick")
+    >>> # Add to element map before simulation
     """
 
     def __init__(
@@ -122,13 +122,13 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
             section_i=self.section_index,
-            reference_time=beam.reference_time,
+            reference_time=beam.reference.time,
             particle_type=beam.particle_type,
         )
 
         reference_energy_change = backend.float(
-            target_total_energy - beam.reference_total_energy
+            target_total_energy - beam.reference.total_energy
         )
         dE = beam.write_partial_dE()
         dE -= reference_energy_change
-        beam.reference_total_energy += reference_energy_change
+        beam.reference.total_energy += reference_energy_change

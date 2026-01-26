@@ -325,5 +325,5 @@ def setup(app):
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = get_intersphinx_mapping(
-    packages=["python", "numpy", "sklearn"]
+    packages=["python", "numpy", "scipy", "sklearn"]
 )

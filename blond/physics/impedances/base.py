@@ -370,11 +370,26 @@ class WakeField(ImpedanceBaseClass):
     solver
         Solver to calculate the induced voltage from the sources.
 
+    See Also
+    --------
+    blond.physics.impedances.solvers.PeriodicFreqSolver : General solver for wakes in frequency domain.
+    blond.physics.impedances.solvers.TimeDomainFftSolver : General solver for wakes in timedomain.
+    blond.physics.impedances.solvers.ContinuousMultiTurnTimeDomainSolver : General solver for multi-turn wakes.
+    blond.physics.impedances.solvers.InductiveImpedanceSolver : Specialized solver for inductive impedance.
+    blond.physics.impedances.solvers.SingleTurnResonatorConvolutionSolver : Specialized solver for `Resonators`.
+    blond.physics.impedances.solvers.MultiPassResonatorSolver : Special solver for multi-turn wakes with resonators.
+
     Examples
     --------
-    >>> wakefield2 = WakeField(
-    ...     sources=(InductiveImpedance(34.6669349520904 / 10e9),),
-    ...     solver=InductiveImpedanceSolver(),
+    >>> from blond import StaticProfile, WakeField
+    >>> from blond.physics.impedances.solvers import TimeDomainFftSolver
+    >>> from blond.physics.impedances.sources import Resonators
+    >>>
+    >>> profile = StaticProfile(...)
+    >>> induced_voltage = WakeField(
+    ...     sources=(Resonators(...),),
+    ...     solver=TimeDomainFftSolver(),
+    ...     profile=profile,
     ... )
     """
 

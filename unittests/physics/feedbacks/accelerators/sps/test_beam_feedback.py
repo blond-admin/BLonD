@@ -14,8 +14,8 @@ from blond import (
     BeamObservationOncePerTurn,
     BiGaussian,
     ConstantMagneticCycle,
-    MultiHarmonicRfStation,
-    RfStationPhaseObservation,
+    MultiHarmonicRFStation,
+    RFStationPhaseObservation,
     Ring,
     Simulation,
     StaticProfile,
@@ -149,7 +149,7 @@ class TestBeamFeedback(unittest.TestCase):
             profile=self.profile,
             PL_gain=1000,  # gain of phase loop
         )
-        self.cavity = MultiHarmonicRfStation(
+        self.cavity = MultiHarmonicRFStation(
             harmonic=np.array([4620.0]),
             voltage=np.array([4.5e6]),
             phi_rf=np.array([0.0]),
@@ -202,8 +202,8 @@ class TestBeamFeedback(unittest.TestCase):
     # activate again when the feedbacks are working
     @unittest.skip("too slow and beam feedback is anyway not working for now")
     def test_setup(self):
-        obs_bunch = BeamObservationOncePerTurn(each_turn_i=1, beam=self.beam)
-        cav_obs = RfStationPhaseObservation(
+        obs_bunch = BeamObservationOncePerTurn(each_turn_i=1)
+        cav_obs = RFStationPhaseObservation(
             each_turn_i=1,
             rf_station=self.cavity,
         )

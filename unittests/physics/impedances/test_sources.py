@@ -8,7 +8,9 @@ from scipy.constants import pi
 from scipy.constants import speed_of_light as c0
 from scipy.signal import find_peaks
 
+from blond import backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.simulation.simulation import Simulation
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.readers import (
@@ -156,7 +158,9 @@ class TestInductiveImpedance(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.ring.circumference = 27e3
         beam = Mock(BeamBaseClass)
-        beam.reference_velocity = 0.8 / c0
+        beam.reference = Mock(ReferenceCoordinates)
+
+        beam.reference.velocity = 0.8 / c0
         freq_x = np.linspace(0, 1e9, 30)
         freq_y = self.inductive_impedance.get_impedance(
             freq_x=freq_x,
@@ -213,7 +217,9 @@ class TestInductiveImpedance(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.ring.circumference = 27e3
         beam = Mock(BeamBaseClass)
-        beam.reference_velocity = 0.8 / c0
+        beam.reference = Mock(ReferenceCoordinates)
+
+        beam.reference.velocity = 0.8 / c0
 
         hash_before = self.inductive_impedance._cache_wake_impedance_hash
         _ = self.inductive_impedance.get_wake_impedance(
@@ -634,8 +640,17 @@ class TestResonators(unittest.TestCase):
                 "resources/get_wake_impedance_pinning.npz", stacklevel=1
             )
         )
-        np.testing.assert_allclose(wake_imp, pinned_result["wake_imp"])
-        np.testing.assert_allclose(wake_freq, pinned_result["wake_freq"])
+
+        np.testing.assert_allclose(
+            wake_imp,
+            pinned_result["wake_imp"],
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+        )
+        np.testing.assert_allclose(
+            wake_freq,
+            pinned_result["wake_freq"],
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+        )
         DEV_DEBUG = False
         if DEV_DEBUG:
             plt.plot(wake_freq, np.abs(wake_imp))
@@ -695,7 +710,9 @@ class TestTravelingWaveCavity(unittest.TestCase):
         SAVE_PINNED = False
         if SAVE_PINNED:
             np.savetxt(
-                "resources/wake_impedance.csv",
+                callers_relative_path(
+                    "resources/wake_impedance.csv", stacklevel=1
+                ),
                 np.column_stack((wake_impedance.real, wake_impedance.imag)),
             )
         wake_impedance_pinned = np.loadtxt(
@@ -704,7 +721,11 @@ class TestTravelingWaveCavity(unittest.TestCase):
         wake_impedance_pinned = (
             wake_impedance_pinned[:, 0] + 1j * wake_impedance_pinned[:, 1]
         )
-        np.testing.assert_allclose(wake_impedance, wake_impedance_pinned)
+        np.testing.assert_allclose(
+            wake_impedance,
+            wake_impedance_pinned,
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+        )
 
     def test_get_impedance(self):
         impedance = self.twc.get_impedance(
@@ -717,11 +738,15 @@ class TestTravelingWaveCavity(unittest.TestCase):
         SAVE_PINNED = False
         if SAVE_PINNED:
             np.savetxt(
-                "resources/impedance.csv",
+                callers_relative_path("resources/impedance.csv", stacklevel=1),
                 np.column_stack((impedance.real, impedance.imag)),
             )
         impedance_pinned = np.loadtxt(
             callers_relative_path("resources/impedance.csv", stacklevel=1)
         )
         impedance_pinned = impedance_pinned[:, 0] + 1j * impedance_pinned[:, 1]
-        np.testing.assert_allclose(impedance, impedance_pinned)
+        np.testing.assert_allclose(
+            impedance,
+            impedance_pinned,
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+        )

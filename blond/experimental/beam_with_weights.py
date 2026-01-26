@@ -8,12 +8,18 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 from cupy.typing import NDArray as CupyArray
 from numpy._typing import NDArray as NumpyArray
 
 from blond import Beam
 from blond.core.beam.particle_types import ParticleType
+from blond.generals.distributed.distributed_array import DistributedArray
+
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import Literal
 
 
 class WeightenedBeam(Beam):
@@ -24,16 +30,17 @@ class WeightenedBeam(Beam):
     ) -> None:
         raise NotImplementedError  # todo
         super().__init__(intensity, particle_type)
-        self._weights: NumpyArray | None = None
+        self._weights: DistributedArray | None = None
 
     def setup_beam(
         self,
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         flags: NumpyArray | CupyArray | None = None,
-        weights: NumpyArray | CupyArray = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
+        mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        weights: NumpyArray | CupyArray = None,
     ) -> None:
         """
         Sets beam array attributes for simulation
@@ -50,11 +57,34 @@ class WeightenedBeam(Beam):
             Time of the reference frame (global time), in [s]
         reference_total_energy
             Time of the reference frame (global total energy), in [eV]
+        mpi_mode
+            Specifies how the particle data is distributed across multiple ranks (processing
+            units) in a parallel environment:
+
+            - "root-distributes": The root node (rank 0) holds the full array and splits it
+              into smaller chunks, which are then distributed to all ranks, including rank 0.
+              Each rank stores its own chunk of the data. This mode is useful when loading
+              large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
+              across ranks.
+
+            - "all-ranks": Each rank independently generates and stores a full copy of the data.
+              While this mode uses more memory, it can be simpler to implement in scenarios where
+              each rank needs to work with its own independent data (e.g., generating separate
+              random distributions with `np.random.randn()`).
+        weights
+            Weight per macro-particle
         """
         assert weights is not None
         assert len(dt) == len(weights)
         super().setup_beam(dt=dt, dE=dE, flags=flags)
-        self._weights = weights.astype(np.int32)
+        self._weights = DistributedArray(weights.astype(np.int32))
+
+        if mpi_mode == "root-distributes":
+            self._weights.mpi_scatter()
+        elif mpi_mode == "all-ranks":
+            pass
+        else:
+            raise NameError(f"Unknown {mpi_mode=}")
 
     @staticmethod
     def from_beam(beam: Beam):

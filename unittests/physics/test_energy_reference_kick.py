@@ -46,23 +46,25 @@ class TestEnergyReferenceKick(unittest.TestCase):
 
         self.energy_kick.schedule_active = False  # No schedules applied
 
-        original_ref_energy = copy(beam.reference_total_energy)
-        original_dE = np.copy(beam._dE)
+        original_ref_energy = copy(beam.reference.total_energy)
+        original_dE = np.copy(beam.read_partial_dE())
 
         self.energy_kick.track(beam)
 
         target_energy = self.simulation.magnetic_cycle.get_target_total_energy(
             turn_i=5,
             section_i=self.energy_kick.section_index,
-            reference_time=beam.reference_time,
+            reference_time=beam.reference.time,
             particle_type=beam.particle_type,
         )
         expected_change = target_energy - original_ref_energy
 
         self.assertEqual(
-            beam.reference_total_energy, original_ref_energy + expected_change
+            beam.reference.total_energy, original_ref_energy + expected_change
         )
-        np.testing.assert_allclose(beam._dE, original_dE - expected_change)
+        np.testing.assert_allclose(
+            beam.read_partial_dE(), original_dE - expected_change
+        )
 
 
 if __name__ == "__main__":
