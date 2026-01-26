@@ -133,6 +133,18 @@ class SynchrotronRadiationMaster(Schedulable):
         )
 
     @property
+    def synchrotron_radiation_integrals(self):
+        """
+        Synchrotron radiation integrals.
+
+        Returns
+        -------
+        synchrotron_radiation_integrals
+            Synchrotron radiation integrals.
+        """
+        return self._synchrotron_radiation_integrals
+
+    @property
     def energy_loss_per_turn(self) -> NumpyArray:
         """
         Energy loss per turn, eV per turn.
@@ -234,7 +246,7 @@ class SynchrotronRadiationMaster(Schedulable):
         ) = gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=beam.particle_type,
             energy=beam.reference.total_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals
+            synchrotron_radiation_integrals=self._synchrotron_radiation_integrals
             + synchrotron_radiation_shift_from_wigglers,
         )
         if self.verbose:
