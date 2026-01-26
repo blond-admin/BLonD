@@ -276,7 +276,6 @@ class BiGaussian(MatchingRoutine):
             Simulation :class:`~blond.core.beam.beam.Beam` object.
         """
         from blond.core.backends.backend import backend
-        from blond.physics.drifts import DriftSimple
 
         super().prepare_beam(
             simulation=simulation,

@@ -449,4 +449,3 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         """Delete the stored values of functions with @cached_property."""
         # super()._invalidate_cache(DriftSimple.cached_props)
         pass
-
