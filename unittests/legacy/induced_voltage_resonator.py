@@ -1,3 +1,4 @@
+import sys
 from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
@@ -65,7 +66,7 @@ def nonperiodic_wake(time_array, f0, R, Q):
 
 
 class InducdedVoltageResonator:
-    def __init__(self, new_impl: bool = True):
+    def __init__(self):
         self.n_slices = 2**12
         self.cut_left = 0
         self.cut_right = (
@@ -98,7 +99,7 @@ class InducdedVoltageResonator:
         self.sigma_bunch = 5e-10
         self.bunch_offset = 3e-9
 
-    def setUpB2(self):
+    def setUpB2(self, old_impl: bool = True):
         ring = Ring(
             self.n_section_lengths,
             self.alpha_p,
@@ -150,56 +151,54 @@ class InducdedVoltageResonator:
         self.hist_y = self.profile.n_macroparticles
         self.hist_step = self.profile.bin_size
 
-        self.resonator = Resonators(
+        resonator = Resonators(
             self.R_shunt,
             self.rf_station_list[0].omega_rf[0, 0] / 2 / np.pi,
             self.Q_factor,
         )  # low Q for fast decay in small machine, although phasing will dominate
 
-        self.ind_volt_res_1 = InducedVoltageResonator(
+        ind_volt_res_1 = InducedVoltageResonator(
             self.beam,
             self.profile,
-            self.resonator,
+            resonator,
             rf_station=self.rf_station_list[0],
             mtw_mode="time",
             time_decay_factor=1e-12,
             multi_turn_wake=True,
+            old_time_array_impl=old_impl,
         )  # never release
+        if not old_impl:
+            assert len(ind_volt_res_1.time_array) == self.n_turns
+            assert (
+                len(ind_volt_res_1.time_array[0])
+                == (self.n_turns + 1) * self.profile.n_slices
+            )
+            assert (
+                len(ind_volt_res_1.time_array[1])
+                == self.n_turns * self.profile.n_slices
+            )
+            assert (
+                len(ind_volt_res_1.time_array[-1]) == 2 * self.profile.n_slices
+            )  # only this and next turn
 
-        assert len(self.ind_volt_res_1.time_array) == self.n_turns
-        assert (
-            len(self.ind_volt_res_1.time_array[0])
-            == (self.n_turns + 1) * self.profile.n_slices
-        )
-        assert (
-            len(self.ind_volt_res_1.time_array[1])
-            == self.n_turns * self.profile.n_slices
-        )
-        assert (
-            len(self.ind_volt_res_1.time_array[-1])
-            == 2 * self.profile.n_slices
-        )  # only this and next turn
-
-        self.induced_voltage_time = InducedVoltageFreq(
-            self.beam,
-            self.profile,
-            [self.resonator],
-            multi_turn_wake=True,
-            rf_station=self.rf_station_list[0],
-            frequency_resolution=0.5 * ring.f_rev[0] / 10,
-        )
+        # self.induced_voltage_time = InducedVoltageFreq(
+        #     self.beam,
+        #     self.profile,
+        #     [self.resonator],
+        #     multi_turn_wake=True,
+        #     rf_station=self.rf_station_list[0],
+        #     frequency_resolution=0.5 * ring.f_rev[0] / 10,
+        # )
 
         # setup analytical solution
-        import sys
-
         t_start = sys.float_info.min
         t_end = np.sum(ring.t_rev)
         self.time_axis = np.linspace(t_start, t_end, num=int(5e6))
         wake_kernel = nonperiodic_wake(
             self.time_axis,
-            self.resonator.frequency_R[0],
-            self.resonator.R_S[0],
-            self.resonator.Q[0],
+            resonator.frequency_R[0],
+            resonator.R_S[0],
+            resonator.Q[0],
         )
         profiles = np.zeros_like(self.time_axis)
         profiles += gauss(self.time_axis, self.sigma_bunch, self.bunch_offset)
@@ -216,24 +215,12 @@ class InducdedVoltageResonator:
             self.time_axis[1] - self.time_axis[0]
         )
 
-        plt.clf()
         fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
-
         ax[0].plot(self.time_axis, profiles)
         ax[1].plot(
             self.time_axis, self.convolution_result[0 : len(self.time_axis)]
         )
         plt.show(block=False)
-
-        # self.ind_volt_res_2 = InducedVoltageResonator(
-        #     self.beam,
-        #     self.profile,
-        #     self.resonator,
-        #     rf_station=self.rf_station_list[1],
-        #     mtw_mode="time",
-        #     time_decay_factor=1e-12,
-        #     multi_turn_wake=True,
-        # )  # never release
 
         self.profile.n_macroparticles = gauss(
             self.profile.bin_centers, self.sigma_bunch, self.bunch_offset
@@ -241,18 +228,18 @@ class InducdedVoltageResonator:
         self.hist_y = self.profile.n_macroparticles
 
         tot_ind_volt = TotalInducedVoltage(
-            self.beam, self.profile, [self.ind_volt_res_1]
+            self.beam, self.profile, [ind_volt_res_1]
         )
         self.time_array_profile = []
         save_voltage_array = []
         for trn_ind in range(self.n_turns):
             tot_ind_volt.induced_voltage_sum()
-            self.ind_volt_res_1.rf_params.counter[0] += 1
+            ind_volt_res_1.rf_params.counter[0] += 1
             save_voltage_array.append(tot_ind_volt.induced_voltage)
             self.time_array_profile.append(
                 self.profile.bin_centers
                 + (
-                    np.sum(self.ind_volt_res_1.rf_params.t_rev[0:trn_ind])
+                    np.sum(ind_volt_res_1.rf_params.t_rev[0:trn_ind])
                     if trn_ind > 0
                     else 0
                 )
@@ -260,7 +247,7 @@ class InducdedVoltageResonator:
 
         self.dt = self.time_axis[1] - self.time_axis[0]
         plt.figure()
-        plt.title("blond3")
+        plt.title(f"blond2 old_impl = {old_impl}")
         plt.plot(
             self.time_axis,
             -self.convolution_result[0 : len(self.time_axis)]
@@ -386,6 +373,7 @@ class InducdedVoltageResonator:
 
 
 if __name__ == "__main__":
-    indi = InducdedVoltageResonator(new_impl=True)
-    indi.setUpB2()
+    indi = InducdedVoltageResonator()
+    indi.setUpB2(old_impl=False)
+    indi.setUpB2(old_impl=True)
     indi.setUpB3()
