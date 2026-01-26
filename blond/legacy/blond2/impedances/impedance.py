@@ -1122,6 +1122,7 @@ class InducedVoltageResonator(_InducedVoltage):
         use_regular_fft: bool = True,
         time_decay_factor: Optional[float] = 0.01,
         time_array: Optional[NDArray] = None,
+        old_time_array_impl: bool = False,
         time_array_mtw: Optional[NDArray] = None,
     ):
         # Test if one or more quality factors is smaller than 0.5.
@@ -1145,6 +1146,8 @@ class InducedVoltageResonator(_InducedVoltage):
                 "use_regular_fft is not supported and will be ignored by InducedVoltageResonator",
                 UserWarning,
             )
+
+        self.old_mtw_time_array_impl = old_time_array_impl
 
         # Copy of the Beam object in order to access the beam info.
         self.beam = beam
@@ -1178,46 +1181,46 @@ class InducedVoltageResonator(_InducedVoltage):
 
             self.time_array = np.array([])
 
-            # if time_array_mtw is None:
-            #     warnings.warn("No time_array_mtw given, if the simulation relies on low-beta beams or multi-stations, "
-            #                   "the mtw calculation will be incorrect.")
-            #     for turn_ind in range(self._n_turns_calculation):
-            #         self.time_array = np.append(
-            #             self.time_array,
-            #             rf_station.t_rev[turn_ind] * turn_ind
-            #             + np.linspace(
-            #                 profile.bin_centers[0],
-            #                 profile.bin_centers[-1]
-            #                 + 2
-            #                 * (
-            #                     profile.bin_centers[min_index]
-            #                     - profile.bin_centers[0]
-            #                 ),
-            #                 profile.n_slices + 2 * min_index,
-            #             ),
-            #         )
-            # else:
-            from scipy.constants import c
-            n_stations = len(rf_station.t_rev)
-            self.section_time_distance_array = np.zeros(rf_station.n_turns)
-            for trn in range(rf_station.n_turns):
-                for stat in range(n_stations):
-                    self.section_time_distance_array[trn] = 1 / (rf_station.beta[trn] * c) * rf_station.section_length
-            inter_turn_time = np.linspace(
-                        profile.bin_centers[0],
-                        profile.bin_centers[-1]
-                        + 2
-                        * (
-                            profile.bin_centers[min_index]
-                            - profile.bin_centers[0]
+            if self.old_mtw_time_array_impl:
+                warnings.warn("No time_array_mtw given, if the simulation relies on low-beta beams or multi-stations, "
+                              "the mtw calculation will be incorrect.")
+                for turn_ind in range(self._n_turns_calculation):
+                    self.time_array = np.append(
+                        self.time_array,
+                        rf_station.t_rev[turn_ind] * turn_ind
+                        + np.linspace(
+                            profile.bin_centers[0],
+                            profile.bin_centers[-1]
+                            + 2
+                            * (
+                                profile.bin_centers[min_index]
+                                - profile.bin_centers[0]
+                            ),
+                            profile.n_slices + 2 * min_index,
                         ),
-                        profile.n_slices + 2 * min_index,
                     )
+            else:
+                from scipy.constants import c
+                n_stations = len(rf_station.t_rev)
+                self.section_time_distance_array = np.zeros(rf_station.n_turns)
+                for trn in range(rf_station.n_turns):
+                    for stat in range(n_stations):
+                        self.section_time_distance_array[trn] = 1 / (rf_station.beta[trn] * c) * rf_station.section_length
+                inter_turn_time = np.linspace(
+                            profile.bin_centers[0],
+                            profile.bin_centers[-1]
+                            + 2
+                            * (
+                                profile.bin_centers[min_index]
+                                - profile.bin_centers[0]
+                            ),
+                            profile.n_slices + 2 * min_index,
+                        )
 
-            self.time_array = [None] * rf_station.n_turns
-            own_section_index = rf_station.section_index
-            for trn in range(rf_station.n_turns):
-                self.time_array[trn] = np.array([_ + inter_turn_time for _ in np.concatenate((np.array([0]), np.cumsum(self.section_time_distance_array[trn:trn + self._n_turns_calculation])))]).flatten()
+                self.time_array = [None] * rf_station.n_turns
+                own_section_index = rf_station.section_index
+                for trn in range(rf_station.n_turns):
+                    self.time_array[trn] = np.array([_ + inter_turn_time for _ in np.concatenate((np.array([0]), np.cumsum(self.section_time_distance_array[trn:trn + self._n_turns_calculation])))]).flatten()
 
             self.atLineDensityTimes = False
 
@@ -1233,7 +1236,7 @@ class InducedVoltageResonator(_InducedVoltage):
                 self.atLineDensityTimes = False
 
         self.array_length = len(self.profile.bin_centers)
-        self.n_time = len(self.time_array[0])
+        self.n_time = len(self.time_array) if self.old_mtw_time_array_impl else len(self.time_array[0])
         # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
         self.R = resonators.R_S
         # Copy of the resonant frequencies of the Resonators in 1/s
@@ -1272,8 +1275,10 @@ class InducedVoltageResonator(_InducedVoltage):
         self.induced_voltage = np.zeros(
             self.n_time, dtype=bm.precision.real_t, order="C"
         )
-
-        wake_length = len(self.time_array[0]) * self.profile.bin_size
+        if self.old_mtw_time_array_impl:
+            wake_length = len(self.time_array) * self.profile.bin_size
+        else:
+            wake_length = len(self.time_array[0]) * self.profile.bin_size
 
         # Call the __init__ method of the parent class [calls process()]
         super().__init__(
@@ -1316,7 +1321,7 @@ class InducedVoltageResonator(_InducedVoltage):
         interpolating the line density and applying the analytic equation
         to the result.
         """
-        time_array_used = self.time_array[self.rf_params.counter[0]]
+        time_array_used = self.time_array if self.old_mtw_time_array_impl else self.time_array[self.rf_params.counter[0]]
         self.n_time = len(time_array_used)
         self._tmp_matrix = np.ones(
             (self.n_resonators, self.n_time),
