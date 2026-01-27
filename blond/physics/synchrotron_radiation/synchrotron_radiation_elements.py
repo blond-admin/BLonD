@@ -474,7 +474,8 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
     def update_synchrotron_radiation_integrals(
         self,
-        beam: BeamBaseClass,
+        beam_reference_energy: float,
+        _calculation_only: bool = False,
     ) -> None:
         """
         Function to update the synchrotron radiation integrals.
@@ -486,18 +487,33 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
         Parameters
         ----------
-        beam
-            Beam class to interact with this element.
+        beam_reference_energy
+            Beam reference energy.
+        _calculation_only
+            If enabled, the calculated wiggler radiation integrals will be
+            outputed. The internal properties will not be updated. False by
+            default.
+
+        Returns
+        -------
+        wiggler_radiation_integrals
+            Wiggler contribution to the synchrotron radiation integrals if
+            _calculation_only is True.
         """
         energy_contribution_wiggler_integrals = self._calculate_energy_contribution_to_synchrotron_radiation_integrals(
-            reference_energy=beam.reference.total_energy
+            reference_energy=beam_reference_energy
         )
 
-        self._contribution_to_synchrotron_radiation_integrals_with_energy = np.multiply(
+        wiggler_radiation_integrals = np.multiply(
             self._contribution_to_synchrotron_radiation_integrals_without_energy,
             energy_contribution_wiggler_integrals,
         )
-        self._fractional_radiation_integrals = self._contribution_to_synchrotron_radiation_integrals_without_energy
+        if not _calculation_only:
+            self._contribution_to_synchrotron_radiation_integrals_with_energy = wiggler_radiation_integrals
+            self._fractional_radiation_integrals = self._contribution_to_synchrotron_radiation_integrals_with_energy
+            return None
+        else:
+            return wiggler_radiation_integrals
 
     def track(self, beam: BeamBaseClass) -> None:
         """
@@ -510,5 +526,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         """
         # The super updates the beam energy. Any calculation should be
         # conducted beforehand.
-        self.update_synchrotron_radiation_integrals(beam=beam)
+        self.update_synchrotron_radiation_integrals(
+            beam_reference_energy=beam.reference.total_energy
+        )
         super().track(beam=beam)
