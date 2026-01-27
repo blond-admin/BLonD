@@ -49,8 +49,6 @@ ASSIGNED_CATEGORIES = {
     "SynchrotronRadiationBaseClass": Categories.DYNAMICS.value,
     "SynchrotronRadiationMaster": Categories.DYNAMICS.value,
     "WigglerMagnet": Categories.DYNAMICS.value,
-    "_SynchrotronRadiationDrift": Categories.DYNAMICS.value,
-    "_SynchrotronRadiationSection": Categories.DYNAMICS.value,
     # Diagnostics
     "RFStationPhaseObservation": Categories.DIAGNOSTICS.value,
     "StaticProfileObservation": Categories.DIAGNOSTICS.value,
