@@ -73,15 +73,12 @@ class SynchrotronRadiationMaster(Schedulable):
     """
     Master class for enabling synchrotron radiation along the ring.
 
-    This class enables synchrotron radiation tracking of an input ring
-    On initialisation, it inserts SynchrotronRadiationBaseClass elements in
-    the ring either:
-     - before the drifts if track_before_element_type is None or
-     DriftBaseClass. In that case, _SynchrotronRadiationDrift trackers will
-     be inserted in the ring before each drift.
-     - after the RF cavities if track_before_element_type is
-     RFStationBaseClass. In that case, _SynchrotronRadiationSection trackers
-     will be inserted in the ring.
+    This class prepares a Ring object for synchrotron radiation tracking
+    with the method prepare_ring_for_synchrotron_radiation_tracking().
+    This method either sets the synchrotron radiation to use (either from
+    the ring, as input or computes the isomagnetic radiation integrals)
+    before generating and inserting the BeamPhysicsRelevant elements in the
+    ring.
 
     Parameters
     ----------
@@ -108,7 +105,7 @@ class SynchrotronRadiationMaster(Schedulable):
     >>>
     >>> SRM = SynchrotronRadiationMaster(
     >>> track_before_element_type=DriftBaseClass)
-    >>> SRM.generate_synchrotron_radiation_subclasses(ring=ring)
+    >>> SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring)
     """
 
     def __init__(
@@ -285,6 +282,9 @@ class SynchrotronRadiationMaster(Schedulable):
         """
         Set the radiation integrals of the SynchrotronRadiationMaster class.
 
+        This function sets the radiation integrals in the Ring object if
+        non-existent.
+
         Parameters
         ----------
         ring
@@ -350,6 +350,15 @@ class SynchrotronRadiationMaster(Schedulable):
     ) -> None:
         """
         Function to create and insert the SR trackers in the ring.
+
+        This function inserts SynchrotronRadiationBaseClass elements in the
+        ring either:
+            - before the drifts if track_before_element_type is None or
+            DriftBaseClass. In that case, _SynchrotronRadiationDrift
+            trackers will be inserted in the ring before each drift.
+            - after the RF cavities if track_before_element_type is
+            RFStationBaseClass. In that case, _SynchrotronRadiationSection
+            trackers will be inserted in the ring.
 
         Parameters
         ----------
@@ -430,7 +439,7 @@ class SynchrotronRadiationMaster(Schedulable):
         else:
             raise TypeError("Inhomogeneous element classes.")
 
-    def generate_synchrotron_radiation_subclasses(
+    def prepare_ring_for_synchrotron_radiation_tracking(
         self,
         ring: Ring,
         radiation_integrals: NumpyArray | None = None,
