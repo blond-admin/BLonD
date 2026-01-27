@@ -302,17 +302,12 @@ def calculate_damping_times_in_seconds(
         synchrotron_radiation_integrals,
         particle_type,
     )
-    damping_times = np.array(
-        [
-            (
-                2
-                * energy
-                / damping_partition_numbers[k]
-                / energy_loss_per_turn
-                / revolution_frequency
-            )
-            for k in range(3)
-        ]
+    damping_times = (
+        2
+        * energy
+        / damping_partition_numbers
+        / energy_loss_per_turn
+        / revolution_frequency
     )
     return damping_times
 
