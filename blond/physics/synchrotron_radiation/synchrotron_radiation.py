@@ -74,9 +74,13 @@ class SynchrotronRadiationMaster(Schedulable):
     Master class for handling synchrotron radiation along the ring.
 
     This element is to be added in the ring object prior to the simulation.
-    On initialisation, it inserts subclasses along the ring after the
-    specified elements (either drifts or section.)
-    To be described better #fixme
+    On initialisation, it inserts SynchrotronRadiationBaseClass elements in
+    the ring either:
+     - before the drifts if track_before_element_type is None or
+     DriftBaseClass. In that case, _SynchrotronRadiationDrift trackers will
+     be inserted in the ring before each drift.
+     - after the RF cavities if track_before_element_type is
+     RFStationBaseClass. In that case, _SynchrotronRadiationSection trackers will be inserted in the ring.
 
     Parameters
     ----------
@@ -87,6 +91,23 @@ class SynchrotronRadiationMaster(Schedulable):
         Expert user only. Disables the quantum excitation kick.
     verbose
         Enable printed messages.
+
+    Examples
+    --------
+    >>> from blond.physics.synchrotron_radiation import
+    >>> SynchrotronRadiationMaster
+    >>> from blond import Ring
+    >>> ring = Ring(circumference=10,
+    >>> radiation_integrals = np.array([0.646747216157,
+    >>>            0.0005936549319,
+    >>>            5.6814536525e-08,
+    >>>            5.92870407301e-09,
+    >>>            1.71368060083e-11,]))
+    >>> ring.add_drifts(n_drifts_per_section=10, n_sections=4)
+    >>>
+    >>> SRM = SynchrotronRadiationMaster(
+    >>> track_before_element_type=DriftBaseClass)
+    >>> SRM.generate_synchrotron_radiation_subclasses(ring=ring)
     """
 
     def __init__(
