@@ -200,42 +200,47 @@ class SynchrotronRadiationMaster(Schedulable):
         return len(self.generated_children)
 
     def print_synchrotron_radiation_parameters(
-        self, turn_number: int = 0
+        self,
+        beam: BeamBaseClass,
+        ring: Ring,
     ) -> str:
         """
         Print the synchrotron radiation parameter of a given turn.
 
-        Parameters
-        ----------
-        turn_number
-            Turn to consider.
-        """
-        print(f"Synchrotron radiation parameters for the turn #{turn_number}")
-        print("Energy lost:", self.energy_loss_per_turn[turn_number])
-        print(
-            "Longitudinal damping time:",
-            self.longitudinal_damping_time[turn_number],
-        )
-        print(
-            "Natural energy spread:", self._natural_energy_spread[turn_number]
-        )
-
-    # TODO : Update synchrotron radiation integrals after a wiggler? Detect
-    #  other SynchrotronRadiationBaseClass elements before generating the
-    #  children and save their location for SRI update.
-
-    # TODO: transmit the share of SRI to the children.
-
-    def compute_turn_by_turn_synchrotron_radiation_parameters(
-        self, beam: BeamBaseClass, ring: Ring
-    ) -> None:
-        """
-        Calculate the synchrotron radiation parameter for a specified beam.
+        This function computes and prints the synchrotron radiation
+        characteristics of the (beam, ring) pair.
 
         Parameters
         ----------
         beam
-            BeamBaseClass object.
+            `Beam` object.
+        ring
+            `Ring` context manager.
+        """
+        self.compute_synchrotron_radiation_parameters(beam=beam, ring=ring)
+        print(
+            f"Synchrotron radiation parameters for the beam energy "
+            f"#{beam.reference.total_energy}"
+        )
+        print("Energy lost:", self.energy_loss_per_turn)
+        print(
+            "Longitudinal damping time:",
+            self.longitudinal_damping_time,
+        )
+        print("Natural energy spread:", self._natural_energy_spread)
+
+    def compute_synchrotron_radiation_parameters(
+        self,
+        beam: BeamBaseClass,
+        ring: Ring,
+    ) -> None:
+        """
+        Calculate the synchrotron radiation parameters for a given beam energy.
+
+        Parameters
+        ----------
+        beam
+            `Beam` object.
         ring
             `Ring` context manager.
 
@@ -251,15 +256,13 @@ class SynchrotronRadiationMaster(Schedulable):
         wiggler_magnet_list = ring.elements.get_elements(
             class_=WigglerMagnet,
         )
-
         for element in wiggler_magnet_list:
-            energy_contribution_wiggler_integrals = element._calculate_energy_contribution_to_synchrotron_radiation_integrals(
-                beam.reference.total_energy
-            )
             synchrotron_radiation_shift_from_wigglers += (
-                element._contribution_to_synchrotron_radiation_integrals_without_energy
-            ) * energy_contribution_wiggler_integrals
-
+                element.update_synchrotron_radiation_integrals(
+                    beam_reference_energy=beam.reference.total_energy,
+                    _calculation_only=True,
+                )
+            )
         (
             self._energy_loss_per_turn,
             self._longitudinal_damping_time,
@@ -270,8 +273,6 @@ class SynchrotronRadiationMaster(Schedulable):
             synchrotron_radiation_integrals=self._synchrotron_radiation_integrals
             + synchrotron_radiation_shift_from_wigglers,
         )
-        if self.verbose:
-            self.print_synchrotron_radiation_parameters()
 
     def _set_synchrotron_radiation_integrals(
         self,
