@@ -205,7 +205,7 @@ class RFStationBaseClass(
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
-        if self._ring.radiation_integrals is not None:
+        if self._ring.synchrotron_radiation_integrals is not None:
             self._use_synchrotron_radiation = True
 
     def on_run_simulation(
@@ -366,13 +366,13 @@ class RFStationBaseClass(
         if self._use_synchrotron_radiation:
             energy_loss_per_turn = calculate_energy_loss_per_turn(
                 energy=target_total_energy,
-                synchrotron_radiation_integrals=self._ring.radiation_integrals,
+                synchrotron_radiation_integrals=self._ring.synchrotron_radiation_integrals,
                 particle_type=beam.particle_type,
             )  # TODO: check the indexing (using target total_energy or
             # beam.reference_energy?)
             reference_energy_change = (
                 target_total_energy
-                - beam.reference_total_energy
+                - beam.reference.total_energy
                 + energy_loss_per_turn
             )
         else:
