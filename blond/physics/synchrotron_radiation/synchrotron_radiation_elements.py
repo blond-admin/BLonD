@@ -261,13 +261,13 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         Section index.
     wiggler_type
         Type of damping wiggler. Default: 'sinusoidal'.
-    number
+    number_of_wigglers
         Number of damping wigglers.
     peak_field
         Magnetic peak field per wiggler.
     pole_length
         Pole length.
-    number_poles
+    number_of_poles
         Number of poles per wiggler.
     """
 
@@ -276,18 +276,18 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         name: str | None = None,
         section_index: int | None = None,
         wiggler_type: str | None = "sinusoidal",
-        number: int | None = 1,
+        number_of_wigglers: int | None = 1,
         peak_field: float | None = 1.0,
         pole_length: float | None = 0.095,
-        number_poles: int | None = 43,
+        number_of_poles: int | None = 43,
     ):
         super().__init__(name=name, section_index=section_index)
 
         self._type = wiggler_type
-        self._number = number
+        self._number_of_wigglers = number_of_wigglers
         self._peak_field = peak_field
         self._pole_length = pole_length
-        self._number_poles = number_poles
+        self._number_of_poles = number_of_poles
 
         self._simulation: Simulation | None = None
         self._contribution_to_synchrotron_radiation_integrals_without_energy: (
@@ -307,7 +307,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         number_of_wigglers
             Number of damping wigglers.
         """
-        return self._number
+        return self._number_of_wigglers
 
     @property
     def length_wiggler(self):
@@ -320,7 +320,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
             Length of each damping wiggler.
         """
         if self._type == "sinusoidal":
-            return self.pole_length * self._number_poles
+            return self.pole_length * self._number_of_poles
         else:
             return None
 
@@ -334,7 +334,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         number_of_poles
             Number of poles.
         """
-        return self._number_poles
+        return self._number_of_poles
 
     @property
     def peak_magnetic_field(self):
@@ -478,7 +478,6 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
     def update_synchrotron_radiation_integrals(
         self,
         beam: BeamBaseClass,
-        radiation_integrals: NumpyArray,
     ):
         """
         Function to update the synchrotron radiation integrals.
@@ -492,8 +491,6 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         ----------
         beam
             Beam class to interact with this element.
-        radiation_integrals
-            Synchrotron radiation integrals fron ring.
         """
         energy_contribution_wiggler_integrals = self._calculate_energy_contribution_to_synchrotron_radiation_integrals(
             reference_energy=beam.reference.total_energy
