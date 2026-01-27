@@ -241,7 +241,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         **kwargs
             Additional keyword arguments for simulation setup.
         """
-        self._turn_i = simulation.turn_i
 
     def track(self, beam: BeamBaseClass) -> None:
         """

@@ -539,17 +539,6 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         """
         return self._share_of_synchrotron_radiation_integrals
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        self._turn_i = simulation.turn_i
-
 
 class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
     """
@@ -605,14 +594,3 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
             Synchrotron radiation integrals of the section.
         """
         return self._share_of_synchrotron_radiation_integrals
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        self._turn_i = simulation.turn_i
