@@ -186,10 +186,13 @@ class Ring(Preparable):
 
     @property
     def momentum_compaction_factor(self) -> float:
-        """
+        r"""
         Calculate the momentum compaction factor.
 
-        This property computes the ring momentum compaction factor by adding the weighed
+        This property computes the ring momentum compaction factor by
+        summing the contribution of all the drifts to recover:
+        \alpha_C = 1/C * \oint (frac{ds}{\rho})
+        where C is the ring circumference, and \rho its bending radius.
 
         Returns
         -------

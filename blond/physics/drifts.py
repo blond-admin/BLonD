@@ -116,12 +116,12 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
     @property
     def momentum_compaction_factor(self) -> float | None:
         """
-        Momentum compaction factor.
+        Contribution of the drift to the momentum compaction factor.
 
         Returns
         -------
         momentum_compaction_factor
-            Momentum compaction factor.
+            Contribution of the drift to the momentum compaction factor.
         """
         return None
 
