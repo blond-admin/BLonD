@@ -29,6 +29,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         self.circumference = 90.65874532 * 1e3
         self.momentum_compaction_factor = 7.120435962 * 1e-6
         self.bending_radius = 14428.78745218723
+        self.decimals = 6 if backend.float == np.float32 else 12
 
     def test_gather_longitudinal_synchrotron_radiation_parameters(self):
         energy_loss, tau_z, sigmaE = (
@@ -43,19 +44,19 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             1337317.6296824566,
             energy_loss,
             msg="Expected value = 1.3 MeV per turn",
-            places=6 if backend.float == np.float32 else 12,
+            places=self.decimals,
         )
         self.assertAlmostEqual(
             14955.235531740671,
             tau_z,
             msg="Expected value = 14955 turns i.e. 4.5s",
-            places=6 if backend.float == np.float32 else 12,
+            places=self.decimals,
         )
         self.assertAlmostEqual(
             0.00016759685785477585,
             sigmaE,
             msg="Expected value = 1.6e-4",
-            places=6 if backend.float == np.float32 else 12,
+            places=self.decimals,
         )
 
     def test_calculate_isomagnetic_radiation_integrals(self):
@@ -74,5 +75,5 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
                 bending_radius=self.bending_radius,
                 momentum_compaction_factor=self.momentum_compaction_factor,
             ),
-            decimal=6 if backend.float == np.float32 else 12,
+            decimal=self.decimals,
         )

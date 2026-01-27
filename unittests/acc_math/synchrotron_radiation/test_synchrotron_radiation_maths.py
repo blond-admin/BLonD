@@ -25,6 +25,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         self.revolution_frequency = 3300
         self.angular_synchrotron_frequency = 1
         self.momentum_compaction_factor = 7.120435962 * 1e-6
+        self.decimals = 6 if backend.float == np.float32 else 12
 
     def test_calculate_partition_numbers(self):
         jx, jy, jz = calculate_partition_numbers(
@@ -60,7 +61,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             29910.62041820081,
             damping_times_in_turn[1],
             msg="Expected value = 29911",
-            places=6 if backend.float == np.float32 else 12,
+            places=self.decimals,
         )
         self.assertEqual(
             damping_times_in_turn[0], tau_x, msg="Expected value = 29911"
@@ -92,7 +93,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             9.06382436915176,
             damping_times_in_second[1],
             msg="Expected value = 9.1s",
-            places=6 if backend.float == np.float32 else 12,
+            places=self.decimals,
         )
         self.assertEqual(
             damping_times_in_second[0], tau_x, msg="Expected value = 9.1s"
@@ -109,7 +110,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
                 synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
                 particle_type=self.particle_type,
             ),
-            places=6 if backend.float == np.float32 else 12,
+            places=self.decimals,
         )
 
     def test_calculate_natural_horizontal_emittance(self):
@@ -120,7 +121,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
                 synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
                 particle_type=self.particle_type,
             ),
-            places=6 if backend.float == np.float32 else 12,
+            places=self.decimals,
         )
 
     def test_calculate_natural_energy_spread(self):
@@ -131,7 +132,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
                 synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
                 particle_type=self.particle_type,
             ),
-            places=6 if backend.float == np.float32 else 12,
+            places=self.decimals,
         )
 
     def test_calculate_natural_bunch_length(self):
@@ -144,7 +145,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
                 momentum_compaction_factor=self.momentum_compaction_factor,
                 particle_type=self.particle_type,
             ),
-            places=6 if backend.float == np.float32 else 12,
+            places=self.decimals,
         )
 
 
@@ -209,17 +210,17 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
         np.testing.assert_array_almost_equal(
             np.array([2.0, 2.0, 2.0, 0.002, 2.0]),
             damping_times_in_turn[1],
-            decimal=6 if backend.float == np.float32 else 12,
+            decimal=self.decimals,
         )
         np.testing.assert_array_almost_equal(
             damping_times_in_turn[0],
             tau_x,
-            decimal=6 if backend.float == np.float32 else 12,
+            decimal=self.decimals,
         )
         np.testing.assert_array_almost_equal(
             damping_times_in_turn[2],
             tau_z,
-            decimal=6 if backend.float == np.float32 else 12,
+            decimal=self.decimals,
         )
 
     def test_calculate_damping_times_in_seconds(self):
@@ -251,17 +252,17 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
         np.testing.assert_array_almost_equal(
             np.array([2.0, 2.0, 2.0, 0.002, 2.0]),
             damping_times_in_second[1],
-            decimal=6 if backend.float == np.float32 else 12,
+            decimal=self.decimals,
         )
         np.testing.assert_array_almost_equal(
             damping_times_in_second[0],
             tau_x,
-            decimal=6 if backend.float == np.float32 else 12,
+            decimal=self.decimals,
         )
         np.testing.assert_array_almost_equal(
             damping_times_in_second[2],
             tau_z,
-            decimal=6 if backend.float == np.float32 else 12,
+            decimal=self.decimals,
         )
 
     def test_calculate_energy_loss_per_turn(self):
@@ -272,7 +273,7 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
                 synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
                 particle_type=self.particle_type,
             ),
-            decimal=6 if backend.float == np.float32 else 12,
+            decimal=self.decimals,
         )
 
     def test_calculate_natural_horizontal_emittance(self):
@@ -283,7 +284,7 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
                 synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
                 particle_type=self.particle_type,
             ),
-            decimal=6 if backend.float == np.float32 else 12,
+            decimal=self.decimals,
         )
 
     def test_calculate_natural_energy_spread(self):
@@ -294,7 +295,7 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
                 synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
                 particle_type=self.particle_type,
             ),
-            decimal=6 if backend.float == np.float32 else 12,
+            decimal=self.decimals,
         )
 
     def test_calculate_natural_bunch_length(self):
@@ -307,5 +308,5 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
                 momentum_compaction_factor=self.momentum_compaction_factor,
                 particle_type=self.particle_type,
             ),
-            decimal=6 if backend.float == np.float32 else 12,
+            decimal=self.decimals,
         )
