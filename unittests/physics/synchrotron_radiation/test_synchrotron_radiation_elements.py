@@ -4,15 +4,13 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
-from numpy._typing import NDArray as NumpyArray
+from numpy.typing import NDArray as NumpyArray
 from scipy.constants import c, e
 from scipy.constants import speed_of_light as c0
 
 from blond import (
     SynchrotronRadiationBaseClass,
     WigglerMagnet,
-    _SynchrotronRadiationDrift,
-    _SynchrotronRadiationSection,
     electron,
 )
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
@@ -22,9 +20,17 @@ from blond.core.backends.backend import backend
 from blond.core.base import SimulationElementBase
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
+from blond.generals.distributed.distributed_array import DistributedArray
+from blond.physics.synchrotron_radiation.synchrotron_radiation import (
+    _SynchrotronRadiationDrift,
+    _SynchrotronRadiationSection,
+)
 
 if TYPE_CHECKING:
-    from numpy._typing import NDArray as NumpyArray
+    from typing import Any, Literal
+
+    from cupy.typing import NDArray as CupyArray
+    from numpy.typing import NDArray as NumpyArray
 
 
 class BeamBaseClassTester(BeamBaseClass):
@@ -49,9 +55,14 @@ class BeamBaseClassTester(BeamBaseClass):
         self.reference_gamma = np.sqrt(1 - 0.99**2)  # beta**2
         self.reference_total_energy = 20e9
         self.reference.total_energy = 20e9
-        self._dE = np.linspace(-1e6, 1e6, 10, dtype=backend.float)  # delta E
+        self._dE = DistributedArray(
+            np.linspace(-1e6, 1e6, 10, dtype=backend.float)
+        )  #
+        # delta E
         # in eV
-        self._dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t
+        self._dt = DistributedArray(
+            np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
+        )  # delta t
         # in s
         self._flags = np.zeros(10, dtype=np.int32)
         self._ids = np.arange(10, dtype=np.int32)
@@ -62,16 +73,19 @@ class BeamBaseClassTester(BeamBaseClass):
 
     def setup_beam(
         self,
-        dt: NumpyArray,
-        dE: NumpyArray,
-        flags: NumpyArray = None,
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        flags: NumpyArray | CupyArray = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
-    ):
+        mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        **kwargs,
+    ) -> None:
         """Sets beam array attributes for simulation
 
         Parameters
         ----------
+        mpi_mode
         dt
             Macro-particle time coordinates [s]
         dE
@@ -82,6 +96,23 @@ class BeamBaseClassTester(BeamBaseClass):
             Time of the reference frame (global time), in [s]
         reference_total_energy
             Time of the reference frame (global total energy), in [eV]
+        mpi_mode
+            Specifies how the particle data is distributed across multiple ranks (processing
+            units) in a parallel environment:
+
+            - "root-distributes": The root node (rank 0) holds the full array and splits it
+              into smaller chunks, which are then distributed to all ranks, including rank 0.
+              Each rank stores its own chunk of the data. This mode is useful when loading
+              large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
+              across ranks.
+
+            - "all-ranks": Each rank independently generates and stores a full copy of the data.
+              While this mode uses more memory, it can be simpler to implement in scenarios where
+              each rank needs to work with its own independent data (e.g., generating separate
+              random distributions with `np.random.randn()`).
+        **kwargs
+            Keyword arguments to make the non-abstract implementation
+            extendable.
         """
         pass
 
