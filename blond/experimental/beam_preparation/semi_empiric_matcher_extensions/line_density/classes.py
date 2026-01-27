@@ -176,7 +176,6 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         density = self._solve_for_density(
             hamilton_2D=hamilton_2D,
             histogram_desired=hist_y_interp,
-            animate_fitting=self.animate_fitting,
         )
 
         if self.plot_result:
@@ -200,8 +199,24 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         self,
         hamilton_2D: NumpyArray,
         histogram_desired: NumpyArray,
-        animate_fitting: bool = False,
     ) -> NumpyArray:
+        """Try to derive a density distribution according to the Hamiltonian and histogram.
+
+        Parameters
+        ----------
+        hamilton_2D
+            `A 2D array representing the spatial Hamilton field.
+        histogram_desired
+            histogram that represents the target value of what the density
+            distribution should represent.
+
+        Returns
+        -------
+        density : NumpyArray
+            A 2D array of the same shape as `hamilton_2D`, representing the
+            computed density distribution. Values are scaled between 0 and 1.
+
+        """
         histogram_desired = histogram_desired.copy()
         histogram_desired_normalized = (
             histogram_desired / histogram_desired.mean()
@@ -247,7 +262,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
                 break
             previous_histogram_normalized = histogram_normalized
 
-            if animate_fitting:
+            if self.animate_fitting:
                 self._draw_animation(
                     histogram_desired_normalized=histogram_desired_normalized,
                     histogram_normalized=histogram_normalized,
