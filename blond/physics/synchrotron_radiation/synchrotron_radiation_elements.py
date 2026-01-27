@@ -16,10 +16,9 @@ L. Valle
 from __future__ import annotations
 
 from abc import ABC
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy import dtype, ndarray
 from numpy.random import Generator
 from scipy.constants import c, e
 
@@ -43,7 +42,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
     total_energy: float | None = None,
     random_generator: Generator | None = None,
     _disable_quantum_excitation: bool = False,
-) -> float | ndarray[tuple[int, ...], dtype[Any]] | Any:
+) -> float | NumpyArray:
     """
     Energy kick induced by synchrotron radiation and quantum excitation.
 
