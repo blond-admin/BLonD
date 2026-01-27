@@ -18,6 +18,9 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
+from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
+    calculate_energy_loss_per_turn,
+)
 from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
@@ -28,10 +31,6 @@ from blond.core.base import (
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.feedbacks.beam_feedback import (
     Blond2BeamFeedback,
-)
-
-from ..acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
-    calculate_energy_loss_per_turn,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -191,7 +190,7 @@ class RFStationBaseClass(
         self.harmonic: NumpyArray | float | None = None
         self.phi_s: float | None = None
 
-        self._use_synchrotron_radiation: bool | None = None
+        self._use_synchrotron_radiation: bool = False
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -206,9 +205,7 @@ class RFStationBaseClass(
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
-        if self._ring.radiation_integrals is None:
-            self._use_synchrotron_radiation = False
-        else:
+        if self._ring.radiation_integrals is not None:
             self._use_synchrotron_radiation = True
 
     def on_run_simulation(
