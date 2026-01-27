@@ -25,6 +25,31 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
+def check_inputs_consistency(arguments: list):
+    """
+    Check argument length consistency.
+
+    Parameters
+    ----------
+    arguments
+        List of inputs.
+    """
+    keys = inspect.signature(
+        get_small_amplitude_angular_synchrotron_frequency
+    ).parameters.keys()
+    # Inspection of the input lengths to ensure arrays have the same lengths.
+    input_lengths = {
+        len(arguments.get(arg))
+        if isinstance(arguments.get(arg), np.ndarray)
+        else 1
+        for arg in keys
+    }
+    if len(input_lengths.difference({1, max(input_lengths)})) != 0:
+        raise ValueError(
+            "Input arrays of more than one element have different lengths."
+        )
+
+
 def get_small_amplitude_angular_synchrotron_tune(
     energy: float | NumpyArray,
     voltage: float | NumpyArray,
@@ -54,18 +79,7 @@ def get_small_amplitude_angular_synchrotron_tune(
         Angular synchrotron tune.
     """
     args = locals()
-    keys = inspect.signature(
-        get_small_amplitude_angular_synchrotron_frequency
-    ).parameters.keys()
-    # Inspection of the input lengths to ensure arrays have the same lengths.
-    input_lengths = {
-        len(args.get(arg)) if isinstance(args.get(arg), np.ndarray) else 1
-        for arg in keys
-    }
-    if len(input_lengths.difference({1, max(input_lengths)})) != 0:
-        raise ValueError(
-            "Input arrays of more than one element have different lengths."
-        )
+    check_inputs_consistency(arguments=args)
 
     angular_synchrotron_tune = np.sqrt(
         (
@@ -110,6 +124,9 @@ def get_small_amplitude_angular_synchrotron_frequency(
     angular_synchrotron_frequency
             Angular synchrotron frequency, in [rad].
     """
+    args = locals()
+    check_inputs_consistency(arguments=args)
+
     small_amplitude_angular_synchrotron_tune = (
         get_small_amplitude_angular_synchrotron_tune(
             energy=energy,
@@ -157,6 +174,9 @@ def get_angular_synchrotron_tune(
     angular_synchrotron_frequency
             Angular synchrotron frequency, in [rad].
     """
+    args = locals()
+    check_inputs_consistency(arguments=args)
+
     small_amplitude_angular_synchrotron_tune = (
         get_small_amplitude_angular_synchrotron_tune(
             energy=energy,
@@ -207,6 +227,9 @@ def get_angular_synchrotron_frequency(
     angular_synchrotron_frequency
             Angular synchrotron frequency, in [rad].
     """
+    args = locals()
+    check_inputs_consistency(arguments=args)
+
     angular_synchrotron_tune = get_angular_synchrotron_tune(
         energy=energy,
         voltage=voltage,
