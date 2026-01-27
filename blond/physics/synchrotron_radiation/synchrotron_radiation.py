@@ -423,7 +423,11 @@ class SynchrotronRadiationMaster(Schedulable):
                 )
                 self.generated_children.append(SRClass_child)
         else:
-            raise TypeError("Inhomogeneous element classes.")
+            raise TypeError(
+                "Unsupported list of elements. Full lists of "
+                "DriftBaseClass and RFStationBaseClass are "
+                f"allowed, but {element_list} was found."
+            )
 
     def prepare_ring_for_synchrotron_radiation_tracking(
         self,
