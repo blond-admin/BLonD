@@ -288,9 +288,9 @@ class SynchrotronRadiationMaster(Schedulable):
             Averaged bending radius along the ring.
         """
         minimum_number_of_expected_synchrotron_radiation_integrals = 5
-        if ring.radiation_integrals is not None:
+        if ring.synchrotron_radiation_integrals is not None:
             self._synchrotron_radiation_integrals = (
-                ring.radiation_integrals.copy()
+                ring.synchrotron_radiation_integrals.copy()
             )
         else:
             if radiation_integrals is None:
@@ -304,8 +304,7 @@ class SynchrotronRadiationMaster(Schedulable):
                     raise ValueError(
                         "Synchrotron radiation damping "
                         "and quantum excitation require"
-                        " either the bending radius "
-                        + "for an isomagnetic ring, or the "
+                        " either the bending radius for an isomagnetic ring, or the "
                         "first five synchrotron radiation "
                         "integrals."
                     )
