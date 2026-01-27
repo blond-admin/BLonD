@@ -412,7 +412,7 @@ class SynchrotronRadiationMaster(Schedulable):
             considered isomagnetic.
             In the case of an isomagnetic ring, the synchrotron radiation
             integrals will be computed from the ring bending radius. Default:
-            False.
+            None.
         bending_radius
             Averaged bending radius along the ring.
 
