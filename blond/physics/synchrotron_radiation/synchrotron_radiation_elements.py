@@ -231,7 +231,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             Additional keyword arguments for simulation setup.
         """
         self._turn_i = simulation.turn_i
-        self._simulation = simulation
 
     def track(self, beam: BeamBaseClass) -> None:
         """
@@ -242,7 +241,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         beam
             Beam class to interact with this element.
         """
-        self._turn_i = self._simulation.turn_i
         self._update_beam_energy(beam)
 
 
