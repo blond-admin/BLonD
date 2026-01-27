@@ -1119,6 +1119,7 @@ class InducedVoltageResonator(_InducedVoltage):
         multi_turn_wake: bool = False,
         mtw_mode: Optional[MtwModeTypes] = "time",
         rf_station: Optional[RFStation] = None,
+        rf_station_list: Optional[List[RFStation]] = None,
         use_regular_fft: bool = True,
         time_decay_factor: Optional[float] = 0.01,
         time_array: Optional[NDArray] = None,
@@ -1200,12 +1201,25 @@ class InducedVoltageResonator(_InducedVoltage):
                         ),
                     )
             else:
+                if rf_station_list is None:
+                    raise RuntimeError("New implementation requires ")
                 from scipy.constants import c
-                n_stations = len(rf_station.t_rev)
-                self.section_time_distance_array = np.zeros(rf_station.n_turns)
+                n_stations = len(rf_station_list)
+                self.section_time_distance_array = np.zeros(rf_station.n_turns * n_stations)
+                beta_arrays = []
+                section_length_arrays = []
+                for _ in range(n_stations):
+                    beta_arrays.append(rf_station_list[_].beta.tolist())
+                    section_length_arrays.append(rf_station_list[_].section_length)
+                beta_array = np.array([result for combination in zip(*beta_arrays) for result in combination])
+
+                own_section_index = rf_station.section_index
+                section_length_arrays = section_length_arrays[own_section_index % n_stations:] + section_length_arrays[:(own_section_index + n_stations) % n_stations]  # change ordering to fit the beta location
+
                 for trn in range(rf_station.n_turns):
-                    for stat in range(n_stations):
-                        self.section_time_distance_array[trn] = 1 / (rf_station.beta[trn] * c) * rf_station.section_length
+                    from_idx = own_section_index + trn * n_stations
+                    to_idx = from_idx + n_stations
+                    self.section_time_distance_array[trn] = np.sum(1 / (beta_array[from_idx:to_idx] * c) * section_length_arrays)
                 inter_turn_time = np.linspace(
                             profile.bin_centers[0],
                             profile.bin_centers[-1]
@@ -1218,7 +1232,6 @@ class InducedVoltageResonator(_InducedVoltage):
                         )
 
                 self.time_array = [None] * rf_station.n_turns
-                own_section_index = rf_station.section_index
                 for trn in range(rf_station.n_turns):
                     self.time_array[trn] = np.array([_ + inter_turn_time for _ in np.concatenate((np.array([0]), np.cumsum(self.section_time_distance_array[trn:trn + self._n_turns_calculation])))]).flatten()
 
@@ -1228,6 +1241,7 @@ class InducedVoltageResonator(_InducedVoltage):
             # Optional array of time values where the induced voltage is calculated.
             # If left out, the induced voltage is calculated at the times of the
             # line density.
+
             if time_array is None:
                 self.time_array = self.profile.bin_centers
                 self.atLineDensityTimes = True

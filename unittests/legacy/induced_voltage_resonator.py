@@ -82,8 +82,8 @@ class InducdedVoltageResonator:
         self.energy_gain_per_turn = 50.68e6
 
         self.n_turns = 5
-        self.n_stations = 1
-        self.n_section_lengths = np.array([10])
+        self.n_stations = 2
+        self.n_section_lengths = np.array([3, 5])
 
         self.n_macroparticles = int(1e4)
 
@@ -92,10 +92,6 @@ class InducdedVoltageResonator:
             self.energy + self.energy_gain_per_turn * self.n_turns,
             self.n_stations * (self.n_turns + 1),
         )
-        self.energy_array = np.reshape(
-            self.energy_array, (self.n_stations, self.n_turns + 1)
-        )
-
         self.sigma_bunch = 5e-10
         self.bunch_offset = 3e-9
 
@@ -103,34 +99,27 @@ class InducdedVoltageResonator:
         ring = Ring(
             self.n_section_lengths,
             self.alpha_p,
-            self.energy_array,
+            self.energy_array.reshape(
+                self.n_stations, self.n_turns + 1, order="F"
+            ),
             MuPlus(),
             synchronous_data_type="total energy",
             n_turns=self.n_turns,
             n_sections=self.n_stations,
         )
 
-        self.rf_station_list = []
-        self.rf_station_list.append(
-            RFStation(
-                ring,
-                self.harmonic,
-                self.voltage_per_rf_station,
-                0,
-                n_rf=1,
-                section_index=1,
-            )
-        )  # amazing indexing
-        # self.rf_station_list.append(
-        #     RFStation(
-        #         ring,
-        #         self.harmonic,
-        #         self.voltage_per_rf_station,
-        #         0,
-        #         n_rf=1,
-        #         section_index=2,
-        #     )
-        # )
+        rf_station_list = []
+        for _ in range(self.n_stations):
+            rf_station_list.append(
+                RFStation(
+                    ring,
+                    self.harmonic,
+                    self.voltage_per_rf_station,
+                    0,
+                    n_rf=1,
+                    section_index=_ + 1,
+                )
+            )  # amazing indexing
 
         self.beam = Beam(
             ring,
@@ -151,9 +140,11 @@ class InducdedVoltageResonator:
         self.hist_y = self.profile.n_macroparticles
         self.hist_step = self.profile.bin_size
 
+        self.t_rf = 1 / (rf_station_list[0].omega_rf[0, 0] / 2 / np.pi)
+
         resonator = Resonators(
             self.R_shunt,
-            self.rf_station_list[0].omega_rf[0, 0] / 2 / np.pi,
+            1 / self.t_rf,
             self.Q_factor,
         )  # low Q for fast decay in small machine, although phasing will dominate
 
@@ -161,25 +152,37 @@ class InducdedVoltageResonator:
             self.beam,
             self.profile,
             resonator,
-            rf_station=self.rf_station_list[0],
+            rf_station=rf_station_list[0],
+            rf_station_list=rf_station_list,
             mtw_mode="time",
             time_decay_factor=1e-12,
             multi_turn_wake=True,
             old_time_array_impl=old_impl,
         )  # never release
-        if not old_impl:
-            assert len(ind_volt_res_1.time_array) == self.n_turns
-            assert (
-                len(ind_volt_res_1.time_array[0])
-                == (self.n_turns + 1) * self.profile.n_slices
-            )
-            assert (
-                len(ind_volt_res_1.time_array[1])
-                == self.n_turns * self.profile.n_slices
-            )
-            assert (
-                len(ind_volt_res_1.time_array[-1]) == 2 * self.profile.n_slices
-            )  # only this and next turn
+        ind_volt_res_2 = InducedVoltageResonator(
+            self.beam,
+            self.profile,
+            resonator,
+            rf_station=rf_station_list[1],
+            rf_station_list=rf_station_list,
+            mtw_mode="time",
+            time_decay_factor=1e-12,
+            multi_turn_wake=True,
+            old_time_array_impl=old_impl,
+        )  # never release
+        # if not old_impl:
+        #     assert len(ind_volt_res_1.time_array) == self.n_turns
+        #     assert (
+        #         len(ind_volt_res_1.time_array[0])
+        #         == (self.n_turns + 1) * self.profile.n_slices
+        #     )
+        #     assert (
+        #         len(ind_volt_res_1.time_array[1])
+        #         == self.n_turns * self.profile.n_slices
+        #     )
+        #     assert (
+        #         len(ind_volt_res_1.time_array[-1]) == 2 * self.profile.n_slices
+        #     )  # only this and next turn
 
         # self.induced_voltage_time = InducedVoltageFreq(
         #     self.beam,
@@ -200,80 +203,140 @@ class InducdedVoltageResonator:
             resonator.R_S[0],
             resonator.Q[0],
         )
-        profiles = np.zeros_like(self.time_axis)
-        profiles += gauss(self.time_axis, self.sigma_bunch, self.bunch_offset)
-        for prof_ind in range(1, self.n_turns):
-            profiles += gauss(
+
+        beta_arrays = []
+        section_length_arrays = []
+        for _ in range(self.n_stations):
+            beta_arrays.append(rf_station_list[_].beta.tolist())
+            section_length_arrays.append(rf_station_list[_].section_length)
+        beta_array = np.array(
+            [
+                result
+                for combination in zip(*beta_arrays)
+                for result in combination
+            ]
+        )
+        section_length_array_extended = []
+        [
+            section_length_array_extended.append(section_length_arrays)
+            for _ in range(self.n_turns + 1)
+        ]
+        section_length_array_extended = np.array(
+            section_length_array_extended
+        ).flatten()
+        from scipy.constants import c
+
+        section_time = 1 / (beta_array * c) * section_length_array_extended
+
+        profiles = np.zeros(
+            (self.n_stations, len(self.time_axis)), dtype=float
+        )
+        profiles[0] += gauss(
+            self.time_axis, self.sigma_bunch, self.bunch_offset
+        )
+
+        for prof_ind in range(0, self.n_turns):
+            for inter_turn_ind in range(self.n_stations):
+                if prof_ind == 0 and inter_turn_ind == 0:
+                    continue
+                profiles[inter_turn_ind] += gauss(
+                    self.time_axis,
+                    self.sigma_bunch,
+                    np.sum(
+                        section_time[
+                            0 : prof_ind * self.n_stations + inter_turn_ind
+                        ]
+                    )
+                    + self.bunch_offset,
+                )
+        self.convolution_result = np.zeros_like(profiles)
+        for inter_turn_ind in range(self.n_stations):
+            self.convolution_result[inter_turn_ind] = sig.convolve(
+                profiles[inter_turn_ind], wake_kernel
+            )[0 : len(self.time_axis)]
+
+            fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
+            ax[0].plot(self.time_axis, profiles[inter_turn_ind])
+            ax[1].plot(
                 self.time_axis,
-                self.sigma_bunch,
-                np.sum(self.rf_station_list[0].t_rev[0:prof_ind])
-                + self.bunch_offset,
+                self.convolution_result[inter_turn_ind][
+                    0 : len(self.time_axis)
+                ],
             )
-
-        self.convolution_result = sig.convolve(profiles, wake_kernel)
-        convol_res_time_axis = np.arange(len(self.convolution_result)) * (
-            self.time_axis[1] - self.time_axis[0]
-        )
-
-        fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
-        ax[0].plot(self.time_axis, profiles)
-        ax[1].plot(
-            self.time_axis, self.convolution_result[0 : len(self.time_axis)]
-        )
-        plt.show(block=False)
+            plt.show(block=False)
 
         self.profile.n_macroparticles = gauss(
             self.profile.bin_centers, self.sigma_bunch, self.bunch_offset
         )
         self.hist_y = self.profile.n_macroparticles
 
-        tot_ind_volt = TotalInducedVoltage(
-            self.beam, self.profile, [ind_volt_res_1]
-        )
-        self.time_array_profile = []
-        save_voltage_array = []
+        self.time_array_profile = [[] for _ in range(self.n_stations)]
+        save_voltage_array = [[] for _ in range(self.n_stations)]
         for trn_ind in range(self.n_turns):
-            tot_ind_volt.induced_voltage_sum()
+            ind_volt_res_1.induced_voltage_generation()
             ind_volt_res_1.rf_params.counter[0] += 1
-            save_voltage_array.append(tot_ind_volt.induced_voltage)
-            self.time_array_profile.append(
+            save_voltage_array[0].append(
+                ind_volt_res_1.induced_voltage[: self.profile.n_slices]
+            )
+            self.time_array_profile[0].append(
                 self.profile.bin_centers
                 + (
-                    np.sum(ind_volt_res_1.rf_params.t_rev[0:trn_ind])
+                    np.sum(section_time[0 : trn_ind * self.n_stations])
                     if trn_ind > 0
                     else 0
                 )
             )
+            ind_volt_res_2.induced_voltage_generation()
+            ind_volt_res_2.rf_params.counter[0] += 1
+            save_voltage_array[1].append(
+                ind_volt_res_2.induced_voltage[: self.profile.n_slices]
+            )
+            self.time_array_profile[1].append(
+                self.profile.bin_centers
+                + (
+                    np.sum(section_time[0 : trn_ind * self.n_stations + 1])
+                    if trn_ind > 0
+                    else section_time[0]
+                )
+            )
 
         self.dt = self.time_axis[1] - self.time_axis[0]
-        plt.figure()
-        plt.title(f"blond2 old_impl = {old_impl}")
-        plt.plot(
-            self.time_axis,
-            -self.convolution_result[0 : len(self.time_axis)]
-            * e
-            / self.profile.bin_size
-            * self.dt,
-            label="convolution_2",
-        )
-        for el in range(len(save_voltage_array)):
+        for inter_turn_ind in range(self.n_stations):
+            plt.figure()
+            plt.title(f"blond2 old_impl = {old_impl}")
             plt.plot(
-                self.time_array_profile[el],
-                save_voltage_array[el],
-                ls="--",
-                label=f"resonator turn {el}",
+                self.time_axis,
+                -self.convolution_result[inter_turn_ind][
+                    0 : len(self.time_axis)
+                ]
+                * e
+                / self.profile.bin_size
+                * self.dt,
+                label="convolution_2",
             )
-        plt.legend()
-        plt.show(block=False)
+            for el in range(len(save_voltage_array[0])):
+                plt.plot(
+                    self.time_array_profile[inter_turn_ind][el],
+                    save_voltage_array[inter_turn_ind][el],
+                    ls="--",
+                    label=f"resonator turn {el}",
+                )
+            plt.legend()
+            plt.show(block=False)
+        pass
 
     def setUpB3(self):
         ring = ring_b3(
             circumference=np.sum(self.n_section_lengths),
             check_section_indices=False,
         )
+        energy_array = np.reshape(
+            self.energy_array, (self.n_stations, self.n_turns + 1)
+        )
+
         magnetic_cycle = MagneticCyclePerTurn(
-            value_init=self.energy_array[0][0],
-            values_after_turn=self.energy_array[0],
+            value_init=energy_array[0][0],
+            values_after_turn=energy_array[0],
             in_unit="total energy",
             reference_particle=mu_plus,
         )
@@ -304,35 +367,39 @@ class InducdedVoltageResonator:
         profile.active = True
         profile.hist_y_to_density_factor = 1 / self.beam.intensity
         profile.n_bins = len(profile.hist_y)
-
-        local_res = res_b3(
-            center_frequencies=1 / t_rf,
-            quality_factors=self.Q_factor,
-            shunt_impedances=self.R_shunt,
-        )
-        shc = SingleHarmonicRFStation(
-            voltage=self.voltage_per_rf_station,
-            phi_rf=0,
-            harmonic=self.harmonic,
-            local_wakefield=WakeField(
-                sources=(local_res,),
-                solver=MultiPassResonatorSolver(
-                    decay_fraction_threshold=1e-12
-                ),
-                profile=profile,
-            ),
-            section_index=0,
-        )
-        one_turn_model.extend(
-            [
-                shc,
-                DriftSimple(
-                    orbit_length=np.sum(self.n_section_lengths),
-                    section_index=0,
-                    transition_gamma=1,
-                ),
-            ]
-        )
+        shc_list = []
+        for sec_ind in range(self.n_stations):
+            local_res = res_b3(
+                center_frequencies=1 / self.t_rf,
+                quality_factors=self.Q_factor,
+                shunt_impedances=self.R_shunt,
+            )
+            shc_list.append(
+                SingleHarmonicRFStation(
+                    voltage=self.voltage_per_rf_station,
+                    phi_rf=0,
+                    harmonic=self.harmonic,
+                    local_wakefield=WakeField(
+                        sources=(local_res,),
+                        solver=MultiPassResonatorSolver(
+                            decay_fraction_threshold=1e-12
+                        ),
+                        profile=profile,
+                        section_index=sec_ind,
+                    ),
+                    section_index=sec_ind,
+                )
+            )
+            one_turn_model.extend(
+                [
+                    shc_list[-1],
+                    DriftSimple(
+                        orbit_length=self.n_section_lengths[sec_ind],
+                        section_index=sec_ind,
+                        transition_gamma=1,
+                    ),
+                ]
+            )
         ring.add_elements(one_turn_model, reorder=False)
 
         sim = Simulation(
@@ -341,39 +408,47 @@ class InducdedVoltageResonator:
         )
         sim.print_one_turn_execution_order()
 
-        ind_volt_obs = RFStationInducedVoltageObservation(
-            rf_station=shc, each_turn_i=1
-        )
+        ind_volt_obs_list = []
+        for sec_ind in range(self.n_stations):
+            ind_volt_obs_list.append(
+                RFStationInducedVoltageObservation(
+                    rf_station=shc_list[sec_ind], each_turn_i=1
+                )
+            )
 
         sim.run_simulation(
             beams=(beam,),
-            observe=(ind_volt_obs,),
+            observe=tuple(ind_volt_obs_list),
         )
 
-        indu_voll = ind_volt_obs.induced_voltage
-        plt.figure()
-        plt.title("blond3")
-        plt.plot(
-            self.time_axis,
-            -self.convolution_result[0 : len(self.time_axis)]
-            * e
-            / self.profile.bin_size
-            * self.dt,
-            label="convolution_2",
-        )
-        for el in range(5):
+        for inter_turn in range(self.n_stations):
+            plt.figure(f"b3_{inter_turn}")
+            plt.title(f"b3_{inter_turn}")
             plt.plot(
-                self.time_array_profile[el],
-                indu_voll[el],
-                ls="--",
-                label=f"resonator turn {el}",
+                self.time_axis,
+                -self.convolution_result[inter_turn][0 : len(self.time_axis)]
+                * e
+                / self.profile.bin_size
+                * self.dt,
+                label="convolution_2",
             )
-        plt.legend()
-        plt.show()
+            for el in range(self.n_turns):
+                plt.plot(
+                    self.time_array_profile[inter_turn][el],
+                    ind_volt_obs_list[inter_turn].induced_voltage[el],
+                    ls="--",
+                    label=f"section {inter_turn} turn {el}",
+                )
+            plt.legend()
+
+            if inter_turn == self.n_stations - 1:
+                plt.show(block=True)
+            else:
+                plt.show(block=False)
 
 
 if __name__ == "__main__":
     indi = InducdedVoltageResonator()
     indi.setUpB2(old_impl=False)
-    indi.setUpB2(old_impl=True)
+    # indi.setUpB2(old_impl=True)
     indi.setUpB3()
