@@ -184,7 +184,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     def _update_beam_energy(
         self,
         beam: BeamBaseClass,
-    ):
+    ) -> None:
         """
         Update the beam partial energy with radiation damping and excitation.
 
@@ -298,7 +298,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         ) = np.zeros((1, 5))
 
     @property
-    def number_of_wigglers(self):
+    def number_of_wigglers(self) -> int:
         """
         Number of damping wigglers.
 
@@ -310,7 +310,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         return self._number_of_wigglers
 
     @property
-    def length_wiggler(self):
+    def length_wiggler(self) -> float | None:
         """
         Length of each damping wiggler.
 
@@ -325,7 +325,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
             return None
 
     @property
-    def number_of_poles(self):
+    def number_of_poles(self) -> int:
         """
         Number of poles per wiggler.
 
@@ -337,7 +337,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         return self._number_of_poles
 
     @property
-    def peak_magnetic_field(self):
+    def peak_magnetic_field(self) -> float:
         """
         Peak magnetic field per wiggler.
 
@@ -349,7 +349,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         return self._peak_field
 
     @property
-    def pole_length(self):
+    def pole_length(self) -> float:
         """
         Pole length per wiggler.
 
@@ -360,7 +360,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         """
         return self._pole_length
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Method to print general information about the created class.
 
@@ -408,7 +408,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
     def _calculate_energy_contribution_to_synchrotron_radiation_integrals(
         self, reference_energy: float
-    ):
+    ) -> NumpyArray:
         """
         Calculate the wiggler contribution to the radiation integrals.
 
@@ -441,7 +441,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
     def _calculate_contribution_to_synchrotron_radiation_integrals_without_beam_energy(
         self,
-    ):
+    ) -> NumpyArray | None:
         """Calculate the wiggler radiation integrals without beam energy."""
         if self._type == "sinusoidal":
             self._contribution_to_synchrotron_radiation_integrals_without_energy = np.array(
@@ -478,7 +478,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
     def update_synchrotron_radiation_integrals(
         self,
         beam: BeamBaseClass,
-    ):
+    ) -> None:
         """
         Function to update the synchrotron radiation integrals.
 

@@ -115,7 +115,7 @@ class SynchrotronRadiationMaster(Schedulable):
 
         self.generated_children: list[SynchrotronRadiationBaseClass] = []
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Method to print general information about the created class.
 
@@ -133,7 +133,7 @@ class SynchrotronRadiationMaster(Schedulable):
         )
 
     @property
-    def synchrotron_radiation_integrals(self):
+    def synchrotron_radiation_integrals(self) -> NumpyArray | None:
         """
         Synchrotron radiation integrals.
 
@@ -145,7 +145,7 @@ class SynchrotronRadiationMaster(Schedulable):
         return self._synchrotron_radiation_integrals
 
     @property
-    def energy_loss_per_turn(self) -> NumpyArray:
+    def energy_loss_per_turn(self) -> NumpyArray | None:
         """
         Energy loss per turn, eV per turn.
 
@@ -157,7 +157,7 @@ class SynchrotronRadiationMaster(Schedulable):
         return self._energy_loss_per_turn
 
     @property
-    def longitudinal_damping_time(self) -> NumpyArray:
+    def longitudinal_damping_time(self) -> NumpyArray | None:
         """
         Damping times, in turns.
 
@@ -180,7 +180,9 @@ class SynchrotronRadiationMaster(Schedulable):
         """
         return len(self.generated_children)
 
-    def print_synchrotron_radiation_parameters(self, turn_number: int = 0):
+    def print_synchrotron_radiation_parameters(
+        self, turn_number: int = 0
+    ) -> str:
         """
         Print the synchrotron radiation parameter of a given turn.
 
@@ -207,7 +209,7 @@ class SynchrotronRadiationMaster(Schedulable):
 
     def compute_turn_by_turn_synchrotron_radiation_parameters(
         self, beam: BeamBaseClass, ring: Ring
-    ):
+    ) -> None:
         """
         Calculate the synchrotron radiation parameter for a specified beam.
 
@@ -257,7 +259,7 @@ class SynchrotronRadiationMaster(Schedulable):
         ring: Ring,
         radiation_integrals: NumpyArray | None = None,
         bending_radius: float | None = None,
-    ):
+    ) -> None:
         """
         Set the radiation integrals of the SynchrotronRadiationMaster class.
 
@@ -321,7 +323,7 @@ class SynchrotronRadiationMaster(Schedulable):
 
     def _generate_synchrotron_radiation_trackers(
         self, ring: Ring, element_list: list[type[T]]
-    ):
+    ) -> None:
         """
         Function to create and insert the SR trackers in the ring.
 
@@ -409,7 +411,7 @@ class SynchrotronRadiationMaster(Schedulable):
         ring: Ring,
         radiation_integrals: NumpyArray | None = None,
         bending_radius: float | None = None,
-    ):
+    ) -> None:
         """
         Function to create synchrotron radiation elements in the ring.
 
@@ -501,7 +503,7 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         )
 
     @property
-    def energy_lost_due_to_synchrotron_radiation_drift(self):
+    def energy_lost_due_to_synchrotron_radiation_drift(self) -> float | None:
         """
         Energy lost by passing through the drift.
 
@@ -513,7 +515,7 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         return self._energy_lost_due_to_synchrotron_radiation
 
     @property
-    def share_of_synchrotron_radiation_integrals(self):
+    def share_of_synchrotron_radiation_integrals(self) -> NumpyArray | None:
         """
         Synchrotron radiation integrals of the drift.
 
@@ -525,7 +527,7 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         return self._fractional_radiation_integrals
 
     @property
-    def synchrotron_radiation_integrals_drift(self):
+    def synchrotron_radiation_integrals_drift(self) -> NumpyArray | None:
         """
         Synchrotron radiation integrals of the drift.
 
@@ -580,7 +582,7 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         )
 
     @property
-    def energy_lost_due_to_synchrotron_radiation_section(self):
+    def energy_lost_due_to_synchrotron_radiation_section(self) -> float | None:
         """
         Energy lost by passing through the section.
 
@@ -592,7 +594,7 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         return self._energy_lost_due_to_synchrotron_radiation
 
     @property
-    def share_of_synchrotron_radiation_integrals(self):
+    def share_of_synchrotron_radiation_integrals(self) -> NumpyArray | None:
         """
         Synchrotron radiation integrals of the section.
 
@@ -604,7 +606,7 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         return self._fractional_radiation_integrals
 
     @property
-    def synchrotron_radiation_integrals_section(self):
+    def synchrotron_radiation_integrals_section(self) -> NumpyArray | None:
         """
         Synchrotron radiation integrals of the section.
 
