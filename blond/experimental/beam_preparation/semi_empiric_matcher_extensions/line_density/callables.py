@@ -1,9 +1,14 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING
-
-from matplotlib import pyplot as plt
 
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.callables_numba import (
     _gen_density_numba,

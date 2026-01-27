@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -28,6 +36,24 @@ class SemiEmpiricMatcherAddon(ABC):
         deltaE_grid: NumpyArray | CupyArray,
         hamilton_2D: NumpyArray | CupyArray,
     ) -> NumpyArray | CupyArray:
+        """
+        This function is an endpoint for the `SemiEmpiricMatcher`.
+
+        Parameters
+        ----`------
+        deltaE_grid
+            The time coordinates corresponding to `hamilton_2D`, in [eV].
+        time_grid
+            The time coordinates corresponding to `hamilton_2D`, in [s].
+        hamilton_2D
+            `A 2D array representing the spatial Hamilton field.
+
+        Returns
+        -------
+        density : NumpyArray or CupyArray
+            A 2D array of the same shape as `hamilton_2D`, representing the
+            computed density distribution. Values are scaled between 0 and 1.
+        """
         pass
 
 
@@ -74,7 +100,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
     ... )
     >>> matcher_addon = ProfileMatcherAddon(hist_x=..., hist_y=...)
 
-    >>> sim.prepare_beam(
+    >>> simulation.prepare_beam(
     ...     beam=...,
     ...     preparation_routine=SemiEmpiricMatcher(
     ...         time_limit=(0, 2.5e-9),
@@ -109,7 +135,24 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         deltaE_grid: NumpyArray | CupyArray,
         hamilton_2D: NumpyArray | CupyArray,
     ) -> NumpyArray | CupyArray:
-        """Use this function with the `SemiEmpiricMatcher`."""
+        """
+        This function is an endpoint for the `SemiEmpiricMatcher`.
+
+        Parameters
+        ----`------
+        deltaE_grid
+            The time coordinates corresponding to `hamilton_2D`, in [eV].
+        time_grid
+            The time coordinates corresponding to `hamilton_2D`, in [s].
+        hamilton_2D
+            `A 2D array representing the spatial Hamilton field.
+
+        Returns
+        -------
+        density : NumpyArray or CupyArray
+            A 2D array of the same shape as `hamilton_2D`, representing the
+            computed density distribution. Values are scaled between 0 and 1.
+        """
         if self.recenter:
             mid = time_grid.shape[1] // 2
             center_ham = np.average(

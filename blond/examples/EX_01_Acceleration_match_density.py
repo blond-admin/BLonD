@@ -94,7 +94,7 @@ def main():
             n_macroparticles=1e6,
             seed=0,
             maxiter_intensity_effects=0,
-            # internal_grid_shape=(256,256),
+            internal_grid_shape=(256, 256),
             hamilton_to_density_function=matcher_addon.hamilton_to_density_function,
             hamilton_to_density_kwargs=dict(),
             animate=True,
