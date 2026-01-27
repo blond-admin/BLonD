@@ -184,7 +184,7 @@ class Ring(Preparable):
         """
         return self._radiation_integrals
 
-    @cached_property
+    @property
     def momentum_compaction_factor(self) -> float:
         """
         Calculate the momentum compaction factor.
