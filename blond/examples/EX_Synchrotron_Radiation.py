@@ -53,7 +53,9 @@ class SynchrotronRadiationSimulation:
             ]
         )
         self.circumference = 90.65874532 * 1e3
-        self.momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+        self.momentum_compaction_factor = (
+            self.synchrotron_radiation_integrals[0] / self.circumference
+        )
         self.reference_energy = 20e9
 
         self.cavity = SingleHarmonicRFStation()
