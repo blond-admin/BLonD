@@ -477,7 +477,7 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         self,
         name: str | None = None,
         section_index: int = 0,
-        share_of_synchrotron_radiation_integrals: NumpyArray = None,
+        share_of_synchrotron_radiation_integrals: NumpyArray | None = None,
         _disable_quantum_excitation: bool = False,
     ):
         super().__init__(
