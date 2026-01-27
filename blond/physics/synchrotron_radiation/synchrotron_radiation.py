@@ -248,7 +248,7 @@ class SynchrotronRadiationMaster(Schedulable):
             synchrotron_radiation_shift_from_wigglers += (
                 element.update_synchrotron_radiation_integrals(
                     beam_reference_energy=beam.reference.total_energy,
-                    _calculation_only=True,
+                    calculation_only=True,
                 )
             )
         (

@@ -475,7 +475,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
     def update_synchrotron_radiation_integrals(
         self,
         beam_reference_energy: float,
-        _calculation_only: bool = False,
+        calculation_only: bool = False,
     ) -> None:
         """
         Function to update the synchrotron radiation integrals.
@@ -489,7 +489,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         ----------
         beam_reference_energy
             Beam reference energy.
-        _calculation_only
+        calculation_only
             If enabled, the calculated wiggler radiation integrals will be
             outputed. The internal properties will not be updated. False by
             default.
@@ -498,7 +498,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         -------
         wiggler_radiation_integrals
             Wiggler contribution to the synchrotron radiation integrals if
-            _calculation_only is True.
+            calculation_only is True.
         """
         energy_contribution_wiggler_integrals = self._calculate_energy_contribution_to_synchrotron_radiation_integrals(
             reference_energy=beam_reference_energy
@@ -508,7 +508,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
             self._contribution_to_synchrotron_radiation_integrals_without_energy,
             energy_contribution_wiggler_integrals,
         )
-        if not _calculation_only:
+        if not calculation_only:
             self._contribution_to_synchrotron_radiation_integrals_with_energy = wiggler_radiation_integrals
             self._fractional_radiation_integrals = self._contribution_to_synchrotron_radiation_integrals_with_energy
             return None
