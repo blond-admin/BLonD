@@ -25,6 +25,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.particle_types import ParticleType
 
 
+# TODO include synchrotron radiation
 def generate_fccee_collider_basic_simulation(
     operation_mode: str = "Z",
     particle: ParticleType = positron,
