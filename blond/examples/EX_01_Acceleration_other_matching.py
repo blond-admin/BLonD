@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.sparse import lil_matrix
+from scipy.sparse import coo_matrix, diags, vstack
+from scipy.sparse.linalg import lsqr
 from tqdm import tqdm
 
 from blond import (
@@ -72,62 +73,6 @@ class ProfileMatcher:
         self.hist_x = hist_x
         self.hist_y = hist_y
 
-    def hamilton_to_density_function_no(
-        self,
-        time_grid: NumpyArray | CupyArray,
-        deltaE_grid: NumpyArray | CupyArray,
-        hamilton_2D: NumpyArray | CupyArray,
-    ) -> NumpyArray | CupyArray:
-        mid = time_grid.shape[1] // 2
-        center_ham = np.average(time_grid[:, mid], weights=hamilton_2D[:, mid])
-        center_prof = np.average(self.hist_x, weights=self.hist_y)
-        hist_x_interp = time_grid[:, 0]
-        hist_y_interp = np.interp(
-            hist_x_interp,
-            self.hist_x + (center_ham - center_prof),  # todo if recenter
-            self.hist_y,
-            left=0,
-            right=0,
-        )
-        n_writes = np.zeros_like(hamilton_2D)
-        density = np.zeros_like(hamilton_2D)
-        matrix = np.zeros((len(hist_y_interp), np.prod(hamilton_2D.shape)))
-
-        for i in range(2, len(hist_y_interp) - 2):
-            prev_energy = hamilton_2D[i - 2, mid]
-            this_energy = hamilton_2D[i, mid]
-            next_energy = hamilton_2D[i + 2, mid]
-            e_min = this_energy - 2 * (this_energy - prev_energy)
-            e_max = this_energy + 2 * (next_energy - this_energy)
-            select = (hamilton_2D <= e_min) & (hamilton_2D >= e_max)
-            indices_2d = np.where(select)
-            j = np.ravel_multi_index(indices_2d, dims=select.shape)
-            matrix[i, j] += 1
-
-        hist_y_residual = hist_y_interp
-        for i in range(1):
-            print(i)
-            density += (hist_y_residual @ matrix).reshape(hamilton_2D.shape)
-            # matrix_pinv = np.linalg.pinv(matrix)
-            # density = (matrix_pinv @ hist_y_residual).reshape(
-            #    hamilton_2D.shape)
-
-            hist_y_result = np.sum(density, axis=1)
-
-            plt.figure(1)
-            plt.clf()
-            plt.plot(hist_y_result / np.sum(hist_y_result))
-            plt.plot(hist_y_interp / np.sum(hist_y_interp), "--")
-            hist_y_residual = -(
-                hist_y_interp / np.sum(hist_y_interp)
-                - hist_y_result / np.sum(hist_y_result)
-            )
-            plt.plot(hist_y_residual, "--")
-            plt.draw()
-            plt.pause(0.1)
-
-        return density
-
     def hamilton_to_density_function(
         self,
         time_grid: NumpyArray | CupyArray,
@@ -146,144 +91,268 @@ class ProfileMatcher:
             right=0,
         )
 
-        matrix_smooth = self.get_smooting_matrix(hamilton_2D.shape)
-
-        matrix1, matrix2 = self.get_transformation_matrix(
+        (
+            state_vector_to_hamilton,
+            hamilton_to_histogram,
+            hamilton_to_smoothness,
+        ) = self.get_transformation_matrix(
             hamilton_2D=hamilton_2D, hist_y_n_bins=len(hist_y_interp)
         )
+        # matrix_smooth = self.get_smooting_matrix(hamilton_2D.shape)
 
         # Convert to CSR for fast algebra
-        matrix1 = (matrix_smooth @ matrix1).tocsr()
-        matrix2 = matrix2.tocsr()
+        # state_vector_to_hamilton = (matrix_smooth @ state_vector_to_hamilton).tocsr()
+        state_vector_to_hamilton = state_vector_to_hamilton.tocsr()
+        hamilton_to_histogram = hamilton_to_histogram.tocsr()
 
-        M = matrix2 @ matrix1
-        b = hist_y_interp
+        state_vector_to_histogram = (
+            hamilton_to_histogram @ state_vector_to_hamilton
+        )
+        histogram = hist_y_interp
 
-        x = np.zeros_like(b)
+        if False:
+            x = self.solve_art()
+        if True:
+            x = self.solve_lgs(histogram, state_vector_to_histogram)
 
-        relaxation = 0.1
-        while True:
-            if False:
-                # algebraic reconstruction technique
-                for i in range(M.shape[0]):
-                    a_i = M[i, :]
-                    b_i = b[i]
-
-                    # Skip if measurement vector is zero to avoid division by zero
-                    a_i_norm_sq = (a_i @ a_i.T)[0, 0]
-                    if a_i_norm_sq == 0:
-                        continue
-
-                    # Compute residual between observed and predicted measurement
-                    residual_ = b_i - a_i @ x
-
-                    # Calculate update scaled by relaxation parameter
-                    update = (relaxation * residual_ / a_i_norm_sq) * a_i
-
-                    # Update only masked elements of solution vector
-                    x += update
-
-                    # Enforce non-negativity constraint
-                    x = np.maximum(x, 0)
-            if True:
-                from scipy.sparse.linalg import lsqr
-
-                result = lsqr(
-                    M,
-                    b,
-                )
-
-                x = result[0]
-                break
-        density = (matrix1 @ x).reshape(hamilton_2D.shape)
+        plt.figure()
+        plt.plot(hamilton_to_smoothness @ state_vector_to_hamilton @ x)
+        plt.show()
+        density = (state_vector_to_hamilton @ x).reshape(hamilton_2D.shape)
         density[density < 0] = 0
 
+        self.plot_result(density, hist_y_interp, state_vector_to_histogram, x)
+
+        return density
+
+    @staticmethod
+    def plot_result(density, hist_y_interp, state_vector_to_histogram, x):
         plt.figure(0)
         plt.clf()
-        ax = plt.subplot(1, 2, 1)
+        plt.subplot(1, 3, 1)
+        plt.plot(x)
+        ax = plt.subplot(1, 3, 2)
         ax.matshow(density)
-        plt.subplot(1, 2, 2)
+        plt.subplot(1, 3, 3)
         plt.plot(hist_y_interp, label="hist_y_interp")
-        residual = M @ x
+        residual = state_vector_to_histogram @ x
         plt.plot(residual, label="residual")
         plt.legend()
         plt.draw()
         plt.pause(0.1)
         plt.show()
-
         plt.matshow(density)
         plt.colorbar()
         plt.show()
 
-        return density
+    @staticmethod
+    def solve_art():
+        x = np.zeros_like(histogram)
+        relaxation = 0.01
+        weights = np.empty(state_vector_to_histogram.shape[0])
+        for i in range(state_vector_to_histogram.shape[0]):
+            a_i = state_vector_to_histogram[i, :]
+            a_i_norm_sq = (a_i @ a_i.T)[0, 0]
+            weights[i] = a_i_norm_sq
+        indices = np.arange(state_vector_to_histogram.shape[0])[
+            np.argsort(weights)
+        ]
+        for _ in range(20):
+            # algebraic reconstruction technique
+            for i in indices:
+                a_i = state_vector_to_histogram[i, :]
+                b_i = histogram[i]
 
-    def get_transformation_matrix(self, hamilton_2D, hist_y_n_bins):
+                # Skip if measurement vector is zero to avoid division by zero
+                a_i_norm_sq = (a_i @ a_i.T)[0, 0]
+                if a_i_norm_sq == 0:
+                    continue
+
+                # Compute residual between observed and predicted measurement
+                residual_ = b_i - a_i @ x
+
+                # Calculate update scaled by relaxation parameter
+                update = (relaxation * residual_ / a_i_norm_sq) * a_i
+
+                if i == 511 and _ == 0:
+                    plt.subplot(4, 1, 1)
+                    plt.plot(residual_.flatten(), label="residual_")
+                    plt.legend()
+
+                    plt.subplot(4, 1, 2)
+                    plt.plot(a_i.toarray().flatten(), "o", label="a_i")
+                    plt.legend()
+
+                    plt.subplot(4, 1, 3)
+                    plt.plot(update, label="update")
+                    plt.legend()
+
+                    plt.subplot(4, 1, 4)
+                    plt.plot()
+                    plt.show()
+                # Update only masked elements of solution vector
+                x += update
+
+                # Enforce non-negativity constraint
+                x = np.maximum(x, 0)
+            # x = gaussian_filter1d(x, sigma=2)  # keep solution smooth
+        return x
+
+    @staticmethod
+    def solve_lgs(histogram, state_vector_to_histogram):
+        x = lsqr(state_vector_to_histogram, histogram)[0]
+        return x
+
+    @staticmethod
+    def get_transformation_matrix(hamilton_2D, hist_y_n_bins):
+        import numpy as np
+        from scipy.sparse import coo_matrix
+        from tqdm import tqdm
+
         mid = hamilton_2D.shape[1] // 2
+        h_shape = hamilton_2D.shape
+        n_elements = np.prod(h_shape)
 
-        hamilton_2d_shape = hamilton_2D.shape
-        matrix1 = lil_matrix(
-            (np.prod(hamilton_2d_shape), hist_y_n_bins), dtype=float
-        )
-        matrix2 = lil_matrix(
-            (hist_y_n_bins, np.prod(hamilton_2d_shape)), dtype=float
-        )
-        H_change = np.abs(np.gradient(hamilton_2D[:, mid], edge_order=2))
-        for i in tqdm(
-            range(2, hist_y_n_bins - 2),
-            desc="preparing matrix",
-        ):
+        # Precompute gradient
+        H_1d = hamilton_2D[:, mid]
+        H_change = np.abs(np.gradient(H_1d, edge_order=2))
+
+        # Sparse matrix builders
+        rows_matrix1, cols_matrix1, data_matrix1 = [], [], []
+        rows_matrix2, cols_matrix2 = [], []
+        rows_matrix3, cols_matrix3, data_matrix3 = [], [], []
+
+        for i in tqdm(range(2, hist_y_n_bins - 2), desc="preparing matrix"):
             this_energy = hamilton_2D[i, mid]
-            for smoothing_i in range(1, 1 + 2):  # create linear fallof
-                e_min = this_energy - 5 * smoothing_i * H_change[i]
-                e_max = this_energy + 5 * smoothing_i * H_change[i]
-                if e_max < e_min:
-                    e_min, e_max = e_max, e_min
-                if e_max == e_min:
-                    raise Exception
-                select = (hamilton_2D >= e_min) & (hamilton_2D <= e_max)
 
-                indices_2d = np.where(select)
-                j = np.ravel_multi_index(indices_2d, dims=hamilton_2d_shape)
-                for jj in j:
-                    matrix1[jj, i] += 1
+            sigma = 5 * H_change[i]
 
-                for jj in range(
-                    i * hamilton_2d_shape[1],
-                    (i + 1) * hamilton_2d_shape[1],
-                ):
-                    matrix2[i, jj] += 1
-        return matrix1, matrix2
+            if sigma == 0:
+                continue
 
-    def get_smooting_matrix(self, hamilton_2D_shape, radius=2, w_center=0.5):
+            # Gaussian weight per (i,j)
+            delta_E = hamilton_2D - this_energy
+            weights_ij = np.exp(-(delta_E**2) / (2.0 * sigma**2))
+
+            # Optional cutoff window (keeps sparsity under control)
+            e_min = this_energy - 10.0 * sigma
+            e_max = this_energy + 10.0 * sigma
+            mask = (hamilton_2D >= e_min) & (hamilton_2D <= e_max)
+            weights_ij *= mask
+
+            # Normalize per i (optional but usually correct)
+            s = weights_ij[:, mid].sum()
+            if s > 0:
+                weights_ij /= s
+
+            # Visualization (debug)
+            if False:  # set True to inspect
+                plt.figure(10)
+                plt.clf()
+                plt.matshow(weights_ij.T, fignum=10)
+                plt.colorbar()
+                plt.title(f"i = {i}")
+                plt.pause(0.1)
+
+            # Sparse indices
+            indices_2d = np.nonzero(weights_ij)
+            flat_indices = np.ravel_multi_index(indices_2d, dims=h_shape)
+            vals = weights_ij[indices_2d]
+
+            rows_matrix1.extend(flat_indices)
+            cols_matrix1.extend([i] * len(flat_indices))
+            data_matrix1.extend(vals)
+
+            # Matrix 2 (row i covers entire row i in Hamiltonian)
+            row_indices = np.arange(i * h_shape[1], (i + 1) * h_shape[1])
+            rows_matrix2.extend([i] * len(row_indices))
+            cols_matrix2.extend(row_indices)
+
+            # Matrix 2 (row i covers entire row i in Hamiltonian)
+
+            i -= 1
+            rows_matrix3.append(i)
+            cols_matrix3.append(i + h_shape[1] // 2)
+            data_matrix3.append(1)
+            i += 1
+            rows_matrix3.append(i)
+            cols_matrix3.append(i + h_shape[1] // 2)
+            data_matrix3.append(-2)
+
+            i += 1
+            rows_matrix3.append(i)
+            cols_matrix3.append(i + h_shape[1] // 2)
+            data_matrix3.append(1)
+
+        # Build sparse matrices
+        state_vector_to_hamilton = coo_matrix(
+            (data_matrix1, (rows_matrix1, cols_matrix1)),
+            shape=(n_elements, hist_y_n_bins),
+            dtype=float,
+        )
+
+        hamilton_to_histogram = coo_matrix(
+            (np.ones(len(rows_matrix2)), (rows_matrix2, cols_matrix2)),
+            shape=(hist_y_n_bins, n_elements),
+            dtype=float,
+        )
+
+        hamilton_to_smoothness = coo_matrix(
+            (data_matrix3, (rows_matrix3, cols_matrix3)),
+            shape=(hist_y_n_bins, n_elements),
+            dtype=float,
+        )
+
+        return (
+            state_vector_to_hamilton,
+            hamilton_to_histogram,
+            hamilton_to_smoothness,
+        )
+
+    @staticmethod
+    def get_smooting_matrix(hamilton_2D_shape, radius=2, w_center=0.1):
         nx, ny = hamilton_2D_shape
-        matrix_smooth = lil_matrix((nx * ny, nx * ny), dtype=float)
-
-        # total weight for neighbors
+        N = nx * ny
         w_neighbor_total = 1.0 - w_center
+
+        rows = []
+        cols = []
+        data = []
+
+        # Precompute neighbor offsets within the radius (excluding the center)
+        offsets = [
+            (di, dj)
+            for di in range(-radius, radius + 1)
+            for dj in range(-radius, radius + 1)
+            if not (di == 0 and dj == 0)
+        ]
 
         for i in tqdm(range(nx), desc="preparing smoothing"):
             for j in range(ny):
                 row = np.ravel_multi_index((i, j), (nx, ny))
 
-                # center weight
-                matrix_smooth[row, row] = w_center
+                # Add center weight
+                rows.append(row)
+                cols.append(row)
+                data.append(w_center)
 
-                # neighbors within radius
-                neighbors = []
-                for di in range(-radius, radius + 1):
-                    for dj in range(-radius, radius + 1):
-                        if di == 0 and dj == 0:
-                            continue  # skip center
-                        ni, nj = i + di, j + dj
-                        if 0 <= ni < nx and 0 <= nj < ny:
-                            neighbors.append((ni, nj))
+                # Valid neighbors
+                neighbors = [
+                    (i + di, j + dj)
+                    for di, dj in offsets
+                    if 0 <= i + di < nx and 0 <= j + dj < ny
+                ]
 
                 if neighbors:
                     w_neighbor = w_neighbor_total / len(neighbors)
                     for ni, nj in neighbors:
                         col = np.ravel_multi_index((ni, nj), (nx, ny))
-                        matrix_smooth[row, col] = w_neighbor
+                        rows.append(row)
+                        cols.append(col)
+                        data.append(w_neighbor)
 
+        # Build sparse matrix efficiently
+        matrix_smooth = coo_matrix((data, (rows, cols)), shape=(N, N))
         return matrix_smooth.tocsr()
 
 
