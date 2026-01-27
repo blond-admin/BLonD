@@ -87,8 +87,6 @@ class SynchrotronRadiationMaster(Schedulable):
         should be tracked.
     _disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
-    verbose
-        Enable printed messages.
 
     Examples
     --------
@@ -112,11 +110,8 @@ class SynchrotronRadiationMaster(Schedulable):
         self,
         track_before_element_type: list[type[T]] | None = None,
         _disable_quantum_excitation: bool = False,
-        verbose: bool = False,
     ):
         super().__init__()
-
-        self.verbose = verbose
 
         if track_before_element_type is not None:
             self.track_before_element_type = track_before_element_type
@@ -243,11 +238,6 @@ class SynchrotronRadiationMaster(Schedulable):
             `Beam` object.
         ring
             `Ring` context manager.
-
-        Returns
-        -------
-         if self.verbose:
-            Prints the computed synchrotron radiation parameters.
         """
         synchrotron_radiation_shift_from_wigglers = np.zeros(
             len(self._synchrotron_radiation_integrals)
@@ -464,11 +454,6 @@ class SynchrotronRadiationMaster(Schedulable):
             False.
         bending_radius
             Averaged bending radius along the ring.
-
-        Returns
-        -------
-        if self.verbose:
-            Prints the number of generated synchrotron radiation subclasses.
         """
         self._set_synchrotron_radiation_integrals(
             ring=ring,
@@ -496,13 +481,6 @@ class SynchrotronRadiationMaster(Schedulable):
                 self._generate_synchrotron_radiation_trackers(
                     ring=ring, element_list=element_list
                 )
-
-        if self.verbose:
-            return print(
-                f"{len(self.generated_children)} synchrotron radiation "
-                f"trackers generated"
-            )
-        return None
 
 
 class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
