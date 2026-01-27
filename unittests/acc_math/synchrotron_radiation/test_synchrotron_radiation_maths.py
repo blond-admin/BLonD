@@ -61,7 +61,6 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             29910.62041820081,
             damping_times_in_turn[1],
             msg="Expected value = 29911",
-            # places=self.decimals,
         )
         self.assertEqual(
             damping_times_in_turn[0], tau_x, msg="Expected value = 29911"
