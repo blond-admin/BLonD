@@ -10,7 +10,7 @@
 Collection of longitudinal beam dynamics analytical formulae.
 
 Author:
-L. Valle, ...
+L. Valle
 """
 
 from __future__ import annotations
