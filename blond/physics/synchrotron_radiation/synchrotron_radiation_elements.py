@@ -36,12 +36,12 @@ if TYPE_CHECKING:
 
 
 def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
-    energy_lost: float,
     beam_delta_energy_array: NumpyArray,
-    random_generator: Generator,
-    natural_energy_spread: float,
+    energy_lost: float,
     longitudinal_damping_time: float,
-    total_energy: float,
+    natural_energy_spread: float | None = None,
+    total_energy: float | None = None,
+    random_generator: Generator | None = None,
     _disable_quantum_excitation: bool = False,
 ) -> float | ndarray[tuple[int, ...], dtype[Any]] | Any:
     """
@@ -53,18 +53,18 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
 
     Parameters
     ----------
-    energy_lost
-        Energy lost through the considered synchrotron segment.
     beam_delta_energy_array
         Beam energy array.
-    random_generator
-        Random generator.
-    natural_energy_spread
-        Natural energy spread of the considered synchrotron segment.
+    energy_lost
+        Energy lost through the considered synchrotron segment.
     longitudinal_damping_time
         Longitudinal damping time of the considered synchrotron segment.
+    natural_energy_spread
+        Natural energy spread of the considered synchrotron segment.
     total_energy
         Beam total reference energy.
+    random_generator
+        Random generator.
     _disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
 
