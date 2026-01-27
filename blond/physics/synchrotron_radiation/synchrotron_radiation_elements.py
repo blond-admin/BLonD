@@ -102,7 +102,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     section_index
         Section index to group elements into sections.
     share_of_synchrotron_radiation_integrals
-        Fractional synchrotron radiation integrals.
+        Share of synchrotron radiation integrals.
     disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
     seed
@@ -121,7 +121,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
 
         self._simulation: Simulation | None = None
         self._turn_i: DynamicParameter | None = 0
-        self._fractional_radiation_integrals = (
+        self._share_of_synchrotron_radiation_integrals = (
             share_of_synchrotron_radiation_integrals
         )
 
@@ -162,7 +162,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ) = gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=beam.particle_type,
             energy=total_energy,
-            synchrotron_radiation_integrals=self._fractional_radiation_integrals,
+            synchrotron_radiation_integrals=self._share_of_synchrotron_radiation_integrals,
         )
         self._energy_lost_due_to_synchrotron_radiation = estimated_energy_lost
         self._damping_time = estimated_damping_time
@@ -510,7 +510,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         )
         if not calculation_only:
             self._contribution_to_synchrotron_radiation_integrals_with_energy = wiggler_radiation_integrals
-            self._fractional_radiation_integrals = self._contribution_to_synchrotron_radiation_integrals_with_energy
+            self._share_of_synchrotron_radiation_integrals = self._contribution_to_synchrotron_radiation_integrals_with_energy
             return None
         else:
             return wiggler_radiation_integrals

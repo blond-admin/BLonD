@@ -496,7 +496,7 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
     section_index
         Section index to group elements into sections.
     share_of_synchrotron_radiation_integrals
-        Fractional synchrotron radiation integrals.
+        Share of synchrotron radiation integrals.
     disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
     """
@@ -537,7 +537,7 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         synchrotron_radiation_integrals_drift
             Synchrotron radiation integrals of the drift.
         """
-        return self._fractional_radiation_integrals
+        return self._share_of_synchrotron_radiation_integrals
 
     @property
     def synchrotron_radiation_integrals_drift(self) -> NumpyArray | None:
@@ -549,7 +549,7 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         synchrotron_radiation_integrals_drift
             Synchrotron radiation integrals of the drift.
         """
-        return self._fractional_radiation_integrals
+        return self._share_of_synchrotron_radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -575,7 +575,7 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
     section_index
         Section index to group elements into sections.
     share_of_synchrotron_radiation_integrals
-        Fractional synchrotron radiation integrals.
+        Share of synchrotron radiation integrals.
     disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
     """
@@ -616,7 +616,7 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         synchrotron_radiation_integrals_section
             Synchrotron radiation integrals of the section.
         """
-        return self._fractional_radiation_integrals
+        return self._share_of_synchrotron_radiation_integrals
 
     @property
     def synchrotron_radiation_integrals_section(self) -> NumpyArray | None:
@@ -628,7 +628,7 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         synchrotron_radiation_integrals_section
             Synchrotron radiation integrals of the section.
         """
-        return self._fractional_radiation_integrals
+        return self._share_of_synchrotron_radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
