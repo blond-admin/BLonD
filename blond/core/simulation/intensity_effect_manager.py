@@ -16,7 +16,7 @@ from blond.physics.impedances.base import WakeField
 from blond.physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond import Simulation, backend
+    from blond import Simulation
 
 
 class IntensityEffectManager:
@@ -85,41 +85,6 @@ class IntensityEffectManager:
         )
         for wakefield in wakefields:
             wakefield.active = active
-
-    def override_profiles(self, hist_x, hist_y, allow_interp=False) -> None:
-        """
-        Activate/deactivate `ProfileBaseClass`.
-
-        Parameters
-        ----------
-        """
-        profiles = self._parent_simulation.ring.elements.get_elements(
-            ProfileBaseClass
-        )
-        # Deactivate the `Profiles` of the WakeFields.
-        # The frozen wakefields can still affect the beam.
-        wakefields = self._parent_simulation.ring.elements.get_elements(
-            WakeField
-        )
-        profiles_b = [wakefield.profile for wakefield in wakefields]
-
-        profiles: tuple[ProfileBaseClass, ...] = tuple(*profiles, *profiles_b)
-
-        for profile in profiles:
-            if not allow_interp:
-                assert len(hist_x) == len(hist_y), (
-                    f"{len(hist_x)=}, but {len(hist_y)=}."
-                )
-                if profile._hist_y is None:
-                    profile._hist_y = backend.array(
-                        hist_y, dtype=backend.float
-                    )
-                else:
-                    profile._hist_y[:] = backend.array(
-                        hist_y, dtype=backend.float
-                    )
-            else:
-                raise NotImplementedError()
 
     def set_profiles(self, active: bool) -> None:
         """
