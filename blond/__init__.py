@@ -50,8 +50,6 @@ from blond.physics.losses import BoxLosses  # NOQA
 from blond.physics.profiles import StaticProfile  # NOQA
 from blond.physics.synchrotron_radiation.synchrotron_radiation import (  # NOQA
     SynchrotronRadiationMaster,
-    _SynchrotronRadiationDrift,
-    _SynchrotronRadiationSection,
 )
 from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (  # NOQA
     SynchrotronRadiationBaseClass,
