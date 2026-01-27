@@ -41,7 +41,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
     natural_energy_spread: float | None = None,
     total_energy: float | None = None,
     random_generator: Generator | None = None,
-    _disable_quantum_excitation: bool = False,
+    disable_quantum_excitation: bool = False,
 ) -> float | NumpyArray:
     """
     Energy kick induced by synchrotron radiation and quantum excitation.
@@ -64,7 +64,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
         Beam total reference energy.
     random_generator
         Random generator.
-    _disable_quantum_excitation
+    disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
 
     Returns
@@ -72,7 +72,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
     energy_kick
         Energy kick induced by synchrotron radiation and quantum excitation.
     """
-    if _disable_quantum_excitation:
+    if disable_quantum_excitation:
         energy_kick = (
             -energy_lost
             - 2.0 / longitudinal_damping_time * beam_delta_energy_array
@@ -103,7 +103,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         Section index to group elements into sections.
     share_of_synchrotron_radiation_integrals
         Fractional synchrotron radiation integrals.
-    _disable_quantum_excitation
+    disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
     seed
         Random seed parameter.
@@ -114,7 +114,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         name: str | None = None,
         section_index: int | None = None,
         share_of_synchrotron_radiation_integrals: NumpyArray | None = None,
-        _disable_quantum_excitation: bool = False,
+        disable_quantum_excitation: bool = False,
         seed: int | None = None,
     ):
         super().__init__(name=name, section_index=section_index)
@@ -125,7 +125,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             share_of_synchrotron_radiation_integrals
         )
 
-        self._disable_quantum_excitation = _disable_quantum_excitation
+        self._disable_quantum_excitation = disable_quantum_excitation
 
         self._energy_lost_due_to_synchrotron_radiation: float | None = None
         self._damping_time: float | None = None
@@ -177,7 +177,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             natural_energy_spread=estimated_natural_energy_spread,
             longitudinal_damping_time=estimated_damping_time,
             total_energy=total_energy,
-            _disable_quantum_excitation=self._disable_quantum_excitation,
+            disable_quantum_excitation=self._disable_quantum_excitation,
         )
 
     def _update_beam_energy(

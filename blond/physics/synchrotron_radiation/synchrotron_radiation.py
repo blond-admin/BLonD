@@ -42,7 +42,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     calculate_isomagnetic_radiation_integrals,
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import DynamicParameter, Schedulable
+from blond.core.base import Schedulable
 from blond.core.beam.base import BeamBaseClass
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
@@ -85,7 +85,7 @@ class SynchrotronRadiationMaster(Schedulable):
     track_before_element_type
         BeamPhysicsRelevant element class for which synchrotron radiation
         should be tracked.
-    _disable_quantum_excitation
+    disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
 
     Examples
@@ -109,7 +109,7 @@ class SynchrotronRadiationMaster(Schedulable):
     def __init__(
         self,
         track_before_element_type: list[type[T]] | None = None,
-        _disable_quantum_excitation: bool = False,
+        disable_quantum_excitation: bool = False,
     ):
         super().__init__()
 
@@ -119,8 +119,7 @@ class SynchrotronRadiationMaster(Schedulable):
             self.track_before_element_type = DriftBaseClass
 
         self._simulation: Simulation | None = None
-        self._turn_i: DynamicParameter | None = 0
-        self._disable_quantum_excitation = _disable_quantum_excitation
+        self._disable_quantum_excitation = disable_quantum_excitation
 
         self._synchrotron_radiation_integrals = None
         self._natural_energy_spread: NumpyArray | None = None
@@ -140,8 +139,7 @@ class SynchrotronRadiationMaster(Schedulable):
         """
         return (
             f"Synchrotron radiation master class set up for the"
-            f" ring. Simulation currently set for turn "
-            f"{self._turn_i}. \n Generated "
+            f" ring. \n Generated "
             f"{self.number_of_generated_synchrotron_radiation_classes} "
             f"synchrotron radiation elements."
         )
@@ -374,7 +372,7 @@ class SynchrotronRadiationMaster(Schedulable):
                     section_index=element.section_index,
                     name=f"SynchrotronRadiationTracker_{i}",
                     share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
-                    _disable_quantum_excitation=self._disable_quantum_excitation,
+                    disable_quantum_excitation=self._disable_quantum_excitation,
                 )
                 # _SynchrotronRadiationDrift tracker placed before the
                 # drift
@@ -400,7 +398,7 @@ class SynchrotronRadiationMaster(Schedulable):
                         cavities_section_indexes[i - 1]
                         == len(ring.section_lengths) - 1
                     ):
-                        section_length_to_consider = (ring.section_lengths)[-1]
+                        section_length_to_consider = ring.section_lengths[-1]
                     else:
                         section_length_to_consider = np.sum(
                             ring.section_lengths[
@@ -416,7 +414,7 @@ class SynchrotronRadiationMaster(Schedulable):
                     section_index=element.section_index,
                     name=f"SynchrotronRadiationTracker_{i}",
                     share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
-                    _disable_quantum_excitation=self._disable_quantum_excitation,
+                    disable_quantum_excitation=self._disable_quantum_excitation,
                 )
                 # _SynchrotronRadiationSection tracker placed after the
                 # cavity
@@ -496,7 +494,7 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         Section index to group elements into sections.
     share_of_synchrotron_radiation_integrals
         Fractional synchrotron radiation integrals.
-    _disable_quantum_excitation
+    disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
     """
 
@@ -505,13 +503,13 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         name: str | None = None,
         section_index: int = 0,
         share_of_synchrotron_radiation_integrals: NumpyArray = None,
-        _disable_quantum_excitation: bool = False,
+        disable_quantum_excitation: bool = False,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
             share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
-            _disable_quantum_excitation=_disable_quantum_excitation,
+            disable_quantum_excitation=disable_quantum_excitation,
         )
 
     @property
@@ -575,7 +573,7 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         Section index to group elements into sections.
     share_of_synchrotron_radiation_integrals
         Fractional synchrotron radiation integrals.
-    _disable_quantum_excitation
+    disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
     """
 
@@ -584,13 +582,13 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         name: str | None = None,
         section_index: int = 0,
         share_of_synchrotron_radiation_integrals: NumpyArray = None,
-        _disable_quantum_excitation: bool = False,
+        disable_quantum_excitation: bool = False,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
             share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
-            _disable_quantum_excitation=_disable_quantum_excitation,
+            disable_quantum_excitation=disable_quantum_excitation,
         )
 
     @property
