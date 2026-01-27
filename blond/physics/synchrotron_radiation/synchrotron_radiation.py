@@ -550,7 +550,7 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
 
 class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
     """
-    Class to track the effect on synchrotron radiation before a section.
+    Class to track the effect on synchrotron radiation after a RF cavity.
 
     Parameters
     ----------
@@ -565,8 +565,6 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         Expert user only. Disables the quantum excitation kick.
     """
 
-    # TODO : enforce a constraint on the number of
-    #  SynchrotronRadiationSection per section
     def __init__(
         self,
         name: str | None = None,
