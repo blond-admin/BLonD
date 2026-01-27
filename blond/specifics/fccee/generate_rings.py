@@ -17,12 +17,12 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     positron,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond._core.beam.particle_types import ParticleType
+    from blond.core.beam.particle_types import ParticleType
 
 
 def generate_fccee_collider_basic_simulation(
@@ -70,7 +70,8 @@ def generate_fccee_collider_basic_simulation(
         radiation_integrals = None
     else:
         raise ValueError(
-            f"Operation mode not recognised. Expected ZZ, WW, ZH or tt and "
+            f"Operation mode not recognised. Expected Z or ZZ, W or WW, "
+            f"H or ZH, tt or ttbar and "
             f"got {operation_mode}"
         )
 
@@ -84,7 +85,7 @@ def generate_fccee_collider_basic_simulation(
     )
 
     # TODO: calculate initial total RF voltage required in the collider
-    cavity = SingleHarmonicRfStation(
+    cavity = SingleHarmonicRFStation(
         harmonic=121200, voltage=total_rf_voltage, phi_rf=0
     )
     ring.add_elements([cavity, drift])
