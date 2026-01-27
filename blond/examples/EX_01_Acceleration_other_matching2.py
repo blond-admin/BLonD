@@ -29,7 +29,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes import (
-    ProfileMatcher,
+    ProfileMatcherAddon,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -40,7 +40,7 @@ def get_test_profile():
     # Parameters
     mean = 2.5e-9 / 2  # Mean of the distribution
     std_dev = 2.5e-9 / 8  # Standard deviation
-    size = 10000  # Number of data points
+    size = 100000  # Number of data points
 
     # Generate random data from a Gaussian distribution
     data = np.random.normal(loc=mean, scale=std_dev, size=size)
@@ -85,7 +85,7 @@ def main():
     sim.print_one_turn_execution_order()
 
     hist_x, hist_y = get_test_profile()
-    matcher = ProfileMatcher(hist_x=hist_x, hist_y=hist_y)
+    matcher_addon = ProfileMatcherAddon(hist_x=hist_x, hist_y=hist_y)
 
     sim.prepare_beam(
         beam=beam1,
@@ -95,7 +95,7 @@ def main():
             seed=0,
             maxiter_intensity_effects=0,
             # internal_grid_shape=(256,256),
-            hamilton_to_density_function=matcher.hamilton_to_density_function,
+            hamilton_to_density_function=matcher_addon.hamilton_to_density_function,
             hamilton_to_density_kwargs=dict(),
             animate=True,
         ),

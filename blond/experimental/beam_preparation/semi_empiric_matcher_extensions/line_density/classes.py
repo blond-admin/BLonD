@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.ndimage import gaussian_filter1d
 from tqdm import tqdm
 
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.callables import (
@@ -16,21 +18,90 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-class ProfileMatcher:
+class SemiEmpiricMatcherAddon(ABC):
+    """Abstract class to define addons for the `SemiEmpiricMatcher`."""
+
+    @abstractmethod  # pragma: no cover
+    def hamilton_to_density_function(
+        self,
+        time_grid: NumpyArray | CupyArray,
+        deltaE_grid: NumpyArray | CupyArray,
+        hamilton_2D: NumpyArray | CupyArray,
+    ) -> NumpyArray | CupyArray:
+        pass
+
+
+class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
+    """
+    Helper class to match a beam profile to a target simulation histogram.
+
+    Parameters
+    ----------
+    hist_x : array-like
+        Time coordinates of the histogram [s].
+    hist_y : array-like
+        Histogram amplitude [arbitrary units].
+
+    Attributes
+    ----------
+    smoothness : float
+        Controls how the internal state is smoothed to produce a stable
+        distribution that is less sensitive to noise.
+    maxiter : int
+        Maximum number of iterations allowed when matching the density
+        distribution to the target beam profile.
+    atol : float
+        Absolute tolerance for convergence. The solver compares the last
+        two matched profiles, and stops early if changes are smaller
+        than this threshold.
+    recenter : bool
+        If True, recenters the mean of the profile to the mean of the
+        potential. Only applicable for single-bucket simulations.
+    animate_fitting : bool
+        If True, displays an animation showing how the beam profile is
+        matched to the histogram (`hist_y`). Useful for debugging and
+        tuning `maxiter`, `smoothness`, and `atol`.
+    plot_result : bool
+        If True, generates a plot after the matching process is complete.
+    plot_result_blocking : bool
+        If True, the plot will be displayed immediately by calling
+        `plt.show()`.
+
+    Examples
+    --------
+    >>> from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    ...     SemiEmpiricMatcher,
+    ... )
+    >>> matcher_addon = ProfileMatcherAddon(hist_x=..., hist_y=...)
+
+    >>> sim.prepare_beam(
+    ...     beam=...,
+    ...     preparation_routine=SemiEmpiricMatcher(
+    ...         time_limit=(0, 2.5e-9),
+    ...         n_macroparticles=1e6,
+    ...         seed=0,
+    ...         maxiter_intensity_effects=0,
+    ...         hamilton_to_density_function=matcher_addon.hamilton_to_density_function,
+    ...         hamilton_to_density_kwargs={},
+    ...         animate=True,
+    ...     ),
+    ... )
+    """
+
     def __init__(
         self,
         hist_x: NumpyArray | CupyArray,
         hist_y: NumpyArray | CupyArray,
     ):
-        self.hist_x = hist_x
-        self.hist_y = hist_y
+        self._hist_x = hist_x
+        self._hist_y = hist_y
         self.recenter = False
         self.animate_fitting = True
         self.plot_result = True
         self.plot_result_blocking = True
         self.maxiter = 100
-
-        self.atol = 1e-6
+        self.smoothness = 0.05  # from 0 to 1
+        self.atol = 1e-3
 
     def hamilton_to_density_function(
         self,
@@ -45,7 +116,7 @@ class ProfileMatcher:
                 time_grid[:, mid],
                 weights=hamilton_2D[:, mid].max() - hamilton_2D[:, mid],
             )
-            center_prof = np.average(self.hist_x, weights=self.hist_y)
+            center_prof = np.average(self._hist_x, weights=self._hist_y)
             correction = center_ham - center_prof
 
         else:
@@ -53,8 +124,8 @@ class ProfileMatcher:
         hist_x_interp = time_grid[:, 0]
         hist_y_interp = np.interp(
             hist_x_interp,
-            self.hist_x + correction,  # todo if recenter
-            self.hist_y,
+            self._hist_x + correction,  # todo if recenter
+            self._hist_y,
             left=0,
             right=0,
         )
@@ -90,7 +161,7 @@ class ProfileMatcher:
     ) -> NumpyArray:
         histogram_desired = histogram_desired.copy()
         histogram_desired_normalized = (
-            histogram_desired / histogram_desired.sum()
+            histogram_desired / histogram_desired.mean()
         )
 
         state_vector = histogram_desired.copy()  # initial guess
@@ -98,49 +169,89 @@ class ProfileMatcher:
             state_vector=state_vector,
             hamilton_2D=hamilton_2D,
         )
-        update_state_vector = histogram_desired.sum() / histogram.sum()
+        update_state_vector = histogram_desired.mean() / histogram.mean()
         state_vector *= update_state_vector
 
         histogram = state_vector_to_histogram(
             state_vector=state_vector,
             hamilton_2D=hamilton_2D,
         )
-        histogram_normalized = histogram / histogram.sum()
+        histogram_normalized = histogram / histogram.mean()
 
         previous_histogram_normalized = histogram_normalized
+        assert self.maxiter > 0, (
+            f"`maxiter` must be bigger 0, but is {self.maxiter=}."
+        )
         for i in tqdm(range(self.maxiter)):
             update_state_vector = (1 + histogram_desired) / (1 + histogram)
             state_vector *= update_state_vector
-
+            if self.smoothness > 0:
+                state_vector_smooth = gaussian_filter1d(
+                    state_vector,
+                    sigma=int(self.smoothness * len(state_vector)),
+                )
+            else:
+                state_vector_smooth = state_vector
             histogram = state_vector_to_histogram(
-                state_vector=state_vector,
+                state_vector=state_vector_smooth,
                 hamilton_2D=hamilton_2D,
             )
-            histogram_normalized = histogram / histogram.sum()
-            if (
+            histogram_normalized = histogram / histogram.mean()
+            max_change = (
                 histogram_normalized - previous_histogram_normalized
-            ).max() < self.atol:
+            ).max()
+            if max_change < self.atol:
                 break
             previous_histogram_normalized = histogram_normalized
 
             if animate_fitting:
-                plt.figure(0)
-                plt.clf()
-                plt.title(f"Iteration {i}")
-                plt.plot(histogram_desired_normalized)
-                plt.plot(histogram_normalized, "--")
-                plt.xlabel("Time [s]")
-                plt.ylabel("Density [arb. unit]")
-                plt.draw()
-                plt.pause(0.1)
+                self._draw_animation(
+                    histogram_desired_normalized=histogram_desired_normalized,
+                    histogram_normalized=histogram_normalized,
+                    i=i,
+                    max_change=max_change,
+                    previous_histogram_normalized=previous_histogram_normalized,
+                    state_vector=state_vector,
+                    state_vector_smooth=state_vector_smooth,
+                )
         density = state_vector_to_hammilton_coordinates(
-            state_vector=state_vector,
+            state_vector=state_vector_smooth,
             hamilton_2D=hamilton_2D,
         )
         # normalize
         density = density / np.sum(density)
 
         return density
+
+    def _draw_animation(
+        self,
+        histogram_desired_normalized: NumpyArray,
+        histogram_normalized: NumpyArray,
+        i: int,
+        max_change: float,
+        previous_histogram_normalized: NumpyArray,
+        state_vector: NumpyArray,
+        state_vector_smooth: NumpyArray,
+    ):
+        plt.figure(0)
+        plt.clf()
+        plt.subplot(2, 1, 1)
+        plt.title(
+            f"Iteration {i}/{self.maxiter} {max_change:.1e}/{self.atol:.1e}"
+        )
+        plt.plot(histogram_desired_normalized)
+        plt.plot(previous_histogram_normalized, "-", color="grey")
+        plt.plot(histogram_normalized, "--")
+        plt.xlabel("Time [s]")
+        plt.ylabel("Density [arb. unit]")
+        plt.subplot(2, 1, 2)
+        plt.plot(state_vector, label="raw")
+        plt.plot(state_vector_smooth, label="smoothed")
+        plt.legend(loc="upper right")
+        plt.xlabel("State ID")
+        plt.ylabel("Amplitude")
+        plt.draw()
+        plt.pause(0.1)
 
     @staticmethod
     def _plot_result(
