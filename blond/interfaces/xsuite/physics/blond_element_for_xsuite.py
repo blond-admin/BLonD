@@ -20,7 +20,7 @@ from scipy.constants import c
 from scipy.constants import c as c_light
 from xtrack import Line, Particles, ReferenceEnergyIncrease, ZetaShift
 
-from blond import Beam, SingleHarmonicRfStation
+from blond import Beam, SingleHarmonicRFStation
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.core.beam.particle_types import ParticleType
 
@@ -111,7 +111,7 @@ class BLonD3Cavity:
 
     Parameters
     ----------
-    cavity : SingleHarmonicRfStation
+    cavity : SingleHarmonicRFStation
         BLonD RF cavity element providing a `track(beam)` method.
     particles : xtrack.Particles
         Xsuite particles used to initialise the BLonD beam coordinates.
@@ -128,7 +128,7 @@ class BLonD3Cavity:
 
     def __init__(
         self,
-        cavity: SingleHarmonicRfStation,
+        cavity: SingleHarmonicRFStation,
         particles: Particles,
         line: Line,
         particle_type: ParticleType,
@@ -161,7 +161,7 @@ class BLonD3Cavity:
             dt=[dt],
             dE=[dE],
             reference_time=0,
-            reference_total_energy=line.particle_ref.energy0,
+            reference_total_energy=float(line.particle_ref.energy0),
         )
 
         self.beam = beam
@@ -256,15 +256,15 @@ class BLonD3Cavity:
         """
         # Relative energy deviation
         dE = beam.read_partial_dE()
-        dt = beam.read_partial_dt()
 
-        particles.ptau[self._previous_active_mask] = dE / (
+        particles.ptau[self._previous_active_mask] = dE.ravel() / (
             particles.beta0 * particles.energy0
         )
 
         # Longitudinal position
+        dt = beam.read_partial_dt()
         particles.zeta[self._previous_active_mask] = (
-            -dt * particles.beta0 * c_light
+            -dt.ravel() * particles.beta0 * c_light
         )
 
 

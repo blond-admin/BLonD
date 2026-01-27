@@ -11,7 +11,6 @@ import xpart as xp
 import xtrack as xt
 from scipy.constants import c as c_light
 
-from blond import MagneticCyclePerTurn  # remove
 from blond import SingleHarmonicRFStation, proton
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
     BLonD3Cavity,
@@ -83,15 +82,16 @@ def main():
         zeta=np.copy(zeta),
         ptau=np.copy(ptau),
     )
-
-    # BLonD3 element ----------------------------------------------
+    # BLonD3 element --------------------------------
     cavity1 = SingleHarmonicRFStation.headless(
         section_index=1,
         voltage=V,
         harmonic=h,
         phi_rf=0,
         circumference=C,
-        total_energy=line.particle_ref.energy0,
+        total_energy=float(
+            line.particle_ref.energy0
+        ),  # todo fix data types in headless for xsuite
     )
     cavity = BLonD3Cavity(
         cavity=cavity1,
@@ -101,14 +101,14 @@ def main():
         initial_intensity=N_p,
         particle_type=proton,
     )
-
+    # -----------------------------------------------
     line.insert_element(
         index=0,
         element=cavity,
         name="BLonD_Cavity",
     )
 
-    # Insert energy ramp
+    # Insert energy ramp ----------------------------
     energy_update = EnergyUpdate(momentum=momentum)
 
     line.insert_element(

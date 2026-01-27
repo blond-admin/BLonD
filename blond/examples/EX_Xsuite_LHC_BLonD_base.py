@@ -17,7 +17,7 @@ from blond import (
     BiGaussian,
     Ring,
     Simulation,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -73,7 +73,7 @@ def main():
 
     ring = Ring(C)
 
-    cavity1 = SingleHarmonicRfStation()
+    cavity1 = SingleHarmonicRFStation()
     cavity1.harmonic = h
     cavity1.voltage = V
     cavity1.phi_rf = 0
