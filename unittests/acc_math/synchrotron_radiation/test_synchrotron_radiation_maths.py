@@ -4,21 +4,7 @@ import numpy as np
 from scipy.constants import c
 
 from blond import backend, electron
-from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
-    calculate_damping_times_in_seconds,
-    calculate_damping_times_in_turns,
-    calculate_energy_loss_per_turn,
-    calculate_horizontal_damping_partition_number,
-    calculate_horizontal_damping_time_in_seconds,
-    calculate_horizontal_damping_time_in_turns,
-    calculate_longitudinal_damping_partition_number,
-    calculate_longitudinal_damping_time_in_seconds,
-    calculate_longitudinal_damping_time_in_turns,
-    calculate_natural_bunch_length,
-    calculate_natural_energy_spread,
-    calculate_natural_horizontal_emittance,
-    calculate_partition_numbers,
-)
+from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import *
 from blond.core.beam.particle_types import ParticleType
 
 
