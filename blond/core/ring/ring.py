@@ -57,7 +57,7 @@ class Ring(Preparable):
     check_section_indices : bool, optional
         If True, validate section indices during initialization.
         Default is True.
-    radiation_integrals
+    synchrotron_radiation_integrals
             Synchrotron radiation integrals.
             First five synchrotron radiation integrals are required:
             'I_1' = \int, related to the momentum compaction factor,
@@ -75,7 +75,7 @@ class Ring(Preparable):
         self,
         circumference: float,
         check_section_indices: bool = True,
-        radiation_integrals: NumpyArray | None = None,
+        synchrotron_radiation_integrals: NumpyArray | None = None,
     ) -> None:
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
@@ -89,7 +89,7 @@ class Ring(Preparable):
             f"`circumference` must be bigger 0, but is {circumference}"
         )
         self._circumference = circumference
-        self._radiation_integrals = radiation_integrals
+        self._synchrotron_radiation_integrals = synchrotron_radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -173,16 +173,16 @@ class Ring(Preparable):
         return self._circumference
 
     @property
-    def radiation_integrals(self) -> NumpyArray | None:
+    def synchrotron_radiation_integrals(self) -> NumpyArray | None:
         """
         Synchrotron radiation integrals of the ring.
 
         Returns
         -------
-        radiation_integrals
+        synchrotron_radiation_integrals
             Synchrotron radiation integrals.
         """
-        return self._radiation_integrals
+        return self._synchrotron_radiation_integrals
 
     @property
     def momentum_compaction_factor(self) -> float:
