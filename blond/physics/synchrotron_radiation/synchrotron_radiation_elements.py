@@ -301,10 +301,10 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         self._simulation: Simulation | None = None
         self._contribution_to_synchrotron_radiation_integrals_without_energy: (
             NumpyArray | None
-        ) = np.zeros((1, 5))
+        ) = np.zeros(5)
         self._contribution_to_synchrotron_radiation_integrals_with_energy: (
             NumpyArray | None
-        ) = np.zeros((1, 5))
+        ) = np.zeros(5)
 
     @property
     def number_of_wigglers(self) -> int:
