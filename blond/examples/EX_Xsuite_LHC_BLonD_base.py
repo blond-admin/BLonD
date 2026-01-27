@@ -83,7 +83,7 @@ def main():
         particle_type=proton,
     )
 
-    beam1.reference_total_energy = p_s  # reference total energy vs momentum?
+    beam1.reference_total_energy = p_s
 
     energy_cycle = MagneticCyclePerTurn(
         value_init=p_s,

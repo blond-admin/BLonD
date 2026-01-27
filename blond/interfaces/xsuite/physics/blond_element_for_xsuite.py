@@ -15,6 +15,7 @@ Functions and classes to interface BLonD with xsuite.
 from collections.abc import Sequence
 
 import numpy as np
+import xpart as xp
 from numpy.typing import NDArray
 from scipy.constants import c
 from scipy.constants import c as c_light
@@ -101,6 +102,31 @@ def blond_to_xsuite_transform(
     return zeta, ptau
 
 
+def particle_xsuite_to_blond(particle: xp.Particles):
+    """
+    Construct a BLonD ParticleType from an xpart Particles object.
+
+    This function gets the particle rest mass and charge from an
+    `xpart.Particles` instance and uses them to initialise the
+    corresponding BLonD `ParticleType`.
+
+    Parameters
+    ----------
+    particle : xpart.Particles
+        Xsuite particles object containing particle properties such as
+        rest mass and charge.
+
+    Returns
+    -------
+    ParticleType
+        BLonD particle type with matching mass and charge.
+    """
+    particle_type_blond = ParticleType(
+        mass=float(particle.mass), charge=float(particle.q0)
+    )  # todo test check units
+    return particle_type_blond
+
+
 class BLonD3Cavity:
     """
     Wrapper enabling BLonD longitudinal elements to be tracked inside Xsuite.
@@ -117,8 +143,6 @@ class BLonD3Cavity:
         Xsuite particles used to initialise the BLonD beam coordinates.
     line : xtrack.Line
         Xsuite line containing the reference particle and machine length.
-    particle_type : ParticleType
-        BLonD particle type definition.
     initial_intensity : float or int or None, optional
         Initial beam intensity. If None, intensity handling is disabled.
     update_zeta : bool, optional
@@ -131,7 +155,6 @@ class BLonD3Cavity:
         cavity: SingleHarmonicRFStation,
         particles: Particles,
         line: Line,
-        particle_type: ParticleType,
         initial_intensity: float | int | None = None,
         update_zeta: bool = False,
     ):
@@ -151,6 +174,9 @@ class BLonD3Cavity:
             energy0=line.particle_ref.energy0,
             omega_rf=omega_rf,
         )
+        self.line = line
+
+        particle_type = particle_xsuite_to_blond(self.line.particle_ref)
 
         beam = Beam(
             intensity=initial_intensity,
@@ -161,7 +187,7 @@ class BLonD3Cavity:
             dt=[dt],
             dE=[dE],
             reference_time=0,
-            reference_total_energy=float(line.particle_ref.energy0),
+            reference_total_energy=float(self.line.particle_ref.energy0),
         )
 
         self.beam = beam
@@ -187,7 +213,10 @@ class BLonD3Cavity:
         self.xsuite_to_blond_transform(particles, self.beam)
 
         # todo get new energy from xsuite
-        # self.trackable._magnetic_cycle.get_target_total_energy.return_value = xxx
+
+        self.trackable._magnetic_cycle.get_target_total_energy.return_value = (
+            float(self.line._particle_ref.energy0)
+        )  # todo, check for units
 
         self.trackable.track(self.beam)  # calls the BLonD track method
 

@@ -27,6 +27,7 @@ import numpy as np
 from scipy.constants import c
 
 from blond.core.beam.beams import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
 if TYPE_CHECKING:
     from blond.core.simulation.simulation import Simulation
@@ -194,6 +195,35 @@ class DriftXsuite(DriftBaseClass):
             * self.beam.reference_beta
             * self.beam.reference_total_energy
         )  # should this have been updated?
+
+    def track_reference(
+        self, reference: ReferenceCoordinates, **kwargs
+    ) -> float:
+        """
+        Update the reference particle for a drift.
+
+        For DriftXsuite, the reference energy is handled elsewhere
+        (e.g. via ReferenceEnergyIncrease in the Xsuite line).
+        This method only advances the reference time.
+
+        Parameters
+        ----------
+        reference
+            BLonD reference coordinates object.
+        **kwargs
+            Additional keyword arguments accepted for interface compatibility
+            with the BLonD ``AltersReference`` API. These arguments are ignored
+            by this implementation but allow this method to be called in
+            generic tracking contexts where extra parameters may be passed.
+
+        Returns
+        -------
+        float
+            Reference time increment [s].
+        """
+        dt = self.orbit_length / reference.velocity
+        reference.time += dt
+        return dt
 
     @property
     def momentum_compaction_factor(self) -> float | None:

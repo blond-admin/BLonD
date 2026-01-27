@@ -82,6 +82,7 @@ def main():
         zeta=np.copy(zeta),
         ptau=np.copy(ptau),
     )
+
     # BLonD3 element --------------------------------
     cavity1 = SingleHarmonicRFStation.headless(
         section_index=1,
@@ -89,18 +90,17 @@ def main():
         harmonic=h,
         phi_rf=0,
         circumference=C,
-        total_energy=float(
-            line.particle_ref.energy0
-        ),  # todo fix data types in headless for xsuite
+        total_energy=None,  # should be set dynamically?
     )
+
     cavity = BLonD3Cavity(
         cavity=cavity1,
         update_zeta=True,
         particles=particles,
         line=line,
         initial_intensity=N_p,
-        particle_type=proton,
     )
+
     # -----------------------------------------------
     line.insert_element(
         index=0,
