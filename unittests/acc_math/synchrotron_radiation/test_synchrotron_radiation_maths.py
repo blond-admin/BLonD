@@ -57,11 +57,11 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
             particle_type=self.particle_type,
         )
-        self.assertAlmostEqual(
+        self.assertEqual(
             29910.62041820081,
             damping_times_in_turn[1],
             msg="Expected value = 29911",
-            places=self.decimals,
+            # places=self.decimals,
         )
         self.assertEqual(
             damping_times_in_turn[0], tau_x, msg="Expected value = 29911"
