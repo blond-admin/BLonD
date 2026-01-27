@@ -133,6 +133,18 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
 
         self.rng = np.random.default_rng(seed=seed)
 
+    @property
+    def share_of_synchrotron_radiation_integrals(self) -> NumpyArray | None:
+        """
+        Synchrotron radiation integrals of the drift.
+
+        Returns
+        -------
+        synchrotron_radiation_integrals_drift
+            Synchrotron radiation integrals of the drift.
+        """
+        return self._share_of_synchrotron_radiation_integrals
+
     def _calculate_kick(
         self,
         beam: BeamBaseClass,

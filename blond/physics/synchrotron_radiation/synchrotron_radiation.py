@@ -528,18 +528,6 @@ class _SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         return self._energy_lost_due_to_synchrotron_radiation
 
     @property
-    def share_of_synchrotron_radiation_integrals(self) -> NumpyArray | None:
-        """
-        Synchrotron radiation integrals of the drift.
-
-        Returns
-        -------
-        synchrotron_radiation_integrals_drift
-            Synchrotron radiation integrals of the drift.
-        """
-        return self._share_of_synchrotron_radiation_integrals
-
-    @property
     def synchrotron_radiation_integrals_drift(self) -> NumpyArray | None:
         """
         Synchrotron radiation integrals of the drift.
@@ -605,18 +593,6 @@ class _SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
             Energy lost due to synchrotron radiation along the section.
         """
         return self._energy_lost_due_to_synchrotron_radiation
-
-    @property
-    def share_of_synchrotron_radiation_integrals(self) -> NumpyArray | None:
-        """
-        Synchrotron radiation integrals of the section.
-
-        Returns
-        -------
-        synchrotron_radiation_integrals_section
-            Synchrotron radiation integrals of the section.
-        """
-        return self._share_of_synchrotron_radiation_integrals
 
     @property
     def synchrotron_radiation_integrals_section(self) -> NumpyArray | None:
