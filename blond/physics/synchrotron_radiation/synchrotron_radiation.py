@@ -71,16 +71,17 @@ if TYPE_CHECKING:
 
 class SynchrotronRadiationMaster(Schedulable):
     """
-    Master class for handling synchrotron radiation along the ring.
+    Master class for enabling synchrotron radiation along the ring.
 
-    This element is to be added in the ring object prior to the simulation.
+    This class enables synchrotron radiation tracking of an input ring
     On initialisation, it inserts SynchrotronRadiationBaseClass elements in
     the ring either:
      - before the drifts if track_before_element_type is None or
      DriftBaseClass. In that case, _SynchrotronRadiationDrift trackers will
      be inserted in the ring before each drift.
      - after the RF cavities if track_before_element_type is
-     RFStationBaseClass. In that case, _SynchrotronRadiationSection trackers will be inserted in the ring.
+     RFStationBaseClass. In that case, _SynchrotronRadiationSection trackers
+     will be inserted in the ring.
 
     Parameters
     ----------
@@ -302,45 +303,47 @@ class SynchrotronRadiationMaster(Schedulable):
             self._synchrotron_radiation_integrals = (
                 ring.radiation_integrals.copy()
             )
-        elif radiation_integrals is None:
-            if bending_radius:
-                self._synchrotron_radiation_integrals = calculate_isomagnetic_radiation_integrals(
-                    circumference=ring.circumference,
-                    bending_radius=bending_radius,
-                    momentum_compaction_factor=ring.momentum_compaction_factor,
-                )
-            else:
-                raise ValueError(
-                    "Synchrotron radiation damping "
-                    "and quantum excitation require"
-                    " either the bending radius "
-                    + "for an isomagnetic ring, or the "
-                    "first five synchrotron radiation "
-                    "integrals."
-                )
-        elif type(radiation_integrals) in {np.ndarray, list}:
-            try:
-                integrals = np.array(radiation_integrals)
-            except ValueError as ve:
-                raise ValueError(
-                    "Could not transform the input into an array"
-                ) from ve
-            if (
-                integrals.__len__()
-                >= minimum_number_of_expected_synchrotron_radiation_integrals
-            ):
-                self._synchrotron_radiation_integrals = integrals
-            else:
-                raise ValueError(
-                    "The first five synchrotron "
-                    + "radiation integrals are requires "
-                    + "Ignoring input."
-                )
         else:
-            raise TypeError(
-                f"Expected a list or numpy.ndarray as an input. Received"
-                f" {type(radiation_integrals)}."
-            )
+            if radiation_integrals is None:
+                if bending_radius:
+                    self._synchrotron_radiation_integrals = calculate_isomagnetic_radiation_integrals(
+                        circumference=ring.circumference,
+                        bending_radius=bending_radius,
+                        momentum_compaction_factor=ring.momentum_compaction_factor,
+                    )
+                else:
+                    raise ValueError(
+                        "Synchrotron radiation damping "
+                        "and quantum excitation require"
+                        " either the bending radius "
+                        + "for an isomagnetic ring, or the "
+                        "first five synchrotron radiation "
+                        "integrals."
+                    )
+            elif type(radiation_integrals) in {np.ndarray, list}:
+                try:
+                    integrals = np.array(radiation_integrals)
+                except ValueError as ve:
+                    raise ValueError(
+                        "Could not transform the input into an array"
+                    ) from ve
+                if (
+                    integrals.__len__()
+                    >= minimum_number_of_expected_synchrotron_radiation_integrals
+                ):
+                    self._synchrotron_radiation_integrals = integrals
+                else:
+                    raise ValueError(
+                        "The first five synchrotron "
+                        + "radiation integrals are requires "
+                        + "Ignoring input."
+                    )
+            else:
+                raise TypeError(
+                    f"Expected a list or numpy.ndarray as an input. Received"
+                    f" {type(radiation_integrals)}."
+                )
+            ring._radiation_integrals = self._synchrotron_radiation_integrals
 
     def _generate_synchrotron_radiation_trackers(
         self, ring: Ring, element_list: list[type[T]]
