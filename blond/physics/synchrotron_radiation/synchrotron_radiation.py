@@ -34,6 +34,7 @@ L. Valle
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -461,9 +462,10 @@ class SynchrotronRadiationMaster(Schedulable):
         )
 
         if self.generated_children:
-            raise Warning(
+            warnings.warn(
                 "Synchrotron radiation subclasses have already been "
-                "generated. Command ignored"
+                "generated. Command ignored",
+                stacklevel=2,
             )
         else:
             element_list = []
