@@ -46,7 +46,7 @@ def generate_fccee_collider_basic_simulation(
         Basic FCCee collider Simulation object.
     """
     # Parameters taken from the FCCee feasibility report of March 2025
-    collider_circumference = 90.658509 * 1e3
+    collider_circumference = 90.658509e3
     bending_radius = 10.021 * 1e3
 
     if operation_mode in {"Z", "ZZ"}:
