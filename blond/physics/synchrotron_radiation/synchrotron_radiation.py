@@ -290,17 +290,16 @@ class SynchrotronRadiationMaster(Schedulable):
                 raise ValueError(
                     "Could not transform the input into an array"
                 ) from ve
-            if (
+            if not (
                 integrals.__len__()
                 >= minimum_number_of_expected_synchrotron_radiation_integrals
             ):
-                self._synchrotron_radiation_integrals = integrals
-            else:
                 raise ValueError(
                     "The first five synchrotron "
-                    + "radiation integrals are requires "
+                    "radiation integrals are required "
                     + "Ignoring input."
                 )
+            self._synchrotron_radiation_integrals = integrals
         else:
             raise TypeError(
                 f"Expected a list or numpy.ndarray as an input. Received"
