@@ -61,13 +61,11 @@ class DriftXsuite(DriftBaseClass):
         If None, the entire line will be tracked each call.
     section_index : int, optional
         Section index to group elements (passed to DriftBaseClass).
-    momentum_compaction_factor : float, optional
-        Momentum compaction factor.
     **kwargs : Any
         Additional keyword arguments passed to DriftBaseClass.
     """
 
-    skip_find_instances_attributes = ["_xsuite_element", "_line_internal"]
+    skip_find_instances_attributes = ["_xsuite_element", "line"]
 
     def __init__(
         self,
@@ -77,20 +75,18 @@ class DriftXsuite(DriftBaseClass):
         orbit_length: float = 0.0,  # is this needed?
         element_name: str = None,
         section_index: int = 0,
-        momentum_compaction_factor: float = None,
         **kwargs: Any,  # for MRO and future compatibility
     ) -> None:
         super().__init__(
             orbit_length=orbit_length, section_index=section_index, **kwargs
         )
         self.beam = beam
-        self._line_internal = line
+        self.line = line
         self.element_name = element_name
         self.phi_s = phi_s
         self._xsuite_element: Any | None = (
             None  # Will be set in on_init_simulation
         )
-        self._momentum_compaction_factor = momentum_compaction_factor
 
         self._transition_gamma: float | None = None
 
@@ -120,7 +116,7 @@ class DriftXsuite(DriftBaseClass):
 
         if self.element_name is not None:
             try:
-                self._xsuite_element = self._line_internal[self.element_name]
+                self._xsuite_element = self.line[self.element_name]
             except KeyError as exc:
                 raise ValueError(
                     f"Xsuite element '{self.element_name}' not found in the line."
@@ -182,7 +178,7 @@ class DriftXsuite(DriftBaseClass):
             self._xsuite_element.track(particles)
         else:
             # Track through the full line
-            self._line_internal.track(particles)
+            self.line.track(particles)
 
         # --- Convert back to BLonD coordinates ---
         beam.dt = (
@@ -228,13 +224,25 @@ class DriftXsuite(DriftBaseClass):
     @property
     def momentum_compaction_factor(self) -> float | None:
         """
-        Return the momentum compaction factor.
+        Return the momentum compaction factor (alpha_0).
+
+        If it is not explicitly set, compute it using the line's Twiss parameters.
+        Uses `compute_momentum_compaction()` from the base class.
 
         Returns
         -------
-        float | None
-            Momentum compaction factor if defined.
+        float
+            Momentum compaction factor.
         """
+        if getattr(self, "_momentum_compaction_factor", None) is None:
+            if hasattr(self, "compute_momentum_compaction"):
+                self._momentum_compaction_factor = (
+                    self.compute_momentum_compaction()
+                )
+            else:
+                raise ValueError(
+                    "Momentum compaction factor is not set and cannot be computed."
+                )
         return self._momentum_compaction_factor
 
     @property
