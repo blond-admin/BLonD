@@ -257,7 +257,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         assert self.maxiter > 0, (
             f"`maxiter` must be bigger 0, but is {self.maxiter=}."
         )
-        for i in tqdm(range(self.maxiter)):
+        for i in tqdm(range(self.maxiter), "ProfileMatcherAddon"):
             residual = histogram_desired - histogram
             fit_histogram = scale * residual
 
@@ -333,7 +333,8 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         plt.clf()
         ax = plt.subplot(2, 1, 1)
         plt.title(
-            f"Iteration {i}/{self.maxiter} {max_change:.1e}/{self.atol:.1e}"
+            f"Iteration: {i}/{self.maxiter} |"
+            f" atol : {max_change:.1e}/{self.atol:.1e}"
         )
         plt.plot(histogram_desired_normalized)
         plt.plot(previous_histogram_normalized, "-", color="grey")
