@@ -1,12 +1,16 @@
+from unittest.mock import Mock
+
 import numpy as np
 import pytest
 import xpart as xp
+import xtrack as xt
 
-from blond import proton
+from blond import proton, SingleHarmonicRFStation
+from blond.core.beam.base import BeamBaseClass
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
     blond_to_xsuite_transform,
     particle_xsuite_to_blond,
-    xsuite_to_blond_transform,
+    xsuite_to_blond_transform, BLonD3Cavity,
 )
 
 
@@ -95,4 +99,108 @@ def test_proton_mass_and_charge_consistency():
         abs=1e-5,
     ), "charge mismatch between Xsuite and BLonD for proton"
 
+
+def test_reference_energy_matches_magnetic_cycle_target():
+    """
+    Check that the BLonD beam reference energy matches the magnetic
+    cycle target total energy after tracking.
+    """
+
+    C = 100.0  # circumference [m]
+    p0c = 450e9  # eV
+
+    line = xt.Line(elements=[]) # empty line
+    line.particle_ref = xp.Particles(
+        p0c=p0c,
+        mass0=xp.PROTON_MASS_EV,
+        q0=1.0,
+    )
+
+    particles = xp.Particles(
+        p0c=p0c,
+        mass0=xp.PROTON_MASS_EV,
+        q0=1.0,
+        zeta=[0.0],
+        ptau=[0.0],
+    )
+    mass0 = float(particles.mass0) #
+
+    # --- BLonD cavity ---
+    cavity = SingleHarmonicRFStation.headless(
+        section_index=1,
+        voltage=0.0,
+        harmonic=1,
+        phi_rf=0.0,
+        circumference=C,
+        total_energy=float(np.sqrt(p0c**2 + mass0**2))
+    )
+
+    # --- Mock magnetic cycle ---
+    E0_expected = float(np.sqrt(p0c**2 + mass0**2))
+
+    magnetic_cycle = Mock()
+    magnetic_cycle.get_target_total_energy.return_value = E0_expected
+    cavity._magnetic_cycle = magnetic_cycle
+
+    blond_cavity = BLonD3Cavity(
+        cavity=cavity,
+        particles=particles,
+        line=line,
+        initial_intensity=1,
+    )
+
+    blond_cavity.track(particles)
+
+    assert blond_cavity.beam.reference.total_energy == pytest.approx(
+        E0_expected,
+        rel=1e-12,
+    )
+
+    magnetic_cycle.get_target_total_energy.assert_called()
+
+
+@pytest.mark.parametrize("n_particles", [1, 10, 100])
+def test_xsuite_blond_forward_backward_transforms(n_particles):
+    # --- Create reference particle ---
+    p_s = 450e9  # [eV/c]
+    line = xt.Line(elements=[], element_names={})
+    line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
+    line.length = 26658.8832  # [m]
+
+    # --- Create random particles ---
+    particles = line.build_particles(
+        x=np.random.uniform(-1e-3, 1e-3, n_particles),
+        px=np.random.uniform(-1e-5, 1e-5, n_particles),
+        y=np.random.uniform(-2e-3, 2e-3, n_particles),
+        py=np.random.uniform(-3e-5, 3e-5, n_particles),
+        zeta=np.random.uniform(-0.01, 0.01, n_particles),
+        ptau=np.random.uniform(-1e-4, 1e-4, n_particles),
+        state=np.ones(n_particles, dtype=int)
+    )
+
+    # --- Create dummy cavity ---
+    class DummyCavity(SingleHarmonicRFStation):
+        harmonic = 1
+        def track(self, beam: BeamBaseClass):
+            return
+
+    cavity = DummyCavity()
+
+    blond_cavity = BLonD3Cavity(cavity=cavity, particles=particles, line=line)
+
+    zeta_orig = particles.zeta.copy()
+    ptau_orig = particles.ptau.copy()
+
+    blond_cavity.xsuite_to_blond_transform(particles, blond_cavity.beam)
+    blond_cavity.blond_to_xsuite_transform(particles, blond_cavity.beam)
+
+    # --- Check that particles are unchanged (within tolerance) ---
+    np.testing.assert_allclose(
+        particles.zeta, zeta_orig, rtol=0, atol=1e-12,
+        err_msg="zeta changed after forward-backward transform"
+    )
+    np.testing.assert_allclose(
+        particles.ptau, ptau_orig, rtol=0, atol=1e-12,
+        err_msg="ptau changed after forward-backward transform"
+    )
 
