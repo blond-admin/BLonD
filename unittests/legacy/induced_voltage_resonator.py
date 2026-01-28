@@ -59,6 +59,9 @@ def nonperiodic_wake(time_array, f0, R, Q):
     return wake
 
 
+DEBUG_PLOTTING = False
+
+
 class InducdedVoltageResonator:
     def __init__(self):
         self.n_slices = 2**12
@@ -245,15 +248,16 @@ class InducdedVoltageResonator:
                 profiles[inter_turn_ind], wake_kernel
             )[0 : len(self.time_axis)]
 
-            fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
-            ax[0].plot(self.time_axis, profiles[inter_turn_ind])
-            ax[1].plot(
-                self.time_axis,
-                self.convolution_result[inter_turn_ind][
-                    0 : len(self.time_axis)
-                ],
-            )
-            plt.show(block=False)
+            if DEBUG_PLOTTING:
+                fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
+                ax[0].plot(self.time_axis, profiles[inter_turn_ind])
+                ax[1].plot(
+                    self.time_axis,
+                    self.convolution_result[inter_turn_ind][
+                        0 : len(self.time_axis)
+                    ],
+                )
+                plt.show(block=False)
 
         self.profile.n_macroparticles = gauss(
             self.profile.bin_centers, self.sigma_bunch, self.bunch_offset
@@ -286,30 +290,45 @@ class InducdedVoltageResonator:
                     )
                 )
 
-        self.dt = self.time_axis[1] - self.time_axis[0]
-        for inter_turn_ind in range(self.n_stations):
-            plt.figure()
-            plt.title(f"blond2 old_impl = {old_impl}")
-            plt.plot(
-                self.time_axis,
-                -self.convolution_result[inter_turn_ind][
-                    0 : len(self.time_axis)
-                ]
-                * e
-                / self.profile.bin_size
-                * self.dt,
-                label="convolution_2",
-            )
-            for el in range(len(save_voltage_array[0])):
+        self.dt_profile = self.time_axis[1] - self.time_axis[0]
+
+        if DEBUG_PLOTTING:
+            for inter_turn_ind in range(self.n_stations):
+                plt.figure()
+                plt.title(f"blond2 old_impl = {old_impl}")
                 plt.plot(
-                    self.time_array_profile[inter_turn_ind][el],
-                    save_voltage_array[inter_turn_ind][el],
-                    ls="--",
-                    label=f"resonator turn {el}",
+                    self.time_axis,
+                    -self.convolution_result[inter_turn_ind][
+                        0 : len(self.time_axis)
+                    ]
+                    * e
+                    / self.profile.bin_size
+                    * self.dt_profile,
+                    label="convolution_2",
                 )
-            plt.legend(loc="upper right")
-            plt.show(block=False)
-        pass
+                for el in range(self.n_turns):
+                    plt.plot(
+                        self.time_array_profile[inter_turn_ind][el],
+                        save_voltage_array[inter_turn_ind][el],
+                        ls="--",
+                        label=f"resonator turn {el}",
+                    )
+                plt.legend(loc="upper right")
+                plt.show(block=False)
+
+        for inter_turn_ind in range(self.n_stations):
+            for trn_ind in range(self.n_turns):
+                conv_result = np.interp(
+                    self.time_array_profile[inter_turn_ind][trn_ind],
+                    self.time_axis,
+                    self.convolution_result[inter_turn_ind],
+                )
+                assert np.allclose(
+                    -conv_result * e / self.profile.bin_size * self.dt_profile,
+                    save_voltage_array[inter_turn_ind][trn_ind],
+                    atol=1e8,
+                    rtol=1e-8,
+                )
 
     def setUpB3(self):
         ring = ring_b3(
@@ -400,31 +419,47 @@ class InducdedVoltageResonator:
             beams=(beam,),
             observe=tuple(ind_volt_obs_list),
         )
-
-        for inter_turn in range(self.n_stations):
-            plt.figure(f"b3_{inter_turn}")
-            plt.title(f"b3_{inter_turn}")
-            plt.plot(
-                self.time_axis,
-                -self.convolution_result[inter_turn][0 : len(self.time_axis)]
-                * e
-                / self.profile.bin_size
-                * self.dt,
-                label="convolution_2",
-            )
-            for el in range(self.n_turns):
+        if DEBUG_PLOTTING:
+            for inter_turn in range(self.n_stations):
+                plt.figure(f"b3_{inter_turn}")
+                plt.title(f"b3_{inter_turn}")
                 plt.plot(
-                    self.time_array_profile[inter_turn][el],
-                    ind_volt_obs_list[inter_turn].induced_voltage[el],
-                    ls="--",
-                    label=f"section {inter_turn} turn {el}",
+                    self.time_axis,
+                    -self.convolution_result[inter_turn][
+                        0 : len(self.time_axis)
+                    ]
+                    * e
+                    / self.profile.bin_size
+                    * self.dt_profile,
+                    label="convolution_2",
                 )
-            plt.legend(loc="upper right")
+                for el in range(self.n_turns):
+                    plt.plot(
+                        self.time_array_profile[inter_turn][el],
+                        ind_volt_obs_list[inter_turn].induced_voltage[el],
+                        ls="--",
+                        label=f"section {inter_turn} turn {el}",
+                    )
+                plt.legend(loc="upper right")
 
-            if inter_turn == self.n_stations - 1:
-                plt.show(block=True)
-            else:
-                plt.show(block=False)
+                if inter_turn == self.n_stations - 1:
+                    plt.show(block=True)
+                else:
+                    plt.show(block=False)
+
+        for inter_turn_ind in range(self.n_stations):
+            for trn_ind in range(self.n_turns):
+                conv_result = np.interp(
+                    self.time_array_profile[inter_turn_ind][trn_ind],
+                    self.time_axis,
+                    self.convolution_result[inter_turn_ind],
+                )
+                assert np.allclose(
+                    -conv_result * e / self.profile.bin_size * self.dt_profile,
+                    ind_volt_obs_list[inter_turn_ind].induced_voltage[trn_ind],
+                    atol=1e8,
+                    rtol=1e-8,
+                )
 
 
 if __name__ == "__main__":
