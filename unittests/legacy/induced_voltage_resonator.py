@@ -4,14 +4,11 @@ from unittest.mock import Mock
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as sig
-from _pytest import unittest
 from scipy.constants import e
 
 from blond import Beam as beam_b3
 from blond import (
-    BiGaussian,
     DriftSimple,
-    MagneticCyclePerTurn,
     MagneticCyclePerTurnAllRFStations,
 )
 from blond import Ring as ring_b3
@@ -24,13 +21,9 @@ from blond import (
 )
 from blond.handle_results.observables import RFStationInducedVoltageObservation
 from blond.legacy.blond2.beam.beam import Beam, MuPlus
-from blond.legacy.blond2.beam.distributions import bigaussian
 from blond.legacy.blond2.beam.profile import CutOptions, Profile
 from blond.legacy.blond2.impedances.impedance import (
-    InducedVoltageFreq,
     InducedVoltageResonator,
-    InducedVoltageTime,
-    TotalInducedVoltage,
 )
 from blond.legacy.blond2.impedances.impedance_sources import Resonators
 from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
@@ -323,7 +316,6 @@ class InducdedVoltageResonator:
             circumference=np.sum(self.n_section_lengths),
             check_section_indices=False,
         )
-        # self.energy = # TODO: this is the main issue, how to get the energy arrays consistent between the two blond versions?
         energy_array = np.reshape(
             self.energy_array, (self.n_stations, self.n_turns + 1), order="F"
         )
@@ -336,18 +328,6 @@ class InducdedVoltageResonator:
             in_unit="total energy",
             reference_particle=mu_plus,
         )
-        # plt.figure()
-        # plt.subplot(2,1,1)
-        # plt.plot(self.energy_array[:6], "^", color="red")
-        # plt.subplot(2,1,2)
-        # plt.plot(-1, magnetic_cycle.get_total_energy_init(particle_type=magnetic_cycle.reference_particle), "o")
-        # for turn_i in range(3):
-        #     for s in range(self.n_stations):
-        #         plt.plot(
-        #             turn_i, magnetic_cycle.get_target_total_energy(turn_i, s, 0,particle_type=magnetic_cycle.reference_particle),
-        #             ("o","x")[s % 2],
-        #         )
-        # plt.show()
         one_turn_model = []
         beam = beam_b3(
             intensity=self.n_macroparticles,
