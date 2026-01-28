@@ -36,19 +36,35 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
 
 
-def get_test_profile():
+def get_test_profile(noisy=False):
+    """
+    Create a histogram that looks like a measurement.
+
+    Parameters
+    ----------
+    noisy
+        If it should be generated with or without noise.
+
+    Returns
+    -------
+    hist_x
+        Histogram time axis.
+    hist_y
+        Histogram amplitude.
+    """
     # Parameters
     mean = 2.5e-9 / 2  # Mean of the distribution
     std_dev = 2.5e-9 / 8 / 2  # Standard deviation
     size = 10000  # Number of data points
 
-    # Generate random data from a Gaussian distribution
-    data = np.random.normal(loc=mean, scale=std_dev, size=size)
+    if noisy:
+        # Generate random data from a Gaussian distribution
+        data = np.random.normal(loc=mean, scale=std_dev, size=size)
 
-    # Get the histogram (density=False for raw counts)
-    hist_y, bin_edges = np.histogram(data, bins=512, density=False)
-    hist_x = bin_edges[0:-1] + np.diff(bin_edges[:2])[0] / 2
-    if False:
+        # Get the histogram (density=False for raw counts)
+        hist_y, bin_edges = np.histogram(data, bins=512, density=False)
+        hist_x = bin_edges[0:-1] + np.diff(bin_edges[:2])[0] / 2
+    else:
         hist_x = np.linspace(*(0, 2.5e-9))
         hist_y = (1 / (std_dev * np.sqrt(2 * np.pi))) * np.exp(
             -((hist_x - mean) ** 2) / (2 * std_dev**2)
