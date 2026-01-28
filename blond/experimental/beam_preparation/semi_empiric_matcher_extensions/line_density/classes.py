@@ -84,7 +84,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         two matched profiles, and stops early if changes are smaller
         than this threshold.
     recenter : bool
-        If True, recenters the mean of the profile to the mean of the
+        If True, recenters the mean of the profile to the minimum of the
         potential. Only applicable for single-bucket simulations.
     animate_fitting : bool
         If True, displays an animation showing how the beam profile is
