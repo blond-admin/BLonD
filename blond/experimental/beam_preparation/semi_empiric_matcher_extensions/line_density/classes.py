@@ -227,7 +227,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         hamilton_2D
             A 2D array representing the spatial Hamilton field.
         histogram_desired
-            histogram that represents the target value of what the density
+            Histogram that represents the target value of what the density
             distribution should represent.
 
         Returns
