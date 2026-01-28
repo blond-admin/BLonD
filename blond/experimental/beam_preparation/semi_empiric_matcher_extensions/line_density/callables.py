@@ -8,11 +8,13 @@
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.callables_numba import (
     _gen_density_numba,
     _gen_hist_numba,
+    _gen_state_numba,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -34,6 +36,25 @@ def state_vector_to_histogram(
     histogram = np.zeros(hamilton_2D.shape[0], float)
     _gen_hist_numba(H_change, hamilton_2D, histogram, mid, state_vector)
     return histogram
+
+
+def histogram_to_state_vector(
+    histogram: NumpyArray, hamilton_2D: NumpyArray
+) -> NumpyArray:
+    import numpy as np
+
+    mid = hamilton_2D.shape[1] // 2
+
+    # Precompute gradient
+    H_1d = hamilton_2D[:, mid]
+    H_change = np.abs(np.gradient(H_1d, edge_order=2))
+
+    state_vector = np.zeros(hamilton_2D.shape[0], float)
+    print("_gen_state_numba")
+    t0 = time.time()
+    _gen_state_numba(H_change, hamilton_2D, histogram, mid, state_vector)
+    print(time.time() - t0)
+    return state_vector
 
 
 def state_vector_to_hammilton_coordinates(

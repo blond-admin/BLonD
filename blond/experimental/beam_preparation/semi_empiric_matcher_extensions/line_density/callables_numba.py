@@ -75,6 +75,53 @@ def _gen_hist_numba(H_change, hamilton_2D, histogram_write, mid, state_vector):
 
 
 @numba.njit(
+    void(float64[:], float64[:, :], float64[:], int32, float64[:]),
+    parallel=True,
+    fastmath=True,
+)
+def _gen_state_numba(
+    H_change, hamilton_2D, histogram, mid, state_vector_write
+):
+    num_states = state_vector_write.shape[0]
+    h_shape_0 = hamilton_2D.shape[0]
+    h_shape_1 = hamilton_2D.shape[1]
+
+    # Precompute mid-column energies
+    hamilton_mid = hamilton_2D[:, mid]
+
+    # Precompute sigma, cutoff windows, and Gaussian prefactors
+    inv_two_sigma2 = np.empty(num_states)
+    emin = np.empty(num_states)
+    emax = np.empty(num_states)
+
+    for i in range(num_states):
+        _sigma = 5.0 * H_change[i]
+        inv_two_sigma2[i] = -1.0 / (2.0 * _sigma * _sigma)
+        emin[i] = hamilton_mid[i] - 5.0 * _sigma
+        emax[i] = hamilton_mid[i] + 5.0 * _sigma
+
+    for i in prange(len(state_vector_write)):
+        val2 = 0.0
+        e_i = hamilton_mid[i]
+        inv2s2 = inv_two_sigma2[i]
+
+        for u in range(h_shape_0):
+            val3 = 0.0
+            hist_u = histogram[u]
+
+            for v in range(h_shape_1):
+                h = hamilton_2D[u, v]
+                if h < emin[i] or h > emax[i]:
+                    continue
+
+                dE = h - e_i
+                val3 += np.exp(dE * dE * inv2s2)
+            val2 += hist_u * val3
+
+        state_vector_write[i] = val2
+
+
+@numba.njit(
     void(float64[:], float64[:, :], float64[:, :], int32, float64[:]),
     parallel=True,
     fastmath=True,
