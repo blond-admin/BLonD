@@ -124,9 +124,9 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         self._hist_x = hist_x
         self._hist_y = hist_y
         self.recenter = False
-        self.animate_fitting = True
-        self.plot_result = True
-        self.plot_result_blocking = True
+        self.animate_fitting = False
+        self.plot_result = False
+        self.plot_result_blocking = False
         self.maxiter = 100
         self.smoothness = 0.05  # from 0 to 1
         self.atol = 1e-3
@@ -260,15 +260,20 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         for i in tqdm(range(self.maxiter)):
             residual = histogram_desired - histogram
             fit_histogram = scale * residual
-            force_smoothness = np.gradient(
-                np.gradient(state_vector, edge_order=1), edge_order=1
-            )
-            update_state_vector = (
-                fit_histogram + (self.smoothness > 0) * force_smoothness
-            )
+
+            update_state_vector = fit_histogram
+            if self.smoothness > 0:
+                # smooth 2nd derivative
+                force_smoothness = np.gradient(
+                    np.gradient(state_vector, edge_order=1), edge_order=1
+                )
+                update_state_vector += force_smoothness
 
             state_vector += update_state_vector
-            state_vector[state_vector < 0] = 0
+            state_vector[state_vector < 0] = (
+                0  # negative entries are unphysical
+            )
+
             if self.smoothness > 0:
                 state_vector_smooth = gaussian_filter1d(
                     state_vector,
@@ -281,12 +286,11 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
                 hamilton_2D=hamilton_2D,
             )
             histogram_normalized = histogram / histogram.mean()
-            max_change = (
+            max_change = np.abs(
                 histogram_normalized - previous_histogram_normalized
             ).max()
             if max_change < self.atol:
                 break
-            previous_histogram_normalized = histogram_normalized
 
             if self.animate_fitting:
                 self._draw_animation(
@@ -298,6 +302,9 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
                     state_vector=state_vector,
                     state_vector_smooth=state_vector_smooth,
                 )
+
+            previous_histogram_normalized = histogram_normalized
+
         density = state_vector_to_hammilton_coordinates(
             state_vector=state_vector_smooth,
             hamilton_2D=hamilton_2D,

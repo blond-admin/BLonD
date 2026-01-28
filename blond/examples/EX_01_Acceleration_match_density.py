@@ -89,6 +89,9 @@ def main():
     matcher_addon.smoothness = 0.01
     matcher_addon.atol = 1e-3
     matcher_addon.recenter = True
+    matcher_addon.animate_fitting = True
+    matcher_addon.plot_result = True
+    matcher_addon.plot_result_blocking = True
 
     sim.prepare_beam(
         beam=beam1,
