@@ -159,10 +159,23 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         """
         if self.recenter:
             mid = time_grid.shape[1] // 2
-            center_ham = np.average(
-                time_grid[:, mid],
-                weights=hamilton_2D[:, mid].max() - hamilton_2D[:, mid],
-            )
+
+            import numpy as np
+            from scipy.signal import find_peaks
+
+            x = time_grid[:, mid]
+            y = hamilton_2D[:, mid]
+
+            # find local minima by finding peaks in -y
+            min_indices, _ = find_peaks(-y)
+
+            # index of the lowest local minimum
+            lowest_min_index = min_indices[np.argmin(y[min_indices])]
+
+            # x-coordinate of the lowest local minimum
+            x_lowest_min = x[lowest_min_index]
+
+            center_ham = x_lowest_min
             center_prof = np.average(self._hist_x, weights=self._hist_y)
             correction = center_ham - center_prof
 
