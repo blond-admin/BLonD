@@ -17,7 +17,6 @@ from collections.abc import Sequence
 import numpy as np
 import xpart as xp
 from numpy.typing import NDArray
-from scipy.constants import c
 from scipy.constants import c as c_light
 from xtrack import Line, Particles, ReferenceEnergyIncrease, ZetaShift
 
@@ -60,7 +59,7 @@ def xsuite_to_blond_transform(
         Energy deviation with respect to the reference energy [eV].
     """
     dE = ptau * beta0 * energy0
-    dt = -zeta / (beta0 * c) + phi_s / omega_rf  # todo
+    dt = -zeta / (beta0 * c_light) + phi_s / omega_rf
     return dt, dE
 
 
@@ -98,7 +97,7 @@ def blond_to_xsuite_transform(
         Relative momentum deviation in Xsuite.
     """
     ptau = de / (beta0 * energy0)
-    zeta = -(dt - phi_s / omega_rf) * beta0 * c
+    zeta = -(dt - phi_s / omega_rf) * beta0 * c_light
     return zeta, ptau
 
 
@@ -123,7 +122,7 @@ def particle_xsuite_to_blond(particle: xp.Particles):
     """
     particle_type_blond = ParticleType(
         mass=float(particle.mass), charge=float(particle.q0)
-    )  # todo test check units
+    )
     return particle_type_blond
 
 
@@ -145,9 +144,6 @@ class BLonD3Cavity:
         Xsuite line containing the reference particle and machine length.
     initial_intensity : float or int or None, optional
         Initial beam intensity. If None, intensity handling is disabled.
-    update_zeta : bool, optional
-        Whether to update the Xsuite longitudinal coordinate `zeta`
-        after tracking. Default is False.
     """
 
     def __init__(
@@ -155,8 +151,9 @@ class BLonD3Cavity:
         cavity: SingleHarmonicRFStation,
         particles: Particles,
         line: Line,
-        initial_intensity: float | int | None = None,
-        update_zeta: bool = False,
+        initial_intensity: float
+        | int
+        | None = None,  # todo check with Birk update zeta
     ):
         omega_rf = (
             2
@@ -192,7 +189,6 @@ class BLonD3Cavity:
 
         self.beam = beam
         self.trackable = cavity
-        self.update_zeta = update_zeta
         self.orbit_shift = ZetaShift(dzeta=0)
 
     def track(self, particles: Particles):
@@ -212,12 +208,19 @@ class BLonD3Cavity:
         # Convert xsuite -> blond
         self.xsuite_to_blond_transform(particles, self.beam)
 
-        # todo get new energy from xsuite
+        mask_alive = particles.state > 0
 
+        # All alive particles share the same p0c
+        p0c_after = particles.p0c[mask_alive][0]
+        mass0 = particles.mass0
+
+        E0_after = np.sqrt(p0c_after**2 + mass0**2)
+
+        # Update BLonD reference energy
         self.trackable._magnetic_cycle.get_target_total_energy.return_value = (
-            float(self.line._particle_ref.energy0)
-        )  # todo, check for units
-
+            float(E0_after)
+        )
+        # todo check ref energy and magnetic cycle after tracking are teh same
         self.trackable.track(self.beam)  # calls the BLonD track method
 
         # Convert blond -> xsuite
@@ -248,7 +251,7 @@ class BLonD3Cavity:
         flags = beam.write_partial_flags()
 
         dt[:n_active] = -particles.zeta[active_mask] / (
-            particles.beta0[active_mask] * c
+            particles.beta0[active_mask] * c_light
         )
 
         dE[:n_active] = (
@@ -337,7 +340,6 @@ class EnergyUpdate:
 
         # Find the momentum for the next turn
         p0c_after = self.momentum[particles.at_turn[mask_alive][0]]
-
         # Update the energy increment
         self.xsuite_energy_update.Delta_p0c = p0c_after - p0c_before[0]
 

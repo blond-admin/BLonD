@@ -20,11 +20,12 @@ from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
 
 
 def main():
-    # Parameters ----------------------------------------------------------------------------------------------------------
+    PLOTTING = True
+    # Parameters #
     # Accelerator parameters
     C = 26658.8832  # Machine circumference [m]
     p_s = 450e9  # Synchronous momentum [eV/c]
-    p_f = 450.1e9  # Synchronous momentum, final
+    p_f = 450e9  # Synchronous momentum, final
     h = 35640  # Harmonic number [-]
     alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
     V = 5e6  # RF voltage [V]
@@ -34,7 +35,7 @@ def main():
     blen = 1.25e-9  # Bunch length [s]
 
     # Simulation parameters
-    N_TURNS = 330
+    N_TURNS = 5000
     input_dt = 2 * blen - 0.4e-9  # Input particles dt [s]
     input_dE = 0.0  # Input particles dE [eV]
 
@@ -55,10 +56,8 @@ def main():
     # Create line
     line = xt.Line(elements=[matrix], element_names={"matrix"})
     line["matrix"].length = C
-    print("length", line.get_length())
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
 
-    # Create necessary blond objects
     momentum = np.linspace(p_s, p_f, N_TURNS)
 
     omega_rf = 2 * np.pi * c_light * h * line.particle_ref.beta0 / C
@@ -73,7 +72,9 @@ def main():
         omega_rf=omega_rf,
     )
 
-    # --- Track matrix ---
+    # --- Track matrix  --- #
+    # --- Single particle  --- #
+
     particles = line.build_particles(
         x=0,
         y=0,
@@ -83,32 +84,42 @@ def main():
         ptau=np.copy(ptau),
     )
 
-    # BLonD3 element --------------------------------
+    # --- Many particle  --- #
+    n_part = 1000
+    particles = line.build_particles(
+        x=np.random.uniform(-1e-3, 1e-3, n_part),
+        px=np.random.uniform(-1e-5, 1e-5, n_part),
+        y=np.random.uniform(-2e-3, 2e-3, n_part),
+        py=np.random.uniform(-3e-5, 3e-5, n_part),
+        zeta=np.random.uniform(-2e-2, 2e-2, n_part),
+        delta=np.random.uniform(-1e-4, 1e-4, n_part),
+    )
+
+    # --- BLonD3Element  --- #
+
     cavity1 = SingleHarmonicRFStation.headless(
         section_index=1,
         voltage=V,
         harmonic=h,
-        phi_rf=0,
+        phi_rf=-np.pi,
         circumference=C,
-        total_energy=None,  # should be set dynamically?
+        total_energy=None,  # todo dynamically set the energy
     )
 
     cavity = BLonD3Cavity(
         cavity=cavity1,
-        update_zeta=True,
         particles=particles,
         line=line,
         initial_intensity=N_p,
     )
-
-    # -----------------------------------------------
+    # --- Insert cavity  --- #
     line.insert_element(
         index=0,
         element=cavity,
         name="BLonD_Cavity",
     )
 
-    # Insert energy ramp ----------------------------
+    # --- Insert energy ramp  --- #
     energy_update = EnergyUpdate(momentum=momentum)
 
     line.insert_element(
@@ -124,6 +135,19 @@ def main():
         turn_by_turn_monitor=True,
         with_progress=True,
     )
+
+    if PLOTTING:
+        from matplotlib import pyplot as plt
+
+        plt.scatter(
+            line.record_last_track.zeta[:, 0],
+            line.record_last_track.delta[:, 0],
+        )
+        plt.scatter(
+            line.record_last_track.zeta[:, -1],
+            line.record_last_track.delta[:, -1],
+        )
+        plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover
