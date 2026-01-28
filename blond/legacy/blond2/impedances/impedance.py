@@ -1202,7 +1202,7 @@ class InducedVoltageResonator(_InducedVoltage):
                     )
             else:
                 if rf_station_list is None:
-                    raise RuntimeError("New implementation requires ")
+                    raise RuntimeError("New implementation requires list of all rf stations to rf_station_list")
                 from scipy.constants import c
                 n_stations = len(rf_station_list)
                 self.section_time_distance_array = np.zeros(rf_station.n_turns * n_stations)
@@ -1217,7 +1217,7 @@ class InducedVoltageResonator(_InducedVoltage):
                 section_length_arrays = section_length_arrays[own_section_index % n_stations:] + section_length_arrays[:(own_section_index + n_stations) % n_stations]  # change ordering to fit the beta location
 
                 for trn in range(rf_station.n_turns):
-                    from_idx = own_section_index + trn * n_stations
+                    from_idx = own_section_index + trn * n_stations + n_stations  # don't consider initial values
                     to_idx = from_idx + n_stations
                     self.section_time_distance_array[trn] = np.sum(1 / (beta_array[from_idx:to_idx] * c) * section_length_arrays)
                 inter_turn_time = np.linspace(
