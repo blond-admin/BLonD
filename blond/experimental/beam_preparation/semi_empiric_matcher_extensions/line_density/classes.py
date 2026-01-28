@@ -46,7 +46,7 @@ class SemiEmpiricMatcherAddon(ABC):
         time_grid
             The time coordinates corresponding to `hamilton_2D`, in [s].
         hamilton_2D
-            `A 2D array representing the spatial Hamilton field.
+            A 2D array representing the spatial Hamilton field.
 
         Returns
         -------
@@ -152,7 +152,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         time_grid
             The time coordinates corresponding to `hamilton_2D`, in [s].
         hamilton_2D
-            `A 2D array representing the spatial Hamilton field.
+            A 2D array representing the spatial Hamilton field.
 
         Returns
         -------
@@ -225,7 +225,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         Parameters
         ----------
         hamilton_2D
-            `A 2D array representing the spatial Hamilton field.
+            A 2D array representing the spatial Hamilton field.
         histogram_desired
             histogram that represents the target value of what the density
             distribution should represent.
