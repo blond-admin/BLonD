@@ -17,6 +17,9 @@ from numba import float64, int32, prange, void
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
+# antialiasing parameters
+BIN_SIGMA = 1.0  # 68% in one bin
+BIN_SIGMA_CALC = 3.0  # 99% of stencil will be drawn
 
 
 @numba.njit(
@@ -40,10 +43,10 @@ def _gen_hist_numba(H_change, hamilton_2D, histogram_write, mid, state_vector):
     emax = np.empty(num_states)
 
     for i in range(num_states):
-        _sigma = 5.0 * H_change[i]
+        _sigma = BIN_SIGMA * H_change[i]
         inv_two_sigma2[i] = -1.0 / (2.0 * _sigma * _sigma)
-        emin[i] = hamilton_mid[i] - 5.0 * _sigma
-        emax[i] = hamilton_mid[i] + 5.0 * _sigma
+        emin[i] = hamilton_mid[i] - BIN_SIGMA_CALC * _sigma
+        emax[i] = hamilton_mid[i] + BIN_SIGMA_CALC * _sigma
 
     # Main loop
     for u in prange(h_shape_0):
@@ -95,10 +98,10 @@ def _gen_state_numba(
     emax = np.empty(num_states)
 
     for i in range(num_states):
-        _sigma = 5.0 * H_change[i]
+        _sigma = BIN_SIGMA * H_change[i]
         inv_two_sigma2[i] = -1.0 / (2.0 * _sigma * _sigma)
-        emin[i] = hamilton_mid[i] - 5.0 * _sigma
-        emax[i] = hamilton_mid[i] + 5.0 * _sigma
+        emin[i] = hamilton_mid[i] - BIN_SIGMA_CALC * _sigma
+        emax[i] = hamilton_mid[i] + BIN_SIGMA_CALC * _sigma
 
     for i in prange(len(state_vector_write)):
         val2 = 0.0
@@ -150,12 +153,12 @@ def _gen_density_numba(
 
     # to remove calculation from inner loop
     for i in range(n_states):
-        s = 5.0 * H_change[i]
+        s = BIN_SIGMA * H_change[i]
         sigma[i] = s
         inv_two_sigma_sq[i] = -1.0 / (2.0 * s * s)
         e_i = h_mid[i]
-        e_min[i] = e_i - 5.0 * s
-        e_max[i] = e_i + 5.0 * s
+        e_min[i] = e_i - BIN_SIGMA_CALC * s
+        e_max[i] = e_i + BIN_SIGMA_CALC * s
 
     for idx in prange(h_shape_0 * h_shape_1):
         u = idx % h_shape_1

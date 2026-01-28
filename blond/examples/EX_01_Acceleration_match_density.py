@@ -39,7 +39,7 @@ if TYPE_CHECKING:  # pragma: no cover
 def get_test_profile():
     # Parameters
     mean = 2.5e-9 / 2  # Mean of the distribution
-    std_dev = 2.5e-9 / 8  # Standard deviation
+    std_dev = 2.5e-9 / 8 / 2  # Standard deviation
     size = 10000  # Number of data points
 
     # Generate random data from a Gaussian distribution
@@ -65,10 +65,10 @@ def main():
     rf_station.phi_rf = 0
 
     N_TURNS = int(1e3)
-
+    values = np.linspace(450e9, 455e9, N_TURNS + 1)
     energy_cycle = MagneticCyclePerTurn(
-        value_init=450e9,
-        values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+        value_init=values[0],
+        values_after_turn=values[1:],
         reference_particle=proton,
     )
 
@@ -87,6 +87,8 @@ def main():
     hist_x, hist_y = get_test_profile()
     matcher_addon = ProfileMatcherAddon(hist_x=hist_x, hist_y=hist_y)
     matcher_addon.smoothness = 0.01
+    matcher_addon.atol = 1e-3
+    matcher_addon.recenter = True
 
     sim.prepare_beam(
         beam=beam1,

@@ -258,27 +258,14 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             f"`maxiter` must be bigger 0, but is {self.maxiter=}."
         )
         for i in tqdm(range(self.maxiter)):
+            residual = histogram_desired - histogram
+            fit_histogram = scale * residual
             force_smoothness = np.gradient(
                 np.gradient(state_vector, edge_order=1), edge_order=1
             )
-            fit_histogram = scale * (histogram_desired - histogram)
-            misc = 0.1 * ((scale * histogram_desired) - state_vector)
-            update_state_vector = fit_histogram + force_smoothness + misc
-            plt.figure(13)
-            plt.clf()
-            ax = plt.subplot(3, 1, 1)
-            plt.plot(state_vector, label="state_vector")
-            plt.plot((scale * histogram_desired), label="histogram_desired")
-            plt.legend()
-
-            ax2 = plt.subplot(3, 1, 2, sharex=ax, sharey=ax)
-            plt.plot(force_smoothness, label="foce_smoothness")
-            plt.plot(fit_histogram, label="fit_histogram")
-            plt.plot(misc, label="misc")
-            plt.legend()
-            plt.subplot(3, 1, 3, sharex=ax, sharey=ax)
-            plt.plot(update_state_vector, label="update state vector")
-            plt.legend()
+            update_state_vector = (
+                fit_histogram + (self.smoothness > 0) * force_smoothness
+            )
 
             state_vector += update_state_vector
             state_vector[state_vector < 0] = 0
@@ -337,7 +324,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             plt.figure(self._animation_fignumber)
 
         plt.clf()
-        plt.subplot(2, 1, 1)
+        ax = plt.subplot(2, 1, 1)
         plt.title(
             f"Iteration {i}/{self.maxiter} {max_change:.1e}/{self.atol:.1e}"
         )
@@ -346,7 +333,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         plt.plot(histogram_normalized, "--")
         plt.xlabel("Time [s]")
         plt.ylabel("Density [arb. unit]")
-        plt.subplot(2, 1, 2)
+        plt.subplot(2, 1, 2, sharex=ax)
         plt.plot(state_vector, label="raw")
         plt.plot(state_vector_smooth, label="smoothed")
         plt.legend(loc="upper right")
