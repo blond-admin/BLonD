@@ -8,16 +8,11 @@
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING
-
-import matplotlib.pyplot as plt
-import numpy as np
 
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.callables_numba import (
     _gen_density_numba,
     _gen_hist_numba,
-    _gen_state_numba,
 )
 
 if TYPE_CHECKING:  # pragma: no cover

@@ -73,6 +73,9 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
     smoothness : float
         Controls how the internal state is smoothed to produce a stable
         distribution that is less sensitive to noise.
+        From 0 to 1.
+        - 0: Inactive.
+        - 1: Gaussian smoothing with sigma = full witdth of `hist_x`.
     maxiter : int
         Maximum number of iterations allowed when matching the density
         distribution to the target beam profile.
