@@ -17,7 +17,7 @@ from scipy.ndimage import gaussian_filter1d
 from tqdm import tqdm
 
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.callables import (
-    state_vector_to_hammilton_coordinates,
+    state_vector_to_density,
     state_vector_to_histogram,
 )
 
@@ -305,7 +305,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
 
             previous_histogram_normalized = histogram_normalized
 
-        density = state_vector_to_hammilton_coordinates(
+        density = state_vector_to_density(
             state_vector=state_vector_smooth,
             hamilton_2D=hamilton_2D,
         )
