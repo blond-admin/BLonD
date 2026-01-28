@@ -17,6 +17,8 @@ from numba import float64, int32, prange, void
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
+
+
 # antialiasing parameters
 BIN_SIGMA = 1.0  # 68% in one bin
 BIN_SIGMA_CALC = 3.0  # 99% of stencil will be drawn

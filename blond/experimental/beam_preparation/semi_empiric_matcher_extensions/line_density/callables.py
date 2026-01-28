@@ -29,7 +29,9 @@ def state_vector_to_density(
     state_vector: NumpyArray, hamilton_2D: NumpyArray
 ) -> NumpyArray:
     """
-    Transform a state vector into a histogram.
+    Transform a state vector into a density distribution.
+
+    The state vector defines the density on each orbit of `hamilton_2D`.
 
     Parameters
     ----------
@@ -67,8 +69,8 @@ def state_vector_to_histogram(
     Transform a state vector into a histogram.
 
     Following operations are implicitly done.
-    1. transformed into a density distribution according to the `hamilton_2D`.
-    2. a histogram of the density distribution is obtained.
+    1. The state vector is transformed into a density distribution according to the `hamilton_2D`.
+    2. A histogram of the density distribution is obtained.
 
     Parameters
     ----------
