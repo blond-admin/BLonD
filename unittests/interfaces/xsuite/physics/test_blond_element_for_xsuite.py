@@ -5,12 +5,13 @@ import pytest
 import xpart as xp
 import xtrack as xt
 
-from blond import proton, SingleHarmonicRFStation
+from blond import SingleHarmonicRFStation, proton
 from blond.core.beam.base import BeamBaseClass
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
+    BLonD3Cavity,
     blond_to_xsuite_transform,
     particle_xsuite_to_blond,
-    xsuite_to_blond_transform, BLonD3Cavity,
+    xsuite_to_blond_transform,
 )
 
 
@@ -109,7 +110,7 @@ def test_reference_energy_matches_magnetic_cycle_target():
     C = 100.0  # circumference [m]
     p0c = 450e9  # eV
 
-    line = xt.Line(elements=[]) # empty line
+    line = xt.Line(elements=[])  # empty line
     line.particle_ref = xp.Particles(
         p0c=p0c,
         mass0=xp.PROTON_MASS_EV,
@@ -123,7 +124,7 @@ def test_reference_energy_matches_magnetic_cycle_target():
         zeta=[0.0],
         ptau=[0.0],
     )
-    mass0 = float(particles.mass0) #
+    mass0 = float(particles.mass0)  #
 
     # --- BLonD cavity ---
     cavity = SingleHarmonicRFStation.headless(
@@ -132,7 +133,7 @@ def test_reference_energy_matches_magnetic_cycle_target():
         harmonic=1,
         phi_rf=0.0,
         circumference=C,
-        total_energy=float(np.sqrt(p0c**2 + mass0**2))
+        total_energy=float(np.sqrt(p0c**2 + mass0**2)),
     )
 
     # --- Mock magnetic cycle ---
@@ -175,12 +176,13 @@ def test_xsuite_blond_forward_backward_transforms(n_particles):
         py=np.random.uniform(-3e-5, 3e-5, n_particles),
         zeta=np.random.uniform(-0.01, 0.01, n_particles),
         ptau=np.random.uniform(-1e-4, 1e-4, n_particles),
-        state=np.ones(n_particles, dtype=int)
+        state=np.ones(n_particles, dtype=int),
     )
 
     # --- Create dummy cavity ---
     class DummyCavity(SingleHarmonicRFStation):
         harmonic = 1
+
         def track(self, beam: BeamBaseClass):
             return
 
@@ -196,11 +198,16 @@ def test_xsuite_blond_forward_backward_transforms(n_particles):
 
     # --- Check that particles are unchanged (within tolerance) ---
     np.testing.assert_allclose(
-        particles.zeta, zeta_orig, rtol=0, atol=1e-12,
-        err_msg="zeta changed after forward-backward transform"
+        particles.zeta,
+        zeta_orig,
+        rtol=0,
+        atol=1e-12,
+        err_msg="zeta changed after forward-backward transform",
     )
     np.testing.assert_allclose(
-        particles.ptau, ptau_orig, rtol=0, atol=1e-12,
-        err_msg="ptau changed after forward-backward transform"
+        particles.ptau,
+        ptau_orig,
+        rtol=0,
+        atol=1e-12,
+        err_msg="ptau changed after forward-backward transform",
     )
-
