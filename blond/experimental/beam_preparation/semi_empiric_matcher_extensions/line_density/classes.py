@@ -262,9 +262,8 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         )
         for i in tqdm(range(self.maxiter), "ProfileMatcherAddon"):
             residual = histogram_desired - histogram
-            fit_histogram = scale * residual
+            update_state_vector = scale * residual
 
-            update_state_vector = fit_histogram
             if self.smoothness > 0:
                 # smooth 2nd derivative
                 force_smoothness = np.gradient(
