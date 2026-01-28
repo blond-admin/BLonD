@@ -99,6 +99,8 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
     ...     SemiEmpiricMatcher,
     ... )
     >>> matcher_addon = ProfileMatcherAddon(hist_x=..., hist_y=...)
+    >>> # Set attributes to change the behaviour
+    >>> matcher_addon.smoothness = 0.05
 
     >>> simulation.prepare_beam(
     ...     beam=...,
@@ -128,6 +130,8 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         self.maxiter = 100
         self.smoothness = 0.05  # from 0 to 1
         self.atol = 1e-3
+        self._animation_fignumber = None
+        self._result_fignumber = None
 
     def hamilton_to_density_function(
         self,
@@ -227,8 +231,8 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             state_vector=state_vector,
             hamilton_2D=hamilton_2D,
         )
-        update_state_vector = histogram_desired.mean() / histogram.mean()
-        state_vector *= update_state_vector
+        scale = histogram_desired.mean() / histogram.mean()
+        state_vector *= scale
 
         histogram = state_vector_to_histogram(
             state_vector=state_vector,
@@ -241,8 +245,30 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             f"`maxiter` must be bigger 0, but is {self.maxiter=}."
         )
         for i in tqdm(range(self.maxiter)):
-            update_state_vector = (1 + histogram_desired) / (1 + histogram)
-            state_vector *= update_state_vector
+            force_smoothness = np.gradient(
+                np.gradient(state_vector, edge_order=1), edge_order=1
+            )
+            fit_histogram = scale * (histogram_desired - histogram)
+            misc = 0.1 * ((scale * histogram_desired) - state_vector)
+            update_state_vector = fit_histogram + force_smoothness + misc
+            plt.figure(13)
+            plt.clf()
+            ax = plt.subplot(3, 1, 1)
+            plt.plot(state_vector, label="state_vector")
+            plt.plot((scale * histogram_desired), label="histogram_desired")
+            plt.legend()
+
+            ax2 = plt.subplot(3, 1, 2, sharex=ax, sharey=ax)
+            plt.plot(force_smoothness, label="foce_smoothness")
+            plt.plot(fit_histogram, label="fit_histogram")
+            plt.plot(misc, label="misc")
+            plt.legend()
+            plt.subplot(3, 1, 3, sharex=ax, sharey=ax)
+            plt.plot(update_state_vector, label="update state vector")
+            plt.legend()
+
+            state_vector += update_state_vector
+            state_vector[state_vector < 0] = 0
             if self.smoothness > 0:
                 state_vector_smooth = gaussian_filter1d(
                     state_vector,
@@ -291,7 +317,12 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         state_vector: NumpyArray,
         state_vector_smooth: NumpyArray,
     ):
-        plt.figure(0)
+        if self._animation_fignumber is None:
+            fig = plt.figure()
+            self._animation_fignumber = fig.number
+        else:
+            plt.figure(self._animation_fignumber)
+
         plt.clf()
         plt.subplot(2, 1, 1)
         plt.title(
@@ -309,10 +340,10 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         plt.xlabel("State ID")
         plt.ylabel("Amplitude")
         plt.draw()
-        plt.pause(0.1)
+        plt.pause(1e-3)
 
-    @staticmethod
     def _plot_result(
+        self,
         time_grid,
         deltaE_grid,
         hamilton_2D,
@@ -320,7 +351,11 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         hist_x_interp,
         hist_y_interp,
     ):
-        plt.figure()
+        if self._result_fignumber is None:
+            fig = plt.figure()
+            self._result_fignumber = fig.number
+        else:
+            plt.figure(self._result_fignumber)
         ax1 = plt.subplot(3, 1, 1)
         plt.title("Hamilton")
         plt.pcolor(

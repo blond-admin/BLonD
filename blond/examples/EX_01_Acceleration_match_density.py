@@ -40,7 +40,7 @@ def get_test_profile():
     # Parameters
     mean = 2.5e-9 / 2  # Mean of the distribution
     std_dev = 2.5e-9 / 8  # Standard deviation
-    size = 100000  # Number of data points
+    size = 10000  # Number of data points
 
     # Generate random data from a Gaussian distribution
     data = np.random.normal(loc=mean, scale=std_dev, size=size)
@@ -86,6 +86,7 @@ def main():
 
     hist_x, hist_y = get_test_profile()
     matcher_addon = ProfileMatcherAddon(hist_x=hist_x, hist_y=hist_y)
+    matcher_addon.smoothness = 0.01
 
     sim.prepare_beam(
         beam=beam1,

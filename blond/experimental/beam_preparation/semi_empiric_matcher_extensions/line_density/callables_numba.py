@@ -102,12 +102,14 @@ def _gen_state_numba(
 
     for i in prange(len(state_vector_write)):
         val2 = 0.0
+        valn = 0
         e_i = hamilton_mid[i]
         inv2s2 = inv_two_sigma2[i]
 
-        for u in range(h_shape_0):
-            val3 = 0.0
+        for u in (i,):
             hist_u = histogram[u]
+            if hist_u == 0:
+                continue
 
             for v in range(h_shape_1):
                 h = hamilton_2D[u, v]
@@ -115,10 +117,10 @@ def _gen_state_numba(
                     continue
 
                 dE = h - e_i
-                val3 += np.exp(dE * dE * inv2s2)
-            val2 += hist_u * val3
-
-        state_vector_write[i] = val2
+                val2 += np.exp(dE * dE * inv2s2) * hist_u
+                valn += 1
+        if val2 > 0:
+            state_vector_write[i] = 1 / val2
 
 
 @numba.njit(
