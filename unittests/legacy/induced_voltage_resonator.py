@@ -12,6 +12,7 @@ from blond import (
     BiGaussian,
     DriftSimple,
     MagneticCyclePerTurn,
+    MagneticCyclePerTurnAllRFStations,
 )
 from blond import Ring as ring_b3
 from blond import (
@@ -87,10 +88,13 @@ class InducdedVoltageResonator:
 
         self.n_macroparticles = int(1e4)
 
-        self.energy_array = np.linspace(
-            self.energy,
-            self.energy + self.energy_gain_per_turn * self.n_turns,
-            self.n_stations * (self.n_turns + 1),
+        self.energy_array = np.append(
+            np.ones(self.n_stations) * self.energy,
+            np.linspace(
+                self.energy + self.energy_gain_per_turn / self.n_stations,
+                self.energy + self.energy_gain_per_turn * self.n_turns,
+                self.n_stations * self.n_turns,
+            ),
         )
         self.sigma_bunch = 5e-10
         self.bunch_offset = 3e-9
@@ -148,28 +152,21 @@ class InducdedVoltageResonator:
             self.Q_factor,
         )  # low Q for fast decay in small machine, although phasing will dominate
 
-        ind_volt_res_1 = InducedVoltageResonator(
-            self.beam,
-            self.profile,
-            resonator,
-            rf_station=rf_station_list[0],
-            rf_station_list=rf_station_list,
-            mtw_mode="time",
-            time_decay_factor=1e-12,
-            multi_turn_wake=True,
-            old_time_array_impl=old_impl,
-        )  # never release
-        ind_volt_res_2 = InducedVoltageResonator(
-            self.beam,
-            self.profile,
-            resonator,
-            rf_station=rf_station_list[1],
-            rf_station_list=rf_station_list,
-            mtw_mode="time",
-            time_decay_factor=1e-12,
-            multi_turn_wake=True,
-            old_time_array_impl=old_impl,
-        )  # never release
+        ind_volt_list = []
+        for _ in range(self.n_stations):
+            ind_volt_list.append(
+                InducedVoltageResonator(
+                    self.beam,
+                    self.profile,
+                    resonator,
+                    rf_station=rf_station_list[_],
+                    rf_station_list=rf_station_list,
+                    mtw_mode="time",
+                    time_decay_factor=1e-12,
+                    multi_turn_wake=True,
+                    old_time_array_impl=old_impl,
+                )
+            )  # never release
         # if not old_impl:
         #     assert len(ind_volt_res_1.time_array) == self.n_turns
         #     assert (
@@ -219,14 +216,14 @@ class InducdedVoltageResonator:
         section_length_array_extended = []
         [
             section_length_array_extended.append(section_length_arrays)
-            for _ in range(self.n_turns + 1)
+            for _ in range(self.n_turns)
         ]
         section_length_array_extended = np.array(
             section_length_array_extended
         ).flatten()
         from scipy.constants import c
 
-        section_time = 1 / (beta_array * c) * section_length_array_extended
+        section_time = 1 / (beta_array[2:] * c) * section_length_array_extended
 
         profiles = np.zeros(
             (self.n_stations, len(self.time_axis)), dtype=float
@@ -273,32 +270,28 @@ class InducdedVoltageResonator:
         self.time_array_profile = [[] for _ in range(self.n_stations)]
         save_voltage_array = [[] for _ in range(self.n_stations)]
         for trn_ind in range(self.n_turns):
-            ind_volt_res_1.induced_voltage_generation()
-            ind_volt_res_1.rf_params.counter[0] += 1
-            save_voltage_array[0].append(
-                ind_volt_res_1.induced_voltage[: self.profile.n_slices]
-            )
-            self.time_array_profile[0].append(
-                self.profile.bin_centers
-                + (
-                    np.sum(section_time[0 : trn_ind * self.n_stations])
-                    if trn_ind > 0
-                    else 0
+            for inter_turn_ind in range(self.n_stations):
+                ind_volt_list[inter_turn_ind].induced_voltage_generation()
+                ind_volt_list[inter_turn_ind].rf_params.counter[0] += 1
+                save_voltage_array[inter_turn_ind].append(
+                    ind_volt_list[inter_turn_ind].induced_voltage[
+                        : self.profile.n_slices
+                    ]
                 )
-            )
-            ind_volt_res_2.induced_voltage_generation()
-            ind_volt_res_2.rf_params.counter[0] += 1
-            save_voltage_array[1].append(
-                ind_volt_res_2.induced_voltage[: self.profile.n_slices]
-            )
-            self.time_array_profile[1].append(
-                self.profile.bin_centers
-                + (
-                    np.sum(section_time[0 : trn_ind * self.n_stations + 1])
-                    if trn_ind > 0
-                    else section_time[0]
+                self.time_array_profile[inter_turn_ind].append(
+                    self.profile.bin_centers
+                    + (
+                        np.sum(
+                            section_time[
+                                0 : trn_ind * self.n_stations + inter_turn_ind
+                            ]
+                        )
+                        if trn_ind > 0
+                        else 0
+                        if inter_turn_ind == 0
+                        else np.sum(section_time[:inter_turn_ind])
+                    )
                 )
-            )
 
         self.dt = self.time_axis[1] - self.time_axis[0]
         for inter_turn_ind in range(self.n_stations):
@@ -321,7 +314,7 @@ class InducdedVoltageResonator:
                     ls="--",
                     label=f"resonator turn {el}",
                 )
-            plt.legend()
+            plt.legend(loc="upper right")
             plt.show(block=False)
         pass
 
@@ -330,25 +323,32 @@ class InducdedVoltageResonator:
             circumference=np.sum(self.n_section_lengths),
             check_section_indices=False,
         )
+        # self.energy = # TODO: this is the main issue, how to get the energy arrays consistent between the two blond versions?
         energy_array = np.reshape(
-            self.energy_array, (self.n_stations, self.n_turns + 1)
+            self.energy_array, (self.n_stations, self.n_turns + 1), order="F"
         )
 
-        magnetic_cycle = MagneticCyclePerTurn(
+        magnetic_cycle = MagneticCyclePerTurnAllRFStations.headless(
             value_init=energy_array[0][0],
-            values_after_turn=energy_array[0],
+            values_after_rf_station_per_turn=np.array(
+                [en[1:] for en in energy_array]
+            ),  # slice off first value, as this is init
             in_unit="total energy",
             reference_particle=mu_plus,
         )
+        # plt.figure()
+        # plt.subplot(2,1,1)
+        # plt.plot(self.energy_array[:6], "^", color="red")
+        # plt.subplot(2,1,2)
+        # plt.plot(-1, magnetic_cycle.get_total_energy_init(particle_type=magnetic_cycle.reference_particle), "o")
+        # for turn_i in range(3):
+        #     for s in range(self.n_stations):
+        #         plt.plot(
+        #             turn_i, magnetic_cycle.get_target_total_energy(turn_i, s, 0,particle_type=magnetic_cycle.reference_particle),
+        #             ("o","x")[s % 2],
+        #         )
+        # plt.show()
         one_turn_model = []
-        profile_list = []
-        t_rf = (
-            magnetic_cycle.get_t_rev_init(
-                ring.circumference,
-                particle_type=mu_plus,
-            )
-            / self.harmonic
-        )
         beam = beam_b3(
             intensity=self.n_macroparticles,
             particle_type=mu_plus,
@@ -439,7 +439,7 @@ class InducdedVoltageResonator:
                     ls="--",
                     label=f"section {inter_turn} turn {el}",
                 )
-            plt.legend()
+            plt.legend(loc="upper right")
 
             if inter_turn == self.n_stations - 1:
                 plt.show(block=True)
