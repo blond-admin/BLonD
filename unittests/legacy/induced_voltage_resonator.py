@@ -315,20 +315,23 @@ class InducdedVoltageResonator:
                     )
                 plt.legend(loc="upper right")
                 plt.show(block=False)
-
-        for inter_turn_ind in range(self.n_stations):
-            for trn_ind in range(self.n_turns):
-                conv_result = np.interp(
-                    self.time_array_profile[inter_turn_ind][trn_ind],
-                    self.time_axis,
-                    self.convolution_result[inter_turn_ind],
-                )
-                assert np.allclose(
-                    -conv_result * e / self.profile.bin_size * self.dt_profile,
-                    save_voltage_array[inter_turn_ind][trn_ind],
-                    atol=1e8,
-                    rtol=1e-8,
-                )
+        if not old_impl:
+            for inter_turn_ind in range(self.n_stations):
+                for trn_ind in range(self.n_turns):
+                    conv_result = np.interp(
+                        self.time_array_profile[inter_turn_ind][trn_ind],
+                        self.time_axis,
+                        self.convolution_result[inter_turn_ind],
+                    )
+                    assert np.allclose(
+                        -conv_result
+                        * e
+                        / self.profile.bin_size
+                        * self.dt_profile,
+                        save_voltage_array[inter_turn_ind][trn_ind],
+                        atol=1e8,
+                        rtol=1e-8,
+                    )
 
     def setUpB3(self):
         ring = ring_b3(
@@ -465,5 +468,5 @@ class InducdedVoltageResonator:
 if __name__ == "__main__":
     indi = InducdedVoltageResonator()
     indi.setUpB2(old_impl=False)
-    # indi.setUpB2(old_impl=True)
+    indi.setUpB2(old_impl=True)
     indi.setUpB3()
