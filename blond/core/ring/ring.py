@@ -155,7 +155,7 @@ class Ring(Preparable):
         """
         return self._circumference
 
-    @cached_property
+    @property
     def momentum_compaction_factor(self) -> float:
         r"""
         Calculate the momentum compaction factor.
@@ -513,6 +513,8 @@ class Ring(Preparable):
             element._section_index = int(section_index)
         self.elements.add_element(element, reorder=reorder)
 
+        from blond.physics.drifts import DriftBaseClass
+
         if isinstance(element, DriftBaseClass):
             self.propagate_transition_gamma()
 
@@ -646,6 +648,8 @@ class Ring(Preparable):
                     insert_at=k + already_inserted,
                 )
                 locations_in_the_new_ring.append(k + already_inserted)
+        from blond.physics.drifts import DriftBaseClass
+
         if isinstance(element, DriftBaseClass):
             self.propagate_transition_gamma()
         return locations_in_the_new_ring
