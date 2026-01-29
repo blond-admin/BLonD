@@ -1308,8 +1308,8 @@ class InducedVoltageResonator(_InducedVoltage):
         section_length_arrays = section_length_arrays[own_section_index % n_stations:] + section_length_arrays[
             :(own_section_index + n_stations) % n_stations]  # change ordering to fit the beta location
 
-        for trn in range(self.rf_params.n_turns):
-            from_idx = own_section_index + trn * n_stations + n_stations  # don't consider initial values
+        for trn in range(self.rf_params.n_turns - 1):  # last turn does not need mtw calculation, just current turn
+            from_idx = own_section_index + (trn + 1) * n_stations # don't consider initial values
             to_idx = from_idx + n_stations
             self._section_time_distance_array[trn] = np.sum(1 / (beta_array[from_idx:to_idx] * c) * section_length_arrays)
         self._inter_turn_time = np.linspace(
