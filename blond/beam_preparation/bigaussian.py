@@ -97,15 +97,17 @@ def _get_dE_from_dt(
     energy = beam.reference.total_energy
     beta = beam.reference.beta
 
-    phi_s = calc_phi_s_single_harmonic(
-        charge=beam.particle_type.charge,
-        voltage=voltage,
-        phase=phi_rf,
-        energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-            1, 0, 0, particle_type=beam.particle_type
+    phi_s = (
+        calc_phi_s_single_harmonic(
+            charge=beam.particle_type.charge,
+            voltage=voltage,
+            energy_gain=simulation.magnetic_cycle.get_target_total_energy(
+                1, 0, 0, particle_type=beam.particle_type
+            )
+            - beam.reference.total_energy,
+            above_transition=above_transition,
         )
-        - beam.reference.total_energy,
-        above_transition=above_transition,
+        - phi_rf
     )
 
     eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
@@ -311,13 +313,13 @@ class BiGaussian(MatchingRoutine):
             calc_phi_s_single_harmonic(
                 charge=beam.particle_type.charge,
                 voltage=voltage,
-                phase=phi_rf,
                 energy_gain=simulation.magnetic_cycle.get_target_total_energy(
                     0, 0, 0, particle_type=beam.particle_type
                 )
                 - beam.reference.total_energy,
                 above_transition=above_transition,
             )
+            - phi_rf
         )
         # call to legacy
         eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
