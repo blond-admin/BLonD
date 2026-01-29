@@ -155,6 +155,11 @@ class BLonD3Cavity:
         | int
         | None = None,  # todo check with Birk update zeta
     ):
+        self.line = line
+        self.dt_shift = None
+        self.trackable = cavity
+        self.orbit_shift = ZetaShift(dzeta=0)
+
         omega_rf = (
             2
             * np.pi
@@ -164,6 +169,8 @@ class BLonD3Cavity:
             / line.get_length()
         )
 
+        particle_type = particle_xsuite_to_blond(self.line.particle_ref)
+
         dt, dE = xsuite_to_blond_transform(
             zeta=particles.zeta,
             ptau=particles.ptau,
@@ -171,9 +178,6 @@ class BLonD3Cavity:
             energy0=line.particle_ref.energy0,
             omega_rf=omega_rf,
         )
-        self.line = line
-
-        particle_type = particle_xsuite_to_blond(self.line.particle_ref)
 
         beam = Beam(
             intensity=initial_intensity,
@@ -188,8 +192,10 @@ class BLonD3Cavity:
         )
 
         self.beam = beam
-        self.trackable = cavity
-        self.orbit_shift = ZetaShift(dzeta=0)
+        # init the total energy first
+        self.trackable._magnetic_cycle.get_target_total_energy.return_value = (
+            float(self.line.particle_ref.energy0)
+        )
 
     def track(self, particles: Particles):
         """
@@ -206,12 +212,16 @@ class BLonD3Cavity:
             Xsuite particles to be tracked.
         """
         # Convert xsuite -> blond
-        self.xsuite_to_blond_transform(particles, self.beam)
+        # update time shift
+        self.get_time_shift()
+
+        self.xsuite_to_blond_transform_particles(particles, self.beam)
 
         mask_alive = particles.state > 0
 
         # All alive particles share the same p0c
         p0c_after = particles.p0c[mask_alive][0]
+
         mass0 = particles.mass0
 
         E0_after = np.sqrt(p0c_after**2 + mass0**2)
@@ -224,9 +234,17 @@ class BLonD3Cavity:
         self.trackable.track(self.beam)  # calls the BLonD track method
 
         # Convert blond -> xsuite
-        self.blond_to_xsuite_transform(particles, self.beam)
+        self.blond_to_xsuite_transform_particles(particles, self.beam)
 
-    def xsuite_to_blond_transform(
+    def get_time_shift(self):
+        omega_rf = self.trackable.calc_main_harmonic_omega_rf(
+            beam_beta=self.beam.reference.beta,
+            ring_circumference=self.line.get_length(),
+        )
+        phi_s = self.trackable.calc_phi_s_single_harmonic(beam=self.beam)
+        self.dt_shift = phi_s - self.trackable.phi_rf / omega_rf
+
+    def xsuite_to_blond_transform_particles(
         self, particles: Particles, beam: BeamBaseClass
     ):
         """
@@ -251,7 +269,7 @@ class BLonD3Cavity:
         flags = beam.write_partial_flags()
 
         dt[:n_active] = -particles.zeta[active_mask] / (
-            particles.beta0[active_mask] * c_light
+            particles.beta0[active_mask] * c_light + self.dt_shift
         )
 
         dE[:n_active] = (
@@ -270,7 +288,7 @@ class BLonD3Cavity:
         # todo check for really killed state and remove intensity effects
         beam.purge_flagged_entries()
 
-    def blond_to_xsuite_transform(
+    def blond_to_xsuite_transform_particles(
         self, particles: Particles, beam: BeamBaseClass
     ):
         """
@@ -290,13 +308,17 @@ class BLonD3Cavity:
         dE = beam.read_partial_dE()
 
         particles.ptau[self._previous_active_mask] = dE.ravel() / (
-            particles.beta0 * particles.energy0
+            particles.beta0[self._previous_active_mask]
+            * particles.energy0[self._previous_active_mask]
         )
 
         # Longitudinal position
         dt = beam.read_partial_dt()
+
         particles.zeta[self._previous_active_mask] = (
-            -dt.ravel() * particles.beta0 * c_light
+            -(dt.ravel() - self.dt_shift)
+            * particles.beta0[self._previous_active_mask]
+            * c_light
         )
 
 

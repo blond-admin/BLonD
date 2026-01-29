@@ -35,7 +35,7 @@ def main():
     blen = 1.25e-9  # Bunch length [s]
 
     # Simulation parameters
-    N_TURNS = 5000
+    N_TURNS = 500
     input_dt = 2 * blen - 0.4e-9  # Input particles dt [s]
     input_dE = 0.0  # Input particles dE [eV]
 
@@ -55,7 +55,6 @@ def main():
 
     # Create line
     line = xt.Line(elements=[matrix], element_names={"matrix"})
-    line["matrix"].length = C
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
 
     momentum = np.linspace(p_s, p_f, N_TURNS)
@@ -72,7 +71,6 @@ def main():
         omega_rf=omega_rf,
     )
 
-    # --- Track matrix  --- #
     # --- Single particle  --- #
 
     particles = line.build_particles(
@@ -85,7 +83,7 @@ def main():
     )
 
     # --- Many particle  --- #
-    n_part = 1000
+    n_part = 100
     particles = line.build_particles(
         x=np.random.uniform(-1e-3, 1e-3, n_part),
         px=np.random.uniform(-1e-5, 1e-5, n_part),
@@ -96,12 +94,11 @@ def main():
     )
 
     # --- BLonD3Element  --- #
-
     cavity1 = SingleHarmonicRFStation.headless(
         section_index=1,
         voltage=V,
         harmonic=h,
-        phi_rf=-np.pi,
+        phi_rf=-np.pi,  # todo, this is a shift between xsuite and blond
         circumference=C,
         total_energy=None,  # todo dynamically set the energy
     )
@@ -112,6 +109,7 @@ def main():
         line=line,
         initial_intensity=N_p,
     )
+
     # --- Insert cavity  --- #
     line.insert_element(
         index=0,
@@ -127,6 +125,7 @@ def main():
     )
 
     line.build_tracker()
+    line.enable_time_dependent_vars = True
     line.get_table().show()
 
     line.track(

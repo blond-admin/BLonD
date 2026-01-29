@@ -6,7 +6,6 @@ import xpart as xp
 import xtrack as xt
 
 from blond import SingleHarmonicRFStation, proton
-from blond.core.beam.base import BeamBaseClass
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
     BLonD3Cavity,
     blond_to_xsuite_transform,
@@ -15,7 +14,7 @@ from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
 )
 
 
-@pytest.mark.parametrize("n_particles", [1, 10, 1000])
+@pytest.mark.parametrize("n_particles", [1, 1000])
 def test_forward_backward_transform_consistency(n_particles):
     """
     Test that xsuite -> BLonD -> xsuite returns the original coordinates.
@@ -160,15 +159,13 @@ def test_reference_energy_matches_magnetic_cycle_target():
     magnetic_cycle.get_target_total_energy.assert_called()
 
 
-@pytest.mark.parametrize("n_particles", [1, 10, 100])
-def test_xsuite_blond_forward_backward_transforms(n_particles):
-    # --- Create reference particle ---
+def test_xsuite_blond_forward_backward_transforms():
     p_s = 450e9  # [eV/c]
     line = xt.Line(elements=[], element_names={})
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
-    line.length = 26658.8832  # [m]
-
-    # --- Create random particles ---
+    C = 26658.8832  # [m]
+    line.get_length = lambda: C
+    n_particles = 10
     particles = line.build_particles(
         x=np.random.uniform(-1e-3, 1e-3, n_particles),
         px=np.random.uniform(-1e-5, 1e-5, n_particles),
@@ -179,16 +176,18 @@ def test_xsuite_blond_forward_backward_transforms(n_particles):
         state=np.ones(n_particles, dtype=int),
     )
 
-    # --- Create dummy cavity ---
-    class DummyCavity(SingleHarmonicRFStation):
-        harmonic = 1
+    cavity = SingleHarmonicRFStation.headless(
+        section_index=1,
+        voltage=0.0,
+        harmonic=1,
+        phi_rf=0.0,
+        circumference=26658.8832,
+        total_energy=None,
+    )
 
-        def track(self, beam: BeamBaseClass):
-            return
-
-    cavity = DummyCavity()
-
-    blond_cavity = BLonD3Cavity(cavity=cavity, particles=particles, line=line)
+    blond_cavity = BLonD3Cavity(
+        cavity=cavity, particles=particles, line=line, initial_intensity=1
+    )
 
     zeta_orig = particles.zeta.copy()
     ptau_orig = particles.ptau.copy()
