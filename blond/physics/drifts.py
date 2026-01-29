@@ -254,28 +254,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         """
         return self._transition_gamma
 
-    @transition_gamma.setter
-    def transition_gamma(self, transition_gamma: complex) -> None:
-        """
-        Gamma of transition crossing.
-
-        Parameters
-        ----------
-        transition_gamma
-            Gamma of transition crossing.
-        """
-        _assert_purely_real_or_imaginary(transition_gamma)
-
-        _momentum_compaction_factor = 1.0 / (
-            transition_gamma * transition_gamma
-        )
-
-        # .real is only possible, because we asserted that the momentum
-        # compaction factor is entirely real or complex.
-        self._momentum_compaction_factor = _momentum_compaction_factor.real
-
-        self._transition_gamma = complex(transition_gamma)
-
     @staticmethod
     def headless(
         transition_gamma: complex | NumpyArray | tuple[NumpyArray, NumpyArray],
