@@ -184,7 +184,7 @@ class Ring(Preparable):
         )
         return momentum_compaction_factor
 
-    @cached_property
+    @property
     def transition_gamma(self) -> complex:
         """
         Calculate the ring transition gamma.
