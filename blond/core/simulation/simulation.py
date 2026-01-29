@@ -163,7 +163,6 @@ class Simulation(Preparable):
         self.section_i = DynamicParameter(0)
         self.intensity_effect_manager = IntensityEffectManager(simulation=self)
 
-
         self._particle_performance_waning_threshold = int(1e3)
 
         self._exec_on_init_simulation()
