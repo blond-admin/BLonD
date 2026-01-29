@@ -76,6 +76,8 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
     orbit_length
         Length of drift, in [m].
         Length / Velocity => Time to pass the element.
+    momentum_compaction_factor
+        Contribution to the ring momentum compaction factor.
     section_index
         Section index to group elements into sections.
     **kwargs
@@ -85,6 +87,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
     def __init__(
         self,
         orbit_length: float,
+        momentum_compaction_factor: float,
         section_index: int = 0,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
@@ -94,6 +97,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         )
 
         self.orbit_length = orbit_length
+        self._momentum_compaction_factor = momentum_compaction_factor
 
     @abc.abstractmethod  # pragma: no cover
     def eta_0(self, gamma: float) -> backend.float:
@@ -113,7 +117,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         pass
 
     @property
-    def momentum_compaction_factor(self) -> float | None:
+    def momentum_compaction_factor(self) -> float:
         """
         Contribution of the drift to the momentum compaction factor.
 
@@ -122,7 +126,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         momentum_compaction_factor
             Contribution of the drift to the momentum compaction factor.
         """
-        return None
+        return self._momentum_compaction_factor
 
     def track(self, beam: BeamBaseClass) -> None:
         """
@@ -218,13 +222,12 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         """
         super().__init__(
             orbit_length=orbit_length,
+            momentum_compaction_factor=momentum_compaction_factor,
             section_index=section_index,
             **kwargs,  # for MRO of fused elements
         )
 
         self._transition_gamma: complex | None = None
-        self._momentum_compaction_factor: float | None = None
-
         self._simulation: Simulation | None = None
 
     @property  # read only, set by `transition_gamma`
