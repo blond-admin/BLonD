@@ -54,7 +54,7 @@ write_to = 'blond/_version.py' # autogenerates version string using git
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
-optional-dependencies = { all = { file = ["requirements.txt","requirements-gpu.txt","requirements-dev.txt", "requirements-fortran.txt", "requirements-doc.txt", "blond/interfaces/xsuite/requirements.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, fortran = { file = ["requirements-fortran.txt"] },  dev = { file = ["requirements-dev.txt"]},  legacy = { file = ["legacy/requirements.txt"]}, doc = { file = "requirements-doc.txt" }, xsuite = { file = "blond/interfaces/xsuite/requirements.txt" } }
+optional-dependencies = { all = { file = ["requirements.txt","requirements-gpu.txt","requirements-dev.txt", "requirements-fortran.txt", "requirements-doc.txt", "blond/interfaces/xsuite/requirements.txt", "requirements-mpi.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, fortran = { file = ["requirements-fortran.txt"] },  dev = { file = ["requirements-dev.txt"]}, mpi = { file = ["requirements-mpi.txt"]} ,  legacy = { file = ["legacy/requirements.txt"]}, doc = { file = "requirements-doc.txt" }, xsuite = { file = "blond/interfaces/xsuite/requirements.txt" } }
 
 
 [tool.ruff]
@@ -104,7 +104,11 @@ convention = "numpy"
 [tool.pytest.ini_options]
 minversion = "8.4"
 addopts = "--import-mode=importlib"
-
+markers = [
+    "mpi: Tests that require MPI.",
+    "backend_mutation: Tests that alter the backend as a side effect.",
+    "cupy: Test that require CuPy."
+]
 
 [tool.numpydoc_validation]
 checks = [

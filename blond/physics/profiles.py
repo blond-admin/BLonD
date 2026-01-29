@@ -339,14 +339,16 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
                 "Implement histogram on distributed array"
             )
         else:
-            # `_hist_x`, `_hist_x` could be None, which is not handled and
+            # `_hist_x`, `_hist_y` could be None, which is not handled and
             # causes a MyPy type error,
             # This is intentionally ignored, we want to get an exception.
-            backend.specials.histogram(
-                array_read=beam.read_partial_dt(),
-                array_write=self._hist_y,  # type: ignore
-                start=self.cut_left,
-                stop=self.cut_right,
+            beam._dt.histogram(  # MPI aware histogram calculation
+                len(self._hist_y),
+                range=(
+                    self.cut_left,
+                    self.cut_right,
+                ),
+                out=self._hist_y,
             )
             # this factor is used to reproduce the behaviour
             # of np.hist(..., density=True)

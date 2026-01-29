@@ -31,6 +31,11 @@ workflow:
     - gcc --version
     - nvcc --version # probe NVCC installation
 
+
+    # Create and activate a virtual environment
+    - python3 -m venv ./.venv
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+
     # Install project with extras
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
@@ -46,13 +51,18 @@ workflow:
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
   script:
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
     - pip list
     - cd ${project_root}
+    # Run only MPI unittests. Only the main thread should report.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib; fi'
     # Run all unittests + the examples
+    - pip uninstall -y mpi4py
     - python3 -m pytest
       -v unittests/
       --import-mode=importlib
       --randomly-seed=$CI_PIPELINE_ID
+      --cov-append
       --cov
       --cov-config=.coveragerc
       --cov-report html:coverage-html

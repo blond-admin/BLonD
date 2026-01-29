@@ -288,11 +288,15 @@ class BackendBaseClass(ABC):
         self.arange: Callable = None  # type: ignore
         self.average: Callable = None  # type: ignore
         self.fftconvolve: Callable = None  # type: ignore
+        self.min: Callable = None  # type: ignore
+        self.max: Callable = None  # type: ignore
+        self.dot: Callable = None  # type: ignore
+        self.percentile: Callable = None  # type: ignore
+        self.array_split: Callable = None  # type: ignore
         self.sign: Callable = None  # type: ignore
         self.sin: Callable = None  # type: ignore
         self.cos: Callable = None  # type: ignore
         self.exp: Callable = None  # type: ignore
-        self.max: Callable = None  # type: ignore
         self.any: Callable = None  # type: ignore
         self.abs: Callable = None  # type: ignore
         self.convolve: Callable = None  # type: ignore
@@ -457,7 +461,7 @@ class BackendBaseClass(ABC):
         --------
         >>> with backend.temporary_specials_mode("python"):
         ...     print(backend.specials_mode)
-        ...     # ...
+        ...     ...
         >>> print(backend.specials_mode)
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
@@ -507,11 +511,15 @@ class NumpyBackend(BackendBaseClass):
         self.arange = np.arange
         self.average = np.average
         self.fftconvolve = fftconvolve
+        self.min = np.min
+        self.max = np.max
+        self.dot = np.dot
+        self.percentile = np.percentile
+        self.array_split = np.array_split
         self.sign = np.sign
         self.sin = np.sin
         self.cos = np.cos
         self.exp = np.exp
-        self.max = np.max
         self.any = np.any
         self.abs = np.abs
         self.convolve = np.convolve
@@ -642,11 +650,15 @@ class CupyBackend(BackendBaseClass):
         self.arange = cp.arange
         self.average = cp.average
         self.fftconvolve = fftconvolve
+        self.min = cp.min
+        self.max = cp.max
+        self.dot = cp.dot
+        self.percentile = cp.percentile
+        self.array_split = cp.array_split
         self.sign = cp.sign
         self.sin = cp.sin
         self.cos = cp.cos
         self.exp = cp.exp
-        self.max = cp.max
         self.any = cp.any
         self.abs = cp.abs
         self.convolve = cp.convolve

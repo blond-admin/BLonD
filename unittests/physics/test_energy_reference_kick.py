@@ -48,7 +48,7 @@ class TestEnergyReferenceKick(unittest.TestCase):
         self.energy_kick.schedule_active = False  # No schedules applied
 
         original_ref_energy = copy(beam.reference.total_energy)
-        original_dE = copy_to_cpu(copy_to_cpu(beam._dE))
+        original_dE = copy_to_cpu(copy_to_cpu(beam.read_partial_dE()))
 
         self.energy_kick.track(beam)
 
@@ -64,7 +64,7 @@ class TestEnergyReferenceKick(unittest.TestCase):
             beam.reference.total_energy, original_ref_energy + expected_change
         )
         np.testing.assert_allclose(
-            copy_to_cpu(beam._dE), original_dE - expected_change
+            copy_to_cpu(beam.read_partial_dE()), original_dE - expected_change
         )
 
 

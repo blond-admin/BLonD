@@ -97,7 +97,7 @@ def populate_beam(
         + rng.triangular(left=-1, mode=0, right=1, size=n_macroparticles)
         * deltaE_step
     )
-    beam.setup_beam(dt=dt, dE=dE)
+    beam.setup_beam(dt=dt, dE=dE, mpi_mode="all-ranks")
 
 
 def normalize_as_density(hamilton_2D: NumpyArray):
@@ -299,6 +299,7 @@ class EmpiricMatcher(MatchingRoutine):
             dE=dE_flat_init.copy(),
             reference_time=reference_time,
             reference_total_energy=reference.total_energy,
+            mpi_mode="root-distributes",
             # flags=None # TODO
         )
         simulation.intensity_effect_manager.set_wakefields(False)
@@ -351,6 +352,7 @@ class EmpiricMatcher(MatchingRoutine):
                 reference_time=users_beam.reference.time,
                 # reference_total_energy=users_beam.reference.total_energy,
                 # flags=None # TODO
+                mpi_mode="root-distributes",
             )
             simulation.run_simulation(
                 beams=(beam_gridded,),

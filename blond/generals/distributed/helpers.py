@@ -17,6 +17,9 @@ import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.random import Generator as NumpyGenerator
+
+    from blond.generals.distributed.distributed_array import DistributedArray
+
 try:
     from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
 
@@ -24,6 +27,7 @@ try:
     MPI_SIZE = MPI_COMM_WORLD.Get_size()
 except Exception as exc:
     warnings.warn(str(exc), ImportWarning, stacklevel=1)
+    MPI_COMM_WORLD = None
     MPI_RANK = 0
     MPI_SIZE = 1
 
@@ -96,3 +100,91 @@ def mpi_aware_random_generator_cpu(
     # this function could be extended to GPU.
 
     return random_generator_cpu
+
+
+def distributed_arange(
+    local_n: int, dtype: np.typing.DTypeLike
+) -> DistributedArray:
+    """
+    Distributed version of `np.arange` and `cp.arange`.
+
+    Parameters
+    ----------
+    local_n
+        Number of elements owned by *this MPI rank*.
+    dtype
+        Data type of the array.
+
+    Returns
+    -------
+    DistributedArray
+        Globally consistent arange distributed across MPI ranks.
+
+        Example (2 ranks):
+            rank 0: [0, 1, 2]
+            rank 1: [3, 4, 5]
+    """
+    from blond import backend
+    from blond.generals.distributed.distributed_array import DistributedArray
+
+    # Compute starting offset for this rank
+    if MPI_COMM_WORLD is None:
+        offset = None
+    else:
+        offset: int | None = MPI_COMM_WORLD.exscan(local_n)
+
+    if offset is None:
+        offset = 0
+
+    local_ids = backend.arange(
+        offset,
+        offset + local_n,
+        dtype=dtype,
+    )
+
+    return DistributedArray(local_ids)
+
+
+def mpi_is_distributed():
+    """
+    Whether the software runs with a MPI size > 1 or not.
+
+    Returns
+    -------
+    is_distributed
+        Whether the software runs with a MPI size > 1 or not.
+    """
+    if MPI_COMM_WORLD is None:
+        return False
+    if MPI_COMM_WORLD.Get_size() > 1:
+        return True
+
+
+def mpi_barrier():
+    """
+    Synchronize all processes.
+
+    This method blocks until all processes in the communicator have called it.
+    Useful for ensuring all processes reach a certain point before continuing.
+
+    Notes
+    -----
+    In non-distributed mode (single process), this is a no-op.
+    """
+    if mpi_is_distributed():
+        MPI_COMM_WORLD.Barrier()
+
+
+def mpi_is_root() -> bool:
+    """
+    Check if this is the root process (rank 0).
+
+    Returns
+    -------
+    bool
+        Whether the current worker is the root worker.
+    """
+    if MPI_COMM_WORLD is None:
+        return True
+    else:
+        return MPI_COMM_WORLD.Get_rank() == 0

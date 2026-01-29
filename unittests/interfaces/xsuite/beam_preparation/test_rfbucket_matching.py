@@ -15,7 +15,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
     def setUp(self):
         self.example = ExampleSimulation01()
 
-    def _test_something(self, voltage, phase, routine):
+    def _execute_test(self, voltage, phase, routine):
         try:
             from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
                 XsuiteRFBucketMatcher,
@@ -61,15 +61,15 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
             self.skipTest("xpart not installed")
 
         random.seed(42)
-        self._test_something(voltage=6e6, phase=0, routine=ThermalDistribution)
+        self._execute_test(voltage=6e6, phase=0, routine=ThermalDistribution)
         DEV_PLOT = False
         if DEV_PLOT:
             self.example.beam1.plot_hist2d()
             plt.show()
 
         counts, _, _, image = plt.hist2d(
-            copy_to_cpu(self.example.beam1._dt),
-            copy_to_cpu(self.example.beam1._dE),
+            copy_to_cpu(self.example.beam1.read_partial_dt()),
+            copy_to_cpu(self.example.beam1.read_partial_dE()),
         )
 
         filepath = callers_relative_path(
@@ -87,17 +87,15 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
             self.skipTest("xpart not installed")
 
         random.seed(42)
-        self._test_something(
-            voltage=6e6, phase=0, routine=QGaussianDistribution
-        )
+        self._execute_test(voltage=6e6, phase=0, routine=QGaussianDistribution)
         DEV_PLOT = False
         if DEV_PLOT:
             self.example.beam1.plot_hist2d()
             plt.show()
 
         counts, _, _, image = plt.hist2d(
-            copy_to_cpu(self.example.beam1._dt),
-            copy_to_cpu(self.example.beam1._dE),
+            copy_to_cpu(self.example.beam1.read_partial_dt()),
+            copy_to_cpu(self.example.beam1.read_partial_dE()),
         )
 
         filepath = callers_relative_path(
@@ -116,9 +114,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
             self.skipTest("xpart not installed")
 
         random.seed(42)
-        self._test_something(
-            voltage=6e6, phase=0, routine=ParabolicDistribution
-        )
+        self._execute_test(voltage=6e6, phase=0, routine=ParabolicDistribution)
         DEV_PLOT = False
         if DEV_PLOT:
             self.example.beam1.plot_hist2d()
