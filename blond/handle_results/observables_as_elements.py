@@ -20,9 +20,11 @@ import numpy as np
 
 from blond.core.base import BeamObservationElement
 from blond.core.beam.base import BeamBaseClass
+from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesBaseClass
+from blond.physics.cavities import SingleHarmonicRFStation
 
 
 class BeamObservationInRingElement(
@@ -390,3 +392,125 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             Root-Mean-Square emittance.
         """
         return self._rms_emittance.get_valid_entries()
+
+
+class InducedVoltageObservationCR(
+    BeamObservationElement, ObservablesBaseClass
+):
+    def __init__(
+        self,
+        single_harmonic_cavity: SingleHarmonicRFStation,
+        each_turn_i: int,
+        folder: str = "",
+    ):
+        super().__init__(folder=folder)
+
+        self.each_turn_i = each_turn_i
+
+        self._induced_voltage: DenseArrayRecorder | None = None
+        self._single_harmonic_cavity = single_harmonic_cavity
+
+    @requires(["RFStationBaseClass"])
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs,
+    ) -> None:
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager.
+        beam
+            Simulation beam object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+        )
+
+        # count = sum([el == self for el in simulation.ring.elements.elements])
+        count = 2
+
+        ind_volt_len = len(
+            self._single_harmonic_cavity._local_wakefield._profile.hist_x
+        )
+
+        n_entries = int(n_turns * count // self.each_turn_i)
+        shape = (n_entries, ind_volt_len)
+
+        self._induced_voltage = DenseArrayRecorder(
+            f"{self.common_filepath}_induced_voltage",
+            shape,
+        )
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager.
+        """
+        pass
+
+    @property  # as readonly attributes
+    def induced_voltage(self):
+        r"""
+        Induced voltage on the specified cavity object.
+
+        Returns
+        -------
+        rms_emittance
+            Root-Mean-Square emittance.
+        """
+        return self._induced_voltage.get_valid_entries()
+
+    def track(
+        self,
+        beam: BeamBaseClass,
+    ) -> None:
+        """
+        Update memory with new values.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        """
+        try:
+            if all(
+                np.zeros_like(
+                    self._single_harmonic_cavity._local_wakefield.induced_voltage
+                )
+                == self._single_harmonic_cavity._local_wakefield.induced_voltage
+            ):
+                print(
+                    f"no induced voltage calculated yet {beam.is_counter_rotating}"
+                )
+                return
+        except AttributeError:
+            print(f"not calculated yet {beam.is_counter_rotating}")
+            return
+
+        if all(
+            self._single_harmonic_cavity._local_wakefield.induced_voltage
+            == self._induced_voltage._memory[
+                self._induced_voltage._write_idx - 1
+            ]
+        ):
+            print(f"data was equivalent {beam.is_counter_rotating}")
+            return
+        self._induced_voltage.write(
+            self._single_harmonic_cavity._local_wakefield.induced_voltage
+        )
