@@ -180,8 +180,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         Length of drift, in [m].
     section_index
         Section index to group elements into sections.
-    transition_gamma
-        Gamma of transition crossing.
     momentum_compaction_factor
         Momentum compaction factor.
     **kwargs
@@ -192,7 +190,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self,
         orbit_length: float,
         section_index: int = 0,
-        transition_gamma: complex | float | None = None,
         momentum_compaction_factor: float | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
@@ -206,8 +203,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Length / Velocity => Time to pass the element.
         section_index
             Section index to group elements into sections.
-        transition_gamma
-            Gamma of transition crossing.
         momentum_compaction_factor
             Momentum compaction factor.
         **kwargs
@@ -231,20 +226,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self._momentum_compaction_factor: float | None = None
 
         self._simulation: Simulation | None = None
-
-        match (momentum_compaction_factor, transition_gamma):
-            case (None, None):
-                pass
-            case (None, _):
-                self.transition_gamma = transition_gamma
-            case (_, None):
-                self.momentum_compaction_factor = momentum_compaction_factor
-            case (_, _):
-                raise ValueError(
-                    "Got `momentum_compaction_factor` and "
-                    "`transition_gamma` as argument. "
-                    "Please provide only one of them."
-                )
 
     @property  # read only, set by `transition_gamma`
     def momentum_compaction_factor(self) -> float | None:
