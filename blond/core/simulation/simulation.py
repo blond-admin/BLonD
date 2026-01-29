@@ -1380,11 +1380,6 @@ class Simulation(Preparable):
 
         num_elements = len(self._ring.elements.elements)
 
-        for observable in observe:
-            observable.update(
-                simulation=self,
-            )
-
         for turn_i in iterator:
             for element_ind, element in enumerate(
                 self._ring.elements.elements
