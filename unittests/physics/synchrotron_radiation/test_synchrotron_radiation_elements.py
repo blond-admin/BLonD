@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
+from cupy.typing import NDArray as CupyArray
 from numpy.typing import NDArray as NumpyArray
 from scipy.constants import c, e
 from scipy.constants import speed_of_light as c0
