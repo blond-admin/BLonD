@@ -137,6 +137,8 @@ class TestRing(unittest.TestCase):
         drift = Mock(spec=DriftBaseClass)
         cavity = Mock(spec=RFStationBaseClass)
         drift.section_index = 0
+        drift.momentum_compaction_factor = 1
+        drift.orbit_length = 1
         cavity.section_index = 0
 
         self.ring.add_element(
@@ -152,6 +154,7 @@ class TestRing(unittest.TestCase):
             section_index=None,
         )
         assert self.ring.elements.elements == [cavity, drift]
+        self.assertEqual(drift.transition_gamma, 1 / self.ring.circumference)
 
     def test_add_elements(self):
         element1 = Mock(spec=BeamPhysicsRelevant)
@@ -528,7 +531,16 @@ class TestRing(unittest.TestCase):
         self.ring.add_element(drift_simple_mock, deepcopy=True)
         self.ring.add_element(drift_simple_mock, deepcopy=True)
 
+        self.assertEqual(self.ring.momentum_compaction_factor, 0.002)
         self.assertEqual(self.ring.transition_gamma, np.sqrt(1 / 0.002))
+        self.assertEqual(
+            self.ring.elements.elements[0].transition_gamma,
+            1 / 2 * np.sqrt(1 / 0.002),
+        )
+        self.assertEqual(
+            self.ring.elements.elements[1].transition_gamma,
+            1 / 2 * np.sqrt(1 / 0.002),
+        )
 
     def test_compare_average_transition_gamma_with_transition_gamma(self):
         self.ring._circumference = 129
