@@ -1123,7 +1123,7 @@ class InducedVoltageResonator(_InducedVoltage):
         use_regular_fft: bool = True,
         time_decay_factor: Optional[float] = 0.01,
         time_array: Optional[NDArray] = None,
-        old_time_array_impl: bool = False,
+        old_time_array_impl: bool = True,
         time_array_mtw: Optional[NDArray] = None,
     ):
         # Test if one or more quality factors is smaller than 0.5.
@@ -1359,11 +1359,10 @@ class InducedVoltageResonator(_InducedVoltage):
         -------
         time_array
             Array to calculate the MTW array on, taking into account the beta change between stations.
-
         """
         return np.array([_ + self._inter_turn_time for _ in np.concatenate((np.array([0]),
                                                                             np.cumsum(self._section_time_distance_array[
-                                                                                          turn:turn + self._n_turns_calculation])))]).flatten()
+                                                                                          turn:max(turn + self._n_turns_calculation, self.rf_params.n_turns)])))]).flatten()
 
     def induced_voltage_1turn(self, beam_spectrum_dict: Dict[Any, Any] = {}):
         r"""
