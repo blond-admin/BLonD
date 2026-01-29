@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import unittest
-from functools import cached_property
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -11,8 +10,11 @@ from blond import Simulation, proton
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
+from blond.generals.distributed.distributed_array import DistributedArray
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from cupy.typing import NDArray as CupyArray
     from numpy._typing import NDArray as NumpyArray
 
@@ -31,12 +33,16 @@ class BeamBaseClassTester(BeamBaseClass):
             is_counter_rotating=is_counter_rotating,
             is_distributed=is_distributed,
         )
-        self._dE = np.linspace(1, 10, 10, dtype=backend.float)
-        self._dt = np.linspace(20, 30, 10, dtype=backend.float)
-        self._flags = np.zeros(10, dtype=np.int32)
-        self._ids = np.arange(10, dtype=np.int32)
+        self._dE = DistributedArray(
+            np.linspace(1, 10, 10, dtype=backend.float)
+        )
+        self._dt = DistributedArray(
+            np.linspace(20, 30, 10, dtype=backend.float)
+        )
+        self._flags = DistributedArray(np.zeros(10, dtype=np.int32))
+        self._ids = DistributedArray(np.arange(10, dtype=np.int32))
 
-    @cached_property
+    @property
     def ratio(self) -> float:
         return self.intensity / self.common_array_size
 
@@ -47,21 +53,29 @@ class BeamBaseClassTester(BeamBaseClass):
         flags: NumpyArray | CupyArray = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
+        mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        **kwargs,
     ):
         """Sets beam array attributes for simulation
 
         Parameters
         ----------
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates [s].
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates [eV].
         flags
-            Macro-particle flags
+            Macro-particle flags.
         reference_time
-            Time of the reference frame (global time), in [s]
+            Time of the reference frame (global time), in [s].
         reference_total_energy
-            Time of the reference frame (global total energy), in [eV]
+            Time of the reference frame (global total energy), in [eV].
+        mpi_mode
+            - "root-distributes": The array is distributed from the root node to all ranks.
+            - "all-ranks":  All ranks setup the beam independently.
+        **kwargs
+            Unused - Keyword arguments to make the non-abstract implementation
+            extendable.
         """
         pass
 
@@ -81,6 +95,9 @@ class BeamBaseClassTester(BeamBaseClass):
         pass
 
     def common_array_size(self) -> int:
+        pass
+
+    def rms_emittance(self):
         pass
 
 
@@ -115,15 +132,6 @@ class TestBeamBaseClass(unittest.TestCase):
     @unittest.skip("Abstract method")
     def test_dt_min(self):
         pass  # is abstract
-
-    def test_invalidate_cache(self):
-        self.beam_base_class.invalidate_cache()
-
-    def test_invalidate_cache_dE(self):
-        self.beam_base_class.invalidate_cache_dE()
-
-    def test_invalidate_cache_dt(self):
-        self.beam_base_class.invalidate_cache_dt()
 
     def test_is_counter_rotating(self):
         self.assertEqual(self.beam_base_class.is_counter_rotating, False)
@@ -188,16 +196,18 @@ class TestBeamBaseClass(unittest.TestCase):
         )
 
     def test_purge_flagged_entries(self):
-        ids_before = self.beam_base_class._ids.copy()
+        ids_before = self.beam_base_class._ids.array_local.copy()
         select = [0, 1, -1]
 
-        self.beam_base_class._flags[select] = -500
+        self.beam_base_class._flags.array_local[select] = -500
         self.beam_base_class.purge_flagged_entries()
-        self.assertTrue(np.all(self.beam_base_class._flags != -500))
+        self.assertTrue(
+            np.all(self.beam_base_class._flags.array_local != -500)
+        )
 
         mask = np.ones(len(ids_before), dtype=bool)
         mask[select] = False
-        ids_after = self.beam_base_class._ids
+        ids_after = self.beam_base_class._ids.array_local
         np.testing.assert_equal(np.sort(ids_before[mask]), np.sort(ids_after))
 
 

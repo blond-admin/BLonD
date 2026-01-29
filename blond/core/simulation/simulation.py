@@ -566,8 +566,12 @@ class Simulation(Preparable):
         factor = float((dt[-1] - dt[0]) / t_rev)
 
         # Calculate tilt of phase space
-        change_t = probe_bunch._dt - bunch_before._dt
-        change_E = probe_bunch._dE - bunch_before._dE
+        change_t = (
+            probe_bunch.read_partial_dt() - bunch_before.read_partial_dt()
+        )
+        change_E = (
+            probe_bunch.read_partial_dE() - bunch_before.read_partial_dE()
+        )
         idx = np.argmax(change_t)
         tilt_dt_per_dE = change_t[idx] / change_E[idx]
 
