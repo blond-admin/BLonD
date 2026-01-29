@@ -1294,11 +1294,6 @@ class InducedVoltageResonator(_InducedVoltage):
             List of all RF stations used in the simulation.
         prof_idx_min_potential
             Profile index at the minimum potential.
-
-
-        Returns
-        -------
-
         """
         n_stations = len(rf_station_list)
         self._section_time_distance_array = np.zeros(self.rf_params.n_turns * n_stations)
