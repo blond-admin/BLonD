@@ -59,7 +59,7 @@ def nonperiodic_wake(time_array, f0, R, Q):
     return wake
 
 
-DEBUG_PLOTTING = False
+DEBUG_PLOTTING = True
 
 
 class InducdedVoltageResonator:
@@ -76,16 +76,15 @@ class InducdedVoltageResonator:
         self.Q_factor = 2e1
         self.alpha_p = -8.986e-4
         self.energy = 120e6
-        self.energy_gain_per_turn = 50e6
+        self.energy_gain_per_turn = 30e6
 
         self.n_turns = 5
-        self.n_stations = 2
-        self.n_stations += 1  # splitting of first station
-        self.n_section_lengths = np.array([3, 5, 0])  # empty drift last
+        self.n_stations = 5
+        self.n_section_lengths = np.array([3, 5, 7, 9, 11, 0])  # 0-drift last
 
         self.n_macroparticles = int(1e4)
 
-        self.energy_array = np.ones(self.n_stations) * self.energy
+        self.energy_array = np.ones(self.n_stations + 1) * self.energy
         for _ in range(self.n_turns):
             init_en = (
                 self.energy_array[-1]
@@ -105,6 +104,7 @@ class InducdedVoltageResonator:
                     )
                 ),
             )
+        self.n_stations += 1  # splitting of first station
 
         self.sigma_bunch = 5e-10
         self.bunch_offset = 3e-9
@@ -213,7 +213,11 @@ class InducdedVoltageResonator:
         ).flatten()
         from scipy.constants import c
 
-        section_time = 1 / (beta_array[2:] * c) * section_length_array_extended
+        section_time = (
+            1
+            / (beta_array[self.n_stations :] * c)
+            * section_length_array_extended
+        )
 
         profiles = np.zeros(
             (self.n_stations, len(self.time_axis)), dtype=float
