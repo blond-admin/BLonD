@@ -593,8 +593,14 @@ class TestRing(unittest.TestCase):
         from blond.testing.mocks import beam_mock
 
         ring = Ring(circumference=123)
-        ring.add_element(DriftSimple(orbit_length=100, transition_gamma=123))
-        ring.add_element(DriftSimple(orbit_length=23, transition_gamma=123))
+        ring.add_element(
+            DriftSimple(
+                orbit_length=100, momentum_compaction_factor=1 / 123**2
+            )
+        )
+        ring.add_element(
+            DriftSimple(orbit_length=23, momentum_compaction_factor=1 / 123**2)
+        )
         beam_mock.reference.gamma = 122
         self.assertTrue(ring.is_below_transition(beam=beam_mock))
 
@@ -609,18 +615,24 @@ class TestRing(unittest.TestCase):
         ring = Ring(circumference=300, check_section_indices=False)
         ring.add_element(
             DriftSimple(
-                orbit_length=100, transition_gamma=123, section_index=0
+                orbit_length=100,
+                momentum_compaction_factor=1 / 123**2,
+                section_index=0,
             )
         )
         ring.add_element(
             DriftSimple(
-                orbit_length=100, transition_gamma=123, section_index=0
+                orbit_length=100,
+                momentum_compaction_factor=1 / 123**2,
+                section_index=0,
             )
         )
         # two drifts should cause a problem in the same section
         ring.add_element(
             DriftSimple(
-                orbit_length=100, transition_gamma=123, section_index=1
+                orbit_length=100,
+                momentum_compaction_factor=1 / 123**2,
+                section_index=1,
             )
         )
 
@@ -650,12 +662,16 @@ class TestRing(unittest.TestCase):
         # two kicks should cause a problem in the same section
         ring.add_element(
             DriftSimple(
-                orbit_length=100, transition_gamma=123, section_index=0
+                orbit_length=100,
+                momentum_compaction_factor=1 / 123**2,
+                section_index=0,
             )
         )
         ring.add_element(
             DriftSimple(
-                orbit_length=100, transition_gamma=123, section_index=1
+                orbit_length=100,
+                momentum_compaction_factor=1 / 123**2,
+                section_index=1,
             )
         )
 

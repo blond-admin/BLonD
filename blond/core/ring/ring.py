@@ -245,7 +245,7 @@ class Ring(Preparable):
         weights = [
             e.orbit_length for e in self.elements.get_elements(DriftSimple)
         ]
-        # todo not only simple dirft
+        # todo not only simple drift
         transition_gamma_average = complex(np.average(gammas, weights=weights))
         return transition_gamma_average
 
