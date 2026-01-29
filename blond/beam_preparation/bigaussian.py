@@ -101,7 +101,6 @@ def _get_dE_from_dt(
     phi_s = calc_phi_s_single_harmonic(
         charge=beam.particle_type.charge,
         voltage=voltage,
-        phase=phi_rf,
         energy_gain=simulation.magnetic_cycle.get_target_total_energy(
             1, 0, 0, particle_type=beam.particle_type
         )
@@ -313,7 +312,6 @@ class BiGaussian(MatchingRoutine):
             calc_phi_s_single_harmonic(
                 charge=beam.particle_type.charge,
                 voltage=voltage,
-                phase=phi_rf,
                 energy_gain=simulation.magnetic_cycle.get_target_total_energy(
                     0, 0, 0, particle_type=beam.particle_type
                 )

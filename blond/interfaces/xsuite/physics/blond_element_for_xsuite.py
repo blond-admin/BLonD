@@ -197,6 +197,12 @@ class BLonD3Cavity:
             float(self.line.particle_ref.energy0)
         )
 
+        # above or below transition for mocked ring
+        twiss = self.line.twiss4d()
+        momentum_compaction = twiss["momentum_compaction_factor"]
+        eta = momentum_compaction - (1 / (self.beam.reference.gamma**2))
+        self.trackable._ring.is_below_transition.return_value = bool(eta < 0)
+
     def track(self, particles: Particles):
         """
         Track particles through the wrapped BLonD element.
@@ -215,6 +221,12 @@ class BLonD3Cavity:
         # update time shift
         self.get_time_shift()
 
+        # above or below transition for mocked ring
+        twiss = self.line.twiss4d()
+        momentum_compaction = twiss["momentum_compaction_factor"]
+        eta = momentum_compaction - (1 / (self.beam.reference.gamma**2))
+        self.trackable._ring.is_below_transition.return_value = bool(eta < 0)
+
         self.xsuite_to_blond_transform_particles(particles, self.beam)
 
         mask_alive = particles.state > 0
@@ -230,19 +242,24 @@ class BLonD3Cavity:
         self.trackable._magnetic_cycle.get_target_total_energy.return_value = (
             float(E0_after)
         )
-        # todo check ref energy and magnetic cycle after tracking are teh same
+
         self.trackable.track(self.beam)  # calls the BLonD track method
 
         # Convert blond -> xsuite
         self.blond_to_xsuite_transform_particles(particles, self.beam)
 
     def get_time_shift(self):
+        """
+        Calculate the time shift of the BLonD beam coordinates and Xsuite.
+
+        Sets the self.dt_shift attribute.
+        """
         omega_rf = self.trackable.calc_main_harmonic_omega_rf(
             beam_beta=self.beam.reference.beta,
             ring_circumference=self.line.get_length(),
         )
         phi_s = self.trackable.calc_phi_s_single_harmonic(beam=self.beam)
-        self.dt_shift = phi_s - self.trackable.phi_rf / omega_rf
+        self.dt_shift = (phi_s - self.trackable.phi_rf) / omega_rf
 
     def xsuite_to_blond_transform_particles(
         self, particles: Particles, beam: BeamBaseClass
@@ -266,10 +283,13 @@ class BLonD3Cavity:
         # Energy deviation
         dt = beam.write_partial_dt()
         dE = beam.write_partial_dE()
+
         flags = beam.write_partial_flags()
 
-        dt[:n_active] = -particles.zeta[active_mask] / (
-            particles.beta0[active_mask] * c_light + self.dt_shift
+        dt[:n_active] = (
+            -particles.zeta[active_mask]
+            / (particles.beta0[active_mask] * c_light)
+            + self.dt_shift
         )
 
         dE[:n_active] = (

@@ -368,7 +368,6 @@ class RFStationBaseClass(
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
             voltage=float(self.get_main_harmonic_voltage()),
-            phase=float(self.get_main_harmonic_phi_rf()),
             energy_gain=reference_energy_change,
             above_transition=not self._ring.is_below_transition(beam=beam),
         )
@@ -868,6 +867,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         harmonic: float,
         circumference: float,
         total_energy: float,
+        is_below_transition: bool,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
     ) -> SingleHarmonicRFStation:
@@ -888,6 +888,8 @@ class SingleHarmonicRFStation(RFStationBaseClass):
             Synchrotron circumference in [m].
         total_energy
             Target total energy in [eV].
+        is_below_transition
+            If below transition.
         local_wakefield
             Optional wakefield to interact with beam.
         cavity_feedback
@@ -915,6 +917,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
 
         ring = Mock(Ring)
         ring.circumference = circumference
+        ring.is_below_transition.return_value = is_below_transition
 
         energy_cycle = Mock(ConstantMagneticCycle)
         energy_cycle.get_target_total_energy.return_value = total_energy

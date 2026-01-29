@@ -25,7 +25,6 @@ class TestPhiS(unittest.TestCase):
                 phi_s = calc_phi_s_single_harmonic(
                     charge,
                     voltage,
-                    phi,
                     energy_gain,
                     above_transition=above_transition,
                 )

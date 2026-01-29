@@ -311,13 +311,20 @@ class DriftXsuite(DriftBaseClass):
         xsuite.interfaces.xsuite.Line
             Xsuite line.
         """
-        return self._line_internal
+        return self.line
 
     def compute_momentum_compaction(self):
-        """Compute the momentum compaction factor."""
-        twiss = self._line_internal.twiss()
+        """
+        Compute the momentum compaction factor.
+
+        Returns
+        -------
+        momentum_compaction_factor
+            Momentum compaction factor.
+        """
+        twiss = self.line.twiss()
         momentum_compaction = twiss["momentum_compaction_factor"]
-        print(momentum_compaction)
+        return momentum_compaction
 
 
 class EnergyUpdateXsuite(BeamPhysicsRelevant):

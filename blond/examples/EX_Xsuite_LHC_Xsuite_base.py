@@ -59,29 +59,6 @@ def main():
 
     momentum = np.linspace(p_s, p_f, N_TURNS)
 
-    omega_rf = 2 * np.pi * c_light * h * line.particle_ref.beta0 / C
-
-    # --- Convert the initial BLonD distribution to xsuite coordinates ---
-    zeta, ptau = blond_to_xsuite_transform(
-        dt=input_dt,
-        de=input_dE,
-        beta0=line.particle_ref.beta0[0],
-        energy0=line.particle_ref.energy0[0],
-        phi_s=0,
-        omega_rf=omega_rf,
-    )
-
-    # --- Single particle  --- #
-
-    particles = line.build_particles(
-        x=0,
-        y=0,
-        px=0,
-        py=0,
-        zeta=np.copy(zeta),
-        ptau=np.copy(ptau),
-    )
-
     # --- Many particle  --- #
     n_part = 100
     particles = line.build_particles(
