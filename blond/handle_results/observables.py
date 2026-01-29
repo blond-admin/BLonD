@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import math
+import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -313,6 +314,8 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
+        from blond.generals.distributed.helpers import mpi_is_distributed
+
         super().on_run_simulation(
             simulation=simulation,
             beam=beam,
@@ -320,7 +323,14 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         )
         self._beam = beam
         n_entries = n_turns // self.each_turn_i + 2
-        n_macroparticles = int(beam.common_array_size)
+        n_macroparticles = int(beam._dt.local_size)
+        if mpi_is_distributed():
+            warnings.warn(
+                "Saving beam with `BeamObservationOncePerTurn` only from "
+                "MPI-rank 0.",
+                UserWarning,
+                stacklevel=2,
+            )
         shape = (n_entries, n_macroparticles)
 
         self._dts = DenseArrayRecorder(
@@ -538,8 +548,8 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         self._energy_spread.write(np.std(self._beam.read_partial_dE()))
         self._bunch_length.write(np.std(self._beam.read_partial_dt()))
 
-        self._reference_time.write(self._beam.reference_time)
-        self._reference_total_energy.write(self._beam.reference_total_energy)
+        self._reference_time.write(self._beam.reference.time)
+        self._reference_total_energy.write(self._beam.reference.total_energy)
 
     @property  # as readonly attributes
     def bunch_position(self):
