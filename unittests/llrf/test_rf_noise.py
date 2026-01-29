@@ -13,17 +13,18 @@ from blond.llrf.rf_noise import LHCNoiseFB
 # Dummy cfwhm if it’s used as a global constant
 cfwhm = 1.0  # Adjust if there's a specific constant you're using
 
+
 class DummyProfile:
     def __init__(self, bin_centers, n_macroparticles):
         self.bin_centers = bin_centers
         self.n_macroparticles = n_macroparticles
+
 
 # -- Import class under test --
 # from your_module import LHCNoiseFB  # adjust import path accordingly
 
 
 class TestLHCNoiseFB(unittest.TestCase):
-
     def setUp(self):
         # Machine and RF parameters
         C = 26658.883  # Machine circumference [m]
@@ -60,7 +61,9 @@ class TestLHCNoiseFB(unittest.TestCase):
 
     def test_track_no_delay(self):
         # Simulate turn update
-        fb = LHCNoiseFB(self.rf, self.profile, self.f_rev, self.bl_target, no_delay=True)
+        fb = LHCNoiseFB(
+            self.rf, self.profile, self.f_rev, self.bl_target, no_delay=True
+        )
         self.rf.counter[0] = fb.n_update  # Trigger condition
         fb.fwhm = MagicMock()  # Mock the fwhm method
         fb.track()
@@ -72,7 +75,9 @@ class TestLHCNoiseFB(unittest.TestCase):
         fb.timers[1].counter = fb.delay  # Simulate initial delay pass
         fb.bl_meas = 1.23e-9
         fb.update_bqm_measurement()
-        np.testing.assert_array_equal(fb.last_bqm_measurements, np.full(5, 1.23e-9))
+        np.testing.assert_array_equal(
+            fb.last_bqm_measurements, np.full(5, 1.23e-9)
+        )
 
     def test_update_noise_amplitude_before_delay(self):
         fb = LHCNoiseFB(self.rf, self.profile, self.f_rev, self.bl_target)
@@ -85,12 +90,15 @@ class TestLHCNoiseFB(unittest.TestCase):
         fb.update_x = True
         fb.timers[0].counter = 3 * int(self.f_rev)  # timestamp
         fb.time_array = np.array([0, 1000, 2000, 3000, 4000])
-        fb.last_bqm_measurements = np.array([1.0e-9, 1.05e-9, 1.1e-9, 1.2e-9, 1.3e-9])
+        fb.last_bqm_measurements = np.array(
+            [1.0e-9, 1.05e-9, 1.1e-9, 1.2e-9, 1.3e-9]
+        )
         fb.g = np.ones(fb.rf_params.n_turns + 1)
         fb.rf_params.counter[0] = 0
         fb.x = 0.2
         fb.update_noise_amplitude()
         self.assertTrue(0 <= fb.x <= 1)
+
 
 if __name__ == "__main__":
     unittest.main()

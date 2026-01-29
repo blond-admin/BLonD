@@ -78,10 +78,13 @@ class TestSameResult(unittest.TestCase):
         args = (100, 0.1)
         kwargs = dict()
 
-        expected_result = py_backend.rfftfreq(*deepcopy(args), **deepcopy(kwargs))
+        expected_result = py_backend.rfftfreq(
+            *deepcopy(args), **deepcopy(kwargs)
+        )
         for tested_backend in self.tested_backends:
             other_result = tested_backend.rfftfreq(
-                *deepcopy(args), **cast_arrays(deepcopy(kwargs), tested_backend)
+                *deepcopy(args),
+                **cast_arrays(deepcopy(kwargs), tested_backend),
             )
             self.assertTrue(
                 np.allclose(expected_result, other_result),
@@ -154,7 +157,8 @@ class TestSameResult(unittest.TestCase):
         )
         for tested_backend in self.tested_backends:
             other_result = tested_backend.beam_phase_fast(
-                *deepcopy(args), **cast_arrays(deepcopy(kwargs), tested_backend)
+                *deepcopy(args),
+                **cast_arrays(deepcopy(kwargs), tested_backend),
             )
             self.assertTrue(
                 np.allclose(expected_result, other_result),
@@ -209,10 +213,13 @@ class TestSameResult(unittest.TestCase):
             bin_centers=np.linspace(1e-5, 1e-6, n_slices),
         )
 
-        expected_result = py_backend.rf_volt_comp(*deepcopy(args), **deepcopy(kwargs))
+        expected_result = py_backend.rf_volt_comp(
+            *deepcopy(args), **deepcopy(kwargs)
+        )
         for tested_backend in self.tested_backends:
             other_result = tested_backend.rf_volt_comp(
-                *deepcopy(args), **cast_arrays(deepcopy(kwargs), tested_backend)
+                *deepcopy(args),
+                **cast_arrays(deepcopy(kwargs), tested_backend),
             )
             self.assertTrue(
                 np.allclose(expected_result, other_result),
@@ -229,7 +236,9 @@ class TestSameResult(unittest.TestCase):
                 n_particles = 10
                 kwargs = dict(
                     dE=np.random.normal(loc=0, scale=1e7, size=n_particles),
-                    dt=np.random.normal(loc=1e-5, scale=1e-7, size=n_particles),
+                    dt=np.random.normal(
+                        loc=1e-5, scale=1e-7, size=n_particles
+                    ),
                     t_rev=np.random.rand(),
                     length_ratio=np.random.uniform(),
                     eta_0=np.random.rand(),
@@ -248,7 +257,9 @@ class TestSameResult(unittest.TestCase):
                 py_backend.drift(**kwargs_py)
                 expected_result = kwargs_py["dt"]
                 for tested_backend in self.tested_backends:
-                    kwargs_other = cast_arrays(deepcopy(kwargs), tested_backend)
+                    kwargs_other = cast_arrays(
+                        deepcopy(kwargs), tested_backend
+                    )
                     tested_backend.drift(**kwargs_other)
                     other_result = kwargs_other["dt"]
                     self.assertTrue(
@@ -342,7 +353,9 @@ class TestSameResult(unittest.TestCase):
         cut_left = (1 + cut_left) * min_dt
         cut_right = (1 - cut_right) * max_dt
         profile = np.empty(n_slices, dtype=np.float64)
-        kwargs = dict(dt=dt, profile=profile, cut_left=cut_left, cut_right=cut_right)
+        kwargs = dict(
+            dt=dt, profile=profile, cut_left=cut_left, cut_right=cut_right
+        )
 
         kwargs_py = deepcopy(kwargs)
         py_backend.slice_beam(**kwargs_py)
@@ -404,7 +417,9 @@ class TestSameResult(unittest.TestCase):
         expected_result_dt = kwargs_py["dt"]
         for tested_backend in self.tested_backends:
             kwargs_other = deepcopy(kwargs)
-            tested_backend.distribution_from_tomoscope(*deepcopy(args), **kwargs_other)
+            tested_backend.distribution_from_tomoscope(
+                *deepcopy(args), **kwargs_other
+            )
             other_result_dE = kwargs_other["dE"]
             other_result_dt = kwargs_other["dt"]
             self.assertTrue(
@@ -430,12 +445,15 @@ class TestSameResult(unittest.TestCase):
             frequency_R=frequency_R,
         )
 
-        expected_result = py_backend.fast_resonator(*deepcopy(args), **deepcopy(kwargs))
+        expected_result = py_backend.fast_resonator(
+            *deepcopy(args), **deepcopy(kwargs)
+        )
         for tested_backend in self.tested_backends:
             if isinstance(tested_backend, GpuBackend):
                 continue
             other_result = tested_backend.fast_resonator(
-                *deepcopy(args), **cast_arrays(deepcopy(kwargs), tested_backend)
+                *deepcopy(args),
+                **cast_arrays(deepcopy(kwargs), tested_backend),
             )
             self.assertTrue(
                 np.allclose(expected_result, other_result),
@@ -492,7 +510,9 @@ class TestSameResult(unittest.TestCase):
             if isinstance(tested_backend, GpuBackend):
                 continue
             kwargs_other = deepcopy(kwargs)
-            tested_backend.music_track_multiturn(*deepcopy(args), **kwargs_other)
+            tested_backend.music_track_multiturn(
+                *deepcopy(args), **kwargs_other
+            )
             other_result = kwargs_other["array_parameters"]
             self.assertTrue(
                 np.allclose(expected_result, other_result),
@@ -538,7 +558,8 @@ class TestSameResult(unittest.TestCase):
         expected_result = py_backend.random.rand()
         for tested_backend in self.tested_backends:
             tested_backend.set_random_seed(
-                *deepcopy(args), **cast_arrays(deepcopy(kwargs), tested_backend)
+                *deepcopy(args),
+                **cast_arrays(deepcopy(kwargs), tested_backend),
             )
             other_result = tested_backend.random.rand()
             self.assertTrue(
