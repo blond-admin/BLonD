@@ -201,6 +201,21 @@ class Ring(Preparable):
         transition_gamma = complex(np.sqrt(1 / momentum_compaction_factor))
         return transition_gamma
 
+    def propagate_transition_gamma(self):
+        """
+        Method to set an estimated value of the transition gamma in the drifts.
+
+        This method sets the weighed contribution of the drifts to the gamma of
+        transition crossing.
+        """
+        from blond.physics.drifts import DriftBaseClass
+
+        drift_list = self.elements.get_elements(class_=DriftBaseClass)
+        for element in drift_list:
+            element.transition_gamma = (
+                element.orbit_length / self._circumference
+            ) * self.transition_gamma
+
     @cached_property
     def average_transition_gamma(self) -> complex:
         """
@@ -448,6 +463,7 @@ class Ring(Preparable):
                     **kwargs_drift,
                 )
                 self.elements.add_element(drift)
+        self.propagate_transition_gamma()
 
     def add_element(
         self,
@@ -496,6 +512,9 @@ class Ring(Preparable):
             element._section_index = int(section_index)
         self.elements.add_element(element, reorder=reorder)
 
+        if isinstance(element, DriftBaseClass):
+            self.propagate_transition_gamma()
+
         if reorder:
             self.elements.reorder()
 
@@ -543,7 +562,6 @@ class Ring(Preparable):
                 deepcopy=deepcopy,
                 section_index=section_index,
             )
-
         if reorder:
             self.elements.reorder()
 
@@ -627,7 +645,8 @@ class Ring(Preparable):
                     insert_at=k + already_inserted,
                 )
                 locations_in_the_new_ring.append(k + already_inserted)
-
+        if isinstance(element, DriftBaseClass):
+            self.propagate_transition_gamma()
         return locations_in_the_new_ring
 
     def insert_elements(
