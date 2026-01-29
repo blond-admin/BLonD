@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from blond.physics.cavities import RFStationBaseClass
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles import ProfileBaseClass
 
@@ -80,11 +81,12 @@ class IntensityEffectManager:
         active
             True or False, so that simulation can skip the elements.
         """
-        wakefields = self._parent_simulation.ring.elements.get_elements(
-            WakeField
+        cavities = self._parent_simulation.ring.elements.get_elements(
+            RFStationBaseClass
         )
-        for wakefield in wakefields:
-            wakefield.active = active
+        for cavity in cavities:
+            if cavity._local_wakefield:
+                cavity._local_wakefield.active = active
 
     def set_profiles(self, active: bool) -> None:
         """
