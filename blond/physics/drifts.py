@@ -254,9 +254,23 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         """
         return self._transition_gamma
 
+    @transition_gamma.setter
+    def transition_gamma(self, transition_gamma: complex) -> None:
+        """
+        Gamma of transition crossing.
+
+        Parameters
+        ----------
+        transition_gamma
+            Gamma of transition crossing.
+        """
+        self._transition_gamma = complex(transition_gamma)
+
     @staticmethod
     def headless(
-        transition_gamma: complex | NumpyArray | tuple[NumpyArray, NumpyArray],
+        momentum_compaction_factor: float
+        | NumpyArray
+        | tuple[NumpyArray, NumpyArray],
         orbit_length: float,
         section_index: int = 0,
     ) -> DriftSimple:
@@ -265,8 +279,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
         Parameters
         ----------
-        transition_gamma
-            Gamma of transition crossing.
+        momentum_compaction_factor
+            Contribution to the momentum compaction factor.
         orbit_length
             Length of drift, in [m].
             Length / Velocity => Time to pass the element.
@@ -284,10 +298,12 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             orbit_length=orbit_length,
             section_index=section_index,
         )
-        if isinstance(transition_gamma, complex | int | float):
-            d.transition_gamma = complex(transition_gamma)
+        if isinstance(momentum_compaction_factor, int | float):
+            d._momentum_compaction_factor = float(momentum_compaction_factor)
         else:
-            d.schedule("transition_gamma", transition_gamma)
+            d.schedule(
+                "momentum_compaction_factor", momentum_compaction_factor
+            )
         from blond.core.beam.base import BeamBaseClass
         from blond.core.simulation.simulation import Simulation
 
@@ -314,11 +330,11 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
         if (
-            self.transition_gamma is None
-        ) and "transition_gamma" not in self.schedules:
+            self.momentum_compaction_factor is None
+        ) and "momentum_compaction_factor" not in self.schedules:
             raise ValueError(
-                "You need to define `transition_gamma` via `.transition_gamma=...` "
-                "or `.schedule(attribute='transition_gamma', value=...)`"
+                "You need to define `momentum_compaction_factor` via `.momentum_compaction_factor=...` "
+                "or `.schedule(attribute='momentum_compaction_factor', value=...)`"
             )
 
     def track(self, beam: BeamBaseClass) -> None:
