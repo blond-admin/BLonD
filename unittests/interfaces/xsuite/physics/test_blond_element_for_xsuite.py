@@ -160,6 +160,9 @@ def test_reference_energy_matches_magnetic_cycle_target():
 
 
 def test_xsuite_blond_forward_backward_transforms():
+    """
+    Test that the  particle transformation is symmetric.
+    """
     p_s = 450e9  # [eV/c]
     line = xt.Line(elements=[], element_names={})
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
