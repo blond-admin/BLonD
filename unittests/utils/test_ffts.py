@@ -16,6 +16,7 @@ Unittest for utils.bmath
 import unittest
 
 import numpy as np
+
 # import inspect
 from numpy import fft
 
@@ -23,7 +24,6 @@ from blond.utils import bmath as bm
 
 
 class TestFFTS(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
         np.random.seed(0)
@@ -39,7 +39,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfft(s)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.rfft(s), 8)
 
@@ -48,7 +48,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfft(s)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.rfft(s), 8)
 
@@ -57,7 +57,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfft(s)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.rfft(s), 8)
 
@@ -66,7 +66,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfft(s)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.rfft(s), 8)
 
@@ -75,7 +75,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfft(s)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.rfft(s), 8)
 
@@ -84,7 +84,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfft(s, n=50)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.rfft(s, n=50), 8)
 
@@ -93,7 +93,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfft(s, n=51)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.rfft(s, n=51), 8)
 
@@ -102,7 +102,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfft(s, n=151)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.rfft(s, n=151), 8)
 
@@ -111,7 +111,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfft(s, n=100)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.rfft(s, n=100), 8)
 
@@ -120,7 +120,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfft(s, n=1000)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.rfft(s, n=1000), 8)
 
@@ -129,7 +129,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfft(s, n=1)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.rfft(s, n=1), 8)
 
@@ -139,7 +139,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(o)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.irfft(o), 8)
 
@@ -149,7 +149,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(o)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.irfft(o), 8)
 
@@ -159,7 +159,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(o)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.irfft(o), 8)
 
@@ -169,7 +169,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(o)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.irfft(o), 8)
 
@@ -179,7 +179,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(o)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.irfft(o), 8)
 
@@ -189,7 +189,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(o, n=100)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.irfft(o, n=100), 8)
 
@@ -199,7 +199,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(o, n=10)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.irfft(o, n=10), 8)
 
@@ -209,7 +209,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(o, n=200)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.irfft(o, n=200), 8)
 
@@ -219,7 +219,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(o, n=1)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.irfft(o, n=1), 8)
 
@@ -229,7 +229,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(o, n=101)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.irfft(o, n=101), 8)
 
@@ -238,7 +238,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(bm.rfft(s))
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
 
         np.testing.assert_almost_equal(res, fft.irfft(fft.rfft(s)), 8)
 
@@ -247,7 +247,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(bm.rfft(s))
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
         np.testing.assert_almost_equal(res, fft.irfft(fft.rfft(s)), 8)
 
     def test_front_back_3(self):
@@ -255,18 +255,20 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.irfft(bm.rfft(s, n=50), n=100)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
         np.testing.assert_almost_equal(
-            res, fft.irfft(fft.rfft(s, n=50), n=100), 8)
+            res, fft.irfft(fft.rfft(s, n=50), n=100), 8
+        )
 
     def test_front_back_4(self):
         s = np.random.randn(100)
         try:
             res = bm.irfft(bm.rfft(s, n=150), n=200)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
         np.testing.assert_almost_equal(
-            res, fft.irfft(fft.rfft(s, n=150), n=200), 8)
+            res, fft.irfft(fft.rfft(s, n=150), n=200), 8
+        )
 
     def test_rfftfreq_1(self):
         delta_t = 1.0
@@ -274,7 +276,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfftfreq(n_points, delta_t)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
         np.testing.assert_almost_equal(res, fft.rfftfreq(n_points, delta_t), 8)
 
     def test_rfftfreq_2(self):
@@ -282,7 +284,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfftfreq(n_points)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
         np.testing.assert_almost_equal(res, fft.rfftfreq(n_points), 8)
 
     def test_rfftfreq_3(self):
@@ -291,7 +293,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfftfreq(n_points, delta_t)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
         np.testing.assert_almost_equal(res, fft.rfftfreq(n_points, delta_t), 8)
 
     def test_rfftfreq_4(self):
@@ -300,7 +302,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfftfreq(n_points, delta_t)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
         np.testing.assert_almost_equal(res, fft.rfftfreq(n_points, delta_t), 8)
 
     def test_rfftfreq_5(self):
@@ -309,7 +311,7 @@ class TestFFTS(unittest.TestCase):
         try:
             res = bm.rfftfreq(n_points, delta_t)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
         np.testing.assert_almost_equal(res, fft.rfftfreq(n_points, delta_t), 8)
 
     def test_rfftfreq_6(self):
@@ -318,11 +320,12 @@ class TestFFTS(unittest.TestCase):
         try:
             _ = bm.rfftfreq(n_points, delta_t)
         except AttributeError:
-            self.skipTest('Not compiled with FFTW')
+            self.skipTest("Not compiled with FFTW")
         except ZeroDivisionError:
-            self.assertTrue(True, 'This testcase should raise a ZeroDivisionError')
+            self.assertTrue(
+                True, "This testcase should raise a ZeroDivisionError"
+            )
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     unittest.main()

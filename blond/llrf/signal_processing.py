@@ -29,7 +29,7 @@ from ..beam.sparse_profiles import SparseBatch, SparseBucket
 from ..beam.profile import Profile
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
     from numpy.typing import NDArray as NumpyArray

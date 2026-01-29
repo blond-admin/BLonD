@@ -28,22 +28,22 @@ from blond.utils import bmath as bm
 
 
 class TestSyntheticData:
-
     # Run before every test
     def setup_method(self):
         # Try to import cupy, skip if not found
-        pytest.importorskip('cupy')
+        pytest.importorskip("cupy")
         bm.use_gpu()
-        bm.use_precision('double')
+        bm.use_precision("double")
 
     # Run after every test
     def teardown_method(self):
-        bm.use_precision('double')
+        bm.use_precision("double")
         bm.use_cpu()
 
-    @pytest.mark.parametrize('n_slices', [10, 33, 128, 1000])
+    @pytest.mark.parametrize("n_slices", [10, 33, 128, 1000])
     def test_beam_phase_uniform(self, n_slices):
         import cupy as cp
+
         cp.random.seed(0)
 
         omega_rf = cp.random.rand()
@@ -53,22 +53,26 @@ class TestSyntheticData:
         bin_size = bin_centers[1] - bin_centers[0]
         profile = cp.random.randn(n_slices)
 
-        res = bm.beam_phase(bin_centers, profile, alpha,
-                            omega_rf, phi_rf, bin_size)
+        res = bm.beam_phase(
+            bin_centers, profile, alpha, omega_rf, phi_rf, bin_size
+        )
 
-        bm.use_precision('single')
+        bm.use_precision("single")
 
         bin_centers = bm.array(bin_centers, dtype=cp.float32)
         profile = bm.array(profile, dtype=cp.float32)
-        res_f32 = bm.beam_phase(bin_centers, profile,
-                                alpha, omega_rf, phi_rf, bin_size)
+        res_f32 = bm.beam_phase(
+            bin_centers, profile, alpha, omega_rf, phi_rf, bin_size
+        )
 
         cp.testing.assert_array_almost_equal(res_f32, res, decimal=6)
 
-    @pytest.mark.parametrize('n_particles,n_slices',
-                             [(125421, 17), (100000, 100), (1000000, 100)])
+    @pytest.mark.parametrize(
+        "n_particles,n_slices", [(125421, 17), (100000, 100), (1000000, 100)]
+    )
     def test_beam_phase_normal(self, n_particles, n_slices):
         import cupy as cp
+
         cp.random.seed(0)
 
         omega_rf = cp.random.rand()
@@ -80,20 +84,23 @@ class TestSyntheticData:
         bin_size = edges[1] - edges[0]
         bin_centers = edges[:-1] + bin_size / 2
 
-        res = bm.beam_phase(bin_centers, profile, alpha,
-                            omega_rf, phi_rf, bin_size)
+        res = bm.beam_phase(
+            bin_centers, profile, alpha, omega_rf, phi_rf, bin_size
+        )
 
-        bm.use_precision('single')
+        bm.use_precision("single")
         bin_centers = bm.array(bin_centers, dtype=cp.float32)
         profile = bm.array(profile, dtype=cp.float32)
-        res_f32 = bm.beam_phase(bin_centers, profile,
-                                alpha, omega_rf, phi_rf, bin_size)
+        res_f32 = bm.beam_phase(
+            bin_centers, profile, alpha, omega_rf, phi_rf, bin_size
+        )
 
         cp.testing.assert_array_almost_equal(res_f32, res, decimal=6)
 
-    @pytest.mark.parametrize('n_slices', [10, 33, 128, 1000])
+    @pytest.mark.parametrize("n_slices", [10, 33, 128, 1000])
     def test_beam_phase_fast_uniform(self, n_slices):
         import cupy as cp
+
         cp.random.seed(0)
 
         omega_rf = cp.random.rand()
@@ -102,22 +109,26 @@ class TestSyntheticData:
         bin_size = bin_centers[1] - bin_centers[0]
         profile = cp.random.randn(n_slices)
 
-        res = bm.beam_phase_fast(bin_centers, profile,
-                                 omega_rf, phi_rf, bin_size)
+        res = bm.beam_phase_fast(
+            bin_centers, profile, omega_rf, phi_rf, bin_size
+        )
 
-        bm.use_precision('single')
+        bm.use_precision("single")
 
         bin_centers = bm.array(bin_centers, dtype=cp.float32)
         profile = bm.array(profile, dtype=cp.float32)
-        res_f32 = bm.beam_phase_fast(bin_centers, profile,
-                                     omega_rf, phi_rf, bin_size)
+        res_f32 = bm.beam_phase_fast(
+            bin_centers, profile, omega_rf, phi_rf, bin_size
+        )
 
         cp.testing.assert_array_almost_equal(res_f32, res, decimal=6)
 
-    @pytest.mark.parametrize('n_particles,n_slices',
-                             [(125421, 17), (100000, 100), (1000000, 100)])
+    @pytest.mark.parametrize(
+        "n_particles,n_slices", [(125421, 17), (100000, 100), (1000000, 100)]
+    )
     def test_beam_phase_fast_normal(self, n_particles, n_slices):
         import cupy as cp
+
         cp.random.seed(0)
 
         omega_rf = cp.random.rand()
@@ -128,20 +139,23 @@ class TestSyntheticData:
         bin_size = edges[1] - edges[0]
         bin_centers = edges[:-1] + bin_size / 2
 
-        res = bm.beam_phase_fast(bin_centers, profile,
-                                 omega_rf, phi_rf, bin_size)
-        bm.use_precision('single')
+        res = bm.beam_phase_fast(
+            bin_centers, profile, omega_rf, phi_rf, bin_size
+        )
+        bm.use_precision("single")
 
         bin_centers = bm.array(bin_centers, dtype=cp.float32)
         profile = bm.array(profile, dtype=cp.float32)
-        res_f32 = bm.beam_phase_fast(bin_centers, profile,
-                                     omega_rf, phi_rf, bin_size)
+        res_f32 = bm.beam_phase_fast(
+            bin_centers, profile, omega_rf, phi_rf, bin_size
+        )
 
         cp.testing.assert_array_almost_equal(res_f32, res, decimal=6)
 
-    @pytest.mark.parametrize('n_slices', [1, 8, 100, 10000])
+    @pytest.mark.parametrize("n_slices", [1, 8, 100, 10000])
     def test_rf_volt_comp(self, n_slices):
         import cupy as cp
+
         cp.random.seed(0)
         voltages = cp.random.randn(n_slices)
         omega_rf = cp.random.randn(n_slices)
@@ -150,7 +164,7 @@ class TestSyntheticData:
 
         res = bm.rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers)
 
-        bm.use_precision('single')
+        bm.use_precision("single")
 
         voltages = bm.array(voltages, dtype=cp.float32)
         omega_rf = bm.array(omega_rf, dtype=cp.float32)
@@ -161,9 +175,12 @@ class TestSyntheticData:
 
         cp.testing.assert_allclose(res_f32, res, rtol=1e-5, atol=0)
 
-    @pytest.mark.parametrize('n_particles,n_kicks', [(10, 1), (10000, 4), (1000000, 2)])
+    @pytest.mark.parametrize(
+        "n_particles,n_kicks", [(10, 1), (10000, 4), (1000000, 2)]
+    )
     def test_synch_rad(self, n_particles, n_kicks):
         import cupy as cp
+
         cp.random.seed(0)
 
         dE = cp.random.uniform(-1e8, 1e8, n_particles)
@@ -174,15 +191,18 @@ class TestSyntheticData:
 
         bm.synchrotron_radiation(dE, U0, n_kicks, tau_z)
 
-        bm.use_precision('single')
+        bm.use_precision("single")
 
         bm.synchrotron_radiation(dE_f32, U0, n_kicks, tau_z)
 
         cp.testing.assert_allclose(dE_f32, dE, rtol=1e-6, atol=0)
 
-    @pytest.mark.parametrize('n_particles,n_kicks', [(10, 1), (10000, 4), (1000000, 2)])
+    @pytest.mark.parametrize(
+        "n_particles,n_kicks", [(10, 1), (10000, 4), (1000000, 2)]
+    )
     def test_synch_rad_full(self, n_particles, n_kicks):
         import cupy as cp
+
         cp.random.seed(0)
 
         dE = cp.random.uniform(-1e8, 1e8, n_particles)
@@ -196,17 +216,24 @@ class TestSyntheticData:
 
         bm.synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy)
 
-        bm.use_precision('single')
+        bm.use_precision("single")
         bm.synchrotron_radiation_full(
-            dE_f32, U0, n_kicks, tau_z, sigma_dE, energy)
+            dE_f32, U0, n_kicks, tau_z, sigma_dE, energy
+        )
 
         cp.testing.assert_allclose(dE_f32, dE, rtol=1e-6, atol=0)
 
-    @pytest.mark.parametrize('n_particles,n_slices,cut_left,cut_right',
-                             [(100, 5, 0.01, 0.01), (10000, 100, 0.05, 0.05),
-                              (1000000, 1000, 0.0, 0.0)])
+    @pytest.mark.parametrize(
+        "n_particles,n_slices,cut_left,cut_right",
+        [
+            (100, 5, 0.01, 0.01),
+            (10000, 100, 0.05, 0.05),
+            (1000000, 1000, 0.0, 0.0),
+        ],
+    )
     def test_profile_slices(self, n_particles, n_slices, cut_left, cut_right):
         import cupy as cp
+
         cp.random.seed(0)
 
         dt = cp.random.normal(loc=1e-5, scale=1e-6, size=n_particles)
@@ -220,26 +247,28 @@ class TestSyntheticData:
 
         bm.slice_beam(dt, profile, cut_left, cut_right)
 
-        bm.use_precision('single')
+        bm.use_precision("single")
 
         profile_f32 = bm.empty(n_slices, dtype=cp.float32)
         bm.slice_beam(dt_f32, profile_f32, cut_left, cut_right)
 
-        cp.testing.assert_allclose(profile_f32.mean(), profile.mean(), rtol=1e-5, atol=0)
+        cp.testing.assert_allclose(
+            profile_f32.mean(), profile.mean(), rtol=1e-5, atol=0
+        )
 
-
-    @pytest.mark.parametrize('n_particles,n_rf,n_iter',
-                             [(100, 1, 1), (100, 4, 10),
-                              (1000000, 1, 5), (1000000, 2, 5)])
+    @pytest.mark.parametrize(
+        "n_particles,n_rf,n_iter",
+        [(100, 1, 1), (100, 4, 10), (1000000, 1, 5), (1000000, 2, 5)],
+    )
     def test_kick(self, n_particles, n_rf, n_iter):
         import cupy as cp
+
         cp.random.seed(0)
 
         dE = cp.random.normal(loc=0, scale=1e7, size=n_particles)
         dt = cp.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
         dE_f32 = cp.array(dE, dtype=cp.float32)
         dt_f32 = cp.array(dt, dtype=cp.float32)
-
 
         charge = 1.0
         acceleration_kick = 1e3 * cp.random.rand().item()
@@ -248,29 +277,54 @@ class TestSyntheticData:
         phi_rf = cp.random.randn(n_rf)
 
         for i in range(n_iter):
-            bm.kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf,
-                    acceleration_kick)
+            bm.kick(
+                dt,
+                dE,
+                voltage,
+                omega_rf,
+                phi_rf,
+                charge,
+                n_rf,
+                acceleration_kick,
+            )
 
-        bm.use_precision('single')
+        bm.use_precision("single")
 
         voltage = bm.array(voltage, dtype=cp.float32)
         omega_rf = bm.array(omega_rf, dtype=cp.float32)
         phi_rf = bm.array(phi_rf, dtype=cp.float32)
 
         for i in range(n_iter):
-            bm.kick(dt_f32, dE_f32, voltage, omega_rf, phi_rf, charge, n_rf,
-                    acceleration_kick)
+            bm.kick(
+                dt_f32,
+                dE_f32,
+                voltage,
+                omega_rf,
+                phi_rf,
+                charge,
+                n_rf,
+                acceleration_kick,
+            )
 
         cp.testing.assert_allclose(dE_f32, dE, rtol=1e-5, atol=0)
 
-    @pytest.mark.parametrize('n_particles,solver,alpha_order,n_iter',
-                             [(100, 'simple', 0, 1), (100, 'legacy', 1, 10),
-                              (100, 'exact', 2, 100), (10000, 'simple', 1, 100),
-                              (10000, 'legacy', 2, 100), (10000, 'exact', 0, 100),
-                              (1000000, 'simple', 2, 10), (1000000, 'legacy', 0, 10),
-                              (1000000, 'exact', 1, 10)])
+    @pytest.mark.parametrize(
+        "n_particles,solver,alpha_order,n_iter",
+        [
+            (100, "simple", 0, 1),
+            (100, "legacy", 1, 10),
+            (100, "exact", 2, 100),
+            (10000, "simple", 1, 100),
+            (10000, "legacy", 2, 100),
+            (10000, "exact", 0, 100),
+            (1000000, "simple", 2, 10),
+            (1000000, "legacy", 0, 10),
+            (1000000, "exact", 1, 10),
+        ],
+    )
     def test_drift(self, n_particles, solver, alpha_order, n_iter):
         import cupy as cp
+
         cp.random.seed(0)
 
         dE = cp.random.normal(loc=0, scale=1e7, size=n_particles)
@@ -290,27 +344,53 @@ class TestSyntheticData:
         energy = cp.random.rand().item()
 
         for i in range(n_iter):
-            bm.drift(dt, dE, solver, t_rev, length_ratio, alpha_order,
-                     eta_0, eta_1, eta_2, alpha_0, alpha_1, alpha_2,
-                     beta, energy)
+            bm.drift(
+                dt,
+                dE,
+                solver,
+                t_rev,
+                length_ratio,
+                alpha_order,
+                eta_0,
+                eta_1,
+                eta_2,
+                alpha_0,
+                alpha_1,
+                alpha_2,
+                beta,
+                energy,
+            )
 
-        bm.use_precision('single')
+        bm.use_precision("single")
 
         for i in range(n_iter):
-            bm.drift(dt_f32, dE_f32, solver, t_rev, length_ratio, alpha_order,
-                     eta_0, eta_1, eta_2, alpha_0, alpha_1, alpha_2,
-                     beta, energy)
+            bm.drift(
+                dt_f32,
+                dE_f32,
+                solver,
+                t_rev,
+                length_ratio,
+                alpha_order,
+                eta_0,
+                eta_1,
+                eta_2,
+                alpha_0,
+                alpha_1,
+                alpha_2,
+                beta,
+                energy,
+            )
 
         cp.testing.assert_allclose(dE, dE_f32, rtol=1e-5, atol=0)
         cp.testing.assert_allclose(dt, dt_f32, rtol=1e-5, atol=0)
 
-    @pytest.mark.parametrize('n_particles,n_iter',
-                             [(100, 1), (100, 2)])
+    @pytest.mark.parametrize("n_particles,n_iter", [(100, 1), (100, 2)])
     def test_kick_drift(self, n_particles, n_iter):
         import cupy as cp
+
         cp.random.seed(0)
 
-        solver = 'exact'
+        solver = "exact"
         alpha_order = 2
         n_rf = 1
 
@@ -321,7 +401,7 @@ class TestSyntheticData:
         dE_f32 = cp.array(dE, dtype=cp.float32)
 
         charge = 1.0
-        acceleration_kick = 0.
+        acceleration_kick = 0.0
         voltage = cp.random.randn(n_rf)
         omega_rf = cp.random.randn(n_rf)
         phi_rf = cp.random.randn(n_rf)
@@ -333,37 +413,81 @@ class TestSyntheticData:
         alpha_0 = cp.random.rand().item()
         alpha_1 = cp.random.rand().item()
         alpha_2 = cp.random.rand().item()
-        beta = 1.
-        energy = 1.
+        beta = 1.0
+        energy = 1.0
 
         for i in range(n_iter):
-            bm.drift(dt, dE, solver, t_rev, length_ratio, alpha_order,
-                     eta_0, eta_1, eta_2, alpha_0, alpha_1, alpha_2,
-                     beta, energy)
-            bm.kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf,
-                    acceleration_kick)
+            bm.drift(
+                dt,
+                dE,
+                solver,
+                t_rev,
+                length_ratio,
+                alpha_order,
+                eta_0,
+                eta_1,
+                eta_2,
+                alpha_0,
+                alpha_1,
+                alpha_2,
+                beta,
+                energy,
+            )
+            bm.kick(
+                dt,
+                dE,
+                voltage,
+                omega_rf,
+                phi_rf,
+                charge,
+                n_rf,
+                acceleration_kick,
+            )
 
-        bm.use_precision('single')
+        bm.use_precision("single")
 
         voltage = bm.array(voltage, dtype=cp.float32)
         omega_rf = bm.array(omega_rf, dtype=cp.float32)
         phi_rf = bm.array(phi_rf, dtype=cp.float32)
 
         for i in range(n_iter):
-            bm.drift(dt_f32, dE_f32, solver, t_rev, length_ratio, alpha_order,
-                     eta_0, eta_1, eta_2, alpha_0, alpha_1, alpha_2,
-                     beta, energy)
-            bm.kick(dt_f32, dE_f32, voltage, omega_rf, phi_rf, charge, n_rf,
-                    acceleration_kick)
+            bm.drift(
+                dt_f32,
+                dE_f32,
+                solver,
+                t_rev,
+                length_ratio,
+                alpha_order,
+                eta_0,
+                eta_1,
+                eta_2,
+                alpha_0,
+                alpha_1,
+                alpha_2,
+                beta,
+                energy,
+            )
+            bm.kick(
+                dt_f32,
+                dE_f32,
+                voltage,
+                omega_rf,
+                phi_rf,
+                charge,
+                n_rf,
+                acceleration_kick,
+            )
 
         cp.testing.assert_allclose(dt_f32, dt, rtol=1e-5, atol=0)
         cp.testing.assert_allclose(dE_f32, dE, rtol=1e-5, atol=0)
 
-    @pytest.mark.parametrize('n_particles,n_slices,n_iter',
-                             [(100, 1, 10), (100, 10, 1), (10000, 256, 10),
-                              (100000, 100, 5)])
+    @pytest.mark.parametrize(
+        "n_particles,n_slices,n_iter",
+        [(100, 1, 10), (100, 10, 1), (10000, 256, 10), (100000, 100, 5)],
+    )
     def test_interp_kick(self, n_particles, n_slices, n_iter):
         import cupy as cp
+
         cp.random.seed(0)
 
         dE = cp.random.normal(loc=0, scale=1e7, size=n_particles)
@@ -380,9 +504,10 @@ class TestSyntheticData:
 
         for i in range(n_iter):
             bm.linear_interp_kick(
-                dt, dE, voltage, bin_centers, charge, acceleration_kick)
+                dt, dE, voltage, bin_centers, charge, acceleration_kick
+            )
 
-        bm.use_precision('single')
+        bm.use_precision("single")
 
         dt_f32 = bm.array(dt, dtype=cp.float32)
         voltage = bm.array(voltage, dtype=cp.float32)
@@ -390,11 +515,11 @@ class TestSyntheticData:
 
         for i in range(n_iter):
             bm.linear_interp_kick(
-                dt_f32, dE_f32, voltage, bin_centers, charge, acceleration_kick)
+                dt_f32, dE_f32, voltage, bin_centers, charge, acceleration_kick
+            )
 
         cp.testing.assert_allclose(dE_f32, dE, rtol=1e-5, atol=0)
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     unittest.main()

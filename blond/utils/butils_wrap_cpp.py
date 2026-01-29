@@ -17,7 +17,7 @@ import numpy as np
 
 from . import c_complex64, c_complex128, c_real, precision
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Type, Literal
 
     from numpy.typing import NDArray as NumpyArray
@@ -90,6 +90,8 @@ def where_cpp(
     less_than: Optional[float] = None,
     result: Optional[NumpyArray] = None,
 ) -> NumpyArray:
+    raise NotImplementedError("Fix bugs")
+    # TODO make testcases working. Result should be int, not double
     if result is None:
         result = np.empty_like(x, dtype=bool)
     if more_than is None and less_than is not None:
@@ -381,6 +383,10 @@ def arange_cpp(
             ct.c_int(stop),
             ct.c_int(step),
             __getPointer(result),
+        )
+    else:
+        raise ValueError(
+            f"Unexpected dtype {dtype=}. Use one of `None`, `int`, `float` instead"
         )
 
     return result
@@ -1127,6 +1133,8 @@ def synchrotron_radiation_full(
 
 
 def set_random_seed(seed):
+    raise NotImplementedError("This function needs further development!")
+    # TODO fix this function and make testcases working
     get_libblond().set_random_seed(ct.c_int(seed))
 
 
