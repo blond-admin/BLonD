@@ -59,7 +59,7 @@ def nonperiodic_wake(time_array, f0, R, Q):
     return wake
 
 
-DEBUG_PLOTTING = True
+DEBUG_PLOTTING = False
 
 
 class InducdedVoltageResonator:
@@ -79,8 +79,8 @@ class InducdedVoltageResonator:
         self.energy_gain_per_turn = 30e6
 
         self.n_turns = 5
-        self.n_stations = 5
-        self.n_section_lengths = np.array([3, 5, 7, 9, 11, 0])  # 0-drift last
+        self.n_stations = 3
+        self.n_section_lengths = np.array([3, 6, 9, 12, 0])  # 0-drift last
 
         self.n_macroparticles = int(1e4)
 
