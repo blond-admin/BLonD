@@ -18,12 +18,6 @@ import unittest
 import numpy as np
 import pytest
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, FitOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.trackers.tracker import RingAndRFTracker
 from blond.utils import bmath as bm
 
 
@@ -135,9 +129,9 @@ class TestSyntheticData:
 
     @pytest.mark.parametrize("n_slices", [1, 8, 100, 10000])
     def test_rf_volt_comp(self, n_slices):
-        voltages = np.random.randn(n_slices)
-        omega_rf = np.random.randn(n_slices)
-        phi_rf = np.random.randn(n_slices)
+        voltages = np.random.randn(10)
+        omega_rf = np.random.randn(10)
+        phi_rf = np.random.randn(10)
         bin_centers = np.linspace(1e-5, 1e-6, n_slices)
 
         res = bm.rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers)

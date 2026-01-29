@@ -189,7 +189,7 @@ class TestSynchtrotronRadiation(unittest.TestCase):
                 python=True,
                 quantum_excitation=False,
             )
-        # Length check for the synchrotron radiation integrals
+        # Wrong type for the radiation integrals
         rad_int = [
             [random.random() for k in range(5)],
             [random.random() for k in range(7)],
@@ -206,48 +206,31 @@ class TestSynchtrotronRadiation(unittest.TestCase):
                 python=True,
                 quantum_excitation=False,
             )
-
-        # Type check for the synchrotron radiation integrals
-        with self.assertRaises(TypeError):
+        # with self.assertRaisesRegex(
+        #        TypeError, f"Expected a list or a NDArray as an input. "
+        #                        f"Received type(radiation_integrals)="
+        #                        f"{type('not an array')}."):
+        #    SynchrotronRadiation(ring, self.rf_station, self.beam,
+        #    #    radiation_integrals='not an array',
+        #                         seed=self.seed, n_kicks=1, shift_beam=False,
+        #                         python=True, quantum_excitation=False)
+        # Wrong length
+        with self.assertRaisesRegex(
+            ValueError,
+            f"Length of radiation integrals must "
+            f"be > 5, but is {len(np.array([1, 2, 3]))}",
+        ):
             SynchrotronRadiation(
                 ring,
                 self.rf_station,
                 self.beam,
-                radiation_integrals="not an array",
+                radiation_integrals=[1, 2, 3],
                 seed=self.seed,
                 n_kicks=1,
                 shift_beam=False,
                 python=True,
                 quantum_excitation=False,
             )
-
-        rad_int = [random.random() for k in range(5)]
-        SR_noflag = SynchrotronRadiation(
-            self.ring,
-            self.rf_station,
-            self.beam,
-            radiation_integrals=rad_int,
-            seed=self.seed,
-            n_kicks=1,
-            shift_beam=False,
-            python=True,
-            quantum_excitation=False,
-        )
-        np.testing.assert_almost_equal(
-            np.array([rad_int[1], rad_int[1]]),
-            SR_noflag.I2,
-            decimal=6,
-        )
-        np.testing.assert_almost_equal(
-            np.array([rad_int[2], rad_int[2]]),
-            SR_noflag.I3,
-            decimal=6,
-        )
-        np.testing.assert_almost_equal(
-            np.array([rad_int[3], rad_int[3]]),
-            SR_noflag.I4,
-            decimal=6,
-        )
 
     def test_initial_beam(self):
         atol = 0

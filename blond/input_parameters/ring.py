@@ -24,7 +24,7 @@ from .ring_options import RingOptions
 from ..utils.legacy_support import handle_legacy_kwargs
 from ..utils.exceptions import MissingParameterError
 
-if TYPE_CHECKING:  # only for Python type hints
+if TYPE_CHECKING:  # pragma: no cover  # only for Python type hints
     from typing import Literal, Any, Optional, Iterable
 
     from numpy.typing import NDArray as NumpyArray
