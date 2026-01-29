@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 import abc
-import cmath
 from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -258,21 +257,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Momentum compaction factor.
         """
         return self._momentum_compaction_factor
-
-    @momentum_compaction_factor.setter  # read only, set by `transition_gamma`
-    def momentum_compaction_factor(
-        self, momentum_compaction_factor: float
-    ) -> None:
-        """
-        Momentum compaction factor.
-
-        Parameters
-        ----------
-        momentum_compaction_factor
-            Momentum compaction factor.
-        """
-        self._momentum_compaction_factor = momentum_compaction_factor
-        self._transition_gamma = 1 / cmath.sqrt(momentum_compaction_factor)
 
     @property
     def transition_gamma(self) -> complex | None:
