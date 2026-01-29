@@ -23,7 +23,7 @@ class DriftBaseClassHelper(DriftBaseClass):
 class TestDriftBaseClass(unittest.TestCase):
     def setUp(self):
         self.drift_base_class = DriftBaseClassHelper(
-            orbit_length=123, section_index=0
+            orbit_length=123, momentum_compaction_factor=7e-4, section_index=0
         )
 
     def test___init__(self):
@@ -45,39 +45,24 @@ class TestDriftBaseClass(unittest.TestCase):
         self.assertEqual(123, self.drift_base_class.orbit_length)
 
     def test_momentum_compaction_factor_fraction(self):
-        self.assertIsNone(self.drift_base_class.momentum_compaction_factor)
+        self.assertEqual(
+            self.drift_base_class.momentum_compaction_factor, 7e-4
+        )
 
 
 class TestDriftSimple(unittest.TestCase):
     def setUp(self):
         self.gamma = 2.5
         self.drift_simple = DriftSimple.headless(
-            transition_gamma=20.0,  # highly relativistic
+            momentum_compaction_factor=np.sqrt(1 / 20),  # highly relativistic
             orbit_length=0.25 * 25,
             section_index=0,
         )
-
-    def test_setters1(self):
-        drift_simple = DriftSimple(
-            transition_gamma=20.0,  # highly relativistic
-            orbit_length=0.25 * 25,
-            section_index=0,
-        )
-        drift_simple.transition_gamma = 1.0
-        drift_simple.transition_gamma = 1.0j
-
-    def test_setters2(self):
-        drift_simple = DriftSimple(
-            momentum_compaction_factor=20.0,  # highly relativistic
-            orbit_length=0.25 * 25,
-            section_index=0,
-        )
-        drift_simple.momentum_compaction_factor = 1.0
-        drift_simple.momentum_compaction_factor = -1.0
 
     def test_array_setup(self):
         self.drift_simple = DriftSimple.headless(
-            transition_gamma=np.array([20.0]),  # highly relativistic
+            momentum_compaction_factor=np.array([np.sqrt(1 / 20.0)]),  # highly
+            # relativistic
             orbit_length=0.25 * 25,
             section_index=0,
         )
@@ -103,22 +88,25 @@ class TestDriftSimple(unittest.TestCase):
             self.drift_simple.on_init_simulation(simulation=simulation)
 
     def test___init__(self):
-        np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
+        np.testing.assert_array_equal(
+            self.drift_simple.momentum_compaction_factor, np.sqrt(1 / 20.0)
+        )
         self.assertEqual(self.drift_simple.orbit_length, 0.25 * 25)
 
-    def test_transition_gamma(self):
-        np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
+    def test_momentum_compaction_factor(self):
+        np.testing.assert_array_equal(
+            self.drift_simple.momentum_compaction_factor, np.sqrt(1 / 20.0)
+        )
 
     def test_alpha_0(self):
         np.testing.assert_array_equal(
             self.drift_simple.alpha_0,
-            1 / self.drift_simple.transition_gamma**2,
+            self.drift_simple.momentum_compaction_factor,
         )
 
-    def test_momentum_compaction_factor(self):
-        np.testing.assert_array_equal(
-            self.drift_simple.momentum_compaction_factor,
-            1 / self.drift_simple.transition_gamma**2,
+    def test_transition_gamma(self):
+        self.assertIsNone(
+            self.drift_simple.transition_gamma,
         )
 
     def test_eta_0(self):
@@ -126,7 +114,7 @@ class TestDriftSimple(unittest.TestCase):
         rel_eta = self.drift_simple.alpha_0 - 1 / self.gamma**2
 
         np.testing.assert_array_equal(
-            self.drift_simple.eta_0(gamma=self.gamma), (rel_eta)
+            self.drift_simple.eta_0(gamma=self.gamma), rel_eta
         )
 
     def test_invalidate_cache(self):
@@ -189,39 +177,25 @@ class TestDriftSimple(unittest.TestCase):
         )
 
     def test_setters_negative_compaction(self):
-        self.drift_simple.momentum_compaction_factor = -2.5
+        self.drift_simple._momentum_compaction_factor = -2.5
         self.assertEqual(self.drift_simple.momentum_compaction_factor, -2.5)
-        self.assertEqual(
-            self.drift_simple.transition_gamma, 1 / cmath.sqrt(-2.5)
-        )
 
     def test_setters_complex_transition(self):
         self.drift_simple.transition_gamma = 1 / cmath.sqrt(-2.5)
-        self.assertEqual(self.drift_simple.momentum_compaction_factor, -2.5)
         self.assertEqual(
             self.drift_simple.transition_gamma, 1 / cmath.sqrt(-2.5)
         )
 
     def test_setters_real_transition(self):
         self.drift_simple.transition_gamma = 1 / cmath.sqrt(2.5)
-        self.assertEqual(self.drift_simple.momentum_compaction_factor, 2.5)
         self.assertEqual(
             self.drift_simple.transition_gamma, 1 / cmath.sqrt(2.5)
         )
 
     def test_init(self):
-        DriftSimple(orbit_length=1.0, section_index=0, transition_gamma=2.5j)
-
         DriftSimple(
             orbit_length=1.0, section_index=0, momentum_compaction_factor=2.5
         )
-        with self.assertRaises(ValueError):
-            DriftSimple(
-                orbit_length=1.0,
-                section_index=0,
-                momentum_compaction_factor=2.5,
-                transition_gamma=2.5j,
-            )
 
 
 class TestDriftSpecial(unittest.TestCase):
