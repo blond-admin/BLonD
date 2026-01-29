@@ -185,6 +185,23 @@ class Ring(Preparable):
         return momentum_compaction_factor
 
     @cached_property
+    def transition_gamma(self) -> complex:
+        """
+        Calculate the ring transition gamma.
+
+        This property computes the ring transition gamma from its momentum
+        compaction factor.
+
+        Returns
+        -------
+        transition_gamma
+            Ring transition gamma.
+        """
+        momentum_compaction_factor = self.momentum_compaction_factor
+        transition_gamma = complex(np.sqrt(1 / momentum_compaction_factor))
+        return transition_gamma
+
+    @cached_property
     def average_transition_gamma(self) -> complex:
         """
         Calculate the orbit-length weighted average transition gamma.
