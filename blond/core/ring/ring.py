@@ -206,7 +206,8 @@ class Ring(Preparable):
         Method to set an estimated value of the transition gamma in the drifts.
 
         This method sets the weighed contribution of the drifts to the gamma of
-        transition crossing.
+        transition crossing. It is called whenever a DriftBaseClass object
+        is either added or inserted in the ring, to enforce consistency.
         """
         from blond.physics.drifts import DriftBaseClass
 
