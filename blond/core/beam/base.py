@@ -121,7 +121,11 @@ class BeamBaseClass(Preparable, ABC):
         total_energy_init = simulation.magnetic_cycle.get_total_energy_init(
             particle_type=self.particle_type,
         )
-        if self.reference._total_energy != total_energy_init:
+        if (
+            self.reference._total_energy != total_energy_init
+            and self.reference._total_energy is not None
+        ):
+            # Display a warning when the reference energy is overwritten, but not when None is overwritten.
             msg = (
                 f"`Bunch` was prepared for"
                 f" total_energy = {self.reference._total_energy} eV,"
