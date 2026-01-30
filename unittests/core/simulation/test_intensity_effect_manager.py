@@ -23,6 +23,7 @@ class TestIntensityEffectManager(unittest.TestCase):
             static_profile_mock,
             wakefield_profile_mock,
         ]
+        simulation_mock.ring.elements._get_element_cache = {}
         simulation_mock.ring.elements.get_elements = (
             lambda x: BeamPhysicsRelevantElements.get_elements(
                 simulation_mock.ring.elements, x
