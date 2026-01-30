@@ -205,6 +205,19 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
         assert len(elements) == 2
 
+    def test_get_elements_cache_reset(self):
+        self.beam_physics_relevant_elements._on_init_simulation_passed = True
+        for i in range(33):
+            if i == 32:
+                pass
+            self.beam_physics_relevant_elements.get_elements(
+                class_=DriftBaseClass, section_i=i
+            )
+
+        assert (
+            len((self.beam_physics_relevant_elements._get_element_cache)) <= 32
+        )
+
     def test_get_order_info(self):
         for mock_element in self.beam_physics_relevant_elements.elements:
             mock_element.info_string.return_value = ""
