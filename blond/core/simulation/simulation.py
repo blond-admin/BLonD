@@ -164,6 +164,7 @@ class Simulation(Preparable):
         self.turn_i = DynamicParameter(0)
         self.section_i = DynamicParameter(0)
         self.intensity_effect_manager = IntensityEffectManager(simulation=self)
+
         self._current_t_rev = None
         self._particle_performance_waning_threshold = int(1e3)
 
@@ -1411,11 +1412,6 @@ class Simulation(Preparable):
         self.turn_i.value = 0
 
         num_elements = len(self._ring.elements.elements)
-
-        for observable in observe:
-            observable.update(
-                simulation=self,
-            )
 
         for turn_i in iterator:
             for element_ind, element in enumerate(

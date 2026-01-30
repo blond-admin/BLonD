@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -161,6 +162,22 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         )  # to avoid double recordings with multiple drifts in one section
         self._last_section_i_observed = -1
 
+    def _calc_n_entries(self, n_turns: int) -> int:
+        """
+        Calculate the number of entries considering `each_turn_i`.
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns that the simulation is foreseen to run.
+
+        Returns
+        -------
+        n_entries
+            The number of observations during the simulation.
+        """
+        return int(math.ceil(n_turns / self.each_turn_i))
+
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
         """
@@ -226,7 +243,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self._n_turns = int(n_turns)
 
         self._turns_array = np.linspace(
-            0, n_turns, num=n_turns // self.each_turn_i + 1, dtype=int
+            0, n_turns, num=self._calc_n_entries(n_turns), dtype=int
         )
         self._turns_array = np.append(
             np.array([0]), self._turns_array
@@ -315,7 +332,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
         self._beam = beam
-        n_entries = n_turns // self.each_turn_i + 1
+        n_entries = self._calc_n_entries(n_turns)
         n_macroparticles = int(beam._dt.local_size)
         if mpi_is_distributed():
             warnings.warn(
@@ -500,7 +517,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
         self._beam = beam
-        n_entries = n_turns // self.each_turn_i + 1
+        n_entries = self._calc_n_entries(n_turns)
 
         self._bunch_position = DenseArrayRecorder(
             f"{self.common_filepath}_bunch_position",
@@ -680,7 +697,7 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
 
-        n_entries = n_turns // self.each_turn_i + 1
+        n_entries = self._calc_n_entries(n_turns)
         n_harmonics = int(self._rf_station.n_rf)
         shape = (n_entries, n_harmonics)
         self._phases = DenseArrayRecorder(
@@ -833,7 +850,7 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
             beam=beam,
         )
-        n_entries = n_turns // self.each_turn_i + 1
+        n_entries = self._calc_n_entries(n_turns)
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
             f"{self.common_filepath}_hist_y",
@@ -1100,7 +1117,7 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
 
-        n_entries = n_turns // self.each_turn_i + 1
+        n_entries = self._calc_n_entries(n_turns)
         n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
             f"{self.common_filepath}_induced_voltage",
@@ -1212,7 +1229,7 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
 
-        n_entries = n_turns // self.each_turn_i + 1
+        n_entries = self._calc_n_entries(n_turns)
         n_bins = int(self._profile.n_bins)
         shape = (n_entries, n_bins)
         self._hist_y = DenseArrayRecorder(
