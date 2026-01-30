@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Utility functions for the CERN Proton Synchrotron Booster."""
+"""Functions to define the CERN Proton Synchrotron Booster feedback systems."""

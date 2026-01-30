@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Utility functions for the CERN Large Hadron Collider."""
+"""Functions to define the CERN Large Hadron Collider feedback systems."""

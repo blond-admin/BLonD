@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Utility functions for CERN synchrotrons."""
+"""Utility functions to define feedbacks for the CERN synchrotrons."""
