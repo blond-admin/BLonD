@@ -187,7 +187,7 @@ class Schedulable:
             self.schedules[attribute] = get_scheduler(value)
         self.schedule_active = True
 
-        self.apply_schedules(0, 0)
+        self.apply_schedules(turn_i=0, reference_time=0)
 
     def schedule_from_file(
         self,
