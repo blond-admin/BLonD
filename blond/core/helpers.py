@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -58,6 +59,109 @@ def int_from_float_with_warning(
         raise TypeError(type(value))
 
 
+def _find(
+    root: Any,
+    is_wanted: Callable[[object], bool],
+    skip_properties: bool,
+) -> Any:
+    """
+    Find all instances within root that have a callable `methodname`.
+
+    This method does a tree _walk on all objects within root.
+    Class attributes that should not be searched for `method_name`
+    can be omitted by placing `skip_find_instances_attributes` into the class
+    definition. An example is given below.
+
+    Parameters
+    ----------
+    root
+        Base instance to be inspected.
+        All attributes are recursively scanned
+        for classes with a method `methodname`.
+    is_wanted
+        Function that identifies what is searched for.
+    skip_properties
+        If `True`, only attributes that are not a property will be
+        investigated.
+
+    Returns
+    -------
+    found_instances
+        Set of instances that have the specified method.
+
+    Examples
+    --------
+    Class attributes that should not be searched for `method_name`
+    can be omitted by placing `skip_find_instances_attributes` into the class
+    definition.
+    >>> class ItsComplicated:
+    ...     skip_find_instances_attributes = ["problem"]
+    ...
+    ...     @property
+    ...     def problem(self): # wont be accessed by `find_instances_with_method()`
+    ...         raise NotImplementedError()
+    ...
+    ...     @property # will be accessed
+    ...     def not_a_problem(self):
+    ...         pass
+    """
+    found = set()
+    seen = set()
+
+    def _walk(
+        obj: Any,
+        skip_list,
+        where,
+    ):
+        if id(obj) in seen:
+            return
+        seen.add(id(obj))
+        is_mock = isinstance(obj, Mock)
+        if hasattr(obj, "skip_find_instances_attributes") and not is_mock:
+            skip_list.extend(obj.skip_find_instances_attributes)
+
+        # Check if object has the desired method
+        if is_wanted(obj):
+            logger.info(f"Found {obj} at {where}")
+            found.add(obj)
+
+        # Recurse into object attributes or container elements
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                _walk(key, skip_list, where + str(key))
+                _walk(value, skip_list, where + str(value))
+        elif isinstance(obj, (list, tuple, set)):  # NOQA: UP038
+            for item in obj:
+                _walk(item, skip_list, where + str(item))
+        elif hasattr(obj, "__dict__"):
+            # checks if is python class
+            for attr_name in obj.__dict__ if skip_properties else dir(obj):
+                if attr_name in skip_list or (
+                    # prevent infinite recursion in mock object
+                    is_mock and attr_name in str(obj)
+                ):
+                    continue
+                # Skip built-in attributes or private class attributes
+                if attr_name.startswith("__") and attr_name.endswith("__"):
+                    continue
+                try:
+                    attr = getattr(obj, attr_name)
+                except Exception:
+                    continue  # Skip attributes that raise errors on access
+                _walk(attr, skip_list, where + str(attr))
+
+    _walk(
+        root,
+        skip_list=[
+            "_mock_children",  # prevent infinite recursion in mock object
+            "return_value",  # prevent infinite recursion in mock object
+        ],
+        where="",
+    )
+
+    return found
+
+
 def find_instances_with_method(root: Any, method_name: str) -> Any:
     """
     Find all instances within root that have a callable `methodname`.
@@ -83,6 +187,9 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
 
     Examples
     --------
+    Class attributes that should not be searched for `method_name`
+    can be omitted by placing `skip_find_instances_attributes` into the class
+    definition.
     >>> class ItsComplicated:
     ...     skip_find_instances_attributes = ["problem"]
     ...
@@ -94,48 +201,60 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     ...     def not_a_problem(self):
     ...         pass
     """
-    found = set()
-    seen = set()
 
-    def walk(obj: Any, skip_list, where):
-        if id(obj) in seen:
-            return
-        seen.add(id(obj))
-        is_mock = isinstance(obj, Mock)
-        if hasattr(obj, "skip_find_instances_attributes") and not is_mock:
-            skip_list.extend(obj.skip_find_instances_attributes)
-
-        # Check if object has the desired method
-        if (
+    def _is_wanted(obj):
+        return (
             hasattr(obj, method_name)
             and callable(getattr(obj, method_name))
             and not isinstance(obj, type)
-        ):
-            logger.info(f"Found {obj}.{method_name}(..) at {where}")
-            found.add(obj)
+        )
 
-        # Recurse into object attributes or container elements
-        if isinstance(obj, dict):
-            for key, value in obj.items():
-                walk(key, skip_list, where + str(key))
-                walk(value, skip_list, where + str(value))
-        elif isinstance(obj, (list, tuple, set)):  # NOQA: UP038
-            for item in obj:
-                walk(item, skip_list, where + str(item))
-        elif (
-            hasattr(obj, "__dict__") and not is_mock
-        ):  # checks if is python class
-            for attr_name in dir(obj):
-                if attr_name in skip_list:
-                    continue
-                # Skip built-in attributes or private class attributes
-                if attr_name.startswith("__") and attr_name.endswith("__"):
-                    continue
-                try:
-                    attr = getattr(obj, attr_name)
-                except Exception:
-                    continue  # Skip attributes that raise errors on access
-                walk(attr, skip_list, where + str(attr))
+    found = _find(root=root, is_wanted=_is_wanted, skip_properties=False)
+    return found
 
-    walk(root, skip_list=[], where="")
+
+def find_instances_by_class(root: Any, class_: type[T]) -> T:
+    """
+    Find all instances within root that have a callable `methodname`.
+
+    This method does a tree walk on all objects within root.
+    Class attributes that should not be searched for `method_name`
+    can be omitted by placing `skip_find_instances_attributes` into the class
+    definition. An example is given below.
+
+    Parameters
+    ----------
+    root
+        Base instance to be inspected.
+        All attributes are recursively scanned
+        for ``isinstance(attribute, class_)``.
+    class_
+        Class type to search for.
+
+    Returns
+    -------
+    found_instances
+        Set of instances that have the specified method.
+
+    Examples
+    --------
+    Class attributes that should not be searched for `method_name`
+    can be omitted by placing `skip_find_instances_attributes` into the class
+    definition.
+    >>> class ItsComplicated:
+    ...     skip_find_instances_attributes = ["problem"]
+    ...
+    ...     @property
+    ...     def problem(self): # wont be accessed by `find_instances_with_method()`
+    ...         raise NotImplementedError()
+    ...
+    ...     @property # will be accessed
+    ...     def not_a_problem(self):
+    ...         pass
+    """
+
+    def _is_wanted(obj):
+        return isinstance(obj, class_) and not isinstance(obj, type)
+
+    found = _find(root=root, is_wanted=_is_wanted, skip_properties=True)
     return found

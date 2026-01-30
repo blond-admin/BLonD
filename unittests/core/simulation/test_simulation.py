@@ -381,7 +381,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
-            SingleHarmonicRFStation
+            SingleHarmonicRFStation, recursive=False
         )
         particle_type = proton
 
@@ -433,7 +433,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_get_potential_well_empiric_charge(self):
         cavity = self.simulation.ring.elements.get_element(
-            SingleHarmonicRFStation
+            SingleHarmonicRFStation, recursive=False
         )
         from blond.core.beam.particle_types import ParticleType, c, e, m_p
 
@@ -497,7 +497,9 @@ class TestSimulation(unittest.TestCase):
         simulation = Simulation.from_locals(locals())
         beam = beam1
 
-        cavity = simulation.ring.elements.get_element(SingleHarmonicRFStation)
+        cavity = simulation.ring.elements.get_element(
+            SingleHarmonicRFStation, recursive=False
+        )
         particle_type = proton
 
         ts = np.linspace(

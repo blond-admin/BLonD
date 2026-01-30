@@ -86,7 +86,9 @@ def _get_dE_from_dt(
     """
     from blond.physics.drifts import DriftSimple
 
-    drifts = simulation.ring.elements.get_elements(DriftSimple)
+    drifts = simulation.ring.elements.get_elements(
+        DriftSimple, recursive=False
+    )
     above_transition = not simulation.ring.is_below_transition(beam=beam)
 
     harmonic, omega_rf, phi_rf, voltage = get_main_harmonic_attributes(
@@ -161,8 +163,10 @@ def get_main_harmonic_attributes(
     from blond.physics.cavities import SingleHarmonicRFStation
 
     rf_stations = simulation.ring.elements.get_elements(
-        SingleHarmonicRFStation
-    ) + simulation.ring.elements.get_elements(MultiHarmonicRFStation)
+        SingleHarmonicRFStation, recursive=False
+    ) + simulation.ring.elements.get_elements(
+        MultiHarmonicRFStation, recursive=False
+    )
     for _rf_station in rf_stations:
         _rf_station.apply_schedules(
             turn_i=0,
@@ -290,7 +294,7 @@ class BiGaussian(MatchingRoutine):
         )
 
         drifts: tuple[DriftSimple, ...] = (
-            simulation.ring.elements.get_elements(DriftSimple)
+            simulation.ring.elements.get_elements(DriftSimple, recursive=False)
         )
         for _drift in drifts:
             _drift.apply_schedules(

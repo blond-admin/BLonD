@@ -60,7 +60,9 @@ class BeamPreparationRoutine(ABC):
         beam.reference.time = 0  # FIXME
         # assign beams?
 
-        schedulables = simulation.ring.elements.get_elements(Schedulable)
+        schedulables = simulation.ring.elements.get_elements(
+            Schedulable, recursive=True
+        )
         for s in schedulables:
             s.apply_schedules(
                 turn_i=simulation.turn_i.value,

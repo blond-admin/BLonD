@@ -40,7 +40,7 @@ from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
-from blond.core.ring.helpers import get_elements, get_required_order
+from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.warnings_ import NotTestedWarning, PerformanceWarning
 
@@ -772,19 +772,19 @@ class Simulation(Preparable):
         logger.debug(msg=msg1)
         if verbose:
             print(msg1)
-        _rings = get_elements(locals_list, Ring)
+        _rings = filter_elements(locals_list, Ring)
         assert len(_rings) == 1, f"Found {len(_rings)} rings"
         ring = _rings[0]
 
-        beams = get_elements(locals_list, BeamBaseClass)  # type: ignore
+        beams = filter_elements(locals_list, BeamBaseClass)  # type: ignore
 
-        _magnetic_cycle = get_elements(locals_list, MagneticCycleBase)  # type: ignore
+        _magnetic_cycle = filter_elements(locals_list, MagneticCycleBase)  # type: ignore
         assert len(_magnetic_cycle) == 1, (
             f"Found {len(_magnetic_cycle)} energy cycles"
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(locals_list, SimulationElementBase)
+        elements = filter_elements(locals_list, SimulationElementBase)
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")

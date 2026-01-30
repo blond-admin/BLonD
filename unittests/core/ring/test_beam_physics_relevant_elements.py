@@ -192,16 +192,16 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
 
     def test_get_element(self):
         self.beam_physics_relevant_elements.get_element(
-            class_=DriftBaseClass, section_i=0
+            class_=DriftBaseClass, section_i=0, recursive=False
         )
         with self.assertRaises(AssertionError):
             self.beam_physics_relevant_elements.get_element(
-                class_=DriftBaseClass, section_i=None
+                class_=DriftBaseClass, section_i=None, recursive=False
             )
 
     def test_get_elements(self):
         elements = self.beam_physics_relevant_elements.get_elements(
-            class_=DriftBaseClass, section_i=None
+            class_=DriftBaseClass, section_i=None, recursive=False
         )
         assert len(elements) == 2
 
