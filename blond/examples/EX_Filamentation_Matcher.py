@@ -14,6 +14,7 @@ from matplotlib import pyplot as plt
 
 from blond import (
     Beam,
+    BeamObservationInRingElement,
     ConstantMagneticCycle,
     DriftSimple,
     Ring,
@@ -21,12 +22,7 @@ from blond import (
     SingleHarmonicRFStation,
     proton,
 )
-from blond.experimental.beam_preparation.filamentation_matcher import (
-    FilamentationMatcher,
-)
-from blond.handle_results.observables_as_elements import (
-    BeamObservationInRingElement,
-)
+from blond.experimental import FilamentationMatcher
 
 n_iter = 1000
 

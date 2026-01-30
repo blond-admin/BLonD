@@ -34,23 +34,21 @@ from blond import (
     BiGaussian,
     DriftSimple,
     MagneticCyclePerTurn,
+    PeriodicFreqSolver,
+    Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
+    TimeDomainFftSolver,
     WakeField,
+    backend,
     proton,
 )
-from blond.core.backends.backend import backend
 from blond.handle_results.helpers import callers_relative_path
 from blond.legacy.blond2.impedances.induced_voltage_analytical import (
     analytical_gaussian_resonator,
 )
-from blond.physics.impedances.solvers import (
-    PeriodicFreqSolver,
-    TimeDomainFftSolver,
-)
-from blond.physics.impedances.sources import Resonators
 
 
 def main():
