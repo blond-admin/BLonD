@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""A collection of different analytic equations."""
+"""Analytical equations for theoretic descriptions."""
