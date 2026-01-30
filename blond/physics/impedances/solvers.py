@@ -1031,7 +1031,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     def _check_source_ducktypes(self):
         """Check that the sources implement ``get_wake``."""
         for source in self._parent_wakefield.sources:
-            source: TimeDomain  # type hint what the we expect
+            source: TimeDomain  # type hint what what we expect
             if not hasattr(source, "get_wake"):
                 raise AttributeError(
                     f"The {source=} should implement `TimeDomain.get_wake`."
