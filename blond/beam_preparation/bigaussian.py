@@ -28,7 +28,6 @@ from blond.generals.distributed.helpers import (
     mpi_local_size,
 )
 from blond.generals.iterables_ import all_equal
-from blond.physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
@@ -98,14 +97,17 @@ def _get_dE_from_dt(
     energy = beam.reference.total_energy
     beta = beam.reference.beta
 
-    phi_s = calc_phi_s_single_harmonic(
-        charge=beam.particle_type.charge,
-        voltage=voltage,
-        energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-            1, 0, 0, particle_type=beam.particle_type
+    phi_s = (
+        calc_phi_s_single_harmonic(
+            charge=beam.particle_type.charge,
+            voltage=voltage,
+            energy_gain=simulation.magnetic_cycle.get_target_total_energy(
+                1, 0, 0, particle_type=beam.particle_type
+            )
+            - beam.reference.total_energy,
+            above_transition=above_transition,
         )
-        - beam.reference.total_energy,
-        above_transition=above_transition,
+        - phi_rf
     )
 
     eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
@@ -275,6 +277,7 @@ class BiGaussian(MatchingRoutine):
             Simulation :class:`~blond.core.beam.beam.Beam` object.
         """
         from blond.core.backends.backend import backend
+        from blond.physics.drifts import DriftSimple
 
         super().prepare_beam(
             simulation=simulation,
@@ -286,10 +289,8 @@ class BiGaussian(MatchingRoutine):
             simulation=simulation,
         )
 
-        drifts: tuple[DriftBaseClass, ...] = (  # this has replaced DriftSimple
-            simulation.ring.elements.get_elements(
-                DriftBaseClass
-            )  # this has replaced DriftSimple
+        drifts: tuple[DriftSimple, ...] = (
+            simulation.ring.elements.get_elements(DriftSimple)
         )
         for _drift in drifts:
             _drift.apply_schedules(
@@ -318,6 +319,7 @@ class BiGaussian(MatchingRoutine):
                 - beam.reference.total_energy,
                 above_transition=above_transition,
             )
+            - phi_rf
         )
         # call to legacy
         eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]

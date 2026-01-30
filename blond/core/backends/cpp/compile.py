@@ -448,8 +448,15 @@ def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
     return cflags
 
 
-def main_cli() -> None:
-    """Parse arguments from command line."""
+def main_cli(force_parallel=False) -> None:
+    """
+    Parse arguments from command line.
+
+    Parameters
+    ----------
+    force_parallel
+        If `True`, the backend will be compiled for parallel execution.
+    """
     parser = argparse.ArgumentParser(
         description="Script used to compile the C++ libraries needed by BLonD.",
     )
@@ -555,7 +562,7 @@ def main_cli() -> None:
         boost=args["boost"],
         compiler=args["compiler"],
         libs=args["libs"],
-        parallel=args["parallel"],
+        parallel=True if force_parallel else args["parallel"],
         flags=args["flags"],
         optimize=args["optimize"],
         libname=args["libname"],

@@ -28,7 +28,7 @@ class TestPhiS(unittest.TestCase):
                     energy_gain,
                     above_transition=above_transition,
                 )
-                t_s = phi_s / (omega)
+                t_s = (phi_s - phi) / (omega)
                 if DEV_PLOT:
                     ys = charge * voltage * np.sin(omega * xs + phi)
                     plt.plot(xs, ys)
