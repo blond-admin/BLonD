@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Analytical equations."""
+"""Analytical equations for empirical observations."""
