@@ -476,7 +476,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
 
     def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
         """
-        Update `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`.
+        Update `_wake_imp_y` array if `self._wake_imp_y_needs_update=True`.
 
         Parameters
         ----------
@@ -1029,7 +1029,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._previous_wakes = deque(maxlen=n_turns)
 
     def _check_source_ducktypes(self):
-        """Check that the sources implement ```get_wake```."""
+        """Check that the sources implement ``get_wake``."""
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what the we expect
             if not hasattr(source, "get_wake"):
