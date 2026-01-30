@@ -184,11 +184,12 @@ class PeriodicFreqSolver(WakeFieldSolver):
             Wakefield that this solver affiliated to.
         """
         if self._t_periodicity is None:
-            self._t_periodicity = simulation.magnetic_cycle.get_t_rev_init(
-                circumference=simulation.ring.circumference,
-                particle_type=simulation.magnetic_cycle.reference_particle,
+            self._t_periodicity = simulation.get_t_rev_init()
+            print(
+                f"Set t_periodicity={self._t_periodicity:.3e} s ("
+                f"{(1 / self._t_periodicity):.3e} Hz) for"
+                f" {self}"
             )
-            print(f"Set t_periodicity={self._t_periodicity} for {self}")
         self._simulation = simulation
         if parent_wakefield.profile is not None:
             is_static = isinstance(parent_wakefield.profile, StaticProfile)
@@ -1107,10 +1108,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
         profile_width = profile.cut_right - profile.cut_left
         # todo check that the time of n_revolutions matches n * length_profile
-        t_rev = self._simulation.magnetic_cycle.get_t_rev_init(
-            circumference=self._simulation.ring.circumference,
-            particle_type=self._simulation.magnetic_cycle.reference_particle,
-        )
+        t_rev = self._simulation.get_t_rev_init()
         if isinstance(t_rev, float):
             assert abs(profile_width - t_rev) < profile.hist_step, (
                 f"Expected profile length of {t_rev} s, but got "
