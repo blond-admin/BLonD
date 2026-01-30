@@ -93,9 +93,9 @@ def _add_line(indent: int, content_write: list[str], root: str) -> None:
     # Extract the docstring
     docstring = extract_docstring(init_path)
     # Markdown entry for the folder and docstring
-    indent_string = "" if indent == 0 else f"├──{4 * indent * '─'} "
+    indent_string = "" if indent == 0 else f"├──{2 * (indent) * '─'} "
     folder_string = f"{indent_string}{folder_name}/"
-    max_spaces = 78 // 2
+    max_spaces = 30
     spaces = max_spaces - len(folder_string)
     content_write.append(f"{folder_string}{spaces * ' '}{docstring}")
 
