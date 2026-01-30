@@ -9,13 +9,11 @@
 import numpy as np
 import xpart as xp
 import xtrack as xt
-from scipy.constants import c as c_light
 
 from blond import SingleHarmonicRFStation, proton
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
     BLonD3Cavity,
     EnergyUpdate,
-    blond_to_xsuite_transform,
 )
 
 
@@ -32,12 +30,9 @@ def main():
 
     # Bunch parameters
     N_p = 1.15e11  # Intensity # where is this used in xtrack?
-    blen = 1.25e-9  # Bunch length [s]
 
     # Simulation parameters
-    N_TURNS = 500
-    input_dt = 2 * blen - 0.4e-9  # Input particles dt [s]
-    input_dE = 0.0  # Input particles dE [eV]
+    N_TURNS = 100
 
     # Make First order matrix map (takes care of drift in Xsuite)
     matrix = xt.LineSegmentMap(
@@ -60,7 +55,7 @@ def main():
     momentum = np.linspace(p_s, p_f, N_TURNS)
 
     # --- Many particle  --- #
-    n_part = 100
+    n_part = 1000
     particles = line.build_particles(
         x=np.random.uniform(-1e-3, 1e-3, n_part),
         px=np.random.uniform(-1e-5, 1e-5, n_part),
@@ -78,6 +73,7 @@ def main():
         phi_rf=-np.pi,  # todo, this is a shift between xsuite and blond
         circumference=C,
         total_energy=None,  # todo dynamically set the energy
+        is_below_transition=None,
     )
 
     cavity = BLonD3Cavity(
@@ -102,7 +98,6 @@ def main():
     )
 
     line.build_tracker()
-    line.enable_time_dependent_vars = True
     line.get_table().show()
 
     line.track(

@@ -33,7 +33,8 @@ if TYPE_CHECKING:
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
 
-from xtrack import Line, Particles, ReferenceEnergyIncrease
+from xpart import Particles
+from xtrack import Line, ReferenceEnergyIncrease
 
 from blond.core.base import BeamPhysicsRelevant
 from blond.physics.drifts import DriftBaseClass  # import the base drift class
@@ -82,6 +83,11 @@ class DriftXsuite(DriftBaseClass):
         )
         self.beam = beam
         self.line = line
+        self.line.particle_ref = Particles(
+            p0c=self.beam.reference.total_energy,
+            mass0=self.beam.particle_type.mass,
+            q0=self.beam.particle_type.charge,
+        )
         self.element_name = element_name
         self.phi_s = phi_s
         self._xsuite_element: Any | None = (
@@ -109,7 +115,7 @@ class DriftXsuite(DriftBaseClass):
         self.omega_rf = (
             2.0
             * np.pi
-            * self.beam.reference_beta
+            * self.beam.reference.beta
             * c
             / simulation.ring.circumference
         )
@@ -157,19 +163,19 @@ class DriftXsuite(DriftBaseClass):
         # --- Convert BLonD → Xsuite coordinates ---
         zeta = (
             -(beam._dt - self.phi_s / self.omega_rf)
-            * self.beam.reference_beta
+            * self.beam.reference.beta
             * c
         )
         ptau = beam._dE / (
-            self.beam.reference_beta * self.beam.reference_total_energy
+            self.beam.reference.beta * self.beam.reference.total_energy
         )
 
         # Create a temporary Xsuite Particles object
         particles = Particles(
             zeta=zeta,
             ptau=ptau,
-            beta0=self.beam.reference_beta,  # 0.99999978,#self.beam.reference_beta, # is this correct
-            energy0=self.beam.reference_total_energy,  # is this correct
+            beta0=self.beam.reference.beta,
+            energy0=self.beam.reference.total_energy,  # is this correct
         )
 
         # --- Perform tracking ---
