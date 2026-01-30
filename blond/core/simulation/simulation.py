@@ -50,7 +50,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Beam, BiGaussian
+    from blond import BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
@@ -66,7 +66,7 @@ if TYPE_CHECKING:  # pragma: no cover
         XsuiteRFBucketMatcher,
     )
 
-    CallbackTypeHint = Callable[["Simulation", Beam], None]
+    CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]
 
 logger = logging.getLogger(__name__)
 
@@ -160,13 +160,13 @@ class Simulation(Preparable):
 
         self._magnetic_cycle: MagneticCycleBase = magnetic_cycle
 
-        self.turn_i = DynamicParameter(None)
-        self.section_i = DynamicParameter(None)
+        self.turn_i = DynamicParameter(0)
+        self.section_i = DynamicParameter(0)
         self.intensity_effect_manager = IntensityEffectManager(simulation=self)
 
-        self._exec_on_init_simulation()
-
         self._particle_performance_waning_threshold = int(1e3)
+
+        self._exec_on_init_simulation()
 
     def profiling(
         self,
@@ -1222,10 +1222,10 @@ class Simulation(Preparable):
                     f" {self._particle_performance_waning_threshold}"
                     f" particles in your beam."
                     f" Consider using another backend via\n"
-                    f" >>> from blond.core.backends.backend import backend\n"
+                    f" >>> from blond import backend\n"
                     f" >>> backend.set_specials(mode=...)",
                     PerformanceWarning,
-                    stacklevel=2,
+                    stacklevel=3,
                 )
         # temporarily pin attributes
         self._observe = (
@@ -1239,13 +1239,6 @@ class Simulation(Preparable):
         # unpin temporary attributes
         del self._observe
         del self._beams
-        if len(beams) == 1:
-            self.turn_i.value = 0
-            self.section_i.value = None
-            for observable in observe:
-                observable.update(
-                    simulation=self,
-                )
         return _n_turns
 
     def mainloop_single_beam(
@@ -1302,7 +1295,7 @@ class Simulation(Preparable):
             for element in self._ring.elements.elements:
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
-                    element.track(beam)
+                    element.track(beam=beam)
             for observable in observe:
                 if observable.is_active_this_turn(turn_i=self.turn_i.value):
                     observable.update(
@@ -1394,11 +1387,6 @@ class Simulation(Preparable):
 
         num_elements = len(self._ring.elements.elements)
 
-        for observable in observe:
-            observable.update(
-                simulation=self,
-            )
-
         for turn_i in iterator:
             for element_ind, element in enumerate(
                 self._ring.elements.elements
@@ -1420,9 +1408,6 @@ class Simulation(Preparable):
                     observable.update(
                         simulation=self,
                     )
-        # reset counters to uninitialized again
-        self.turn_i.value = None
-        self.section_i.value = None
 
     def save_results(
         self,
