@@ -181,15 +181,17 @@ class testProfileClass(unittest.TestCase):
 
     def test_WrongTrackingFunction(self):
         sparse_profile = _SparseProfileBaseClass(
-            self.rf_station,
-            self.beam,
-            self.n_slices_rf,
-            self.filling_pattern,
-            self.profile_length_in_buckets,
-            self.profile_length_in_buckets,
+            rf_station=self.rf_station,
+            beam=self.beam,
+            number_of_slices_per_profile=self.n_slices_rf,
+            _filling_pattern=self.filling_pattern,
+            _profile_length_in_buckets=int(self.profile_length_in_buckets),
             tracker_mode="something horribly wrong",
+            do_track_on_init=False,
         )
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(
+            expected_exception=RuntimeError,
+        ):
             sparse_profile.track()
 
         nonuniform_profile = SparseBucket(
