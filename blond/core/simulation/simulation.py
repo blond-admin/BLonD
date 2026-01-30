@@ -453,12 +453,11 @@ class Simulation(Preparable):
         )
         t1 = probe_bunch.reference.time
         T = t1 - t0
-        potential_well = (
+        drift_term = (
             cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
             / T
         )
-        potential_well -= potential_well.min()
-        return potential_well
+        return drift_term
 
     def get_potential_well_empiric(
         self,
