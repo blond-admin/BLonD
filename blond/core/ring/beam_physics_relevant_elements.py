@@ -17,6 +17,7 @@ import numpy as np
 
 from blond.core.base import Preparable
 from blond.core.beam.base import BeamBaseClass
+from blond.core.helpers import find_instances_by_class
 from blond.core.ring.helpers import filter_elements
 from blond.core.simulation.simulation import Simulation
 
@@ -361,7 +362,6 @@ class BeamPhysicsRelevantElements(Preparable):
         elements
             All elements of specified type (potentially filtered by section).
         """
-        from blond.core.helpers import find_instances_by_class
 
         def is_in_section(element: T) -> bool:
             return element.section_index == section_i

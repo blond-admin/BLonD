@@ -65,23 +65,21 @@ def _find(
     skip_properties: bool,
 ) -> Any:
     """
-    Find all instances within root that have a callable `methodname`.
+    Find all instances within root that match ``is_wanted``.
 
-    This method does a tree _walk on all objects within root.
-    Class attributes that should not be searched for `method_name`
-    can be omitted by placing `skip_find_instances_attributes` into the class
-    definition. An example is given below.
+    This method does a tree walk on all objects within root.
+    Each found object is evaluated with ``is_wanted(obj)``
+    and depending on this returned.
 
     Parameters
     ----------
     root
         Base instance to be inspected.
-        All attributes are recursively scanned
-        for classes with a method `methodname`.
+        All attributes are recursively scanned.
     is_wanted
         Function that identifies what is searched for.
     skip_properties
-        If `True`, only attributes that are not a property will be
+        If `True`, only attributes that are not a ``@property`` will be
         investigated.
 
     Returns
@@ -98,7 +96,7 @@ def _find(
     ...     skip_find_instances_attributes = ["problem"]
     ...
     ...     @property
-    ...     def problem(self): # wont be accessed by `find_instances_with_method()`
+    ...     def problem(self): # won't be accessed by `find_instances_with_method()`
     ...         raise NotImplementedError()
     ...
     ...     @property # will be accessed
@@ -194,7 +192,7 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     ...     skip_find_instances_attributes = ["problem"]
     ...
     ...     @property
-    ...     def problem(self): # wont be accessed by `find_instances_with_method()`
+    ...     def problem(self): # won't be accessed by `find_instances_with_method()`
     ...         raise NotImplementedError()
     ...
     ...     @property # will be accessed
@@ -202,25 +200,22 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     ...         pass
     """
 
-    def _is_wanted(obj):
+    def _has_method(obj):
         return (
             hasattr(obj, method_name)
             and callable(getattr(obj, method_name))
             and not isinstance(obj, type)
         )
 
-    found = _find(root=root, is_wanted=_is_wanted, skip_properties=False)
+    found = _find(root=root, is_wanted=_has_method, skip_properties=False)
     return found
 
 
 def find_instances_by_class(root: Any, class_: type[T]) -> T:
     """
-    Find all instances within root that have a callable `methodname`.
+    Find all instances within root that are ``isinstance`` of `class_`.
 
     This method does a tree walk on all objects within root.
-    Class attributes that should not be searched for `method_name`
-    can be omitted by placing `skip_find_instances_attributes` into the class
-    definition. An example is given below.
 
     Parameters
     ----------
@@ -234,27 +229,11 @@ def find_instances_by_class(root: Any, class_: type[T]) -> T:
     Returns
     -------
     found_instances
-        Set of instances that have the specified method.
-
-    Examples
-    --------
-    Class attributes that should not be searched for `method_name`
-    can be omitted by placing `skip_find_instances_attributes` into the class
-    definition.
-    >>> class ItsComplicated:
-    ...     skip_find_instances_attributes = ["problem"]
-    ...
-    ...     @property
-    ...     def problem(self): # wont be accessed by `find_instances_with_method()`
-    ...         raise NotImplementedError()
-    ...
-    ...     @property # will be accessed
-    ...     def not_a_problem(self):
-    ...         pass
+        Set of instances that are a ``isinstance(element, class_)``.
     """
 
-    def _is_wanted(obj):
+    def _matches_class(obj):
         return isinstance(obj, class_) and not isinstance(obj, type)
 
-    found = _find(root=root, is_wanted=_is_wanted, skip_properties=True)
+    found = _find(root=root, is_wanted=_matches_class, skip_properties=True)
     return found
