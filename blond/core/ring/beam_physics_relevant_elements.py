@@ -53,6 +53,8 @@ class BeamPhysicsRelevantElements(Preparable):
         self._on_init_simulation_passed = False
         self._check_section_indices = check_section_indices
 
+        self._get_element_cache = {}
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -64,6 +66,7 @@ class BeamPhysicsRelevantElements(Preparable):
         """
         if self._check_section_indices:
             self._check_section_indexing()
+        self._get_element_cache = {}
         self._on_init_simulation_passed = True
 
     def _assert_no_init(self, msg: str) -> None:
@@ -362,6 +365,13 @@ class BeamPhysicsRelevantElements(Preparable):
         elements
             All elements of specified type (potentially filtered by section).
         """
+        key = f"{class_.__name__}_{section_i}_{recursive}"
+        # use cache only after init of simulation
+        CACHE_MAX = 32
+        if len(self._get_element_cache) >= CACHE_MAX:
+            self._get_element_cache = {}  # clear cache
+        if self._on_init_simulation_passed and key in self._get_element_cache:
+            return self._get_element_cache[key]
 
         def is_in_section(element: T) -> bool:
             return element.section_index == section_i
@@ -376,6 +386,9 @@ class BeamPhysicsRelevantElements(Preparable):
             )
         else:
             elements_selected = filter_elements(elements, class_)
+
+        if self._on_init_simulation_passed:
+            self._get_element_cache[key] = elements_selected
         return elements_selected
 
     def get_element(
