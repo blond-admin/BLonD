@@ -37,12 +37,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def hamilton_to_density_by_max(
-    time_grid: NumpyArray | CupyArray,
-    deltaE_grid: NumpyArray | CupyArray,
-    hamilton_2D: NumpyArray | CupyArray,
+    time_grid: NumpyArray,
+    deltaE_grid: NumpyArray,
+    hamilton_2D: NumpyArray,
     density_modifier: float,
     hamilton_max: float,
-) -> NumpyArray | CupyArray:
+) -> NumpyArray:
     """
     Converts a 2D Hamilton 2D array into a density distribution.
 
@@ -133,10 +133,7 @@ def get_hamilton_semi_analytic(
     beta: float,
     shape: tuple[int, int],
     energy_range: tuple[float, float] | None = None,
-) -> (
-    tuple[NumpyArray, NumpyArray, NumpyArray]
-    | tuple[CupyArray, CupyArray, CupyArray]
-):
+) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
     r"""
     Compute the 2D Hamiltonian :math:`H_{2D}(t, \Delta E)` based on an arbitrary potential well.
 
@@ -181,6 +178,11 @@ def get_hamilton_semi_analytic(
         2D array representing the semi-analytic Hamiltonian evaluated on a grid of
         time vs. energy difference [eV]. Uses the same device (NumPy or CuPy) as the inputs.
     """
+    # from here only CPU code, because `populate_beam` can only
+    # handle numpy arrays
+    potential_well = copy_to_cpu(potential_well)
+    ts = copy_to_cpu(ts)
+
     assert len(ts) == len(potential_well), (
         f"{len(ts)=}, but {len(potential_well)=}"
     )
@@ -290,7 +292,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
         time_limit: tuple[float, float],
         n_macroparticles: int | float,
         hamilton_to_density_kwargs: dict[str, Any],
-        hamilton_to_density_function: Callable = hamilton_to_density_by_max,
+        hamilton_to_density_function: Callable[
+            Any, NumpyArray
+        ] = hamilton_to_density_by_max,
         internal_grid_shape: tuple[int, int] = (1023, 1023),
         seed: int | None = 0,
         tolerance: float = 1e-6,
