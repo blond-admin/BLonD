@@ -457,6 +457,8 @@ class Simulation(Preparable):
             cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
             / T
         )
+        drift_term -= drift_term.min()
+
         return drift_term
 
     def get_potential_well_empiric(
