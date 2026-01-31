@@ -243,7 +243,7 @@ class TestBoxLosses(unittest.TestCase):
             | (copy_to_cpu(beam.read_partial_dt()) > 2)
             | (copy_to_cpu(beam.read_partial_dE()) < -10)
             | (copy_to_cpu(beam.read_partial_dE()) > 20),
-            copy_to_cpu(~beam._flags.astype(bool)),
+            copy_to_cpu(~beam.read_partial_flags().astype(bool)),
         )
         self.assertLess(beam.intensity, 1e12)
 
