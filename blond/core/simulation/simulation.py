@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
-from tqdm import tqdm  # type: ignore
 
 from blond.core.backends.backend import backend
 from blond.core.base import (
@@ -43,7 +42,7 @@ from blond.core.helpers import (
 )
 from blond.core.ring.helpers import get_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
-from blond.generals.warnings_ import NotTestedWarning, PerformanceWarning
+from blond.generals.warnings_ import PerformanceWarning
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -1135,34 +1134,29 @@ class Simulation(Preparable):
         )
 
         if len(beams) == 1:  # NOQA: PLR2004
-            self.mainloop_single_beam(
-                beam=beams[0],
-                n_turns=_n_turns,
-                observe=observe,
-                show_progressbar=show_progressbar,
-                callbacks=callbacks,
+            from blond.core.simulation.execution_models.single_beam import (
+                MainloopSingleBeam,
             )
+
+            execution_model = MainloopSingleBeam
         elif len(beams) == 2:  # NOQA: PLR2004
-            assert (
-                beams[0].is_counter_rotating,
-                beams[1].is_counter_rotating,
-            ) == (
-                False,
-                True,
-            ), (
-                "First beam must be normal, second beam must be counter-rotating"
+            from blond.core.simulation.execution_models.conterrotating_beams import (
+                MainloopCounterRotatingBeams,
             )
-            self.mainloop_counterrotating_beam(
-                n_turns=_n_turns,
-                observe=observe,
-                show_progressbar=show_progressbar,
-                callbacks=callbacks,
-                beams=beams,  # type: ignore
-            )
+
+            execution_model = MainloopCounterRotatingBeams
         else:
             raise NotImplementedError(
                 f"Up to two beam supported, but got {len(beams)}"
             )
+        execution_model.mainloop(
+            simulation=self,
+            beams=beams,
+            n_turns=_n_turns,
+            observe=observe,
+            show_progressbar=show_progressbar,
+            callbacks=callbacks,
+        )
 
     def finalize(
         self,
@@ -1267,71 +1261,6 @@ class Simulation(Preparable):
         del self._beams
         return _n_turns
 
-    def mainloop_single_beam(
-        self,
-        beam: BeamBaseClass,
-        n_turns: int,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
-        show_progressbar: bool = True,
-        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
-    ) -> None:
-        """
-        Execute the beam dynamics simulation for only one beam.
-
-        Parameters
-        ----------
-        beam
-            The beam to simulate.
-        n_turns
-            Number of turns to simulate.
-        observe
-            List of observables to protocol of whats happening inside
-            the simulation.
-        show_progressbar
-            If True, will show a progress bar indicating how many turns have
-            been completed and other metrics.
-        callbacks
-            Optional user-defined functions `[callback_1, callback_2, ...]`.
-            called at the end of each turn.
-            Useful for custom data collection or live plotting. Default is None.
-
-            The callback can be defined as follows.
-            The rate at with which this function is
-            called can be set by `each_turn_i`.
-            >>> from blond import Beam, Simulation
-            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
-            >>>     ...
-            >>> my_callback.each_turn_i = 2
-            .
-
-        Notes
-        -----
-        This method assumes that ``Simulation.finalize(...)`` was executed
-        before.
-        """
-        logger.info("Starting simulation mainloop...")
-        callbacks = self._sanitize_callbacks(callbacks)
-
-        iterator = range(self.turn_i.value, self.turn_i.value + n_turns)
-        if show_progressbar:
-            iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
-            # display to iteration
-        for turn_i in iterator:
-            self.turn_i.value = turn_i
-            self._calculate_current_t_rev(reference=beam.reference)
-            for element in self._ring.elements.elements:
-                self.section_i.value = element.section_index
-                if element.is_active_this_turn(turn_i=self.turn_i.value):
-                    element.track(beam=beam)
-            for observable in observe:
-                if observable.is_active_this_turn(turn_i=self.turn_i.value):
-                    observable.update(
-                        simulation=self,
-                    )
-            for callback in callbacks:
-                if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
-                    callback(self, beam)
-
     def _sanitize_callbacks(
         self,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None,
@@ -1358,83 +1287,6 @@ class Simulation(Preparable):
                 callback.each_turn_i = 1  # each turn by default
             sanitised_callbacks.append(callback)
         return sanitised_callbacks
-
-    def mainloop_counterrotating_beam(
-        self,
-        beams: tuple[BeamBaseClass, BeamBaseClass],
-        n_turns: int,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
-        show_progressbar: bool = True,
-        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
-    ) -> None:
-        """
-        Execute the beam dynamics simulation for counter-rotating beams.
-
-        Parameters
-        ----------
-        beams
-            Tuple of two beams (co-rotating, counter-rotating).
-        n_turns
-            Number of turns to simulate.
-        observe
-            List of observables to protocol of whats happening inside
-            the simulation.
-        show_progressbar
-            If True, will show a progress bar indicating how many turns have
-            been completed and other metrics.
-        callbacks
-            Optional user-defined functions `[callback_1, callback_2, ...]`.
-            called at the end of each turn.
-            Useful for custom data collection or live plotting. Default is None.
-
-            The callback can be defined as follows.
-            The rate at with which this function is
-            called can be set by `each_turn_i`.
-            >>> from blond import Beam, Simulation
-            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
-            >>>     ...
-            >>> my_callback.each_turn_i = 2
-            .
-        """
-        warnings.warn("Untested code", NotTestedWarning, stacklevel=2)
-
-        if callbacks is not None:
-            warnings.warn(
-                "Callbacks are currently not supported for simulations"
-                " with counter-rotating beams.",
-                UserWarning,
-                stacklevel=2,
-            )
-
-        logger.info("Starting simulation mainloop...")
-        iterator = range(n_turns)
-        if show_progressbar:
-            iterator = tqdm(iterator)  # Add TQDM display to iteration
-        self.turn_i.value = 0
-
-        num_elements = len(self._ring.elements.elements)
-
-        for turn_i in iterator:
-            for element_ind, element in enumerate(
-                self._ring.elements.elements
-            ):
-                self.turn_i.value = turn_i
-                self.section_i.value = element.section_index
-
-                if element.is_active_this_turn(turn_i=self.turn_i.value):
-                    element.track(beams[0])  # [0] is expected to be corotating
-                element_counterrot = self.ring.elements.elements[
-                    num_elements - element_ind - 1
-                ]
-                if element_counterrot.is_active_this_turn(
-                    turn_i=self.turn_i.value
-                ):
-                    element_counterrot.track(beams[1])
-            for observable in observe:
-                if observable.is_active_this_turn(turn_i=self.turn_i.value):
-                    observable.update(
-                        simulation=self,
-                    )
 
     def save_results(
         self,
