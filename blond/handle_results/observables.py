@@ -248,12 +248,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         """
         self._n_turns = int(n_turns)
 
-        self._turns_array = np.linspace(
-            0, n_turns, num=self._calc_n_entries(n_turns), dtype=int
-        )
-        self._turns_array = np.append(
-            np.array([0]), self._turns_array
-        )  # prepend 0 for pre-running
+        self._turns_array = np.arange(0, n_turns, self.each_turn_i, dtype=int)
 
 
 class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
