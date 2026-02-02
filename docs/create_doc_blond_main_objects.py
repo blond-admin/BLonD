@@ -50,6 +50,8 @@ ASSIGNED_CATEGORIES = {
     "StaticProfileObservation": Categories.DIAGNOSTICS.value,
     "BeamObservationInRingElement": Categories.DIAGNOSTICS.value,
     "BeamObservationOncePerTurn": Categories.DIAGNOSTICS.value,
+    "DriftObservation": Categories.DIAGNOSTICS.value,
+    "SimulationObservation": Categories.DIAGNOSTICS.value,
     # Plotting
     "AllowPlotting": Categories.PLOTTING.value,
     # Backend / Precision

@@ -13,19 +13,17 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from blond import (
+    DriftObservation,
     DriftSimple,
     RFStationPhaseObservation,
     Ring,
     Simulation,
+    SimulationObservation,
     SingleHarmonicRFStation,
     proton,
 )
 from blond.core.beam.beams import EmptyBeam
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.handle_results.observables import (
-    DriftObservation,
-    SimulationObservation,
-)
 
 logging.basicConfig(level=logging.INFO)
 

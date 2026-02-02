@@ -34,7 +34,9 @@ from blond.cycles.magnetic_cycle import (
 )
 from blond.generals.cupy.no_cupy_import import AllowPlotting  # NOQA
 from blond.handle_results.observables import BeamObservationOncePerTurn  # NOQA
+from blond.handle_results.observables import DriftObservation  # NOQA
 from blond.handle_results.observables import RFStationPhaseObservation  # NOQA
+from blond.handle_results.observables import SimulationObservation  # NOQA
 from blond.handle_results.observables import StaticProfileObservation  # NOQA
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,  # NOQA
