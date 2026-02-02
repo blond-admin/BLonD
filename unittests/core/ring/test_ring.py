@@ -14,6 +14,7 @@ from blond import (
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import lead_82
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 from blond.testing.mocks import simulation_mock
@@ -587,10 +588,10 @@ class TestRing(unittest.TestCase):
             ring, ConstantMagneticCycle(value=1, reference_particle=lead_82)
         )
         beam = Beam(intensity=1, particle_type=lead_82)
-        beam._dt = [1]
-        beam._dE = [2]
-        beam._flags = [3]
-        beam._ids = [4]
+        beam._dt = DistributedArray(np.array([1]))
+        beam._dE = DistributedArray(np.array([2]))
+        beam._flags = DistributedArray(np.array([3]))
+        beam._ids = DistributedArray(np.array([4]))
         sim.finalize((beam,), n_turns=1)
 
     def test_non_mandatory_element_checking_kicks(self):
@@ -622,10 +623,10 @@ class TestRing(unittest.TestCase):
             ring, ConstantMagneticCycle(value=1, reference_particle=lead_82)
         )
         beam = Beam(intensity=1, particle_type=lead_82)
-        beam._dt = [1]
-        beam._dE = [2]
-        beam._flags = [3]
-        beam._ids = [4]
+        beam._dt = DistributedArray(np.array([1]))
+        beam._dE = DistributedArray(np.array([2]))
+        beam._flags = DistributedArray(np.array([3]))
+        beam._ids = DistributedArray(np.array([4]))
         sim.finalize((beam,), n_turns=1)
 
     def test_synchrotron_radiation_integrals(self):

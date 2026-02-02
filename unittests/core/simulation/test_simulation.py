@@ -47,7 +47,7 @@ class TestSimulation(unittest.TestCase):
         N_TURNS = int(1e3)
         magnetic_cycle = MagneticCyclePerTurn(
             value_init=450e9,
-            values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+            values_after_turn=np.linspace(450e9, 460e9, N_TURNS),
             reference_particle=proton,
         )
 
@@ -627,6 +627,32 @@ class TestSimulation(unittest.TestCase):
             Simulation._sanitize_callbacks(
                 simulation_mock, (callback for i in range(2))
             )
+
+    def test_current_t_rev(self):
+        buffer = np.zeros(2)
+        t_rev_effective = np.empty(10)
+        t_rev_sim = np.empty(10)
+        DEV_PLOT = False
+
+        def callback(sim: Simulation, beam: Beam):
+            buffer[0] = buffer[1]
+            buffer[1] = beam.reference.time
+            i = sim.turn_i.value
+            t_rev_effective[i] = buffer[1] - buffer[0]
+            t_rev_sim[i] = sim.current_t_rev
+            if DEV_PLOT:
+                plt.plot(i, buffer[1] - buffer[0], "o")
+                plt.plot(i, sim.current_t_rev, "x")
+            return
+
+        self.simulation.run_simulation(
+            self.beam,
+            n_turns=10,
+            callbacks=callback,
+        )
+        np.testing.assert_allclose(t_rev_effective, t_rev_sim)
+        if DEV_PLOT:
+            plt.show()
 
 
 if __name__ == "__main__":

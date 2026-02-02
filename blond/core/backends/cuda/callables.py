@@ -33,7 +33,7 @@ hash_ = hash_in_folder(
     extensions=(".py", ".cu"),
     recursive=False,
 )
-_basepath = os.path.join(folder, "compiled", hash_)
+_basepath = str(os.path.join(folder, "compiled", hash_))
 
 
 def reload_cuda_backend(  # NOQA: D102
@@ -73,7 +73,8 @@ def reload_cuda_backend(  # NOQA: D102
         )
         if not os.path.isfile(path):
             raise FileNotFoundError(
-                f"The compiled CUDA backend was notfound at {path=}"
+                f"The compiled CUDA backend was not found at {path=}.\n"
+                f"Has the backend been compiled?"
             )
         gpu_module = cp.RawModule(
             path=path,

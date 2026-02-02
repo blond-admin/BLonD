@@ -139,14 +139,14 @@ class TestObservables(unittest.TestCase):
             n_turns=100,
         )
 
-        assert (
-            len(self.observables._turns_array) == self.observables._n_turns + 2
+        assert len(self.observables._turns_array) == (
+            self.observables._n_turns + 1
         )
         assert np.all(
             np.where(np.diff(self.observables._turns_array) <= 0)
             == np.array([])
         )  # monotonic increase
-        assert np.mean(np.diff(self.observables._turns_array[1:])) == 1
+        assert np.mean(np.diff(self.observables._turns_array[:])), 1
 
         self.observables.on_run_simulation(
             simulation=simulation,

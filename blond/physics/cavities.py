@@ -389,7 +389,6 @@ class RFStationBaseClass(
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
             voltage=float(self.get_main_harmonic_voltage()),
-            phase=float(self.get_main_harmonic_phi_rf()),
             energy_gain=reference_energy_change,
             above_transition=not self._ring.is_below_transition(beam=beam),
         )
