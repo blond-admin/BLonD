@@ -208,8 +208,6 @@ release_sdist_310:
       --username="${PYPI_USERNAME}"
       --password="${PYPI_PASSWORD}"
       dist/*.tar.gz
-  only:
-    - blonder
 
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310
