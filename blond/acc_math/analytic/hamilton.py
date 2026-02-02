@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond import Ring
     from blond.cycles.magnetic_cycle import MagneticCycleBase
-    from blond.physics.cavities import RfManipulationBaseClass
+    from blond.physics.cavities import RFManipulationBaseClass
 
 
 def is_in_separatrix(
@@ -331,7 +331,7 @@ def calc_phi_s_single_harmonic(
 
 
 def separatrix_single_rf(
-    rf_station: RfManipulationBaseClass,
+    rf_station: RFManipulationBaseClass,
     magnetic_cylce: MagneticCycleBase,
     ring: Ring,
     dt_array: NumpyArray,
