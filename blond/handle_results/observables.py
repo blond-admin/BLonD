@@ -1333,10 +1333,10 @@ class SimulationObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
 
-        n_entries = n_turns // self.each_turn_i + 1
+        n_entries = self._calc_n_entries(n_turns=n_turns)
         shape = n_entries
         self._current_t_rev = DenseArrayRecorder(
-            f"{self.common_filepath}_hist_y",
+            f"{self.common_filepath}_current_t_rev",
             shape,
         )
         self._simulation = simulation
@@ -1353,10 +1353,7 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         simulation
             `Simulation` context manager.
         """
-        if self._simulation.section_i.value is None:
-            self._current_t_rev.write(np.nan)
-        else:
-            self._current_t_rev.write(self._simulation.current_t_rev)
+        self._current_t_rev.write(self._simulation.current_t_rev)
 
     @property  # as readonly attributes
     def t_revs(self) -> NumpyArray:
@@ -1425,11 +1422,9 @@ class DriftObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
 
-        n_entries = math.ceil(n_turns / self.each_turn_i) + 1
-        shape = n_entries
         self._eta_0s = DenseArrayRecorder(
-            f"{self.common_filepath}_hist_y",
-            shape,
+            f"{self.common_filepath}_eta_0s",
+            (self._calc_n_entries(n_turns=n_turns)),
         )
 
     def update(
@@ -1444,10 +1439,7 @@ class DriftObservation(ObservablesOncePerTurnBase):
         simulation
             `Simulation` context manager.
         """
-        if self._drift._last_eta_0 is None:
-            self._eta_0s.write(np.nan)
-        else:
-            self._eta_0s.write(float(self._drift._last_eta_0))
+        self._eta_0s.write(float(self._drift._last_eta_0))
 
     @property  # as readonly attributes
     def eta_0s(self) -> NumpyArray:
