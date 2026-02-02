@@ -6,6 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""Untested/unstable code that might be changed in the future."""
+
 __all__ = [
     "FilamentationMatcher",
     "SemiEmpiricMatcher",
