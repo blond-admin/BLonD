@@ -646,7 +646,7 @@ class TestRing(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            SR_ring.radiation_integrals, radiation_integrals
+            SR_ring.synchrotron_radiation_integrals, radiation_integrals
         )
 
 

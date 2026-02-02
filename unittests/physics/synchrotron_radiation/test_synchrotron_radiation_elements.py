@@ -153,18 +153,18 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
         self.SRB = SynchrotronRadiationBaseClass(
             share_of_synchrotron_radiation_integrals=0.1
             * self.radiation_integrals,
-            _disable_quantum_excitation=True,
+            disable_quantum_excitation=True,
         )
 
         self.SRD = _SynchrotronRadiationDrift(
             share_of_synchrotron_radiation_integrals=0.1
             * self.radiation_integrals,
-            _disable_quantum_excitation=True,
+            disable_quantum_excitation=True,
         )
         self.SRS = _SynchrotronRadiationSection(
             share_of_synchrotron_radiation_integrals=0.1
             * self.radiation_integrals,
-            _disable_quantum_excitation=True,
+            disable_quantum_excitation=True,
         )
         # To test the tracking methods
         self.SRB._simulation = Mock(SimulationElementBase)
@@ -195,7 +195,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     def test_inputs_SynchrotronRadiationBaseClass(self):
         np.testing.assert_array_equal(
-            self.SRB._fractional_radiation_integrals,
+            self.SRB.share_of_synchrotron_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
         self.assertIsNone(self.SRB._energy_lost_due_to_synchrotron_radiation)
@@ -204,7 +204,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     def test_inputs_SynchrotronRadiationDrift(self):
         np.testing.assert_array_equal(
-            self.SRD._fractional_radiation_integrals,
+            self.SRD.share_of_synchrotron_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
         self.assertIsNone(self.SRD._energy_lost_due_to_synchrotron_radiation)
@@ -213,7 +213,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     def test_inputs_SynchrotronRadiationSection(self):
         np.testing.assert_array_equal(
-            self.SRS._fractional_radiation_integrals,
+            self.SRS.share_of_synchrotron_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
         self.assertIsNone(self.SRS._energy_lost_due_to_synchrotron_radiation)
@@ -347,10 +347,10 @@ class TestWigglerMagnet(unittest.TestCase):
     def setUp(self) -> None:
         self.wiggler_magnet = WigglerMagnet(
             wiggler_type="sinusoidal",
-            number=2,
+            number_of_wigglers=2,
             peak_field=1,
             pole_length=0.01,
-            number_poles=50,
+            number_of_poles=50,
             section_index=0,
         )
         self.wiggler_magnet_none = WigglerMagnet(
@@ -360,10 +360,10 @@ class TestWigglerMagnet(unittest.TestCase):
     def test_inputs_and_properties(self):
         assert self.wiggler_magnet.section_index == 0
         assert self.wiggler_magnet._type == "sinusoidal"
-        assert self.wiggler_magnet._number == 2
+        assert self.wiggler_magnet._number_of_wigglers == 2
         assert self.wiggler_magnet._peak_field == 1
         assert self.wiggler_magnet._pole_length == 0.01
-        assert self.wiggler_magnet._number_poles == 50
+        assert self.wiggler_magnet._number_of_poles == 50
 
         self.assertEqual(self.wiggler_magnet.number_of_wigglers, 2)
         self.assertEqual(self.wiggler_magnet_none.number_of_wigglers, 1)

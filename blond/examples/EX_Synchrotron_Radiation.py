@@ -88,7 +88,7 @@ class SynchrotronRadiationSimulation:
         self.SRHandler = SynchrotronRadiationMaster(
             # track_before_element_type = DriftBaseClass,
         )
-        self.SRHandler.generate_synchrotron_radiation_subclasses(
+        self.SRHandler.prepare_ring_for_synchrotron_radiation_tracking(
             ring=self.ring
         )
         self.ring.elements.print_order()

@@ -131,7 +131,8 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._damping_time: float | None = None
         self._natural_energy_spread: float | None = None
 
-        self.rng = np.random.default_rng(seed=seed)
+        self.rng = np.random.default_rng(seed=seed)  # TODO use
+        # backend.default_rng
 
     @property
     def share_of_synchrotron_radiation_integrals(self) -> NumpyArray | None:

@@ -508,7 +508,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             phi_rf=0,
         )
 
-        self.assertIsNone(shc._use_synchrotron_radiation)
+        self.assertFalse(shc._use_synchrotron_radiation)
 
         SR_ring = Ring(
             90.65874532 * 1e3,

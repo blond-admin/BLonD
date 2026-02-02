@@ -45,12 +45,15 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
 
     def test_inputs(self):
         SRHandler = SynchrotronRadiationMaster()
-        self.assertFalse(SRHandler.verbose)
         self.assertFalse(SRHandler._disable_quantum_excitation)
-        self.assertEqual(SRHandler.track_before_element_type, DriftBaseClass)
+        self.assertEqual(
+            SRHandler.track_before_element_type,
+            [
+                DriftBaseClass,
+            ],
+        )
 
         self.assertIsNone(SRHandler._simulation)
-        self.assertEqual(SRHandler._turn_i, 0)
         self.assertIsNone(SRHandler._simulation)
         self.assertIsNone(SRHandler._natural_energy_spread)
         self.assertIsNone(SRHandler._energy_loss_per_turn)
@@ -59,14 +62,17 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         self.assertListEqual(SRHandler.generated_children, [])
 
         SRHandleriso = SynchrotronRadiationMaster(
-            _disable_quantum_excitation=True,
-            verbose=True,
-            track_before_element_type=SingleHarmonicRFStation,
+            disable_quantum_excitation=True,
+            track_before_element_type=[
+                SingleHarmonicRFStation,
+            ],
         )
-        self.assertTrue(SRHandleriso.verbose)
         self.assertTrue(SRHandleriso._disable_quantum_excitation)
         self.assertEqual(
-            SRHandleriso.track_before_element_type, SingleHarmonicRFStation
+            SRHandleriso.track_before_element_type,
+            [
+                SingleHarmonicRFStation,
+            ],
         )
 
     def test__str__(self):
@@ -75,8 +81,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             SRM.__str__(),
             (
                 f"Synchrotron radiation master class set up for the"
-                f" ring. Simulation currently set for turn "
-                f"{0}. \n Generated "
+                f" ring. \n Generated "
                 f"{0} "
                 f"synchrotron radiation elements."
             ),
@@ -208,22 +213,22 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
 
         # Check the waring and exception are raised
         SRM = SynchrotronRadiationMaster()
-        SRM.generated_children = 1
-        with self.assertRaisesRegex(
-            expected_exception=Warning,
+        SRM.generated_children = [None]
+        with self.assertWarnsRegex(
+            expected_warning=UserWarning,
             expected_regex="Synchrotron radiation subclasses have already been "
             "generated. Command ignored",
         ):
-            SRM.generate_synchrotron_radiation_subclasses(ring=ring)
+            SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring)
 
         SRM = SynchrotronRadiationMaster(
             track_before_element_type=[DriftBaseClass, SingleHarmonicRFStation]
         )
         with self.assertRaisesRegex(
             expected_exception=TypeError,
-            expected_regex="Inhomogeneous element classes.",
+            expected_regex="Unsupported list of elements.",
         ):
-            SRM.generate_synchrotron_radiation_subclasses(
+            SRM.prepare_ring_for_synchrotron_radiation_tracking(
                 ring=ring,
             )
 
@@ -233,7 +238,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         with self.assertRaises(
             expected_exception=TypeError,
         ):
-            SRM.generate_synchrotron_radiation_subclasses(
+            SRM.prepare_ring_for_synchrotron_radiation_tracking(
                 ring=ring,
             )
 
@@ -263,7 +268,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             track_before_element_type=[DriftBaseClass]
         )
         ring_SRdrifts = copy.deepcopy(ring)
-        SRM.generate_synchrotron_radiation_subclasses(ring=ring_SRdrifts)
+        SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring_SRdrifts)
 
         # Check the corrected number of _SynchrotronRadiationDrift trackers
         # have been generated
@@ -324,7 +329,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             track_before_element_type=[SingleHarmonicRFStation]
         )
         ring_SRdrifts = copy.deepcopy(ring)
-        SRM.generate_synchrotron_radiation_subclasses(ring=ring_SRdrifts)
+        SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring_SRdrifts)
 
         # Check the corrected number of _SynchrotronRadiationDrift trackers
         # have been generated
@@ -342,20 +347,17 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
 
         # Ensures the created trackers are the expected ones, and located
         # before the drifts
-        assert ring_SRdrifts.elements.elements[1] == SRM.generated_children[0]
+        sr_drifts = ring_SRdrifts.elements.elements[1]
+        assert sr_drifts == SRM.generated_children[0]
 
         # verifies the synchrotron radiation integral share of each tracker
         np.testing.assert_array_almost_equal(
-            ring_SRdrifts.elements.elements[
-                1
-            ].share_of_synchrotron_radiation_integrals,
+            sr_drifts.share_of_synchrotron_radiation_integrals,
             self.synchrotron_radiation_integrals,
             decimal=self.decimal,
         )
         np.testing.assert_array_almost_equal(
-            ring_SRdrifts.elements.elements[
-                1
-            ].synchrotron_radiation_integrals_section,
+            sr_drifts.synchrotron_radiation_integrals_section,
             self.synchrotron_radiation_integrals,
             decimal=self.decimal,
         )
@@ -387,7 +389,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             track_before_element_type=[SingleHarmonicRFStation]
         )
         ring_SRdrifts = copy.deepcopy(ring)
-        SRM.generate_synchrotron_radiation_subclasses(ring=ring_SRdrifts)
+        SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring_SRdrifts)
 
         # Check the corrected number of _SynchrotronRadiationDrift trackers
         # have been generated

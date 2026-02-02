@@ -103,7 +103,7 @@ class SynchrotronRadiationMaster(Schedulable):
     >>> ring.add_drifts(n_drifts_per_section=10, n_sections=4)
     >>>
     >>> SRM = SynchrotronRadiationMaster(
-    >>> track_before_element_type=DriftBaseClass)
+    >>> track_before_element_type=[DriftBaseClass,])
     >>> SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring)
     """
 
@@ -117,7 +117,9 @@ class SynchrotronRadiationMaster(Schedulable):
         if track_before_element_type is not None:
             self.track_before_element_type = track_before_element_type
         else:
-            self.track_before_element_type = DriftBaseClass
+            self.track_before_element_type = [
+                DriftBaseClass,
+            ]
 
         self._simulation: Simulation | None = None
         self._disable_quantum_excitation = disable_quantum_excitation
@@ -465,6 +467,7 @@ class SynchrotronRadiationMaster(Schedulable):
             warnings.warn(
                 "Synchrotron radiation subclasses have already been "
                 "generated. Command ignored",
+                UserWarning,
                 stacklevel=2,
             )
         else:
