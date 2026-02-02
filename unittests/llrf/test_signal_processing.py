@@ -290,7 +290,7 @@ class TestRFCurrentSparse(unittest.TestCase):
             number_of_slices_per_profile=int(1000),  # same number
             # of slices per bucket
             bunch_list=self.sparse_profile.batch_list,
-            tracker="onebyone",
+            tracker_mode="onebyone",
         )
         with self.assertRaises(TypeError):
             rf_beam_current(
