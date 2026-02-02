@@ -140,7 +140,7 @@ class TestObservables(unittest.TestCase):
         )
 
         assert len(self.observables._turns_array) == (
-            self.observables._n_turns + 1
+            self.observables._n_turns
         )
         assert np.all(
             np.where(np.diff(self.observables._turns_array) <= 0)
