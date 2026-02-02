@@ -15,6 +15,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+if TYPE_CHECKING:  # pragma: no cover
+    from numpy.random import Generator as NumpyGenerator
+
+    from blond.generals.distributed.distributed_array import DistributedArray
+
 try:
     from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
 
@@ -25,11 +30,6 @@ except Exception as exc:
     MPI_COMM_WORLD = None
     MPI_RANK = 0
     MPI_SIZE = 1
-
-if TYPE_CHECKING:  # pragma: no cover
-    from numpy.random import Generator as NumpyGenerator
-
-    from blond.generals.distributed.distributed_array import DistributedArray
 
 
 def mpi_local_size(global_size: int, warning_hint: str) -> int:
