@@ -304,6 +304,8 @@ class BackendBaseClass(ABC):
         self.copy: Callable = None  # type: ignore
         self.ones_like: Callable = None  # type: ignore
         self.add: Callable = None  # type: ignore
+        self.concatenate: Callable = None  # type: ignore
+        self.unique: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -527,6 +529,8 @@ class NumpyBackend(BackendBaseClass):
         self.copy = np.copy
         self.ones_like = np.ones_like
         self.add = np.add
+        self.concatenate = np.concatenate
+        self.unique = np.unique
 
         self._finalize()
 
@@ -673,7 +677,8 @@ class CupyBackend(BackendBaseClass):
         self.copy = cp.copy
         self.ones_like = cp.ones_like
         self.add = cp.add
-
+        self.concatenate = cp.concatenate
+        self.unique = cp.unique
         from blond.core.backends.cuda.callables import CudaSpecials
 
         self.specials = CudaSpecials()
