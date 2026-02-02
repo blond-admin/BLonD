@@ -304,6 +304,7 @@ class BackendBaseClass(ABC):
         self.copy: Callable = None  # type: ignore
         self.ones_like: Callable = None  # type: ignore
         self.add: Callable = None  # type: ignore
+        self.default_rng: object = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -527,6 +528,7 @@ class NumpyBackend(BackendBaseClass):
         self.copy = np.copy
         self.ones_like = np.ones_like
         self.add = np.add
+        self.default_rng = np.random.default_rng
 
         self._finalize()
 
@@ -673,6 +675,7 @@ class CupyBackend(BackendBaseClass):
         self.copy = cp.copy
         self.ones_like = cp.ones_like
         self.add = cp.add
+        self.default_rng = cp.random.default_rng
 
         from blond.core.backends.cuda.callables import CudaSpecials
 

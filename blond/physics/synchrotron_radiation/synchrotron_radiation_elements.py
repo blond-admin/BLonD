@@ -22,6 +22,7 @@ import numpy as np
 from numpy.random import Generator
 from scipy.constants import c, e
 
+from blond import backend
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
@@ -85,7 +86,9 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
             * natural_energy_spread
             / np.sqrt(longitudinal_damping_time)
             * total_energy
-            * random_generator.normal(size=len(beam_delta_energy_array))
+            * random_generator.standard_normal(
+                size=len(beam_delta_energy_array)
+            )
         )
     return energy_kick
 
@@ -131,7 +134,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._damping_time: float | None = None
         self._natural_energy_spread: float | None = None
 
-        self.rng = np.random.default_rng(seed=seed)  # TODO use
+        self.rng = backend.default_rng(seed=seed)  # TODO use
         # backend.default_rng
 
     @property
