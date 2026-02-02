@@ -249,6 +249,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self._n_turns = int(n_turns)
 
         self._turns_array = np.arange(0, n_turns, self.each_turn_i, dtype=int)
+        assert len(self._turns_array) == self._calc_n_entries(n_turns=n_turns)
 
 
 class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
@@ -1304,7 +1305,7 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._simulation: Simulation | None = None
 
-        self._current_t_rev: DenseArrayRecorder | None = None
+        self._t_revs: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1335,8 +1336,8 @@ class SimulationObservation(ObservablesOncePerTurnBase):
 
         n_entries = self._calc_n_entries(n_turns=n_turns)
         shape = n_entries
-        self._current_t_rev = DenseArrayRecorder(
-            f"{self.common_filepath}_current_t_rev",
+        self._t_revs = DenseArrayRecorder(
+            f"{self.common_filepath}_t_revs",
             shape,
         )
         self._simulation = simulation
@@ -1353,7 +1354,7 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         simulation
             `Simulation` context manager.
         """
-        self._current_t_rev.write(self._simulation.current_t_rev)
+        self._t_revs.write(self._simulation.current_t_rev)
 
     @property  # as readonly attributes
     def t_revs(self) -> NumpyArray:
@@ -1362,15 +1363,15 @@ class SimulationObservation(ObservablesOncePerTurnBase):
 
         Returns
         -------
-        hist_y
-            Histogram amplitude array.
+        t_rev
+            Revolution time, in [s] of shape ``(n_observations)``.
         """
-        return self._current_t_rev.get_valid_entries()
+        return self._t_revs.get_valid_entries()
 
 
 class DriftObservation(ObservablesOncePerTurnBase):
     """
-    Observation of the `DriftSimple` object.
+    Observation of `eta_0` of the `DriftSimple` object.
 
     Parameters
     ----------
@@ -1393,7 +1394,7 @@ class DriftObservation(ObservablesOncePerTurnBase):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._drift: DriftSimple = drift
 
-        self._eta_0s: DenseArrayRecorder | None = None
+        self._eta_0: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1448,7 +1449,7 @@ class DriftObservation(ObservablesOncePerTurnBase):
 
         Returns
         -------
-        hist_y
-            Histogram amplitude array.
+        eta_0
+            Drift in arc parameter eta of shape ``(n_observations)``.
         """
         return self._eta_0s.get_valid_entries()
