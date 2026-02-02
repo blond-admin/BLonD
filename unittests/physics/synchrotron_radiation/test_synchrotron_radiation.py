@@ -36,7 +36,8 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             ]
         )
         self.SR_ring = Ring(
-            10.0, radiation_integrals=self.synchrotron_radiation_integrals
+            10.0,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
         )
         self.ring = copy.deepcopy(self.SR_ring)
 
@@ -159,7 +160,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
 
         ring = Ring(
             90.65874532 * 1e3,
-            radiation_integrals=self.synchrotron_radiation_integrals,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
         )
         SRM._set_synchrotron_radiation_integrals(ring=ring)
         np.testing.assert_array_equal(
@@ -184,7 +185,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
     def test_generate_synchrotron_radiation_subclasses_errors(self):
         ring = Ring(
             90.65874532 * 1e3,
-            radiation_integrals=self.synchrotron_radiation_integrals,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
         )
         momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
@@ -239,7 +240,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
     def test_generate_synchrotron_radiation_subclasses_drift_trackers(self):
         ring = Ring(
             90.65874532 * 1e3,
-            radiation_integrals=self.synchrotron_radiation_integrals,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
         )
         momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
@@ -279,23 +280,19 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         for i in range(number_of_sections):
             # Ensures the created trackers are the expected ones, and located
             # before the drifts
-            assert (
+            sr_drift: _SynchrotronRadiationDrift = (
                 ring_SRdrifts.elements.elements[1 + 2 * i]
-                == SRM.generated_children[i]
             )
+            assert sr_drift == SRM.generated_children[i]
 
             # verifies the synchrotron radiation integral share of each tracker
             np.testing.assert_array_almost_equal(
-                ring_SRdrifts.elements.elements[
-                    1 + 2 * i
-                ].share_of_synchrotron_radiation_integrals,
+                sr_drift.share_of_synchrotron_radiation_integrals,
                 self.synchrotron_radiation_integrals / 5,
                 decimal=self.decimal,
             )
             np.testing.assert_array_almost_equal(
-                ring_SRdrifts.elements.elements[
-                    1 + 2 * i
-                ].synchrotron_radiation_integrals_drift,
+                sr_drift.synchrotron_radiation_integrals_drift,
                 self.synchrotron_radiation_integrals / 5,
                 decimal=self.decimal,
             )
@@ -303,7 +300,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
     def test_generate_synchrotron_radiation_subclasses_cavity_trackers(self):
         ring = Ring(
             90.65874532 * 1e3,
-            radiation_integrals=self.synchrotron_radiation_integrals,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
         )
         momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
@@ -366,7 +363,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
     def test_generate_synchrotron_radiation_subclasses_cavities_trackers(self):
         ring = Ring(
             90.65874532 * 1e3,
-            radiation_integrals=self.synchrotron_radiation_integrals,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
         )
         momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
 

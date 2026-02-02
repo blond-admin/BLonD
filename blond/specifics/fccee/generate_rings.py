@@ -78,7 +78,7 @@ def generate_fccee_collider_basic_simulation(
 
     ring = Ring(
         circumference=collider_circumference,
-        radiation_integrals=radiation_integrals,
+        synchrotron_radiation_integrals=radiation_integrals,
     )
     drift = DriftSimple(
         orbit_length=collider_circumference,

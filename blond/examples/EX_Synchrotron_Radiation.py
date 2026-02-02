@@ -8,7 +8,6 @@
 
 import logging
 import os
-import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,7 +15,6 @@ from scipy.constants import c
 
 from blond import (
     Beam,
-    BeamObservationOncePerTurn,
     BiGaussian,
     DriftSimple,
     MagneticCyclePerTurn,
@@ -24,8 +22,6 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
-    backend,
-    electron,
     positron,
 )
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
@@ -37,8 +33,6 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation import (
 )
 
 logging.basicConfig(level=logging.INFO)
-
-# backend.set_specials("cpp")
 
 
 class SynchrotronRadiationSimulation:
@@ -75,7 +69,7 @@ class SynchrotronRadiationSimulation:
 
         self.ring = Ring(
             self.circumference,
-            radiation_integrals=self.synchrotron_radiation_integrals,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
         )
         self.ring.add_element(self.cavity)
 
