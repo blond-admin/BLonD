@@ -122,7 +122,7 @@ def calculate_horizontal_damping_partition_number(
         - synchrotron_radiation_integrals[3]
         / synchrotron_radiation_integrals[1]
     )
-    return horizontal_damping_partition_number
+    return float(horizontal_damping_partition_number)
 
 
 def calculate_longitudinal_damping_partition_number(
@@ -146,7 +146,7 @@ def calculate_longitudinal_damping_partition_number(
         + synchrotron_radiation_integrals[3]
         / synchrotron_radiation_integrals[1]
     )
-    return longitudinal_damping_partition_number
+    return float(longitudinal_damping_partition_number)
 
 
 def calculate_damping_times_in_turns(
