@@ -367,10 +367,14 @@ def separatrix_single_rf(
 
     charge = magnetic_cylce.reference_particle.charge
 
-    energy_array = magnetic_cylce._values_after_turn
-    energy_gain = energy_array[1] - energy_array[0]
+    if hasattr(magnetic_cylce, "_values_after_turn"):
+        energy_array = magnetic_cylce._values_after_turn
+        energy_gain = energy_array[1] - energy_array[0]
+        energy = energy_array[turn_number]
+    else:
+        energy_gain = 0
+        energy = magnetic_cylce._value
 
-    energy = energy_array[turn_number]
     circumference = ring.circumference
 
     reference_total_energy = magnetic_cylce.get_target_total_energy(
