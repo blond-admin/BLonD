@@ -1427,9 +1427,6 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             target_total_energy - beam.reference_total_energy
         )
 
-        self.delta_phi_rf = self._dphi_rf_next
-        self.delta_omega_rf = self._domega_rf_next
-
         if self._cavity_feedback is None:
             backend.specials.kick_multi_harmonic(
                 dt=beam.read_partial_dt(),
@@ -1454,21 +1451,6 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
         beam.reference_total_energy += reference_energy_change
 
-        if self._beam_feedback is not None and (
-            self._turn_i.value >= self._beam_feedback.delay
-        ):  # TODO incorrect for simulations that start later
-            # domega_rf is updated later
-            # this means domega_rf is effectively from last turn
-            assert self.harmonic is not None
-            omega_increment = (
-                self._beam_feedback.domega_rf
-                * self.harmonic[:]
-                / self.harmonic[
-                    self.main_harmonic_idx
-                ]  # dynamically updated by `update_domega_rf`
-            )
-            self._domega_rf_next = omega_increment
-
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
         if self.delta_omega_rf[self.main_harmonic_idx] != 0:
@@ -1482,7 +1464,22 @@ class MultiHarmonicRfStation(RfStationBaseClass):
                 / self.omega_rf_actual[:]
             )
 
-            self._dphi_rf_next += phi_increment
+            self.delta_phi_rf += phi_increment
+
+        if self._beam_feedback is not None and (
+            self._turn_i.value >= self._beam_feedback.delay
+        ):  # TODO incorrect for simulations that start later
+            # domega_rf is updated later
+            # this means domega_rf is effectively from last turn
+            assert self.harmonic is not None
+            omega_increment = (
+                self._beam_feedback.domega_rf
+                * self.harmonic[:]
+                / self.harmonic[
+                    self.main_harmonic_idx
+                ]  # dynamically updated by `update_domega_rf`
+            )
+            self.delta_omega_rf = omega_increment
 
     @staticmethod
     def headless(
