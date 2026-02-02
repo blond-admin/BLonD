@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import e
 
-from blond.generals.function_helpers import check_inputs_length_consistency
+from blond.generals.function_helpers import raise_on_uneven_array_sizes
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -54,8 +54,8 @@ def get_small_amplitude_angular_synchrotron_tune(
     angular_synchrotron_tune
         Angular synchrotron tune.
     """
-    args = locals()
-    check_inputs_length_consistency(args)
+    args = tuple(locals().values())
+    raise_on_uneven_array_sizes(args)
 
     angular_synchrotron_tune = np.sqrt(
         (
@@ -100,8 +100,8 @@ def get_small_amplitude_angular_synchrotron_frequency(
     angular_synchrotron_frequency
             Angular synchrotron frequency, in [rad].
     """
-    args = locals()
-    check_inputs_length_consistency(args)
+    args = tuple(locals().values())
+    raise_on_uneven_array_sizes(args)
 
     small_amplitude_angular_synchrotron_tune = (
         get_small_amplitude_angular_synchrotron_tune(
@@ -150,8 +150,8 @@ def get_angular_synchrotron_tune(
     angular_synchrotron_frequency
             Angular synchrotron frequency, in [rad].
     """
-    args = locals()
-    check_inputs_length_consistency(args)
+    args = tuple(locals().values())
+    raise_on_uneven_array_sizes(args)
 
     small_amplitude_angular_synchrotron_tune = (
         get_small_amplitude_angular_synchrotron_tune(
@@ -203,8 +203,8 @@ def get_angular_synchrotron_frequency(
     angular_synchrotron_frequency
             Angular synchrotron frequency, in [rad].
     """
-    args = locals()
-    check_inputs_length_consistency(args)
+    args = tuple(locals().values())
+    raise_on_uneven_array_sizes(args)
 
     angular_synchrotron_tune = get_angular_synchrotron_tune(
         energy=energy,

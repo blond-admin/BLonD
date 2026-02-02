@@ -11,7 +11,7 @@
 from collections.abc import Sequence
 
 
-def check_inputs_length_consistency(*args: tuple[Sequence]):
+def raise_on_uneven_array_sizes(*args: tuple[Sequence]):
     """
     Check if the tuple of arguments have the same length.
 
