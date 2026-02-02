@@ -113,8 +113,6 @@ test_py_310:
     - .publish
   tags:
     - k8s-gpu
-  only:
-    - blonder
 
 test_py_311:
   image: gitlab-registry.cern.ch/blond/blond/python311
@@ -152,6 +150,8 @@ test_py_313:
     # - .publish
   tags:
     - k8s-gpu
+  only:
+    - blonder
 
 
 test_minimum:
@@ -185,8 +185,6 @@ test_minimum:
       --import-mode=importlib
   tags:
     - k8s-gpu
-  only:
-    - blonder
 
 release_sdist_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
@@ -208,6 +206,8 @@ release_sdist_310:
       --username="${PYPI_USERNAME}"
       --password="${PYPI_PASSWORD}"
       dist/*.tar.gz
+  only:
+    - blonder
 
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310
