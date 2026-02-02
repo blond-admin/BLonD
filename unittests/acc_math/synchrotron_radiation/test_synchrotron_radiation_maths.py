@@ -100,6 +100,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         self.assertEqual(
             damping_times_in_second[2], tau_z, msg="Expected value = 4.5s"
         )
+        self.decimals = 6 if backend.float == np.float32 else 12
 
     def test_calculate_energy_loss_per_turn(self):
         self.assertAlmostEqual(
@@ -175,6 +176,7 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
         self.energy_lost_per_turn = 1
         self.angular_synchrotron_frequency = 1
         self.momentum_compaction_factor = 1 / c
+        self.decimals = 6 if backend.float == np.float32 else 12
 
     def test_calculate_partition_numbers(self):
         jx, jy, jz = calculate_partition_numbers(
