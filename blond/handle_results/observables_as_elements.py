@@ -397,10 +397,30 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
 class InducedVoltageObservationCR(
     BeamObservationElement, ObservablesBaseClass
 ):
+    """
+    Observation object for induced voltages in counterrotation.
+
+    Observation object for induced voltages in counterrotation. A data recording is only performed
+    if the induced voltage is non-zero and different from the last recorded value, removing
+    double recordings from the induced voltage. It is expected, that the observation object is
+    placed both behind and in-front of the cavity object.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    single_harmonic_cavity
+        Cavity object, which holds the wakefield to report the induced voltage of.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
     def __init__(
         self,
-        single_harmonic_cavity: SingleHarmonicRFStation,
         each_turn_i: int,
+        single_harmonic_cavity: SingleHarmonicRFStation,
         folder: str = "",
     ):
         super().__init__(folder=folder)
