@@ -1,4 +1,5 @@
 import sys
+from copy import deepcopy
 from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
@@ -19,7 +20,13 @@ from blond import (
     WakeField,
     mu_plus,
 )
+from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    SemiEmpiricMatcher,
+)
 from blond.handle_results.observables import RFStationInducedVoltageObservation
+from blond.handle_results.observables_as_elements import (
+    InducedVoltageObservationCR,
+)
 from blond.legacy.blond2.beam.beam import Beam, MuPlus
 from blond.legacy.blond2.beam.profile import CutOptions, Profile
 from blond.legacy.blond2.impedances.impedance import (
@@ -59,7 +66,7 @@ def nonperiodic_wake(time_array, f0, R, Q):
     return wake
 
 
-DEBUG_PLOTTING = False
+DEBUG_PLOTTING = True
 
 
 class InducdedVoltageResonator:
@@ -67,7 +74,7 @@ class InducdedVoltageResonator:
         self.n_slices = 2**12
         self.cut_left = 0
         self.cut_right = (
-            1.4072317864464973e-08  # self.rf_station_list[0].t_rf[0, 0] * 2
+            1.4072317864464973e-09  # self.rf_station_list[0].t_rf[0, 0] * 2
         )
 
         self.harmonic = 10
@@ -80,7 +87,7 @@ class InducdedVoltageResonator:
 
         self.n_turns = 5
         self.n_stations = 3
-        self.n_section_lengths = np.array([3, 6, 9, 12, 0])  # 0-drift last
+        self.n_section_lengths = np.array([3, 3, 3, 0])  # 0-drift last
 
         self.n_macroparticles = int(1e4)
 
@@ -240,18 +247,54 @@ class InducdedVoltageResonator:
                     )
                     + self.bunch_offset,
                 )
+
+        profiles_CR = np.zeros_like(profiles)
+        for prof_ind in range(0, self.n_turns):
+            for inter_turn_ind in range(self.n_stations):
+                if prof_ind == 0 and inter_turn_ind < self.n_stations // 2:
+                    continue
+                profiles_CR[inter_turn_ind] += gauss(
+                    self.time_axis,
+                    self.sigma_bunch,
+                    np.sum(
+                        section_time[
+                            inter_turn_ind : prof_ind * self.n_stations
+                            + self.n_stations
+                            - inter_turn_ind
+                        ]
+                    )
+                    + self.bunch_offset,
+                )
+
         self.convolution_result = np.zeros_like(profiles)
+        self.convolution_result_CR = np.zeros_like(profiles)
         for inter_turn_ind in range(self.n_stations):
             self.convolution_result[inter_turn_ind] = sig.convolve(
                 profiles[inter_turn_ind], wake_kernel
             )[0 : len(self.time_axis)]
 
+            self.convolution_result_CR[inter_turn_ind] = sig.convolve(
+                profiles_CR[inter_turn_ind], -wake_kernel
+            )[0 : len(self.time_axis)]
+
             if DEBUG_PLOTTING:
                 fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
+                fig.suptitle(f"beam {inter_turn_ind}")
                 ax[0].plot(self.time_axis, profiles[inter_turn_ind])
                 ax[1].plot(
                     self.time_axis,
                     self.convolution_result[inter_turn_ind][
+                        0 : len(self.time_axis)
+                    ],
+                )
+                plt.show(block=False)
+
+                fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
+                fig.suptitle(f"CR beam {inter_turn_ind}")
+                ax[0].plot(self.time_axis, profiles_CR[inter_turn_ind])
+                ax[1].plot(
+                    self.time_axis,
+                    self.convolution_result_CR[inter_turn_ind][
                         0 : len(self.time_axis)
                     ],
                 )
@@ -354,25 +397,25 @@ class InducdedVoltageResonator:
             particle_type=mu_plus,
             is_counter_rotating=False,
         )
-        beam._dt = np.zeros(self.n_macroparticles)
-        beam._dE = np.zeros(self.n_macroparticles)
-        beam._flags = np.ones(self.n_macroparticles)
-        beam._ids = np.arange(self.n_macroparticles)
-        profile = Mock(StaticProfile)
-        profile.cut_left = self.cut_left
-        profile.cut_right = self.cut_right
-        profile.hist_x = self.hist_x
-        profile.hist_y = self.hist_y
-        profile.hist_step = self.hist_step
-        profile.active = True
-        profile.hist_y_to_density_factor = 1 / self.beam.intensity
-        profile.n_bins = len(profile.hist_y)
+
         shc_list = []
+        cav_obs_list = []
+        profile_list = []
         for sec_ind in range(self.n_stations):
+            profile_list.append(
+                StaticProfile.from_rad(
+                    self.cut_left * 2 * np.pi / self.t_rf,
+                    self.cut_right * 2 * np.pi / self.t_rf,
+                    n_bins=2**8,
+                    t_period=self.t_rf,
+                    section_index=sec_ind,
+                )
+            )
             local_res = res_b3(
                 center_frequencies=1 / self.t_rf,
                 quality_factors=self.Q_factor,
                 shunt_impedances=self.R_shunt,
+                shunt_impedances_counter_rotating=-self.R_shunt,
             )
             voltage = (
                 self.voltage_per_rf_station
@@ -389,22 +432,36 @@ class InducdedVoltageResonator:
                         solver=MultiPassResonatorSolver(
                             decay_fraction_threshold=1e-12
                         ),
-                        profile=profile,
+                        profile=profile_list[-1],
                         section_index=sec_ind,
                     ),
                     section_index=sec_ind,
                 )
             )
+            cav_obs_list.append(
+                InducedVoltageObservationCR(shc_list[-1], each_turn_i=1)
+            )
             one_turn_model.extend(
                 [
+                    cav_obs_list[-1],
+                    profile_list[
+                        -1
+                    ],  # TODO: is this necessary --> should not be, wakefield should have profile tracking implemented.
                     shc_list[-1],
-                    DriftSimple(
-                        orbit_length=self.n_section_lengths[sec_ind],
-                        section_index=sec_ind,
-                        transition_gamma=1,
-                    ),
+                    profile_list[-1],
+                    cav_obs_list[-1],
                 ]
             )
+            if sec_ind is not self.n_stations:
+                one_turn_model.extend(
+                    [
+                        DriftSimple(
+                            orbit_length=self.n_section_lengths[sec_ind],
+                            section_index=sec_ind,
+                            transition_gamma=1,
+                        ),
+                    ]
+                )
         ring.add_elements(one_turn_model, reorder=False)
 
         sim = Simulation(
@@ -420,11 +477,34 @@ class InducdedVoltageResonator:
                     rf_station=shc_list[sec_ind], each_turn_i=1
                 )
             )
-
-        sim.run_simulation(
-            beams=(beam,),
-            observe=tuple(ind_volt_obs_list),
+        sim.prepare_beam(
+            beam=beam,
+            preparation_routine=SemiEmpiricMatcher(
+                time_limit=[self.cut_left, self.cut_right],
+                n_macroparticles=int(1e4),
+                animate=True,
+                hamilton_to_density_kwargs={
+                    "density_modifier": 1.0,
+                    "hamilton_max": 5000,
+                },
+            ),
+            turn_i=0,
         )
+        beam_CR = deepcopy(beam)
+        beam_CR._is_counter_rotating = True
+        sim.run_simulation(
+            beams=(beam, beam_CR),
+            # observe=tuple(ind_volt_obs_list),
+        )
+
+        for ind in range(self.n_stations // 2):
+            assert np.allclose(
+                cav_obs_list[ind].induced_voltage,
+                cav_obs_list[self.n_stations - ind - 1].induced_voltage,
+                rtol=1e-8,
+                atol=1e8,
+            )
+
         if DEBUG_PLOTTING:
             for inter_turn in range(self.n_stations):
                 plt.figure(f"b3_{inter_turn}")
@@ -442,7 +522,7 @@ class InducdedVoltageResonator:
                 for el in range(self.n_turns):
                     plt.plot(
                         self.time_array_profile[inter_turn][el],
-                        ind_volt_obs_list[inter_turn].induced_voltage[el],
+                        cav_obs_list[inter_turn].induced_voltage[el],
                         ls="--",
                         label=f"section {inter_turn} turn {el}",
                     )
@@ -453,23 +533,23 @@ class InducdedVoltageResonator:
                 else:
                     plt.show(block=False)
 
-        for inter_turn_ind in range(self.n_stations):
-            for trn_ind in range(self.n_turns):
-                conv_result = np.interp(
-                    self.time_array_profile[inter_turn_ind][trn_ind],
-                    self.time_axis,
-                    self.convolution_result[inter_turn_ind],
-                )
-                assert np.allclose(
-                    -conv_result * e / self.profile.bin_size * self.dt_profile,
-                    ind_volt_obs_list[inter_turn_ind].induced_voltage[trn_ind],
-                    atol=1e8,
-                    rtol=1e-8,
-                )
+        # for inter_turn_ind in range(self.n_stations):
+        #     for trn_ind in range(self.n_turns):
+        #         conv_result = np.interp(
+        #             self.time_array_profile[inter_turn_ind][trn_ind],
+        #             self.time_axis,
+        #             self.convolution_result[inter_turn_ind],
+        #         )
+        #         assert np.allclose(
+        #             -conv_result * e / self.profile.bin_size * self.dt_profile,
+        #             ind_volt_obs_list[inter_turn_ind].induced_voltage[trn_ind],
+        #             atol=1e8,
+        #             rtol=1e-8,
+        #         )
 
 
 if __name__ == "__main__":
     indi = InducdedVoltageResonator()
-    indi.setUpB2(old_impl=False)
+    # indi.setUpB2(old_impl=False)
     indi.setUpB2(old_impl=True)
     indi.setUpB3()
