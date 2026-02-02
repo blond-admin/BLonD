@@ -456,7 +456,7 @@ class Beam(BeamBaseClass):
         dE = self._dE.array_local
         dt = self._dt.array_local
 
-        if is_cupy_array(dE):  # assume dt is the same like `dt`
+        if is_cupy_array(dE):  # assume `dE` is the same like `dt`
             if axis == 0:
                 dt = dt.get()
             elif axis == 1:
