@@ -59,7 +59,16 @@ def nonperiodic_wake(time_array, f0, R, Q):
     return wake
 
 
-DEBUG_PLOTTING = False
+DEBUG_PLOTTING = True
+SAVE_PLOTS = True
+
+from cycler import cycler
+
+plt.rcParams["axes.prop_cycle"] = cycler(
+    color=["#0033a0", "#e15e32", "#2f2f2f", "#708238", "#6a4c93", "#c9a227"]
+)
+plt.rcParams["font.size"] = 12
+plt.rcParams["lines.linewidth"] = 2.0
 
 
 class InducdedVoltageResonator:
@@ -76,7 +85,7 @@ class InducdedVoltageResonator:
         self.Q_factor = 2e1
         self.alpha_p = -8.986e-4
         self.energy = 120e6
-        self.energy_gain_per_turn = 50.68e6
+        self.energy_gain_per_turn = 50e6
 
         self.n_turns = 5
         self.n_stations = 2
@@ -163,28 +172,6 @@ class InducdedVoltageResonator:
                     old_time_array_impl=old_impl,
                 )
             )  # never release
-        # if not old_impl:
-        #     assert len(ind_volt_res_1.time_array) == self.n_turns
-        #     assert (
-        #         len(ind_volt_res_1.time_array[0])
-        #         == (self.n_turns + 1) * self.profile.n_slices
-        #     )
-        #     assert (
-        #         len(ind_volt_res_1.time_array[1])
-        #         == self.n_turns * self.profile.n_slices
-        #     )
-        #     assert (
-        #         len(ind_volt_res_1.time_array[-1]) == 2 * self.profile.n_slices
-        #     )  # only this and next turn
-
-        # self.induced_voltage_time = InducedVoltageFreq(
-        #     self.beam,
-        #     self.profile,
-        #     [self.resonator],
-        #     multi_turn_wake=True,
-        #     rf_station=self.rf_station_list[0],
-        #     frequency_resolution=0.5 * ring.f_rev[0] / 10,
-        # )
 
         # setup analytical solution
         t_start = sys.float_info.min
@@ -219,7 +206,11 @@ class InducdedVoltageResonator:
         ).flatten()
         from scipy.constants import c
 
-        section_time = 1 / (beta_array[2:] * c) * section_length_array_extended
+        section_time = (
+            1
+            / (beta_array[self.n_stations :] * c)
+            * section_length_array_extended
+        )
 
         profiles = np.zeros(
             (self.n_stations, len(self.time_axis)), dtype=float
@@ -242,7 +233,9 @@ class InducdedVoltageResonator:
                     )
                     + self.bunch_offset,
                 )
+        self.dt_profile = self.time_axis[1] - self.time_axis[0]
         self.convolution_result = np.zeros_like(profiles)
+        self.plot_normalisation_const = max(profiles[0])
         for inter_turn_ind in range(self.n_stations):
             self.convolution_result[inter_turn_ind] = sig.convolve(
                 profiles[inter_turn_ind], wake_kernel
@@ -250,13 +243,31 @@ class InducdedVoltageResonator:
 
             if DEBUG_PLOTTING:
                 fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
-                ax[0].plot(self.time_axis, profiles[inter_turn_ind])
-                ax[1].plot(
-                    self.time_axis,
-                    self.convolution_result[inter_turn_ind][
-                        0 : len(self.time_axis)
-                    ],
+                fig.suptitle(f"Section {inter_turn_ind}")
+                ax[0].plot(
+                    self.time_axis * 1e9,
+                    profiles[inter_turn_ind] / self.plot_normalisation_const,
                 )
+                ax[0].set_ylabel("Beam Profiles [arb.]")
+                ax[1].plot(
+                    self.time_axis * 1e9,
+                    -self.convolution_result[inter_turn_ind][
+                        0 : len(self.time_axis)
+                    ]
+                    * e
+                    / self.profile.bin_size
+                    * self.dt_profile
+                    / self.plot_normalisation_const,
+                )
+                ax[1].set_xlabel("time [ns]")
+                ax[1].set_ylabel("Induced Voltage [arb.]")
+                ax[1].set_xlim([-10, 180])
+                if SAVE_PLOTS:
+                    plt.savefig(
+                        f"profiles_convolution_results_sec_{inter_turn_ind}.png",
+                        dpi=400,
+                        bbox_inches="tight",
+                    )
                 plt.show(block=False)
 
         self.profile.n_macroparticles = gauss(
@@ -290,30 +301,55 @@ class InducdedVoltageResonator:
                     )
                 )
 
-        self.dt_profile = self.time_axis[1] - self.time_axis[0]
-
         if DEBUG_PLOTTING:
             for inter_turn_ind in range(self.n_stations):
                 plt.figure()
-                plt.title(f"blond2 old_impl = {old_impl}")
                 plt.plot(
-                    self.time_axis,
+                    self.time_axis * 1e9,
                     -self.convolution_result[inter_turn_ind][
                         0 : len(self.time_axis)
                     ]
                     * e
                     / self.profile.bin_size
-                    * self.dt_profile,
-                    label="convolution_2",
+                    * self.dt_profile
+                    / self.plot_normalisation_const,
+                    label="Analytical result",
+                    alpha=0.6,
                 )
                 for el in range(self.n_turns):
                     plt.plot(
-                        self.time_array_profile[inter_turn_ind][el],
-                        save_voltage_array[inter_turn_ind][el],
+                        self.time_array_profile[inter_turn_ind][el] * 1e9,
+                        save_voltage_array[inter_turn_ind][el]
+                        / self.plot_normalisation_const,
                         ls="--",
-                        label=f"resonator turn {el}",
+                        label=f"turn {el}",
                     )
-                plt.legend(loc="upper right")
+                plt.ylabel("Induced Voltage [arb.]")
+                plt.xlabel("Time [ns]")
+                plt.legend(
+                    loc="upper center",
+                    bbox_to_anchor=(0.5, -0.13),
+                    ncol=3,
+                    frameon=False,
+                )
+                plt.xlim([-10, 180])
+                if SAVE_PLOTS:
+                    plt.savefig(
+                        f"blond_2_old_impl_{old_impl}_section_{inter_turn_ind}.png",
+                        dpi=400,
+                        bbox_inches="tight",
+                        transparent=True,
+                    )
+                    if not old_impl:
+                        plt.gca().tick_params(axis="y", labelleft=False)
+                        plt.ylabel("")
+                        plt.savefig(
+                            f"blond_2_old_impl_{old_impl}_section_{inter_turn_ind}_no_leftlabel.png",
+                            dpi=400,
+                            bbox_inches="tight",
+                            transparent=True,
+                        )
+
                 plt.show(block=False)
         if not old_impl:
             for inter_turn_ind in range(self.n_stations):
@@ -425,25 +461,44 @@ class InducdedVoltageResonator:
         if DEBUG_PLOTTING:
             for inter_turn in range(self.n_stations):
                 plt.figure(f"b3_{inter_turn}")
-                plt.title(f"b3_{inter_turn}")
+                # plt.title(f"b3_{inter_turn}")
                 plt.plot(
-                    self.time_axis,
+                    self.time_axis * 1e9,
                     -self.convolution_result[inter_turn][
                         0 : len(self.time_axis)
                     ]
                     * e
                     / self.profile.bin_size
-                    * self.dt_profile,
-                    label="convolution_2",
+                    * self.dt_profile
+                    / self.plot_normalisation_const,
+                    label="Analytical result",
+                    alpha=0.6,
                 )
                 for el in range(self.n_turns):
                     plt.plot(
-                        self.time_array_profile[inter_turn][el],
-                        ind_volt_obs_list[inter_turn].induced_voltage[el],
+                        self.time_array_profile[inter_turn][el] * 1e9,
+                        ind_volt_obs_list[inter_turn].induced_voltage[el]
+                        / self.plot_normalisation_const,
                         ls="--",
-                        label=f"section {inter_turn} turn {el}",
+                        label=f"turn {el}",
                     )
-                plt.legend(loc="upper right")
+                # plt.ylabel("Induced Voltage [arb.]")
+                plt.gca().tick_params(axis="y", labelleft=False)
+                plt.xlabel("Time [ns]")
+                plt.legend(
+                    loc="upper center",
+                    bbox_to_anchor=(0.5, -0.13),
+                    ncol=3,
+                    frameon=False,
+                )
+                plt.xlim([-10, 180])
+                if SAVE_PLOTS:
+                    plt.savefig(
+                        f"blond_3_section_{inter_turn}.png",
+                        dpi=400,
+                        bbox_inches="tight",
+                        transparent=True,
+                    )
 
                 if inter_turn == self.n_stations - 1:
                     plt.show(block=True)
