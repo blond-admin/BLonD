@@ -267,7 +267,7 @@ class TestRFCurrentSparse(unittest.TestCase):
             batch_list=batch_list,
             batch_length=bunches * 5,  # ensure the cut_right of the
             # SparseBatch matches the cut_right of the standard profile
-            tracker="onebyone",
+            tracker_mode="onebyone",
         )
         self.sparse_profile.track()
 
