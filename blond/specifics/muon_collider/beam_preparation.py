@@ -49,10 +49,12 @@ def load_beam_coordinates_counterrot_from_file(
     beam.setup_beam(
         dt=loaded_dict["dt"],
         dE=loaded_dict["dE"],
+        mpi_mode="root-distributes",
     )
     beam_counterrot.setup_beam(
         dt=loaded_dict["dt"],
         dE=loaded_dict["dE"],
+        mpi_mode="root-distributes",
     )
 
 
@@ -79,4 +81,5 @@ def load_beam_coordinates_from_file(
     beam.setup_beam(
         dt=loaded_dict["dt"],
         dE=loaded_dict["dE"],
+        mpi_mode="root-distributes",
     )

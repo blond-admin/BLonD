@@ -436,7 +436,7 @@ class TestRFBeamCurrent(unittest.TestCase):
         )
         self.profile.track(self.beam)
         self.assertEqual(
-            len(self.beam._dt),
+            len(self.beam.read_partial_dt()),
             np.sum(self.profile.hist_y),
             "In"
             + " TestBeamCurrent: particle number mismatch in Beam vs Profile",
@@ -708,10 +708,12 @@ class TestRFBeamCurrent(unittest.TestCase):
         bunch_spacing = 5 * t_rf
         buckets = 5 * bunches
         for i in range(bunches):
-            beam2._dt[i * N_m : (i + 1) * N_m] = (
-                self.beam._dt + i * bunch_spacing
+            beam2_dt = beam2.write_partial_dt()
+            beam2_dt[i * N_m : (i + 1) * N_m] = (
+                self.beam.read_partial_dt() + i * bunch_spacing
             )
-            beam2._dE[i * N_m : (i + 1) * N_m] = self.beam._dE
+            beam2_dE = beam2.write_partial_dE()
+            beam2_dE[i * N_m : (i + 1) * N_m] = self.beam.read_partial_dE()
         profile2 = StaticProfile(
             cut_left=0,
             cut_right=bunches * bunch_spacing,

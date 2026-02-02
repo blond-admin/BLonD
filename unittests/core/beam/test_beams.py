@@ -5,9 +5,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from blond import Beam, Simulation, proton
-from blond.core.beam.base import BeamBaseClass
+from blond import Beam, Simulation, proton, uranium_29
+from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.core.beam.beams import ProbeBeam
+from blond.generals.distributed.distributed_array import DistributedArray
+from blond.generals.distributed.helpers import (
+    MPI_RANK,
+    MPI_SIZE,
+    mpi_is_distributed,
+)
 
 
 class TestBeam(unittest.TestCase):
@@ -29,6 +35,16 @@ class TestBeam(unittest.TestCase):
         self.assertEqual(self.beam.reference.time, 11.0)
         self.assertEqual(self.beam.reference.total_energy, 1e12)
 
+    def test_setup_beam(self) -> None:
+        with self.assertRaisesRegex(NameError, "Unknown"):
+            self.beam.setup_beam(
+                dE=np.linspace(1, 10, 10),
+                dt=np.linspace(20, 30, 10),
+                reference_time=11,
+                reference_total_energy=1e12,
+                mpi_mode="should fail",
+            )
+
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
@@ -46,74 +62,6 @@ class TestBeam(unittest.TestCase):
 
     def test_dt_max(self) -> None:
         self.assertEqual(30, self.beam.dt_max)
-
-    def test_invalidate_cache(self) -> None:
-        self.beam.invalidate_cache()
-
-    def test_invalidate_cache_dE1(self) -> None:
-        before = self.beam.dE_max
-        self.beam.setup_beam(
-            dE=np.linspace(1, 20, 10), dt=np.linspace(20, 30, 10)
-        )
-        after2 = self.beam.dE_max
-        self.assertNotEqual(before, after2)
-
-    def test_invalidate_cache_dE2(self) -> None:
-        before = self.beam.dE_max
-        self.beam._dE[:] = 100  # changes, but cache unchanged
-        # so result should be unchanged, even though _dE changed
-        self.assertEqual(before, self.beam.dE_max)
-
-        self.beam.invalidate_cache_dE()
-        self.assertEqual(100, self.beam.dE_max)
-
-    def test_invalidate_cache_dE_min1(self) -> None:
-        before = self.beam.dE_min
-        self.beam.setup_beam(
-            dE=np.linspace(2, 20, 10), dt=np.linspace(20, 30, 10)
-        )
-        after2 = self.beam.dE_min
-        self.assertNotEqual(before, after2)
-
-    def test_invalidate_cache_dE_min2(self) -> None:
-        before = self.beam.dE_min
-        self.beam._dE[:] = 100
-        self.assertEqual(before, self.beam.dE_min)
-
-        self.beam.invalidate_cache_dE()
-        self.assertEqual(100, self.beam.dE_min)
-
-    def test_invalidate_cache_dt_max1(self) -> None:
-        before = self.beam.dt_max
-        self.beam.setup_beam(
-            dE=np.linspace(1, 20, 10), dt=np.linspace(10, 40, 10)
-        )
-        after2 = self.beam.dt_max
-        self.assertNotEqual(before, after2)
-
-    def test_invalidate_cache_dt_max2(self) -> None:
-        before = self.beam.dt_max
-        self.beam._dt[:] = 50
-        self.assertEqual(before, self.beam.dt_max)
-
-        self.beam.invalidate_cache_dt()
-        self.assertEqual(50, self.beam.dt_max)
-
-    def test_invalidate_cache_dt_min1(self) -> None:
-        before = self.beam.dt_min
-        self.beam.setup_beam(
-            dE=np.linspace(1, 20, 10), dt=np.linspace(5, 25, 10)
-        )
-        after2 = self.beam.dt_min
-        self.assertNotEqual(before, after2)
-
-    def test_invalidate_cache_dt_min2(self) -> None:
-        before = self.beam.dt_min
-        self.beam._dt[:] = 5
-        self.assertEqual(before, self.beam.dt_min)
-
-        self.beam.invalidate_cache_dt()
-        self.assertEqual(5, self.beam.dt_min)
 
     def test_on_init_simulation(self) -> None:
         simulation = Mock(spec=Simulation)
@@ -157,8 +105,8 @@ class TestBeam(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("Cupy not available")
         beam = Mock(Beam)
-        beam._dE = cp.ones(10)
-        beam._dt = cp.ones(10)
+        beam._dE = DistributedArray(cp.ones(10))
+        beam._dt = DistributedArray(cp.ones(10))
         Beam.plot_hist2d(beam)
         plt.gcf().clf()
 
@@ -171,8 +119,8 @@ class TestBeam(unittest.TestCase):
 
     def test_plot_scatter_executes_cpu(self) -> None:
         beam = Mock(Beam)
-        beam._dE = np.ones(10)
-        beam._dt = np.ones(10)
+        beam._dE = DistributedArray(np.ones(10))
+        beam._dt = DistributedArray(np.ones(10))
         Beam.plot_scatter(beam)
         plt.gcf().clf()
 
@@ -183,8 +131,8 @@ class TestBeam(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("Cupy not available")
         beam = Mock(Beam)
-        beam._dE = cp.ones(10)
-        beam._dt = cp.ones(10)
+        beam._dE = DistributedArray(cp.ones(10))
+        beam._dt = DistributedArray(cp.ones(10))
         Beam.plot_scatter(beam)
         plt.gcf().clf()
 
@@ -202,8 +150,8 @@ class TestBeam(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("Cupy not available")
         beam = Mock(Beam)
-        beam._dE = cp.ones(10)
-        beam._dt = cp.ones(10)
+        beam._dE = DistributedArray(cp.ones(10))
+        beam._dt = DistributedArray(cp.ones(10))
         for axis in range(2):
             Beam.plot_hist(beam, axis=axis)
             plt.gcf().clf()
@@ -212,14 +160,14 @@ class TestBeam(unittest.TestCase):
 
     def test_plot_hist_executes_kwargs(self) -> None:
         beam = Mock(Beam)
-        beam._dE = np.ones(10)
-        beam._dt = np.ones(10)
+        beam._dE = DistributedArray(np.ones(10))
+        beam._dt = DistributedArray(np.ones(10))
         Beam.plot_hist(beam, axis=0, bins=12)
 
     def test_plot_hist_executes_cpu(self) -> None:
         beam = Mock(Beam)
-        beam._dE = np.ones(10)
-        beam._dt = np.ones(10)
+        beam._dE = DistributedArray(np.ones(10))
+        beam._dt = DistributedArray(np.ones(10))
         for axis in range(2):
             Beam.plot_hist(beam, axis=axis)
             plt.gcf().clf()
@@ -233,6 +181,60 @@ class TestBeam(unittest.TestCase):
             self.beam.setup_beam(
                 dE=np.ones(10), dt=np.ones(10), flags=np.ones(11)
             )
+
+    @pytest.mark.mpi
+    def test_setup_beam_mpi(self) -> None:
+        beam = Beam(intensity=1.0, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
+        )
+        if MPI_RANK == 0 and MPI_SIZE == 2:  # assume `mpirun -n 2`
+            np.testing.assert_allclose(beam._dt.array_local, np.arange(0, 6))
+            np.testing.assert_allclose(beam._dE.array_local, np.arange(0, 6))
+            np.testing.assert_allclose(
+                beam._flags.array_local, np.ones(6) * BeamFlags.ACTIVE.value
+            )
+            np.testing.assert_allclose(beam._ids.array_local, np.arange(0, 6))
+        elif MPI_RANK == 1:
+            np.testing.assert_allclose(beam._dt.array_local, np.arange(6, 12))
+            np.testing.assert_allclose(beam._dE.array_local, np.arange(6, 12))
+            np.testing.assert_allclose(
+                beam._flags.array_local, np.ones(6) * BeamFlags.ACTIVE.value
+            )
+            np.testing.assert_allclose(beam._ids.array_local, np.arange(6, 12))
+
+    @pytest.mark.mpi
+    def test_plot_hist2d_warns(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Only MPI")
+        beam = Beam(intensity=1.0, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
+        )
+        with self.assertWarnsRegex(UserWarning, "Plotting MPI single node"):
+            beam.plot_hist2d()
+
+    @pytest.mark.mpi
+    def test_plot_hist_warns(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Only MPI")
+        beam = Beam(intensity=1.0, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
+        )
+        with self.assertWarnsRegex(UserWarning, "Plotting MPI single node"):
+            beam.plot_hist()
+
+    @pytest.mark.mpi
+    def test_plot_scatter_warns(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Only MPI")
+        beam = Beam(intensity=1.0, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
+        )
+        with self.assertWarnsRegex(UserWarning, "Plotting MPI single node"):
+            beam.plot_scatter()
 
 
 class TestProbeBunch(unittest.TestCase):

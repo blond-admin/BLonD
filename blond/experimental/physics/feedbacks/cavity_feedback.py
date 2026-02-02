@@ -65,7 +65,7 @@ class IQCavityFeedback(LocalFeedback):
         Apply a low-pass filter to the RF beam current
     harmonic_index
         The harmonic index the cavity feedback is working on
-    n_coarse
+    n_periods_coarse
         Sampling time in the model and the number of samples per turn
     T_s
         xxx # TODO
@@ -138,8 +138,6 @@ class IQCavityFeedback(LocalFeedback):
         name
             # TODO might be removed
         """
-        from blond import StaticProfile  # cyclic import
-
         assert isinstance(profile, StaticProfile)
         super().__init__(
             profile=profile,
@@ -218,9 +216,9 @@ class IQCavityFeedback(LocalFeedback):
 
         harmonic, omega_rf, phi_rf = self.get_harmonic_and_omega_rf_phi_rf()
 
-        self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
+        self.T_s = (self.n_periods_coarse * 2 * np.pi) / float(omega_rf)
         # TODO REMWORK/REMOVE
-        t_rev = float((2 * np.pi * harmonic) / omega_rf)
+        t_rev = float((2 * np.pi * harmonic) / float(omega_rf))
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(harmonic)
 
@@ -252,7 +250,7 @@ class IQCavityFeedback(LocalFeedback):
         t_rf = 2 * np.pi / omega_rf
 
         self.n_coarse = round(t_rev / self.T_s)
-        self.omega_carrier = omega_rf / self.n_periods_coarse
+        self.omega_carrier = float(omega_rf) / self.n_periods_coarse
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(omega_rf)
@@ -378,7 +376,7 @@ class IQCavityFeedback(LocalFeedback):
             phi_rf = 0.0
 
         # Present RF angular frequency
-        self.omega_rf = omega_rf
+        self.omega_rf = float(omega_rf)
         t_rev = float(  # TODO REMWORK/REMOVE
             2 * np.pi * harmonic / self.omega_rf
         )
@@ -398,7 +396,7 @@ class IQCavityFeedback(LocalFeedback):
         self.rf_centers_prev = np.copy(self.rf_centers)
 
         # Residual part of last turn entering the current turn due to non-integer harmonic number
-        self.dT = -(phi_rf + phi_rf) / self.omega_rf
+        self.dT = -(float(phi_rf) + float(phi_rf)) / self.omega_rf
 
         self.rf_centers = (
             np.arange(self.n_coarse) * self.T_s
@@ -432,7 +430,8 @@ class IQCavityFeedback(LocalFeedback):
             self.circuit_track(no_beam=True)
 
     def track(self, beam: BeamBaseClass) -> None:
-        r"""Tracking method of the cavity feedback.
+        r"""
+        Tracking method of the cavity feedback.
 
         Parameters
         ----------
@@ -469,7 +468,7 @@ class IQCavityFeedback(LocalFeedback):
 
         self.gap_voltage_phase = np.angle(
             self.V_ANT_COARSE[-self.n_coarse :] / self.V_SET[-self.n_coarse :]
-        )
+        )  # TODO: where is the interpolation gone?
 
     def rf_beam_current(
         self,
