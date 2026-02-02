@@ -189,7 +189,8 @@ python3 -m pytest -m "not backend_mutation"  -v unittests/
 
 The tests with distributed computing (MPI) can be executed via
 ```bash
- mpirun -n 2 python3 -m pytest -v unittests/ -m "mpi"
+export MPLBACKEND=Agg  # Prevent matplotlib deadlock
+mpirun -n 2 python3 -m pytest -v unittests/ -m "mpi"
 ```
 
 ---
