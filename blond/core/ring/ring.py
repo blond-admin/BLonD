@@ -69,6 +69,16 @@ class Ring(Preparable):
             horizontal dispersion function, 'K' the focusing strength and 'H =
             \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
             H-function.
+
+    References
+    ----------
+    Further information on synchrotron radiation damping and quantum excitation
+    can be found in:
+    - H. Wiedemann, Synchrotron Radiation, Springer, 2003
+    - S.Y. Lee, Accelerator Physics, World Scientific, Third edition,
+    2014 #check date
+    - A. Wolski, Introduction to Beam Dynamics in High-Energy Electron Storage
+    Rings, Morgan & Claypool Publishers, 2018
     """
 
     def __init__(
@@ -181,6 +191,16 @@ class Ring(Preparable):
         -------
         synchrotron_radiation_integrals
             Synchrotron radiation integrals.
+
+        References
+        ----------
+        Further information on synchrotron radiation damping and quantum excitation
+        can be found in:
+        - H. Wiedemann, Synchrotron Radiation, Springer, 2003
+        - S.Y. Lee, Accelerator Physics, World Scientific, Third edition,
+        2014 #check date
+        - A. Wolski, Introduction to Beam Dynamics in High-Energy Electron Storage
+        Rings, Morgan & Claypool Publishers, 2018
         """
         return self._synchrotron_radiation_integrals
 

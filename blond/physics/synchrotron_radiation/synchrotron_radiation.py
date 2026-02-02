@@ -20,6 +20,14 @@ simulated ring:
             horizontal dispersion function, 'K' the focusing strength and 'H =
             \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
             H-function
+
+Notes
+-----
+Authors:
+L. Valle
+
+References
+----------
 Further information on synchrotron radiation damping and quantum excitation
 can be found in:
 - H. Wiedemann, Synchrotron Radiation, Springer, 2003
@@ -27,9 +35,6 @@ can be found in:
 2014 #check date
 - A. Wolski, Introduction to Beam Dynamics in High-Energy Electron Storage
 Rings, Morgan & Claypool Publishers, 2018
-
-Author:
-L. Valle
 """
 
 from __future__ import annotations
