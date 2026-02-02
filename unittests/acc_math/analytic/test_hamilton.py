@@ -604,5 +604,87 @@ def test_single_harmonic_separatrix():
     np.testing.assert_almost_equal(test_inside_separatrix, len(dt_array))
 
 
+def test_single_harmonic_separatrix():
+    p_s = 450.0e9  # Synchronous momentum [eV]
+    harmonic_number = 35640  # Harmonic number
+    voltage1 = 2e6  # RF voltage, station 1 [eV]
+    phi_rf = 0  # Phase modulation/offset
+    transition_gamma = 55.759505  # Transition gamma
+
+    energy_cycle = ConstantMagneticCycle(
+        value=p_s,
+        reference_particle=proton,
+    )
+    ring = Ring(
+        circumference=26658.883,
+    )
+    beam = Beam(
+        intensity=1.0e9,
+        particle_type=proton,
+    )
+
+    observation = BeamObservationInRingElement(
+        each_turn_i=1,
+        section_index=0,
+        n_turns=10,
+        folder="./",
+    )
+
+    one_turn_execution_order = (
+        DriftSimple(
+            transition_gamma=transition_gamma,
+            orbit_length=ring.circumference,
+            section_index=0,
+        ),
+        SingleHarmonicRFStation(
+            harmonic=harmonic_number,
+            phi_rf=phi_rf,
+            voltage=voltage1,
+            section_index=0,
+        ),
+        observation,
+    )
+
+    ring.add_elements(one_turn_execution_order, reorder=False)
+    sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
+
+    dt = np.arange(0, 5e-9, 1e-11)
+    phi, separatrix_calc = separatrix_single_rf(
+        one_turn_execution_order[1], energy_cycle, ring, dt, 0
+    )
+
+    sim.prepare_beam(
+        preparation_routine=FilamentationMatcher(
+            time_limit=[0.1e-9, 4e-9],
+            energy_limit=[-4e8, 4e8],
+            n_macroparticles=3000,
+            n_iter=2000,
+            every_iter_to_plot=10,
+            animate=False,
+            purge_limit_time=[0.1e-9, 4e-9],
+            purge_limit_energy=[-5e8, 5e8],
+            purge=True,
+        ),
+        beam=beam,
+    )
+
+    test_inside_separatrix = 0
+    dt_array = beam.read_partial_dt()
+    dE_array = beam.read_partial_dE()
+
+    for particle in range(len(dt_array)):
+        dt_value = dt_array[particle]
+
+        sep_dt = np.argmin(np.absolute(phi - dt_value))
+
+        if (
+            np.absolute(separatrix_calc[sep_dt])
+            - np.absolute(dE_array[particle])
+        ) > 0:
+            test_inside_separatrix += 1
+
+    np.testing.assert_almost_equal(test_inside_separatrix, len(dt_array))
+
+
 if __name__ == "__main__":
     unittest.main()
