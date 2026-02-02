@@ -490,6 +490,8 @@ class WakeField(ImpedanceBaseClass):
         beam
             Beam class to interact with this element.
         """
+        if not self.active:
+            return
         if self.profile.active:
             self.profile.track(beam=beam)
         induced_voltage = self.calc_induced_voltage(beam=beam)
