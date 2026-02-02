@@ -141,17 +141,11 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         drift: DriftSimple = simulation.ring.elements.get_element(
             DriftSimple, recursive=False
         )
-        drift.apply_schedules(
-            turn_i=0,
-            reference_time=0,
-        )
         rf_station: SingleHarmonicRFStation = (
             simulation.ring.elements.get_element(
                 SingleHarmonicRFStation, recursive=False
             )
         )
-
-        rf_station.apply_schedules(turn_i=0, reference_time=0.0)
 
         if drift.transition_gamma is None:
             raise ValueError(
