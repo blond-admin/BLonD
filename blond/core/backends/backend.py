@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -629,7 +630,14 @@ class CupyBackend(BackendBaseClass):
             is_gpu=True,
         )
         import cupy as cp  # type: ignore # import only if needed, which is not always the case
-        from cupyx.scipy.signal import fftconvolve
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                category=FutureWarning,
+                message="cupyx.jit.rawkernel is experimental. The interface can change in the future.",
+            )
+            from cupyx.scipy.signal import fftconvolve
 
         self.array = cp.array
         self.gradient = cp.gradient
