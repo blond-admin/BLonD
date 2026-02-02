@@ -186,7 +186,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         derivative
             Derivative impedance in frequency domain.
         """
-        # Recalculate only of `freq_x` is changed
+        # Recalculate only if `freq_x` is changed
         hash_ = get_hash(freq_x)
         if hash_ == self._cache_derivative_hash:
             return self._cache_derivative
@@ -234,7 +234,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         wake_impedance
             Wake impedance.
         """
-        # Recalculate only of `time` is changed
+        # Recalculate only if `time` is changed
 
         hash_ = get_hash(time)
         if hash_ == self._cache_wake_impedance_hash:
@@ -729,7 +729,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         impedance
             Complex impedance array.
         """
-        # Recalculate only of `freq_x` is changed
+        # Recalculate only if `freq_x` is changed
         hash_ = get_hash(freq_x)
         if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
@@ -769,7 +769,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
 
 class ImpedanceTableTime(ImpedanceTable, TimeDomain):
     """
-    Impedance table in frequency domain.
+    Impedance table in time domain..
 
     Parameters
     ----------

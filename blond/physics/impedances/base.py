@@ -348,8 +348,6 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
                 f"profile from this group."
             )
             self._profile = profiles[0]
-        else:
-            pass
 
 
 class WakeField(ImpedanceBaseClass):

@@ -454,7 +454,7 @@ class Simulation(Preparable):
         )
         t1 = probe_bunch.reference.time
         T = t1 - t0
-        potential_well = (
+        drift_term = (
             # `copy_to_cpu` because `cumulative_simpson` does not have a
             # cupy implementation for now.
             cumulative_simpson(
@@ -464,8 +464,9 @@ class Simulation(Preparable):
             )
             / T
         )
-        potential_well -= potential_well.min()
-        return potential_well
+        drift_term -= drift_term.min()
+
+        return drift_term
 
     def get_potential_well_empiric(
         self,
