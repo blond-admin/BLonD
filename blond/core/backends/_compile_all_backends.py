@@ -56,7 +56,7 @@ def main():  # pragma: no cover `main_cli_xxx` gets executed anyway by CI/CD  pi
     except Exception as exc:
         warnings.warn(str(exc), UserWarning, stacklevel=1)
     try:
-        main_cli_cpp()
+        main_cli_cpp(force_parallel=True)
     except Exception as exc:
         warnings.warn(str(exc), UserWarning, stacklevel=1)
 
