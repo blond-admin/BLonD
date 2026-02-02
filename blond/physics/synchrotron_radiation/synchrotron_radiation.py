@@ -96,19 +96,25 @@ class SynchrotronRadiationMaster(Schedulable):
 
     Examples
     --------
-    >>> from blond.physics.synchrotron_radiation import
-    >>> SynchrotronRadiationMaster
-    >>> from blond import Ring
-    >>> ring = Ring(circumference=10,
-    >>> radiation_integrals = np.array([0.646747216157,
-    >>>            0.0005936549319,
-    >>>            5.6814536525e-08,
-    >>>            5.92870407301e-09,
-    >>>            1.71368060083e-11,]))
-    >>> ring.add_drifts(n_drifts_per_section=10, n_sections=4)
+    >>> import numpy as np
     >>>
-    >>> SRM = SynchrotronRadiationMaster(
-    >>> track_before_element_type=[DriftBaseClass,])
+    >>> from blond.physics.drifts import DriftBaseClass
+    >>> from blond import Ring, SynchrotronRadiationMaster
+    >>>
+    >>> ring = Ring(
+    ...     circumference=10,
+    ...     synchrotron_radiation_integrals=np.array(
+    ...         [
+    ...             0.646747216157,
+    ...             0.0005936549319,
+    ...             5.6814536525e-08,
+    ...             5.92870407301e-09,
+    ...             1.71368060083e-11,
+    ...         ]
+    ...     ),
+    ... )
+    >>> ring.add_drifts(n_drifts_per_section=10, n_sections=4)
+    >>> SRM = SynchrotronRadiationMaster(track_before_element_type=[DriftBaseClass])
     >>> SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring)
     """
 
