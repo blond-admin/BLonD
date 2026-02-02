@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 import unittest
 from functools import cached_property
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
-from cupy.typing import NDArray as CupyArray
-from numpy.typing import NDArray as NumpyArray
 from scipy.constants import c, e
 from scipy.constants import speed_of_light as c0
 
@@ -28,7 +28,7 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation import (
 )
 
 if TYPE_CHECKING:
-    from typing import Any, Literal
+    from typing import Literal
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
