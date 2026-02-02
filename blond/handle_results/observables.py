@@ -1288,7 +1288,7 @@ class SimulationObservation(ObservablesOncePerTurnBase):
 
     Parameters
     ----------
-     each_turn_i
+    each_turn_i
         Value to control that the element is
         callable each n-th turn.
     folder
@@ -1374,7 +1374,7 @@ class DriftObservation(ObservablesOncePerTurnBase):
 
     Parameters
     ----------
-     each_turn_i
+    each_turn_i
         Value to control that the element is
         callable each n-th turn.
     drift
