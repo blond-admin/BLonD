@@ -542,7 +542,7 @@ def calculate_natural_bunch_length(
     particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
-    Compute the natural bunch length from the total energy.
+    Compute the natural bunch length from the total energy due to synchrotron radiation damping.
 
     Parameters
     ----------
