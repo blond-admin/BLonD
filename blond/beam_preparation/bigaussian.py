@@ -97,15 +97,17 @@ def _get_dE_from_dt(
     energy = beam.reference.total_energy
     beta = beam.reference.beta
 
-    phi_s = calc_phi_s_single_harmonic(
-        charge=beam.particle_type.charge,
-        voltage=voltage,
-        phase=phi_rf,
-        energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-            1, 0, 0, particle_type=beam.particle_type
+    phi_s = (
+        calc_phi_s_single_harmonic(
+            charge=beam.particle_type.charge,
+            voltage=voltage,
+            energy_gain=simulation.magnetic_cycle.get_target_total_energy(
+                1, 0, 0, particle_type=beam.particle_type
+            )
+            - beam.reference.total_energy,
+            above_transition=above_transition,
         )
-        - beam.reference.total_energy,
-        above_transition=above_transition,
+        - phi_rf
     )
 
     eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
@@ -161,11 +163,6 @@ def get_main_harmonic_attributes(
     rf_stations = simulation.ring.elements.get_elements(
         SingleHarmonicRFStation
     ) + simulation.ring.elements.get_elements(MultiHarmonicRFStation)
-    for _rf_station in rf_stations:
-        _rf_station.apply_schedules(
-            turn_i=0,
-            reference_time=0,
-        )
     # omega_rf should be all same
     omega_rf = [
         rf.calc_main_harmonic_omega_rf(
@@ -290,11 +287,6 @@ class BiGaussian(MatchingRoutine):
         drifts: tuple[DriftSimple, ...] = (
             simulation.ring.elements.get_elements(DriftSimple)
         )
-        for _drift in drifts:
-            _drift.apply_schedules(
-                turn_i=0,
-                reference_time=0,
-            )
 
         if self._sigma_dE is None:
             sigma_dE = _get_dE_from_dt(
@@ -311,13 +303,13 @@ class BiGaussian(MatchingRoutine):
             calc_phi_s_single_harmonic(
                 charge=beam.particle_type.charge,
                 voltage=voltage,
-                phase=phi_rf,
                 energy_gain=simulation.magnetic_cycle.get_target_total_energy(
                     0, 0, 0, particle_type=beam.particle_type
                 )
                 - beam.reference.total_energy,
                 above_transition=above_transition,
             )
+            - phi_rf
         )
         # call to legacy
         eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]

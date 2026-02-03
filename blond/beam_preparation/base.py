@@ -20,8 +20,6 @@ from __future__ import annotations
 from abc import ABC
 from typing import TYPE_CHECKING
 
-from blond.core.base import Schedulable
-
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
@@ -58,14 +56,6 @@ class BeamPreparationRoutine(ABC):
             )
         )
         beam.reference.time = 0  # FIXME
-        # assign beams?
-
-        schedulables = simulation.ring.elements.get_elements(Schedulable)
-        for s in schedulables:
-            s.apply_schedules(
-                turn_i=simulation.turn_i.value,
-                reference_time=beam.reference.time,
-            )
 
 
 class MatchingRoutine(BeamPreparationRoutine, ABC):

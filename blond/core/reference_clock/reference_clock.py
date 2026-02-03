@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from blond.core.base import HasPropertyCache
 from blond.core.reference_clock.reference_clock_numba import beta as beta_nb
 from blond.core.reference_clock.reference_clock_numba import gamma as gamma_nb
 from blond.core.reference_clock.reference_clock_numba import (
@@ -23,7 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.particle_types import ParticleType
 
 
-class ReferenceCoordinates(HasPropertyCache):
+class ReferenceCoordinates:
     """
     Helper class that holds the reference to the coordinate system.
 

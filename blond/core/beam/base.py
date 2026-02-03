@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from enum import IntEnum
 from typing import TYPE_CHECKING
 
 from blond.core.base import Preparable
+from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
@@ -29,15 +29,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
     from blond.generals.distributed.distributed_array import DistributedArray
-
-
-class BeamFlags(IntEnum):
-    """Flags that define the beam state."""
-
-    # Please mind that the LOST flag is hardcoded in all backends
-    # for loss_box
-    LOST = -500  # by convention with XSuite team.
-    ACTIVE = 1
 
 
 class BeamBaseClass(Preparable, ABC):
@@ -121,7 +112,12 @@ class BeamBaseClass(Preparable, ABC):
         total_energy_init = simulation.magnetic_cycle.get_total_energy_init(
             particle_type=self.particle_type,
         )
-        if self.reference._total_energy != total_energy_init:
+        if (
+            self.reference._total_energy != total_energy_init
+            and self.reference._total_energy is not None
+        ):
+            # Display a warning when the reference energy is overwritten,
+            # but not when None is overwritten.
             msg = (
                 f"`Bunch` was prepared for"
                 f" total_energy = {self.reference._total_energy} eV,"
