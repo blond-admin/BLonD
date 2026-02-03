@@ -23,7 +23,7 @@ from blond.core.backends.backend import Specials
 from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
 )
-from blond.core.beam.base import BeamFlags
+from blond.core.beam.flags import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
