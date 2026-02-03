@@ -24,12 +24,12 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
+    DynamicProfileConstNBins,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     proton,
 )
-from blond.physics.profiles import DynamicProfileConstNBins
 
 
 def main():
