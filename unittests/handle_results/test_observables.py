@@ -304,12 +304,18 @@ class TestBunchStatistics(unittest.TestCase):
             particle_type=electron,
         )
         common_array_size = 128
-        self.beam.reference_time = 0.8
-        self.beam.reference_beta = 0.9
-        self.beam.reference_total_energy = 11
-        self.beam._dt = np.ones(common_array_size, dtype=float)
-        self.beam._dE = np.ones(common_array_size, dtype=float)
-        self.beam._flags = np.ones(common_array_size, dtype=int)
+        self.beam.reference.time = 0.8
+        self.beam.reference.beta = 0.9
+        self.beam.reference.total_energy = 11
+        self.beam._dt = DistributedArray(
+            np.ones(common_array_size, dtype=float)
+        )
+        self.beam._dE = DistributedArray(
+            np.ones(common_array_size, dtype=float)
+        )
+        self.beam._flags = DistributedArray(
+            np.ones(common_array_size, dtype=int)
+        )
         self.beam.setup_beam(
             dE=np.ones(common_array_size, dtype=float),
             dt=np.ones(common_array_size, dtype=float),
