@@ -48,9 +48,8 @@ def main():
     )
 
     drift1 = DriftSimple(
-        orbit_length=26658.883,
+        orbit_length=26658.883, momentum_compaction_factor=1 / (55.759505**2)
     )
-    drift1.transition_gamma = 55.759505
     beam1 = Beam(
         intensity=1e9,
         particle_type=proton,
@@ -75,7 +74,7 @@ def main():
             beam=beam1,
             preparation_routine=SemiEmpiricMatcher(
                 time_limit=(0, 2.5e-9),
-                n_macroparticles=1e6,
+                n_macroparticles=int(1e6),
                 seed=0,
                 maxiter_intensity_effects=0,
                 hamilton_to_density_kwargs=dict(

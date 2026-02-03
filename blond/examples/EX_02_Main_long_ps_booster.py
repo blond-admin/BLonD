@@ -72,8 +72,8 @@ def main():
 
     drift = DriftSimple(
         orbit_length=ring.circumference,
+        momentum_compaction_factor=1 / (4.4**2),
     )
-    drift.transition_gamma = 4.4
     beam1 = Beam(
         intensity=1e11,
         particle_type=proton,

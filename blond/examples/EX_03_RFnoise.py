@@ -61,7 +61,7 @@ def main():
     # losses = BoxLosses(t_min=0, t_max=2.5e-9) # TODO implement
     # losses2 = SeparatrixLosses()# TODO implement
     drift = DriftSimple(
-        transition_gamma=55.759505,
+        momentum_compaction_factor=1 / (55.759505**2),
         orbit_length=ring.circumference,
     )
     sim = Simulation.from_locals(locals())

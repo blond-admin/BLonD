@@ -51,8 +51,8 @@ def main():
 
     drift1 = DriftSimple(
         orbit_length=26658.883,
+        momentum_compaction_factor=1 / (55.759505**2),
     )
-    drift1.transition_gamma = 55.759505
     beam1 = Beam(
         intensity=1e6,
         particle_type=proton,

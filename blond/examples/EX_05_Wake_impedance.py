@@ -90,7 +90,7 @@ def main():
             particle_type=proton,
         )
         drift = DriftSimple(
-            transition_gamma=22.82177322938192,
+            momentum_compaction_factor=1 / (22.82177322938192**2),
             orbit_length=1.0 * ring.circumference,
         )
         profile = StaticProfile.from_rad(

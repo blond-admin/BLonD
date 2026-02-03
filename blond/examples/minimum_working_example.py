@@ -21,7 +21,7 @@ from blond import (
     proton,
 )
 
-n_turns = 1e4
+n_turns = int(1e4)
 n_macroparticles = 1e6
 
 
@@ -30,7 +30,9 @@ def main():
     rf_station_1 = SingleHarmonicRFStation(
         harmonic=35640, voltage=6e6, phi_rf=0
     )
-    drift1 = DriftSimple(orbit_length=26658.883, transition_gamma=55.759505)
+    drift1 = DriftSimple(
+        orbit_length=26658.883, momentum_compaction_factor=1 / (55.759505**2)
+    )
     ring.add_elements(
         [rf_station_1, drift1]
     )  # add elements that resemble one turn

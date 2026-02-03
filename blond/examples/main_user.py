@@ -60,7 +60,8 @@ class Main:
         )
         one_turn_execution_order = (
             DriftSimple(
-                orbit_length=1.0 * my_ring.circumference, transition_gamma=21
+                orbit_length=1.0 * my_ring.circumference,
+                momentum_compaction_factor=1 / (21**2),
             ),
             rf_station,
             WakeField(

@@ -34,7 +34,10 @@ def main():
     ring = Ring(circumference=42)
     ring.add_element(TimeRandomizer())
     ring.add_element(
-        DriftSimple(orbit_length=ring.circumference, transition_gamma=12)
+        DriftSimple(
+            orbit_length=ring.circumference,
+            momentum_compaction_factor=1 / (12**2),
+        )
     )
     sim = Simulation(
         ring=ring,
