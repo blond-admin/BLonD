@@ -1260,9 +1260,6 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
 
-        self._domega_rf_next: NumpyArray | None = backend.zeros(n_harmonics)
-        self._dphi_rf_next: NumpyArray | None = backend.zeros(n_harmonics)
-
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -1512,9 +1509,6 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         reference_energy_change = self.track_reference(
             reference, beam.is_counter_rotating
         )
-
-        self.delta_phi_rf = self._dphi_rf_next
-        self.delta_omega_rf = self._domega_rf_next
 
         if beam.common_array_size > 0:
             if self._cavity_feedback is None:
