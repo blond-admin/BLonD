@@ -18,3 +18,10 @@ Birk Emil Karlsen-Bæck
 Elleanor Lamb
 Simon Lauber
 """
+
+__all__ = [
+    "XsuiteRFBucketMatcher",
+]
+from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
+    XsuiteRFBucketMatcher,
+)
