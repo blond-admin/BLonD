@@ -593,13 +593,13 @@ class TestSimulation(unittest.TestCase):
     def test_finalize_warns(self) -> None:
         from blond import backend
 
-        self.beam.common_array_size = int(1e32)
-        self.beam.reference_beta = 1  # cavity initialisation
+        beam_mock.common_array_size = int(1e32)
+        beam_mock.reference.beta = 1  # cavity initialisation
         special_mode_org = backend.specials_mode
         backend.set_specials(mode="python")
         with self.assertWarns(PerformanceWarning):
             self.simulation.finalize(
-                beams=(self.beam,),
+                beams=(beam_mock,),
                 n_turns=None,
                 observe=(),
             )
