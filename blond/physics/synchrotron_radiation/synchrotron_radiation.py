@@ -210,7 +210,7 @@ class SynchrotronRadiationMaster(Schedulable):
         self,
         beam: BeamBaseClass,
         ring: Ring,
-    ) -> str:
+    ) -> None:
         """
         Print the synchrotron radiation parameter of a given turn.
 
