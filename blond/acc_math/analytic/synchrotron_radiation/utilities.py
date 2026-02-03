@@ -15,9 +15,10 @@ L.Valle
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from numpy import dtype, ndarray
 
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_energy_loss_per_turn,
@@ -34,7 +35,11 @@ def gather_longitudinal_synchrotron_radiation_parameters(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
     particle_type: ParticleType = electron,
-) -> float | NumpyArray:
+) -> tuple[
+    float | ndarray[tuple[Any, ...], dtype[Any]],
+    float | ndarray[tuple[Any, ...], dtype[Any]],
+    float | ndarray[tuple[Any, ...], dtype[Any]],
+]:
     """
     Calculate the relevant synchrotron radiation parameters for tracking.
 
@@ -87,7 +92,7 @@ def calculate_isomagnetic_radiation_integrals(
     Generate the radiation integrals in the case of an isomagnetic ring.
 
     Warning: the fifth synchrotron radiation is set to 0 for lack of
-    information.
+    information; the natural horizontal emittance therefore is 0.
 
     Parameters
     ----------
