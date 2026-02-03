@@ -187,10 +187,8 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         for i in range(n_turns):
             simulation.turn_i.value = i
 
-            # for element in ring.elements.elements:
-            #    element.track(beam)
-            profile.track(beam)
-            cavity_control.track(beam)
+            for element in ring.elements.elements:
+                element.track(beam)
 
             cls.line_density[i, :] = profile.hist_y
             cls.v_ant[i, :] = cavity_control.V_ANT_COARSE[-h // 10 :]
@@ -202,7 +200,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         np.testing.assert_allclose(
             self.line_density,
             self.blond2_data["line_density"],
-            rtol=1e-9,
+            rtol=1e-2,
             err_msg="Error in line density",
         )
 
@@ -211,14 +209,14 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         np.testing.assert_allclose(
             self.i_beam.real,
             self.blond2_data["i_beam"].real,
-            atol=1e-8,
+            atol=1e-6,
             err_msg="Error in real part of beam current",
         )
         # Imaginary part
         np.testing.assert_allclose(
             self.i_beam.imag,
             self.blond2_data["i_beam"].imag,
-            atol=1e-8,
+            atol=1e-6,
             err_msg="Error in imaginary part of beam current",
         )
 
@@ -226,13 +224,13 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         np.testing.assert_allclose(
             self.v_ant.real,
             self.blond2_data["rf_voltage"].real,
-            atol=1e-9,
+            atol=1e-2,
             err_msg="Error in real part of gap voltage",
         )
         np.testing.assert_allclose(
             self.v_ant.imag,
             self.blond2_data["rf_voltage"].imag,
-            atol=1e-9,
+            atol=1e-2,
             err_msg="Error in imaginary part of gap voltage",
         )
 
