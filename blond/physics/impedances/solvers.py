@@ -1099,8 +1099,8 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         """
         if not isinstance(self._parent_wakefield.profile, StaticProfile):
             warnings.warn(
-                f"Expected StaticProfile, but"
-                f" got {type(self._parent_wakefield.profile)=}",
+                f"Expected `StaticProfile`, but"
+                f" got `{type(self._parent_wakefield.profile)=}`",
                 UserWarning,
                 stacklevel=2,
             )
@@ -1108,11 +1108,22 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
         profile_width = profile.cut_right - profile.cut_left
         # todo check that the time of n_revolutions matches n * length_profile
-        t_rev = self._simulation.get_t_rev_init()
-        if isinstance(t_rev, float):
-            assert abs(profile_width - t_rev) < profile.hist_step, (
-                f"Expected profile length of {t_rev} s, but got "
-                f"{profile_width} s.",
+        t_total = self._simulation.calculate_time_passed(
+            n_turns=self._n_wakes_full_turn,
+        )
+        if isinstance(t_total, float):
+            profile_n_turns_length = self._n_wakes_full_turn * profile_width
+            # Profile (fixed length)
+            # |-----|-----|-----|-----|-----|
+            # Turns (get shorter)
+            # |-----|-----|----|----|---|
+            # Error
+            #                           |---|
+            total_error = abs(profile_n_turns_length - t_total)
+            assert abs(total_error) < profile.hist_step, (
+                f"After {self._n_wakes_full_turn} turns, "
+                f"the accumulated error per turn ({total_error} s) exceeds the "
+                f"profile step size {profile.hist_step} s."
             )
 
     def calc_induced_voltage(

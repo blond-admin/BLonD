@@ -1641,6 +1641,48 @@ class Simulation(Preparable):
         t1 = reference_tmp.time
         self._current_t_rev = t1 - t0
 
+    def calculate_time_passed(self, n_turns: int):
+        """
+        Calculate the revolution time of the current turn, in [s].
+
+        This method takes the reference frame of the beam at the first element
+        and tracks it along one turn back to the first element,
+        considering acceleration in sections.
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns.
+
+        Returns
+        -------
+        time_passed
+            Time that has passed during n turns, in [s].
+        """
+        TURN_I_ORG = copy(self.turn_i.value)
+        SECTION_I_ORG = copy(self.section_i.value)
+
+        reference = ReferenceCoordinates(
+            time=0.0,
+            total_energy=self.magnetic_cycle.get_total_energy_init(
+                particle_type=self.magnetic_cycle.reference_particle
+            ),
+            particle_type=self.magnetic_cycle.reference_particle,
+        )
+        t0 = reference.time
+        elements = self.ring.elements.get_elements(AltersReference)
+        for _ in range(n_turns):
+            for element in elements:
+                self.section_i.value = element.section_index
+                element: AltersReference
+                element.track_reference(reference)
+            self.turn_i.value += 1
+        t1 = reference.time
+
+        self.turn_i.value = TURN_I_ORG
+        self.section_i.value = SECTION_I_ORG
+        return t1 - t0
+
     @property
     def current_t_rev(self) -> float:
         """
