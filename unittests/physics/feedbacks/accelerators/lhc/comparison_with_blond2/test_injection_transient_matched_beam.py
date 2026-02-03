@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import (
@@ -20,14 +21,20 @@ from blond.experimental.physics.feedbacks.accelerators.lhc.cavity_feedback impor
     LHCCavityLoop,
     LHCCavityLoopCommissioning,
 )
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.helpers import callers_relative_path
+from blond.specifics.muon_collider.beam_preparation import (
+    load_beam_coordinates_from_file,
+)
+
+DEBUG_PLOTTING = True
 
 
 class TestInjectionMatchedBeam(unittest.TestCase):
     blond2_data = np.load(
         Path(
             callers_relative_path(
-                "../resources/lhc_cavity_control_injection_power_no_bpl.npz",
+                "../lhc_cavity_control_injection_power_no_bpl.npz",
                 stacklevel=1,
             )
         )
@@ -45,7 +52,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         gamma_t = 53.8
         n_macroparticles_per_bunch = 1_000_000
 
-        n_bunches = 36
+        n_bunches = 2
         intensity = 2.3e11 * n_bunches
         n_turns = 100
         bunch_lengths = 1.25e-9
@@ -74,7 +81,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
 
         cycle = ConstantMagneticCycle(proton, momentum, in_unit="momentum")
 
-        lattice = DriftSimple(
+        drift = DriftSimple(
             orbit_length=circumference, momentum_compaction_factor=alpha
         )
 
@@ -87,7 +94,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         )
 
         f_rf = cavity.get_main_harmonic_omega_rf_design(
-            rel_beta, lattice.orbit_length
+            rel_beta, drift.orbit_length
         ) / (2 * np.pi)
         t_rf = 1 / f_rf
 
@@ -120,85 +127,105 @@ class TestInjectionMatchedBeam(unittest.TestCase):
             tau_otfb=tau_comp,
             G_gen=G_gen,
             RFFB=commissioning,
+            n_cavities=8,
         )
 
         cavity.attach_cavity_feedback(cavity_control)
 
-        bigaussian = BiGaussian(
-            n_macroparticles_per_bunch, sigma_dt=bunch_lengths / 4, seed=1234
-        )
+        # bigaussian = BiGaussian(
+        #     n_macroparticles_per_bunch, sigma_dt=bunch_lengths / 4, seed=1234
+        # )
 
         ring = Ring(
             circumference,
         )
 
         ring.add_elements(
-            [profile, cavity, lattice],
+            [profile, cavity, drift],
         )
 
         simulation = Simulation(
             ring,
             cycle,
         )
+        #
+        # simulation.prepare_beam(beam, bigaussian)
+        #
+        # _dt_tmp = beam._dt
+        # _dE_tmp = beam._dE
+        # _flags_tmp = beam._flags
+        # _ids_tmp = beam._ids
+        #
+        # beam._dt = DistributedArray(np.zeros(n_bunches * _dt_tmp.local_size))
+        # beam._dE = DistributedArray(np.zeros(n_bunches * _dE_tmp.local_size))
+        # beam._flags = DistributedArray(np.zeros(
+        #     n_bunches * _flags_tmp.local_size, dtype=_flags_tmp.array_local.dtype
+        # ))
+        # beam._ids = DistributedArray(np.zeros(n_bunches * _ids_tmp.local_size, dtype=_ids_tmp.array_local.dtype))
+        #
+        # for i in range(n_bunches):
+        #     beam._dt.array_local[
+        #         i * n_macroparticles_per_bunch : (i + 1)
+        #         * n_macroparticles_per_bunch
+        #     ] = _dt_tmp.array_local + 10 * t_rf * i + 1000 * t_rf
+        #     beam._dE.array_local[
+        #         i * n_macroparticles_per_bunch : (i + 1)
+        #         * n_macroparticles_per_bunch
+        #     ] = _dE_tmp.array_local
+        #     beam._flags.array_local[
+        #         i * n_macroparticles_per_bunch : (i + 1)
+        #         * n_macroparticles_per_bunch
+        #     ] = _flags_tmp.array_local
+        #     beam._ids.array_local[
+        #         i * n_macroparticles_per_bunch : (i + 1)
+        #         * n_macroparticles_per_bunch
+        #     ] = _ids_tmp.array_local
 
-        simulation.prepare_beam(beam, bigaussian)
-
-        _dt_tmp = beam._dt
-        _dE_tmp = beam._dE
-        _flags_tmp = beam._flags
-        _ids_tmp = beam._ids
-
-        beam._dt = np.zeros(n_bunches * len(_dt_tmp))
-        beam._dE = np.zeros(n_bunches * len(_dE_tmp))
-        beam._flags = np.zeros(
-            n_bunches * len(_flags_tmp), dtype=_flags_tmp.dtype
+        load_beam_coordinates_from_file(
+            callers_relative_path("../lhc_36bunches_7.9MV.npz", stacklevel=1),
+            beam,
         )
-        beam._ids = np.zeros(n_bunches * len(_ids_tmp), dtype=_ids_tmp.dtype)
-
-        for i in range(n_bunches):
-            beam._dt[
-                i * n_macroparticles_per_bunch : (i + 1)
-                * n_macroparticles_per_bunch
-            ] = _dt_tmp + 10 * t_rf * i + 1000 * t_rf
-            beam._dE[
-                i * n_macroparticles_per_bunch : (i + 1)
-                * n_macroparticles_per_bunch
-            ] = _dE_tmp
-            beam._flags[
-                i * n_macroparticles_per_bunch : (i + 1)
-                * n_macroparticles_per_bunch
-            ] = _flags_tmp
-            beam._ids[
-                i * n_macroparticles_per_bunch : (i + 1)
-                * n_macroparticles_per_bunch
-            ] = _ids_tmp
 
         simulation.finalize(
             (beam,),
             n_turns,
         )
-
         cls.line_density = np.zeros((n_turns, profile.n_bins))
         cls.v_ant = np.zeros((n_turns, h // 10), dtype=complex)
         cls.v_ant_fine = np.zeros((n_turns, profile.n_bins), dtype=complex)
         cls.i_beam = np.zeros((n_turns, h // 10), dtype=complex)
         cls.rf_power = np.zeros((n_turns, h // 10), dtype=complex)
 
-        for i in range(n_turns):
+        from tqdm import tqdm
+
+        itera = tqdm(range(n_turns))
+        for i in itera:
             simulation.turn_i.value = i
 
-            # for element in ring.elements.elements:
-            #    element.track(beam)
-            profile.track(beam)
-            cavity_control.track(beam)
+            for element in ring.elements.elements:
+                element.track(beam)
+            # profile.track(beam)
+            # cavity_control.track(beam)
 
             cls.line_density[i, :] = profile.hist_y
             cls.v_ant[i, :] = cavity_control.V_ANT_COARSE[-h // 10 :]
             cls.v_ant_fine[i, :] = cavity_control.V_ANT_FINE[-profile.n_bins :]
             cls.i_beam[i, :] = cavity_control.I_BEAM_COARSE[-h // 10 :]
             cls.rf_power[i, :] = cavity_control.generator_power()[-h // 10 :]
+            # plt.plot(cls.line_density[i, :])
+            # plt.draw()
+            # plt.pause(0.01)
+        plt.show()
 
     def test_line_density(self):
+        if DEBUG_PLOTTING:
+            end_bin = 500
+            for _ in range(10):
+                plt.plot(self.line_density[_][0:end_bin])
+                plt.plot(
+                    self.blond2_data["line_density"][_][0:end_bin], ls="--"
+                )
+            plt.show()
         np.testing.assert_allclose(
             self.line_density,
             self.blond2_data["line_density"],
@@ -208,6 +235,22 @@ class TestInjectionMatchedBeam(unittest.TestCase):
 
     def test_beam_current(self):
         # Real part
+        if DEBUG_PLOTTING:
+            end_bin = 500
+            for _ in range(5):
+                plt.plot(self.i_beam.real[_][0:end_bin])
+                plt.plot(
+                    self.blond2_data["i_beam"].real[_][0:end_bin], ls="--"
+                )
+            plt.show()
+        if DEBUG_PLOTTING:
+            end_bin = 500
+            for _ in range(5):
+                plt.plot(self.i_beam.imag[_][0:end_bin])
+                plt.plot(
+                    self.blond2_data["i_beam"].imag[_][0:end_bin], ls="--"
+                )
+            plt.show()
         np.testing.assert_allclose(
             self.i_beam.real,
             self.blond2_data["i_beam"].real,
