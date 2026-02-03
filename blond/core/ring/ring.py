@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import copy
 import warnings
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -216,38 +215,6 @@ class Ring(Preparable):
             element.transition_gamma = (
                 element.orbit_length / self._circumference
             ) * self.transition_gamma
-
-    @cached_property
-    def average_transition_gamma(self) -> complex:
-        """
-        Calculate the orbit-length weighted average transition gamma.
-
-        The transition gamma is the Lorentz factor at which particles cross from
-        below to above transition energy. This property computes a weighted average
-        based on the drift sections in the ring.
-
-        Returns
-        -------
-        average_transition_gamma
-            The weighted average transition gamma (dimensionless).
-
-        Notes
-        -----
-        Currently only considers DriftSimple elements. The weighting is based on
-        the orbit length of each drift section. This value is cached after first
-        calculation.
-        """
-        from blond import DriftSimple  # prevent cyclic import
-
-        gammas = [
-            e.transition_gamma for e in self.elements.get_elements(DriftSimple)
-        ]
-        weights = [
-            e.orbit_length for e in self.elements.get_elements(DriftSimple)
-        ]
-        # todo not only simple drift
-        transition_gamma_average = complex(np.average(gammas, weights=weights))
-        return transition_gamma_average
 
     def calc_average_eta_0(self, gamma: float) -> float:
         """
