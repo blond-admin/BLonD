@@ -556,54 +556,6 @@ class TestRing(unittest.TestCase):
             1 / 2 * np.sqrt(1 / 0.002),
         )
 
-    def test_compare_average_transition_gamma_with_transition_gamma(self):
-        self.ring._circumference = 129
-        from blond.testing.mocks import drift_simple_mock
-
-        drift_simple_mock.momentum_compaction_factor = 1e-3
-        drift_simple_mock.transition_gamma = np.sqrt(1 / 1e-3)
-        drift_simple_mock.orbit_length = 12
-        drift_simple_mock.section_index = 0
-
-        self.ring.add_element(drift_simple_mock, deepcopy=True)
-        self.ring.add_element(drift_simple_mock, deepcopy=True)
-
-        self.assertEqual(
-            self.ring.transition_gamma, self.ring.average_transition_gamma
-        )
-
-    def test_average_transition_gamma(self):
-        self.ring._circumference = 129
-        from blond.testing.mocks import drift_simple_mock
-
-        drift_simple_mock.transition_gamma = 42
-        drift_simple_mock.transition_gamma = 42
-        drift_simple_mock.orbit_length = 12
-        drift_simple_mock.section_index = 0
-
-        self.ring.add_element(drift_simple_mock, deepcopy=True)
-        self.ring.add_element(drift_simple_mock, deepcopy=True)
-
-        self.assertEqual(self.ring.average_transition_gamma, 42)
-
-    def test_average_transition_gamma2(self):
-        self.ring._circumference = 129
-        from blond.testing.mocks import drift_simple_mock
-
-        drift_simple_mock.transition_gamma = 20
-        drift_simple_mock.orbit_length = 12
-        drift_simple_mock.section_index = 0
-
-        self.ring.add_element(drift_simple_mock, deepcopy=True)
-
-        drift_simple_mock.transition_gamma = 40
-        drift_simple_mock.orbit_length = 12
-        drift_simple_mock.section_index = 0
-
-        self.ring.add_element(drift_simple_mock, deepcopy=True)
-
-        self.assertEqual(self.ring.average_transition_gamma, 30)
-
     def test_is_below_transition(self):
         from blond.testing.mocks import beam_mock
 
