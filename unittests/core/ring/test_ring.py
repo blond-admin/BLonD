@@ -378,6 +378,107 @@ class TestRing(unittest.TestCase):
         )
         assert self.ring.elements.elements[1] is element3
 
+    def test_propagate_transition_gamma(self):
+        ring = Ring(circumference=10)
+        drift = DriftSimple.headless(
+            momentum_compaction_factor=1 / 20**2,  # highly
+            # relativistic
+            orbit_length=self.ring.circumference * 1 / 3,
+            section_index=0,
+        )
+        drift2 = DriftSimple.headless(
+            momentum_compaction_factor=1 / 20**2,  # highly
+            # relativistic
+            orbit_length=self.ring.circumference * 2 / 3,
+            section_index=0,
+        )
+        ring.elements.elements = [drift, drift2]
+        ring.propagate_transition_gamma()
+
+        self.assertAlmostEqual(
+            ring.elements.elements[0].transition_gamma,
+            1 / 3 * ring.transition_gamma,
+            places=self.decimal,
+        )
+        self.assertAlmostEqual(
+            ring.elements.elements[1].transition_gamma,
+            2 / 3 * ring.transition_gamma,
+            places=self.decimal,
+        )
+
+    def test_insert_element_propagates_transition_gamma(self):
+        drift = DriftSimple.headless(
+            momentum_compaction_factor=1 / 20**2,  # highly
+            # relativistic
+            orbit_length=self.ring.circumference,
+            section_index=0,
+        )
+        element1 = Mock(spec=BeamPhysicsRelevant)
+        element2 = Mock(spec=BeamPhysicsRelevant)
+        element1.section_index = 0
+        element2.section_index = 0
+
+        self.ring.add_elements(
+            elements=[element1, element2],
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+        self.ring.insert_element(drift, insert_at=0, deepcopy=True)
+        self.assertEqual(
+            self.ring.elements.elements[0].transition_gamma,
+            self.ring.transition_gamma,
+        )
+        self.assertEqual(
+            self.ring.momentum_compaction_factor,
+            drift.momentum_compaction_factor,
+        )
+
+    def test_insert_element_propagates_transition_gamma_multiple_drifts(self):
+        drift = DriftSimple.headless(
+            momentum_compaction_factor=1 / 20**2,  # highly
+            # relativistic
+            orbit_length=self.ring.circumference * 1 / 3,
+            section_index=0,
+        )
+        drift2 = DriftSimple.headless(
+            momentum_compaction_factor=1 / 20**2,  # highly
+            # relativistic
+            orbit_length=self.ring.circumference * 2 / 3,
+            section_index=0,
+        )
+        element1 = Mock(spec=BeamPhysicsRelevant)
+        element2 = Mock(spec=BeamPhysicsRelevant)
+        element1.section_index = 0
+        element2.section_index = 0
+
+        self.ring.add_elements(
+            elements=[element1, element2],
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+        self.ring.insert_element(drift, insert_at=0, deepcopy=True)
+        self.ring.insert_element(drift2, insert_at=3, deepcopy=True)
+        self.assertAlmostEqual(
+            self.ring.elements.elements[0].transition_gamma,
+            1 / 3 * self.ring.transition_gamma,
+            places=self.decimal,
+        )
+        self.assertAlmostEqual(
+            self.ring.elements.elements[3].transition_gamma,
+            2 / 3 * self.ring.transition_gamma,
+            places=self.decimal,
+        )
+        self.assertEqual(
+            self.ring.momentum_compaction_factor / 2,
+            drift.momentum_compaction_factor,
+        )
+        self.assertEqual(
+            self.ring.momentum_compaction_factor / 2,
+            drift2.momentum_compaction_factor,
+        )
+
     def test_force_section_index_compatibility(self):
         element1 = Mock(spec=BeamPhysicsRelevant)
         element2 = Mock(spec=BeamPhysicsRelevant)
