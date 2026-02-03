@@ -18,7 +18,7 @@ from blond.handle_results.observables_as_elements import (
 )
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
-from blond.physics.synchrotron_radiation.synchrotron_radiation import (
+from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationDrift,
     _SynchrotronRadiationSection,
 )

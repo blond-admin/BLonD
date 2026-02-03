@@ -22,7 +22,7 @@ from blond.core.base import SimulationElementBase
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
 from blond.generals.distributed.distributed_array import DistributedArray
-from blond.physics.synchrotron_radiation.synchrotron_radiation import (
+from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationDrift,
     _SynchrotronRadiationSection,
 )

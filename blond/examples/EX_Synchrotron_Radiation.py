@@ -28,7 +28,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
 from blond.handle_results.observables import BeamStatisticsOncePerTurn
-from blond.physics.synchrotron_radiation.synchrotron_radiation import (
+from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
 
