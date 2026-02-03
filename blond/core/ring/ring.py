@@ -420,6 +420,7 @@ class Ring(Preparable):
         self,
         n_drifts_per_section: int,
         n_sections: int,
+        momentum_compaction_factor: float,
         driftclass: type[DriftBaseClass] | None = None,
         **kwargs_drift,
     ) -> None:
@@ -436,6 +437,8 @@ class Ring(Preparable):
             Number of drift elements to create in each section.
         n_sections
             Total number of sections in the ring.
+        momentum_compaction_factor
+            Momentum compaction factor of the ring.
         driftclass
             The drift class to instantiate. If None, uses `DriftSimple`.
         **kwargs_drift
@@ -456,10 +459,14 @@ class Ring(Preparable):
 
         n_drifts = n_drifts_per_section * n_sections
         length_per_drift = self.circumference / n_drifts
+        momentum_compaction_factor_per_drift = (
+            momentum_compaction_factor / n_drifts
+        )
         for section_i in range(n_sections):
             for _drift_i in range(n_drifts_per_section):
                 drift = driftclass(
                     orbit_length=length_per_drift,
+                    momentum_compaction_factor=momentum_compaction_factor_per_drift,
                     section_index=section_i,
                     **kwargs_drift,
                 )
