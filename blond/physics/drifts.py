@@ -182,10 +182,10 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
     ----------
     orbit_length
         Length of drift, in [m].
-    section_index
-        Section index to group elements into sections.
     momentum_compaction_factor
         Momentum compaction factor.
+    section_index
+        Section index to group elements into sections.
     **kwargs
         Additional keyword arguments for MRO of fused elements.
     """
@@ -193,8 +193,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
     def __init__(
         self,
         orbit_length: float,
+        momentum_compaction_factor: float,
         section_index: int = 0,
-        momentum_compaction_factor: float | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
         """
@@ -205,10 +205,10 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         orbit_length
             Length of drift, in [m].
             Length / Velocity => Time to pass the element.
-        section_index
-            Section index to group elements into sections.
         momentum_compaction_factor
             Momentum compaction factor.
+        section_index
+            Section index to group elements into sections.
         **kwargs
             Additional keyword arguments for MRO of fused elements.
 
