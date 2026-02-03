@@ -140,21 +140,22 @@ class SimulationTwoRFStations:
 
         drift1 = DriftSimple(
             orbit_length=0.5 * circumference,
+            momentum_compaction_factor=(
+                1 / (855.759505**2)
+                if below_transition_crossing
+                else 1 / (55.759505**2)
+            ),
             section_index=0,
         )
-        drift1._momentum_compaction_factor = (
-            1 / (855.759505**2)
-            if below_transition_crossing
-            else 1 / (55.759505**2)
-        )
+
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
+            momentum_compaction_factor=(
+                1 / (855.759505**2)
+                if below_transition_crossing
+                else 1 / (55.759505**2)
+            ),
             section_index=1,
-        )
-        drift2._momentum_compaction_factor = (
-            1 / (855.759505**2)
-            if below_transition_crossing
-            else 1 / (55.759505**2)
         )
         beam1 = Beam(
             intensity=1e9,
@@ -216,22 +217,24 @@ class SimulationTwoRFStationsWithWake:
 
         drift1 = DriftSimple(
             orbit_length=0.5 * circumference,
+            momentum_compaction_factor=(
+                1 / (855.759505**2)
+                if below_transition_crossing
+                else 1 / (55.759505**2)
+            ),
             section_index=0,
         )
-        drift1._momentum_compaction_factor = (
-            1 / (855.759505**2)
-            if below_transition_crossing
-            else 1 / (55.759505**2)
-        )
+
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
+            momentum_compaction_factor=(
+                1 / (855.759505**2)
+                if below_transition_crossing
+                else 1 / (55.759505**2)
+            ),
             section_index=1,
         )
-        drift2._momentum_compaction_factor = (
-            1 / (855.759505**2)
-            if below_transition_crossing
-            else 1 / (55.759505**2)
-        )
+
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,
