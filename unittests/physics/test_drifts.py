@@ -9,6 +9,7 @@ from blond import Numpy32Bit, Simulation
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 
 
@@ -87,8 +88,12 @@ class TestDriftSimple(unittest.TestCase):
         beam.reference.velocity = 0.5
         beam.reference.beta = 0.1
         beam.reference.total_energy = 1.0
-        beam.write_partial_dt.return_value = np.ones(10, dtype=backend.float)
-        beam.read_partial_dE.return_value = np.zeros(10, dtype=backend.float)
+        beam.write_partial_dt.return_value = backend.ones(
+            10, dtype=backend.float
+        )
+        beam.read_partial_dE.return_value = backend.zeros(
+            10, dtype=backend.float
+        )
         self.drift_simple.track(beam=beam)
 
     def test_error_throwing_on_unscheduled(self):
@@ -145,10 +150,10 @@ class TestDriftSimple(unittest.TestCase):
         beam.reference.velocity = float(beam.reference.beta * c0)
         beam.reference.gamma = float(np.sqrt(1 - 0.25))  # beta**2
         beam.reference.total_energy = float(938)
-        beam.dE = np.linspace(
+        beam.dE = backend.linspace(
             -1e6, 1e6, 10, dtype=backend.float
         )  # delta E in eV
-        beam.dt = np.linspace(
+        beam.dt = backend.linspace(
             -1e-6, 1e-6, 10, dtype=backend.float
         )  # delta t in s
         beam.write_partial_dt.return_value = beam.dt
@@ -156,7 +161,7 @@ class TestDriftSimple(unittest.TestCase):
 
         self.drift_simple.track(beam=beam)
         np.testing.assert_allclose(
-            beam.dt,
+            copy_to_cpu(beam.dt),
             [
                 0.00023563017947381346,
                 0.0001832679173685216,
@@ -172,7 +177,7 @@ class TestDriftSimple(unittest.TestCase):
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
         np.testing.assert_allclose(
-            beam.dE,
+            copy_to_cpu(beam.dE),
             np.linspace(-1e6, 1e6, 10),
         )
         self.assertEqual(
