@@ -23,13 +23,14 @@ from blond.physics.feedbacks.helpers import (
     polar_to_cartesian,
     rf_beam_current,
 )
+from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Simulation, StaticProfile
+    from blond import Simulation
     from blond.core.beam.base import BeamBaseClass
     from blond.physics.cavities import MultiHarmonicRFStation
 

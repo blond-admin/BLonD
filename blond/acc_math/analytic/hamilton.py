@@ -288,10 +288,8 @@ def single_rf_sin_hamiltonian(
 def calc_phi_s_single_harmonic(
     charge: float,
     voltage: float,
-    phase: float,
     energy_gain: float,
     above_transition: bool,
-    enable_rf_phase: bool = True,
 ) -> float:
     """
     Derive the analytical synchronous phase for a single harmonic RF.
@@ -303,15 +301,10 @@ def calc_phi_s_single_harmonic(
         Example: For an electron `charge=-1`.
     voltage
         RF voltage of the RF station, in [V].
-    phase
-        Phi_rf of the main harmonic, in [rad].
     energy_gain
         Energy gain per turn, in [eV].
     above_transition
         Whether the beam energy is below or above transition.
-    enable_rf_phase
-        Determines if the given phase should be taken into
-        account for the calculation or not.
 
     Returns
     -------
@@ -327,10 +320,7 @@ def calc_phi_s_single_harmonic(
         # Otherwise, they cancel each other out like ``-1 * -1 = 1``
         phi = np.pi - phi
 
-    if enable_rf_phase:
-        return phi - phase
-    else:
-        return phi
+    return phi
 
 
 def calc_synchrotron_tune_single_harmonic(

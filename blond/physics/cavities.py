@@ -18,6 +18,9 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
+from blond.acc_math.analytic.hamilton import (
+    calc_phi_s_single_harmonic,
+)
 from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
@@ -43,7 +46,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
-    from blond.physics.feedbacks.base import LocalFeedback
     from blond.physics.impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
@@ -456,9 +458,7 @@ class RFStationBaseClass(
 
         return Q_s0
 
-    def calc_phi_s_single_harmonic(
-        self, beam: BeamBaseClass, enable_rf_phase: bool = True
-    ) -> float:
+    def calc_phi_s_single_harmonic(self, beam: BeamBaseClass) -> float:
         """
         Calculate the main harmonic synchronous phase.
 
@@ -466,10 +466,6 @@ class RFStationBaseClass(
         ----------
         beam
             Beam class to interact with this element.
-        enable_rf_phase
-            This flag will cause the rf phase of this
-            station to be taken into account for the
-            computation of the synchronous phase.
 
         Returns
         -------
@@ -492,10 +488,6 @@ class RFStationBaseClass(
             target_total_energy - beam.reference.total_energy
         )
 
-        from blond.acc_math.analytic.hamilton import (
-            calc_phi_s_single_harmonic,
-        )
-
         assert self.voltage is not None
         assert self.phi_rf_actual is not None
         phi_s = calc_phi_s_single_harmonic(
@@ -503,7 +495,6 @@ class RFStationBaseClass(
             voltage=float(self.get_main_harmonic_voltage()),
             energy_gain=reference_energy_change,
             above_transition=not self._ring.is_below_transition(beam=beam),
-            enable_rf_phase=enable_rf_phase,
         )
 
         return phi_s
