@@ -231,7 +231,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self._simulation: Simulation | None = None
 
     @property  # read only, set by `transition_gamma`
-    def momentum_compaction_factor(self) -> float | None:
+    def momentum_compaction_factor(self) -> float:
         """
         Momentum compaction factor.
 
@@ -241,6 +241,20 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Momentum compaction factor.
         """
         return self._momentum_compaction_factor
+
+    @momentum_compaction_factor.setter  # read only, set by `transition_gamma`
+    def momentum_compaction_factor(
+        self, momentum_compaction_factor: float
+    ) -> None:
+        """
+        Momentum compaction factor.
+
+        Parameters
+        ----------
+        momentum_compaction_factor
+            Momentum compaction factor.
+        """
+        self._momentum_compaction_factor = momentum_compaction_factor
 
     @property
     def transition_gamma(self) -> complex | None:
@@ -253,18 +267,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Gamma of transition crossing.
         """
         return self._transition_gamma
-
-    @transition_gamma.setter
-    def transition_gamma(self, transition_gamma: complex) -> None:
-        """
-        Gamma of transition crossing.
-
-        Parameters
-        ----------
-        transition_gamma
-            Gamma of transition crossing.
-        """
-        self._transition_gamma = complex(transition_gamma)
 
     @staticmethod
     def headless(
@@ -296,13 +298,15 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
         d = DriftSimple(
             orbit_length=orbit_length,
+            momentum_compaction_factor=momentum_compaction_factor,
             section_index=section_index,
         )
         if isinstance(momentum_compaction_factor, int | float):
             d._momentum_compaction_factor = float(momentum_compaction_factor)
         else:
             d.schedule(
-                "momentum_compaction_factor", momentum_compaction_factor
+                "momentum_compaction_factor",
+                momentum_compaction_factor,
             )
         from blond.core.beam.base import BeamBaseClass
         from blond.core.simulation.simulation import Simulation
