@@ -1,4 +1,5 @@
 import cmath
+import copy
 import unittest
 from unittest.mock import Mock
 
@@ -59,6 +60,15 @@ class TestDriftSimple(unittest.TestCase):
             orbit_length=0.25 * 25,
             section_index=0,
         )
+
+    def test_value_error_on_init(self):
+        drift_bis = copy.deepcopy(self.drift_simple)
+        drift_bis.momentum_compaction_factor = None
+        with self.assertRaisesRegex(
+            expected_exception=ValueError,
+            expected_regex="You need to define `momentum_compaction_factor`",
+        ):
+            drift_bis.on_init_simulation(simulation=Mock(Simulation))
 
     def test_array_setup(self):
         self.drift_simple = DriftSimple.headless(
