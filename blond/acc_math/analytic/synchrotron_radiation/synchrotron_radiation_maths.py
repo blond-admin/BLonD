@@ -169,7 +169,7 @@ def calculate_damping_times_in_turns(
     Returns
     -------
     damping_times_turn
-        Damping times in turn in the [horizontal, vertical, longitudinal] order.
+        Damping times in the [horizontal, vertical, longitudinal] order, in [turn].
     """
     damping_partition_numbers = calculate_partition_numbers(
         synchrotron_radiation_integrals
@@ -209,7 +209,7 @@ def calculate_horizontal_damping_time_in_turns(
     Returns
     -------
     horizontal_damping_time_turn
-        Horizontal damping time in turns.
+        Horizontal damping time, in [turn].
     """
     horizontal_damping_partition_number = (
         calculate_horizontal_damping_partition_number(
@@ -247,7 +247,7 @@ def calculate_longitudinal_damping_time_in_turns(
     Returns
     -------
     longitudinal_damping_time_turn
-        Longitudinal damping time in turns.
+        Longitudinal damping time, in [turn].
     """
     longitudinal_damping_partition_number = (
         calculate_longitudinal_damping_partition_number(
@@ -291,8 +291,8 @@ def calculate_damping_times_in_seconds(
     Returns
     -------
     damping_times
-        Damping times in seconds in the [horizontal, vertical,
-        longitudinal] order.
+        Damping times in the [horizontal, vertical,
+        longitudinal] order, in [s].
 
     Examples
     --------
@@ -367,7 +367,7 @@ def calculate_horizontal_damping_time_in_seconds(
     Returns
     -------
     horizontal_damping_time
-        Horizontal damping time in seconds.
+        Horizontal damping time, in [s].
     """
     horizontal_damping_partition_number = (
         calculate_horizontal_damping_partition_number(
@@ -412,7 +412,7 @@ def calculate_longitudinal_damping_time_in_seconds(
     Returns
     -------
     longitudinal_damping_time
-        Longitudinal damping time in seconds.
+        Longitudinal damping time, in [s].
     """
     longitudinal_damping_partition_number = (
         calculate_longitudinal_damping_partition_number(
