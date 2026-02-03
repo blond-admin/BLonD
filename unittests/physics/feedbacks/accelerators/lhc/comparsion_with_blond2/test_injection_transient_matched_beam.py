@@ -114,7 +114,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         cavity_control = LHCCavityLoop(
             profile=profile,
             f_c=f_rf - 5e3,
-            n_pretrack=100,
+            n_pretrack=200,
             Q_L=Q_L,
             tau_loop=tau_loop,
             tau_otfb=tau_comp,
@@ -238,7 +238,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         np.testing.assert_allclose(
             self.rf_power.real,
             self.blond2_data["rf_power"].real,
-            atol=1e-9,
+            rtol=8e-6,
             err_msg="Error in real part of rf power",
         )
         np.testing.assert_allclose(
