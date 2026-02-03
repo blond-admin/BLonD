@@ -13,20 +13,21 @@
 import numpy as np
 
 from blond import (
+    Beam,
     BiGaussian,
     DriftSimple,
+    InductiveImpedance,
+    InductiveImpedanceSolver,
+    MagneticCyclePerTurn,
+    MultiHarmonicRFStation,
+    Ring,
     Simulation,
     StaticProfile,
     WakeField,
+    backend,
     proton,
 )
-from blond.core.backends.backend import backend
-from blond.core.beam.beams import Beam
-from blond.core.ring.ring import Ring
-from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
-from blond.physics.cavities import MultiHarmonicRFStation
-from blond.physics.impedances.solvers import InductiveImpedanceSolver
-from blond.physics.impedances.sources import InductiveImpedance
+from blond.cycles.magnetic_cycle import MagneticCycleBase
 
 
 class Main:

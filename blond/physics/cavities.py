@@ -26,9 +26,6 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.experimental.physics.feedbacks.beam_feedback import (
-    Blond2BeamFeedback,
-)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -39,6 +36,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
+    from blond.experimental.physics.feedbacks.beam_feedback import (
+        Blond2BeamFeedback,
+    )
     from blond.physics.feedbacks.base import LocalFeedback
     from blond.physics.impedances.base import WakeField
 
