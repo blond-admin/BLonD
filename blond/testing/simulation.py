@@ -54,8 +54,8 @@ class ExampleSimulation01:
 
         drift1 = DriftSimple(
             orbit_length=26658.883,
+            momentum_compaction_factor=1 / (55.759505**2),
         )
-        drift1.transition_gamma = 55.759505
 
         beam1 = Beam(intensity=1e9, particle_type=proton)
         self.beam1 = beam1
@@ -142,15 +142,19 @@ class SimulationTwoRFStations:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
+        drift1._momentum_compaction_factor = (
+            1 / (855.759505**2)
+            if below_transition_crossing
+            else 1 / (55.759505**2)
         )
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
+        drift2._momentum_compaction_factor = (
+            1 / (855.759505**2)
+            if below_transition_crossing
+            else 1 / (55.759505**2)
         )
         beam1 = Beam(
             intensity=1e9,
@@ -214,15 +218,19 @@ class SimulationTwoRFStationsWithWake:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
+        drift1._momentum_compaction_factor = (
+            1 / (855.759505**2)
+            if below_transition_crossing
+            else 1 / (55.759505**2)
         )
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
+        drift2._momentum_compaction_factor = (
+            1 / (855.759505**2)
+            if below_transition_crossing
+            else 1 / (55.759505**2)
         )
         beam1 = Beam(
             intensity=1e9,
