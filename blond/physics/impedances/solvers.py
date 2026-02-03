@@ -1107,7 +1107,6 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         profile = self._parent_wakefield.profile
 
         profile_width = profile.cut_right - profile.cut_left
-        # todo check that the time of n_revolutions matches n * length_profile
         t_total = self._simulation.calculate_time_passed(
             n_turns=self._n_wakes_full_turn,
         )
