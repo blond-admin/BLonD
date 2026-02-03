@@ -18,7 +18,8 @@ import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.core.backends.mpi_distributed.callables import rms_emittance
-from blond.core.beam.base import BeamBaseClass, BeamFlags
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.flags import BeamFlags
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.generals.distributed.helpers import (

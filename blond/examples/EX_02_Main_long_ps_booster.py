@@ -29,6 +29,10 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
+    ImpedanceTableFreq,
+    InductiveImpedance,
+    InductiveImpedanceSolver,
+    PeriodicFreqSolver,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -40,14 +44,6 @@ from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.readers import (
     ExampleImpedanceReader1,
     ExampleImpedanceReader2,
-)
-from blond.physics.impedances.solvers import (
-    InductiveImpedanceSolver,
-    PeriodicFreqSolver,
-)
-from blond.physics.impedances.sources import (
-    ImpedanceTableFreq,
-    InductiveImpedance,
 )
 
 logging.basicConfig(

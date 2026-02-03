@@ -6,22 +6,15 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Glue code for XSuite.
+"""Module to define particle flags."""
 
-Notes
------
-See Also https://xsuite.readthedocs.io/en/latest/
+from enum import IntEnum
 
-Authors:
-Birk Emil Karlsen-Bæck
-Elleanor Lamb
-Simon Lauber
-"""
 
-__all__ = [
-    "XsuiteRFBucketMatcher",
-]
-from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
-    XsuiteRFBucketMatcher,
-)
+class BeamFlags(IntEnum):
+    """Flags that define the beam state."""
+
+    # Please mind that the LOST flag is hardcoded in all backends
+    # for loss_box
+    LOST = -500  # by convention with XSuite team.
+    ACTIVE = 1
