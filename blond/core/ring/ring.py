@@ -449,7 +449,9 @@ class Ring(Preparable):
         --------
         >>> from blond import Ring
         >>> ring = Ring(...)
-        >>> ring.add_drifts(n_drifts_per_section=10, n_sections=4)
+        >>> ring.add_drifts(n_drifts_per_section=10,
+        ... momentum_compaction_factor = 1e-4,
+        ... n_sections=4)
         >>> # Creates 40 drifts total, 10 per section, each with length = circumference/40
         """
         if driftclass is None:
