@@ -10,6 +10,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    backend,
 )
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.beam.base import BeamBaseClass
@@ -45,6 +46,7 @@ class TestRing(unittest.TestCase):
     def setUp(self):
         # TODO: implement test for `__init__`
         self.ring = Ring(10.0)
+        self.decimal = 6 if backend.float == np.float32 else 12
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -440,7 +442,8 @@ class TestRing(unittest.TestCase):
         simulation = Mock(spec=Simulation)
         drift = Mock(spec=DriftBaseClass)
         drift.section_index = 0
-        drift.share_of_circumference = 1
+        drift.momentum_compaction_factor = 1e-4
+        drift.orbit_length = self.ring.circumference
         cavity = Mock(spec=RFStationBaseClass)
         cavity.section_index = 0
         self.ring.add_elements((drift, cavity))
@@ -460,6 +463,7 @@ class TestRing(unittest.TestCase):
     def test_effective_circumference(self):
         drift = Mock(spec=DriftBaseClass)
         drift.orbit_length = 123
+        drift.momentum_compaction_factor = 1e-4
         cavity = Mock(spec=RFStationBaseClass)
         drift.section_index = 0
         cavity.section_index = 0
@@ -469,8 +473,10 @@ class TestRing(unittest.TestCase):
     def test_effective_circumference2(self):
         drift = Mock(spec=DriftBaseClass)
         drift.orbit_length = 123
+        drift.momentum_compaction_factor = 1e-4
         drift2 = Mock(spec=DriftBaseClass)
         drift2.orbit_length = 123
+        drift2.momentum_compaction_factor = 1e-5
         cavity = Mock(spec=RFStationBaseClass)
         drift.section_index = 0
         drift2.section_index = 0
@@ -483,8 +489,10 @@ class TestRing(unittest.TestCase):
             self.ring._circumference = 12
             drift = Mock(spec=DriftBaseClass)
             drift.orbit_length = 123
+            drift.momentum_compaction_factor = 1e-4
             drift2 = Mock(spec=DriftBaseClass)
             drift2.orbit_length = 123
+            drift2.momentum_compaction_factor = 1e-5
             cavity = Mock(spec=RFStationBaseClass)
             drift.section_index = 0
             drift2.section_index = 0
@@ -501,10 +509,15 @@ class TestRing(unittest.TestCase):
 
     def test_add_drifts2(self):
         self.ring._circumference = 129
-        self.ring.add_drifts(12, 3)
+        self.ring.add_drifts(12, 3, momentum_compaction_factor=1 / (55**2))
         self.assertEqual(3 * 12, self.ring.elements.n_elements)
         self.assertEqual(3, self.ring.elements.n_sections)
         self.ring.assert_circumference()  # works
+        np.testing.assert_almost_equal(
+            self.ring.momentum_compaction_factor,
+            1 / (55**2),
+            decimal=self.decimal,
+        )
 
     def test_momentum_compaction_factor(self):
         self.ring._circumference = 100
@@ -563,6 +576,7 @@ class TestRing(unittest.TestCase):
         self.ring._circumference = 129
         from blond.testing.mocks import drift_simple_mock
 
+        drift_simple_mock.transition_gamma = 42
         drift_simple_mock.transition_gamma = 42
         drift_simple_mock.orbit_length = 12
         drift_simple_mock.section_index = 0
