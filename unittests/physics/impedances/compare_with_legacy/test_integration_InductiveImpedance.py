@@ -91,8 +91,9 @@ class Blond3:
         self.blond2 = blond2
         circumference = 2 * np.pi * 25.0
         ring = Ring(circumference=circumference)
-        drift = DriftSimple(orbit_length=circumference)
-        drift.transition_gamma = 4.4
+        drift = DriftSimple(
+            orbit_length=circumference, momentum_compaction_factor=1 / (4.4**2)
+        )
         cavity = SingleHarmonicRFStation()
         cavity.harmonic = 1
         cavity.voltage = 8e3

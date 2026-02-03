@@ -284,8 +284,9 @@ class Blond3:
         cavity1.voltage = 0
         cavity1.phi_rf = 0
         cavity1.harmonic = 1
-        drift = DriftSimple(orbit_length=circumference)
-        drift.transition_gamma = 1
+        drift = DriftSimple(
+            orbit_length=circumference, momentum_compaction_factor=1
+        )
         resonators = Resonators(
             shunt_impedances=R_shunt,
             center_frequencies=f_res,
