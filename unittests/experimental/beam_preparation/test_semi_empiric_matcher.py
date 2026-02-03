@@ -329,7 +329,6 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             maxiter_intensity_effects=1000,
             tolerance=0.000001,
             animate=False,
-            debug=True,
         )
         sim.simulation.prepare_beam(
             beam=sim.beam1,
