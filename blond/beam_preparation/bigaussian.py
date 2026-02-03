@@ -102,7 +102,10 @@ def _get_dE_from_dt(
             charge=beam.particle_type.charge,
             voltage=voltage,
             energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-                1, 0, 0, particle_type=beam.particle_type
+                turn_i=0,
+                section_i=0,
+                reference_time=0,
+                particle_type=beam.particle_type,
             )
             - beam.reference.total_energy,
             above_transition=above_transition,
@@ -298,13 +301,17 @@ class BiGaussian(MatchingRoutine):
             assert not backend.isnan(sigma_dE), "BUG, fix phi_s"
         else:
             sigma_dE = self._sigma_dE
+        print(f"BLonD 3 {sigma_dE=}")
 
         phi_s = float(
             calc_phi_s_single_harmonic(
                 charge=beam.particle_type.charge,
                 voltage=voltage,
                 energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-                    0, 0, 0, particle_type=beam.particle_type
+                    turn_i=0,
+                    section_i=0,
+                    reference_time=0,
+                    particle_type=beam.particle_type,
                 )
                 - beam.reference.total_energy,
                 above_transition=above_transition,
