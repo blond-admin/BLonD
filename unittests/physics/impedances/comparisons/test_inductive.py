@@ -54,8 +54,8 @@ class TestInductiveImpedances(unittest.TestCase):
             )
             drift = DriftSimple(
                 orbit_length=ring.circumference,
+                momentum_compaction_factor=1 / 4.4**2,
             )
-            drift.transition_gamma = 4.4
             cavity = SingleHarmonicRFStation()
             cavity.harmonic = 1
             cavity.voltage = 8e3

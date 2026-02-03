@@ -61,8 +61,8 @@ class TestResonatorImpedances(unittest.TestCase):
             cavity1.harmonic = 1
             drift = DriftSimple(
                 orbit_length=ring.circumference,
+                momentum_compaction_factor=1 / 1**2,
             )
-            drift.transition_gamma = 1
             resonators = Resonators(
                 shunt_impedances=100 * np.ones(1),
                 center_frequencies=10 * np.ones(1),
