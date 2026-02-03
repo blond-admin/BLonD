@@ -301,7 +301,6 @@ class BiGaussian(MatchingRoutine):
             assert not backend.isnan(sigma_dE), "BUG, fix phi_s"
         else:
             sigma_dE = self._sigma_dE
-        print(f"BLonD 3 {sigma_dE=}")
 
         phi_s = float(
             calc_phi_s_single_harmonic(
