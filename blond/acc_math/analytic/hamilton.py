@@ -360,7 +360,6 @@ def separatrix_single_rf(
     """
     voltage = rf_station.voltage
     harmonic = rf_station.harmonic
-    phi_rf = rf_station.phi_rf
 
     charge = magnetic_cylce.reference_particle.charge
 
@@ -402,7 +401,6 @@ def separatrix_single_rf(
     phi_s = calc_phi_s_single_harmonic(
         charge=charge,
         voltage=voltage,
-        phase=phi_rf,
         energy_gain=energy_gain,
         above_transition=above_Transition,
     )

@@ -18,6 +18,7 @@ from blond.acc_math.analytic.hamilton import (
     phase_modulo_above_transition,
     phase_modulo_below_transition,
     separatrix_single_rf,
+    single_rf_sin_hamiltonian,
 )
 from blond.experimental.beam_preparation.filamentation_matcher import (
     FilamentationMatcher,
