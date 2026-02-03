@@ -268,6 +268,18 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         """
         return self._transition_gamma
 
+    @transition_gamma.setter
+    def transition_gamma(self, transition_gamma: complex) -> None:
+        """
+        Gamma of transition crossing.
+
+        Parameters
+        ----------
+        transition_gamma
+            Gamma of transition crossing.
+        """
+        self._transition_gamma = complex(transition_gamma)
+
     @staticmethod
     def headless(
         momentum_compaction_factor: float
