@@ -30,10 +30,8 @@ from blond.core.base import (
 )
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
-    Blond2BeamFeedback,
 )
 from blond.physics.feedbacks.base import LocalFeedback
 
@@ -147,7 +145,7 @@ class RFStationBaseClass(
         cavity_feedback: LocalFeedback
         | tuple[LocalFeedback, ...]
         | None = None,
-        beam_feedback: Blond2BeamFeedback | BeamFeedbackBase | None = None,
+        beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
@@ -166,8 +164,6 @@ class RFStationBaseClass(
 
         if beam_feedback is None:
             pass
-        elif isinstance(beam_feedback, Blond2BeamFeedback):
-            beam_feedback.set_parent_rf_station(rf_station=self)
         elif isinstance(beam_feedback, BeamFeedbackBase):
             self.attach_beam_feedback(beam_feedback)
         else:
@@ -236,7 +232,6 @@ class RFStationBaseClass(
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
-    @requires(["BeamBaseClass"])  # beta needs to be calculated before
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -762,7 +757,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         cavity_feedback: LocalFeedback
         | tuple[LocalFeedback, ...]
         | None = None,
-        beam_feedback: Blond2BeamFeedback | None = None,
+        beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
@@ -1213,7 +1208,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         cavity_feedback: LocalFeedback
         | tuple[LocalFeedback, ...]
         | None = None,
-        beam_feedback: Blond2BeamFeedback | None = None,
+        beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
     ):
         assert main_harmonic_idx < n_harmonics, (
@@ -1577,7 +1572,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         beam_reference_beta: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
-        beam_feedback: Blond2BeamFeedback | None = None,
+        beam_feedback: BeamFeedbackBase | None = None,
     ) -> MultiHarmonicRFStation:
         """
         Initialize object without simulation context.
