@@ -1643,11 +1643,10 @@ class Simulation(Preparable):
 
     def calculate_time_passed(self, n_turns: int):
         """
-        Calculate the revolution time of the current turn, in [s].
+        Calculate the time that has passed during n turns, in [s].
 
         This method takes the reference frame of the beam at the first element
-        and tracks it along one turn back to the first element,
-        considering acceleration in sections.
+        and tracks it along several turns, considering acceleration.
 
         Parameters
         ----------
