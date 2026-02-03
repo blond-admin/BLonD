@@ -293,6 +293,28 @@ def calculate_damping_times_in_seconds(
     damping_times
         Damping times in seconds in the [horizontal, vertical,
         longitudinal] order.
+
+    Examples
+    --------
+    >>> from blond import Ring, Beam, electron
+    >>> ring = Ring(
+    ...     circumference=10,
+    ...     synchrotron_radiation_integrals=np.array(
+    ...         [
+    ...             0.646747216157,
+    ...             0.0005936549319,
+    ...             5.6814536525e-08,
+    ...             5.92870407301e-09,
+    ...             1.71368060083e-11,
+    ...         ]
+    ...     ),
+    ... )
+    >>> beam = Beam(particle_type=electron)
+    >>> [tau_x, tau_y, tau_z] = calculate_damping_times_in_seconds(
+    ... energy=beam.reference.total_energy,
+    ... synchrotron_radiation_integrals = ring.synchrotron_radiation_integrals,
+    ... particle_type = beam.particle_type,
+    ... revolution_frequency = beam.reference.velocity /ring.circumference)
     """
     if isinstance(revolution_frequency, np.ndarray) and isinstance(
         energy, np.ndarray
