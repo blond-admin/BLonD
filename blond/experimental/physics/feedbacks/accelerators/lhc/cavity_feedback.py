@@ -280,12 +280,6 @@ class LHCCavityLoop(IQCavityFeedback):
             "Sum of FIR coefficients %.4e" % np.sum(self.fir_coeff)
         )
 
-        # Bandwidth of klystron
-        num_taps = round(2 * self.tau_loop / self.T_s + 1)
-        self.klystron_fir = firwin(
-            num_taps, 1.7e6, fs=1 / self.T_s, pass_zero="lowpass"
-        )
-
         self.update_rf_variables()
         self.update_fb_variables()
         self.logger.debug("Relative detuning is %.4e", self.detuning)
@@ -344,12 +338,6 @@ class LHCCavityLoop(IQCavityFeedback):
         self.fir_coeff = fir_filter_lhc_otfb_coeff(n_taps=self.fir_n_taps)
         self.logger.debug(
             "Sum of FIR coefficients %.4e" % np.sum(self.fir_coeff)
-        )
-
-        # Bandwidth of klystron
-        num_taps = round(2 * self.tau_loop / self.T_s + 1)
-        self.klystron_fir = firwin(
-            num_taps, 1.7e6, fs=1 / self.T_s, pass_zero="lowpass"
         )
 
         self.update_rf_variables(omega_rf=omega_rf, harmonic=harmonic)
@@ -492,19 +480,10 @@ class LHCCavityLoop(IQCavityFeedback):
         # From V_swap_out in closed loop, constant in open loop
         # TODO: missing terms for changing voltage and beam current
         self.I_TEST[self.ind] = self.G_gen * self.V_SWAP_OUT[self.ind]
-        self.I_GEN_GAIN[self.ind] = (
+        self.I_GEN_COARSE[self.ind] = (
             self.open_drive * self.I_TEST[self.ind]
             + self.open_drive_inv * self.I_gen_offset
         )
-
-        # FIR filter
-        self.I_GEN_COARSE[self.ind] = (
-            self.klystron_fir[0] * self.I_GEN_GAIN[self.ind]
-        )
-        for k in range(1, len(self.klystron_fir)):
-            self.I_GEN_COARSE[self.ind] += (
-                self.klystron_fir[k] * self.I_GEN_GAIN[self.ind - k]
-            )
 
     def generator_power(self) -> NumpyArray:
         r"""Calculation of generator power from generator current"""
@@ -544,13 +523,9 @@ class LHCCavityLoop(IQCavityFeedback):
     def rf_feedback(self, T_s: float):
         r"""Analog and digital RF feedback response"""
         # Calculate voltage difference to act on
-        # self.V_FB_IN[self.ind] = (
-        #    self.V_SET[self.ind - self.n_delay]
-        #    - self.open_loop * self.V_ANT_COARSE[self.ind - self.n_delay]
-        # )
-
         self.V_FB_IN[self.ind] = (
-            self.V_SET[self.ind] - self.open_loop * self.V_ANT_COARSE[self.ind]
+            self.V_SET[self.ind - self.n_delay]
+            - self.open_loop * self.V_ANT_COARSE[self.ind - self.n_delay]
         )
 
         # On the analog branch, OTFB can contribute
