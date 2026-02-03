@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 from numpy import float32, float64
 from scipy.constants import (  # type: ignore[import-untyped]
@@ -23,6 +25,9 @@ from scipy.constants import (  # type: ignore[import-untyped]
 )
 
 m_mu = physical_constants["muon mass"][0]
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 
 class ParticleType:
@@ -59,6 +64,61 @@ class ParticleType:
         # Quantum radiation constant [m]
         c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (mass * e)
         self._quantum_radiation_constant = c_q
+
+    def __eq__(self, other: Self) -> bool:
+        """
+        Equality comparison of the particle.
+
+        Compares with another ParticleType object to ensure they have
+        the same value.  The values of mass, charge, decay rate and
+        particle radius are compared.
+
+        Parameters
+        ----------
+        other
+            The ParticleType instance to compare to.
+
+        Returns
+        -------
+        bool
+            True if both ParticleTypes are the same.
+        """
+        if not isinstance(other, type(self)):
+            raise TypeError(f"Cannot compare {type(self)} to {type(other)}")
+
+        other_tuple = (
+            other._mass,
+            other._charge,
+            other._user_decay_rate,
+        )
+        self_tuple = (
+            self._mass,
+            self._charge,
+            self._user_decay_rate,
+        )
+
+        return other_tuple == self_tuple
+
+    def __hash__(self) -> int:
+        """
+        Compute the hash of the particle.
+
+        Compares the hash value of the particle.  Uses the hash of a
+        tuple of (mass, charge, decay rate, particle radius).
+
+        Returns
+        -------
+        hash
+            The computed hash value.
+        """
+        return hash(
+            (
+                self._mass,
+                self._charge,
+                self._user_decay_rate,
+                self._classical_particle_radius,
+            )
+        )
 
     @property
     def mass(self) -> float:

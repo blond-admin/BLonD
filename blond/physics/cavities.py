@@ -30,6 +30,7 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Ring
@@ -1016,9 +1017,15 @@ class MultiHarmonicRFStation(RFStationBaseClass):
 
         self.main_harmonic_idx = main_harmonic_idx
 
-        self.voltage: NumpyArray | None = voltage
-        self.phi_rf: NumpyArray | None = phi_rf
-        self.harmonic: NumpyArray | None = harmonic
+        self.voltage: NumpyArray | CupyArray | None = (
+            backend.array(voltage) if (voltage is not None) else None
+        )
+        self.phi_rf: NumpyArray | CupyArray | None = (
+            backend.array(phi_rf) if (phi_rf is not None) else None
+        )
+        self.harmonic: NumpyArray | CupyArray | None = (
+            backend.array(harmonic) if (harmonic is not None) else None
+        )
 
         for array_name, input_array in (
             ("voltage", voltage),
@@ -1345,7 +1352,9 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                 dt=beam.read_partial_dt(),
                 dE=beam.write_partial_dE(),
                 voltage=self.voltage.astype(backend.float),
-                phi_rf=(self.phi_rf + self.delta_phi_rf).astype(backend.float),
+                phi_rf=backend.array(
+                    self.phi_rf + self.delta_phi_rf, dtype=backend.float
+                ),
                 omega_rf=(self._omega_rf + self.delta_omega_rf).astype(
                     backend.float
                 ),
