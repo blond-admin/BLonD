@@ -13,19 +13,22 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from blond.core.base import HasPropertyCache, Preparable
+from blond.core.base import Preparable
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, Literal
+
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
+    from blond.generals.distributed.distributed_array import DistributedArray
 
 
 class BeamFlags(IntEnum):
@@ -37,7 +40,7 @@ class BeamFlags(IntEnum):
     ACTIVE = 1
 
 
-class BeamBaseClass(Preparable, HasPropertyCache, ABC):
+class BeamBaseClass(Preparable, ABC):
     """
     Base class to make beam classes.
 
@@ -70,10 +73,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._is_counter_rotating = is_counter_rotating
 
         # should be initialized later using `setup_beam`
-        self._dE: NumpyArray | CupyArray | None = None
-        self._dt: NumpyArray | CupyArray | None = None
-        self._flags: NumpyArray | CupyArray | None = None
-        self._ids: NumpyArray | CupyArray | None = None
+        self._dE: DistributedArray | None = None
+        self._dt: DistributedArray | None = None
+        self._flags: DistributedArray | None = None
+        self._ids: DistributedArray | None = None
 
         self.reference = ReferenceCoordinates(
             time=0, total_energy=None, particle_type=particle_type
@@ -118,7 +121,12 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         total_energy_init = simulation.magnetic_cycle.get_total_energy_init(
             particle_type=self.particle_type,
         )
-        if self.reference._total_energy != total_energy_init:
+        if (
+            self.reference._total_energy != total_energy_init
+            and self.reference._total_energy is not None
+        ):
+            # Display a warning when the reference energy is overwritten,
+            # but not when None is overwritten.
             msg = (
                 f"`Bunch` was prepared for"
                 f" total_energy = {self.reference._total_energy} eV,"
@@ -155,6 +163,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         flags: NumpyArray | CupyArray = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
+        mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        **kwargs,
     ) -> None:
         """
         Set beam array attributes for simulation.
@@ -171,6 +181,23 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             Time of the reference frame (global time), in [s].
         reference_total_energy
             Time of the reference frame (global total energy), in [eV].
+        mpi_mode
+            Specifies how the particle data is distributed across multiple ranks (processing
+            units) in a parallel environment:
+
+            - "root-distributes": The root node (rank 0) holds the full array and splits it
+              into smaller chunks, which are then distributed to all ranks, including rank 0.
+              Each rank stores its own chunk of the data. This mode is useful when loading
+              large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
+              across ranks.
+
+            - "all-ranks": Each rank independently generates and stores a full copy of the data.
+              While this mode uses more memory, it can be simpler to implement in scenarios where
+              each rank needs to work with its own independent data (e.g., generating separate
+              random distributions with `np.random.randn()`).
+        **kwargs
+            Keyword arguments to make the non-abstract implementation
+            extendable.
         """
         pass
 
@@ -245,6 +272,19 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """Size of the beam, considering distributed beams."""
         pass
 
+    @property
+    @abstractmethod  # pragma: no cover  # as readonly attributes
+    def rms_emittance(self):
+        """
+        Calculate the Root-Mean-Square emittance of the beam.
+
+        Returns
+        -------
+        rms_emittance
+            The Root-Mean-Square emittance in [s eV] of the beam.
+        """
+        pass
+
     def n_macroparticles_partial(self) -> int:
         """
         Return size of the beam, ignoring that beam might be distributed.
@@ -264,7 +304,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         visible to the current node.
         """
         if self._dE is not None:
-            return len(self._dE)
+            return self._dE.local_size
         else:
             raise AttributeError(
                 f"{self._dE=}. You can use `setup_beam("
@@ -289,7 +329,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._ids
+        return self._ids.array_local
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
         """
@@ -309,7 +349,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dt
+        return self._dt.array_local
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
         """
@@ -329,7 +369,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dt
+        return self._dt.array_local
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
         """
@@ -349,7 +389,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dE
+        return self._dE.array_local
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
         """
@@ -369,7 +409,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dE
+        return self._dE.array_local
 
     def write_partial_flags(self) -> NumpyArray | CupyArray:
         """
@@ -389,7 +429,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._flags
+        return self._flags.array_local
 
     def read_partial_flags(self) -> NumpyArray | CupyArray:
         """
@@ -409,7 +449,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._flags
+        return self._flags.array_local
 
     def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
         """
@@ -424,20 +464,31 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         from blond.core.backends.backend import (
             backend,  # prevent cyclic import
         )
+        from blond.generals.distributed.helpers import mpi_barrier
 
-        n_before_truncation = len(self._flags)
-        n_after_truncation = backend.specials.move_flagged_elements_to_end(
-            flag=flag,
-            flags=self._flags,
-            dt=self._dt,
-            dE=self._dE,
-            ids=self._ids,
+        n_before_truncation_global = self._dt.global_size
+
+        n_after_truncation_local = (
+            backend.specials.move_flagged_elements_to_end(
+                flag=flag,
+                flags=self._flags.array_local,
+                dt=self._dt.array_local,
+                dE=self._dE.array_local,
+                ids=self._ids.array_local,
+            )
         )
-        self._flags = self._flags[:n_after_truncation]
-        self._dt = self._dt[:n_after_truncation]
-        self._dE = self._dE[:n_after_truncation]
-        self._ids = self._ids[:n_after_truncation]
+        self._flags.array_local = self._flags.array_local[
+            :n_after_truncation_local
+        ]
+        self._dt.array_local = self._dt.array_local[:n_after_truncation_local]
+        self._dE.array_local = self._dE.array_local[:n_after_truncation_local]
+        self._ids.array_local = self._ids.array_local[
+            :n_after_truncation_local
+        ]
 
-        self.invalidate_cache()
+        mpi_barrier()
+        n_after_truncation_global = self._dt.global_size
 
-        self.intensity *= n_after_truncation / n_before_truncation
+        self.intensity *= (
+            n_after_truncation_global / n_before_truncation_global
+        )

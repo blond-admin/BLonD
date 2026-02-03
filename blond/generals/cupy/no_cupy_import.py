@@ -49,7 +49,7 @@ def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
         return False
 
 
-def copy_to_cpu(array: NumpyArray | CupyArray):
+def copy_to_cpu(array: NumpyArray | CupyArray) -> NumpyArray:
     """
     Copy array from GPU/CPU to CPU.
 

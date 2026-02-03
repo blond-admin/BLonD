@@ -307,7 +307,7 @@ class Ring(Preparable):
 
         See Also
         --------
-        average_transition_gamma : This method is interlnally used.
+        average_transition_gamma : This method is internally used.
         """
         return bool(self.calc_average_eta_0(gamma=beam.reference.gamma) < 0)
 

@@ -31,6 +31,11 @@ workflow:
     - gcc --version
     - nvcc --version # probe NVCC installation
 
+
+    # Create and activate a virtual environment
+    - python3 -m venv ./.venv
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+
     # Install project with extras
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
@@ -45,13 +50,19 @@ workflow:
 .main:
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
+    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
   script:
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
     - pip list
     - cd ${project_root}
+    # Run only MPI unittests. Only the main thread should report.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib; fi'
     # Run all unittests + the examples
+    - pip uninstall -y mpi4py
     - python3 -m pytest
       -v unittests/
       --import-mode=importlib
+      --cov-append
       --cov
       --cov-config=.coveragerc
       --cov-report html:coverage-html
@@ -114,6 +125,8 @@ test_py_311:
     # - .publish
   tags:
     - k8s-gpu
+  only:
+    - blonder
 
 test_py_312:
   image: gitlab-registry.cern.ch/blond/blond/python312
@@ -125,6 +138,8 @@ test_py_312:
     # - .publish
   tags:
     - k8s-gpu
+  only:
+    - blonder
 
 test_py_313:
   image: gitlab-registry.cern.ch/blond/blond/python313
@@ -136,6 +151,8 @@ test_py_313:
     # - .publish
   tags:
     - k8s-gpu
+  only:
+    - blonder
 
 
 test_minimum:
@@ -169,7 +186,8 @@ test_minimum:
       --import-mode=importlib
   tags:
     - k8s-gpu
-
+  only:
+    - blonder
 
 release_sdist_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
@@ -191,7 +209,6 @@ release_sdist_310:
       --username="${PYPI_USERNAME}"
       --password="${PYPI_PASSWORD}"
       dist/*.tar.gz
-
 
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310

@@ -11,6 +11,8 @@
 from __future__ import annotations
 
 import logging
+import math
+import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -160,6 +162,22 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         )  # to avoid double recordings with multiple drifts in one section
         self._last_section_i_observed = -1
 
+    def _calc_n_entries(self, n_turns: int) -> int:
+        """
+        Calculate the number of entries considering `each_turn_i`.
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns that the simulation is foreseen to run.
+
+        Returns
+        -------
+        n_entries
+            The number of observations during the simulation.
+        """
+        return int(math.ceil(n_turns / self.each_turn_i))
+
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
         """
@@ -225,7 +243,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self._n_turns = int(n_turns)
 
         self._turns_array = np.linspace(
-            0, n_turns, num=n_turns // self.each_turn_i + 1, dtype=int
+            0, n_turns, num=self._calc_n_entries(n_turns), dtype=int
         )
         self._turns_array = np.append(
             np.array([0]), self._turns_array
@@ -258,9 +276,9 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     ...     beams=...,
     ...     observe=(bunch_observation,),
     ... )
-    >>> before = 0  # before simulation
+    >>> turn_0 = 0 # first turn
     >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
-    >>> for index in (before, turn_2):
+    >>> for index in (turn_0, turn_2):
     ...     plt.hist2d(
     ...         bunch_observation.dts[index, :],
     ...         bunch_observation.dEs[index, :],
@@ -306,14 +324,23 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
+        from blond.generals.distributed.helpers import mpi_is_distributed
+
         super().on_run_simulation(
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
         )
         self._beam = beam
-        n_entries = n_turns // self.each_turn_i + 2
-        n_macroparticles = int(beam.common_array_size)
+        n_entries = self._calc_n_entries(n_turns)
+        n_macroparticles = int(beam._dt.local_size)
+        if mpi_is_distributed():
+            warnings.warn(
+                "Saving beam with `BeamObservationOncePerTurn` only from "
+                "MPI-rank 0.",
+                UserWarning,
+                stacklevel=2,
+            )
         shape = (n_entries, n_macroparticles)
 
         self._dts = DenseArrayRecorder(
@@ -439,9 +466,9 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     ...     beams=...,
     ...     observe=(bunch_statistics,),
     ... )
-    >>> before = 0  # before simulation
+    >>> turn_0 = 0  # first turn
     >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
-    >>> for index in (before, turn_2)
+    >>> for index in (turn_0, turn_2)
     ...     plt.plot(
     ...         bunch_statistics.bunch_position()[index, :],
     ...     )
@@ -490,7 +517,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
         self._beam = beam
-        n_entries = n_turns // self.each_turn_i + 2
+        n_entries = self._calc_n_entries(n_turns)
 
         self._bunch_position = DenseArrayRecorder(
             f"{self.common_filepath}_bunch_position",
@@ -531,8 +558,8 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         self._energy_spread.write(np.std(self._beam.read_partial_dE()))
         self._bunch_length.write(np.std(self._beam.read_partial_dt()))
 
-        self._reference_time.write(self._beam.reference_time)
-        self._reference_total_energy.write(self._beam.reference_total_energy)
+        self._reference_time.write(self._beam.reference.time)
+        self._reference_total_energy.write(self._beam.reference.total_energy)
 
     @property  # as readonly attributes
     def bunch_position(self):
@@ -620,11 +647,11 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
     ...     beams=...,
     ...     observe=(rf_station_observation,),
     ... )
-    >>> before = 0  # before simulation
+    >>> turn_0 = 0  # first turn
     >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
     >>> plt.scatter(
-    ...     rf_station_observation.turns_array[[before, turn_2]],
-    ...     rf_station_observation.phases[[before, turn_2]],
+    ...     rf_station_observation.turns_array[[turn_0, turn_2]],
+    ...     rf_station_observation.phases[[turn_0, turn_2]],
     ... )
     >>> plt.plot(
     ...     rf_station_observation.turns_array[:], rf_station_observation.phases[:]
@@ -670,7 +697,7 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
 
-        n_entries = n_turns // self.each_turn_i + 2
+        n_entries = self._calc_n_entries(n_turns)
         n_harmonics = int(self._rf_station.n_rf)
         shape = (n_entries, n_harmonics)
         self._phases = DenseArrayRecorder(
@@ -776,9 +803,9 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
     ...     beams=...,
     ...     observe=(profile_obs,),
     ... )
-    >>> before = 0  # before simulation
+    >>> turn_0 = 0  # first turn
     >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
-    >>> for index in (before, turn_2):
+    >>> for index in (turn_0, turn_2):
     ...     plt.plot(
     ...         profile_obs.hist_x, profile_obs.hist_y[index, :]
     ...     )
@@ -823,7 +850,7 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
             beam=beam,
         )
-        n_entries = n_turns // self.each_turn_i + 2
+        n_entries = self._calc_n_entries(n_turns)
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
             f"{self.common_filepath}_hist_y",
@@ -908,11 +935,11 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
     ...     observe=(profile_obs,),
     ... )
     >>> # This example assumes that two profiles are in `profile_obs`
-    >>> before_profile0 = 0  # before simulation
-    >>> before_profile1 = 1  # before simulation
+    >>> turn_0_profile0 = 0  # turn_0 simulation
+    >>> turn_0_profile1 = 1  # turn_0 simulation
     >>> turn_2_profile0 = 2  # after 2 turns, because `each_turn_i = 2`
     >>> turn_2_profile1 = 3  # after 2 turns, because `each_turn_i = 2`
-    >>> for index in (before_profile0, before_profile1, turn_2_profile0, turn_2_profile1):
+    >>> for index in (turn_0_profile0, turn_0_profile1, turn_2_profile0, turn_2_profile1):
     ...     plt.plot(
     ...         profile_obs.hist_x[index % 2], profile_obs.hist_y[index, :]
     ...     )
@@ -991,11 +1018,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         self._last_turn_i_observed = simulation.turn_i.value
         self._last_section_i_observed = simulation.section_i.value
         for prof in self._profiles:
-            before_run = (
-                simulation.section_i.value is None
-                and simulation.turn_i.value == 0
-            )
-            if simulation.section_i.value == prof.section_index or before_run:
+            if simulation.section_i.value == prof.section_index:
                 self._hist_y.write(prof.hist_y)
 
     @property  # as readonly attributes
@@ -1048,9 +1071,9 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
     ...     beams=...,
     ...     observe=(wake_obs,),
     ... )
-    >>> before = 0  # before simulation
+    >>> turn_0 = 0  # first turn
     >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
-    >>> for index in (before, turn_2):
+    >>> for index in (turn_0, turn_2):
     ...     plt.plot(wake_obs.induced_voltage[index, :])
     """
 
@@ -1094,7 +1117,7 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
 
-        n_entries = n_turns // self.each_turn_i + 2
+        n_entries = self._calc_n_entries(n_turns)
         n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
             f"{self.common_filepath}_induced_voltage",
@@ -1161,9 +1184,9 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
     ...     beams=...,
     ...     observe=(profile_obs,),
     ... )
-    >>> before = 0  # before simulation
+    >>> turn_0 = 0  # first turn
     >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
-    >>> for index in (before, turn_2):
+    >>> for index in (turn_0, turn_2):
     ...     plt.plot(
     ...         profile_obs.hist_x[index, :], profile_obs.hist_y[index, :]
     ...     )
@@ -1206,7 +1229,7 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
 
-        n_entries = n_turns // self.each_turn_i + 2
+        n_entries = self._calc_n_entries(n_turns)
         n_bins = int(self._profile.n_bins)
         shape = (n_entries, n_bins)
         self._hist_y = DenseArrayRecorder(

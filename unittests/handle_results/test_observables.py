@@ -15,6 +15,7 @@ from blond import (
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -44,14 +45,20 @@ simulation.section_i.current_group = 0
 simulation.turn_i = DynamicParameter(None)
 simulation.turn_i.value = 0
 beam = Mock(BeamBaseClass)
+beam._dE = Mock(DistributedArray)
+beam._dt = Mock(DistributedArray)
+beam._flags = Mock(DistributedArray)
 beam.common_array_size = 128
 beam.reference = Mock(ReferenceCoordinates)
 beam.reference.time = 0.8
 beam.reference.beta = 0.9
 beam.reference.total_energy = 11
-beam._dt = np.ones(beam.common_array_size, dtype=float)
-beam._dE = np.ones(beam.common_array_size, dtype=float)
-beam._flags = np.ones(beam.common_array_size, dtype=int)
+beam._dt.array_local = np.ones(beam.common_array_size, dtype=float)
+beam._dE.array_local = np.ones(beam.common_array_size, dtype=float)
+beam._flags.array_local = np.ones(beam.common_array_size, dtype=int)
+beam.read_partial_dt.return_value = beam._dt.array_local
+beam.read_partial_dE.return_value = beam._dE.array_local
+beam.read_partial_flags.return_value = beam._flags.array_local
 
 
 class ObservablesHelper(ObservablesOncePerTurnBase):
@@ -132,14 +139,14 @@ class TestObservables(unittest.TestCase):
             n_turns=100,
         )
 
-        assert (
-            len(self.observables._turns_array) == self.observables._n_turns + 2
+        assert len(self.observables._turns_array) == (
+            self.observables._n_turns + 1
         )
         assert np.all(
             np.where(np.diff(self.observables._turns_array) <= 0)
             == np.array([])
         )  # monotonic increase
-        assert np.mean(np.diff(self.observables._turns_array[1:])) == 1
+        assert np.mean(np.diff(self.observables._turns_array[:])), 1
 
         self.observables.on_run_simulation(
             simulation=simulation,
@@ -209,6 +216,13 @@ class TestBunchObservation(unittest.TestCase):
         self.beam._dt = np.ones(common_array_size, dtype=float)
         self.beam._dE = np.ones(common_array_size, dtype=float)
         self.beam._flags = np.ones(common_array_size, dtype=int)
+
+        self.beam.setup_beam(
+            dE=np.ones(common_array_size, dtype=float),
+            dt=np.ones(common_array_size, dtype=float),
+            reference_time=0.8,
+            reference_total_energy=11,
+        )
 
     def test___init__(self) -> None:
         self.assertEqual(self.bunch_observation.each_turn_i, 1)
@@ -296,6 +310,12 @@ class TestBunchStatistics(unittest.TestCase):
         self.beam._dt = np.ones(common_array_size, dtype=float)
         self.beam._dE = np.ones(common_array_size, dtype=float)
         self.beam._flags = np.ones(common_array_size, dtype=int)
+        self.beam.setup_beam(
+            dE=np.ones(common_array_size, dtype=float),
+            dt=np.ones(common_array_size, dtype=float),
+            reference_time=0.8,
+            reference_total_energy=11,
+        )
 
         self.bunch_statistics = BeamStatisticsOncePerTurn(
             each_turn_i=1,

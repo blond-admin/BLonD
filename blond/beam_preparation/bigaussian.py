@@ -23,6 +23,10 @@ from blond.acc_math.analytic.hamilton import (
 )
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning
+from blond.generals.distributed.helpers import (
+    mpi_aware_random_generator_cpu,
+    mpi_local_size,
+)
 from blond.generals.iterables_ import all_equal
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -93,15 +97,17 @@ def _get_dE_from_dt(
     energy = beam.reference.total_energy
     beta = beam.reference.beta
 
-    phi_s = calc_phi_s_single_harmonic(
-        charge=beam.particle_type.charge,
-        voltage=voltage,
-        phase=phi_rf,
-        energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-            1, 0, 0, particle_type=beam.particle_type
+    phi_s = (
+        calc_phi_s_single_harmonic(
+            charge=beam.particle_type.charge,
+            voltage=voltage,
+            energy_gain=simulation.magnetic_cycle.get_target_total_energy(
+                1, 0, 0, particle_type=beam.particle_type
+            )
+            - beam.reference.total_energy,
+            above_transition=above_transition,
         )
-        - beam.reference.total_energy,
-        above_transition=above_transition,
+        - phi_rf
     )
 
     eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
@@ -157,11 +163,6 @@ def get_main_harmonic_attributes(
     rf_stations = simulation.ring.elements.get_elements(
         SingleHarmonicRFStation
     ) + simulation.ring.elements.get_elements(MultiHarmonicRFStation)
-    for _rf_station in rf_stations:
-        _rf_station.apply_schedules(
-            turn_i=0,
-            reference_time=0,
-        )
     # omega_rf should be all same
     omega_rf = [
         rf.calc_main_harmonic_omega_rf(
@@ -241,11 +242,14 @@ class BiGaussian(MatchingRoutine):
         sigma_dt: float,
         sigma_dE: float | None = None,
         reinsertion: bool = False,
-        seed: int = 0,
+        seed: int | None = 0,
     ) -> None:
         super().__init__()
-        self.n_macroparticles = int_from_float_with_warning(
-            n_macroparticles, warning_stacklevel=2
+        self._n_macroparticles_local = mpi_local_size(
+            int_from_float_with_warning(
+                n_macroparticles, warning_stacklevel=2
+            ),
+            warning_hint="n_macroparticles",
         )
         self._sigma_dt = sigma_dt
         self._sigma_dE = sigma_dE
@@ -283,11 +287,6 @@ class BiGaussian(MatchingRoutine):
         drifts: tuple[DriftSimple, ...] = (
             simulation.ring.elements.get_elements(DriftSimple)
         )
-        for _drift in drifts:
-            _drift.apply_schedules(
-                turn_i=0,
-                reference_time=0,
-            )
 
         if self._sigma_dE is None:
             sigma_dE = _get_dE_from_dt(
@@ -300,15 +299,17 @@ class BiGaussian(MatchingRoutine):
         else:
             sigma_dE = self._sigma_dE
 
-        phi_s = calc_phi_s_single_harmonic(
-            charge=beam.particle_type.charge,
-            voltage=voltage,
-            phase=phi_rf,
-            energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-                0, 0, 0, particle_type=beam.particle_type
+        phi_s = float(
+            calc_phi_s_single_harmonic(
+                charge=beam.particle_type.charge,
+                voltage=voltage,
+                energy_gain=simulation.magnetic_cycle.get_target_total_energy(
+                    0, 0, 0, particle_type=beam.particle_type
+                )
+                - beam.reference.total_energy,
+                above_transition=above_transition,
             )
-            - beam.reference.total_energy,
-            above_transition=above_transition,
+            - phi_rf
         )
         # call to legacy
         eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
@@ -321,20 +322,31 @@ class BiGaussian(MatchingRoutine):
         if eta0 < 0:
             phi_rf -= np.pi
 
-        # Generate coordinates. For reproducibility, a separate random number stream is used for dt and dE
-        rng_dt = backend.random.default_rng(self._seed)
-        rng_dE = backend.random.default_rng(self._seed + 1)
-
-        dt = (
-            self._sigma_dt
-            * rng_dt.standard_normal(size=self.n_macroparticles).astype(
-                dtype=backend.float, order="C", copy=False
-            )
-            + (phi_s - phi_rf) / omega_rf
+        rng_dt_cpu_only = mpi_aware_random_generator_cpu(
+            seed=(self._seed + 0) if self._seed is not None else None,
+            n_forward_per_rank=self._n_macroparticles_local,
         )
-        dE = sigma_dE * rng_dE.standard_normal(
-            size=self.n_macroparticles
-        ).astype(dtype=backend.float, order="C")
+        rng_dE_cpu_only = mpi_aware_random_generator_cpu(
+            seed=(self._seed + 1) if self._seed is not None else None,
+            n_forward_per_rank=self._n_macroparticles_local,
+        )
+        dt = backend.array(  # potentially on GPU
+            self._sigma_dt
+            * rng_dt_cpu_only.standard_normal(
+                size=self._n_macroparticles_local,
+                dtype=backend.float,
+            )
+            + (phi_s - phi_rf) / omega_rf,
+            copy=False,
+        )
+        dE = backend.array(  # potentially on GPU
+            sigma_dE
+            * rng_dE_cpu_only.standard_normal(
+                size=self._n_macroparticles_local,
+                dtype=backend.float,
+            ),
+            copy=False,
+        )
 
         # Re-insert if necessary
         if self._reinsertion:
@@ -360,15 +372,26 @@ class BiGaussian(MatchingRoutine):
                 n_new = int(backend.sum(sel))
                 if n_new == 0:
                     break
-                dt[sel] = (
+                dt[sel] = backend.array(  # potentially on GPU
                     self._sigma_dt
-                    * rng_dt.standard_normal(size=n_new).astype(
-                        dtype=backend.float, order="C", copy=False
+                    * rng_dt_cpu_only.standard_normal(
+                        size=n_new,
+                        dtype=backend.float,
                     )
-                    + (phi_s - phi_rf) / omega_rf
+                    + (phi_s - phi_rf) / omega_rf,
+                    copy=False,
                 )
 
-                dE[sel] = sigma_dE * rng_dE.standard_normal(size=n_new).astype(
-                    dtype=backend.float, order="C"
+                dE[sel] = backend.array(  # potentially on GPU
+                    sigma_dE
+                    * rng_dE_cpu_only.standard_normal(
+                        size=n_new,
+                        dtype=backend.float,
+                    ),
+                    copy=False,
                 )
-        beam.setup_beam(dt=dt, dE=dE)
+        beam.setup_beam(
+            dt=dt,
+            dE=dE,
+            mpi_mode="all-ranks",  # because the random generator above is MPI aware
+        )

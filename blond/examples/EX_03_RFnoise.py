@@ -27,14 +27,14 @@ from blond import (
     Beam,
     BiGaussian,
     DriftSimple,
+    DynamicProfileConstNBins,
     MagneticCyclePerTurn,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     proton,
 )
-from blond.experimental.cycles.noise_generators.vari_noise import VariNoise
-from blond.physics.profiles import DynamicProfileConstNBins
+from blond.experimental import VariNoise
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 

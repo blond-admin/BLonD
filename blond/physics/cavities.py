@@ -26,9 +26,6 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.experimental.physics.feedbacks.beam_feedback import (
-    Blond2BeamFeedback,
-)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -39,6 +36,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
+    from blond.experimental.physics.feedbacks.beam_feedback import (
+        Blond2BeamFeedback,
+    )
     from blond.physics.feedbacks.base import LocalFeedback
     from blond.physics.impedances.base import WakeField
 
@@ -368,7 +368,6 @@ class RFStationBaseClass(
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
             voltage=float(self.get_main_harmonic_voltage()),
-            phase=float(self.get_main_harmonic_phi_rf()),
             energy_gain=reference_energy_change,
             above_transition=not self._ring.is_below_transition(beam=beam),
         )

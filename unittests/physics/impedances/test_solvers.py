@@ -3139,7 +3139,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             profile=prof,
             beam=beam_mock,
         )
-        wf_mutli.solver._simulation.magnetic_cycle.get_t_rev_init.return_value = 1e12
+        wf_mutli.solver._simulation.get_t_rev_init.return_value = 1e12
         with self.assertRaises(AssertionError):
             wf_mutli.solver._assert_profile_length_correct()
 

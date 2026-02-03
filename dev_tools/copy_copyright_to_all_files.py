@@ -32,8 +32,6 @@ def insert_copyright_notes():
                     with open(full_path, "r+") as f:
                         content = f.read()
                         if "copyright" in content.lower():
-                            print("Skipped:")
-                            print(f"{full_path}:1")
                             continue
                         f.seek(0)
                         if is_python_file:

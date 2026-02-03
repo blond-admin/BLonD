@@ -1052,8 +1052,8 @@ class MagneticCycleByTime(MagneticCycleBase):
         See Also
         --------
         scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
-        scipy.interpolate.interp1d.Akima1DInterpolator : Modified Akima Interpolation.
-        scipy.interpolate.interp1d.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
+        scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation.
+        scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
         """
         from blond.core.beam.base import BeamBaseClass
         from blond.core.beam.particle_types import ParticleType
