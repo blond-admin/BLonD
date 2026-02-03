@@ -138,8 +138,8 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.ring.add_drifts(
             n_drifts_per_section=1,
             n_sections=1,
+            momentum_compaction_factor=1 / (18**2),
             driftclass=DriftSimple,
-            transition_gamma=18.0,
         )
         magnetic_cycle = ConstantMagneticCycle(
             reference_particle=proton,
@@ -769,9 +769,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.ring.add_element(self.rfstation)
         self.ring.add_drifts(
             n_drifts_per_section=1,
+            momentum_compaction_factor=alpha,
             n_sections=1,
             driftclass=DriftSimple,
-            transition_gamma=gamma_t,
         )
         sim = Simulation(ring=self.ring, magnetic_cycle=self.magnetic_cycle)
 
@@ -1108,7 +1108,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
         self.rf = cavity
         drift = DriftSimple(
             orbit_length=2 * np.pi * 1100.009,
-            transition_gamma=18.0,
+            momentum_compaction_factor=1 / (18.0**2),
         )
 
         self.ring.add_element(cavity)

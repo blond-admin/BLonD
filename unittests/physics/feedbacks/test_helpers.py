@@ -75,7 +75,7 @@ class TestRFBeamCurrent(unittest.TestCase):
         )
         self.drift = DriftSimple(
             orbit_length=C,
-            transition_gamma=gamma_t,
+            momentum_compaction_factor=alpha,
         )
         self.ring.add_elements((self.rf, self.drift))
 

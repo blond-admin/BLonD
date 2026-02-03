@@ -46,21 +46,22 @@ class TestDriftIntegration(unittest.TestCase):
 
         drift1 = DriftSimple(
             orbit_length=circumference / 3,
+            momentum_compaction_factor=1e-4,
             section_index=0,
         )
 
         drift2 = DriftSimple(
             orbit_length=circumference / 3,
+            momentum_compaction_factor=5e-4,
             section_index=1,
         )
 
         drift3 = DriftSimple(
             orbit_length=circumference / 3,
+            momentum_compaction_factor=4e-4,
             section_index=1,
         )
-        drift1.transition_gamma = 55.759505
-        drift2.transition_gamma = 55.759505
-        drift3.transition_gamma = 55.759505
+
         beam1 = Beam(intensity=1e9, particle_type=proton)
 
         sim = Simulation.from_locals(locals())

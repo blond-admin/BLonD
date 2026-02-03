@@ -49,7 +49,8 @@ class TestObservables(unittest.TestCase):
             profile=static_profile_01,
         )
         drift = DriftSimple(
-            orbit_length=ring.circumference, transition_gamma=1.2
+            orbit_length=ring.circumference,
+            momentum_compaction_factor=1 / (1.2**2),
         )
         rf_station = SingleHarmonicRFStation(voltage=1e6, phi_rf=0, harmonic=1)
 

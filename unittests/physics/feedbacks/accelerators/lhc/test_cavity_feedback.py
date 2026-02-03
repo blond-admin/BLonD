@@ -32,7 +32,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         V = 4e6  # RF voltage [V]
         dphi = 0  # Phase modulation/offset
         gamma_t = 53.8  # Transition gamma
-        alpha = 1 / gamma_t**2  # First order mom. comp. factor
+        alpha = 1 / gamma_t**2  # Zeroth order mom. comp. factor
 
         # Initialise necessary classes
         # ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=1)
@@ -51,9 +51,9 @@ class TestLHCOpenDrive(unittest.TestCase):
         ring.add_element(rf)
         ring.add_drifts(
             n_drifts_per_section=1,
+            momentum_compaction_factor=alpha,
             n_sections=1,
             driftclass=DriftSimple,
-            transition_gamma=gamma_t,
         )
         # beam = Beam(ring, N_p, N_b)
         beam = Beam(

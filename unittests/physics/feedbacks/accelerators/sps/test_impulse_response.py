@@ -196,7 +196,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         drift = DriftSimple(
             orbit_length=C,
-            transition_gamma=gamma_t,
+            momentum_compaction_factor=alpha,
         )
         t_rf = t_rev / rf.harmonic[0]
 
@@ -324,7 +324,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         ring.add_element(
             DriftSimple(
                 orbit_length=2 * np.pi * 1100.009,
-                transition_gamma=18,
+                momentum_compaction_factor=1 / (18**2),
             )
         )
 
