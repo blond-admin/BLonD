@@ -30,6 +30,7 @@ from blond.core.base import (
 )
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
 )
@@ -232,6 +233,7 @@ class RFStationBaseClass(
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
+    @requires(["BeamBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
