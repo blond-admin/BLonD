@@ -22,6 +22,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    backend,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -71,6 +72,7 @@ def get_test_profile(noisy=False):
 N_TURNS = int(1e3)
 animate_fitting = True
 plot_result = True
+n_macroparticles = 1e6
 
 
 def main():
@@ -114,10 +116,10 @@ def main():
         beam=beam1,
         preparation_routine=SemiEmpiricMatcher(
             time_limit=(0, 2.5e-9),
-            n_macroparticles=1e6,
+            n_macroparticles=n_macroparticles,
             seed=0,
             maxiter_intensity_effects=0,
-            internal_grid_shape=(256, 256),
+            internal_grid_shape=(1024, 1024),
             hamilton_to_density_function=matcher_addon.hamilton_to_density_function,
             hamilton_to_density_kwargs=dict(),
             animate=True,
@@ -158,8 +160,8 @@ def main():
         sim.run_simulation(
             beams=(beam1,),
             n_turns=N_TURNS,
-            observe=(phase_observation, bunch_observation),
-            callbacks=custom_action,
+            # observe=(phase_observation, bunch_observation),
+            # callbacks=custom_action,
         )
     ANIMATE = False
     if ANIMATE:  # pragma: no cover

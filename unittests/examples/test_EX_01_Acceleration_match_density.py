@@ -20,6 +20,8 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         EX_01_Acceleration_match_density.N_TURNS = 10
         EX_01_Acceleration_match_density.animate_fitting = False
         EX_01_Acceleration_match_density.plot_result = False
+        EX_01_Acceleration_match_density.n_macroparticles = int(1e5)
+
         bunch: Beam = EX_01_Acceleration_match_density.main()
         fetch_new_pinned_values = False
         if fetch_new_pinned_values:
@@ -28,10 +30,10 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
             print("dE_mean =", bunch._dE.mean())
             print("dE_std =", bunch._dE.std())
         # pinned values
-        dt_mean = 8.340270167873549e-10
-        dt_std = 1.1025231519466652e-10
-        dE_mean = -215614.70425667908
-        dE_std = 34575081.67125967
+        dt_mean = 8.316356750144916e-10
+        dt_std = 1.0907507797569666e-10
+        dE_mean = -73684.84380359562
+        dE_std = 34138361.01478994
         rtol = 1e-2 if backend.float == np.float32 else 1e-12
 
         np.testing.assert_allclose(bunch._dt.mean(), dt_mean, rtol=rtol)
