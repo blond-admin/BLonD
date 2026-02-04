@@ -110,3 +110,7 @@ class MainloopSingleBeam(ExecutionModel):
             for callback in callbacks:
                 if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
                     callback(simulation, beam)
+
+        # make possible to run two main-loops after each other
+        simulation.turn_i.value += 1
+        simulation.section_i.value = 0

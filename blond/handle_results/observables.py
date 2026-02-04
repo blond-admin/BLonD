@@ -206,9 +206,9 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
             self._update()
             self._last_turn_i_observed = self._simulation.turn_i.value
         else:
-            warnings.warn(
-                f"{self} already called update in this turn for turn {self._last_turn_i_observed}.",
-                stacklevel=2,
+            raise RuntimeError(
+                f"{self} already called update in this turn for turn {self._last_turn_i_observed}."
+                f" Was this observation added twice?",
             )
 
     def on_init_simulation(self, simulation: Simulation) -> None:

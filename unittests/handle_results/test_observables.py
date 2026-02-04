@@ -517,7 +517,11 @@ class TestStaticProfileObservation(unittest.TestCase):
         )
         simulation.section_i.value = 0
         self.static_profile_observation.update()
-        self.static_profile_observation.update()
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "already called update in this turn for turn",
+        ):
+            self.static_profile_observation.update()
 
         assert len(self.static_profile_observation.hist_y) == 1
 
@@ -735,7 +739,11 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         assert len(self.static_multi_profile_observation.hist_y) == 2
 
         # no update if we repeat
-        self.static_multi_profile_observation.update()
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "already called update in this turn for turn",
+        ):
+            self.static_multi_profile_observation.update()
         assert len(self.static_multi_profile_observation.hist_y) == 2
         np.testing.assert_allclose(
             self.static_multi_profile_observation.hist_y[1][1],
