@@ -16,6 +16,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
+from numpy.exceptions import ComplexWarning
 
 from blond.generals.warnings_ import PrecisionWarning
 
@@ -475,7 +476,18 @@ class BackendBaseClass(ABC):
 
     def _asarray_if_needed(self, arr: ArrayLike) -> NumpyArray | CupyArray:
         # Faster to check than cast, so only cast if needed
-        return arr if isinstance(arr, self.ndarray) else self.array(arr)
+        if isinstance(arr, self.ndarray):
+            return arr
+
+        try:
+            gpu_arr = arr.device != "cpu"
+        except AttributeError:
+            gpu_arr = False
+
+        if gpu_arr:
+            arr = arr.get()
+
+        return self.array(arr)
 
     def _cast_dtype_if_needed(
         self, arr: NumpyArray | CupyArray, dtype: type
@@ -486,7 +498,24 @@ class BackendBaseClass(ABC):
                 stacklevel=3,
                 category=PrecisionWarning,
             )
-            arr = arr.astype(dtype)
+            try:
+                # Casting numpy complex array -> float is smooth and
+                # includes an automatic ComplexWarning.  Trying to cast
+                # a cupy array in the same way raises an exception.
+                # Maybe a bug in CuPy?
+                # Catch the exception then throw the correct warning.
+                arr = arr.astype(dtype)
+            except AttributeError as e:
+                if (
+                    str(e)
+                    == "module 'numpy' has no attribute 'ComplexWarning'"
+                ):
+                    ComplexWarning(
+                        "Casting complex values to real discards the imaginary part"
+                    )
+                    arr = arr.real.astype(dtype)
+                else:
+                    raise
 
         return arr
 
