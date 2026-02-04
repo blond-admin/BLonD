@@ -195,7 +195,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         """
         return self._turns_array
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def _update(self) -> None:
         """Update memory with new values."""
         pass

@@ -34,11 +34,11 @@ if TYPE_CHECKING:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 
-class ExecutionModel(ABC):
+class ExecutionModel(ABC):  # pragma: no cover
     """Base class to define execution strategies of a simulation."""
 
-    @staticmethod
-    @abstractmethod
+    @staticmethod  # pragma: no cover
+    @abstractmethod  # pragma: no cover
     def mainloop(
         simulation: Simulation,
         beams: tuple[BeamBaseClass, ...],

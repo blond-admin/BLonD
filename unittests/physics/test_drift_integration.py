@@ -6,6 +6,7 @@ import pytest
 
 from blond import (
     Beam,
+    BeamObservationOncePerTurn,
     DriftSimple,
     Ring,
     Simulation,
@@ -14,6 +15,7 @@ from blond import (
 )
 from blond.core.backends.backend import Numpy32Bit, backend
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.testing.mocks import beam_mock
 
 
 class TestDriftIntegration(unittest.TestCase):
@@ -65,3 +67,16 @@ class TestDriftIntegration(unittest.TestCase):
 
         sim = Simulation.from_locals(locals())
         sim.ring.assert_circumference()
+
+    def test_observable(self):
+        drift1 = DriftSimple(
+            orbit_length=3,
+            section_index=0,
+        )
+        drift1.add_observable(
+            beam_mock, BeamObservationOncePerTurn(each_turn_i=1)
+        )
+        with self.assertRaisesRegex(ValueError, "already set"):
+            drift1.add_observable(
+                beam_mock, BeamObservationOncePerTurn(each_turn_i=1)
+            )
