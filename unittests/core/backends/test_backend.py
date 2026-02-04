@@ -94,8 +94,9 @@ class TestBackendBaseClass(unittest.TestCase):
         some_backend = Numpy32Bit()
         some_backend.change_backend(some_backend)  # shouldnt do anything
 
-    @pytest.mark.backend_mutation
     def test_temporary_specials_mode(self):
+        backend_org = type(backend)
+        backend.change_backend(Numpy64Bit)
         specials_org = (
             backend.specials_mode
         )  # prevent side effect on other tests
@@ -106,6 +107,7 @@ class TestBackendBaseClass(unittest.TestCase):
         self.assertEqual(backend.specials_mode, "numba")
 
         backend.set_specials(mode=specials_org)  # prevent side effect on tests
+        backend.change_backend(backend_org)
 
 
 class TestCupy32Bit(unittest.TestCase):

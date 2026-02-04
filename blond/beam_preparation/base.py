@@ -55,7 +55,7 @@ class BeamPreparationRoutine(ABC):
                 particle_type=beam.particle_type,
             )
         )
-        beam.reference.time = 0  # FIXME
+        beam.reference.time = 0
 
 
 class MatchingRoutine(BeamPreparationRoutine, ABC):

@@ -17,12 +17,12 @@ from blond import (
     BeamObservationInRingElement,
     BiGaussian,
     DriftSimple,
+    MagneticCyclePerTurn,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     proton,
 )
-from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.handle_results.helpers import callers_relative_path
 
 logging.basicConfig(level=logging.INFO)

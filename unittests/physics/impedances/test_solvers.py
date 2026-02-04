@@ -25,10 +25,10 @@ from blond import (
     mu_plus,
     uranium_29,
 )
-from blond.core.backends.backend import backend
+from blond.core.backends.backend import Cupy32Bit, Numpy32Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
     ContinuousMultiTurnTimeDomainSolver,
@@ -56,7 +56,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         )
         self.time_domain_fft_solver = TimeDomainFftSolver()
         self.left_edge, self.right_edge, self.hist_step = -2e-9, 1e-9, 0.01e-10
-        self.hist_x = np.linspace(
+        self.hist_x = backend.linspace(
             self.left_edge,
             self.right_edge,
             int(np.round((self.right_edge - self.left_edge) / self.hist_step))
@@ -150,7 +150,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         resonators = Mock(Resonators)
         resonators.is_dynamic = False
         parent_wakefield.sources = (resonators,)
-        resonators.get_impedance.return_value = np.linspace(1, 2, 6)
+        resonators.get_impedance.return_value = backend.linspace(1, 2, 6)
 
         with warnings.catch_warnings(record=True) as w:
             self.time_domain_fft_solver.expect_profile_change = False
@@ -184,14 +184,16 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         cavity.voltage = 0
         cavity.phi_rf = 0
         rng = np.random.default_rng()
-        dt = rng.standard_normal(1000)
+        dt = backend.array(rng.standard_normal(1000), dtype=backend.float)
 
         # truncate and shift center to 1
         dt[dt > 1] = 0
         dt[dt < -1] = 0
         dt += 1
 
-        beam.setup_beam(dt=dt, dE=np.linspace(0, 1, 1000))
+        beam.setup_beam(
+            dt=dt, dE=backend.linspace(0, 1, 1000, dtype=backend.float)
+        )
         profile = DynamicProfileConstNBins(n_bins=200)
         profile.update_attributes(beam=beam)
         wf = WakeField(
@@ -214,7 +216,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         profile.track(beam=beam)
 
         self.time_domain_fft_solver._wake_imp_y_needs_update = True
-        self.time_domain_fft_solver._wake_imp_y = np.ones_like(
+        self.time_domain_fft_solver._wake_imp_y = backend.ones_like(
             self.time_domain_fft_solver._parent_wakefield.profile.hist_x,
             dtype=complex,
         )
@@ -265,7 +267,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.ring.circumference = 123
         self.inductive_impedance_solver._simulation = simulation
-        _parent_wakefield.profile.gradient_hist_y = np.linspace(1, 3)
+        _parent_wakefield.profile.gradient_hist_y = backend.linspace(1, 3)
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -300,7 +302,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver = PeriodicFreqSolver(t_periodicity=10)
 
         self.periodic_freq_solver._parent_wakefield = Mock(WakeField)
-        self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = np.linspace(
+        self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 6
         )
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 1
@@ -413,7 +415,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         resonators = Mock(Resonators)
         resonators.is_dynamic = False
         parent_wakefield.sources = (resonators,)
-        resonators.get_impedance.return_value = np.linspace(1, 2, 6)
+        resonators.get_impedance.return_value = backend.linspace(1, 2, 6)
 
         self.periodic_freq_solver.on_wakefield_init_simulation(
             simulation=simulation, parent_wakefield=parent_wakefield
@@ -429,7 +431,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         resonators = Mock(Resonators)
         resonators.is_dynamic = False
         parent_wakefield.sources = (resonators,)
-        resonators.get_impedance.return_value = np.linspace(1, 2, 6)
+        resonators.get_impedance.return_value = backend.linspace(1, 2, 6)
 
         with warnings.catch_warnings(record=True) as w:
             self.periodic_freq_solver.expect_profile_change = False
@@ -470,7 +472,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         dt[dt < -1] = 0
         dt += 1
 
-        beam.setup_beam(dt=dt, dE=np.linspace(0, 1, 1000))
+        beam.setup_beam(dt=dt, dE=backend.linspace(0, 1, 1000))
         profile = DynamicProfileConstCutoff(timestep=0.1)
         profile.update_attributes(beam=beam)
         wf = WakeField(
@@ -523,7 +525,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             SingleTurnResonatorConvolutionSolver()
         )
         self.left_edge, self.right_edge, self.hist_step = -2e-9, 1e-9, 1e-10
-        self.hist_x = np.linspace(
+        self.hist_x = backend.linspace(
             self.left_edge,
             self.right_edge,
             int(np.round((self.right_edge - self.left_edge) / self.hist_step))
@@ -567,7 +569,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             1e-9,
             0.01e-10,
         )  # finer profile, otherwise FFT solver fails
-        hist_x = np.linspace(
+        hist_x = backend.linspace(
             left_edge,
             right_edge,
             int(np.round((right_edge - left_edge) / hist_step)) + 1,
@@ -578,9 +580,11 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         analy_solver._parent_wakefield.profile.hist_step = hist_step
         analy_solver._parent_wakefield.profile.hist_x = hist_x
 
-        profile = np.zeros_like(analy_solver._parent_wakefield.profile.hist_x)
+        profile = backend.zeros_like(
+            analy_solver._parent_wakefield.profile.hist_x
+        )
         profile[9:12] = 1  # symmetric profile around centerpoint
-        profile /= np.sum(profile)
+        profile /= backend.sum(profile)
         analy_solver._parent_wakefield.profile.hist_y = profile
         analy_solver._parent_wakefield.profile.hist_y_to_density_factor = (
             1 / self.beam.n_macroparticles_partial()
@@ -615,7 +619,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         td_fft_solver._parent_wakefield.sources = (self.resonators,)
 
         td_fft_solver._parent_wakefield.profile.beam_spectrum.return_value = (
-            np.fft.rfft(
+            backend.fft.rfft(
                 analy_solver._parent_wakefield.profile.hist_y,
                 n=next_fast_len(
                     len(analy_solver._parent_wakefield.profile.hist_y) * 2
@@ -624,10 +628,18 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
 
         td_solver = td_fft_solver.calc_induced_voltage(beam=self.beam)
+        DEV_DEBUG = False
+        offset = float(2 * initial_voltage.min())
+        if DEV_DEBUG:
+            plt.plot(
+                copy_to_cpu(initial_voltage),
+            )
+            plt.plot(copy_to_cpu(td_solver[0 : len(initial_voltage)]), "--")
+            plt.show()
         np.testing.assert_allclose(
-            initial_voltage,
-            td_solver[0 : len(initial_voltage)],
-            atol=1e-10,
+            copy_to_cpu(initial_voltage) + offset,
+            copy_to_cpu(td_solver[0 : len(initial_voltage)]) + offset,
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
     def test___init__(self):
@@ -795,7 +807,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             (self.right_edge - self.left_edge) / self.hist_step
         )
         self.single_turn_resonator_convolution_solver._wake_function_vals = (
-            np.zeros(profile_width * 2 + 1)
+            backend.zeros(profile_width * 2 + 1)
         )
         self.single_turn_resonator_convolution_solver._wake_function_vals[
             profile_width - 1 : profile_width + 2
@@ -811,8 +823,10 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         assert np.isclose(
             np.abs(calced_voltage - min_voltage).argmin(), profile_width // 3
         )
-        assert np.sum(calced_voltage[0 : profile_width // 3 - 3]) == 0
-        assert np.sum(calced_voltage[profile_width // 3 + 3 :]) == 0
+        assert np.isclose(
+            np.sum(calced_voltage[0 : profile_width // 3 - 3]), 0, atol=1e-12
+        )
+        assert np.isclose(np.sum(calced_voltage[profile_width // 3 + 3 :]), 0)
 
         # same check, but with self.hist_step/2 shifted histogram, should have same values
         local_res = deepcopy(self.single_turn_resonator_convolution_solver)
@@ -829,8 +843,10 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         assert np.isclose(
             np.abs(calced_voltage - min_voltage).argmin(), profile_width // 3
         )
-        assert np.sum(calced_voltage[0 : profile_width // 3 - 3]) == 0
-        assert np.sum(calced_voltage[profile_width // 3 + 3 :]) == 0
+        assert np.isclose(
+            np.sum(calced_voltage[0 : profile_width // 3 - 3]), 0
+        )
+        assert np.isclose(np.sum(calced_voltage[profile_width // 3 + 3 :]), 0)
 
     def test_against_CST_results(self):
         # TODO: fix this, not very close to CST atm
@@ -867,7 +883,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
         analy = SingleTurnResonatorConvolutionSolver()
 
-        bunch_time = np.linspace(
+        bunch_time = backend.linspace(
             -sigma_z * 8.54 / c, 8.54 * sigma_z / c, 2**12
         )
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
@@ -876,9 +892,8 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         analy._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
         )
-        analy._parent_wakefield.profile.__
         analy._parent_wakefield.profile.hist_x = bunch_time
-        analy._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
+        analy._parent_wakefield.profile.hist_y = bunch / backend.sum(bunch)
 
         analy._parent_wakefield.sources = (res,)
 
@@ -974,8 +989,14 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             )
 
 
+@pytest.mark.backend_mutation
 class TestMultiPassResonatorSolver(unittest.TestCase):
     def setUp(self):
+        # the histogram step is to tiny and would result in hist_step = 0
+        if isinstance(backend, Numpy32Bit):
+            backend.change_backend(Numpy64Bit)
+        elif isinstance(backend, Cupy32Bit):
+            backend.change_backend(Cupy64Bit)
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
             center_frequencies=np.array([500e6, 750e6, 1.5e9]),
@@ -985,7 +1006,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver = MultiPassResonatorSolver()
         self.hist_step, self.hist_x = (
             1e-10,
-            np.arange(-1e-9, 1e-9 + 1e-10, 1e-10),
+            backend.arange(-1e-9, 1e-9 + 1e-10, 1e-10, dtype=backend.float),
         )
 
         self.multi_pass_resonator_solver._parent_wakefield = Mock(WakeField)
@@ -998,11 +1019,11 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
         self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y_to_density_factor = 1
 
-        self.profile = np.zeros_like(
+        self.profile = backend.zeros_like(
             self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x
         )
         self.profile[9:12] = 1  # symmetric profile around centerpoint
-        self.profile /= np.sum(self.profile)
+        self.profile /= backend.sum(self.profile)
         self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y = (
             self.profile
         )
@@ -1105,24 +1126,32 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
     def test_remove_fully_decayed_wake_profiles(self):
         self.multi_pass_resonator_solver._wake_function_vals = deque(
-            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+            [
+                backend.array([1, 1, 1]),
+                backend.array([2, 2, 2]),
+                backend.array([3, 3, 3]),
+            ]
         )
         self.multi_pass_resonator_solver._wake_function_time = deque(
             [
-                np.array([0.1, 0.2, 0.3]),
-                np.array([1.1, 1.2, 1.3]),
-                np.array([2.1, 2.2, 2.3]),
+                backend.array([0.1, 0.2, 0.3]),
+                backend.array([1.1, 1.2, 1.3]),
+                backend.array([2.1, 2.2, 2.3]),
             ]
         )  # technically not correct length but doesnt matter here
         self.multi_pass_resonator_solver._past_profile_times = deque(
             [
-                np.array([0.1, 0.2, 0.3]),
-                np.array([1.1, 1.2, 1.3]),
-                np.array([2.1, 2.2, 2.3]),
+                backend.array([0.1, 0.2, 0.3]),
+                backend.array([1.1, 1.2, 1.3]),
+                backend.array([2.1, 2.2, 2.3]),
             ]
         )
         self.multi_pass_resonator_solver._past_profiles = deque(
-            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+            [
+                backend.array([1, 1, 1]),
+                backend.array([2, 2, 2]),
+                backend.array([3, 3, 3]),
+            ]
         )
         self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
             [False, False, False]
@@ -1176,24 +1205,32 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
 
         self.multi_pass_resonator_solver._wake_function_vals = deque(
-            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+            [
+                backend.array([1, 1, 1]),
+                backend.array([2, 2, 2]),
+                backend.array([3, 3, 3]),
+            ]
         )
         self.multi_pass_resonator_solver._wake_function_time = deque(
             [
-                np.array([0.1, 0.2, 0.3]),
-                np.array([1.1, 1.2, 1.3]),
-                np.array([2.1, 2.2, 2.3]),
+                backend.array([0.1, 0.2, 0.3]),
+                backend.array([1.1, 1.2, 1.3]),
+                backend.array([2.1, 2.2, 2.3]),
             ]
         )  # technically not correct length but doesnt matter here
         self.multi_pass_resonator_solver._past_profile_times = deque(
             [
-                np.array([0.1, 0.2, 0.3]),
-                np.array([1.1, 1.2, 1.3]),
-                np.array([2.1, 2.2, 2.3]),
+                backend.array([0.1, 0.2, 0.3]),
+                backend.array([1.1, 1.2, 1.3]),
+                backend.array([2.1, 2.2, 2.3]),
             ]
         )
         self.multi_pass_resonator_solver._past_profiles = deque(
-            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+            [
+                backend.array([1, 1, 1]),
+                backend.array([2, 2, 2]),
+                backend.array([3, 3, 3]),
+            ]
         )
         self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
             [False, False, False]
@@ -1226,24 +1263,32 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
 
         self.multi_pass_resonator_solver._wake_function_vals = deque(
-            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+            [
+                backend.array([1, 1, 1]),
+                backend.array([2, 2, 2]),
+                backend.array([3, 3, 3]),
+            ]
         )
         self.multi_pass_resonator_solver._wake_function_time = deque(
             [
-                np.array([0.1, 0.2, 0.3]),
-                np.array([1.1, 1.2, 1.3]),
-                np.array([2.1, 2.2, 2.3]),
+                backend.array([0.1, 0.2, 0.3]),
+                backend.array([1.1, 1.2, 1.3]),
+                backend.array([2.1, 2.2, 2.3]),
             ]
         )  # technically not correct length but doesnt matter here
         self.multi_pass_resonator_solver._past_profile_times = deque(
             [
-                np.array([0.1, 0.2, 0.3]),
-                np.array([1.1, 1.2, 1.3]),
-                np.array([2.1, 2.2, 2.3]),
+                backend.array([0.1, 0.2, 0.3]),
+                backend.array([1.1, 1.2, 1.3]),
+                backend.array([2.1, 2.2, 2.3]),
             ]
         )
         self.multi_pass_resonator_solver._past_profiles = deque(
-            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+            [
+                backend.array([1, 1, 1]),
+                backend.array([2, 2, 2]),
+                backend.array([3, 3, 3]),
+            ]
         )
         self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
             [False, False, False]
@@ -1291,9 +1336,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
 
         self.multi_pass_resonator_solver._past_profile_times = deque(
-            np.add(
-                self.multi_pass_resonator_solver._past_profile_times,
-                self.multi_pass_resonator_solver._maximum_storage_time + 1,
+            (
+                d + self.multi_pass_resonator_solver._maximum_storage_time + 1
+                for d in self.multi_pass_resonator_solver._past_profile_times
             )
         )
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
@@ -1304,24 +1349,32 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         # check immediate return
         self.multi_pass_resonator_solver._wake_function_vals = deque(
-            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+            [
+                backend.array([1, 1, 1]),
+                backend.array([2, 2, 2]),
+                backend.array([3, 3, 3]),
+            ]
         )
         self.multi_pass_resonator_solver._wake_function_time = deque(
             [
-                np.array([0.1, 0.2, 0.3]),
-                np.array([1.1, 1.2, 1.3]),
-                np.array([2.1, 2.2, 2.3]),
+                backend.array([0.1, 0.2, 0.3]),
+                backend.array([1.1, 1.2, 1.3]),
+                backend.array([2.1, 2.2, 2.3]),
             ]
         )  # technically not correct length but doesnt matter here
         self.multi_pass_resonator_solver._past_profile_times = deque(
             [
-                np.array([0.1, 0.2, 0.3]),
-                np.array([1.1, 1.2, 1.3]),
-                np.array([2.1, 2.2, 2.3]),
+                backend.array([0.1, 0.2, 0.3]),
+                backend.array([1.1, 1.2, 1.3]),
+                backend.array([2.1, 2.2, 2.3]),
             ]
         )
         self.multi_pass_resonator_solver._past_profiles = deque(
-            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+            [
+                backend.array([1, 1, 1]),
+                backend.array([2, 2, 2]),
+                backend.array([3, 3, 3]),
+            ]
         )
         self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
             [False, False, False]
@@ -1380,23 +1433,25 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
     def test_update_past_profile_times_wake_times(self):
         self.multi_pass_resonator_solver._past_profile_times = deque(
             [
-                np.array([0.1, 0.2, 0.3]),
-                np.array([1.1, 1.2, 1.3]),
-                np.array([2.1, 2.2, 2.3]),
+                backend.array([0.1, 0.2, 0.3]),
+                backend.array([1.1, 1.2, 1.3]),
+                backend.array([2.1, 2.2, 2.3]),
             ]
         )
         self.multi_pass_resonator_solver._wake_function_time = deque(
             [
-                np.array([4.1, 4.2, 4.3]),
-                np.array([5.1, 5.2, 5.3]),
-                np.array([6.1, 6.2, 6.3]),
+                backend.array([4.1, 4.2, 4.3]),
+                backend.array([5.1, 5.2, 5.3]),
+                backend.array([6.1, 6.2, 6.3]),
             ]
         )
-        sum_before_shift_prof = np.sum(
-            self.multi_pass_resonator_solver._past_profile_times
+        sum_before_shift_prof = sum(
+            d.sum()
+            for d in self.multi_pass_resonator_solver._past_profile_times
         )
-        sum_before_shift_wake = np.sum(
-            self.multi_pass_resonator_solver._wake_function_time
+        sum_before_shift_wake = sum(
+            d.sum()
+            for d in self.multi_pass_resonator_solver._wake_function_time
         )
         orig_ref = 1
         self.multi_pass_resonator_solver._last_reference_time = orig_ref
@@ -1407,11 +1462,17 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
         assert np.isclose(
             sum_before_shift_prof + 9,
-            np.sum(self.multi_pass_resonator_solver._past_profile_times),
+            sum(
+                d.sum()
+                for d in self.multi_pass_resonator_solver._past_profile_times
+            ),
         )
         assert np.isclose(
             sum_before_shift_wake + 9,
-            np.sum(self.multi_pass_resonator_solver._wake_function_time),
+            sum(
+                d.sum()
+                for d in self.multi_pass_resonator_solver._wake_function_time
+            ),
         )
         assert (
             self.multi_pass_resonator_solver._last_reference_time
@@ -1530,7 +1591,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._update_potential_sources(self.beam)
 
         local_res._wake_function_vals_needs_update = True
-        tsteps = [0.5, 1.0, 1.6]
+        tsteps = backend.array([0.5, 1.0, 1.6])
         local_res._maximum_storage_time = 1.5
         beam = deepcopy(self.beam)
         beam.reference.time = tsteps[0]
@@ -1544,15 +1605,16 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == 2
         )
         np.testing.assert_allclose(
-            local_res._wake_function_time[1],
-            local_res._wake_function_time[0] + tsteps[0],
+            copy_to_cpu(local_res._wake_function_time[1]),
+            copy_to_cpu(local_res._wake_function_time[0] + tsteps[0]),
         )
         np.testing.assert_allclose(
-            local_res._past_profile_times[1],
-            local_res._past_profile_times[0] + tsteps[0],
+            copy_to_cpu(local_res._past_profile_times[1]),
+            copy_to_cpu(local_res._past_profile_times[0] + tsteps[0]),
         )
         np.testing.assert_allclose(
-            local_res._past_profiles[0], local_res._past_profiles[1]
+            copy_to_cpu(local_res._past_profiles[0]),
+            copy_to_cpu(local_res._past_profiles[1]),
         )
 
         # repeat another time, first array should be kicked out due to delay
@@ -1567,15 +1629,20 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == 3
         )
         np.testing.assert_allclose(
-            local_res._wake_function_time[1],
-            local_res._wake_function_time[0] + tsteps[1] - tsteps[0],
+            copy_to_cpu(local_res._wake_function_time[1]),
+            copy_to_cpu(
+                local_res._wake_function_time[0] + tsteps[1] - tsteps[0]
+            ),
         )
         np.testing.assert_allclose(
-            local_res._past_profile_times[1],
-            local_res._past_profile_times[0] + tsteps[1] - tsteps[0],
+            copy_to_cpu(local_res._past_profile_times[1]),
+            copy_to_cpu(
+                local_res._past_profile_times[0] + tsteps[1] - tsteps[0]
+            ),
         )
         np.testing.assert_allclose(
-            local_res._past_profiles[0], local_res._past_profiles[1]
+            copy_to_cpu(local_res._past_profiles[0]),
+            copy_to_cpu(local_res._past_profiles[1]),
         )
 
         # kick out oldest profile
@@ -1590,27 +1657,45 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == 3
         )
         np.testing.assert_allclose(
-            np.mean(local_res._wake_function_time[1]),
-            np.mean(local_res._wake_function_time[0] + tsteps[2] - tsteps[1]),
+            copy_to_cpu(backend.mean(local_res._wake_function_time[1])),
+            copy_to_cpu(
+                backend.mean(
+                    local_res._wake_function_time[0] + tsteps[2] - tsteps[1]
+                )
+            ),
         )
         np.testing.assert_allclose(
-            np.mean(local_res._past_profile_times[1]),
-            np.mean(local_res._past_profile_times[0] + tsteps[2] - tsteps[1]),
+            copy_to_cpu(backend.mean(local_res._past_profile_times[1])),
+            copy_to_cpu(
+                backend.mean(
+                    local_res._past_profile_times[0] + tsteps[2] - tsteps[1]
+                )
+            ),
         )
         np.testing.assert_allclose(
-            np.mean(local_res._wake_function_time[2]),
-            np.mean(local_res._wake_function_time[1] + tsteps[1] - tsteps[0]),
+            copy_to_cpu(backend.mean(local_res._wake_function_time[2])),
+            copy_to_cpu(
+                backend.mean(
+                    local_res._wake_function_time[1] + tsteps[1] - tsteps[0]
+                )
+            ),
         )
         np.testing.assert_allclose(
-            np.mean(local_res._past_profile_times[2]),
-            np.mean(local_res._past_profile_times[1] + tsteps[1] - tsteps[0]),
+            copy_to_cpu(backend.mean(local_res._past_profile_times[2])),
+            copy_to_cpu(
+                backend.mean(
+                    local_res._past_profile_times[1] + tsteps[1] - tsteps[0]
+                )
+            ),
         )
 
         np.testing.assert_allclose(
-            local_res._past_profiles[0], local_res._past_profiles[1]
+            copy_to_cpu(local_res._past_profiles[0]),
+            copy_to_cpu(local_res._past_profiles[1]),
         )
         np.testing.assert_allclose(
-            local_res._past_profiles[1], local_res._past_profiles[2]
+            copy_to_cpu(local_res._past_profiles[1]),
+            copy_to_cpu(local_res._past_profiles[2]),
         )
 
     def test__update_potential_sources_hist_step(self):
@@ -1700,7 +1785,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         beam.is_counter_rotating = True
         ind_volt_corot = local_res_counterrot.calc_induced_voltage(beam=beam)
         np.testing.assert_allclose(
-            ind_volt_corot, ind_volt_corot
+            copy_to_cpu(ind_volt_corot), copy_to_cpu(ind_volt_corot)
         )  # first one needs to be the same as this is the self-field
 
         local_res_counterrot._parent_wakefield.profile.hist_y = np.zeros_like(
@@ -1720,12 +1805,15 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
 
         np.testing.assert_allclose(
-            counterrot_corot_ind_volt, -counterrot_counterrot_ind_volt
+            copy_to_cpu(counterrot_corot_ind_volt),
+            copy_to_cpu(-counterrot_counterrot_ind_volt),
         )
         # should be inverted as all shunt impedances are inverted
 
     @pytest.mark.backend_mutation
     def test_calc_induced_voltage_counter_rotation_opposite_charge(self):
+        if not isinstance(backend, Numpy64Bit):
+            self.skipTest("Only on numpy")
         sim = Mock(Simulation)
 
         local_res_counterrot = deepcopy(self.multi_pass_resonator_solver)
@@ -1738,7 +1826,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         beam.is_counter_rotating = True
         ind_volt_corot = local_res_counterrot.calc_induced_voltage(beam=beam)
         np.testing.assert_allclose(
-            ind_volt_corot, ind_volt_corot
+            copy_to_cpu(ind_volt_corot), copy_to_cpu(ind_volt_corot)
         )  # first one needs to be the same as this is the self-field
 
         local_res_counterrot._parent_wakefield.profile.hist_y = np.zeros_like(
@@ -1749,7 +1837,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
         beam.is_counter_rotating = False
         beam.reference.time += np.finfo(float).eps
-        beam.read_partial_dt.return_value = np.linspace(
+        beam.read_partial_dt.return_value = backend.linspace(
             local_res_counterrot._parent_wakefield.profile.hist_x[0],
             local_res_counterrot._parent_wakefield.profile.hist_x[-1],
             num=100,
@@ -1809,7 +1897,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         sigma_z = 40e-3
         sigma_length = 15
-        bunch_time = np.linspace(
+        bunch_time = backend.linspace(
             -sigma_z * sigma_length / c, sigma_length * sigma_z / c, 2**10
         )
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
@@ -1908,12 +1996,12 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         sigma_z = 40e-3
         sigma_length = 8.54
         for delta_t in [0, 0.5e-9, -0.5e-9]:
-            bunch_time = np.linspace(
+            bunch_time = backend.linspace(
                 -sigma_z * sigma_length / c + delta_t,
                 sigma_length * sigma_z / c + delta_t,
                 2**10,
             )
-            bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
+            bunch = backend.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
             local_res = MultiPassResonatorSolver(
                 decay_fraction_threshold=0.999
@@ -1925,7 +2013,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
                 bunch_time[1] - bunch_time[0]
             )
             local_res._parent_wakefield.profile.hist_x = bunch_time
-            local_res._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
+            local_res._parent_wakefield.profile.hist_y = bunch / backend.sum(
+                bunch
+            )
             local_res._parent_wakefield.profile.hist_y_to_density_factor = (
                 1 / self.beam.n_macroparticles_partial()
             )
@@ -1945,8 +2035,8 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
                 bunch_time[1] - bunch_time[0]
             )
             local_res_analy._parent_wakefield.profile.hist_x = bunch_time
-            local_res_analy._parent_wakefield.profile.hist_y = bunch / np.sum(
-                bunch
+            local_res_analy._parent_wakefield.profile.hist_y = (
+                bunch / backend.sum(bunch)
             )
             local_res_analy._parent_wakefield.profile.hist_y_to_density_factor = (
                 1 / self.beam.n_macroparticles_partial()
@@ -1960,8 +2050,10 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             ind_volt_mtw = local_res.calc_induced_voltage(beam=self.beam)
 
             np.testing.assert_allclose(
-                ind_volt_mtw,
-                local_res_analy.calc_induced_voltage(beam=self.beam),
+                copy_to_cpu(ind_volt_mtw),
+                copy_to_cpu(
+                    local_res_analy.calc_induced_voltage(beam=self.beam)
+                ),
             )
 
 
@@ -3007,8 +3099,10 @@ class TestHeadlessSolvers(unittest.TestCase):
             1e-10 / t_rf * 2 * np.pi, 2 * np.pi, 2**9, t_rf
         )
         prof = Mock(StaticProfile)
-        prof.beam_spectrum.return_value = beam_spectrum
-        prof.hist_y = beam_profile
+        prof.beam_spectrum.return_value = backend.array(
+            beam_spectrum, dtype=backend.complex
+        )
+        prof.hist_y = backend.array(beam_profile, backend.float)
         prof.cut_left = prof_.cut_left
         prof.cut_right = prof_.cut_right
         prof.hist_x = prof_.hist_x
@@ -3082,7 +3176,9 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = np.array(np.exp(-((np.arange(128) - 64) ** 2) / 1e2))
+        prof._hist_y = backend.array(
+            np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
+        )
 
         beam_mock.particle_type = uranium_29
         beam_mock.intensity = 1e-13
@@ -3122,7 +3218,9 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = np.array(np.exp(-((np.arange(128) - 64) ** 2) / 1e2))
+        prof._hist_y = backend.array(
+            np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
+        )
 
         beam_mock.particle_type = uranium_29
         beam_mock.intensity = 1e-13
@@ -3151,10 +3249,12 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         prof = DynamicProfileConstNBins(n_bins=128)
         prof.cut_left = -1e-9
         prof.cut_right = 1e-9
-        prof._hist_x = np.linspace(prof.cut_left, prof.cut_right, 128)
+        prof._hist_x = backend.linspace(prof.cut_left, prof.cut_right, 128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = np.array(np.exp(-((np.arange(128) - 64) ** 2) / 1e2))
+        prof._hist_y = backend.array(
+            np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
+        )
 
         beam_mock.particle_type = uranium_29
         beam_mock.intensity = 1e-13
@@ -3180,7 +3280,9 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = np.array(np.exp(-((np.arange(128) - 64) ** 2) / 1e2))
+        prof._hist_y = backend.array(
+            np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
+        )
 
         beam_mock.particle_type = uranium_29
         beam_mock.intensity = 1e-13
@@ -3224,8 +3326,8 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             plt.legend()
             plt.show()
         np.testing.assert_allclose(
-            wf_mutli.induced_voltage + offset,
-            wf_single.induced_voltage + offset,
+            copy_to_cpu(wf_mutli.induced_voltage + offset),
+            copy_to_cpu(wf_single.induced_voltage + offset),
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
@@ -3250,8 +3352,8 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         prof_single = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof_single.hist_y_to_density_factor = 0.3
-        prof_single._hist_y = np.array(
-            np.exp(-((np.arange(128) - 64) ** 2) / 1e2)
+        prof_single._hist_y = backend.array(
+            np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
         prof_two_turns = StaticProfile(
@@ -3312,7 +3414,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             plt.legend()
             plt.show()
         np.testing.assert_allclose(
-            wf_mutli.induced_voltage + offset,
-            wf_single.induced_voltage[-128:] + offset,
+            copy_to_cpu(wf_mutli.induced_voltage + offset),
+            copy_to_cpu(wf_single.induced_voltage[-128:] + offset),
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials
-from blond.core.beam.base import BeamFlags
+from blond.core.beam.flags import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
