@@ -1394,7 +1394,7 @@ class DriftObservation(ObservablesOncePerTurnBase):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._drift: DriftSimple = drift
 
-        self._eta_0: DenseArrayRecorder | None = None
+        self._eta_0s: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,

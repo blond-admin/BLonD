@@ -70,8 +70,10 @@ def main() -> None:
     plt.ylabel("omegas")
     plt.subplot(3, 1, 3)
     plt.plot(observe_rf.turns_array, observe_drift.eta_0s)
-    plt.show()
+    plt.ylabel("eta_0")
+    plt.tight_layout()
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()
