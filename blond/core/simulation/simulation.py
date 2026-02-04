@@ -41,6 +41,7 @@ from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import get_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.warnings_ import NotTestedWarning, PerformanceWarning
@@ -54,7 +55,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.beam_preparation.base import BeamPreparationRoutine
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
-    from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.ring.ring import Ring
     from blond.experimental.beam_preparation.empiric_matcher import (
         EmpiricMatcher,

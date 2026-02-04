@@ -628,6 +628,20 @@ class TestSimulation(unittest.TestCase):
                 simulation_mock, (callback for i in range(2))
             )
 
+    def test_calculate_time_passed(self):
+        n_turns = 10
+        time_passed_predicted = self.simulation.calculate_time_passed(
+            n_turns=n_turns,
+        )
+        assert self.simulation.turn_i.value == 0
+        assert self.simulation.section_i.value == 0
+        self.simulation.run_simulation(
+            self.beam,
+            n_turns=n_turns,
+        )
+        time_passed = self.beam.reference.time
+        np.testing.assert_allclose(time_passed_predicted, time_passed)
+
     def test_current_t_rev(self):
         buffer = np.zeros(2)
         t_rev_effective = np.empty(10)
