@@ -20,9 +20,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-def state_vector_to_density(
-    state_vector: NumpyArray, hamilton_2D: NumpyArray
-) -> NumpyArray:
+def occupation_per_equipotential_to_density(
+    occupation_per_equipotential: NumpyArray, potential_2D: NumpyArray, density_write: NumpyArray
+) -> None:
     """
     Transform a state vector into a density distribution.
 
@@ -30,35 +30,31 @@ def state_vector_to_density(
 
     Parameters
     ----------
-    state_vector
+    occupation_per_equipotential
         The vector defining the density of each orbit.
-    hamilton_2D
+    potential_2D
         The Hamiltonian potential that defines the orbits.
-
-    Returns
-    -------
-    density
+    density_write
+        The density distribution will be written to this array.
         The density distribution according to the `hamilton_2D`.
 
     See Also
     --------
-    state_vector_to_histogram: The equivalent to ``density.sum(axis=1)``.
+    occupation_per_equipotential_to_histogram: The equivalent to ``density.sum(axis=1)``.
     """
     import numpy as np
 
-    mid = hamilton_2D.shape[1] // 2
+    mid = potential_2D.shape[1] // 2
 
     # Precompute gradient
-    H_1d = hamilton_2D[:, mid]
+    H_1d = potential_2D[:, mid]
     H_change = np.abs(np.gradient(H_1d, edge_order=2))
 
-    density = np.zeros(hamilton_2D.shape, float)
-    _gen_density_numba(H_change, density, hamilton_2D, mid, state_vector)
-    return density
+    _gen_density_numba(H_change, density_write, potential_2D, mid, occupation_per_equipotential)
 
 
-def state_vector_to_histogram(
-    state_vector: NumpyArray, hamilton_2D: NumpyArray
+def occupation_per_equipotential_to_histogram(
+    occupation_per_equipotential: NumpyArray, potential_2D: NumpyArray
 ) -> NumpyArray:
     """
     Transform a state vector into a histogram.
@@ -69,9 +65,9 @@ def state_vector_to_histogram(
 
     Parameters
     ----------
-    state_vector
+    occupation_per_equipotential
         The vector defining the density of each orbit.
-    hamilton_2D
+    potential_2D
         The Hamiltonian potential that defines the orbits.
 
     Returns
@@ -81,16 +77,17 @@ def state_vector_to_histogram(
 
     See Also
     --------
-    state_vector_to_density: Obtain the underlying density distribution.
+    occupation_per_equipotential_to_density: Obtain the underlying density distribution.
     """
     import numpy as np
 
-    mid = hamilton_2D.shape[1] // 2
+    mid = potential_2D.shape[1] // 2
 
     # Precompute gradient
-    H_1d = hamilton_2D[:, mid]
+    H_1d = potential_2D[:, mid]
     H_change = np.abs(np.gradient(H_1d, edge_order=2))
 
-    histogram = np.zeros(hamilton_2D.shape[0], float)
-    _gen_hist_numba(H_change, hamilton_2D, histogram, mid, state_vector)
+    histogram = np.zeros(potential_2D.shape[0], float)
+    assert potential_2D.shape[0] == len(occupation_per_equipotential)
+    _gen_hist_numba(H_change, potential_2D, histogram, mid, occupation_per_equipotential)
     return histogram

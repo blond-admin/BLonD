@@ -16,9 +16,10 @@ from matplotlib import pyplot as plt
 from scipy.ndimage import gaussian_filter1d
 from tqdm import tqdm
 
+from blond.acc_math.empiric.potential_well import PotentialWellHelper
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.callables import (
-    state_vector_to_density,
-    state_vector_to_histogram,
+    occupation_per_equipotential_to_density,
+    occupation_per_equipotential_to_histogram,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -134,6 +135,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         self.smoothness = 0.05  # from 0 to 1
         self.atol = 1e-3
         self._animation_fignumber = None
+        self._animation_pause = 1e-3
         self._result_fignumber = None
 
     def hamilton_to_density_function(
@@ -220,6 +222,45 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         hamilton_2D: NumpyArray,
         histogram_desired: NumpyArray,
     ) -> NumpyArray:
+        density = np.zeros(hamilton_2D.shape, float)
+
+        potential_well_helper = PotentialWellHelper(
+            np.arange(hamilton_2D.shape[0]),
+            hamilton_2D[:, hamilton_2D.shape[1] // 2],
+        )
+        mask = potential_well_helper.get_in_bucket_mask()
+        diff_mask = np.diff(mask.astype(int))
+        starts = np.where(diff_mask == 1)[0]
+        stops = (
+            np.where(diff_mask == -1)[0] + 1
+        )  # adjust stops for inclusive behavior
+
+        if mask[0]:
+            # handle start if mask starts with 1
+            starts = np.concatenate(([0], starts))
+        if mask[-1]:
+            # append len(mask) to handle end if mask ends with 1
+            stops = np.append(stops, len(mask))
+
+        for bucket_i in range(min(len(starts), len(stops))):
+            sel = slice(  # slicing required for inplace operation
+                int(starts[bucket_i]),
+                int(stops[bucket_i]),
+            )
+
+            self._solve_for_density_single_bucket(
+                hamilton_2D=hamilton_2D[sel, :],
+                histogram_desired=histogram_desired[sel],
+                density_write=density[sel, :],
+            )
+        return density
+
+    def _solve_for_density_single_bucket(
+        self,
+        hamilton_2D: NumpyArray,
+        histogram_desired: NumpyArray,
+        density_write: NumpyArray,
+    ) -> None:
         """Try to derive a density distribution according to the Hamiltonian and histogram.
 
         Parameters
@@ -237,55 +278,56 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             computed density distribution. Values are scaled between 0 and 1.
 
         """
+
         histogram_desired = histogram_desired.copy()
         histogram_desired_normalized = (
             histogram_desired / histogram_desired.mean()
         )
 
-        state_vector = histogram_desired.copy()  # initial guess
-        histogram = state_vector_to_histogram(
-            state_vector=state_vector,
-            hamilton_2D=hamilton_2D,
+        occupation_per_equipotential = histogram_desired.copy()  # initial guess
+        histogram = occupation_per_equipotential_to_histogram(
+            occupation_per_equipotential=occupation_per_equipotential,
+            potential_2D=hamilton_2D,
         )
         scale = histogram_desired.mean() / histogram.mean()
-        state_vector *= scale
+        occupation_per_equipotential *= scale
 
-        histogram = state_vector_to_histogram(
-            state_vector=state_vector,
-            hamilton_2D=hamilton_2D,
+        histogram = occupation_per_equipotential_to_histogram(
+            occupation_per_equipotential=occupation_per_equipotential,
+            potential_2D=hamilton_2D,
         )
         histogram_normalized = histogram / histogram.mean()
 
         previous_histogram_normalized = histogram_normalized
-        assert self.maxiter > 0, (
-            f"`maxiter` must be bigger 0, but is {self.maxiter=}."
-        )
+        assert (
+            self.maxiter > 0
+        ), f"`maxiter` must be bigger 0, but is {self.maxiter=}."
         for i in tqdm(range(self.maxiter), "ProfileMatcherAddon"):
             residual = histogram_desired - histogram
-            update_state_vector = scale * residual
+            update_occupation_per_equipotential_to_density = scale * residual
 
             if self.smoothness > 0:
                 # smooth 2nd derivative
                 force_smoothness = np.gradient(
-                    np.gradient(state_vector, edge_order=1), edge_order=1
+                    np.gradient(occupation_per_equipotential, edge_order=1), edge_order=1
                 )
-                update_state_vector += force_smoothness
+                update_occupation_per_equipotential_to_density += force_smoothness
 
-            state_vector += update_state_vector
-            state_vector[state_vector < 0] = (
+            occupation_per_equipotential += update_occupation_per_equipotential_to_density
+            occupation_per_equipotential[occupation_per_equipotential < 0] = (
                 0  # negative entries are unphysical
             )
 
             if self.smoothness > 0:
-                state_vector_smooth = gaussian_filter1d(
-                    state_vector,
-                    sigma=int(self.smoothness * len(state_vector)),
+                occupation_per_equipotential_to_density_smooth = gaussian_filter1d(
+                    occupation_per_equipotential,
+                    sigma=int(self.smoothness * len(occupation_per_equipotential)),
                 )
             else:
-                state_vector_smooth = state_vector
-            histogram = state_vector_to_histogram(
-                state_vector=state_vector_smooth,
-                hamilton_2D=hamilton_2D,
+                occupation_per_equipotential_to_density_smooth = occupation_per_equipotential
+            histogram = occupation_per_equipotential_to_histogram(
+                occupation_per_equipotential=occupation_per_equipotential_to_density_smooth,
+                potential_2D=hamilton_2D,
             )
             histogram_normalized = histogram / histogram.mean()
             max_change = np.abs(
@@ -301,20 +343,19 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
                     i=i,
                     max_change=max_change,
                     previous_histogram_normalized=previous_histogram_normalized,
-                    state_vector=state_vector,
-                    state_vector_smooth=state_vector_smooth,
+                    occupation_per_equipotential_to_density=occupation_per_equipotential,
+                    occupation_per_equipotential_to_density_smooth=occupation_per_equipotential_to_density_smooth,
                 )
 
             previous_histogram_normalized = histogram_normalized
 
-        density = state_vector_to_density(
-            state_vector=state_vector_smooth,
-            hamilton_2D=hamilton_2D,
+        occupation_per_equipotential_to_density(
+            occupation_per_equipotential=occupation_per_equipotential_to_density_smooth,
+            potential_2D=hamilton_2D,
+            density_write=density_write,
         )
         # normalize
-        density = density / np.sum(density)
-
-        return density
+        density_write /= np.sum(density_write)
 
     def _draw_animation(
         self,
@@ -323,8 +364,8 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         i: int,
         max_change: float,
         previous_histogram_normalized: NumpyArray,
-        state_vector: NumpyArray,
-        state_vector_smooth: NumpyArray,
+        occupation_per_equipotential_to_density: NumpyArray,
+        occupation_per_equipotential_to_density_smooth: NumpyArray,
     ):
         if self._animation_fignumber is None:
             fig = plt.figure()
@@ -344,13 +385,13 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         plt.xlabel("Time [s]")
         plt.ylabel("Density [arb. unit]")
         plt.subplot(2, 1, 2, sharex=ax)
-        plt.plot(state_vector, label="raw")
-        plt.plot(state_vector_smooth, label="smoothed")
+        plt.plot(occupation_per_equipotential_to_density, label="raw")
+        plt.plot(occupation_per_equipotential_to_density_smooth, label="smoothed")
         plt.legend(loc="upper right")
         plt.xlabel("State ID")
         plt.ylabel("Amplitude")
         plt.draw()
-        plt.pause(1e-3)
+        plt.pause(self._animation_pause)
 
     def _plot_result(
         self,

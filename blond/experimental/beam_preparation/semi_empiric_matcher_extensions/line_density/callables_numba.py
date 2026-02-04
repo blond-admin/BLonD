@@ -29,15 +29,16 @@ BIN_SIGMA_CALC = 3.0  # 99% of stencil will be drawn
     parallel=True,
     fastmath=True,
 )
-def _gen_hist_numba(H_change, hamilton_2D, histogram_write, mid, state_vector):
+def _gen_hist_numba(potential_change, potential_2D, histogram_write, mid, occupation_per_equipotential_to_density):
     histogram_write[:] = 0.0
 
-    num_states = state_vector.shape[0]
-    h_shape_0 = hamilton_2D.shape[0]
-    h_shape_1 = hamilton_2D.shape[1]
+    num_states = occupation_per_equipotential_to_density.shape[0]
+    h_shape_0 = potential_2D.shape[0]
+    h_shape_1 = potential_2D.shape[1]
 
     # Precompute mid-column energies
-    hamilton_mid = hamilton_2D[:, mid]
+    hamilton_mid = potential_2D[:, mid]
+    h_max_write = hamilton_mid.max()
 
     # Precompute sigma, cutoff windows, and Gaussian prefactors
     inv_two_sigma2 = np.empty(num_states)
@@ -45,7 +46,7 @@ def _gen_hist_numba(H_change, hamilton_2D, histogram_write, mid, state_vector):
     emax = np.empty(num_states)
 
     for i in range(num_states):
-        _sigma = BIN_SIGMA * H_change[i]
+        _sigma = BIN_SIGMA * potential_change[i]
         inv_two_sigma2[i] = -1.0 / (2.0 * _sigma * _sigma)
         emin[i] = hamilton_mid[i] - BIN_SIGMA_CALC * _sigma
         emax[i] = hamilton_mid[i] + BIN_SIGMA_CALC * _sigma
@@ -53,7 +54,7 @@ def _gen_hist_numba(H_change, hamilton_2D, histogram_write, mid, state_vector):
     # Main loop
     for u in prange(h_shape_0):
         acc_u = 0.0
-        h_u_min = hamilton_2D[u, :].min()
+        h_u_min = potential_2D[u, :].min()
 
         # Cache row pointer for faster access
 
@@ -62,12 +63,14 @@ def _gen_hist_numba(H_change, hamilton_2D, histogram_write, mid, state_vector):
             if e_max_i < h_u_min:
                 continue
             e_i = hamilton_mid[i]
-            s_i = state_vector[i]
+            s_i = occupation_per_equipotential_to_density[i]
             inv2s2 = inv_two_sigma2[i]
             e_min_i = emin[i]
 
             for v in range(h_shape_1):
-                h = hamilton_2D[u, v]
+                h = potential_2D[u, v]
+                if h > h_max_write:
+                    continue
 
                 # Skip expensive exp() if outside cutoff
                 if h < e_min_i or h > e_max_i:
@@ -80,73 +83,24 @@ def _gen_hist_numba(H_change, hamilton_2D, histogram_write, mid, state_vector):
 
 
 @numba.njit(
-    void(float64[:], float64[:, :], float64[:], int32, float64[:]),
-    parallel=True,
-    fastmath=True,
-)
-def _gen_state_numba(
-    H_change, hamilton_2D, histogram, mid, state_vector_write
-):
-    num_states = state_vector_write.shape[0]
-    h_shape_0 = hamilton_2D.shape[0]
-    h_shape_1 = hamilton_2D.shape[1]
-
-    # Precompute mid-column energies
-    hamilton_mid = hamilton_2D[:, mid]
-
-    # Precompute sigma, cutoff windows, and Gaussian prefactors
-    inv_two_sigma2 = np.empty(num_states)
-    emin = np.empty(num_states)
-    emax = np.empty(num_states)
-
-    for i in range(num_states):
-        _sigma = BIN_SIGMA * H_change[i]
-        inv_two_sigma2[i] = -1.0 / (2.0 * _sigma * _sigma)
-        emin[i] = hamilton_mid[i] - BIN_SIGMA_CALC * _sigma
-        emax[i] = hamilton_mid[i] + BIN_SIGMA_CALC * _sigma
-
-    for i in prange(len(state_vector_write)):
-        val2 = 0.0
-        valn = 0
-        e_i = hamilton_mid[i]
-        inv2s2 = inv_two_sigma2[i]
-
-        for u in (i,):
-            hist_u = histogram[u]
-            if hist_u == 0:
-                continue
-
-            for v in range(h_shape_1):
-                h = hamilton_2D[u, v]
-                if h < emin[i] or h > emax[i]:
-                    continue
-
-                dE = h - e_i
-                val2 += np.exp(dE * dE * inv2s2) * hist_u
-                valn += 1
-        if val2 > 0:
-            state_vector_write[i] = 1 / val2
-
-
-@numba.njit(
     void(float64[:], float64[:, :], float64[:, :], int32, float64[:]),
     parallel=True,
     fastmath=True,
 )
 def _gen_density_numba(
-    H_change: NumpyArray,
+    potential_change: NumpyArray,
     density_write: NumpyArray,
-    hamilton_2D: NumpyArray,
+    potential_2D: NumpyArray,
     mid: int,
-    state_vector: NumpyArray,
+    occupation_per_equipotential_to_density: NumpyArray,
 ):
-    h_shape_0 = hamilton_2D.shape[0]
-    h_shape_1 = hamilton_2D.shape[1]
-    n_states = state_vector.shape[0]
+    h_shape_0 = potential_2D.shape[0]
+    h_shape_1 = potential_2D.shape[1]
+    n_states = occupation_per_equipotential_to_density.shape[0]
 
     # Preload the mid-column once
-    h_mid = hamilton_2D[:, mid]
-
+    h_mid = potential_2D[:, mid]
+    h_max_write = h_mid.max()
     # Precompute sigma, sigma², and cutoff windows
     sigma = np.empty(n_states)
     inv_two_sigma_sq = np.empty(n_states)
@@ -155,7 +109,7 @@ def _gen_density_numba(
 
     # to remove calculation from inner loop
     for i in range(n_states):
-        s = BIN_SIGMA * H_change[i]
+        s = BIN_SIGMA * potential_change[i]
         sigma[i] = s
         inv_two_sigma_sq[i] = -1.0 / (2.0 * s * s)
         e_i = h_mid[i]
@@ -163,19 +117,24 @@ def _gen_density_numba(
         e_max[i] = e_i + BIN_SIGMA_CALC * s
 
     for idx in prange(h_shape_0 * h_shape_1):
-        u = idx % h_shape_1
-        v = idx // h_shape_1
-        h_u_v = hamilton_2D[u, v]
+        u = idx // h_shape_1
+        v = idx % h_shape_1
+        if u >= potential_2D.shape[0]:
+            pass
+        h_u_v = potential_2D[u, v]
+        if h_u_v > h_max_write:
+            continue
 
-        acc = 0.0
+        density_write_sum = 0.0
 
         for i in range(n_states):
             # Skip if outside cutoff
             if h_u_v < e_min[i] or h_u_v > e_max[i]:
                 continue
 
+
             dE = h_u_v - h_mid[i]
             w = np.exp(dE * dE * inv_two_sigma_sq[i])
-            acc += w * state_vector[i]
+            density_write_sum += w * occupation_per_equipotential_to_density[i]
 
-        density_write[u, v] = acc
+        density_write[u, v] = density_write_sum
