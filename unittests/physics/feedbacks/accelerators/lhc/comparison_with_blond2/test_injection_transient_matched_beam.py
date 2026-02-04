@@ -215,7 +215,6 @@ class TestInjectionMatchedBeam(unittest.TestCase):
             # plt.plot(cls.line_density[i, :])
             # plt.draw()
             # plt.pause(0.01)
-        plt.show()
 
     def test_line_density(self):
         if DEBUG_PLOTTING:
