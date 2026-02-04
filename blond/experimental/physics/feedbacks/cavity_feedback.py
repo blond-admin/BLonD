@@ -384,7 +384,7 @@ class IQCavityFeedback(LocalFeedback):
 
         # Present carrier frequency: main RF frequency
         self.omega_carrier_prev = self.omega_carrier
-        self.omega_carrier = self.omega_rf / self.n_periods_coarse
+        self.omega_carrier = self.omega_rf
 
         # Present sampling time
         self.T_s_prev = self.T_s
@@ -484,7 +484,7 @@ class IQCavityFeedback(LocalFeedback):
             rf_beam_current(
                 beam=beam,
                 profile=self.profile,
-                omega_c=self.omega_rf,
+                omega_c=self.omega_carrier,
                 T_rev=t_rev,
                 use_lowpass_filter=use_lowpass_filter,
                 downsample={"Ts": self.T_s, "points": self.n_coarse},
