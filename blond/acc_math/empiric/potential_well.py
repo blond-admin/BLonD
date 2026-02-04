@@ -83,7 +83,10 @@ class PotentialWellHelper:
             # Search to the left
             for j in range(index_anchor - 1, 0, -1):
                 if y[j] >= threshold_y:
-                    second_anchor_index = j
+                    if (j + 1) <= len(y):
+                        second_anchor_index = j + 1
+                    else:
+                        second_anchor_index = j
                     buckets.append(
                         (
                             x[min(index_anchor, second_anchor_index)],
@@ -95,7 +98,10 @@ class PotentialWellHelper:
             # Search to the right
             for j in range(index_anchor + 1, len(y)):
                 if y[j] >= threshold_y:
-                    second_anchor_index = j
+                    if (j - 1) >= 0:
+                        second_anchor_index = j - 1
+                    else:
+                        second_anchor_index = j
                     buckets.append(
                         (
                             x[min(index_anchor, second_anchor_index)],

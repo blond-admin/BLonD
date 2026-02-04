@@ -25,12 +25,7 @@ from blond import (
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.experimental.beam_preparation.semi_empiric_matcher import (
-    SemiEmpiricMatcher,
-)
-from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes import (
-    ProfileMatcherAddon,
-)
+from blond.experimental import ProfileMatcherAddon, SemiEmpiricMatcher
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -54,7 +49,7 @@ def get_test_profile(noisy=False):
     """
     # Parameters
     mean = 2.5e-9 / 2  # Mean of the distribution
-    std_dev = 2.5e-9 / 8 / 2  # Standard deviation
+    std_dev = 2.5e-9 / 30  # Standard deviation
     size = 10000  # Number of data points
 
     if noisy:
@@ -101,7 +96,7 @@ def main():
     sim.print_one_turn_execution_order()
 
     hist_x, hist_y = get_test_profile()
-    hist_y = hist_y**8
+    hist_y = hist_y
     matcher_addon = ProfileMatcherAddon(hist_x=hist_x, hist_y=hist_y)
     matcher_addon.smoothness = 0.01
     matcher_addon.atol = 1e-3

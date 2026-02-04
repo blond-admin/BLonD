@@ -234,11 +234,14 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         )
 
         # solve for each bucket independently
+        n_bins_smoothing = int(self.smoothness * len(histogram_desired))
+
         for sel in potential_well_helper.get_principal_bucket_slices():
             self._solve_for_density_single_bucket(
                 hamilton_2D=hamilton_2D[sel, :],
                 histogram_desired=histogram_desired[sel],
                 density_write=density[sel, :],
+                n_bins_smoothing=n_bins_smoothing,
             )
         return density
 
@@ -247,6 +250,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         hamilton_2D: NumpyArray,
         histogram_desired: NumpyArray,
         density_write: NumpyArray,
+        n_bins_smoothing: int,
     ) -> None:
         """Try to derive a density distribution according to the Hamiltonian and histogram.
 
@@ -295,16 +299,6 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             residual = histogram_desired - histogram
             update_occupation_per_equipotential_to_density = scale * residual
 
-            if self.smoothness > 0:
-                # smooth 2nd derivative
-                force_smoothness = np.gradient(
-                    np.gradient(occupation_per_equipotential, edge_order=1),
-                    edge_order=1,
-                )
-                update_occupation_per_equipotential_to_density += (
-                    force_smoothness
-                )
-
             occupation_per_equipotential += (
                 update_occupation_per_equipotential_to_density
             )
@@ -312,13 +306,11 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
                 0  # negative entries are unphysical
             )
 
-            if self.smoothness > 0:
+            if self.smoothness > 0 and n_bins_smoothing > 0:
                 occupation_per_equipotential_to_density_smooth = (
                     gaussian_filter1d(
                         occupation_per_equipotential,
-                        sigma=int(
-                            self.smoothness * len(occupation_per_equipotential)
-                        ),
+                        sigma=n_bins_smoothing,
                     )
                 )
             else:
@@ -391,7 +383,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         )
         plt.legend(loc="upper right")
         plt.xlabel("State ID")
-        plt.ylabel("Amplitude")
+        plt.ylabel("Occupation per equipotential line")
         plt.draw()
         plt.pause(self._animation_pause)
 
