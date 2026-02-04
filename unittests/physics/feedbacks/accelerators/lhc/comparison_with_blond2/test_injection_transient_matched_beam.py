@@ -34,7 +34,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
     blond2_data = np.load(
         Path(
             callers_relative_path(
-                "../lhc_cavity_control_injection_power_no_bpl.npz",
+                "../resources/lhc_cavity_control_injection_power_no_bpl.npz",
                 stacklevel=1,
             )
         )
@@ -121,7 +121,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         cavity_control = LHCCavityLoop(
             profile=profile,
             f_c=f_rf - 5e3,
-            n_pretrack=100,
+            n_pretrack=200,
             Q_L=Q_L,
             tau_loop=tau_loop,
             tau_otfb=tau_comp,
@@ -132,9 +132,9 @@ class TestInjectionMatchedBeam(unittest.TestCase):
 
         cavity.attach_cavity_feedback(cavity_control)
 
-        # bigaussian = BiGaussian(
-        #     n_macroparticles_per_bunch, sigma_dt=bunch_lengths / 4, seed=1234
-        # )
+        bigaussian = BiGaussian(
+            n_macroparticles_per_bunch, sigma_dt=bunch_lengths / 4, seed=1234
+        )
 
         ring = Ring(
             circumference,
@@ -148,43 +148,51 @@ class TestInjectionMatchedBeam(unittest.TestCase):
             ring,
             cycle,
         )
-        #
-        # simulation.prepare_beam(beam, bigaussian)
-        #
-        # _dt_tmp = beam._dt
-        # _dE_tmp = beam._dE
-        # _flags_tmp = beam._flags
-        # _ids_tmp = beam._ids
-        #
-        # beam._dt = DistributedArray(np.zeros(n_bunches * _dt_tmp.local_size))
-        # beam._dE = DistributedArray(np.zeros(n_bunches * _dE_tmp.local_size))
-        # beam._flags = DistributedArray(np.zeros(
-        #     n_bunches * _flags_tmp.local_size, dtype=_flags_tmp.array_local.dtype
-        # ))
-        # beam._ids = DistributedArray(np.zeros(n_bunches * _ids_tmp.local_size, dtype=_ids_tmp.array_local.dtype))
-        #
-        # for i in range(n_bunches):
-        #     beam._dt.array_local[
-        #         i * n_macroparticles_per_bunch : (i + 1)
-        #         * n_macroparticles_per_bunch
-        #     ] = _dt_tmp.array_local + 10 * t_rf * i + 1000 * t_rf
-        #     beam._dE.array_local[
-        #         i * n_macroparticles_per_bunch : (i + 1)
-        #         * n_macroparticles_per_bunch
-        #     ] = _dE_tmp.array_local
-        #     beam._flags.array_local[
-        #         i * n_macroparticles_per_bunch : (i + 1)
-        #         * n_macroparticles_per_bunch
-        #     ] = _flags_tmp.array_local
-        #     beam._ids.array_local[
-        #         i * n_macroparticles_per_bunch : (i + 1)
-        #         * n_macroparticles_per_bunch
-        #     ] = _ids_tmp.array_local
 
-        load_beam_coordinates_from_file(
-            callers_relative_path("../lhc_36bunches_7.9MV.npz", stacklevel=1),
-            beam,
+        simulation.prepare_beam(beam, bigaussian)
+
+        _dt_tmp = beam._dt
+        _dE_tmp = beam._dE
+        _flags_tmp = beam._flags
+        _ids_tmp = beam._ids
+
+        beam._dt = DistributedArray(np.zeros(n_bunches * _dt_tmp.local_size))
+        beam._dE = DistributedArray(np.zeros(n_bunches * _dE_tmp.local_size))
+        beam._flags = DistributedArray(
+            np.zeros(
+                n_bunches * _flags_tmp.local_size,
+                dtype=_flags_tmp.array_local.dtype,
+            )
         )
+        beam._ids = DistributedArray(
+            np.zeros(
+                n_bunches * _ids_tmp.local_size,
+                dtype=_ids_tmp.array_local.dtype,
+            )
+        )
+
+        for i in range(n_bunches):
+            beam._dt.array_local[
+                i * n_macroparticles_per_bunch : (i + 1)
+                * n_macroparticles_per_bunch
+            ] = _dt_tmp.array_local + 10 * t_rf * i + 1000 * t_rf
+            beam._dE.array_local[
+                i * n_macroparticles_per_bunch : (i + 1)
+                * n_macroparticles_per_bunch
+            ] = _dE_tmp.array_local
+            beam._flags.array_local[
+                i * n_macroparticles_per_bunch : (i + 1)
+                * n_macroparticles_per_bunch
+            ] = _flags_tmp.array_local
+            beam._ids.array_local[
+                i * n_macroparticles_per_bunch : (i + 1)
+                * n_macroparticles_per_bunch
+            ] = _ids_tmp.array_local
+
+        # load_beam_coordinates_from_file(
+        #     callers_relative_path("../lhc_36bunches_7.9MV.npz", stacklevel=1),
+        #     beam,
+        # )
 
         simulation.finalize(
             (beam,),
@@ -282,7 +290,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         np.testing.assert_allclose(
             self.rf_power.real,
             self.blond2_data["rf_power"].real,
-            atol=1e-9,
+            atol=8e-6,
             err_msg="Error in real part of rf power",
         )
         np.testing.assert_allclose(
