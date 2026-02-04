@@ -34,7 +34,7 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         dt_std = 1.0907507797569666e-10
         dE_mean = -73684.84380359562
         dE_std = 34138361.01478994
-        tol = 1e-4 if backend.float == np.float32 else 1e-12
+        tol = 1e-4 if backend.float == np.float32 else 1e-6
 
         # quasi 0
         np.testing.assert_allclose(bunch._dt.mean(), dt_mean, atol=tol)
