@@ -11,15 +11,20 @@ import pytest
 
 from blond import (
     Beam,
+    Cupy32Bit,
     DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    WakeField,
+    backend,
     mu_plus,
     proton,
 )
+from blond.core.backends.backend import Numpy32Bit, NumpyBackend
 from blond.core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -295,13 +300,13 @@ class TestSimulation(unittest.TestCase):
 
         np.testing.assert_allclose(
             potential_well_pinned,
-            potential_well,
+            copy_to_cpu(potential_well),
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
     def test_plot_potential_well_empiric(self):
         self.simulation.plot_potential_well_empiric(
-            dt=np.linspace(0, 1e-9),
+            dt=backend.linspace(0, 1e-9),
             particle_type=proton,
         )
 
@@ -426,8 +431,10 @@ class TestSimulation(unittest.TestCase):
             plt.legend()
             plt.show()
         np.testing.assert_allclose(
-            potential_well_analytic / potential_well_analytic.max() + 1,
-            potential_well / potential_well.max() + 1,
+            copy_to_cpu(
+                potential_well_analytic / potential_well_analytic.max() + 1
+            ),
+            copy_to_cpu(potential_well / potential_well.max() + 1),
             rtol=1e-4,
         )
 
@@ -459,8 +466,8 @@ class TestSimulation(unittest.TestCase):
             )
             potential_wells[particle_type] = potential_well
         np.testing.assert_allclose(
-            potential_wells[proton] + 1e6,
-            potential_wells[noton] / 2 + 1e6,
+            copy_to_cpu(potential_wells[proton]) + 1e6,
+            copy_to_cpu(potential_wells[noton]) / 2 + 1e6,
             rtol=1e-5,
         )
 
@@ -542,8 +549,10 @@ class TestSimulation(unittest.TestCase):
             plt.legend()
             plt.show()
         np.testing.assert_allclose(
-            potential_well_analytic / potential_well_analytic.max() + 1,
-            potential_well / potential_well.max() + 1,
+            copy_to_cpu(
+                potential_well_analytic / potential_well_analytic.max() + 1
+            ),
+            copy_to_cpu(potential_well / potential_well.max() + 1),
             rtol=1e-4,
         )
 
@@ -552,7 +561,7 @@ class TestSimulation(unittest.TestCase):
 
         sim = SimulationTwoRFStations()
         simulation = sim.simulation
-        de = np.linspace(-1e9, 1e9)
+        de = backend.linspace(-1e9, 1e9)
         beam = sim.beam1
         beam.reference.total_energy = 450e9
         drift_term = simulation.get_drift_term_empiric(
@@ -575,8 +584,8 @@ class TestSimulation(unittest.TestCase):
             plt.plot(drift_term_analytic, "--")
             plt.show()
         np.testing.assert_allclose(
-            drift_term_analytic + 1,
-            drift_term + 1,
+            copy_to_cpu(drift_term_analytic + 1),
+            copy_to_cpu(drift_term + 1),
             atol=0.15,
         )
 
@@ -592,6 +601,9 @@ class TestSimulation(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_finalize_warns(self) -> None:
         from blond import backend
+
+        if not isinstance(backend, NumpyBackend):
+            self.skipTest("Only on CPU")
 
         beam_mock.common_array_size = int(1e32)
         special_mode_org = backend.specials_mode
@@ -627,6 +639,46 @@ class TestSimulation(unittest.TestCase):
             Simulation._sanitize_callbacks(
                 simulation_mock, (callback for i in range(2))
             )
+
+    @pytest.mark.backend_mutation
+    def test_compare_cpu_gpu(self):
+        DEV_DEBUG = False
+        results = []
+        for i, backend_type in enumerate((Cupy32Bit, Numpy32Bit)):
+            backend.change_backend(backend_type)
+            from blond.testing.simulation import (
+                SimulationTwoRFStationsWithWake,
+            )
+
+            sim = SimulationTwoRFStationsWithWake()
+
+            hist_y_override = np.loadtxt(
+                callers_relative_path("hist_y_override.txt", stacklevel=1),
+            )
+            wakefield = sim.simulation.ring.elements.get_element(WakeField)
+            wakefield.profile._hist_y = backend.array(
+                hist_y_override, dtype=wakefield.profile._hist_y.dtype
+            )
+            wakefield.profile.hist_y_to_density_factor = 1e-05
+            sim.simulation.intensity_effect_manager.set_profiles(False)
+            potential, factor, tilt = (
+                sim.simulation.get_potential_well_empiric(
+                    dt=np.linspace(0, 3e-9),
+                    particle_type=sim.beam1.particle_type,
+                    intensity=sim.beam1.intensity,
+                )
+            )
+            if DEV_DEBUG:
+                plt.figure("debug+potential")
+                plt.plot(copy_to_cpu(potential), ("-", "--")[i])
+            results.append(copy_to_cpu(potential))
+        if DEV_DEBUG:
+            plt.show()
+        np.testing.assert_allclose(
+            results[0],
+            results[1],
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+        )
 
     def test_calculate_time_passed(self):
         n_turns = 10

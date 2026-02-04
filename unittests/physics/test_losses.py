@@ -6,6 +6,7 @@ import numpy as np
 from blond import Beam, BoxLosses, Simulation, proton, uranium_29
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.losses import LossesBaseClass
 from blond.testing.mocks import beam_mock, simulation_mock
 
@@ -38,7 +39,7 @@ class TestLossesBaseClass(unittest.TestCase):
         )._purge_particles(beam=beam)
         self.assertEqual(beam.common_array_size, 5)
         np.testing.assert_almost_equal(
-            np.sort(beam.read_partial_dt()),
+            np.sort(copy_to_cpu(beam.read_partial_dt())),
             np.sort(np.arange(10)[5:]),
         )
         np.testing.assert_equal(beam.intensity, 0.5)
@@ -77,10 +78,16 @@ class TestBoxLosses(unittest.TestCase):
         )
         self.box_losses.track(beam=beam)
 
-        np.testing.assert_equal(beam.read_partial_dt() >= -1, True)
-        np.testing.assert_equal(beam.read_partial_dt() <= 2, True)
-        np.testing.assert_equal(beam.read_partial_dE() >= -10, True)
-        np.testing.assert_equal(beam.read_partial_dE() <= 20, True)
+        np.testing.assert_equal(
+            copy_to_cpu(beam.read_partial_dt()) >= -1, True
+        )
+        np.testing.assert_equal(copy_to_cpu(beam.read_partial_dt()) <= 2, True)
+        np.testing.assert_equal(
+            copy_to_cpu(beam.read_partial_dE()) >= -10, True
+        )
+        np.testing.assert_equal(
+            copy_to_cpu(beam.read_partial_dE()) <= 20, True
+        )
 
     def test_wrong_args(self):
         with self.assertRaises(AssertionError):
@@ -120,9 +127,13 @@ class TestBoxLosses(unittest.TestCase):
         print(beam._dE)
 
         # np.testing.assert_equal(beam._dt >= 1, True)
-        np.testing.assert_equal(beam.read_partial_dt() <= 2, True)
-        np.testing.assert_equal(beam.read_partial_dE() >= -10, True)
-        np.testing.assert_equal(beam.read_partial_dE() <= 20, True)
+        np.testing.assert_equal(copy_to_cpu(beam.read_partial_dt()) <= 2, True)
+        np.testing.assert_equal(
+            copy_to_cpu(beam.read_partial_dE()) >= -10, True
+        )
+        np.testing.assert_equal(
+            copy_to_cpu(beam.read_partial_dE()) <= 20, True
+        )
         self.assertLess(beam.intensity, 1e12)
 
     def test_track3(self):
@@ -142,10 +153,14 @@ class TestBoxLosses(unittest.TestCase):
         print(beam._dt)
         print(beam._dE)
 
-        np.testing.assert_equal(beam.read_partial_dt() >= 1, True)
-        # np.testing.assert_equal(beam._dt <= 2, True)
-        np.testing.assert_equal(beam.read_partial_dE() >= -10, True)
-        np.testing.assert_equal(beam.read_partial_dE() <= 20, True)
+        np.testing.assert_equal(copy_to_cpu(beam.read_partial_dt()) >= 1, True)
+        # np.testing.assert_equal(copy_to_cpu()(beam._dt) <= 2, True)
+        np.testing.assert_equal(
+            copy_to_cpu(beam.read_partial_dE()) >= -10, True
+        )
+        np.testing.assert_equal(
+            copy_to_cpu(beam.read_partial_dE()) <= 20, True
+        )
         self.assertLess(beam.intensity, 1e12)
 
     def test_track4(self):
@@ -162,10 +177,12 @@ class TestBoxLosses(unittest.TestCase):
             dE=np.linspace(-100, 100, 201),
         )
         self.box_losses.track(beam=beam)
-        np.testing.assert_equal(beam.read_partial_dt() >= 1, True)
-        np.testing.assert_equal(beam.read_partial_dt() <= 2, True)
-        # np.testing.assert_equal(beam._dE >= -10, True)
-        np.testing.assert_equal(beam.read_partial_dE() <= 20, True)
+        np.testing.assert_equal(copy_to_cpu(beam.read_partial_dt()) >= 1, True)
+        np.testing.assert_equal(copy_to_cpu(beam.read_partial_dt()) <= 2, True)
+        # np.testing.assert_equal(copy_to_cpu()(beam._dE) >= -10, True)
+        np.testing.assert_equal(
+            copy_to_cpu(beam.read_partial_dE()) <= 20, True
+        )
 
     def test_track5(self):
         self.box_losses = BoxLosses(
@@ -181,10 +198,12 @@ class TestBoxLosses(unittest.TestCase):
             dE=np.linspace(-100, 100, 201),
         )
         self.box_losses.track(beam=beam)
-        np.testing.assert_equal(beam.read_partial_dt() >= 1, True)
-        np.testing.assert_equal(beam.read_partial_dt() <= 2, True)
-        np.testing.assert_equal(beam.read_partial_dE() >= -10, True)
-        # np.testing.assert_equal(beam._dE <= 20, True)
+        np.testing.assert_equal(copy_to_cpu(beam.read_partial_dt()) >= 1, True)
+        np.testing.assert_equal(copy_to_cpu(beam.read_partial_dt()) <= 2, True)
+        np.testing.assert_equal(
+            copy_to_cpu(beam.read_partial_dE()) >= -10, True
+        )
+        # np.testing.assert_equal(copy_to_cpu()(beam.read_partial_dE()) <= 20, True)
         self.assertLess(beam.intensity, 1e12)
 
     def test_track6(self):
@@ -221,11 +240,11 @@ class TestBoxLosses(unittest.TestCase):
         self.assertEqual(3, len(beam.read_partial_dE()))
 
         np.testing.assert_equal(
-            (beam.read_partial_dt() < 1)
-            | (beam.read_partial_dt() > 2)
-            | (beam.read_partial_dE() < -10)
-            | (beam.read_partial_dE() > 20),
-            ~beam.read_partial_flags().astype(bool),
+            (copy_to_cpu(beam.read_partial_dt()) < 1)
+            | (copy_to_cpu(beam.read_partial_dt()) > 2)
+            | (copy_to_cpu(beam.read_partial_dE()) < -10)
+            | (copy_to_cpu(beam.read_partial_dE()) > 20),
+            copy_to_cpu(~beam.read_partial_flags().astype(bool)),
         )
         self.assertLess(beam.intensity, 1e12)
 
@@ -239,7 +258,7 @@ class TestBoxLosses(unittest.TestCase):
         )._purge_particles(beam=beam)
         self.assertEqual(beam.common_array_size, 5)
         np.testing.assert_almost_equal(
-            np.sort(beam.read_partial_dt()),
+            np.sort(copy_to_cpu(beam.read_partial_dt())),
             np.sort(np.arange(10)[5:]),
         )
 
