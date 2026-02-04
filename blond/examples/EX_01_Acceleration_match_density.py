@@ -26,6 +26,7 @@ from blond import (
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.experimental import ProfileMatcherAddon, SemiEmpiricMatcher
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -67,6 +68,11 @@ def get_test_profile(noisy=False):
     return hist_x, hist_y
 
 
+N_TURNS = int(1e3)
+animate_fitting = True
+plot_result = True
+
+
 def main():
     ring = Ring(26658.883)
 
@@ -75,8 +81,7 @@ def main():
     rf_station.voltage = 6e6
     rf_station.phi_rf = 0
 
-    N_TURNS = int(1e3)
-    values = np.linspace(450e9, 455e9, N_TURNS + 1)
+    values = np.linspace(450e9, 455e9, int(1e3) + 1)
     energy_cycle = MagneticCyclePerTurn(
         value_init=values[0],
         values_after_turn=values[1:],
@@ -101,9 +106,9 @@ def main():
     matcher_addon.smoothness = 0.01
     matcher_addon.atol = 1e-3
     matcher_addon.recenter = True
-    matcher_addon.animate_fitting = True
-    matcher_addon.plot_result = True
-    matcher_addon.plot_result_blocking = True
+    matcher_addon.animate_fitting = animate_fitting
+    matcher_addon.plot_result = plot_result
+    matcher_addon.plot_result_blocking = False
 
     sim.prepare_beam(
         beam=beam1,
@@ -130,8 +135,8 @@ def main():
             return
 
         plt.hist2d(
-            beam.read_partial_dt(),
-            beam.read_partial_dE(),
+            copy_to_cpu(beam.read_partial_dt()),
+            copy_to_cpu(beam.read_partial_dE()),
             bins=256,
             range=[(0, 2.5e-9), (-4e8, 4e8)],
         )
@@ -172,6 +177,7 @@ def main():
             plt.pause(0.1)
 
         plt.show()
+    return beam1
 
 
 if __name__ == "__main__":  # pragma: no cover
