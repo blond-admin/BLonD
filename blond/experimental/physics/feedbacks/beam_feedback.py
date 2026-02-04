@@ -121,7 +121,7 @@ class BeamFeedbackBase(GlobalFeedback):
         counter = self.cavities[0]._turn_i.value
         self.dphi = self.phi_beam - self.cavities[
             0
-        ].calc_phi_s_single_harmonic(beam, enable_rf_phase=False)
+        ].calc_phi_s_single_harmonic(beam)
 
         # Phase offset due to beam loading
         if self.cavities[0]._cavity_feedback is not None:
