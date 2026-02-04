@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.ndimage import gaussian_filter1d
+from scipy.signal import find_peaks
 from tqdm import tqdm
 
 from blond.acc_math.empiric.potential_well import PotentialWellHelper
@@ -163,36 +164,12 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             computed density distribution. Values are scaled between 0 and 1.
         """
         if self.recenter:
-            mid = time_grid.shape[1] // 2
-
-            import numpy as np
-            from scipy.signal import find_peaks
-
-            x = time_grid[:, mid]
-            y = hamilton_2D[:, mid]
-
-            # find local minima by finding peaks in -y
-            min_indices, _ = find_peaks(-y)
-
-            # index of the lowest local minimum
-            lowest_min_index = min_indices[np.argmin(y[min_indices])]
-
-            # x-coordinate of the lowest local minimum
-            x_lowest_min = x[lowest_min_index]
-
-            center_ham = x_lowest_min
-            center_prof = np.average(self._hist_x, weights=self._hist_y)
-            correction = center_ham - center_prof
-
+            correction = self._calculate_correction(hamilton_2D, time_grid)
         else:
             correction = 0.0
-        hist_x_interp = time_grid[:, 0]
-        hist_y_interp = np.interp(
-            hist_x_interp,
-            self._hist_x + correction,  # todo if recenter
-            self._hist_y,
-            left=0,
-            right=0,
+
+        hist_x_interp, hist_y_interp = self._interpolate_hist(
+            correction, time_grid
         )
 
         density = self._solve_for_density(
@@ -217,6 +194,33 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
 
         return density
 
+    def _interpolate_hist(self, correction, time_grid):
+        hist_x_interp = time_grid[:, 0]
+        hist_y_interp = np.interp(
+            hist_x_interp,
+            self._hist_x + correction,
+            self._hist_y,
+            left=0,
+            right=0,
+        )
+        return hist_x_interp, hist_y_interp
+
+    def _calculate_correction(self, hamilton_2D, time_grid):
+        mid = time_grid.shape[1] // 2
+
+        x = time_grid[:, mid]
+        y = hamilton_2D[:, mid]
+        # find local minima by finding peaks in -y
+        min_indices, _ = find_peaks(-y)
+        # index of the lowest local minimum
+        lowest_min_index = min_indices[np.argmin(y[min_indices])]
+        # x-coordinate of the lowest local minimum
+        x_lowest_min = x[lowest_min_index]
+        center_ham = x_lowest_min
+        center_prof = np.average(self._hist_x, weights=self._hist_y)
+        correction = center_ham - center_prof
+        return correction
+
     def _solve_for_density(
         self,
         hamilton_2D: NumpyArray,
@@ -229,6 +233,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             hamilton_2D[:, hamilton_2D.shape[1] // 2],
         )
 
+        # solve for each bucket independently
         for sel in potential_well_helper.get_principal_bucket_slices():
             self._solve_for_density_single_bucket(
                 hamilton_2D=hamilton_2D[sel, :],
