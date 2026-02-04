@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from typing import Optional as LateInit
 
 import numpy as np
@@ -19,9 +19,14 @@ from scipy.interpolate import interp1d
 from scipy.signal import firwin
 
 from blond import Simulation, StaticProfile
+from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
+)
+from blond.physics.cavities import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
 )
 
 from .helpers import (
@@ -29,9 +34,6 @@ from .helpers import (
     fir_filter_lhc_otfb_coeff,
     smooth_step,
 )
-
-if TYPE_CHECKING:
-    from blond.core.beam.beams import BeamBaseClass
 
 
 class LHCCavityLoopCommissioning:
@@ -88,6 +90,7 @@ class LHCCavityLoopCommissioning:
         tau_o: float = 110e-6,
         mu: float = -0.0001,
         power_thres: float = 300e3,
+        klystron_bandwidth: float = 1.7e6,
         open_drive: bool = False,
         open_loop: bool = False,
         open_otfb: bool = False,
@@ -95,6 +98,7 @@ class LHCCavityLoopCommissioning:
         open_tuner: bool = False,
         clamping: bool = False,
         excitation: bool = False,
+        enable_klystron: bool = False,
         excitation_otfb_1: bool = False,
         excitation_otfb_2: bool = False,
         seed1: Any = 1234,
@@ -116,6 +120,7 @@ class LHCCavityLoopCommissioning:
         self.excitation_otfb_2 = excitation_otfb_2
         self.seed1 = seed1
         self.seed2 = seed2
+        self.klystron_bandwidth = klystron_bandwidth
 
         # Multiply with zeros if open == True
         self.open_drive = False if open_drive else True
@@ -124,6 +129,7 @@ class LHCCavityLoopCommissioning:
         self.open_otfb = False if open_otfb else True
         self.open_rffb = False if open_rffb else True
         self.open_tuner = False if open_tuner else True
+        self.enable_klystron = True if enable_klystron else False
 
         self.clamping = clamping
 
@@ -232,6 +238,7 @@ class LHCCavityLoop(IQCavityFeedback):
         self.open_otfb = self.RFFB.open_otfb
         self.open_rffb = self.RFFB.open_rffb
         self.open_tuner = self.RFFB.open_tuner
+        self.enable_klystron = self.RFFB.enable_klystron
         self.clamping = self.RFFB.clamping
         self.alpha = self.RFFB.alpha
         self.d_phi_ad = self.RFFB.d_phi_ad
@@ -247,6 +254,7 @@ class LHCCavityLoop(IQCavityFeedback):
             np.sqrt(2 * self.power_thres / (self.R_over_Q * self.Q_L))
             / self.G_gen
         )
+        self.klystron_bandwidth = self.RFFB.klystron_bandwidth
         self.excitation = self.RFFB.excitation
         self.excitation_otfb_1 = self.RFFB.excitation_otfb_1
         self.excitation_otfb_2 = self.RFFB.excitation_otfb_2
@@ -276,12 +284,6 @@ class LHCCavityLoop(IQCavityFeedback):
             "Sum of FIR coefficients %.4e" % np.sum(self.fir_coeff)
         )
 
-        # Bandwidth of klystron
-        num_taps = round(2 * self.tau_loop / self.T_s + 1)
-        self.klystron_fir = firwin(
-            num_taps, 1.7e6, fs=1 / self.T_s, pass_zero="lowpass"
-        )
-
         self.update_rf_variables()
         self.update_fb_variables()
         self.logger.debug("Relative detuning is %.4e", self.detuning)
@@ -305,6 +307,15 @@ class LHCCavityLoop(IQCavityFeedback):
 
         self.V_ANT_FINE = np.zeros(self.profile.n_bins + 1, dtype=complex)
         self.I_GEN_FINE = np.zeros(self.profile.n_bins + 1, dtype=complex)
+
+        # Bandwidth of klystron
+        num_taps = round(2 * self.tau_loop / self.T_s + 1)
+        self.klystron_fir = firwin(
+            num_taps,
+            self.RFFB.klystron_bandwidth,
+            fs=1 / self.T_s,
+            pass_zero="lowpass",
+        )
 
         # Pre-track without beam
         self.logger.debug("Track without beam for %d turns", self.n_pretrack)
@@ -342,12 +353,6 @@ class LHCCavityLoop(IQCavityFeedback):
             "Sum of FIR coefficients %.4e" % np.sum(self.fir_coeff)
         )
 
-        # Bandwidth of klystron
-        num_taps = round(2 * self.tau_loop / self.T_s + 1)
-        self.klystron_fir = firwin(
-            num_taps, 1.7e6, fs=1 / self.T_s, pass_zero="lowpass"
-        )
-
         self.update_rf_variables(omega_rf=omega_rf, harmonic=harmonic)
         self.update_fb_variables()
         self.logger.debug("Relative detuning is %.4e", self.detuning)
@@ -371,6 +376,15 @@ class LHCCavityLoop(IQCavityFeedback):
 
         self.V_ANT_FINE = np.zeros(self.profile.n_bins, dtype=complex)
         self.I_GEN_FINE = np.zeros(self.profile.n_bins + 1, dtype=complex)
+
+        # Bandwidth of klystron
+        num_taps = round(2 * self.tau_loop / self.T_s + 1)
+        self.klystron_fir = firwin(
+            num_taps,
+            self.RFFB.klystron_bandwidth,
+            fs=1 / self.T_s,
+            pass_zero="lowpass",
+        )
 
         self.V_EXC_IN: LateInit = None
         self.V_EXC_OUT: LateInit = None
@@ -493,13 +507,16 @@ class LHCCavityLoop(IQCavityFeedback):
         )
 
         # FIR filter
-        self.I_GEN_COARSE[self.ind] = (
-            self.klystron_fir[0] * self.I_GEN_GAIN[self.ind]
-        )
-        for k in range(1, len(self.klystron_fir)):
-            self.I_GEN_COARSE[self.ind] += (
-                self.klystron_fir[k] * self.I_GEN_GAIN[self.ind - k]
+        if self.enable_klystron:
+            self.I_GEN_COARSE[self.ind] = (
+                self.klystron_fir[0] * self.I_GEN_GAIN[self.ind]
             )
+            for k in range(1, len(self.klystron_fir)):
+                self.I_GEN_COARSE[self.ind] += (
+                    self.klystron_fir[k] * self.I_GEN_GAIN[self.ind - k]
+                )
+        else:
+            self.I_GEN_COARSE[self.ind] = self.I_GEN_GAIN[self.ind]
 
     def generator_power(self) -> NumpyArray:
         r"""Calculation of generator power from generator current"""
@@ -538,15 +555,17 @@ class LHCCavityLoop(IQCavityFeedback):
 
     def rf_feedback(self, T_s: float):
         r"""Analog and digital RF feedback response"""
-        # self.V_FB_IN[self.ind] = (
-        #    self.V_SET[self.ind - self.n_delay]
-        #    - self.open_loop * self.V_ANT_COARSE[self.ind - self.n_delay]
-        # )
-
         # Calculate voltage difference to act on
-        self.V_FB_IN[self.ind] = (
-            self.V_SET[self.ind] - self.open_loop * self.V_ANT_COARSE[self.ind]
-        )
+        if self.enable_klystron:
+            self.V_FB_IN[self.ind] = (
+                self.V_SET[self.ind]
+                - self.open_loop * self.V_ANT_COARSE[self.ind]
+            )
+        else:
+            self.V_FB_IN[self.ind] = (
+                self.V_SET[self.ind - self.n_delay]
+                - self.open_loop * self.V_ANT_COARSE[self.ind - self.n_delay]
+            )
 
         # On the analog branch, OTFB can contribute
         self.V_AC_IN[self.ind] = (
