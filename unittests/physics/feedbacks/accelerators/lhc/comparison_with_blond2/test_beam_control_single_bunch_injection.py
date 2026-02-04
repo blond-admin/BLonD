@@ -99,7 +99,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
         )
 
         ring.add_elements(
-            [profile, beam_control, cavity, lattice],
+            [profile, cavity, beam_control, lattice],
         )
 
         simulation = Simulation(
@@ -127,13 +127,13 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
             simulation.turn_i.value = i
 
             cls.omega_rf[i] = cavity.omega_rf_actual[0]
-            cls.phi_rf[i] = cavity.phi_rf_actual[0]
 
             for element in ring.elements.elements:
                 element.track(beam)
 
+            cls.phi_rf[i] = cavity.phi_rf_actual[0]
             cls.pl_error[i] = beam_control.dphi * 180 / np.pi
-            cls.delta_phi_rf[i] = cavity.delta_phi_rf[0] * 180 / np.pi
+            cls.delta_phi_rf[i] = cavity._dphi_rf_next[0] * 180 / np.pi
 
     def test_phase_loop_error(self):
         np.testing.assert_allclose(

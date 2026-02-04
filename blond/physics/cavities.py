@@ -1261,11 +1261,22 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             f"but needs to be smaller than {n_harmonics}"
         )
 
-        self.delta_phi_rf: NumpyArray | None = backend.zeros(n_harmonics)
-        self.delta_omega_rf: NumpyArray | None = backend.zeros(n_harmonics)
+        self.delta_phi_rf: NumpyArray | CupyArray | None = backend.zeros(
+            n_harmonics
+        )
+        self.delta_omega_rf: NumpyArray | CupyArray | None = backend.zeros(
+            n_harmonics
+        )
 
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
+
+        self._domega_rf_next: NumpyArray | CupyArray | None = backend.zeros(
+            n_harmonics
+        )  # TODO: unused atm
+        self._dphi_rf_next: NumpyArray | CupyArray | None = backend.zeros(
+            n_harmonics
+        )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -1510,6 +1521,8 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         beam
             Beam class to interact with this element.
         """
+        self.delta_phi_rf = np.copy(self._dphi_rf_next)
+
         super().track(beam=beam)
 
         reference = beam.reference
@@ -1553,8 +1566,8 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                 / self.omega_rf_actual[:]
             )
 
-            self.delta_phi_rf += phi_increment
-
+            self._dphi_rf_next += phi_increment
+        """
         if self._beam_feedback is not None and (
             self._turn_i.value >= self._beam_feedback.delay
         ):  # TODO incorrect for simulations that start later
@@ -1568,7 +1581,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                     self.main_harmonic_idx
                 ]  # dynamically updated by `update_domega_rf`
             )
-            self.delta_omega_rf = omega_increment
+            self.delta_omega_rf = omega_increment"""
 
     @staticmethod
     def headless(

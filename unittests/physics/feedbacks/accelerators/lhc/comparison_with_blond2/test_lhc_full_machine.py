@@ -232,7 +232,7 @@ class TestLHCFullMachine(unittest.TestCase):
         np.testing.assert_allclose(
             self.rf_voltage.real,
             self.blond2_data["rf_voltage"].real,
-            atol=6e-3,
+            atol=4e-9,
             err_msg="Error in real part of rf voltage",
         )
         # Imaginary part
@@ -248,14 +248,14 @@ class TestLHCFullMachine(unittest.TestCase):
         np.testing.assert_allclose(
             self.rf_beam_current.real,
             self.blond2_data["rf_beam_current"].real,
-            atol=1e-8,
+            atol=1e-9,
             err_msg="Error in real part of coarse-grid rf beam current",
         )
         # Imaginary part
         np.testing.assert_allclose(
             self.rf_beam_current.imag,
             self.blond2_data["rf_beam_current"].imag,
-            atol=1e-8,
+            atol=1e-9,
             err_msg="Error in imaginary part of coarse-grid rf beam current",
         )
 
@@ -264,14 +264,14 @@ class TestLHCFullMachine(unittest.TestCase):
         np.testing.assert_allclose(
             self.rf_beam_current_fine.real,
             self.blond2_data["rf_beam_current_fine"].real,
-            atol=1e-8,
+            atol=1e-9,
             err_msg="Error in real part of fine-grid rf beam current",
         )
         # Imaginary part
         np.testing.assert_allclose(
             self.rf_beam_current_fine.imag,
             self.blond2_data["rf_beam_current_fine"].imag,
-            atol=1e-8,
+            atol=1e-9,
             err_msg="Error in imaginary part of fine-grid rf beam current",
         )
 
@@ -280,13 +280,13 @@ class TestLHCFullMachine(unittest.TestCase):
         np.testing.assert_allclose(
             self.set_point.real,
             self.blond2_data["set_point"].real,
-            atol=1e-8,
+            atol=1e-9,
             err_msg="Error in real part of set point voltage",
         )
         # Imaginary part
         np.testing.assert_allclose(
             self.set_point.imag,
             self.blond2_data["set_point"].imag,
-            atol=1e-8,
+            atol=1e-9,
             err_msg="Error in imaginary part of set point voltage",
         )
