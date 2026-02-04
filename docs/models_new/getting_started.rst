@@ -140,7 +140,7 @@ For cycles defined by continuous time interpolation:
     time_points = np.array([0, 1.0, 2.0, 3.0])  # time in seconds
     energy_values = np.array([450e9, 500e9, 600e9, 700e9])
 
-    energy_cycle = MagneticCycleByTime(
+    energy_cycle = MagneticCycleByTime(F
         reference_particle=proton,
         base_time=time_points,
         base_values=energy_values,
