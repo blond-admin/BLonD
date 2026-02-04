@@ -369,7 +369,8 @@ class RFStationBaseClass(
                 energy=target_total_energy,
                 synchrotron_radiation_integrals=self._ring.synchrotron_radiation_integrals,
                 particle_type=beam.particle_type,
-            )  # TODO: check the indexing (using target total_energy or
+            )  # TODO: check the indexing (using target total_energy
+            # TODO check sign
             # beam.reference_energy?)
             reference_energy_change = (
                 target_total_energy
