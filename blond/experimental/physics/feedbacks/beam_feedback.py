@@ -54,6 +54,8 @@ class BeamFeedbackBase(GlobalFeedback):
         self.time_offset = time_offset
         self.current_thres = current_thres
 
+        self.domega_rf = 0
+
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -162,6 +164,19 @@ class BeamFeedbackBase(GlobalFeedback):
         self.apply_corrections(
             beam=beam,
         )
+
+        if self.cavities[0]._turn_i.value >= self.delay:
+            # TODO incorrect for simulations that start later
+            # domega_rf is updated later
+            # this means domega_rf is effectively from last turn
+            omega_increment = (
+                self.domega_rf
+                * self.cavities[0].harmonic[:]
+                / self.cavities[0].harmonic[
+                    self.cavities[0].main_harmonic_idx
+                ]  # dynamically updated by `update_domega_rf`
+            )
+            self.cavities[0].delta_omega_rf = omega_increment
 
 
 class Blond2BeamFeedback(LocalFeedback):

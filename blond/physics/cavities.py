@@ -1414,6 +1414,8 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         beam
             Beam class to interact with this element
         """
+        self.delta_phi_rf = np.copy(self._dphi_rf_next)
+
         super().track(beam=beam)
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
@@ -1464,8 +1466,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
                 / self.omega_rf_actual[:]
             )
 
-            self.delta_phi_rf += phi_increment
+            self._dphi_rf_next += phi_increment
 
+        """
         if self._beam_feedback is not None and (
             self._turn_i.value >= self._beam_feedback.delay
         ):  # TODO incorrect for simulations that start later
@@ -1480,6 +1483,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
                 ]  # dynamically updated by `update_domega_rf`
             )
             self.delta_omega_rf = omega_increment
+        """
 
     @staticmethod
     def headless(
