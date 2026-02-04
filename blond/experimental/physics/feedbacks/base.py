@@ -97,7 +97,7 @@ class GlobalFeedback(FeedbackBaseClass):
             `Simulation` context manager
         """
         self.cavities = simulation.ring.elements.get_elements(
-            SingleHarmonicRFStation
+            SingleHarmonicRFStation, recursive=False
         )
 
 

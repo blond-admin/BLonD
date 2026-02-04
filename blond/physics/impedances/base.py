@@ -335,7 +335,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
 
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(
-                ProfileBaseClass, section_i=self.section_index
+                ProfileBaseClass, section_i=self.section_index, recursive=False
             )
             assert len(profiles) == 1, (
                 f"Found {len(profiles)} profiles in "
