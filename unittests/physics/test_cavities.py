@@ -15,6 +15,9 @@ from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.experimental.physics.feedbacks.accelerators.lhc.beam_feedback import (
+    LHCBeamControl,
+)
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSOneTurnFeedback,
 )
@@ -166,14 +169,9 @@ class TestRFStationBaseClass(unittest.TestCase):
             cavity_feedback=None,
         )
         # prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
-        beam_feedback_good = Mock(
-            PassiveCavity
-        )  # (section_index=0, profile=prof, PL_gain=1)
-        # beam_feedback_good.delay = 1e-9
-        # beam_feedback_good.domega_rf = 0
-        # mhc = MultiHarmonicRfStation.headless(section_index=1, voltage=np.array([1]), harmonic=np.array([1]),
-        #                                       phi_rf=np.array([1]), main_harmonic_idx=0, circumference=1,
-        #                                       total_energy=1, reference.beta=1)
+        beam_feedback_good = LHCBeamControl(
+            profile=Mock(StaticProfile), pl_gain=1, sl_gain=1
+        )
         cavity_feedback_good = Mock(
             SPSOneTurnFeedback
         )  # profile=prof, _parent_rf_station=mhc, n_sections=3)
@@ -215,6 +213,7 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         info_str = mhc_feedbacks.info_string()
         assert "Feedback" in info_str
+        # TODO: here a test should be added which checks for the correct ordering of the calls with Mocks
 
     def test_with_wakefields(self):
         wf = Mock(WakeField)
