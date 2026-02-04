@@ -65,7 +65,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             cavity_feedback=None,
         )
         prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
-        beam_feedback_good = Mock(PassiveCavity)
+        beam_feedback_good = Mock(LHCBeamControl)
 
         SingleHarmonicRFStation(
             section_index=1,
