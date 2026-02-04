@@ -34,12 +34,17 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         dt_std = 1.0907507797569666e-10
         dE_mean = -73684.84380359562
         dE_std = 34138361.01478994
-        rtol = 1e-2 if backend.float == np.float32 else 1e-4
+        tol = 1e-4 if backend.float == np.float32 else 1e-12
 
-        np.testing.assert_allclose(bunch._dt.mean(), dt_mean, rtol=rtol)
-        np.testing.assert_allclose(bunch._dt.std(), dt_std, rtol=rtol)
-        np.testing.assert_allclose(bunch._dE.mean(), dE_mean, rtol=rtol)
-        np.testing.assert_allclose(bunch._dE.std(), dE_std, rtol=rtol)
+        # quasi 0
+        np.testing.assert_allclose(bunch._dt.mean(), dt_mean, atol=tol)
+
+        np.testing.assert_allclose(bunch._dt.std(), dt_std, rtol=tol)
+
+        # quasi 0
+        np.testing.assert_allclose(bunch._dE.mean(), dE_mean, atol=tol * 1e9)
+
+        np.testing.assert_allclose(bunch._dE.std(), dE_std, rtol=tol * 1e9)
 
     @pytest.mark.backend_mutation
     @pytest.mark.mpi
