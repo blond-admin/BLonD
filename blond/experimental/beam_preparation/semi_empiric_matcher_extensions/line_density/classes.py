@@ -384,6 +384,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         plt.legend(loc="upper right")
         plt.xlabel("State ID")
         plt.ylabel("Occupation per equipotential line")
+        plt.tight_layout()
         plt.draw()
         plt.pause(self._animation_pause)
 
@@ -421,7 +422,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             vmin=1e-24,
         )
         plt.xlabel("Time [s]")
-        plt.ylabel("Energy [eV]")
+        plt.ylabel("Density [arb. unit]")
 
         ax3 = plt.subplot(3, 1, 3, sharex=ax1)
         plt.title("Line Density (normalized)")
@@ -438,3 +439,4 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         plt.ylabel("Density [arb. unit]")
 
         plt.legend()
+        plt.tight_layout()
