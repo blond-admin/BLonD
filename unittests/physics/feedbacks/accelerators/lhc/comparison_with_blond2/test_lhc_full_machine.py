@@ -123,7 +123,7 @@ class TestLHCFullMachine(unittest.TestCase):
             f_c=f_rf + df_hd,
             I_gen_offset=0,
             n_cavities=8,
-            n_pretrack=100,
+            n_pretrack=200,
             Q_L=Q_L,
             R_over_Q=R_over_Q,
             tau_loop=tau_loop,
