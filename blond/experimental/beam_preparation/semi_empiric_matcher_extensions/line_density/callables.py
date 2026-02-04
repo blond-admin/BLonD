@@ -28,7 +28,7 @@ def occupation_per_equipotential_to_density(
     """
     Transform a state vector into a density distribution.
 
-    The state vector defines the density on each orbit of `hamilton_2D`.
+    The state vector defines the density on each orbit of `potential_2D`.
 
     Parameters
     ----------
@@ -38,7 +38,7 @@ def occupation_per_equipotential_to_density(
         The Hamiltonian potential that defines the orbits.
     density_write
         The density distribution will be written to this array.
-        The density distribution according to the `hamilton_2D`.
+        The density distribution according to the `potential_2D`.
 
     See Also
     --------
@@ -68,7 +68,7 @@ def occupation_per_equipotential_to_histogram(
     Transform a state vector into a histogram.
 
     Following operations are implicitly done.
-    1. The state vector is transformed into a density distribution according to the `hamilton_2D`.
+    1. The state vector is transformed into a density distribution according to the `potential_2D`.
     2. A histogram of the density distribution is obtained.
 
     Parameters
