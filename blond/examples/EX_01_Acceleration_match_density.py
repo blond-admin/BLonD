@@ -22,7 +22,6 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
-    backend,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -161,7 +160,7 @@ def main():
             beams=(beam1,),
             n_turns=N_TURNS,
             # observe=(phase_observation, bunch_observation),
-            # callbacks=custom_action,
+            callbacks=custom_action,
         )
     ANIMATE = False
     if ANIMATE:  # pragma: no cover
