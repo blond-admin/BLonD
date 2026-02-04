@@ -7,6 +7,7 @@ import numpy as np
 from blond.core.base import DynamicParameter
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import proton
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 from blond.testing.mocks import cycle_const_mock, simulation_mock
 
@@ -40,14 +41,14 @@ class TestEnergyReferenceKick(unittest.TestCase):
             total_energy
         )
         beam = ProbeBeam(
-            dE=[0], particle_type=proton, reference_total_energy=0.5e12
+            dE=np.zeros(1), particle_type=proton, reference_total_energy=0.5e12
         )
         self.simulation.turn_i.value = 5
 
         self.energy_kick.schedule_active = False  # No schedules applied
 
         original_ref_energy = copy(beam.reference.total_energy)
-        original_dE = np.copy(beam.read_partial_dE())
+        original_dE = copy_to_cpu(copy_to_cpu(beam.read_partial_dE()))
 
         self.energy_kick.track(beam)
 
@@ -63,7 +64,7 @@ class TestEnergyReferenceKick(unittest.TestCase):
             beam.reference.total_energy, original_ref_energy + expected_change
         )
         np.testing.assert_allclose(
-            beam.read_partial_dE(), original_dE - expected_change
+            copy_to_cpu(beam.read_partial_dE()), original_dE - expected_change
         )
 
 

@@ -24,14 +24,14 @@ from blond import (
     BeamObservationOncePerTurn,
     BiGaussian,
     DriftSimple,
+    MagneticCyclePerTurn,
     RFStationPhaseObservation,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     proton,
 )
-from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.experimental.beam_preparation.semi_empiric_matcher import (
+from blond.experimental import (
     SemiEmpiricMatcher,
 )
 

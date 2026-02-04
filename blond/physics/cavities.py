@@ -39,6 +39,7 @@ from blond.physics.feedbacks.base import LocalFeedback
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Ring
@@ -1228,13 +1229,19 @@ class MultiHarmonicRFStation(RFStationBaseClass):
 
         self.main_harmonic_idx = main_harmonic_idx
 
-        self.voltage = voltage
-        self.phi_rf_design = phi_rf
-        self.harmonic = harmonic
-        self.delta_phi_rf: NumpyArray | None = backend.zeros(
+        self.voltage: NumpyArray | CupyArray | None = (
+            backend.array(voltage) if (voltage is not None) else None
+        )
+        self.phi_rf_design: NumpyArray | CupyArray | None = (
+            backend.array(phi_rf) if (phi_rf is not None) else None
+        )
+        self.harmonic: NumpyArray | CupyArray | None = (
+            backend.array(harmonic) if (harmonic is not None) else None
+        )
+        self.delta_phi_rf: NumpyArray | CupyArray | None = backend.zeros(
             n_harmonics
         )  # TODO
-        self.delta_omega_rf: NumpyArray | None = backend.zeros(
+        self.delta_omega_rf: NumpyArray | CupyArray | None = backend.zeros(
             n_harmonics
         )  # TODO
 

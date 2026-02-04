@@ -15,14 +15,14 @@ from matplotlib import pyplot as plt
 from blond import (
     BeamObservationOncePerTurn,
     DriftSimple,
+    EmptyBeam,
+    MagneticCyclePerTurn,
     RFStationPhaseObservation,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     proton,
 )
-from blond.core.beam.beams import EmptyBeam
-from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 
 logging.basicConfig(level=logging.INFO)
 

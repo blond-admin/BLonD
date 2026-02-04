@@ -21,6 +21,7 @@ from blond.experimental.physics.feedbacks.accelerators.lhc.beam_feedback import 
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSOneTurnFeedback,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,
@@ -43,11 +44,11 @@ class TestRFStationBaseClass(unittest.TestCase):
         self.beam.reference.velocity = self.beam.reference.beta * c0
         self.beam.reference.gamma = np.sqrt(1 - 0.25)  # beta**2
         self.beam.reference.total_energy = 938
-        self.beam.dE = np.linspace(
+        self.beam.dE = backend.linspace(
             -1e6, 1e6, 10, dtype=backend.float
         )  # delta E
         # in eV
-        self.beam.dt = np.linspace(
+        self.beam.dt = backend.linspace(
             -1e-6, 1e-6, 10, dtype=backend.float
         )  # delta t
         # in s
@@ -256,10 +257,10 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         beam.reference.velocity = beam.reference.beta * c0
         beam.reference.gamma = np.sqrt(1 - 0.25)  # beta**2
         beam.reference.total_energy = 938
-        beam.dE = np.linspace(-1e6, 1e6, 10, dtype=backend.float)  # delta E
-        # in eV
-        beam.dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t
-        # in s
+        beam.dE = backend.linspace(-1e6, 1e6, 10, dtype=backend.float)  #
+        # delta E  in eV
+        beam.dt = backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  #
+        # delta t in s
         beam.read_partial_dt.return_value = beam.dt
         beam.write_partial_dE.return_value = beam.dE
 
@@ -303,7 +304,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
         # print(self.beam.dE.tolist())
         np.testing.assert_allclose(  # changer/ test pinned to some value
-            self.beam.dE,
+            copy_to_cpu(self.beam.dE),
             [
                 -3553222.1295187217,
                 229103.39306234661,
@@ -320,7 +321,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         )
 
         np.testing.assert_allclose(  # unchanged
-            self.beam.dt,
+            copy_to_cpu(self.beam.dt),
             np.linspace(-1e-6, 1e-6, 10),
         )
 
@@ -332,9 +333,15 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             phi_rf=np.array([3, 4]),
             harmonic=np.array([5, 6]),
         )
-        np.testing.assert_allclose(local_cav.voltage, np.array([1, 2]))
-        np.testing.assert_allclose(local_cav.phi_rf_actual, np.array([3, 4]))
-        np.testing.assert_allclose(local_cav.harmonic, np.array([5, 6]))
+        np.testing.assert_allclose(
+            copy_to_cpu(local_cav.voltage), np.array([1, 2])
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(local_cav.phi_rf_actual), np.array([3, 4])
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(local_cav.harmonic), np.array([5, 6])
+        )
 
         with self.assertRaises(ValueError):
             _ = MultiHarmonicRFStation(
@@ -423,15 +430,15 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         beam.reference = Mock(ReferenceCoordinates)
         beam.common_array_size = 1
         beam.particle_type = proton
-        beam.reference.time = backend.float(0)
+        beam.reference.time = float(0)
         beam.reference.beta = 0.5
-        beam.reference.velocity = backend.float(beam.reference.beta * c0)
-        beam.reference.gamma = backend.float(np.sqrt(1 - 0.25))  # beta**2
-        beam.reference.total_energy = backend.float(938)
-        beam.dE = np.linspace(
+        beam.reference.velocity = float(beam.reference.beta * c0)
+        beam.reference.gamma = float(np.sqrt(1 - 0.25))  # beta**2
+        beam.reference.total_energy = float(938)
+        beam.dE = backend.linspace(
             -1e6, 1e6, 10, dtype=backend.float
         )  # delta E in eV
-        beam.dt = np.linspace(
+        beam.dt = backend.linspace(
             -1e-6, 1e-6, 10, dtype=backend.float
         )  # delta t in s
         beam.read_partial_dt.return_value = beam.dt
@@ -461,7 +468,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         self.assertEqual(939, self.beam.reference.total_energy)  # incremented
         self.assertEqual(self.beam.reference.time, 0)  # unchanged
         np.testing.assert_allclose(  # test pinned to some value
-            self.beam.dE,
+            copy_to_cpu(self.beam.dE),
             [
                 -1003263.8619856804,
                 221697.39838640607,
@@ -478,7 +485,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         )
 
         np.testing.assert_allclose(  # unchanged
-            self.beam.dt,
+            copy_to_cpu(self.beam.dt),
             np.linspace(-1e-6, 1e-6, 10),
         )
 

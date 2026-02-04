@@ -19,14 +19,14 @@ from blond import (
     Beam,
     BeamObservationOncePerTurn,
     DriftSimple,
+    MagneticCyclePerTurn,
     RFStationPhaseObservation,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     proton,
 )
-from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
+from blond.interfaces.xsuite import (
     XsuiteRFBucketMatcher,
 )
 
@@ -80,13 +80,13 @@ def main():
     )
     bunch_observation = BeamObservationOncePerTurn(each_turn_i=1)
 
-    def custom_action(simulation: Simulation):  # pragma: no cover
+    def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:
             return
 
         plt.scatter(
-            simulation.beams[0].read_partial_dt(),
-            simulation.beams[0].read_partial_dE(),
+            beam.read_partial_dt(),
+            beam.read_partial_dE(),
         )
         plt.draw()
         plt.pause(0.1)
