@@ -19,6 +19,9 @@ from blond import (
     proton,
 )
 from blond.core.beam.base import BeamBaseClass
+from blond.core.ring.beam_physics_relevant_elements import (
+    BeamPhysicsRelevantElements,
+)
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
@@ -594,9 +597,17 @@ class TestSimulation(unittest.TestCase):
         from blond import backend
 
         beam_mock.common_array_size = int(1e32)
-        beam_mock.reference.beta = 1  # cavity initialisation
         special_mode_org = backend.specials_mode
         backend.set_specials(mode="python")
+        self.simulation.ring._elements = BeamPhysicsRelevantElements(
+            check_section_indices=False
+        )
+        self.simulation.ring._elements.add_element(
+            DriftSimple(
+                momentum_compaction_factor=1,
+                orbit_length=self.simulation.ring.circumference,
+            )
+        )
         with self.assertWarns(PerformanceWarning):
             self.simulation.finalize(
                 beams=(beam_mock,),
