@@ -25,6 +25,7 @@ import numpy as np
 import numpy.random as rnd
 import scipy.signal
 from scipy.interpolate import interp1d
+from scipy.signal import firwin
 
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -1519,6 +1520,8 @@ class LHCCavityLoop(CavityFeedback):
         self.excitation_otfb_1 = self.RFFB.excitation_otfb_1
         self.excitation_otfb_2 = self.RFFB.excitation_otfb_2
 
+        self.disable_fine_grid = False
+
         self.logger.debug(
             "Length of arrays in generator path %d", self.n_coarse
         )
@@ -1529,6 +1532,13 @@ class LHCCavityLoop(CavityFeedback):
         self.logger.debug(
             "Sum of FIR coefficients %.4e" % np.sum(self.fir_coeff)
         )
+
+        # Bandwidth of klystron
+        num_taps = round(2 * self.tau_loop / self.T_s + 1)
+        self.klystron_fir = firwin(
+            num_taps, 1.7e6, fs=1 / self.T_s, pass_zero="lowpass"
+        )
+
 
         self.update_rf_variables()
         self.update_fb_variables()
@@ -1549,6 +1559,7 @@ class LHCCavityLoop(CavityFeedback):
         self.I_TEST = np.zeros(2 * self.n_coarse, dtype=complex)
         self.TUNER_INPUT = np.zeros(2 * self.n_coarse, dtype=complex)
         self.TUNER_INTEGRATED = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.I_GEN_GAIN = np.zeros(2 * self.n_coarse, dtype=complex)
 
         self.V_ANT_FINE = np.zeros(self.profile.n_slices + 1, dtype=complex)
         self.I_GEN_FINE = np.zeros(self.profile.n_slices + 1, dtype=complex)
@@ -1604,7 +1615,8 @@ class LHCCavityLoop(CavityFeedback):
             )
 
             # Compute the fine-grid antenna voltage through solving a sparse matrix equation
-            self.cavity_response_fine_matrix()
+            if not self.disable_fine_grid:
+                self.cavity_response_fine_matrix()
 
             # Apply the tuner correction
             self.tuner()
@@ -1671,10 +1683,19 @@ class LHCCavityLoop(CavityFeedback):
         # From V_swap_out in closed loop, constant in open loop
         # TODO: missing terms for changing voltage and beam current
         self.I_TEST[self.ind] = self.G_gen * self.V_SWAP_OUT[self.ind]
-        self.I_GEN_COARSE[self.ind] = (
+        self.I_GEN_GAIN[self.ind] = (
             self.open_drive * self.I_TEST[self.ind]
             + self.open_drive_inv * self.I_gen_offset
         )
+
+        # FIR filter
+        self.I_GEN_COARSE[self.ind] = (
+            self.klystron_fir[0] * self.I_GEN_GAIN[self.ind]
+        )
+        for k in range(1, len(self.klystron_fir)):
+            self.I_GEN_COARSE[self.ind] += (
+                self.klystron_fir[k] * self.I_GEN_GAIN[self.ind - k]
+            )
 
     def generator_power(self) -> NumpyArray:
         r"""Calculation of generator power from generator current"""
@@ -1717,9 +1738,13 @@ class LHCCavityLoop(CavityFeedback):
         r"""Analog and digital RF feedback response"""
 
         # Calculate voltage difference to act on
+        # self.V_FB_IN[self.ind] = (
+        #    self.V_SET[self.ind - self.n_delay]
+        #    - self.open_loop * self.V_ANT_COARSE[self.ind - self.n_delay]
+        # )
+
         self.V_FB_IN[self.ind] = (
-            self.V_SET[self.ind - self.n_delay]
-            - self.open_loop * self.V_ANT_COARSE[self.ind - self.n_delay]
+            self.V_SET[self.ind] - self.open_loop * self.V_ANT_COARSE[self.ind]
         )
 
         # On the analog branch, OTFB can contribute
@@ -1913,6 +1938,12 @@ class LHCCavityLoop(CavityFeedback):
         self.V_SWAP_OUT = np.concatenate(
             (
                 self.V_SWAP_OUT[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
+        )
+        self.I_GEN_GAIN = np.concatenate(
+            (
+                self.I_GEN_GAIN[self.n_coarse :],
                 np.zeros(self.n_coarse, dtype=complex),
             )
         )
