@@ -324,6 +324,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         """
         pass
 
+    @abstractmethod  # pragma: no cover
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -345,7 +346,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         **kwargs
             Additional keyword arguments.
         """
-        self._simulation = simulation
+        pass
 
     def info_string(self, prefix="") -> str:
         """
