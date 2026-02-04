@@ -55,8 +55,6 @@ blond/                        BLonD beam dynamics software.
 ├──── xsuite/                 Glue code for XSuite.
 ├────── beam_preparation/     Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
 ├────── physics/              Beam physics classes for interfacing XSuite.
-├── performance_blond3/       Testing the performance of BLonD.
-├──── backends/               Testing the performance of the BLonD backends.
 ├── generals/                 Function definitions that are useful outside the beam physics context.
 ├──── cupy/                   Scripts that are useful to work with Cupy.
 ├──── distributed/            Helper module to work with CPU/GPU arrays distributed via MPI.
@@ -73,8 +71,9 @@ blond/                        BLonD beam dynamics software.
 ├──── simulation/             Definitions related to assembling a `Simulation`.
 ├────── execution_models/     Different implementations of main-loops, for example for counter-rotation.
 ├──── reference_clock/        Helper class that holds the reference to the beam coordinate system.
+├── performance_blond3/       Testing the performance of BLonD.
+├──── backends/               Testing the performance of the BLonD backends.
 ```
-
 
 ---
 
