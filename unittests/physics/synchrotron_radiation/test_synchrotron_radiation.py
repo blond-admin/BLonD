@@ -6,8 +6,6 @@ from unittest.mock import Mock
 import numpy as np
 
 from blond import (
-    MultiHarmonicRFStation,
-    ReferenceEnergyChange,
     Ring,
     SingleHarmonicRFStation,
     SynchrotronRadiationMaster,
@@ -241,6 +239,70 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             SRM.prepare_ring_for_synchrotron_radiation_tracking(
                 ring=ring,
             )
+
+    def test_set_share_of_synchrotron_radiation_integrals_drifts(self):
+        ring = Ring(
+            90.65874532 * 1e3,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+        )
+
+        drift = DriftSimple(
+            orbit_length=ring.circumference,
+            momentum_compaction_factor=1e-4,
+            section_index=0,
+        )
+        SRM = SynchrotronRadiationMaster()
+        SRM._synchrotron_radiation_integrals = (
+            self.synchrotron_radiation_integrals
+        ) * 10
+        calculated_share_SR_int = (
+            SRM._set_share_of_synchrotron_radiation_integrals_drifts(
+                ring=ring, element=drift
+            )
+        )
+        np.testing.assert_array_equal(
+            calculated_share_SR_int, self.synchrotron_radiation_integrals * 10
+        )
+        drift.radiation_integrals = self.synchrotron_radiation_integrals / 100
+        calculated_share_SR_int = (
+            SRM._set_share_of_synchrotron_radiation_integrals_drifts(
+                ring=ring, element=drift
+            )
+        )
+        np.testing.assert_array_equal(
+            calculated_share_SR_int, self.synchrotron_radiation_integrals / 100
+        )
+
+        drift2 = DriftSimple(
+            orbit_length=ring.circumference / 4,
+            momentum_compaction_factor=1e-4,
+            section_index=0,
+        )
+        calculated_share_SR_int = (
+            SRM._set_share_of_synchrotron_radiation_integrals_drifts(
+                ring=ring, element=drift2
+            )
+        )
+
+        np.testing.assert_array_equal(
+            calculated_share_SR_int,
+            self.synchrotron_radiation_integrals * 10 / 4,
+        )
+
+    def test_set_share_of_synchrotron_radiation_integrals_cavities(self):
+        ring = Ring(
+            90.65874532 * 1e3,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+        )
+        self.cavity = SingleHarmonicRFStation()
+        self.cavity.harmonic = 242400
+        self.cavity.voltage = 50.1e6
+        self.cavity.phi_rf = 0
+
+        SRM = SynchrotronRadiationMaster()
+        SRM._synchrotron_radiation_integrals = (
+            self.synchrotron_radiation_integrals
+        ) * 10
 
     def test_generate_synchrotron_radiation_subclasses_drift_trackers(self):
         ring = Ring(
