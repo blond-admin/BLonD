@@ -296,7 +296,8 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         observable
             Observable to be added to the list.
         """
-        # TODO: safeguard against overwrititing
+        if id(beam) in self.observables:
+            raise ValueError(f"Observable for {id(beam)=} already set.")
         self.observables[id(beam)] = observable
 
     @property  # as readonly attributes
