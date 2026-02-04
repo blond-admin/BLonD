@@ -15,9 +15,6 @@ from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
-    SpsRlBeamFeedback,
-)
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSOneTurnFeedback,
 )
@@ -65,9 +62,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             cavity_feedback=None,
         )
         prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
-        beam_feedback_good = SpsRlBeamFeedback(
-            section_index=0, profile=prof, PL_gain=1
-        )
+        beam_feedback_good = Mock(PassiveCavity)
 
         SingleHarmonicRFStation(
             section_index=1,
@@ -172,10 +167,10 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
         # prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
         beam_feedback_good = Mock(
-            SpsRlBeamFeedback
+            PassiveCavity
         )  # (section_index=0, profile=prof, PL_gain=1)
-        beam_feedback_good.delay = 1e-9
-        beam_feedback_good.domega_rf = 0
+        # beam_feedback_good.delay = 1e-9
+        # beam_feedback_good.domega_rf = 0
         # mhc = MultiHarmonicRfStation.headless(section_index=1, voltage=np.array([1]), harmonic=np.array([1]),
         #                                       phi_rf=np.array([1]), main_harmonic_idx=0, circumference=1,
         #                                       total_energy=1, reference.beta=1)
