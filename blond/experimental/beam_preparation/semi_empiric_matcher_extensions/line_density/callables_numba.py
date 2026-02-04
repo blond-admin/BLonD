@@ -29,7 +29,13 @@ BIN_SIGMA_CALC = 3.0  # 99% of stencil will be drawn
     parallel=True,
     fastmath=True,
 )
-def _gen_hist_numba(potential_change, potential_2D, histogram_write, mid, occupation_per_equipotential_to_density):
+def _gen_hist_numba(
+    potential_change,
+    potential_2D,
+    histogram_write,
+    mid,
+    occupation_per_equipotential_to_density,
+):
     histogram_write[:] = 0.0
 
     num_states = occupation_per_equipotential_to_density.shape[0]
@@ -131,7 +137,6 @@ def _gen_density_numba(
             # Skip if outside cutoff
             if h_u_v < e_min[i] or h_u_v > e_max[i]:
                 continue
-
 
             dE = h_u_v - h_mid[i]
             w = np.exp(dE * dE * inv_two_sigma_sq[i])

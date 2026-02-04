@@ -21,7 +21,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def occupation_per_equipotential_to_density(
-    occupation_per_equipotential: NumpyArray, potential_2D: NumpyArray, density_write: NumpyArray
+    occupation_per_equipotential: NumpyArray,
+    potential_2D: NumpyArray,
+    density_write: NumpyArray,
 ) -> None:
     """
     Transform a state vector into a density distribution.
@@ -50,7 +52,13 @@ def occupation_per_equipotential_to_density(
     H_1d = potential_2D[:, mid]
     H_change = np.abs(np.gradient(H_1d, edge_order=2))
 
-    _gen_density_numba(H_change, density_write, potential_2D, mid, occupation_per_equipotential)
+    _gen_density_numba(
+        H_change,
+        density_write,
+        potential_2D,
+        mid,
+        occupation_per_equipotential,
+    )
 
 
 def occupation_per_equipotential_to_histogram(
@@ -89,5 +97,7 @@ def occupation_per_equipotential_to_histogram(
 
     histogram = np.zeros(potential_2D.shape[0], float)
     assert potential_2D.shape[0] == len(occupation_per_equipotential)
-    _gen_hist_numba(H_change, potential_2D, histogram, mid, occupation_per_equipotential)
+    _gen_hist_numba(
+        H_change, potential_2D, histogram, mid, occupation_per_equipotential
+    )
     return histogram

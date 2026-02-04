@@ -284,7 +284,9 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             histogram_desired / histogram_desired.mean()
         )
 
-        occupation_per_equipotential = histogram_desired.copy()  # initial guess
+        occupation_per_equipotential = (
+            histogram_desired.copy()
+        )  # initial guess
         histogram = occupation_per_equipotential_to_histogram(
             occupation_per_equipotential=occupation_per_equipotential,
             potential_2D=hamilton_2D,
@@ -299,9 +301,9 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         histogram_normalized = histogram / histogram.mean()
 
         previous_histogram_normalized = histogram_normalized
-        assert (
-            self.maxiter > 0
-        ), f"`maxiter` must be bigger 0, but is {self.maxiter=}."
+        assert self.maxiter > 0, (
+            f"`maxiter` must be bigger 0, but is {self.maxiter=}."
+        )
         for i in tqdm(range(self.maxiter), "ProfileMatcherAddon"):
             residual = histogram_desired - histogram
             update_occupation_per_equipotential_to_density = scale * residual
@@ -309,22 +311,33 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             if self.smoothness > 0:
                 # smooth 2nd derivative
                 force_smoothness = np.gradient(
-                    np.gradient(occupation_per_equipotential, edge_order=1), edge_order=1
+                    np.gradient(occupation_per_equipotential, edge_order=1),
+                    edge_order=1,
                 )
-                update_occupation_per_equipotential_to_density += force_smoothness
+                update_occupation_per_equipotential_to_density += (
+                    force_smoothness
+                )
 
-            occupation_per_equipotential += update_occupation_per_equipotential_to_density
+            occupation_per_equipotential += (
+                update_occupation_per_equipotential_to_density
+            )
             occupation_per_equipotential[occupation_per_equipotential < 0] = (
                 0  # negative entries are unphysical
             )
 
             if self.smoothness > 0:
-                occupation_per_equipotential_to_density_smooth = gaussian_filter1d(
-                    occupation_per_equipotential,
-                    sigma=int(self.smoothness * len(occupation_per_equipotential)),
+                occupation_per_equipotential_to_density_smooth = (
+                    gaussian_filter1d(
+                        occupation_per_equipotential,
+                        sigma=int(
+                            self.smoothness * len(occupation_per_equipotential)
+                        ),
+                    )
                 )
             else:
-                occupation_per_equipotential_to_density_smooth = occupation_per_equipotential
+                occupation_per_equipotential_to_density_smooth = (
+                    occupation_per_equipotential
+                )
             histogram = occupation_per_equipotential_to_histogram(
                 occupation_per_equipotential=occupation_per_equipotential_to_density_smooth,
                 potential_2D=hamilton_2D,
@@ -386,7 +399,9 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         plt.ylabel("Density [arb. unit]")
         plt.subplot(2, 1, 2, sharex=ax)
         plt.plot(occupation_per_equipotential_to_density, label="raw")
-        plt.plot(occupation_per_equipotential_to_density_smooth, label="smoothed")
+        plt.plot(
+            occupation_per_equipotential_to_density_smooth, label="smoothed"
+        )
         plt.legend(loc="upper right")
         plt.xlabel("State ID")
         plt.ylabel("Amplitude")
