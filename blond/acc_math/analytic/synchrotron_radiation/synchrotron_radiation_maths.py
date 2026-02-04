@@ -70,6 +70,33 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
 
+def _selective_calculate_partition_numbers(
+    synchrotron_radiation_integrals: NumpyArray,
+    x: bool = False,
+    y: bool = False,
+    z: bool = False,
+) -> dict[str, NumpyArray]:
+    result = {}
+    if x:
+        result["x"] = (
+            1
+            - synchrotron_radiation_integrals[3]
+            / synchrotron_radiation_integrals[1]
+        )
+
+    if y:
+        result["y"] = 1
+
+    if z:
+        result["z"] = (
+            2
+            + synchrotron_radiation_integrals[3]
+            / synchrotron_radiation_integrals[1]
+        )
+
+    return result
+
+
 def calculate_partition_numbers(
     synchrotron_radiation_integrals: NumpyArray,
 ) -> NumpyArray:
@@ -86,17 +113,14 @@ def calculate_partition_numbers(
     damping_partition_numbers
         Damping partition numbers in the [horizontal, vertical, longitudinal] order.
     """
-    jx = (
-        1
-        - synchrotron_radiation_integrals[3]
-        / synchrotron_radiation_integrals[1]
+    partitions = _selective_calculate_partition_numbers(
+        synchrotron_radiation_integrals, x=True, y=True, z=True
     )
-    jy = 1
-    jz = (
-        2
-        + synchrotron_radiation_integrals[3]
-        / synchrotron_radiation_integrals[1]
-    )
+
+    jx = partitions["x"]
+    jy = partitions["y"]
+    jz = partitions["z"]
+
     damping_partition_numbers = np.array([jx, jy, jz])
     return damping_partition_numbers
 
@@ -117,11 +141,12 @@ def calculate_horizontal_damping_partition_number(
     horizontal_damping_partition_number
         Horizontal damping partition number.
     """
-    horizontal_damping_partition_number = (
-        1
-        - synchrotron_radiation_integrals[3]
-        / synchrotron_radiation_integrals[1]
+    partitions = _selective_calculate_partition_numbers(
+        synchrotron_radiation_integrals, x=True
     )
+
+    horizontal_damping_partition_number = partitions["x"]
+
     return float(horizontal_damping_partition_number)
 
 
@@ -141,11 +166,12 @@ def calculate_longitudinal_damping_partition_number(
     longitudinal_damping_partition_number
         Longitudinal damping partition number.
     """
-    longitudinal_damping_partition_number = (
-        2
-        + synchrotron_radiation_integrals[3]
-        / synchrotron_radiation_integrals[1]
+    partitions = _selective_calculate_partition_numbers(
+        synchrotron_radiation_integrals, z=True
     )
+
+    longitudinal_damping_partition_number = partitions["z"]
+
     return float(longitudinal_damping_partition_number)
 
 
