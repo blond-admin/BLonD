@@ -109,3 +109,26 @@ class PotentialWellHelper:
             sel = (self.time_axis >= start) & (self.time_axis <= stop)
             mask = mask | sel
         return mask
+
+    def get_principal_bucket_slices(self) -> list[slice]:
+        mask = self.get_in_bucket_mask()
+        diff_mask = np.diff(mask.astype(int))
+        starts = np.where(diff_mask == 1)[0] + 1
+        stops = (
+            np.where(diff_mask == -1)[0] + 1
+        )  # adjust stops for inclusive behavior
+
+        if mask[0]:
+            # handle start if mask starts with 1
+            starts = np.concatenate(([0], starts))
+        if mask[-1]:
+            # append len(mask) to handle end if mask ends with 1
+            stops = np.append(stops, len(mask))
+        slices = []
+        for bucket_i in range(min(len(starts), len(stops))):
+            sel = slice(  # slicing required for inplace operation
+                int(starts[bucket_i]),
+                int(stops[bucket_i]),
+            )
+            slices.append(sel)
+        return slices

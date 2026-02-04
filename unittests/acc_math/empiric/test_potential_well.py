@@ -25,6 +25,22 @@ class TestPotentialWellHelper(unittest.TestCase):
         plt.plot(xs, pwh.get_in_bucket_mask())
         plt.show()
 
+    def test_get_principal_bucket_slices(self):
+        xs = np.linspace(-10, 20, 1000)
+        ys = np.sin(xs) + 0.5 * np.sin(xs * 2 + 1.1) + xs / 10
+        pwh = PotentialWellHelper(xs, ys)
+        mask = pwh.get_in_bucket_mask()
+        slices = pwh.get_principal_bucket_slices()
+        for slice_ in slices:
+            assert np.all(mask[slice_])
+            # show that the next one is already outside the mask
+            slice_wrong_left = slice(slice_.start - 1, slice_.stop)
+            assert not np.all(mask[slice_wrong_left])
+
+            # show that the next one is already outside the mask
+            slice_wrong_left = slice(slice_.start, slice_.stop + 1)
+            assert not np.all(mask[slice_wrong_left])
+
     def test_analyze_bug(self):
         ys = [
             0.0021532912877556755,

@@ -228,26 +228,8 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             np.arange(hamilton_2D.shape[0]),
             hamilton_2D[:, hamilton_2D.shape[1] // 2],
         )
-        mask = potential_well_helper.get_in_bucket_mask()
-        diff_mask = np.diff(mask.astype(int))
-        starts = np.where(diff_mask == 1)[0]
-        stops = (
-            np.where(diff_mask == -1)[0] + 1
-        )  # adjust stops for inclusive behavior
 
-        if mask[0]:
-            # handle start if mask starts with 1
-            starts = np.concatenate(([0], starts))
-        if mask[-1]:
-            # append len(mask) to handle end if mask ends with 1
-            stops = np.append(stops, len(mask))
-
-        for bucket_i in range(min(len(starts), len(stops))):
-            sel = slice(  # slicing required for inplace operation
-                int(starts[bucket_i]),
-                int(stops[bucket_i]),
-            )
-
+        for sel in potential_well_helper.get_principal_bucket_slices():
             self._solve_for_density_single_bucket(
                 hamilton_2D=hamilton_2D[sel, :],
                 histogram_desired=histogram_desired[sel],
