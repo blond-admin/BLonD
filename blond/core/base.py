@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -34,6 +35,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.handle_results.observables import ObservablesOncePerTurnBase
 
     T = TypeVar("T")
+
+logger = logging.getLogger(__name__)
 
 
 class Preparable(ABC):
@@ -185,6 +188,8 @@ class Schedulable:
             self.schedules[attribute] = get_scheduler(value)
         self.schedule_active = True
 
+        self.apply_schedules(turn_i=0, reference_time=0)
+
     def schedule_from_file(
         self,
         attribute: str,
@@ -230,12 +235,14 @@ class Schedulable:
             Current time, in [s].
         """
         for attribute, schedule in self.schedules.items():
+            value = schedule.get_scheduled(
+                turn_i=turn_i, reference_time=reference_time
+            )
             self.__setattr__(
                 attribute,
-                schedule.get_scheduled(
-                    turn_i=turn_i, reference_time=reference_time
-                ),
+                value,
             )
+            logger.debug(f"Wrote {self}.{attribute} = {value}")
 
 
 class SimulationElementBase(MainLoopRelevant, ABC):

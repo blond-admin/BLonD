@@ -102,7 +102,10 @@ def _get_dE_from_dt(
             charge=beam.particle_type.charge,
             voltage=voltage,
             energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-                1, 0, 0, particle_type=beam.particle_type
+                turn_i=0,
+                section_i=0,
+                reference_time=0,
+                particle_type=beam.particle_type,
             )
             - beam.reference.total_energy,
             above_transition=above_transition,
@@ -163,11 +166,6 @@ def get_main_harmonic_attributes(
     rf_stations = simulation.ring.elements.get_elements(
         SingleHarmonicRFStation
     ) + simulation.ring.elements.get_elements(MultiHarmonicRFStation)
-    for _rf_station in rf_stations:
-        _rf_station.apply_schedules(
-            turn_i=0,
-            reference_time=0,
-        )
     # omega_rf should be all same
     omega_rf = [
         rf.calc_main_harmonic_omega_rf(
@@ -292,11 +290,6 @@ class BiGaussian(MatchingRoutine):
         drifts: tuple[DriftSimple, ...] = (
             simulation.ring.elements.get_elements(DriftSimple)
         )
-        for _drift in drifts:
-            _drift.apply_schedules(
-                turn_i=0,
-                reference_time=0,
-            )
 
         if self._sigma_dE is None:
             sigma_dE = _get_dE_from_dt(
@@ -314,7 +307,10 @@ class BiGaussian(MatchingRoutine):
                 charge=beam.particle_type.charge,
                 voltage=voltage,
                 energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-                    0, 0, 0, particle_type=beam.particle_type
+                    turn_i=0,
+                    section_i=0,
+                    reference_time=0,
+                    particle_type=beam.particle_type,
                 )
                 - beam.reference.total_energy,
                 above_transition=above_transition,

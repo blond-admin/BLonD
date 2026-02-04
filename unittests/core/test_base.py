@@ -289,7 +289,7 @@ class TestSchedulable(unittest.TestCase):
         schedulable.schedule("voltage", np.ones(10))
         schedulable.schedule(
             "voltage",
-            ScheduledInterpolation(np.linspace(1, 10, 20), np.ones(20)),
+            ScheduledInterpolation(np.linspace(0, 10, 20), np.ones(20)),
         )
         schedulable.schedule(
             "voltage",
