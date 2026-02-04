@@ -101,6 +101,7 @@ def main():
     sim.print_one_turn_execution_order()
 
     hist_x, hist_y = get_test_profile()
+    hist_y = hist_y**8
     matcher_addon = ProfileMatcherAddon(hist_x=hist_x, hist_y=hist_y)
     matcher_addon.smoothness = 0.01
     matcher_addon.atol = 1e-3
