@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.signal import find_peaks
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -70,8 +71,6 @@ class PotentialWellHelper:
         """
         y = self.voltage_axis
         x = self.time_axis
-
-        from scipy.signal import find_peaks
 
         maxima_indices, _ = find_peaks(y)
         buckets = []
