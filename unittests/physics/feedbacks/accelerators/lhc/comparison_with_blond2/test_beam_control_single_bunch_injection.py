@@ -20,6 +20,7 @@ from blond.experimental.physics.feedbacks.accelerators.lhc.cavity_feedback impor
     LHCCavityLoop,
     LHCCavityLoopCommissioning,
 )
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.helpers import callers_relative_path
 
 
@@ -148,30 +149,38 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         _flags_tmp = beam._flags
         _ids_tmp = beam._ids
 
-        beam._dt = np.zeros(n_bunches * len(_dt_tmp))
-        beam._dE = np.zeros(n_bunches * len(_dE_tmp))
-        beam._flags = np.zeros(
-            n_bunches * len(_flags_tmp), dtype=_flags_tmp.dtype
+        beam._dt = DistributedArray(np.zeros(n_bunches * _dt_tmp.local_size))
+        beam._dE = DistributedArray(np.zeros(n_bunches * _dE_tmp.local_size))
+        beam._flags = DistributedArray(
+            np.zeros(
+                n_bunches * _flags_tmp.local_size,
+                dtype=_flags_tmp.array_local.dtype,
+            )
         )
-        beam._ids = np.zeros(n_bunches * len(_ids_tmp), dtype=_ids_tmp.dtype)
+        beam._ids = DistributedArray(
+            np.zeros(
+                n_bunches * _ids_tmp.local_size,
+                dtype=_ids_tmp.array_local.dtype,
+            )
+        )
 
         for i in range(n_bunches):
-            beam._dt[
+            beam._dt.array_local[
                 i * n_macroparticles_per_bunch : (i + 1)
                 * n_macroparticles_per_bunch
-            ] = _dt_tmp + 10 * t_rf * i + 1000 * t_rf
-            beam._dE[
+            ] = _dt_tmp.array_local + 10 * t_rf * i + 1000 * t_rf
+            beam._dE.array_local[
                 i * n_macroparticles_per_bunch : (i + 1)
                 * n_macroparticles_per_bunch
-            ] = _dE_tmp
-            beam._flags[
+            ] = _dE_tmp.array_local
+            beam._flags.array_local[
                 i * n_macroparticles_per_bunch : (i + 1)
                 * n_macroparticles_per_bunch
-            ] = _flags_tmp
-            beam._ids[
+            ] = _flags_tmp.array_local
+            beam._ids.array_local[
                 i * n_macroparticles_per_bunch : (i + 1)
                 * n_macroparticles_per_bunch
-            ] = _ids_tmp
+            ] = _ids_tmp.array_local
 
         simulation.finalize(
             (beam,),
