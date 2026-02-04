@@ -174,8 +174,8 @@ class TestSimulation(unittest.TestCase):
 
         mock_func = create_autospec(my_callback, return_value=True)
         self.simulation.turn_i.value = 0
-        self.simulation.mainloop_single_beam(
-            beam=self.beam,
+        self.simulation.mainloop(
+            beams=self.beam,
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
@@ -196,8 +196,8 @@ class TestSimulation(unittest.TestCase):
         mock_func1 = create_autospec(my_callback1, return_value=True)
         mock_func2 = create_autospec(my_callback2, return_value=True)
         self.simulation.turn_i.value = 0
-        self.simulation.mainloop_single_beam(
-            beam=self.beam,
+        self.simulation.mainloop(
+            beams=self.beam,
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,

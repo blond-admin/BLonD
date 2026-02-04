@@ -106,9 +106,7 @@ class MainloopSingleBeam(ExecutionModel):
                 if observable.is_active_this_turn(
                     turn_i=simulation.turn_i.value
                 ):
-                    observable.update(
-                        simulation=simulation,
-                    )
+                    observable.update()
             for callback in callbacks:
                 if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
                     callback(simulation, beam)

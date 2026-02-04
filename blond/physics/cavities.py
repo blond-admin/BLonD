@@ -89,7 +89,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
         self._turn_i = simulation.turn_i
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -98,7 +98,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         beam
             Beam class to interact with this element.
         """
-        super().track(beam=beam)
+        super()._track(beam=beam)
         assert self._turn_i is not None
         if self.schedule_active:
             self.apply_schedules(
@@ -390,7 +390,7 @@ class RFStationBaseClass(
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
         pass
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -399,7 +399,7 @@ class RFStationBaseClass(
         beam
             Beam class to interact with this element.
         """
-        super().track(beam=beam)
+        super()._track(beam=beam)
 
         # set design omega etc. for this turn
         self._update_beam_based_attributes(beam=beam)
@@ -786,7 +786,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
             warnings.warn(str(exc), UserWarning, stacklevel=1)
             self.phi_s = np.nan"""
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -795,7 +795,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         beam
             Beam class to interact with this element.
         """
-        super().track(beam=beam)
+        super()._track(beam=beam)
         reference = beam.reference
         reference_energy_change = self.track_reference(
             reference, beam.is_counter_rotating
@@ -1326,7 +1326,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         multi_harmonic_rf_station._update_beam_based_attributes(beam)
         return multi_harmonic_rf_station
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -1335,7 +1335,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         beam
             Beam class to interact with this element.
         """
-        super().track(beam=beam)
+        super()._track(beam=beam)
         reference = beam.reference
         reference_energy_change = self.track_reference(
             reference, beam.is_counter_rotating

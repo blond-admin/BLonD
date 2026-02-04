@@ -132,7 +132,7 @@ class LocalFeedback(FeedbackBaseClass):
         self._section_index = self._parent_rf_station.section_index
 
     @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 

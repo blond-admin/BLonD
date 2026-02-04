@@ -77,7 +77,7 @@ class MainloopCounterRotatingBeams(ExecutionModel):
             called can be set by `each_turn_i`.
             >>> from blond import Beam, Simulation
             >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
-            >>>     ...
+            ...     ...
             >>> my_callback.each_turn_i = 2
             .
         """
@@ -115,6 +115,7 @@ class MainloopCounterRotatingBeams(ExecutionModel):
 
                 if element.is_active_this_turn(turn_i=simulation.turn_i.value):
                     element.track(beams[0])  # [0] is expected to be corotating
+
                 element_counterrot = simulation.ring.elements.elements[
                     num_elements - element_ind - 1
                 ]
@@ -122,10 +123,9 @@ class MainloopCounterRotatingBeams(ExecutionModel):
                     turn_i=simulation.turn_i.value
                 ):
                     element_counterrot.track(beams[1])
+
             for observable in observe:
                 if observable.is_active_this_turn(
                     turn_i=simulation.turn_i.value
                 ):
-                    observable.update(
-                        simulation=simulation,
-                    )
+                    observable.update()

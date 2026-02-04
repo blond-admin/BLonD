@@ -990,6 +990,43 @@ class Simulation(Preparable):
         self.turn_i.value = turn_i
         preparation_routine.prepare_beam(simulation=self, beam=beam)
 
+    def mainloop(self, **kwargs) -> None:
+        """
+        Wrapper function around the exection model.
+
+        Parameters
+        ----------
+        **kwargs
+            Dict to be passed to the execution model.
+
+        Returns
+        -------
+        execution_model.mainloop
+            Function execution of the execution model.
+        """
+        kwargs["beams"] = _single_beam_to_tuple(kwargs.get("beams"))
+        beams = kwargs.get("beams")
+        if "simulation" not in kwargs:
+            kwargs["simulation"] = self
+
+        if len(beams) == 1:  # NOQA: PLR2004
+            from blond.core.simulation.execution_models.single_beam import (
+                MainloopSingleBeam,
+            )
+
+            execution_model = MainloopSingleBeam
+        elif len(beams) == 2:  # NOQA: PLR2004
+            from blond.core.simulation.execution_models.conterrotating_beams import (
+                MainloopCounterRotatingBeams,
+            )
+
+            execution_model = MainloopCounterRotatingBeams
+        else:
+            raise NotImplementedError(
+                f"Up to two beam supported, but got {len(beams)}"
+            )
+        return execution_model.mainloop(**kwargs)
+
     def run_simulation(
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
@@ -1132,24 +1169,7 @@ class Simulation(Preparable):
             n_turns=n_turns,
             observe=observe,
         )
-
-        if len(beams) == 1:  # NOQA: PLR2004
-            from blond.core.simulation.execution_models.single_beam import (
-                MainloopSingleBeam,
-            )
-
-            execution_model = MainloopSingleBeam
-        elif len(beams) == 2:  # NOQA: PLR2004
-            from blond.core.simulation.execution_models.conterrotating_beams import (
-                MainloopCounterRotatingBeams,
-            )
-
-            execution_model = MainloopCounterRotatingBeams
-        else:
-            raise NotImplementedError(
-                f"Up to two beam supported, but got {len(beams)}"
-            )
-        execution_model.mainloop(
+        self.mainloop(
             simulation=self,
             beams=beams,
             n_turns=_n_turns,

@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 class ExecutionModel(ABC):
     """Base class to define execution strategies of a simulation."""
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def mainloop(
         simulation: Simulation,
         beams: tuple[BeamBaseClass, ...],
