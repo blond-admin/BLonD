@@ -27,7 +27,7 @@ from blond.specifics.muon_collider.beam_preparation import (
     load_beam_coordinates_from_file,
 )
 
-DEBUG_PLOTTING = True
+DEBUG_PLOTTING = False
 
 
 class TestInjectionMatchedBeam(unittest.TestCase):
@@ -52,7 +52,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         gamma_t = 53.8
         n_macroparticles_per_bunch = 1_000_000
 
-        n_bunches = 2
+        n_bunches = 36
         intensity = 2.3e11 * n_bunches
         n_turns = 100
         bunch_lengths = 1.25e-9

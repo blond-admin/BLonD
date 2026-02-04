@@ -43,7 +43,7 @@ bunch_lengths = 1.25e-9
 
 # Constants
 n_macroparticles = int(1e6)  # Macro-particles
-n_bunches = 2  # Number of bunches
+n_bunches = 36  # Number of bunches
 C = 26658.8832  # Machine circumference [m]
 p_s = 450e9  # Synchronous momentum [eV/c]
 h = 35640  # Harmonic number
