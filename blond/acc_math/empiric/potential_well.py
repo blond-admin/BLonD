@@ -124,8 +124,6 @@ class PotentialWellHelper:
                 x2=bucket[1],
                 alpha=0.1,
             )
-            plt.draw()
-            plt.pause(0.5)
 
     def get_in_bucket_mask(self) -> NumpyArray:
         """

@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -86,6 +87,24 @@ class TestPotentialWellHelper(unittest.TestCase):
             slice_wrong_left = slice(slice_.start, slice_.stop + 1)
             assert not np.all(mask[slice_wrong_left])
 
+    def test_get_principal_bucket_slices_border(self):
+        xs = np.linspace(-10, 20, 1000)
+        ys = np.sin(xs) + 0.5 * np.sin(xs * 2 + 1.1) + xs / 10
+        pwh = PotentialWellHelper(xs, ys)
+
+        expected_mask = np.ones(len(xs), dtype=bool)
+
+        with patch.object(
+            PotentialWellHelper,
+            "get_in_bucket_mask",
+            return_value=expected_mask,
+        ):
+            mask = pwh.get_in_bucket_mask()
+            slices = pwh.get_principal_bucket_slices()
+        assert len(slices) == 1
+        assert (mask == expected_mask).all()
+        np.testing.assert_allclose(mask[slices[0]], mask)
+
     def test_analyze_bug(self):
         ys = np.loadtxt(
             callers_relative_path("resources/ys.csv", stacklevel=1)
@@ -99,6 +118,13 @@ class TestPotentialWellHelper(unittest.TestCase):
         if DEV_DEBUG:
             pwh.plot()
             plt.show()
+
+    def test_plot_executes(self):
+        xs = np.linspace(-10, 20, 1000)
+        ys = np.sin(xs)
+        pwh = PotentialWellHelper(xs, ys)
+        pwh.plot()
+        plt.close("all")
 
 
 if __name__ == "__main__":
