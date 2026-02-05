@@ -186,5 +186,5 @@ class GlobalFeedback(FeedbackBaseClass):
         from blond.physics.cavities import RFStationBaseClass
 
         self.cavities = simulation.ring.elements.get_elements(
-            RFStationBaseClass,
+            RFStationBaseClass, recursive=False
         )

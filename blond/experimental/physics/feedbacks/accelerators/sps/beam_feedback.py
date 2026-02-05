@@ -61,7 +61,9 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         from blond.physics.drifts import DriftSimple
 
         self._simulation = simulation  # todo declare
-        self._drift = simulation.ring.elements.get_element(DriftSimple)
+        self._drift = simulation.ring.elements.get_element(
+            DriftSimple, recursive=False
+        )
 
     def on_run_simulation(
         self,
