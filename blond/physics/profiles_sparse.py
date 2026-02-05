@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import StaticProfile
+from blond import StaticProfile, backend
 from blond.core.base import BeamPhysicsRelevant
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -60,6 +60,18 @@ class EquidistantMultiProfile(MultiProfile):
         self._bins_per_profile = bins_per_profile
         self.profiles: tuple[StaticProfile] | None = None
 
+    @property
+    def hist_x(self):
+        return self._continuous_memory_hist_x[self._continuous_memory_mask]
+
+    @property
+    def hist_y(self):
+        return self._continuous_memory_hist_y[self._continuous_memory_mask]
+
+    @property
+    def n_bins(self):
+        return self._n_profiles * self._bins_per_profile
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         t_rev = simulation.get_t_rev_init()
         half_width = float(self._width_per_profile / 2)
@@ -85,6 +97,33 @@ class EquidistantMultiProfile(MultiProfile):
             )
             for i, center in enumerate(centers)
         )
+        self._make_memory_continuous()
+
+    def _make_memory_continuous(self):
+        self._continuous_memory_hist_x = backend.zeros(
+            2 * self.n_bins,
+            # assume all dtypes are equal
+            dtype=self.profiles[0]._hist_x.dtype,
+        )
+        self._continuous_memory_hist_y = backend.zeros_like(
+            self._continuous_memory_hist_x
+        )
+        self._continuous_memory_mask = backend.zeros_like(
+            self._continuous_memory_hist_x,
+            dtype=bool,
+        )
+        for i, profile in enumerate(self.profiles):
+            start = 2 * i * self._bins_per_profile
+            stop = 2 * (i + 1) * self._bins_per_profile
+            # must be slice to have pointer acess in numpy
+            sel = slice(start, stop)
+
+            self._continuous_memory_hist_x[sel][:] = True
+            self._continuous_memory_hist_x[sel][:] = profile._hist_x
+            self._continuous_memory_hist_y[sel][:] = profile._hist_y
+            # intentionally overwrite internal memory
+            profile._hist_x = self._continuous_memory_hist_x[sel]
+            profile._hist_y = self._continuous_memory_hist_y[sel]
 
     def _track(self, beam: BeamBaseClass) -> None:
         for profile in self.profiles:
