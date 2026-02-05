@@ -9,32 +9,8 @@
 r"""
 Collection to include synchrotron radiation and quantum excitation effects.
 
-First five synchrotron radiation integrals are required as an input of the
-simulated ring:
-            'I_1' = \int, related to the momentum compaction factor,
-            'I_2' = , related to the energy loss per turn,
-            'I_3' = , related to the natural energy spread,
-            'I_4' =  , required for the damping times,
-            'I_5' =  , required for the natural horizontal emittance
-            with '\rho' the bending radius of bending elements, 'D' the
-            horizontal dispersion function, 'K' the focusing strength and 'H =
-            \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
-            H-function
-
-Notes
------
 Authors:
 L. Valle
-
-References
-----------
-Further information on synchrotron radiation damping and quantum excitation
-can be found in:
-- H. Wiedemann, Synchrotron Radiation, Springer, 2003
-- S.Y. Lee, Accelerator Physics, World Scientific, Third edition,
-2014 #check date
-- A. Wolski, Introduction to Beam Dynamics in High-Energy Electron Storage
-Rings, Morgan & Claypool Publishers, 2018
 """
 
 from __future__ import annotations
