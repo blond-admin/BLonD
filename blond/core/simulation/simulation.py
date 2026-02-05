@@ -55,6 +55,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.particle_types import ParticleType
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.ring.ring import Ring
+    from blond.core.simulation.execution_models.base import ExecutionModel
     from blond.experimental.beam_preparation.empiric_matcher import (
         EmpiricMatcher,
     )
@@ -166,7 +167,7 @@ class Simulation(Preparable):
 
         self._current_t_rev = None
         self._particle_performance_waning_threshold = int(1e3)
-
+        self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
 
     def profiling(
@@ -990,42 +991,62 @@ class Simulation(Preparable):
         self.turn_i.value = turn_i
         preparation_routine.prepare_beam(simulation=self, beam=beam)
 
-    def mainloop(self, **kwargs) -> None:
+    def mainloop(
+        self,
+        beams: BeamBaseClass | tuple[BeamBaseClass, ...],
+        n_turns: int,
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
+        show_progressbar: bool = True,
+        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+    ) -> None:
         """
-        Wrapper function around the exection model.
+        Execute the beam dynamics simulation.
 
         Parameters
         ----------
-        **kwargs
-            Dict to be passed to the execution model.
+        beams
+            The beam to simulate.
+        n_turns
+            Number of turns to simulate.
+        observe
+            List of observables to protocol of whats happening inside
+            the simulation.
+        show_progressbar
+            If True, will show a progress bar indicating how many turns have
+            been completed and other metrics.
+        callbacks
+            Optional user-defined functions `[callback_1, callback_2, ...]`.
+            called at the end of each turn.
+            Useful for custom data collection or live plotting. Default is None.
 
-        Returns
-        -------
-        execution_model.mainloop
-            Function execution of the execution model.
+            The callback can be defined as follows.
+            The rate at with which this function is
+            called can be set by `each_turn_i`.
+
+            An example is shown below.
+
+        Notes
+        -----
+        This method assumes that ``Simulation.finalize(...)`` was executed
+        before.
+
+        Examples
+        --------
+        Callback definition
+        >>> from blond import Beam, Simulation
+        >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
+        >>>     ...
+        >>> my_callback.each_turn_i = 2
         """
-        kwargs["beams"] = _single_beam_to_tuple(kwargs.get("beams"))
-        beams = kwargs.get("beams")
-        if "simulation" not in kwargs:
-            kwargs["simulation"] = self
-
-        if len(beams) == 1:  # NOQA: PLR2004
-            from blond.core.simulation.execution_models.single_beam import (
-                MainloopSingleBeam,
-            )
-
-            execution_model = MainloopSingleBeam
-        elif len(beams) == 2:  # NOQA: PLR2004
-            from blond.core.simulation.execution_models.conterrotating_beams import (
-                MainloopCounterRotatingBeams,
-            )
-
-            execution_model = MainloopCounterRotatingBeams
-        else:
-            raise NotImplementedError(
-                f"Up to two beam supported, but got {len(beams)}"
-            )
-        return execution_model.mainloop(**kwargs)
+        beams = _single_beam_to_tuple(beams)
+        self.execution_model.mainloop(
+            simulation=self,
+            beams=beams,
+            n_turns=n_turns,
+            observe=observe,
+            show_progressbar=show_progressbar,
+            callbacks=callbacks,
+        )
 
     def run_simulation(
         self,
@@ -1170,7 +1191,6 @@ class Simulation(Preparable):
             observe=observe,
         )
         self.mainloop(
-            simulation=self,
             beams=beams,
             n_turns=_n_turns,
             observe=observe,
@@ -1231,6 +1251,8 @@ class Simulation(Preparable):
         - Performance warnings are issued if using Python backend with many particles.
         """
         beams = _single_beam_to_tuple(beams)
+        if self.execution_model is None:
+            self._autoselect_execution_model(beams)
         self.ring.assert_circumference()
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
@@ -1280,6 +1302,36 @@ class Simulation(Preparable):
         del self._observe
         del self._beams
         return _n_turns
+
+    def _autoselect_execution_model(
+        self,
+        beams: tuple[BeamBaseClass, ...],
+    ):
+        """
+        Select the execution model based on the number of beams.
+
+        Parameters
+        ----------
+        beams
+            Beams to be simulated. For two-beam simulations,
+            first must be co-rotating, second counter-rotating.
+        """
+        if len(beams) == 1:  # NOQA: PLR2004
+            from blond.core.simulation.execution_models.single_beam import (
+                MainloopSingleBeam,
+            )
+
+            self.execution_model = MainloopSingleBeam
+        elif len(beams) == 2:  # NOQA: PLR2004
+            from blond.core.simulation.execution_models.conterrotating_beams import (
+                MainloopCounterRotatingBeams,
+            )
+
+            self.execution_model = MainloopCounterRotatingBeams
+        else:
+            raise NotImplementedError(
+                f"Up to two beam supported, but got {len(beams)}"
+            )
 
     def _sanitize_callbacks(
         self,
