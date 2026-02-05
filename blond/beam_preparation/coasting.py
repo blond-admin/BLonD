@@ -18,8 +18,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from blond.beam_preparation import base
-from blond.core import helpers
+from blond.core import helpers as core_help
 from blond.core.backends.backend import backend
+from blond.generals.cupy import no_cupy_import
+from blond.generals.distributed import helpers as mpi_help
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import ArrayLike
@@ -40,9 +42,14 @@ class Coasting(base.BeamPreparationRoutine):
         seed: int = 0,
     ):
         super().__init__()
-        self.n_macroparticles = helpers.int_from_float_with_warning(
-            n_macroparticles
+
+        self._n_macroparticles_local = mpi_help.mpi_local_size(
+            core_help.int_from_float_with_warning(
+                n_macroparticles, warning_stacklevel=2
+            ),
+            warning_hint="n_macroparticles",
         )
+
         self.energy_bins = energy_bins
         self.energy_profile = energy_profile
         self.start_time = start_time
@@ -54,11 +61,16 @@ class Coasting(base.BeamPreparationRoutine):
     def prepare_beam(self, simulation: Simulation, beam: BeamBaseClass):
         super().prepare_beam(simulation, beam)
 
-        rng = backend.random.default_rng(self._seed)
+        rng = mpi_help.mpi_aware_random_generator_cpu(
+            seed=(self._seed + 1) if self._seed is not None else None,
+            n_forward_per_rank=self._n_macroparticles_local,
+        )
 
         dE = backend.cast_arr_float_if_needed(
             rng.choice(
-                self.energy_bins, self.n_macroparticles, p=self.energy_profile
+                self.energy_bins,
+                self._n_macroparticles_local,
+                p=no_cupy_import.copy_to_cpu(self.energy_profile),
             )
         )
 
@@ -67,7 +79,7 @@ class Coasting(base.BeamPreparationRoutine):
         # sampled uniformly.
         bin_width = self.energy_bins[1] - self.energy_bins[0]
         e_shift = rng.uniform(
-            low=0, high=bin_width / 2, size=self.n_macroparticles
+            low=0, high=bin_width / 2, size=self._n_macroparticles_local
         )
         # Generated offsets go from 0 -> binwidth/2, multiply every
         # other value by -1 to go from -bin_width/2 -> +bin_width/2.
@@ -87,7 +99,7 @@ class Coasting(base.BeamPreparationRoutine):
         t_width = self.stop_time - self.start_time
 
         dt = backend.cast_arr_float_if_needed(
-            rng.uniform(low=0, high=t_width, size=self.n_macroparticles)
+            rng.uniform(low=0, high=t_width, size=self._n_macroparticles_local)
         )
         dt += self.start_time
 
