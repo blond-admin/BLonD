@@ -10,108 +10,153 @@ Overview
 
 The :class:`SynchrotronRadiationMaster` class provides a framework for including
 **synchrotron radiation damping** and **quantum excitation** effects in
-longitudinal beam dynamics simulations.
+longitudinal beam dynamics simulations in synchrotrons.
 
-Synchrotron radiation is emitted when relativistic charged particles are
-deflected by magnetic fields. This emission causes:
+Bending forces applied on relativistic charged particles yields to the
+spontaneous emission of photons, called **synchrotron radiation**. This
+emission causes:
 
-1. **Energy loss per turn** -- particles lose energy due to radiation
+1. **Energy loss per turn** -- particles radially lose energy,
 2. **Radiation damping** -- oscillation amplitudes decrease exponentially
-3. **Quantum excitation** -- stochastic energy fluctuations due to discrete
-   photon emission
 
-The interplay between damping and excitation leads to equilibrium beam
-distributions characterized by the **natural energy spread** and **natural
-bunch length**.
+Additionally, discrete photon emission can happen randomly during the charged
+particle trajectory. This **quantum excitation** provokes stochastic energy
+fluctuations of the beam particles.
 
+The interplay between damping and excitation leads to the natural beam sizes,
+characterized by the **natural energy spread** and **natural
+bunch length** in the longitudinal plane.
 ---
 
 Conceptual Background
 ---------------------
 
+Energy Loss Per Turn
+^^^^^^^^^^^^^^^^^^^^
+For highly relativistic particles, the power is emitted radially [2]. The
+instantaneous radiated power is derived in [2]:
+.. math::
+
+    P_{\gamma} = \frac{c \cdot C_{\gamma}}{2 \pi} \frac{E^4}{\rho *2},
+
+where :math:`C_\gamma = \frac{4 \pi}{3} \frac{r_c}{(m  c^2)^3}` is the Sands
+radiation constant (particle-dependent), :math: 'r_c' the classical radius,
+:math: 'c' the speed of light, :math: 'E' the particle energy, :math: '\rho'
+the bending radius.
+
+Integrating the instantaneously radiated power along the synchrotron's
+circumference, we obtain the energy loss per turn due to synchrotron radiation,
+to be compensated for beam storage:
+
+.. math::
+
+   U_0 = \frac{C_\gamma}{2\pi} E^4 \oint \frac{1}{\rho^2} \, ds \\
+   or \\
+   U_0 = \frac{C_\gamma}{2\pi} E^4 I_2, ds \\
+
+where :math:`C_\gamma` is the Sands radiation constant [m/(eV)^3],
+:math:`E` is the beam energy [eV], :math:`I_2` is the second radiation
+integral.
+
 Synchrotron Radiation Integrals
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The synchrotron radiation characteristics of a storage ring are determined by
-the **synchrotron radiation integrals** :math:`I_1` through :math:`I_5`:
+The properties of the electron beam in synchrotrons are summarized in the
+**synchrotron radiation integrals**[1]:
 
 .. math::
 
    I_1 &= \oint \frac{D_x}{\rho} \, ds \\
    I_2 &= \oint \frac{1}{\rho^2} \, ds \\
    I_3 &= \oint \frac{1}{|\rho|^3} \, ds \\
-   I_4 &= \oint \frac{D_x}{\rho^3} \left(1 + 2\rho^2 K\right) \, ds \\
-   I_5 &= \oint \frac{\mathcal{H}}{|\rho|^3} \, ds
+   I_4 &= \oint \frac{D_x}{\rho} \left(\frac{1}{rho^2} + 2 * K\right) \, ds \\
+   I_5 &= \oint \frac{\mathcal{H}}{|\rho|^3} \, ds \\
 
 where:
 
-- :math:`\rho` is the local bending radius [m],
+- :math:`\rho` is the bending radius [m],
 - :math:`D_x` is the horizontal dispersion function [m],
 - :math:`K` is the focusing strength [m\ :sup:`-2`],
 - :math:`\mathcal{H} = \beta_x D_x'^2 + 2\alpha_x D_x D_x' + \gamma_x D_x^2`
-  is the dispersion H-function [m].
+  is the H-function [m].
 
 For an **isomagnetic ring** (uniform bending radius :math:`\rho_0`), the
 integrals simplify to:
 
 .. math::
 
-   I_1 &= \alpha_c \cdot C \\
-   I_2 &= \frac{2\pi}{\rho_0} \\
-   I_3 &= \frac{2\pi}{\rho_0^2} \\
-   I_4 &= \frac{\alpha_c \cdot C}{\rho_0^2}
+   I_1 &= \alpha_c \cdot C, related to the momentum compaction factor, \\
+   I_2 &= \frac{2\pi}{\rho_0}, related to the energy loss per turn, \\
+   I_3 &= \frac{2\pi}{\rho_0^2}, related to the natural energy spread, \\
+   I_4 &= \frac{\alpha_c \cdot C}{\rho_0^2}, required for the damping times, \\
+   I_5 &= 0, for lack of information on :math: <\mathcal{H}>, required for the natural horizontal emittance \\
 
 where :math:`\alpha_c` is the momentum compaction factor and :math:`C` is the
 circumference.
 
+Synchrotron motion damping and damping times
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Energy Loss Per Turn
-^^^^^^^^^^^^^^^^^^^^
+For highly relativistic charged particles, synchrotron radiation is emitted
+along its direction of motion, which recoil induces small perturbation of
+the betatron and synchrotron motion. This effect damps the beam
+amplitudes, with typical damping times.
+The radiation loss around the synchronous partilcle can be derived as :math: 'U
+ = U_0 + \frac{dU}{dE}_{E = E_0)} \cdot
+\Delta E', where :math: 'E_0' and 'U_0' are the energy and energy lost of the
+synchronous particle.
+A particle with an energy 'E_0 + \Delta E' circulates on a different orbit
+than the synchronous particle, resulting in a different path length :math: 'C
++ \Delta C' after a turn, characterised by the momentum compaction factor:
+.. :math:
 
-The energy lost per turn due to synchrotron radiation is:
+    \frac{\Delta C}{C} = \alpha_C \frac{\Delta E }{E_0}
 
-.. math::
+This variation in the path length translates into an arrival time difference
+:math: '\Delta tau =
+\alpha_C
+\cdot T_0 \codt \frac{\Delta E}{E_0}'.
+where :math: 'T_0' is the revolution period.
 
-   U_0 = \frac{C_\gamma}{2\pi} E^4 I_2
+The full synchrotron motion including damping is described by a harmonic
+oscillator:
+ .. :math:
+    \frac{d^2 \tau}{dt^2} + \frac{2}{\tau_z} \frac{d \tau}{dt} + \omega_s^2
+    \tau = 0
 
-where :math:`C_\gamma` is the Sands radiation constant (particle-dependent)
-and :math:`E` is the beam energy [eV].
+with the **longitudinal damping time**  in seconds is:
+ .. math::
 
+   \tau_z = \frac{2 E}{j_z \cdot U_0} T_0
 
-Damping Times
-^^^^^^^^^^^^^
-
-The **damping partition numbers** determine how radiation damping is
-distributed among the three planes:
-
+Practically, the synchrotron radiation damping times of all planes are
+proportional to the
+inverse of :math: 'U_0 / (2 T_0 E)'. The proportionality
+coefficient are the **damping partition numbers**:
 .. math::
 
    j_x &= 1 - \frac{I_4}{I_2} \\
    j_y &= 1 \\
-   j_z &= 2 + \frac{I_4}{I_2}
+   j_z &= 2 + \frac{I_4}{I_2}'
 
-The Robinson damping theorem requires :math:`j_x + j_y + j_z = 4`.
-
-The **longitudinal damping time** in turns is:
-
-.. math::
-
-   \tau_z = \frac{2 E}{j_z \cdot U_0}
+assuming no vertical dispersion in the synchrotron. The Robinson damping
+theorem requires :math:`j_x + j_y + j_z = 4`.
 
 
 Quantum Excitation and Natural Energy Spread
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The discrete nature of photon emission causes stochastic energy fluctuations.
-The equilibrium between radiation damping and quantum excitation yields the
-**natural energy spread**:
-
+Spontaneous emission of a quanta yields to an immediate energy change and
+random small energy oscillations which tend to blow the beam sizes. **Quantum
+excitation** and synchrotron **radiation damping** combined define a natural
+equilibrium state of transverse and longitudinal beam emittances.
+The **natural energy spread** is:
 .. math::
 
    \sigma_E = \sqrt{C_q \left(\frac{E}{m_0 c^2}\right)^2 \frac{I_3}{j_z I_2}} \cdot E
 
 where :math:`C_q` is the quantum radiation constant and :math:`m_0` is the
 particle rest mass.
+
 
 
 Energy Kick Model
@@ -148,8 +193,8 @@ The synchrotron radiation framework consists of:
 
 - :class:`~blond.physics.synchrotron_radiation.synchrotron_radiation_elements.SynchrotronRadiationBaseClass`
   -- Abstract base class for all synchrotron radiation elements
-- ``_SynchrotronRadiationDrift`` -- Tracker inserted before drift elements
-- ``_SynchrotronRadiationSection`` -- Tracker inserted after RF cavities
+- ``_SynchrotronRadiationTracker`` -- Tracker inserted before drift elements
+and after RF cavities
 
 **Special Elements**
 
@@ -190,9 +235,9 @@ method performs the following steps:
 
 4. **Create and insert trackers**
 
-   - For drifts: ``_SynchrotronRadiationDrift`` elements are inserted
+   - For drifts: ``_SynchrotronRadiationTracker`` elements are inserted
      **before** each drift
-   - For RF cavities: ``_SynchrotronRadiationSection`` elements are inserted
+   - For RF cavities: ``_SynchrotronRadiationTracker`` elements are inserted
      **after** each cavity
 
 5. **Runtime tracking**
@@ -419,7 +464,7 @@ After running a simulation with synchrotron radiation:
 References
 ----------
 
-- H. Wiedemann, *Synchrotron Radiation*, Springer, 2003
-- S.Y. Lee, *Accelerator Physics*, World Scientific, Third Edition, 2012
-- A. Wolski, *Introduction to Beam Dynamics in High-Energy Electron Storage
+[1] S.Y. Lee, *Accelerator Physics*, World Scientific, Third Edition, 2012
+[2] H. Wiedemann, *Synchrotron Radiation*, Springer, 2003
+[3] A. Wolski, *Introduction to Beam Dynamics in High-Energy Electron Storage
   Rings*, Morgan & Claypool Publishers, 2018
