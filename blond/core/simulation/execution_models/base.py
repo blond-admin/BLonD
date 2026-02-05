@@ -37,9 +37,9 @@ logger = logging.getLogger(__name__)
 class ExecutionModel(ABC):  # pragma: no cover
     """Base class to define execution strategies of a simulation."""
 
-    @staticmethod  # pragma: no cover
     @abstractmethod  # pragma: no cover
     def mainloop(
+        self,
         simulation: Simulation,
         beams: tuple[BeamBaseClass, ...],
         n_turns: int,

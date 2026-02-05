@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 class MainloopCounterRotatingBeams(ExecutionModel):
     """Executor where one beams rotates forward, and the second backwards."""
 
-    @staticmethod
     def mainloop(
+        self,
         simulation: Simulation,
         beams: tuple[BeamBaseClass, ...],
         n_turns: int,

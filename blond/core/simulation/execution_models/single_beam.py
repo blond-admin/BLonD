@@ -39,8 +39,8 @@ logger = logging.getLogger(__name__)
 class MainloopSingleBeam(ExecutionModel):
     """Most basic executor for a single beam."""
 
-    @staticmethod
     def mainloop(
+        self,
         simulation: Simulation,
         beams: tuple[BeamBaseClass, ...],
         n_turns: int,

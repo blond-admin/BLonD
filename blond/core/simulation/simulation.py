@@ -1321,13 +1321,13 @@ class Simulation(Preparable):
                 MainloopSingleBeam,
             )
 
-            self.execution_model = MainloopSingleBeam
+            self.execution_model = MainloopSingleBeam()
         elif len(beams) == 2:  # NOQA: PLR2004
             from blond.core.simulation.execution_models.conterrotating_beams import (
                 MainloopCounterRotatingBeams,
             )
 
-            self.execution_model = MainloopCounterRotatingBeams
+            self.execution_model = MainloopCounterRotatingBeams()
         else:
             raise NotImplementedError(
                 f"Up to two beam supported, but got {len(beams)}"
