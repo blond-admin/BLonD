@@ -17,8 +17,7 @@ from blond.handle_results.observables_as_elements import (
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
-    _SynchrotronRadiationDrift,
-    _SynchrotronRadiationSection,
+    _SynchrotronRadiationTracker,
 )
 
 
@@ -256,21 +255,23 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             self.synchrotron_radiation_integrals
         ) * 10
         calculated_share_SR_int = (
-            SRM._set_share_of_synchrotron_radiation_integrals_drifts(
-                ring=ring, element=drift
+            SRM._get_share_of_synchrotron_radiation_integrals_drifts(
+                ring=ring, drift_list=[drift]
             )
         )
         np.testing.assert_array_equal(
-            calculated_share_SR_int, self.synchrotron_radiation_integrals * 10
+            calculated_share_SR_int[0],
+            self.synchrotron_radiation_integrals * 10,
         )
         drift.radiation_integrals = self.synchrotron_radiation_integrals / 100
         calculated_share_SR_int = (
-            SRM._set_share_of_synchrotron_radiation_integrals_drifts(
-                ring=ring, element=drift
+            SRM._get_share_of_synchrotron_radiation_integrals_drifts(
+                ring=ring, drift_list=[drift]
             )
         )
         np.testing.assert_array_equal(
-            calculated_share_SR_int, self.synchrotron_radiation_integrals / 100
+            calculated_share_SR_int[0],
+            self.synchrotron_radiation_integrals / 100,
         )
 
         drift2 = DriftSimple(
@@ -279,14 +280,17 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             section_index=0,
         )
         calculated_share_SR_int = (
-            SRM._set_share_of_synchrotron_radiation_integrals_drifts(
-                ring=ring, element=drift2
+            SRM._get_share_of_synchrotron_radiation_integrals_drifts(
+                ring=ring, drift_list=[drift, drift2]
             )
         )
 
         np.testing.assert_array_equal(
             calculated_share_SR_int,
-            self.synchrotron_radiation_integrals * 10 / 4,
+            [
+                self.synchrotron_radiation_integrals / 100,
+                self.synchrotron_radiation_integrals * 10 / 4,
+            ],
         )
 
     def test_set_share_of_synchrotron_radiation_integrals_cavities(self):
@@ -307,8 +311,8 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
 
         element_list = [cavity]
         calculated_share_SR_int = (
-            SRM._set_share_of_synchrotron_radiation_integrals_cavities(
-                ring=ring, element_list=element_list
+            SRM._get_share_of_synchrotron_radiation_integrals_cavities(
+                ring=ring, cavity_list=element_list
             )
         )
         np.testing.assert_array_equal(
@@ -324,8 +328,8 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         element_list = [cavity, cavity2]
 
         calculated_share_SR_int = (
-            SRM._set_share_of_synchrotron_radiation_integrals_cavities(
-                ring=ring, element_list=element_list
+            SRM._get_share_of_synchrotron_radiation_integrals_cavities(
+                ring=ring, cavity_list=element_list
             )
         )
         np.testing.assert_array_equal(
@@ -361,7 +365,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         # Check the corrected number of _SynchrotronRadiationDrift trackers
         # have been generated
         SRdrifttracker_list = ring_SRdrifts.elements.get_elements(
-            class_=_SynchrotronRadiationDrift
+            class_=_SynchrotronRadiationTracker
         )
         self.assertEqual(len(SRdrifttracker_list), number_of_sections)
         self.assertEqual(len(SRdrifttracker_list), len(SRM.generated_children))
@@ -373,7 +377,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         for i in range(number_of_sections):
             # Ensures the created trackers are the expected ones, and located
             # before the drifts
-            sr_drift: _SynchrotronRadiationDrift = (
+            sr_drift: _SynchrotronRadiationTracker = (
                 ring_SRdrifts.elements.elements[1 + 2 * i]
             )
             assert sr_drift == SRM.generated_children[i]
@@ -385,7 +389,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 decimal=self.decimal,
             )
             np.testing.assert_array_almost_equal(
-                sr_drift.synchrotron_radiation_integrals_drift,
+                sr_drift.synchrotron_radiation_integrals_tracker,
                 self.synchrotron_radiation_integrals / 5,
                 decimal=self.decimal,
             )
@@ -438,7 +442,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         # Check the corrected number of _SynchrotronRadiationDrift trackers
         # have been generated
         SRsectiontracker_list = ring_SRdrifts.elements.get_elements(
-            class_=_SynchrotronRadiationSection
+            class_=_SynchrotronRadiationTracker
         )
         self.assertEqual(len(SRsectiontracker_list), 1)
         self.assertEqual(
@@ -461,7 +465,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             decimal=self.decimal,
         )
         np.testing.assert_array_almost_equal(
-            sr_drifts.synchrotron_radiation_integrals_section,
+            sr_drifts.synchrotron_radiation_integrals_tracker,
             self.synchrotron_radiation_integrals,
             decimal=self.decimal,
         )
@@ -498,7 +502,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         # Check the corrected number of _SynchrotronRadiationDrift trackers
         # have been generated
         SRsectiontracker_list = ring_SRdrifts.elements.get_elements(
-            class_=_SynchrotronRadiationSection
+            class_=_SynchrotronRadiationTracker
         )
         self.assertEqual(len(SRsectiontracker_list), number_of_sections)
         self.assertEqual(
@@ -528,7 +532,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             np.testing.assert_array_almost_equal(
                 ring_SRdrifts.elements.elements[
                     1 + 3 * i
-                ].synchrotron_radiation_integrals_section,
+                ].synchrotron_radiation_integrals_tracker,
                 self.synchrotron_radiation_integrals / number_of_sections,
                 decimal=self.decimal,
             )
