@@ -49,6 +49,7 @@ __all__ = [
     "BoxLosses",
     "DynamicProfileConstNBins",
     "StaticProfile",
+    "PooledInterpolationKick",
 ]
 from blond.beam_preparation.bigaussian import BiGaussian
 from blond.core.backends.backend import (

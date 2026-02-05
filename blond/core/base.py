@@ -86,6 +86,11 @@ class MainLoopRelevant(Preparable):
     """
     Base class for objects that are relevant for the simulation main loop.
 
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments passed to the parent initializer.
+
     Attributes
     ----------
     each_turn_i
@@ -93,8 +98,8 @@ class MainLoopRelevant(Preparable):
         callable each n-th turn.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.each_turn_i = 1
         self.active = True
 
@@ -440,7 +445,7 @@ class BeamPhysicsRelevant(SimulationElementBase):
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
-        super().__init__(section_index, name)
+        super().__init__(section_index, name, **kwargs)
 
 
 class BeamObservationElement(SimulationElementBase):

@@ -26,6 +26,10 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.experimental.physics.kick_pooling import (
+    PooledInterpolationKick,
+    SupportsPooledInterpolationKickMixIn,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -563,7 +567,9 @@ class RFStationBaseClass(
         return content
 
 
-class SingleHarmonicRFStation(RFStationBaseClass):
+class SingleHarmonicRFStation(
+    RFStationBaseClass, SupportsPooledInterpolationKickMixIn
+):
     r"""
     RF station with only one RF wave for beam interaction.
 
@@ -594,6 +600,13 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         RF station's design phase, in [rad].
     harmonic
         RF station's design harmonic [].
+    delayed_kick
+        The common interface to apply the kick later.
+        `PooledInterpolationKick.track(...)` must be executed elsewhere.
+    delayed_kick_time_axis
+        The time axis along which to interpolate the kick.
+        This impacts the accuracy and range of the RF kick.
+
     **kwargs
         Additional keyword arguments for MRO of fused elements.
 
@@ -626,6 +639,8 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         voltage: float | None = None,
         phi_rf: float | None = None,
         harmonic: float | None = None,
+        delayed_kick: PooledInterpolationKick | None = None,
+        delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
         super().__init__(
@@ -635,6 +650,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
             cavity_feedback=cavity_feedback,
             beam_feedback=beam_feedback,
             name=name,
+            delayed_kick=delayed_kick,
             **kwargs,  # for MRO of fused elements
         )
         self.voltage: float | None = voltage
@@ -642,6 +658,10 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         self.harmonic: float | None = harmonic
         self.delta_phi_rf: float = 0.0
         self.delta_omega_rf: float = 0.0
+
+        if self._delayed_kick is not None:
+            assert delayed_kick_time_axis is not None
+        self._delayed_kick_time_axis = delayed_kick_time_axis
 
     def get_main_harmonic(self) -> float:
         """
@@ -802,15 +822,23 @@ class SingleHarmonicRFStation(RFStationBaseClass):
             reference, beam.is_counter_rotating
         )
         if beam.common_array_size > 0:
-            backend.specials.kick_single_harmonic(
-                dt=beam.read_partial_dt(),
-                dE=beam.write_partial_dE(),
-                voltage=self.voltage,
-                phi_rf=self.phi_rf + self.delta_phi_rf,
-                omega_rf=self._omega_rf + self.delta_omega_rf,
-                charge=beam.particle_type.charge,  #  FIXME
-                acceleration_kick=-reference_energy_change,  # Mind the minus!
-            )
+            if self._delayed_kick is not None:
+                time_axis = self._delayed_kick_time_axis
+                self._delayed_kick.register(
+                    time_axis=time_axis,
+                    voltage=self.voltage_waveform_tmp(time_axis)
+                    - reference_energy_change,
+                )
+            else:
+                backend.specials.kick_single_harmonic(
+                    dt=beam.read_partial_dt(),
+                    dE=beam.write_partial_dE(),
+                    voltage=self.voltage,
+                    phi_rf=self.phi_rf + self.delta_phi_rf,
+                    omega_rf=self._omega_rf + self.delta_omega_rf,
+                    charge=beam.particle_type.charge,  #  FIXME
+                    acceleration_kick=-reference_energy_change,  # Mind the minus!
+                )
 
     def calc_omega(
         self,

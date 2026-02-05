@@ -172,7 +172,7 @@ class Simulation(Preparable):
 
     def profiling(
         self,
-        beams: tuple[BeamBaseClass],
+        beams: BeamBaseClass | tuple[BeamBaseClass],
         profile_n_turns: int | float,
         profile_start_turn_i: int = 0,
         sortby: SortKey = SortKey.CUMULATIVE,
@@ -1051,7 +1051,7 @@ class Simulation(Preparable):
     def run_simulation(
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
-        n_turns: int | None = None,
+        n_turns: int | float | None = None,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,

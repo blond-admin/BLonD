@@ -12,6 +12,7 @@ __all__ = [
     "FilamentationMatcher",
     "SemiEmpiricMatcher",
     "VariNoise",
+    "PooledInterpolationKick",
 ]
 from blond.experimental.beam_preparation.filamentation_matcher import (
     FilamentationMatcher,
@@ -22,3 +23,4 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
 from blond.experimental.cycles.noise_generators.vari_noise import (
     VariNoise,
 )
+from blond.experimental.physics.kick_pooling import PooledInterpolationKick
