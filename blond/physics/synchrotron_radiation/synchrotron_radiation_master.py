@@ -374,8 +374,10 @@ class SynchrotronRadiationMaster(Schedulable):
                 )
             else:
                 shares_of_synchrotron_radiation_integrals.append(
-                    drift.orbit_length / ring.circumference
-                ) * self._synchrotron_radiation_integrals
+                    drift.orbit_length
+                    / ring.circumference
+                    * self._synchrotron_radiation_integrals
+                )
         return shares_of_synchrotron_radiation_integrals
 
     def _get_share_of_synchrotron_radiation_integrals_cavities(
@@ -413,7 +415,6 @@ class SynchrotronRadiationMaster(Schedulable):
                         ]
                     ]
                 )
-                print(section_length_to_consider)
             shares_of_synchrotron_radiation_integrals.append(
                 section_length_to_consider
                 / ring.circumference
