@@ -132,7 +132,7 @@ class LocalFeedback(FeedbackBaseClass):
         self._section_index = self._parent_rf_station.section_index
 
     @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -186,5 +186,5 @@ class GlobalFeedback(FeedbackBaseClass):
         from blond.physics.cavities import RFStationBaseClass
 
         self.cavities = simulation.ring.elements.get_elements(
-            RFStationBaseClass,
+            RFStationBaseClass, recursive=False
         )

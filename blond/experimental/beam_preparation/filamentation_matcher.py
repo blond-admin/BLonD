@@ -6,16 +6,20 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+from __future__ import annotations
 
 from copy import deepcopy
+from typing import TYPE_CHECKING
 
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 
-from blond import BoxLosses, Simulation, backend
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.beam.base import BeamBaseClass
+
+if TYPE_CHECKING:  # pragma: no cover
+    from blond import Simulation
 
 
 class FilamentationMatcher(MatchingRoutine):
@@ -209,6 +213,7 @@ class FilamentationMatcher(MatchingRoutine):
         beam : BeamBaseClass
             Beam instance to be initialized and matched.
         """
+        from blond import BoxLosses, backend
 
         n = int(np.sqrt(self.n_macroparticles))
 

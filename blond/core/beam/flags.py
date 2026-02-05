@@ -6,4 +6,15 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Testing the performance of BLonD."""
+"""Module to define particle flags."""
+
+from enum import IntEnum
+
+
+class BeamFlags(IntEnum):
+    """Flags that define the beam state."""
+
+    # Please mind that the LOST flag is hardcoded in all backends
+    # for loss_box
+    LOST = -500  # by convention with XSuite team.
+    ACTIVE = 1

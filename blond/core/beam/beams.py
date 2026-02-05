@@ -18,7 +18,8 @@ import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.core.backends.mpi_distributed.callables import rms_emittance
-from blond.core.beam.base import BeamBaseClass, BeamFlags
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.flags import BeamFlags
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.generals.distributed.helpers import (
@@ -456,7 +457,7 @@ class Beam(BeamBaseClass):
         dE = self._dE.array_local
         dt = self._dt.array_local
 
-        if is_cupy_array(dE):  # assume dt is the same like `dt`
+        if is_cupy_array(dE):  # assume `dE` is the same like `dt`
             if axis == 0:
                 dt = dt.get()
             elif axis == 1:

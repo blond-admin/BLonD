@@ -6,4 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Functions to define the CERN Proton Synchrotron Booster feedback systems."""
+"""
+Different implementations of main-loops, for example for counter-rotation.
+
+Notes
+-----
+Authors:
+S. Lauber
+L. Thiele
+"""

@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -293,6 +294,16 @@ class BackendBaseClass(ABC):
         self.dot: Callable = None  # type: ignore
         self.percentile: Callable = None  # type: ignore
         self.array_split: Callable = None  # type: ignore
+        self.sign: Callable = None  # type: ignore
+        self.sin: Callable = None  # type: ignore
+        self.cos: Callable = None  # type: ignore
+        self.exp: Callable = None  # type: ignore
+        self.any: Callable = None  # type: ignore
+        self.abs: Callable = None  # type: ignore
+        self.convolve: Callable = None  # type: ignore
+        self.copy: Callable = None  # type: ignore
+        self.ones_like: Callable = None  # type: ignore
+        self.add: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -506,6 +517,16 @@ class NumpyBackend(BackendBaseClass):
         self.dot = np.dot
         self.percentile = np.percentile
         self.array_split = np.array_split
+        self.sign = np.sign
+        self.sin = np.sin
+        self.cos = np.cos
+        self.exp = np.exp
+        self.any = np.any
+        self.abs = np.abs
+        self.convolve = np.convolve
+        self.copy = np.copy
+        self.ones_like = np.ones_like
+        self.add = np.add
 
         self._finalize()
 
@@ -609,7 +630,14 @@ class CupyBackend(BackendBaseClass):
             is_gpu=True,
         )
         import cupy as cp  # type: ignore # import only if needed, which is not always the case
-        from cupyx.scipy.signal import fftconvolve
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                category=FutureWarning,
+                message="cupyx.jit.rawkernel is experimental. The interface can change in the future.",
+            )
+            from cupyx.scipy.signal import fftconvolve
 
         self.array = cp.array
         self.gradient = cp.gradient
@@ -635,6 +663,16 @@ class CupyBackend(BackendBaseClass):
         self.dot = cp.dot
         self.percentile = cp.percentile
         self.array_split = cp.array_split
+        self.sign = cp.sign
+        self.sin = cp.sin
+        self.cos = cp.cos
+        self.exp = cp.exp
+        self.any = cp.any
+        self.abs = cp.abs
+        self.convolve = cp.convolve
+        self.copy = cp.copy
+        self.ones_like = cp.ones_like
+        self.add = cp.add
 
         from blond.core.backends.cuda.callables import CudaSpecials
 

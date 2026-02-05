@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Testing the performance of the BLonD backends."""
+"""Analytical equations for empirical observations."""

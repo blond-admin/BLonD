@@ -172,13 +172,13 @@ class BirksCavityFeedback(LocalFeedback):
         # Sampling time in the model and the number of samples per turn
         self.n_periods_coarse = int(n_periods_coarse)
 
-        self.T_s = (
-            self.n_periods_coarse * 2 * np.pi
-        ) / self._parent_rf_station._omega_rf[self.harmonic_index]
+        self.T_s = (self.n_periods_coarse * 2 * np.pi) / float(
+            self._parent_rf_station._omega_rf[self.harmonic_index]
+        )
         # TODO REMWORK/REMOVE
         t_rev = float(
             (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
-            / self._parent_rf_station._omega_rf[self.harmonic_index]
+            / float(self._parent_rf_station._omega_rf[self.harmonic_index])
         )
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(
@@ -187,13 +187,13 @@ class BirksCavityFeedback(LocalFeedback):
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = (
-            self._parent_rf_station._omega_rf[self.harmonic_index]
+            float(self._parent_rf_station._omega_rf[self.harmonic_index])
             / self.n_periods_coarse
         )
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(
-            self._parent_rf_station._omega_rf[self.harmonic_index]
+            float(self._parent_rf_station._omega_rf[self.harmonic_index])
         )
         self.dT = 0
 
@@ -240,7 +240,7 @@ class BirksCavityFeedback(LocalFeedback):
 
         # Present RF angular frequency
         self.omega_rf = float(
-            self._parent_rf_station._omega_rf[self.harmonic_index]
+            float(self._parent_rf_station._omega_rf[self.harmonic_index])
         )
         t_rev = float(  # TODO REMWORK/REMOVE
             2
@@ -266,8 +266,8 @@ class BirksCavityFeedback(LocalFeedback):
         # Residual part of last turn entering the current turn due to non-integer harmonic number
         self.dT = (
             -(
-                self._parent_rf_station.phi_rf[self.harmonic_index]
-                + self._parent_rf_station.phi_rf[self.harmonic_index]
+                float(self._parent_rf_station.phi_rf[self.harmonic_index])
+                + float(self._parent_rf_station.phi_rf[self.harmonic_index])
             )
             / self.omega_rf
         )
@@ -300,7 +300,7 @@ class BirksCavityFeedback(LocalFeedback):
         for i in range(n_pretrack):
             self.circuit_track(no_beam=True)
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         r"""
         Tracking method of the cavity feedback.
 

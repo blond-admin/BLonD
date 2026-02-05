@@ -16,20 +16,63 @@ Code that is not mature enough to be inside the standard codebase should be deve
 
 ## Project Structure
 
+<!-- Automatically created using `dev_tools/create_tables.py` -->
 ```
-blond/
-├── docs/                    # Sphinx documentation
-├── blond/                    # Core Python package
-├──── experimental/           # Untested/unstable code
-├──── legacy/                 # The recent version of BLonD 2
-├── integrationtests/         # Long-running integration tests
-├── legacy/                   # Legacy scripts from BLonD 2
-├── unittests/                # Fast-running unit tests
-├── .gitlab-ci.yml            # GitLab CI configuration
-├── .pre-commit-config.yaml   # Pre-commit hook definitions
-├── MANIFEST.in               # Package include/exclude rules
-├── pyproject.toml            # Project configuration for pip
-└── setup.py                  # Build script for installation
+blond/                        BLonD beam dynamics software.
+├── acc_math/                 Analytical equations.
+├──── analytic/               Analytical equations for theoretic descriptions.
+├──── empiric/                Analytical equations for empirical observations.
+├── beam_preparation/         Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
+├── cycles/                   Module to manage and describe the ramp of the magnets and other cycles.
+├──── noise_generators/       Module for noise generators.
+├── examples/                 Overview of BLonD input files as a starting point for new simulations..
+├── experimental/             Untested/unstable code that might be changed in the future.
+├──── acc_math/               Helpers for math to deal with the output of simulations.
+├────── empiric/              Helpers for math to deal with the output of simulations.
+├──── beam_preparation/       Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
+├──── physics/                Implementations to handle different beam physics processes,
+├────── feedbacks/            Module to manage and describe the longitudinal feedbacks.
+├──────── accelerators/       Feedback implementations for specific accelerators.
+├────────── lhc/              Functions to define the CERN Large Hadron Collider feedback systems.
+├────────── sps/              Utility functions to define feedbacks for the CERN synchrotrons.
+├────────── psb/              Functions to define the CERN Proton Synchrotron Booster feedback systems.
+├──── cycles/                 Module to manage and describe the ramp of the magnets and other cycles.
+├────── noise_generators/     Collection of functions to generate noise.
+├── handle_results/           Helper functions and detailed implementations to define :class:`blond.handle_results.observables.Observables`.
+├── legacy/                   Access point for the legacy blond version, use ``from blond.legacy import blond2``.
+├── physics/                  Implementations to handle different beam physics processes, like RF-Stations.
+├──── impedances/             Module to handle the interaction of impedance sources with the beam.
+├──── feedbacks/              Module to manage and describe the longitudinal feedbacks.
+├── testing/                  Utilities for testing of BLonD.
+├── specifics/                Utility functions for specific accelerators.
+├──── cern/                   Utility functions for CERN synchrotrons.
+├────── lhc/                  Utility functions for the CERN Large Hadron Collider.
+├────── ps/                   Utility functions for the CERN Proton Synchrotron.
+├────── psb/                  Utility functions for the CERN Proton Synchrotron Booster.
+├────── sps/                  Utility functions for the CERN Super Proton Synchrotron.
+├──── muon_collider/          Helper scripts for the muon collider.
+├── interfaces/               Managing access to other (optional) beam physics software, like XSuite.
+├──── xsuite/                 Glue code for XSuite.
+├────── beam_preparation/     Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
+├────── physics/              Beam physics classes for interfacing XSuite.
+├── generals/                 Function definitions that are useful outside the beam physics context.
+├──── cupy/                   Scripts that are useful to work with Cupy.
+├──── distributed/            Helper module to work with CPU/GPU arrays distributed via MPI.
+├── core/                     Core functionalities that define BLonD and its runtime.
+├──── backends/               All helper functions and implementations for the numeric backends of BLonD.
+├────── cpp/                  Holds `CppSpecials` and helper functions.
+├────── cuda/                 Holds `CduaSpecials` and helper functions.
+├────── fortran/              Holds `FortranSpecials` and helper functions.
+├────── numba/                Holds `NumbaSpecials` and helper functions.
+├────── python/               Holds `PythonSpecials` and helper functions.
+├────── mpi_distributed/      Functions to interface with MPI distributed arrays.
+├──── beam/                   Core classes and routines related to the Beam objects.
+├──── ring/                   Methods related to the `Ring` class.
+├──── simulation/             Definitions related to assembling a `Simulation`.
+├────── execution_models/     Different implementations of main-loops, for example for counter-rotation.
+├──── reference_clock/        Helper class that holds the reference to the beam coordinate system.
+├── performance_blond3/       Testing the performance of BLonD.
+├──── backends/               Testing the performance of the BLonD backends.
 ```
 
 ---
@@ -147,7 +190,8 @@ python3 -m pytest -m "not backend_mutation"  -v unittests/
 
 The tests with distributed computing (MPI) can be executed via
 ```bash
- mpirun -n 2 python3 -m pytest -v unittests/ -m "mpi"
+export MPLBACKEND=Agg  # Prevent matplotlib deadlock
+mpirun -n 2 python3 -m pytest -v unittests/ -m "mpi"
 ```
 
 ---
@@ -230,10 +274,7 @@ The [GitLab CI Pipeline](.gitlab-ci.yml) is configured for an automatic release 
 - Build/updates the **documentation** hosted at [BLonD Documentation Website](https://blond-code.docs.cern.ch/)
   - The linking between the GitLab project and the website can be adjusted in the [GitLab project settings](https://gitlab.cern.ch/blond/BLonD/pages#domains-settings)
 
----
 
-Here is a clean, ready-to-use version of that section tailored for a **CONTRIBUTING.md** file.
-(If you want it longer, shorter, or formatted differently, just tell me!)
 
 ---
 

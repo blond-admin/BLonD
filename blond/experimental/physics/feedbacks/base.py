@@ -57,7 +57,7 @@ class LocalFeedback(FeedbackBaseClass):
         self._parent_rf_station = rf_station
 
     @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop
 
@@ -97,7 +97,7 @@ class GlobalFeedback(FeedbackBaseClass):
             `Simulation` context manager
         """
         self.cavities = simulation.ring.elements.get_elements(
-            SingleHarmonicRFStation
+            SingleHarmonicRFStation, recursive=False
         )
 
 

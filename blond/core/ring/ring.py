@@ -178,12 +178,14 @@ class Ring(Preparable):
         from blond import DriftSimple  # prevent cyclic import
 
         gammas = [
-            e.transition_gamma for e in self.elements.get_elements(DriftSimple)
+            e.transition_gamma
+            for e in self.elements.get_elements(DriftSimple, recursive=False)
         ]
         weights = [
-            e.orbit_length for e in self.elements.get_elements(DriftSimple)
+            e.orbit_length
+            for e in self.elements.get_elements(DriftSimple, recursive=False)
         ]
-        # todo not only simple dirft
+        # todo not only simple drift
         transition_gamma_average = complex(np.average(gammas, weights=weights))
         return transition_gamma_average
 
@@ -214,7 +216,7 @@ class Ring(Preparable):
             DriftBaseClass,  # prevent circular import
         )
 
-        drifts = self.elements.get_elements(DriftBaseClass)
+        drifts = self.elements.get_elements(DriftBaseClass, recursive=False)
         weights = [d.orbit_length for d in drifts]
         etas = [d.eta_0(gamma) for d in drifts]
         return float(
@@ -245,7 +247,7 @@ class Ring(Preparable):
 
         See Also
         --------
-        average_transition_gamma : This method is interlnally used.
+        average_transition_gamma : This method is internally used.
         """
         return bool(self.calc_average_eta_0(gamma=beam.reference.gamma) < 0)
 
@@ -293,7 +295,9 @@ class Ring(Preparable):
         """
         from blond.physics.drifts import DriftBaseClass
 
-        all_drifts = self.elements.get_elements(DriftBaseClass)
+        all_drifts = self.elements.get_elements(
+            DriftBaseClass, recursive=False
+        )
         orbit_length = float(sum([drift.orbit_length for drift in all_drifts]))
         return orbit_length
 
