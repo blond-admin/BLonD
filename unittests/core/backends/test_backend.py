@@ -918,7 +918,13 @@ class TestSpecials(unittest.TestCase):
             self.assertIsInstance(cast, backend.ndarray)
             np.testing.assert_array_equal(cast, target)
 
-        for in_dtype in (np.int32, np.int64, np.float64, np.complex128):
+        for in_dtype in (
+            np.int32,
+            np.int64,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
             cast = backend.cast_arr_float_if_needed(target.astype(in_dtype))
             self.assertTrue(cast.dtype == backend.float)
             self.assertIsInstance(cast, backend.ndarray)
@@ -951,7 +957,13 @@ class TestSpecials(unittest.TestCase):
                 cast = cast.get()
                 target = target.get()
             np.testing.assert_array_equal(cast, target)
-        for in_dtype in (np.int32, np.int64, np.float64, np.complex128):
+        for in_dtype in (
+            np.int32,
+            np.int64,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
             # Recreate the target for each loop, avoids issues with
             # transferring back and forth between cupy and numpy.
             target = backend.array([1, 2, 3], dtype=backend.float)
@@ -984,7 +996,13 @@ class TestSpecials(unittest.TestCase):
             self.assertIsInstance(cast, backend.ndarray)
             np.testing.assert_array_equal(cast, target)
 
-        for in_dtype in (np.int32, np.int64, np.float64, np.complex256):
+        for in_dtype in (
+            np.int32,
+            np.int64,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
             cast = backend.cast_arr_complex_if_needed(target.astype(in_dtype))
             self.assertTrue(cast.dtype == backend.complex)
             self.assertIsInstance(cast, backend.ndarray)
@@ -1017,7 +1035,13 @@ class TestSpecials(unittest.TestCase):
                 cast = cast.get()
                 target = target.get()
             np.testing.assert_array_equal(cast, target)
-        for in_dtype in (np.int32, np.int64, np.float64, np.complex128):
+        for in_dtype in (
+            np.int32,
+            np.int64,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
             # Recreate the target for each loop, avoids issues with
             # transferring back and forth between cupy and numpy.
             target = backend.array([1, 2, 3], dtype=backend.complex)
