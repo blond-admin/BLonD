@@ -14,6 +14,7 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     proton,
 )
 from blond.physics.impedances.solvers import (
@@ -55,7 +56,7 @@ class TestInductiveImpedances(unittest.TestCase):
             drift = DriftSimple(
                 orbit_length=ring.circumference,
             )
-            drift.transition_gamma = 4.4
+            drift.momentum_compaction_factor = momentum_compaction_factor(4.4)
             cavity = SingleHarmonicRFStation()
             cavity.harmonic = 1
             cavity.voltage = 8e3

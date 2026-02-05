@@ -25,6 +25,7 @@ from blond import (
     StaticProfile,
     WakeField,
     backend,
+    momentum_compaction_factor,
     proton,
 )
 from blond.physics.impedances.solvers import (
@@ -55,7 +56,9 @@ class ExampleSimulation01:
         drift1 = DriftSimple(
             orbit_length=26658.883,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.momentum_compaction_factor = momentum_compaction_factor(
+            transition_gamma=55.759505
+        )
 
         beam1 = Beam(intensity=1e9, particle_type=proton)
         self.beam1 = beam1
@@ -142,16 +145,17 @@ class SimulationTwoRFStations:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
+        momentum_compaction_factor_ = momentum_compaction_factor(
+            transition_gamma=(
+                855.759505 if below_transition_crossing else 55.759505
+            )
         )
+        drift1.momentum_compaction_factor = momentum_compaction_factor_
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
-        )
+        drift2.momentum_compaction_factor = momentum_compaction_factor_
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,
@@ -214,16 +218,17 @@ class SimulationTwoRFStationsWithWake:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
+        momentum_compaction_factor_ = momentum_compaction_factor(
+            transition_gamma=(
+                855.759505 if below_transition_crossing else 55.759505
+            )
         )
+        drift1.momentum_compaction_factor = momentum_compaction_factor_
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
-        )
+        drift2.momentum_compaction_factor = momentum_compaction_factor_
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,

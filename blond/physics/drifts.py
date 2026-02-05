@@ -11,10 +11,11 @@
 from __future__ import annotations
 
 import abc
-import cmath
 from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
+
+import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.core.base import (
@@ -34,7 +35,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
 
 
-def _assert_purely_real_or_imaginary(val: complex):
+def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
     """
     Assert that a complex number is purely real or purely imaginary.
 
@@ -62,7 +63,7 @@ def _assert_purely_real_or_imaginary(val: complex):
         ...
     AssertionError: Expected number with only real or only imaginary part, not (2+4j)
     """
-    if val.real != 0 and val.imag != 0:
+    if np.all(val.real != 0) and np.all(val.imag != 0):
         raise ValueError(
             f"Expected purely real or purely imaginary number, not {val}."
         )
@@ -169,8 +170,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         Length of drift, in [m].
     section_index
         Section index to group elements into sections.
-    transition_gamma
-        Gamma of transition crossing.
     momentum_compaction_factor
         Momentum compaction factor.
     **kwargs
@@ -181,7 +180,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self,
         orbit_length: float,
         section_index: int = 0,
-        transition_gamma: complex | float | None = None,
         momentum_compaction_factor: float | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
@@ -195,8 +193,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Length / Velocity => Time to pass the element.
         section_index
             Section index to group elements into sections.
-        transition_gamma
-            Gamma of transition crossing.
         momentum_compaction_factor
             Momentum compaction factor.
         **kwargs
@@ -216,89 +212,15 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             **kwargs,  # for MRO of fused elements
         )
 
-        self._transition_gamma: complex | None = None
-        self._momentum_compaction_factor: float | None = None
-
         self._simulation: Simulation | None = None
 
-        match (momentum_compaction_factor, transition_gamma):
-            case (None, None):
-                pass
-            case (None, _):
-                self.transition_gamma = transition_gamma
-            case (_, None):
-                self.momentum_compaction_factor = momentum_compaction_factor
-            case (_, _):
-                raise ValueError(
-                    "Got `momentum_compaction_factor` and "
-                    "`transition_gamma` as argument. "
-                    "Please provide only one of them."
-                )
-
-    @property  # read only, set by `transition_gamma`
-    def momentum_compaction_factor(self) -> float | None:
-        """
-        Momentum compaction factor.
-
-        Returns
-        -------
-        momentum_compaction_factor
-            Momentum compaction factor.
-        """
-        return self._momentum_compaction_factor
-
-    @momentum_compaction_factor.setter  # read only, set by `transition_gamma`
-    def momentum_compaction_factor(
-        self, momentum_compaction_factor: float
-    ) -> None:
-        """
-        Momentum compaction factor.
-
-        Parameters
-        ----------
-        momentum_compaction_factor
-            Momentum compaction factor.
-        """
-        self._momentum_compaction_factor = momentum_compaction_factor
-        self._transition_gamma = 1 / cmath.sqrt(momentum_compaction_factor)
-
-    @property
-    def transition_gamma(self) -> complex | None:
-        """
-        Gamma of transition crossing.
-
-        Returns
-        -------
-        transition_gamma
-            Gamma of transition crossing.
-        """
-        return self._transition_gamma
-
-    @transition_gamma.setter
-    def transition_gamma(self, transition_gamma: complex) -> None:
-        """
-        Gamma of transition crossing.
-
-        Parameters
-        ----------
-        transition_gamma
-            Gamma of transition crossing.
-        """
-        _assert_purely_real_or_imaginary(transition_gamma)
-
-        _momentum_compaction_factor = 1.0 / (
-            transition_gamma * transition_gamma
+        self.momentum_compaction_factor: float | None = (
+            momentum_compaction_factor
         )
-
-        # .real is only possible, because we asserted that the momentum
-        # compaction factor is entirely real or complex.
-        self._momentum_compaction_factor = _momentum_compaction_factor.real
-
-        self._transition_gamma = complex(transition_gamma)
 
     @staticmethod
     def headless(
-        transition_gamma: complex | NumpyArray | tuple[NumpyArray, NumpyArray],
+        momentum_compaction_factor: NumpyArray | tuple[NumpyArray, NumpyArray],
         orbit_length: float,
         section_index: int = 0,
     ) -> DriftSimple:
@@ -307,7 +229,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
         Parameters
         ----------
-        transition_gamma
+        momentum_compaction_factor
             Gamma of transition crossing.
         orbit_length
             Length of drift, in [m].
@@ -326,10 +248,12 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             orbit_length=orbit_length,
             section_index=section_index,
         )
-        if isinstance(transition_gamma, complex | int | float):
-            d.transition_gamma = complex(transition_gamma)
+        if isinstance(momentum_compaction_factor, int | float):
+            d.momentum_compaction_factor = float(momentum_compaction_factor)
         else:
-            d.schedule("transition_gamma", transition_gamma)
+            d.schedule(
+                "momentum_compaction_factor", momentum_compaction_factor
+            )
         from blond.core.beam.base import BeamBaseClass
         from blond.core.simulation.simulation import Simulation
 
@@ -356,11 +280,11 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
         if (
-            self.transition_gamma is None
-        ) and "transition_gamma" not in self.schedules:
+            self.momentum_compaction_factor is None
+        ) and "momentum_compaction_factor" not in self.schedules:
             raise ValueError(
-                "You need to define `transition_gamma` via `.transition_gamma=...` "
-                "or `.schedule(attribute='transition_gamma', value=...)`"
+                "You need to define `momentum_compaction_factor` via `.momentum_compaction_factor=...` "
+                "or `.schedule(attribute='momentum_compaction_factor', value=...)`"
             )
 
     def track(self, beam: BeamBaseClass) -> None:

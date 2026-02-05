@@ -10,6 +10,7 @@ from blond import (
     Ring,
     Simulation,
     StaticProfile,
+    momentum_compaction_factor,
     proton,
 )
 from blond.experimental.physics.feedbacks.accelerators.lhc.cavity_feedback import (
@@ -53,7 +54,9 @@ class TestLHCOpenDrive(unittest.TestCase):
             n_drifts_per_section=1,
             n_sections=1,
             driftclass=DriftSimple,
-            transition_gamma=gamma_t,
+            momentum_compaction_factor=momentum_compaction_factor(
+                transition_gamma=gamma_t
+            ),
         )
         # beam = Beam(ring, N_p, N_b)
         beam = Beam(

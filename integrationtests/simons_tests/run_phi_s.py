@@ -59,7 +59,7 @@ def main():
                 orbit_length=ring.circumference,
                 momentum_compaction_factor=momentum_compaction_factor,
             )
-            print(f"{drift.transition_gamma=}")
+            print(f"{ring.global_transition_gamma=}")
             print(f"{drift.momentum_compaction_factor=}")
             print(f"{drift.eta_0(beam.reference.gamma)=}")
 

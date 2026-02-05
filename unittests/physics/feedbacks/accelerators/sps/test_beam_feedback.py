@@ -19,6 +19,7 @@ from blond import (
     Ring,
     Simulation,
     StaticProfile,
+    momentum_compaction_factor,
     proton,
 )
 from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
@@ -163,7 +164,9 @@ class TestBeamFeedback(unittest.TestCase):
         self.ring.add_drifts(
             n_sections=1,
             n_drifts_per_section=1,
-            transition_gamma=gamma_transition,
+            momentum_compaction_factor=momentum_compaction_factor(
+                transition_gamma=gamma_transition
+            ),
         )
         self.ring.add_element(self.profile)
 

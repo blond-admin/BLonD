@@ -18,6 +18,7 @@ from blond import (
     SingleHarmonicRFStation,
     WakeField,
     backend,
+    momentum_compaction_factor,
     mu_plus,
     proton,
 )
@@ -59,7 +60,9 @@ class TestSimulation(unittest.TestCase):
         drift1 = DriftSimple(
             orbit_length=26658.883,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.momentum_compaction_factor = momentum_compaction_factor(
+            transition_gamma=55.759505
+        )
 
         beam1 = Beam(intensity=1e9, particle_type=proton)
         beam1.setup_beam(
@@ -116,7 +119,7 @@ class TestSimulation(unittest.TestCase):
             reference_particle=mu_plus,
         )
         harmonic = 25900
-        transition_gamma = 1 / np.sqrt(11.4e-4)
+        momentum_compaction_factor_ = 11.4e-4
         bunch_observation = BunchObservationMetaParams(
             each_turn_i=1, beam=beam
         )
@@ -129,7 +132,7 @@ class TestSimulation(unittest.TestCase):
             one_turn_model.extend(
                 [
                     DriftSimple(  # for symmetry's sake for the CR bunch, we need to inject in the middle of a drift
-                        transition_gamma=transition_gamma,
+                        momentum_compaction_factor=momentum_compaction_factor_,
                         orbit_length=circumference / n_cavities / 2,
                         section_index=cavity_i,
                     ),
@@ -142,7 +145,7 @@ class TestSimulation(unittest.TestCase):
                     ),
                     bunch_observation,
                     DriftSimple(
-                        transition_gamma=transition_gamma,
+                        momentum_compaction_factor=momentum_compaction_factor_,
                         orbit_length=circumference / n_cavities / 2,
                         section_index=cavity_i,
                     ),
@@ -492,7 +495,9 @@ class TestSimulation(unittest.TestCase):
         drift1 = DriftSimple(
             orbit_length=26658.883,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.momentum_compaction_factor = momentum_compaction_factor(
+            transition_gamma=55.759505
+        )
 
         beam1 = Beam(intensity=1e9, particle_type=proton)
         beam1.setup_beam(
@@ -644,6 +649,10 @@ class TestSimulation(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_compare_cpu_gpu(self):
+        try:
+            import cupy as cp  # type: ignore
+        except ModuleNotFoundError:
+            self.skipTest("Cupy not available")
         DEV_DEBUG = False
         results = []
         for i, backend_type in enumerate((Cupy32Bit, Numpy32Bit)):

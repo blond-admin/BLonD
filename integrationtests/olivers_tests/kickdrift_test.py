@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
+from blond import momentum_compaction_factor
+
 
 # noqa
 def main():  # noqa
@@ -23,6 +25,9 @@ def main():  # noqa
     profile_blond3 = False
     phi_rf = np.genfromtxt("phase.txt", delimiter=",")
     transition_gamma = np.genfromtxt("gamma.txt", delimiter=",")
+    momentum_compaction_factor_ = momentum_compaction_factor(
+        transition_gamma=transition_gamma
+    )
     momentum = np.genfromtxt("momentum.txt", delimiter=",")
 
     N_TURNS = len(momentum) - 1
@@ -86,8 +91,8 @@ def main():  # noqa
         orbit_length=CIRCUMFERENCE,
     )
     drift1.schedule(
-        "transition_gamma",
-        transition_gamma[1:].copy(),
+        "momentum_compaction_factor",
+        momentum_compaction_factor_[1:].copy(),
     )
 
     beam1 = Beam(intensity=INTENSITY, particle_type=proton)

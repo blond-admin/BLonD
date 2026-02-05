@@ -49,7 +49,10 @@ __all__ = [
     "BoxLosses",
     "DynamicProfileConstNBins",
     "StaticProfile",
+    "momentum_compaction_factor",
 ]
+
+from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
 from blond.core.backends.backend import (
     Cupy32Bit,

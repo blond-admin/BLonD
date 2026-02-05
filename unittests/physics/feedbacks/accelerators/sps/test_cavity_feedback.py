@@ -15,6 +15,7 @@ from blond import (
     Ring,
     Simulation,
     StaticProfile,
+    momentum_compaction_factor,
     proton,
 )
 from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
@@ -139,7 +140,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             n_drifts_per_section=1,
             n_sections=1,
             driftclass=DriftSimple,
-            transition_gamma=18.0,
+            momentum_compaction_factor=momentum_compaction_factor(18.0),
         )
         magnetic_cycle = ConstantMagneticCycle(
             reference_particle=proton,
@@ -771,7 +772,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             n_drifts_per_section=1,
             n_sections=1,
             driftclass=DriftSimple,
-            transition_gamma=gamma_t,
+            momentum_compaction_factor=momentum_compaction_factor(gamma_t),
         )
         sim = Simulation(ring=self.ring, magnetic_cycle=self.magnetic_cycle)
 
@@ -1108,7 +1109,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
         self.rf = cavity
         drift = DriftSimple(
             orbit_length=2 * np.pi * 1100.009,
-            transition_gamma=18.0,
+            momentum_compaction_factor=momentum_compaction_factor(18.0),
         )
 
         self.ring.add_element(cavity)

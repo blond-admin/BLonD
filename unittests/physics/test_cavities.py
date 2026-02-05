@@ -367,7 +367,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         self.multi_harmonic_cavity.info_string()  # just hope it executes.
 
 
-class TestSingleHarmonicCavity(unittest.TestCase):
+class TestSingleHarmonicRFStation(unittest.TestCase):
     def setUp(self) -> None:
         from blond.core.beam.base import BeamBaseClass
 

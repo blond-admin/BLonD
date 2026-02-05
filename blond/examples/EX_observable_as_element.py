@@ -21,6 +21,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    momentum_compaction_factor,
     proton,
 )
 from blond.handle_results.helpers import callers_relative_path
@@ -52,7 +53,9 @@ def main():
     drift1 = DriftSimple(
         orbit_length=26658.883,
     )
-    drift1.transition_gamma = 55.759505
+    drift1.momentum_compaction_factor = momentum_compaction_factor(
+        transition_gamma=55.759505
+    )
     beam1 = Beam(
         intensity=1e9,
         particle_type=proton,

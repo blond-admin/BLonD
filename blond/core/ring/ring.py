@@ -10,9 +10,9 @@
 
 from __future__ import annotations
 
+import cmath
 import copy
 import warnings
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -155,19 +155,15 @@ class Ring(Preparable):
         """
         return self._circumference
 
-    @cached_property
-    def average_transition_gamma(self) -> complex:
+    @property
+    def average_momentum_compaction_factor(self) -> float:
         """
-        Calculate the orbit-length weighted average transition gamma.
-
-        The transition gamma is the Lorentz factor at which particles cross from
-        below to above transition energy. This property computes a weighted average
-        based on the drift sections in the ring.
+        Calculate the orbit-length weighted average momentum compaction factor.
 
         Returns
         -------
-        average_transition_gamma
-            The weighted average transition gamma (dimensionless).
+        average_momentum_compaction_factor
+            The weighted average momentum compaction factor (dimensionless).
 
         Notes
         -----
@@ -177,17 +173,32 @@ class Ring(Preparable):
         """
         from blond import DriftSimple  # prevent cyclic import
 
-        gammas = [
-            e.transition_gamma
-            for e in self.elements.get_elements(DriftSimple, recursive=False)
+        drifts = self.elements.get_elements(DriftSimple, recursive=False)
+        momentum_compaction_factors = [
+            e.momentum_compaction_factor for e in drifts
         ]
-        weights = [
-            e.orbit_length
-            for e in self.elements.get_elements(DriftSimple, recursive=False)
-        ]
+        weights = [e.orbit_length for e in drifts]
         # todo not only simple drift
-        transition_gamma_average = complex(np.average(gammas, weights=weights))
-        return transition_gamma_average
+        average_momentum_compaction_factor_ = float(
+            np.average(
+                momentum_compaction_factors,
+                weights=weights,
+            )
+        )
+        return average_momentum_compaction_factor_
+
+    @property
+    def global_transition_gamma(self) -> complex:
+        """
+        The overall transition gamma, taking into account all drifts.
+
+        Returns
+        -------
+        global_transition_gamma
+            The overall transition gamma, taking into account all drifts.
+        """
+        momentum_compaction_factor = self.average_momentum_compaction_factor
+        return 1 / cmath.sqrt(momentum_compaction_factor)
 
     def calc_average_eta_0(self, gamma: float) -> float:
         """
@@ -247,7 +258,7 @@ class Ring(Preparable):
 
         See Also
         --------
-        average_transition_gamma : This method is internally used.
+        average_momentum_compaction_factor : This method is internally used.
         """
         return bool(self.calc_average_eta_0(gamma=beam.reference.gamma) < 0)
 
@@ -382,7 +393,7 @@ class Ring(Preparable):
             The drift class to instantiate. If None, uses `DriftSimple`.
         **kwargs_drift
             Additional keyword arguments passed to the drift constructor
-            (e.g., `transition_gamma`, `bending_radius`).
+            (e.g., `momentum_compaction_factor`, `bending_radius`).
 
         Examples
         --------

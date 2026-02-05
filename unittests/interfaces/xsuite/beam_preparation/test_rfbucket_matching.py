@@ -39,7 +39,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
         )
 
         drift = self.example.simulation.ring.elements.get_element(DriftSimple)
-        drift._transition_gamma = None
+        drift.momentum_compaction_factor = None
 
         with self.assertRaises(ValueError):
             simulation.prepare_beam(

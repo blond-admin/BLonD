@@ -32,6 +32,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    momentum_compaction_factor,
     proton,
 )
 from blond.experimental import VariNoise
@@ -61,7 +62,9 @@ def main():
     # losses = BoxLosses(t_min=0, t_max=2.5e-9) # TODO implement
     # losses2 = SeparatrixLosses()# TODO implement
     drift = DriftSimple(
-        transition_gamma=55.759505,
+        momentum_compaction_factor=momentum_compaction_factor(
+            transition_gamma=55.759505
+        ),
         orbit_length=ring.circumference,
     )
     sim = Simulation.from_locals(locals())
