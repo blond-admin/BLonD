@@ -72,8 +72,4 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                 charge=beam.particle_type.charge,
                 acceleration_kick=0.0,
             )
-        self._set_buffer_zero()
-
-    def _set_buffer_zero(self):
-        for key in self.buffer_energy_change.keys():
-            self.buffer_energy_change[key][:] = 0.0
+            self.buffer_energy_change[key][:] = 0  # consume buffer
