@@ -25,7 +25,7 @@ class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
     def __init__(self, section_index: int = 0, name: str | None = None):
         super().__init__(section_index=section_index, name=name)
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -108,7 +108,7 @@ class BeamObservationElementTester(BeamObservationElement):
     def __init__(self, section_index: int = 0, name: str | None = None):
         super().__init__(section_index=section_index, name=name)
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:

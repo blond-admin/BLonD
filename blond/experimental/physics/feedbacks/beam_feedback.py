@@ -50,7 +50,7 @@ class GeneralBeamFeedback(LocalFeedback):
         # shift the RF station phase or so
         pass
 
-    def track(self, beam: BeamBaseClass):
+    def _track(self, beam: BeamBaseClass):
         self.get_beam_attribute(  # could be mean energy, mean phase or whatever
             beam=beam,
         )

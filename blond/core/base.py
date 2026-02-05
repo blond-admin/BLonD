@@ -32,6 +32,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.simulation.simulation import Simulation
     from blond.generals.protocols import AnyInterpolator
+    from blond.handle_results.observables import ObservablesOncePerTurnBase
 
     T = TypeVar("T")
 
@@ -285,6 +286,26 @@ class SimulationElementBase(MainLoopRelevant, ABC):
                 else f"Unnamed-{type(self).__name__}"
             )
         self.name = name
+        self.observables: dict[
+            int, ObservablesOncePerTurnBase
+        ] = {}  # one observable per beam id
+
+    def add_observable(
+        self, beam: BeamBaseClass, observable: ObservablesOncePerTurnBase
+    ) -> None:
+        """
+        Add the observable to the self.observables dict at the id of the beam.
+
+        Parameters
+        ----------
+        beam
+            Beam, which should be tracked by this observable.
+        observable
+            Observable to be added to the list.
+        """
+        if id(beam) in self.observables:
+            raise ValueError(f"Observable for {id(beam)=} already set.")
+        self.observables[id(beam)] = observable
 
     @property  # as readonly attributes
     def section_index(self) -> int:
@@ -364,7 +385,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         return content
 
     @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Apply the element's physics effect to the beam.
 
@@ -374,6 +395,23 @@ class SimulationElementBase(MainLoopRelevant, ABC):
             The beam object whose state will be updated by this element.
         """
         pass
+
+    def track(self, beam: BeamBaseClass) -> None:
+        """
+        Check if the element is active this turn and then call _track.
+
+        Additionally, if any observables are attached to this element via
+        self.observables, they will be called.
+
+        Parameters
+        ----------
+        beam
+            The beam object whose state will be updated by this element.
+        """
+        if self.active:
+            self._track(beam=beam)
+        if id(beam) in self.observables:
+            self.observables[id(beam)].update()
 
 
 class BeamPhysicsRelevant(SimulationElementBase):
@@ -446,7 +484,7 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
     ...     def __init__(self):
     ...         super().__init__()
     ...
-    ...     def track(self, beam: BeamBaseClass):
+    ...     def _track(self, beam: BeamBaseClass):
     ...         dt = beam.write_partial_dt()
     ...         dt += backend.random.rand(len(dt))
     """
