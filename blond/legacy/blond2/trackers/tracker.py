@@ -583,12 +583,6 @@ class RingAndRFTracker:
         # Total phase offset
         self.rf_params.phi_rf[:, turn + 1] += self.rf_params.dphi_rf
 
-        # Correction from cavity loop
-        if self.cavityFB is not None:
-            for feedback in self.cavityFB:
-                if feedback is not None:
-                    feedback.track()
-
         if self.periodicity:
             if hasattr(self, "_device") and self._device == "GPU":
                 self._kickdrift_considering_periodicity_gpu(turn)
