@@ -514,7 +514,7 @@ class BackendBaseClass(ABC):
                         "Casting complex values to real discards the imaginary part"
                     )
                     arr = arr.real.astype(dtype)
-                else:
+                else:  # pragma: no cover
                     raise
 
         return arr
