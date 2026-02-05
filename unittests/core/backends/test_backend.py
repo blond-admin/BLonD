@@ -458,7 +458,7 @@ class TestSpecials(unittest.TestCase):
                 voltage = bin_centers**2
                 charge = backend.float(10)
                 acceleration_kick = backend.float(0.5)
-                backend.specials.kick_induced_voltage(
+                backend.specials.change_dE_interpolated(
                     dt=dt,
                     dE=dE,
                     voltage=voltage,

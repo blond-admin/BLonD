@@ -492,7 +492,7 @@ class WakeField(ImpedanceBaseClass):
             self.profile.track(beam=beam)
         induced_voltage = self.calc_induced_voltage(beam=beam)
         assert (induced_voltage).dtype == backend.float
-        backend.specials.kick_induced_voltage(
+        backend.specials.change_dE_interpolated(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
             # TODO improve induced_voltage calculation data type for speedup

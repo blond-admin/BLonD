@@ -267,7 +267,7 @@ def reload_cuda_backend(  # NOQA: D102
             raise NotImplementedError()
 
         @staticmethod
-        def kick_induced_voltage(
+        def change_dE_interpolated(
             dt: CupyArray,
             dE: CupyArray,
             voltage: CupyArray,

@@ -432,7 +432,7 @@ def reload_fortran_backend(  # NOQA: D102
                 )
 
         @staticmethod
-        def kick_induced_voltage(
+        def change_dE_interpolated(
             dt: NumpyArray,
             dE: NumpyArray,
             voltage: NumpyArray,

@@ -127,7 +127,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def kick_induced_voltage(  # NOQA: D102
+    def change_dE_interpolated(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,

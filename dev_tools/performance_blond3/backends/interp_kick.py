@@ -31,9 +31,9 @@ def main():  # pragma: no cover
     NumbaSpecials = recompile_numba_backend(backend.float)
 
     functions = (
-        NumbaSpecials().kick_induced_voltage,
-        CppSpecials().kick_induced_voltage,
-        FortranSpecials().kick_induced_voltage,
+        NumbaSpecials().change_dE_interpolated,
+        CppSpecials().change_dE_interpolated,
+        FortranSpecials().change_dE_interpolated,
     )
     runtimes = {}
     for kick_induced_voltage in functions:
