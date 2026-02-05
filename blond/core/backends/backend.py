@@ -16,6 +16,9 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
+from numpy.exceptions import ComplexWarning
+
+from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -23,6 +26,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import TYPE_CHECKING, Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
 DEFAULT_BACKEND = "python"
@@ -304,6 +308,9 @@ class BackendBaseClass(ABC):
         self.copy: Callable = None  # type: ignore
         self.ones_like: Callable = None  # type: ignore
         self.add: Callable = None  # type: ignore
+        self.concatenate: Callable = None  # type: ignore
+        self.unique: Callable = None  # type: ignore
+        self.ndarray: type = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -467,6 +474,125 @@ class BackendBaseClass(ABC):
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
 
+    def _asarray_if_needed(self, arr: ArrayLike) -> NumpyArray | CupyArray:
+        # Faster to check than cast, so only cast if needed
+        if isinstance(arr, self.ndarray):
+            return arr
+
+        try:
+            gpu_arr = arr.device != "cpu"
+        except AttributeError:
+            gpu_arr = False
+
+        if gpu_arr:
+            arr = arr.get()
+
+        return self.array(arr)
+
+    def _cast_dtype_if_needed(
+        self, arr: NumpyArray | CupyArray, dtype: type
+    ) -> NumpyArray | CupyArray:
+        if arr.dtype != dtype:
+            warnings.warn(
+                f"Automatically casting dtype from {arr.dtype} to {dtype}",
+                stacklevel=3,
+                category=PrecisionWarning,
+            )
+            try:
+                # Casting numpy complex array -> float is smooth and
+                # includes an automatic ComplexWarning.  Trying to cast
+                # a cupy array in the same way raises an exception.
+                # Maybe a bug in CuPy?
+                # Catch the exception then throw the correct warning.
+                arr = arr.astype(dtype)
+            except AttributeError as e:
+                if (
+                    str(e)
+                    == "module 'numpy' has no attribute 'ComplexWarning'"
+                ):
+                    ComplexWarning(
+                        "Casting complex values to real discards the imaginary part"
+                    )
+                    arr = arr.real.astype(dtype)
+                else:  # pragma: no cover
+                    raise
+
+        return arr
+
+    def _cast_arr_and_dtype(
+        self, arr: ArrayLike, dtype: type
+    ) -> NumpyArray | CupyArray:
+        # Catch likely errors and reraise with slightly friendlier
+        # messages.  Raise from the original exception to aid
+        # debugging.
+        #
+        # ValueError is raised by backend.array(arr) if input is ragged.
+        # TypeError is raised by arr.astype(backend.[type]) if input
+        # cannot be coerced to the new type (e.g. str -> float)
+
+        try:
+            new_arr = self._asarray_if_needed(arr)
+        except ValueError as exc:
+            raise ValueError(
+                f"Unable to convert input data {arr} to array."
+            ) from exc
+
+        try:
+            new_arr = self._cast_dtype_if_needed(new_arr, dtype)
+        except (TypeError, ValueError) as exc:
+            raise type(exc)(
+                "Unable to automatically cast dtype of input data from "
+                f"{new_arr.dtype} to {dtype}."
+            ) from exc
+
+        return new_arr
+
+    def cast_arr_float_if_needed(
+        self, arr: ArrayLike
+    ) -> NumpyArray | CupyArray:
+        """
+        Convert input to backend.array with ``dtype=backend.float``.
+
+        Uses isinstance and dtype checks to only modify the object if
+        needed, which is faster and avoids breaking references.  If the
+        reference is required to change, `backend.array` should be
+        called directly.
+
+        Parameters
+        ----------
+        arr
+            The object that should be returned as an array.
+
+        Returns
+        -------
+        NumpyArray | CupyArray
+            The modified (if needed) array.
+        """
+        return self._cast_arr_and_dtype(arr, self.float)
+
+    def cast_arr_complex_if_needed(
+        self, arr: ArrayLike
+    ) -> NumpyArray | CupyArray:
+        """
+        Convert input to backend.array with ``dtype=backend.complex``.
+
+        Uses isinstance and dtype checks to only modify the object if
+        needed, which is faster and avoids breaking references.  If the
+        reference is required to change, `backend.array` should be
+        called directly.
+
+        Parameters
+        ----------
+        arr
+            The object that should be returned as an array.
+
+        Returns
+        -------
+        NumpyArray | CupyArray
+            The modified (if needed) array.
+        """
+        return self._cast_arr_and_dtype(arr, self.complex)
+
 
 class NumpyBackend(BackendBaseClass):
     """
@@ -527,6 +653,9 @@ class NumpyBackend(BackendBaseClass):
         self.copy = np.copy
         self.ones_like = np.ones_like
         self.add = np.add
+        self.concatenate = np.concatenate
+        self.unique = np.unique
+        self.ndarray = np.ndarray
 
         self._finalize()
 
@@ -673,6 +802,9 @@ class CupyBackend(BackendBaseClass):
         self.copy = cp.copy
         self.ones_like = cp.ones_like
         self.add = cp.add
+        self.concatenate = cp.concatenate
+        self.unique = cp.unique
+        self.ndarray = cp.ndarray
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
