@@ -6,15 +6,18 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Class to generate coasting distributions.
+"""
+Class to generate coasting distributions.
 
-Authors
--------
-Simon Albright
+Notes
+-----
+Authors:
+S. Albright
 """
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 from blond.beam_preparation import base
@@ -31,6 +34,34 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Coasting(base.BeamPreparationRoutine):
+    """
+    Routines to generate a coasting-like beam distribution.
+
+    Generate a beam with given energy distribution and uniform time
+    distribution.  By default, the beam will be generated from 0 to
+    t_rev, but different start and stop times can be specified.  An
+    energy offset, either constant or time-varying can be optionally
+    be added as well.
+
+    Parameters
+    ----------
+    n_macroparticles
+        Number of macroparticles to be generated.
+    energy_bins
+        The energy bins of the required energy distribution.
+    energy_profile
+        The required energy distribution.
+    start_time
+        The start time of the distribution.
+    stop_time
+        The stop time of the distribution.
+    energy_offset
+        The energy offset to be applied after generating the
+        distribution.
+    seed
+        The seed for the random generator.
+    """
+
     def __init__(
         self,
         n_macroparticles: int,
@@ -77,6 +108,16 @@ class Coasting(base.BeamPreparationRoutine):
         self._seed = seed
 
     def prepare_beam(self, simulation: Simulation, beam: BeamBaseClass):
+        """
+        Populate the beam with the defined distribution.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation :class:`~blond.core.beam.beam.Beam` object.
+        """
         super().prepare_beam(simulation, beam)
 
         rng = mpi_help.mpi_aware_random_generator_cpu(
@@ -107,6 +148,7 @@ class Coasting(base.BeamPreparationRoutine):
 
         dE += e_shift
 
+        # Set stop time to t_rev if not defined
         if self.stop_time is None:
             circ = simulation.ring.circumference
             particle = beam.particle_type
