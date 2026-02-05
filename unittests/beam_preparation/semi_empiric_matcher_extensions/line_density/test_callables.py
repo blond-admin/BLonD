@@ -45,7 +45,7 @@ class TestProfileMatcherAddon(unittest.TestCase):
             hamilton_2D=hamilton_2D,
             histogram_desired=histogram_desired,
         )
-        DEV_PLOT_0 = True
+        DEV_PLOT_0 = False
         if DEV_PLOT_0:
             plt.figure()
             ax0 = plt.subplot(2, 2, 1)
