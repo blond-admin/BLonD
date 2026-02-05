@@ -63,7 +63,7 @@ def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
         ...
     AssertionError: Expected number with only real or only imaginary part, not (2+4j)
     """
-    if np.all(val.real != 0) and np.all(val.imag != 0):
+    if np.any((val.real != 0) & (val.imag != 0)):
         raise ValueError(
             f"Expected purely real or purely imaginary number, not {val}."
         )

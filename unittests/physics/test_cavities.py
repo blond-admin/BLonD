@@ -186,6 +186,15 @@ class TestCallables(unittest.TestCase):
         with self.assertRaises(ValueError):
             _assert_purely_real_or_imaginary(5 + 1j)  # Should  raise
 
+    def test_invalid_purely_real_or_imaginary_array(self):
+        _assert_purely_real_or_imaginary(np.array([1, 1j, 1]))
+        _assert_purely_real_or_imaginary(np.array([1, 1, 1]))
+        _assert_purely_real_or_imaginary(np.array([1j, 1j, 1j]))
+        with self.assertRaises(ValueError):
+            _assert_purely_real_or_imaginary(
+                np.array([1j, 1j + 1, 1j])
+            )  # Should  raise
+
 
 class TestMultiHarmonicCavity(unittest.TestCase):
     def setUp(self) -> None:
