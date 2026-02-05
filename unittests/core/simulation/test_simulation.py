@@ -179,8 +179,13 @@ class TestSimulation(unittest.TestCase):
 
         mock_func = create_autospec(my_callback, return_value=True)
         self.simulation.turn_i.value = 0
-        self.simulation.mainloop_single_beam(
-            beam=self.beam,
+        self.simulation.finalize(
+            beams=self.beam,
+            n_turns=10,
+            observe=(observe,),
+        )
+        self.simulation.mainloop(
+            beams=self.beam,
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
@@ -201,8 +206,11 @@ class TestSimulation(unittest.TestCase):
         mock_func1 = create_autospec(my_callback1, return_value=True)
         mock_func2 = create_autospec(my_callback2, return_value=True)
         self.simulation.turn_i.value = 0
-        self.simulation.mainloop_single_beam(
-            beam=self.beam,
+        self.simulation.finalize(
+            beams=self.beam, n_turns=10, observe=(observe,)
+        )
+        self.simulation.mainloop(
+            beams=self.beam,
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
@@ -386,7 +394,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
-            SingleHarmonicRFStation
+            SingleHarmonicRFStation, recursive=False
         )
         particle_type = proton
 
@@ -440,7 +448,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_get_potential_well_empiric_charge(self):
         cavity = self.simulation.ring.elements.get_element(
-            SingleHarmonicRFStation
+            SingleHarmonicRFStation, recursive=False
         )
         from blond.core.beam.particle_types import ParticleType, c, e, m_p
 
@@ -504,7 +512,9 @@ class TestSimulation(unittest.TestCase):
         simulation = Simulation.from_locals(locals())
         beam = beam1
 
-        cavity = simulation.ring.elements.get_element(SingleHarmonicRFStation)
+        cavity = simulation.ring.elements.get_element(
+            SingleHarmonicRFStation, recursive=False
+        )
         particle_type = proton
 
         ts = np.linspace(
@@ -641,7 +651,13 @@ class TestSimulation(unittest.TestCase):
             )
 
     @pytest.mark.backend_mutation
+    @pytest.mark.cupy
     def test_compare_cpu_gpu(self):
+        try:
+            import cupy  # type: ignore
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
         DEV_DEBUG = False
         results = []
         for i, backend_type in enumerate((Cupy32Bit, Numpy32Bit)):
