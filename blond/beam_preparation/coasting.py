@@ -63,6 +63,10 @@ class Coasting(base.BeamPreparationRoutine):
             energy_profile /= profile_sum
 
         self.energy_profile = energy_profile
+
+        if (stop_time is not None) and (stop_time < start_time):
+            raise ValueError("start_time must be less than stop_time")
+
         self.start_time = start_time
         self.stop_time = stop_time
         self.energy_offset = backend.cast_arr_float_if_needed(energy_offset)
