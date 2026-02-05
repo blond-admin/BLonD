@@ -82,7 +82,9 @@ class TestDriftIntegration(unittest.TestCase):
         )
 
     def test_add_observable(self):
-        drift1 = DriftSimple.headless(transition_gamma=12, orbit_length=12)
+        drift1 = DriftSimple.headless(
+            momentum_compaction_factor(transition_gamma=12), orbit_length=12
+        )
 
         beam = EmptyBeam(particle_type=uranium_29, reference_total_energy=12)
         observable_1 = BeamObservationOncePerTurn(each_turn_i=1)
@@ -93,7 +95,9 @@ class TestDriftIntegration(unittest.TestCase):
             )
 
     def test_track_with_observable(self):
-        drift1 = DriftSimple.headless(transition_gamma=12, orbit_length=12)
+        drift1 = DriftSimple.headless(
+            momentum_compaction_factor(transition_gamma=12), orbit_length=12
+        )
 
         beam = EmptyBeam(particle_type=uranium_29, reference_total_energy=12)
         observable_1 = BeamObservationOncePerTurn(each_turn_i=1)
