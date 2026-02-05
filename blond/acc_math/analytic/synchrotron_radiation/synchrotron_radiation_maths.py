@@ -76,6 +76,25 @@ def _selective_calculate_partition_numbers(
     y: bool = False,
     z: bool = False,
 ) -> dict[str, NumpyArray]:
+    """
+    Helper for the calculation of the damping partition numbers.
+
+    Parameters
+    ----------
+    synchrotron_radiation_integrals
+        Synchrotron radiation integrals.
+    x
+        Enables calculation in the horizontal plane.
+    y
+        Enables calculation in the vertical plane.
+    z
+        Enables calculation in the longitudinal plane.
+
+    Returns
+    -------
+    result
+        Dictionnary containing the requested damping partition numbers.
+    """
     result = {}
     if x:
         result["x"] = (
@@ -93,6 +112,65 @@ def _selective_calculate_partition_numbers(
             + synchrotron_radiation_integrals[3]
             / synchrotron_radiation_integrals[1]
         )
+
+    return result
+
+
+def _selective_calculate_damping_times_in_turns(
+    energy: float | NumpyArray,
+    synchrotron_radiation_integrals: NumpyArray,
+    particle_type: ParticleType,
+    x: bool = False,
+    y: bool = False,
+    z: bool = False,
+) -> dict[str, NumpyArray]:
+    """
+    Helper for the calculation of the damping partition numbers.
+
+    Parameters
+    ----------
+    energy
+        Energy of the reference particle, in [eV].
+    synchrotron_radiation_integrals
+        Synchrotron radiation integrals.
+    particle_type
+        ParticleType class object.
+
+    x
+        Enables calculation in the horizontal plane.
+    y
+        Enables calculation in the vertical plane.
+    z
+        Enables calculation in the longitudinal plane.
+
+    Returns
+    -------
+    result
+        Dictionnary containing the requested damping partition numbers.
+    """
+    result = {}
+
+    partitions = _selective_calculate_partition_numbers(
+        synchrotron_radiation_integrals, x=x, y=y, z=z
+    )
+
+    energy_loss_per_turn = calculate_energy_loss_per_turn(
+        energy,
+        synchrotron_radiation_integrals,
+        particle_type,
+    )
+
+    if x:
+        jx = partitions["x"]
+        result["x"] = np.array(2 * energy / jx / energy_loss_per_turn)
+
+    if y:
+        jy = partitions["y"]
+        result["y"] = np.array(2 * energy / jy / energy_loss_per_turn)
+
+    if z:
+        jz = partitions["z"]
+        result["z"] = np.array(2 * energy / jz / energy_loss_per_turn)
 
     return result
 
@@ -197,22 +275,23 @@ def calculate_damping_times_in_turns(
     damping_times_turn
         Damping times in the [horizontal, vertical, longitudinal] order, in [turn].
     """
-    damping_partition_numbers = calculate_partition_numbers(
-        synchrotron_radiation_integrals
-    )
-    energy_loss_per_turn = calculate_energy_loss_per_turn(
-        energy,
-        synchrotron_radiation_integrals,
-        particle_type,
+    damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
+        energy=energy,
+        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        particle_type=particle_type,
+        x=True,
+        y=True,
+        z=True,
     )
 
-    damping_times_turn = np.array(
-        [
-            (2 * energy / damping_partition_numbers[k] / energy_loss_per_turn)
-            for k in range(3)
-        ]
+    damping_times_turn_x = damping_times_turn_dict["x"]
+    damping_times_turn_y = damping_times_turn_dict["y"]
+    damping_times_turn_z = damping_times_turn_dict["z"]
+
+    damping_times = np.array(
+        [damping_times_turn_x, damping_times_turn_y, damping_times_turn_z]
     )
-    return damping_times_turn
+    return damping_times
 
 
 def calculate_horizontal_damping_time_in_turns(
@@ -237,19 +316,13 @@ def calculate_horizontal_damping_time_in_turns(
     horizontal_damping_time_turn
         Horizontal damping time, in [turn].
     """
-    horizontal_damping_partition_number = (
-        calculate_horizontal_damping_partition_number(
-            synchrotron_radiation_integrals
-        )
+    damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
+        energy=energy,
+        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        particle_type=particle_type,
+        x=True,
     )
-    energy_loss_per_turn = calculate_energy_loss_per_turn(
-        energy,
-        synchrotron_radiation_integrals,
-        particle_type,
-    )
-    horizontal_damping_time_turn = (
-        2 * energy / horizontal_damping_partition_number / energy_loss_per_turn
-    )
+    horizontal_damping_time_turn = damping_times_turn_dict["x"]
     return horizontal_damping_time_turn
 
 
@@ -275,22 +348,13 @@ def calculate_longitudinal_damping_time_in_turns(
     longitudinal_damping_time_turn
         Longitudinal damping time, in [turn].
     """
-    longitudinal_damping_partition_number = (
-        calculate_longitudinal_damping_partition_number(
-            synchrotron_radiation_integrals
-        )
+    damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
+        energy=energy,
+        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        particle_type=particle_type,
+        z=True,
     )
-    energy_loss_per_turn = calculate_energy_loss_per_turn(
-        energy,
-        synchrotron_radiation_integrals,
-        particle_type,
-    )
-    longitudinal_damping_time_turn = (
-        2
-        * energy
-        / longitudinal_damping_partition_number
-        / energy_loss_per_turn
-    )
+    longitudinal_damping_time_turn = damping_times_turn_dict["z"]
     return longitudinal_damping_time_turn
 
 
@@ -347,24 +411,30 @@ def calculate_damping_times_in_seconds(
     ):
         assert len(revolution_frequency) == len(energy)
 
-    damping_partition_numbers = calculate_partition_numbers(
-        synchrotron_radiation_integrals
+    damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
+        energy=energy,
+        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        particle_type=particle_type,
+        x=True,
+        y=True,
+        z=True,
     )
-    energy_loss_per_turn = calculate_energy_loss_per_turn(
-        energy,
-        synchrotron_radiation_integrals,
-        particle_type,
+
+    damping_times_seconds_x = (
+        damping_times_turn_dict["x"] / revolution_frequency
     )
+    damping_times_seconds_y = (
+        damping_times_turn_dict["y"] / revolution_frequency
+    )
+    damping_times_seconds_z = (
+        damping_times_turn_dict["z"] / revolution_frequency
+    )
+
     damping_times = np.array(
         [
-            (
-                2
-                * energy
-                / damping_partition_numbers[k]
-                / energy_loss_per_turn
-                / revolution_frequency
-            )
-            for k in range(3)
+            damping_times_seconds_x,
+            damping_times_seconds_y,
+            damping_times_seconds_z,
         ]
     )
     return damping_times
@@ -395,22 +465,15 @@ def calculate_horizontal_damping_time_in_seconds(
     horizontal_damping_time
         Horizontal damping time, in [s].
     """
-    horizontal_damping_partition_number = (
-        calculate_horizontal_damping_partition_number(
-            synchrotron_radiation_integrals
-        )
+    damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
+        energy=energy,
+        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        particle_type=particle_type,
+        x=True,
     )
-    energy_loss_per_turn = calculate_energy_loss_per_turn(
-        energy,
-        synchrotron_radiation_integrals,
-        particle_type,
-    )
+
     horizontal_damping_time = (
-        2
-        * energy
-        / horizontal_damping_partition_number
-        / energy_loss_per_turn
-        / revolution_frequency
+        damping_times_turn_dict["x"] / revolution_frequency
     )
     return horizontal_damping_time
 
@@ -440,22 +503,15 @@ def calculate_longitudinal_damping_time_in_seconds(
     longitudinal_damping_time
         Longitudinal damping time, in [s].
     """
-    longitudinal_damping_partition_number = (
-        calculate_longitudinal_damping_partition_number(
-            synchrotron_radiation_integrals
-        )
+    damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
+        energy=energy,
+        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        particle_type=particle_type,
+        z=True,
     )
-    energy_loss_per_turn = calculate_energy_loss_per_turn(
-        energy,
-        synchrotron_radiation_integrals,
-        particle_type,
-    )
+
     longitudinal_damping_time = (
-        2
-        * energy
-        / longitudinal_damping_partition_number
-        / energy_loss_per_turn
-        / revolution_frequency
+        damping_times_turn_dict["z"] / revolution_frequency
     )
     return longitudinal_damping_time
 
