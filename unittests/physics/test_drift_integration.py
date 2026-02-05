@@ -6,15 +6,20 @@ import pytest
 
 from blond import (
     Beam,
+    BeamObservationOncePerTurn,
     DriftSimple,
+    EmptyBeam,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     momentum_compaction_factor,
     proton,
+    uranium_29,
 )
 from blond.core.backends.backend import Numpy32Bit, backend
+from blond.core.base import DynamicParameter
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.testing.mocks import beam_mock, simulation_mock
 
 
 class TestDriftIntegration(unittest.TestCase):
@@ -75,3 +80,32 @@ class TestDriftIntegration(unittest.TestCase):
             sim.ring.average_momentum_compaction_factor,
             momentum_compaction_factor_,
         )
+
+    def test_add_observable(self):
+        drift1 = DriftSimple.headless(transition_gamma=12, orbit_length=12)
+
+        beam = EmptyBeam(particle_type=uranium_29, reference_total_energy=12)
+        observable_1 = BeamObservationOncePerTurn(each_turn_i=1)
+        drift1.add_observable(beam, observable_1)
+        with self.assertRaisesRegex(ValueError, "already set"):
+            drift1.add_observable(
+                beam, BeamObservationOncePerTurn(each_turn_i=1)
+            )
+
+    def test_track_with_observable(self):
+        drift1 = DriftSimple.headless(transition_gamma=12, orbit_length=12)
+
+        beam = EmptyBeam(particle_type=uranium_29, reference_total_energy=12)
+        observable_1 = BeamObservationOncePerTurn(each_turn_i=1)
+        observable_1._simulation = simulation_mock
+        observable_1._simulation.turn_i = DynamicParameter(1)
+        observable_1.on_run_simulation(
+            simulation=simulation_mock, beam=beam, n_turns=2
+        )
+        drift1.add_observable(beam, observable_1)
+        with self.assertRaisesRegex(ValueError, "already set"):
+            drift1.add_observable(
+                beam, BeamObservationOncePerTurn(each_turn_i=1)
+            )
+
+        drift1.track(beam=beam)

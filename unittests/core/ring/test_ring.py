@@ -22,7 +22,7 @@ from blond.testing.mocks import simulation_mock
 
 
 class BeamPhysicsRelevantHelper(BeamPhysicsRelevant):
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         pass
 
     @property

@@ -67,7 +67,7 @@ class TestObservables(unittest.TestCase):
         )
         static_multi_profile_pbservation = StaticMultiProfileObservation(
             each_turn_i=each_turn_i,
-            profiles=(static_profile_01, static_profile_02),
+            profiles=[static_profile_01, static_profile_02],
         )
         wake_field_observation = WakeFieldObservation(
             each_turn_i=each_turn_i, wakefield=wakefield
@@ -97,11 +97,6 @@ class TestObservables(unittest.TestCase):
                 print(rec)
                 array_shape = rec.get_valid_entries().shape
                 print(array_shape)
-                if isinstance(obs, StaticMultiProfileObservation):
-                    assert array_shape[0] == (2 * (n_turns_half)), " ".join(
-                        [str(obs), str(attribute), str(array_shape)]
-                    )
-                else:
-                    assert array_shape[0] == (n_turns_half), " ".join(
-                        [str(obs), str(attribute), str(array_shape)]
-                    )
+                assert array_shape[0] == n_turns_half, " ".join(
+                    [str(obs), str(attribute), str(array_shape)]
+                )
