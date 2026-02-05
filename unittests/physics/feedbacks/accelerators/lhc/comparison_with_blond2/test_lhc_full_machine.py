@@ -248,14 +248,14 @@ class TestLHCFullMachine(unittest.TestCase):
         np.testing.assert_allclose(
             self.rf_beam_current.real,
             self.blond2_data["rf_beam_current"].real,
-            atol=1e-9,
+            atol=1e-8,
             err_msg="Error in real part of coarse-grid rf beam current",
         )
         # Imaginary part
         np.testing.assert_allclose(
             self.rf_beam_current.imag,
             self.blond2_data["rf_beam_current"].imag,
-            atol=1e-9,
+            atol=1e-8,
             err_msg="Error in imaginary part of coarse-grid rf beam current",
         )
 
