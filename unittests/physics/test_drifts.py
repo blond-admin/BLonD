@@ -20,6 +20,9 @@ class DriftBaseClassHelper(DriftBaseClass):
     def eta_0(self, gamma: float) -> backend.float:
         pass
 
+    def _track(self, beam: BeamBaseClass) -> None:
+        pass
+
 
 class TestDriftBaseClass(unittest.TestCase):
     def setUp(self):

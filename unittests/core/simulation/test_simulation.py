@@ -641,7 +641,13 @@ class TestSimulation(unittest.TestCase):
             )
 
     @pytest.mark.backend_mutation
+    @pytest.mark.cupy
     def test_compare_cpu_gpu(self):
+        try:
+            import cupy  # type: ignore
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
         DEV_DEBUG = False
         results = []
         for i, backend_type in enumerate((Cupy32Bit, Numpy32Bit)):

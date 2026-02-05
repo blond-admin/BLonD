@@ -113,17 +113,6 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         """
         pass
 
-    def _track(self, beam: BeamBaseClass) -> None:
-        """
-        Main simulation routine to be called in the mainloop.
-
-        Parameters
-        ----------
-        beam
-            Beam class to interact with this element.
-        """
-        super()._track(beam=beam)
-
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
