@@ -24,6 +24,8 @@ Simon Lauber
 Danilo Quartullo
 """
 
+import time
+
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -46,7 +48,7 @@ from blond.experimental import PooledInterpolationKick
 from blond.handle_results.helpers import callers_relative_path
 
 backend.set_specials("cpp")
-DELAY_KICK = True
+pooling = False
 
 
 def main():
@@ -98,22 +100,22 @@ def main():
             harmonic=4620,
             voltage=0.9e6,
             phi_rf=0.0,
-            delayed_kick=pooled_kick if DELAY_KICK else None,
-            delayed_kick_time_axis=profile.hist_x if DELAY_KICK else None,
+            delayed_kick=pooled_kick if pooling else None,
+            delayed_kick_time_axis=profile.hist_x if pooling else None,
         )
 
         wakefield = WakeField(
             sources=(Resonators(R_shunt, f_res, Q_factor),),
             solver=wake_solver,
             profile=profile,
-            delayed_kick=pooled_kick if DELAY_KICK else None,
+            delayed_kick=pooled_kick if pooling else None,
         )
 
         ring.add_elements(
             (drift, rf_station, wakefield),
             reorder=True,
         )
-        if DELAY_KICK:
+        if pooling:
             ring.add_element(pooled_kick)
         sim = Simulation(
             ring=ring,
@@ -128,9 +130,14 @@ def main():
             beam=beam,
         )
         # sim.profiling(beams=beam, profile_n_turns=1000, sortby=SortKey.TIME)
+        t0 = time.time()
         sim.run_simulation(beams=beam, n_turns=1000)
+
+        print(f"{pooling=}", time.time() - t0, "s")
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main()
+    for b in (True, False):
+        pooling = b
+        main()
     plt.show()

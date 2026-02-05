@@ -257,14 +257,17 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         Section index to group elements into sections.
     profile
         Object for calculation of beam profiles.
+    **kwargs
+        Additional keyword arguments.
     """
 
     def __init__(
         self,
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
+        **kwargs,
     ):
-        super().__init__(section_index=section_index)
+        super().__init__(section_index=section_index, **kwargs)
         self._profile = profile
 
     @property  # as readonly attributes
