@@ -42,7 +42,7 @@ class IntensityEffectManager:
             True if there is any WakeField.
         """
         wakefields = self._parent_simulation.ring.elements.get_elements(
-            WakeField
+            WakeField, recursive=True
         )
         return len(wakefields) > 0
 
@@ -61,7 +61,7 @@ class IntensityEffectManager:
             If there is a mixed state of `Wakefields` being active/inactive.
         """
         wakefields = self._parent_simulation.ring.elements.get_elements(
-            WakeField
+            WakeField, recursive=True
         )
         actives = {wakefield.active for wakefield in wakefields}
         if len(actives) == 0:
@@ -81,7 +81,7 @@ class IntensityEffectManager:
             True or False, so that simulation can skip the elements.
         """
         wakefields = self._parent_simulation.ring.elements.get_elements(
-            WakeField
+            WakeField, recursive=True
         )
         for wakefield in wakefields:
             wakefield.active = active
@@ -96,17 +96,12 @@ class IntensityEffectManager:
             True or False, so that simulation can skip the elements.
         """
         profiles = self._parent_simulation.ring.elements.get_elements(
-            ProfileBaseClass
+            ProfileBaseClass, recursive=True
         )
         for profile in profiles:
             profile.active = active
         # Deactivate the `Profiles` of the WakeFields.
         # The frozen wakefields can still affect the beam.
-        wakefields = self._parent_simulation.ring.elements.get_elements(
-            WakeField
-        )
-        for wakefield in wakefields:
-            wakefield.profile.active = active
 
     def is_active_profiles(self) -> bool:  # TODO testcae
         """
@@ -122,15 +117,10 @@ class IntensityEffectManager:
         AssertionError
             If there is a mixed state of `Wakefields` being active/inactive.
         """
-        wakefields = self._parent_simulation.ring.elements.get_elements(
-            WakeField
-        )
         profiles = self._parent_simulation.ring.elements.get_elements(
-            ProfileBaseClass
+            ProfileBaseClass, recursive=True
         )
-        actives = {wakefield.profile.active for wakefield in wakefields} | {
-            profile.active for profile in profiles
-        }
+        actives = {profile.active for profile in profiles}
 
         if len(actives) == 0:
             return False
