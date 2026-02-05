@@ -158,17 +158,10 @@ class TestDriftIntegration(unittest.TestCase):
             global_momentum_compaction_factor = (
                 sim.ring.average_momentum_compaction_factor
             )  # this is tested
-            print("calculations")
-
-            print(
-                drift1.momentum_compaction_factor,
-                drift2.momentum_compaction_factor,
-                global_momentum_compaction_factor,
-            )
 
             return p._dt.array_local, global_momentum_compaction_factor
 
-        def run_combined_drifts(momentum_compaction_factor):
+        def run_combined_drifts(global_momentum_compaction_factor):
             ring = Ring(circumference=circumference)
 
             energy_cycle = ConstantMagneticCycle(
@@ -178,17 +171,16 @@ class TestDriftIntegration(unittest.TestCase):
 
             drift1 = DriftSimple(
                 orbit_length=circumference,
-                momentum_compaction_factor=momentum_compaction_factor,
+                momentum_compaction_factor=global_momentum_compaction_factor,
                 section_index=0,
             )
 
             sim = Simulation.from_locals(locals())
             sim.ring.assert_circumference()
-            sim.print_one_turn_execution_order()
             p = deepcopy(beam1)
             sim.run_simulation(beams=p, n_turns=5)
             return p._dt.array_local
 
-        dt1, momentum_compaction_factor = run_two_drifts()
-        dt2 = run_combined_drifts(momentum_compaction_factor)
+        dt1, global_momentum_compaction_factor = run_two_drifts()
+        dt2 = run_combined_drifts(global_momentum_compaction_factor)
         np.testing.assert_allclose(dt1, dt2)
