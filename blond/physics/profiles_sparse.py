@@ -19,7 +19,6 @@ from blond import StaticProfile
 from blond.core.base import BeamPhysicsRelevant
 
 if TYPE_CHECKING:  # pragma: no cover
-
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
 
@@ -49,12 +48,14 @@ class EquidistantMultiProfile(MultiProfile):
         n_profiles: int,
         width_per_profile: float,
         bins_per_profile: int,
+        offset: float = 0.0,
         section_index: int = 0,
         name: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(section_index, name, **kwargs)
         self._n_profiles = n_profiles
+        self._offset = offset
         self._width_per_profile = width_per_profile
         self._bins_per_profile = bins_per_profile
         self.profiles: tuple[StaticProfile] | None = None
@@ -62,9 +63,19 @@ class EquidistantMultiProfile(MultiProfile):
     def on_init_simulation(self, simulation: Simulation) -> None:
         t_rev = simulation.get_t_rev_init()
         half_width = float(self._width_per_profile / 2)
-        start = half_width
-        stop = t_rev - half_width
-        centers = np.linspace(start, stop, self._n_profiles, endpoint=True)
+
+        # Turn     |-----------|
+        # Slots    |---|---|---| # 3 + 1
+        # Used     ^   ^   ^   x
+        centers = np.linspace(
+            0,
+            t_rev,
+            self._n_profiles + 1,
+            endpoint=True,
+        )
+        centers = centers[:-1]
+        centers += self._offset
+
         self.profiles = tuple(
             StaticProfile(
                 cut_left=float(center - half_width),
