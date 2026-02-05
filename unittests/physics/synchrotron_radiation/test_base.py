@@ -20,8 +20,7 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
-    _SynchrotronRadiationDrift,
-    _SynchrotronRadiationSection,
+    _SynchrotronRadiationTracker,
 )
 
 
@@ -147,12 +146,12 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             disable_quantum_excitation=True,
         )
 
-        self.SRD = _SynchrotronRadiationDrift(
+        self.SRD = _SynchrotronRadiationTracker(
             share_of_synchrotron_radiation_integrals=0.1
             * self.radiation_integrals,
             disable_quantum_excitation=True,
         )
-        self.SRS = _SynchrotronRadiationSection(
+        self.SRS = _SynchrotronRadiationTracker(
             share_of_synchrotron_radiation_integrals=0.1
             * self.radiation_integrals,
             disable_quantum_excitation=True,
