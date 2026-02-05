@@ -50,6 +50,8 @@ class BeamFeedback:
         configuration: dict[str, str | float],  # todo improve type hint
         PhaseNoise: None = None,  # todo class doesnt exist anymore??
         LHCNoiseFB: Optional[LHCNoiseFB] = None,
+        CavityFeedback=None,
+        current_thres=None,
         delay: int = 0,
     ):
         #: | *Import Ring*
@@ -234,6 +236,15 @@ class BeamFeedback:
         #: | *Optional import of amplitude-scaling feedback object LHCNoiseFB*
         self.noiseFB = LHCNoiseFB
 
+        #: | *Optional import of a CavityFeedback model for cavity sum reference including beam loading*
+        self.cavity_feedback = CavityFeedback
+
+        #: | *Optional import of an array showing the filled slots in the machine*
+        self.current_thres = current_thres
+        if self.current_thres is None and self.cavity_feedback is not None:
+            raise RuntimeError(
+                'The filled slots in the machine is needed to compute the cavity sum phase')
+
     def track(self):
         """
         Calculate PL correction on main RF frequency depending on machine and
@@ -329,7 +340,7 @@ class BeamFeedback:
                 (self.time_offset - np.pi / omega_rf)
                 <= self.profile.bin_centers,
                 self.profile.bin_centers
-                <= (-1 / self.alpha + self.time_offset - 2 * np.pi / omega_rf),
+                <= (-1 / self.alpha + self.time_offset - 2 * np.pi / omega_rf),  # TODO : this comma is an addition, should it be there, or is it just formatting?
             )
         else:
             indexes = bm.ones(self.profile.n_slices, dtype=bool)
@@ -358,6 +369,16 @@ class BeamFeedback:
         # Correct for design stable phase
         counter = self.rf_station.counter[0]
         self.dphi = self.phi_beam - self.rf_station.phi_s[counter]
+
+        # Phase offset due to beam loading
+        if self.cavity_feedback is not None:
+            current_thres = self.current_thres * np.max(
+                np.abs(self.cavity_feedback.I_BEAM_COARSE[-self.cavity_feedback.n_coarse:])
+            )
+            # voltage difference
+            self.dphi = self.dphi + np.mean(self.cavity_feedback.gap_voltage_phase[
+                np.abs(self.cavity_feedback.I_BEAM_COARSE[-self.cavity_feedback.n_coarse:]) > self.current_thres  # TODO: this is likely not correct and should use the variable above instead
+            ])
 
         # Possibility to add RF phase noise through the PL
         if self.RFnoise is not None:
