@@ -451,7 +451,7 @@ def fir_filter(coeff: NumpyArray, signal: NumpyArray):
     """
 
     n_taps = len(coeff)
-    filtered_signal = np.zeros(len(signal) - n_taps)
+    filtered_signal = np.zeros(len(signal) - n_taps, dtype=complex)  # TODO: why should this be complex?
     for i in range(n_taps, len(signal)):
         for k in range(n_taps):
             filtered_signal[i - n_taps] += coeff[k] * signal[i - k]
@@ -860,6 +860,22 @@ def feedforward_filter(
         return h_ff, n_taps, n_filling, n_fit
     else:
         return h_ff
+
+
+def longitudinal_damper_fir_filter(f_s, f_rev):
+    r'''Making an FIR filter for a longitudinal damper in the LHC.'''
+
+    n_taps = int(f_rev / f_s)
+
+    if n_taps % 2 == 0:
+        n_taps += 1
+
+    t_arr = np.linspace(0, 2 * np.pi, n_taps)
+
+    # Matched FIR filter
+    lhc_fir = -np.sin(t_arr) / n_taps * 2
+
+    return lhc_fir
 
 
 feedforward_filter_TWC3 = np.array(

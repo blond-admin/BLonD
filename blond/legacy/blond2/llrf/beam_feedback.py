@@ -50,7 +50,7 @@ class BeamFeedback:
         configuration: dict[str, str | float],  # todo improve type hint
         PhaseNoise: None = None,  # todo class doesnt exist anymore??
         LHCNoiseFB: Optional[LHCNoiseFB] = None,
-        CavityFeedback=None,
+        cavity_feedback=None,
         current_thres=None,
         delay: int = 0,
     ):
@@ -237,7 +237,7 @@ class BeamFeedback:
         self.noiseFB = LHCNoiseFB
 
         #: | *Optional import of a CavityFeedback model for cavity sum reference including beam loading*
-        self.cavity_feedback = CavityFeedback
+        self.cavity_feedback = cavity_feedback
 
         #: | *Optional import of an array showing the filled slots in the machine*
         self.current_thres = current_thres

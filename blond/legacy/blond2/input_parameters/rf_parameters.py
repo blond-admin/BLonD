@@ -434,7 +434,7 @@ class RFStation:
         # and that can be changed by feedbacks
         self.phi_rf = np.array(self.phi_rf_d).astype(
             bm.precision.real_t, order="F"
-        )
+        )  # TODO: order="F" is new here --> in all of them
         # F contigous, so phi_rf[:,turn_i] is contigous
 
         self.dphi_rf = np.zeros(self.n_rf).astype(
@@ -495,6 +495,22 @@ class RFStation:
                 eta_i = getattr(self, "eta_" + str(i))[counter]
                 eta += eta_i * (delta**i)
             return eta
+
+    def bucket_center(self, bucket_number, n_h=0):
+        '''
+        Computes the center of a given RF bucket in time relative to the start of the turn.
+        '''
+        # The edge of the bucket in time
+        dt_bucket = 2 * np.pi * bucket_number / self.omega_rf[n_h, self.counter[0]]
+
+        # If the beam control is acting in the simulation
+        if self.eta_0[self.counter[0]] > 0:
+            dt_bucket -= (self.phi_rf[n_h, self.counter[0]] - np.pi) / self.omega_rf[n_h, self.counter[0]]
+        else:
+            dt_bucket -= self.phi_rf[n_h, self.counter[0]] / self.omega_rf[n_h, self.counter[0]]
+
+        return dt_bucket
+
 
     def compute_voltage_waveform(
         self,
@@ -679,7 +695,7 @@ def calculate_phi_s(
         Synchronous phase.
 
     """
-    if particle is None:
+    if particle is None:  # TODO: this is very dangerous
         particle = Proton()
     eta0 = rf_station.eta_0
 

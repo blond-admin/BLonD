@@ -551,22 +551,34 @@ class RingAndRFTracker:
                 1
             ][:, turn]
 
+        # Correction from cavity loop
+        if self.cavityFB is not None:
+            for feedback in self.cavityFB:
+                if feedback is not None:
+                    feedback.track()
+
         # Determine phase loop correction on RF phase and frequency
         if self.beamFB is not None and turn >= self.beamFB.delay:
             self.beamFB.track()
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
-        self.rf_params.dphi_rf += (
-            2.0
-            * np.pi
-            * self.rf_params.harmonic[:, turn + 1]
-            * (
-                self.rf_params.omega_rf[:, turn + 1]
-                - self.rf_params.omega_rf_d[:, turn + 1]
-            )
-            / self.rf_params.omega_rf_d[:, turn + 1]
-        )
+        # self.rf_params.dphi_rf += (
+        #     2.0
+        #     * np.pi
+        #     * self.rf_params.harmonic[:, turn + 1]
+        #     * (
+        #         self.rf_params.omega_rf[:, turn + 1]
+        #         - self.rf_params.omega_rf_d[:, turn + 1]
+        #     )
+        #     / self.rf_params.omega_rf_d[:, turn + 1]
+        # )
+
+        self.rf_params.dphi_rf += ((self.rf_params.omega_rf[:, turn]
+                                    - 2 * np.pi * self.rf_params.harmonic[:, turn]
+                                    / self.rf_params.t_rev[turn])
+                                   * self.rf_params.t_rev[turn])
+
 
         # Total phase offset
         self.rf_params.phi_rf[:, turn + 1] += self.rf_params.dphi_rf
