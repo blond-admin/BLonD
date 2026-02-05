@@ -551,7 +551,7 @@ class BackendBaseClass(ABC):
         self, arr: ArrayLike
     ) -> NumpyArray | CupyArray:
         """
-        Convert input to backend.array with dtype=backend.float.
+        Convert input to backend.array with ``dtype=backend.float``.
 
         Uses isinstance and dtype checks to only modify the object if
         needed, which is faster and avoids breaking references.  If the
@@ -574,7 +574,7 @@ class BackendBaseClass(ABC):
         self, arr: ArrayLike
     ) -> NumpyArray | CupyArray:
         """
-        Convert input to backend.array with dtype=backend.complex.
+        Convert input to backend.array with ``dtype=backend.complex``.
 
         Uses isinstance and dtype checks to only modify the object if
         needed, which is faster and avoids breaking references.  If the
