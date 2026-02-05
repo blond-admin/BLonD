@@ -1,5 +1,6 @@
 import logging
 import unittest
+from copy import deepcopy
 
 import numpy as np
 import pytest
@@ -18,8 +19,12 @@ from blond import (
 )
 from blond.core.backends.backend import Numpy32Bit, backend
 from blond.core.base import DynamicParameter
-from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.testing.mocks import beam_mock, simulation_mock
+from blond.core.beam.beams import ProbeBeam
+from blond.cycles.magnetic_cycle import (
+    ConstantMagneticCycle,
+    MagneticCyclePerTurn,
+)
+from blond.testing.mocks import simulation_mock
 
 
 class TestDriftIntegration(unittest.TestCase):
@@ -113,3 +118,77 @@ class TestDriftIntegration(unittest.TestCase):
             )
 
         drift1.track(beam=beam)
+
+    def test_momentum_compaction_splitting(self):
+        backend.set_specials("python")
+        circumference = 1
+        beam1 = ProbeBeam(
+            dE=np.linspace(-10, 10, 5),
+            intensity=1e9,
+            particle_type=proton,
+        )
+
+        def run_two_drifts():
+            ring = Ring(circumference=circumference)
+
+            energy_cycle = ConstantMagneticCycle(
+                value=450e9,
+                reference_particle=proton,
+            )
+
+            drift1 = DriftSimple(
+                orbit_length=circumference * 1 / 4,
+                momentum_compaction_factor=3,  # intentionally different
+                section_index=0,
+            )
+
+            drift2 = DriftSimple(
+                orbit_length=circumference * 3 / 4,
+                momentum_compaction_factor=4,  # intentionally different
+                section_index=1,
+            )
+
+            sim = Simulation.from_locals(locals())
+            sim.ring.assert_circumference()
+
+            sim.print_one_turn_execution_order()
+            p = deepcopy(beam1)
+            sim.run_simulation(beams=p, n_turns=5)
+
+            global_momentum_compaction_factor = (
+                sim.ring.average_momentum_compaction_factor
+            )  # this is tested
+            print("calculations")
+
+            print(
+                drift1.momentum_compaction_factor,
+                drift2.momentum_compaction_factor,
+                global_momentum_compaction_factor,
+            )
+
+            return p._dt.array_local, global_momentum_compaction_factor
+
+        def run_combined_drifts(momentum_compaction_factor):
+            ring = Ring(circumference=circumference)
+
+            energy_cycle = ConstantMagneticCycle(
+                value=450e9,
+                reference_particle=proton,
+            )
+
+            drift1 = DriftSimple(
+                orbit_length=circumference,
+                momentum_compaction_factor=momentum_compaction_factor,
+                section_index=0,
+            )
+
+            sim = Simulation.from_locals(locals())
+            sim.ring.assert_circumference()
+            sim.print_one_turn_execution_order()
+            p = deepcopy(beam1)
+            sim.run_simulation(beams=p, n_turns=5)
+            return p._dt.array_local
+
+        dt1, momentum_compaction_factor = run_two_drifts()
+        dt2 = run_combined_drifts(momentum_compaction_factor)
+        np.testing.assert_allclose(dt1, dt2)
