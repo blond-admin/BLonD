@@ -55,10 +55,6 @@ ASSIGNED_CATEGORIES = {
     "Beam": Categories.BEAM.value,
     "EmptyBeam": Categories.BEAM.value,
     "BiGaussian": Categories.BEAM.value,
-    # Dynamics
-    "SynchrotronRadiationBaseClass": Categories.DYNAMICS.value,
-    "SynchrotronRadiationMaster": Categories.DYNAMICS.value,
-    "WigglerMagnet": Categories.DYNAMICS.value,
     # Diagnostics
     "RFStationPhaseObservation": Categories.DIAGNOSTICS.value,
     "StaticProfileObservation": Categories.DIAGNOSTICS.value,
