@@ -185,27 +185,27 @@ The synchrotron radiation framework consists of:
 
 **Base Class**
 
-- :class: 'SynchrotronRadiationBaseClass': it holds basic properties
- for tracking with synchrotron radiation, computes the energy kick given to the
-  beam and updates the beam energy accordingly druing the simulation.
+- :class: 'SynchrotronRadiationBaseClass': abstract class holding basic
+properties for tracking with synchrotron radiation, computes the energy kick
+given to the
+  beam and updates the beam energy accordingly during the simulation.
 
 **Master Class**
 
-- :class:`SynchrotronRadiationMaster`:  Orchestrates the creation and
-  insertion of synchrotron radiation trackers into the ring
+- :class:`SynchrotronRadiationMaster`:  this object creates and inserts
+synchrotron radiation trackers into the ring.
 
-**Tracker Elements**
+- :class: '_SynchrotronRadiationTracker': internal tracker called by the
+:class: 'SynchrotronRadiationMaster'. Trackers are inserted before drift
+elements and after RF cavities.
 
-- :class:`~blond.physics.synchrotron_radiation.synchrotron_radiation_elements.SynchrotronRadiationBaseClass`
-  -- Abstract base class for all synchrotron radiation elements
-- ``_SynchrotronRadiationTracker`` -- Tracker inserted before drift elements
-and after RF cavities
+**Radiating Elements**
 
-**Special Elements**
-
-- :class:`~blond.physics.synchrotron_radiation.synchrotron_radiation_elements.WigglerMagnet`
-  -- Models damping wigglers that enhance synchrotron radiation
-
+- :class:`WigglerMagnet`: damping wiggler class to include their contribution
+to the synchrotron radiation during the simulation.
+The contribution of radiating elements does not affect the radiation integrals
+of the main ring: their contribution is updated based on the beam energy during
+tracking.
 ---
 
 Algorithmic Workflow
@@ -214,13 +214,16 @@ Algorithmic Workflow
 The :meth:`SynchrotronRadiationMaster.prepare_ring_for_synchrotron_radiation_tracking`
 method performs the following steps:
 
-1. **Set synchrotron radiation integrals**
+1. **Set the synchrotron radiation integrals**
 
    The radiation integrals are obtained from one of:
 
    - The ``Ring`` object (if pre-defined)
    - User-provided array via ``radiation_integrals`` parameter
    - Computed for an isomagnetic ring using ``bending_radius``
+
+For consistency, the radiation integrals obtained outside the ring will be set
+as a property of the ring.
 
 2. **Identify tracking locations**
 
@@ -232,7 +235,10 @@ method performs the following steps:
 3. **Calculate local radiation shares**
 
    For each element, the share of radiation integrals is computed
-   proportionally to the element's orbit length relative to the circumference:
+   proportionally to :
+   - its orbit length relative to the circumference for drift elements,
+   - the section length between each RF cavities relative to the
+   circumference,
 
    .. math::
 
@@ -240,42 +246,21 @@ method performs the following steps:
 
 4. **Create and insert trackers**
 
-   - For drifts: ``_SynchrotronRadiationTracker`` elements are inserted
-     **before** each drift
-   - For RF cavities: ``_SynchrotronRadiationTracker`` elements are inserted
-     **after** each cavity
+Then, ``_SynchrotronRadiationTracker`` elements are inserted:
+
+   - **before** each drift,
+   - **after** each cavity.
 
 5. **Runtime tracking**
 
-   During simulation, each tracker's :meth:`track` method:
+   During the simulation, each tracker's :meth:`track` method:
 
-   a. Computes local synchrotron radiation parameters from current beam energy
-   b. Calculates energy kicks including damping and quantum excitation
-   c. Updates particle energy deviations
-
----
-
-Practical Notes
----------------
-
-- **Isomagnetic approximation**: For simple rings with uniform bending, use
-  the ``bending_radius`` parameter instead of providing all five integrals.
-
-- **Drift-based vs. section-based tracking**: Drift-based tracking
-  (default) provides finer granularity, applying radiation effects at each
-  drift. Section-based tracking applies cumulative effects after each RF
-  station.
-
-- **Quantum excitation**: Can be disabled via ``disable_quantum_excitation=True``
-  to study pure radiation damping.
-
-- **Wiggler magnets**: Use :class:`WigglerMagnet` to add damping wigglers
-  that modify the effective radiation integrals in an energy-dependent manner.
-
-- **Energy dependence**: All synchrotron radiation parameters
-  (:math:`U_0`, :math:`\tau_z`, :math:`\sigma_E`) are recomputed at each
-  tracking step using the current beam reference energy, enabling correct
-  behavior during acceleration.
+   a. Computes current synchrotron radiation parameters from current beam
+   energy, namely the estimated energy lost per turn, longitudinal damping time
+    and natural energy spread,
+   b. Calculates the energy kick (as described above), including radiation
+   damping and quantum excitation,
+   c. Updates the bean relative energy array accordingly.
 
 ---
 
@@ -293,7 +278,7 @@ Master Class
 Base Element Class
 ^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: blond.physics.synchrotron_radiation.synchrotron_radiation_elements.SynchrotronRadiationBaseClass
+.. autoclass:: SynchrotronRadiationBaseClass
    :members:
    :undoc-members:
    :show-inheritance:
@@ -301,7 +286,7 @@ Base Element Class
 Wiggler Magnet
 ^^^^^^^^^^^^^^
 
-.. autoclass:: blond.physics.synchrotron_radiation.synchrotron_radiation_elements.WigglerMagnet
+.. autoclass:: WigglerMagnet
    :members:
    :undoc-members:
    :show-inheritance:
@@ -324,7 +309,7 @@ Utility Functions
 Example
 -------
 
-**Basic Usage with Explicit Radiation Integrals**
+**Example with Radiation Integrals**
 
 .. code-block:: python
 
@@ -334,36 +319,40 @@ Example
    from blond.physics.drifts import DriftBaseClass
 
    # Define synchrotron radiation integrals for the ring
-   # [I1, I2, I3, I4, I5] - typically obtained from lattice calculations
+   # [I1, I2, I3, I4, I5] - obtained from the lattice optics.
    radiation_integrals = np.array([
-       0.646747216157,      # I1: related to momentum compaction
-       0.0005936549319,     # I2: related to energy loss per turn
-       5.6814536525e-08,    # I3: related to natural energy spread
-       5.92870407301e-09,   # I4: required for damping times
-       1.71368060083e-11,   # I5: required for natural emittance
+       0.646747216157,
+       0.0005936549319,
+       5.6814536525e-08,
+       5.92870407301e-09,
+       1.71368060083e-11,
    ])
 
    # Create ring with radiation integrals
    ring = Ring(
-       circumference=844.0,
+       circumference=90.65874532 * 1e3,
        synchrotron_radiation_integrals=radiation_integrals,
    )
+   # Creates an RF station
+    cavity = SingleHarmonicRFStation()
+    cavity.harmonic = 242400
+    cavity.voltage = 50.1e6
+    cavity.phi_rf = 0
+    ring.add_element(cavity)
 
-   # Add drift spaces (required for drift-based SR tracking)
+   # Add drift spaces
    ring.add_drifts(n_drifts_per_section=10, n_sections=1)
 
    # Initialize synchrotron radiation master
    sr_master = SynchrotronRadiationMaster(
        track_before_element_type=[DriftBaseClass],
-       disable_quantum_excitation=False,
    )
 
-   # Prepare ring for SR tracking (inserts tracker elements)
+   # Prepare ring for tracking with synchrotron radiation
    sr_master.prepare_ring_for_synchrotron_radiation_tracking(ring=ring)
 
    print(f"Created {sr_master.number_of_generated_synchrotron_radiation_classes} "
          f"SR tracker elements")
-
 
 **Isomagnetic Ring Approximation**
 
@@ -374,9 +363,16 @@ Example
 
    # Create ring without explicit radiation integrals
    ring = Ring(
-       circumference=844.0,
+       circumference=90.65874532 * 1e3,
        momentum_compaction_factor=1.78e-4,
    )
+   # Creates an RF station
+    cavity = SingleHarmonicRFStation()
+    cavity.harmonic = 242400
+    cavity.voltage = 50.1e6
+    cavity.phi_rf = 0
+    ring.add_element(cavity)
+
    ring.add_drifts(n_drifts_per_section=10, n_sections=1)
 
    # Initialize SR master
@@ -411,8 +407,8 @@ Example
 
    ring.add_element(wiggler)
 
-   # The wiggler will automatically update radiation integrals
-   # based on beam energy during tracking
+   # The wiggler will automatically update its radiation integrals based on
+   # the beam energy during tracking
 
 
 **Computing Synchrotron Radiation Parameters**
@@ -451,21 +447,48 @@ Interpretation of Results
 
 After running a simulation with synchrotron radiation:
 
-- The **beam energy spread** will converge to the natural energy spread
-  :math:`\sigma_E` over a timescale of :math:`\tau_z` turns.
+- The **beam energy spread** will converge to the natural energy
+spread :math:`\sigma_E` over a timescale of :math:`\tau_z` turns.
 
 - The **bunch length** will adjust according to the relationship between
-  energy spread and the RF bucket parameters.
+  the energy spread and the RF bucket parameters.
 
-- Without RF voltage compensation, the **synchronous phase** will shift to
-  account for the mean energy loss per turn.
+- The **synchronous phase** :math: '\phi_s' shifts to account for the mean
+energy loss per turn, according to :math: '\sin(\phi_s) = \frac{U_0}{e \cdot
+V}'.
 
-- For ultra-relativistic electrons, radiation effects are typically dominant;
-  for protons and heavier ions, synchrotron radiation is negligible at most
-  energies but becomes relevant in machines like the LHC at top energy.
+- For ultra-relativistic electrons and positrons, radiation effects are
+perceivable; From [2], the ratio between radiated power between electrons and
+ protons is :math: '1836^4' (estimating proton's classical radius as the
+ electron;s.). Therefore, for protons and heavier ions, the effect of synchrotron radiation
+is negligible at most energies but becomes relevant in machines like the LHC at
+ top energy.
 
 ---
 
+Nota Bene
+---------
+
+- **Isomagnetic approximation**: For simple rings with uniform bending, use
+  the ``bending_radius`` parameter to compute the isomagnetic radiation integrals.
+
+- **Drift-based vs. section-based tracking**: Drift-based tracking
+  (default) provides finer granularity, applying radiation effects before each
+  drift. Section-based tracking applies cumulative effects after each RF
+  station.
+
+- **Quantum excitation**: Can be disabled via ``disable_quantum_excitation=True``
+  to study the effect of radiation damping only.
+
+- **Wiggler magnets**: Use :class:`WigglerMagnet` to add damping wigglers
+  which boost the emission of radiation and its damping effect.
+
+- **Energy dependence**: All synchrotron radiation parameters
+  (:math:`U_0`, :math:`\tau_z`, :math:`\sigma_E`) are recomputed at each
+  tracking step using the current beam reference energy, enabling correct
+  behavior during the simulation.
+
+---
 References
 ----------
 
