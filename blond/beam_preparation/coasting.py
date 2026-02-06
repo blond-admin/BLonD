@@ -50,7 +50,7 @@ class Coasting(base.BeamPreparationRoutine):
     energy_bins
         The energy bins of the required energy distribution.
     energy_profile
-        The required energy distribution.
+        The required energy distribution corresponding to `energy_bins`.
     start_time
         The start time of the distribution.
     stop_time
@@ -58,6 +58,8 @@ class Coasting(base.BeamPreparationRoutine):
     energy_offset
         The energy offset to be applied after generating the
         distribution.
+        If this is a float, a global offset is introduced.
+        If this an array, it indicates the offset from `t_min` to `t_max`.
     seed
         The seed for the random generator.
     """
@@ -99,7 +101,10 @@ class Coasting(base.BeamPreparationRoutine):
         self.energy_profile = energy_profile
 
         if (stop_time is not None) and (stop_time < start_time):
-            raise ValueError("start_time must be less than stop_time")
+            raise ValueError(
+                "`start_time` must be less than `stop_time`,"
+                f" but got {start_time=} and {stop_time=}."
+            )
 
         self.start_time = start_time
         self.stop_time = stop_time
