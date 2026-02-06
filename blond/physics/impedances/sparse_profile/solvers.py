@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
 
 
-class MultiTurnSparseProfile(WakeFieldSolver):
+class MultiTurnSparseProfileSolver(WakeFieldSolver):
     def __init__(self, n_turns: int):
         super().__init__()
         self._n_turns = n_turns

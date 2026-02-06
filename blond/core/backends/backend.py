@@ -277,6 +277,8 @@ class BackendBaseClass(ABC):
         # Callables that link to e.g. Numpy, Cupy
         self.array: Callable = None  # type: ignore
         self.gradient: Callable = None  # type: ignore
+        self.empty: Callable = None  # type: ignore
+        self.repeat: Callable = None  # type: ignore
         self.linspace: Callable = None  # type: ignore
         self.histogram: Callable = None  # type: ignore
         self.zeros: Callable = None  # type: ignore
@@ -621,6 +623,8 @@ class NumpyBackend(BackendBaseClass):
 
         self.array = np.array
         self.gradient = np.gradient
+        self.empty = np.empty
+        self.repeat = np.repeat
         self.linspace = np.linspace
         self.histogram = np.histogram
         self.zeros = np.zeros
@@ -770,6 +774,8 @@ class CupyBackend(BackendBaseClass):
 
         self.array = cp.array
         self.gradient = cp.gradient
+        self.empty = cp.empty
+        self.repeat = cp.repeat
         self.linspace = cp.linspace
         self.histogram = cp.histogram
         self.zeros = cp.zeros
