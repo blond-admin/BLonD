@@ -248,7 +248,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             Additional keyword arguments for simulation setup.
         """
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 

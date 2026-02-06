@@ -304,7 +304,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         else:
             return wiggler_radiation_integrals
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
