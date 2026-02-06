@@ -123,6 +123,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         self.antenna_voltage_fine_grid: NumpyArray | None = None
         self.generator_current_coarse_grid: NumpyArray | None = None
         self.generator_current_fine_grid: NumpyArray | None = None
+        self.gap_voltage_phase: NumpyArray | None = None
 
     @requires(["RFStationBaseClass", "BeamBaseClass"])
     def on_run_simulation(
@@ -175,6 +176,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         self.generator_current_fine_grid = np.zeros(
             self.profile.n_bins, dtype=complex
         )
+        self.gap_voltage_phase = np.zeros(self.n_samples_coarse)
 
         self.invalidate_cache()
 
@@ -290,6 +292,10 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         )
         self.phase_correction = self.alpha_sum - np.mean(
             np.angle(self.voltage_setpoint)
+        )
+
+        self.gap_voltage_phase = np.angle(
+            self.antenna_voltage_coarse_grid / self.voltage_setpoint
         )
 
     def calculate_rf_beam_current(
@@ -456,7 +462,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
     @cached_property
     def sampling_time_coarse(self) -> float:
         """
-        Sampling time on the corase grid.
+        Sampling time on the coarse grid.
 
         Returns
         -------
@@ -482,7 +488,9 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         residual_phase_from_last_turn
             Residual phase from the last turn to current turn.
         """
-        return self.phi_rf_actual / self.omega_rf_actual
+        return (
+            -self.phi_rf_actual / self.omega_rf_actual
+        )  # TODO: this should be negative or positive?
 
     @cached_property
     def voltage_setpoint(self) -> NumpyArray:
