@@ -83,14 +83,17 @@ class Coasting(base.BeamPreparationRoutine):
 
         self.energy_bins = energy_bins
 
+        # Automatically cast energy profile to the correct array type
+        # to allow for any ArrayLike to work with any backend.
+        energy_profile = backend.cast_arr_float_if_needed(energy_profile)
         profile_sum = backend.sum(energy_profile)
+
         if profile_sum != 1:
             warnings.warn(
                 "Energy profile does not sum to 1 and will be"
-                " automatically normalised",
+                " automatically normalised.",
                 stacklevel=2,
             )
-            energy_profile = backend.cast_arr_float_if_needed(energy_profile)
             energy_profile /= profile_sum
 
         self.energy_profile = energy_profile
