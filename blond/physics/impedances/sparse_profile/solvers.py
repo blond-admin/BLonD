@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy._typing import NDArray as NumpyArray
+from scipy.constants import e
 
 from blond import backend
 from blond.core.simulation.simulation import Simulation
@@ -61,13 +63,14 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
 
         time_multiturn = np.concatenate(
             [
-                continuous_memory_hist_x * i * self._t_rev
+                continuous_memory_hist_x + i * self._t_rev
                 for i in range(self._n_turns)
             ]
         )
         mask_multiturn = np.concatenate(
             [continuous_memory_mask for _ in range(self._n_turns)]
         )
+        time_multiturn -= time_multiturn[mask_multiturn].min()
         kernel_size = len(profile._continuous_memory_hist_x) * self._n_turns
         kernel_multiturn = backend.zeros(kernel_size, dtype=backend.float)
 
@@ -100,6 +103,7 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         """
         if self._kernel_multiturn is None:
             self._update_kernel_multiturn()
+
         profile: EquidistantMultiProfile = self._parent_wakefield.profile
 
         _continuous_hist_y_single_turn = profile._continuous_memory_hist_y
@@ -110,6 +114,15 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
             )
             * backend.fft.rfft(self._kernel_multiturn)
         )
+
+        plt.figure("compare")
+        plt.subplot(3, 1, 3)
+        plt.plot(
+            self._time_multiturn[self._mask_multiturn],
+            self._kernel_multiturn[self._mask_multiturn],
+            label="multiturn",
+        )
+
         if self._previous_induced_voltage_multiturn is None:
             self._previous_induced_voltage_multiturn = (
                 induced_voltage_multiturn
@@ -127,5 +140,9 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
 
         induced_voltage = induced_voltage_multiturn[
             : len(_continuous_hist_y_single_turn)
-        ][profile._make_memory_continuous]
-        return induced_voltage
+        ][profile._continuous_memory_mask]
+
+        _factor = (-1 * beam.particle_type.charge * e) * (
+            beam.intensity * (1.0 / beam.common_array_size)
+        )
+        return _factor * induced_voltage

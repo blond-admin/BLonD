@@ -77,7 +77,11 @@ class EquidistantMultiProfile(MultiProfile):
     def n_bins(self):
         return self._n_profiles * self._bins_per_profile
 
-    @requires(["RFStationBaseClass"]) # for `get_t_rev_init`
+    def plot(self):
+        for profile in self.profiles:
+            profile.plot()
+
+    @requires(["RFStationBaseClass"])  # for `get_t_rev_init`
     def on_init_simulation(self, simulation: Simulation) -> None:
         t_rev = simulation.get_t_rev_init()
         half_width = float(self._width_per_profile / 2)
@@ -107,7 +111,8 @@ class EquidistantMultiProfile(MultiProfile):
 
     def _make_memory_continuous(self):
         self._continuous_memory_hist_x = backend.zeros(
-            2 * self.n_bins, # to leave one profile space in between each profile
+            2
+            * self.n_bins,  # to leave one profile space in between each profile
             # assume all dtypes are equal
             dtype=self.profiles[0]._hist_x.dtype,
         )
@@ -120,13 +125,13 @@ class EquidistantMultiProfile(MultiProfile):
         )
         for i, profile in enumerate(self.profiles):
             start = 2 * i * self._bins_per_profile
-            stop = start +  self._bins_per_profile
+            stop = start + self._bins_per_profile
             # must be slice to have pointer access in numpy
             sel = slice(start, stop)
 
-            self._continuous_memory_mask[sel][:] = True
-            self._continuous_memory_hist_x[sel][:] = profile._hist_x
-            self._continuous_memory_hist_y[sel][:] = profile._hist_y
+            self._continuous_memory_mask[sel] = True
+            self._continuous_memory_hist_x[sel] = profile._hist_x
+            self._continuous_memory_hist_y[sel] = profile._hist_y
             # intentionally overwrite internal memory
             profile._hist_x = self._continuous_memory_hist_x[sel]
             profile._hist_y = self._continuous_memory_hist_y[sel]

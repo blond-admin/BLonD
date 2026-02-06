@@ -7,23 +7,25 @@ import numpy as np
 
 import blond
 from blond import (
-    TimeDomainFftSolver,
-    Ring,
-    MagneticCyclePerTurn,
-    proton,
     Beam,
-    StaticProfile,
-    WakeField,
-    Resonators,
-    Simulation,
     BiGaussian,
+    ConstantMagneticCycle,
     DriftSimple,
+    MagneticCyclePerTurn,
+    Resonators,
+    Ring,
+    Simulation,
     SingleHarmonicRFStation,
+    StaticProfile,
+    TimeDomainFftSolver,
+    WakeField,
     backend,
+    proton,
 )
 from blond.handle_results.helpers import callers_relative_path
-from blond.physics.impedances.sparse_profile.solvers import \
-    MultiTurnSparseProfileSolver
+from blond.physics.impedances.sparse_profile.solvers import (
+    MultiTurnSparseProfileSolver,
+)
 from blond.physics.profiles import ProfileBaseClass
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
@@ -72,23 +74,41 @@ def make_multibunch_beam(
 class MyTestCase(unittest.TestCase):
     def test_something(self):
         for induces_voltage in (None,):  # TODO
-            self.multiturn(induced_voltage=induces_voltage)
-            sys.exit(0)
+            wakefield = self.multiturn(induced_voltage=induces_voltage)
+            profile: EquidistantMultiProfile = wakefield.profile
+            DEV_DRAW = True
+            if DEV_DRAW:
+                plt.figure("compare")
+                ax1 = plt.subplot(3, 1, 1)
+                profile.plot()
+                plt.subplot(3, 1, 2, sharex=ax1)
+                plt.plot(
+                    profile.hist_x,
+                    wakefield.induced_voltage,
+                    label="multiturn",
+                )
+
             wakefield = self.non_sparse_fake_multiturn(
                 induced_voltage=induces_voltage
             )
             profile: ProfileBaseClass = wakefield.profile
             DEV_DRAW = True
             if DEV_DRAW:
-                plt.figure()
+                plt.figure("compare")
                 ax1 = plt.subplot(3, 1, 1)
-                profile.plot()
+                profile.plot(linestyle="--")
                 plt.subplot(3, 1, 2, sharex=ax1)
-                plt.plot(profile.hist_x, wakefield.induced_voltage)
+                plt.plot(
+                    profile.hist_x,
+                    wakefield.induced_voltage,
+                    "--",
+                    label="single turn",
+                )
+                plt.legend()
                 plt.show()
 
     def non_sparse_fake_multiturn(self, induced_voltage) -> WakeField:
-        FAKE_TUNRS = 2
+        FAKE_TUNRS = 1
         wake_solver = TimeDomainFftSolver()
         ring = Ring(
             circumference=6911.56,
@@ -184,16 +204,14 @@ class MyTestCase(unittest.TestCase):
         ring = Ring(
             circumference=6911.56,
         )
-        magnetic_cycle = MagneticCyclePerTurn(
+        magnetic_cycle = ConstantMagneticCycle(
             reference_particle=proton,
-            values_after_turn=np.linspace(sync_momentum, sync_momentum, 2),
-            value_init=sync_momentum,
+            value=sync_momentum,
             in_unit="momentum",
         )
         _bunch = Beam(
             intensity=1e10,
             particle_type=proton,
-
         )
         drift = DriftSimple(
             transition_gamma=22.82177322938192,
@@ -204,11 +222,13 @@ class MyTestCase(unittest.TestCase):
             voltage=0.9e6,
             phi_rf=0.0,
         )
-        t_rf =(magnetic_cycle.get_t_rev_init(
+        t_rf = (
+            magnetic_cycle.get_t_rev_init(
                 ring.circumference,
                 particle_type=proton,
             )
-            / rf_station.harmonic)
+            / rf_station.harmonic
+        )
 
         profile = EquidistantMultiProfile(
             n_profiles=int((rf_station.harmonic // 10)),
@@ -218,7 +238,7 @@ class MyTestCase(unittest.TestCase):
             )
             / rf_station.harmonic,
             bins_per_profile=2**8,
-            offset=t_rf/2,
+            offset=t_rf / 2,
         )
         wakefield = WakeField(
             sources=(Resonators(R_shunt, f_res, Q_factor),),
@@ -251,11 +271,12 @@ class MyTestCase(unittest.TestCase):
             n_times=int((rf_station.harmonic // 10)),
             t_distance=t_rf * 10,
         )
+        drift.orbit_length = 0
+        rf_station.voltage = 0.0
+        sim.check_circumference = "ignore"
 
         sim.run_simulation(beams=beam, n_turns=1)
-        plt.figure()
-        plt.plot(profile.hist_x, profile.hist_y)
-        plt.show()
+        return wakefield
 
 
 if __name__ == "__main__":

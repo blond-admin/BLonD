@@ -23,7 +23,7 @@ import warnings
 from collections.abc import Callable, Sequence
 from copy import copy, deepcopy
 from pstats import SortKey
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -164,6 +164,8 @@ class Simulation(Preparable):
         self.turn_i = DynamicParameter(0)
         self.section_i = DynamicParameter(0)
         self.intensity_effect_manager = IntensityEffectManager(simulation=self)
+
+        self.check_circumference: Literal["raise", "warn", "ignore"] = "raise"
 
         self._current_t_rev = None
         self._particle_performance_waning_threshold = int(1e3)
@@ -1253,7 +1255,18 @@ class Simulation(Preparable):
         beams = _single_beam_to_tuple(beams)
         if self.execution_model is None:
             self._autoselect_execution_model(beams)
-        self.ring.assert_circumference()
+
+        if self.check_circumference == "raise":
+            self.ring.assert_circumference()
+        elif self.check_circumference == "warn":
+            try:
+                self.ring.assert_circumference()
+            except (AssertionError, ValueError) as exc:
+                warnings.warn(str(exc), UserWarning, stacklevel=3)
+        elif self.check_circumference == "ignore":
+            pass
+        else:
+            raise ValueError(f"Unknown {self.check_circumference=}")
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
