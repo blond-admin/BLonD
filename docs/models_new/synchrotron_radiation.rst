@@ -61,7 +61,7 @@ integral.
 Synchrotron Radiation Integrals
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The properties of the electron beam in synchrotrons are summarized in the
-**synchrotron radiation integrals**[1]:
+**synchrotron radiation integrals**[1-3]:
 
 .. math::
 
@@ -157,26 +157,25 @@ The **natural energy spread** is:
 where :math:`C_q` is the quantum radiation constant and :math:`m_0` is the
 particle rest mass.
 
-
-
-Energy Kick Model
-^^^^^^^^^^^^^^^^^
-
+Tracking with synchrotron radiation and quantum excitation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 At each tracking step, the energy deviation :math:`\Delta E` of each particle
-is updated according to:
+is updated taking into account:
 
+1. the energy lost by the synchronous particle along the turn :math: 'U_0',
+2. the effect of radiation damping with :math: 'tau_z' the damping time,
+3. the effect of quantum excitation, with :math: '\sigma_E' the natural energy
+spread.
+
+The effective energy kick provided by the synchrotron radiation tracker is:
 .. math::
 
-   \Delta E \rightarrow \Delta E - U_0 - \frac{2}{\tau_z} \Delta E
-   + 2 \sigma_E \sqrt{\frac{1}{\tau_z}} \cdot \mathcal{N}(0,1)
+   \Delta E \rightarrow \Delta E \\
+   - U_0 \\
+   - \frac{2}{\tau_z} \Delta E \\
+   + \sqrt{\frac{2 \sigma_E \E_0}{\tau_z}} \cdot \mathcal{N}(0,1)
 
-where :math:`\mathcal{N}(0,1)` represents a standard normal random variable.
-The three terms represent:
-
-1. Mean energy loss
-2. Radiation damping (restoring toward reference energy)
-3. Quantum excitation (stochastic heating)
-
+where :math:`\mathcal{N}(0,1)` represents a standard normal random distribution.
 ---
 
 Module Structure
@@ -184,9 +183,15 @@ Module Structure
 
 The synchrotron radiation framework consists of:
 
+**Base Class**
+
+- :class: 'SynchrotronRadiationBaseClass': it holds basic properties
+ for tracking with synchrotron radiation, computes the energy kick given to the
+  beam and updates the beam energy accordingly druing the simulation.
+
 **Master Class**
 
-- :class:`SynchrotronRadiationMaster` -- Orchestrates the creation and
+- :class:`SynchrotronRadiationMaster`:  Orchestrates the creation and
   insertion of synchrotron radiation trackers into the ring
 
 **Tracker Elements**
