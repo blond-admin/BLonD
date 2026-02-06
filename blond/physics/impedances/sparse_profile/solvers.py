@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import numpy as np
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import e
@@ -86,6 +85,9 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         self._time_multiturn = time_multiturn
         self._mask_multiturn = mask_multiturn
         self._kernel_multiturn = kernel_multiturn
+        self._rfft_kernel_multiturn = backend.fft.rfft(
+            self._kernel_multiturn, n=(len(self._kernel_multiturn))
+        )
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
@@ -113,17 +115,18 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         n_fft = len(self._kernel_multiturn)
 
         H = backend.fft.rfft(_continuous_hist_y_single_turn, n=n_fft)
-        K = backend.fft.rfft(self._kernel_multiturn, n=n_fft)
 
-        induced_voltage_multiturn = backend.fft.irfft(H * K, n=n_fft)
+        induced_voltage_multiturn = backend.fft.irfft(
+            H * self._rfft_kernel_multiturn, n=n_fft
+        )
 
-        plt.figure("compare")
+        """plt.figure("compare")
         plt.subplot(3, 1, 3)
         plt.plot(
             self._time_multiturn[self._mask_multiturn],
             self._kernel_multiturn[self._mask_multiturn],
             label="multiturn",
-        )
+        )"""
 
         if self._previous_induced_voltage_multiturn is None:
             self._previous_induced_voltage_multiturn = (
