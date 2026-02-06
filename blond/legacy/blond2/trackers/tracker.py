@@ -611,6 +611,15 @@ class RingAndRFTracker:
                     )
                 else:
                     self.kick(self.beam.dt, self.beam.dE, turn)
+                    if self.totalInducedVoltage is not None:
+                        bm.linear_interp_kick(
+                            dt=self.beam.dt,
+                            dE=self.beam.dE,
+                            voltage=self.totalInducedVoltage.induced_voltage,
+                            bin_centers=self.profile.bin_centers,
+                            charge=self.beam.particle.charge,
+                            acceleration_kick=0,
+                        )
 
             self.drift(self.beam.dt, self.beam.dE, turn + 1)
 
