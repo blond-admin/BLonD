@@ -9,13 +9,13 @@ import numpy as np
 from scipy.constants import c, e
 from scipy.constants import speed_of_light as c0
 
-from blond import (
-    WigglerMagnet,
-)
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
 from blond.generals.distributed.distributed_array import DistributedArray
+from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (
+    WigglerMagnet,
+)
 
 if TYPE_CHECKING:
     from typing import Literal

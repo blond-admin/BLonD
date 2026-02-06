@@ -8,7 +8,6 @@ import numpy as np
 from blond import (
     Ring,
     SingleHarmonicRFStation,
-    SynchrotronRadiationMaster,
     backend,
 )
 from blond.handle_results.observables_as_elements import (
@@ -17,6 +16,7 @@ from blond.handle_results.observables_as_elements import (
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
+    SynchrotronRadiationMaster,
     _SynchrotronRadiationTracker,
 )
 

@@ -8,7 +8,6 @@ import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from blond import (
-    SynchrotronRadiationBaseClass,
     electron,
 )
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
@@ -19,6 +18,9 @@ from blond.core.base import SimulationElementBase
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
 from blond.generals.distributed.distributed_array import DistributedArray
+from blond.physics.synchrotron_radiation.base import (
+    SynchrotronRadiationBaseClass,
+)
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationTracker,
 )
