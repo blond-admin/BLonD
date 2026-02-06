@@ -20,6 +20,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    SynchrotronRadiationMaster,
     WigglerMagnet,
     positron,
 )
@@ -28,7 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.particle_types import ParticleType
 
 
-# TODO include synchrotron radiation
+# TODO:SR integrals - once the optics are frozen
 def generate_fccee_collider_basic_simulation(
     operation_mode: str = "Z",
     particle: ParticleType = positron,
@@ -94,6 +95,9 @@ def generate_fccee_collider_basic_simulation(
     )
     ring.add_elements([cavity, drift])
 
+    SRM = SynchrotronRadiationMaster()
+    SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring)
+
     magnetic_cycle = ConstantMagneticCycle(
         value=reference_energy,
         in_unit="total energy",
@@ -102,7 +106,6 @@ def generate_fccee_collider_basic_simulation(
     )
 
     beam = Beam(intensity=1e9, particle_type=particle)
-    # TODO verify output
     fccee_simulation = Simulation.from_locals(locals())
     fccee_simulation.print_one_turn_execution_order()
 
@@ -117,7 +120,6 @@ def generate_fccee_collider_basic_simulation(
         ),
         turn_i=1,
     )
-
     return fccee_simulation
 
 
