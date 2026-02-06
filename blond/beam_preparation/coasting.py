@@ -70,7 +70,7 @@ class Coasting(base.BeamPreparationRoutine):
         start_time: float = 0,
         stop_time: float | None = None,
         energy_offset: float | ArrayLike = 0,
-        seed: int = 0,
+        seed: int | None = None,
     ):
         super().__init__()
 
@@ -159,12 +159,13 @@ class Coasting(base.BeamPreparationRoutine):
                 circ, particle
             )
 
-        t_width = self.stop_time - self.start_time
-
         dt = backend.cast_arr_float_if_needed(
-            rng.uniform(low=0, high=t_width, size=self._n_macroparticles_local)
+            rng.uniform(
+                low=self.start_time,
+                high=self.stop_time,
+                size=self._n_macroparticles_local,
+            )
         )
-        dt += self.start_time
 
         if isinstance(self.energy_offset, backend.ndarray):
             dE += backend.interp(
@@ -173,4 +174,4 @@ class Coasting(base.BeamPreparationRoutine):
         else:
             dE += self.energy_offset
 
-        beam.setup_beam(dt=dt, dE=dE)
+        beam.setup_beam(dt=dt, dE=dE, mpi_mode="all-ranks")
