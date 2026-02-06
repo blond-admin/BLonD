@@ -381,6 +381,7 @@ class IQCavityFeedback(LocalFeedback):
         t_rev = float(  # TODO REMWORK/REMOVE
             2 * np.pi * harmonic / self.omega_rf
         )
+        t_rf = float(2 * np.pi / self.omega_rf)
 
         # Present carrier frequency: main RF frequency
         self.omega_carrier_prev = self.omega_carrier
@@ -397,13 +398,11 @@ class IQCavityFeedback(LocalFeedback):
         self.rf_centers_prev = np.copy(self.rf_centers)
 
         # Residual part of last turn entering the current turn due to non-integer harmonic number
-        self.dT = -(float(phi_rf) + float(phi_rf)) / self.omega_rf
+        self.dT = -phi_rf / self.omega_rf
 
         self.rf_centers = (
-            np.arange(self.n_coarse) * self.T_s
-            + 0.5 * 2 * np.pi / self.omega_rf
-            + self.dT
-        )  # TODO: this should be * n_coarse, otherwise inconsistent with above
+            np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf + self.dT
+        )
 
     @abstractmethod  # pragma: no cover
     def circuit_track(self, no_beam: bool = False) -> None:
@@ -425,7 +424,7 @@ class IQCavityFeedback(LocalFeedback):
 
     def track_no_beam(self, n_pretrack: int | None = 1) -> None:
         r"""Tracking method of the cavity feedback without beam in the accelerator."""
-        self.update_rf_variables()
+        # self.update_rf_variables()  # TODO: commented out
         self.update_fb_variables()
         for i in range(n_pretrack):
             self.circuit_track(no_beam=True)
