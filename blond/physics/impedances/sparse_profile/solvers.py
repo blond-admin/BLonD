@@ -70,7 +70,9 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         mask_multiturn = np.concatenate(
             [continuous_memory_mask for _ in range(self._n_turns)]
         )
-        time_multiturn -= time_multiturn[mask_multiturn].min()
+        time_multiturn -= continuous_memory_hist_x[
+            continuous_memory_mask
+        ].min()
         kernel_size = len(profile._continuous_memory_hist_x) * self._n_turns
         kernel_multiturn = backend.zeros(kernel_size, dtype=backend.float)
 
@@ -107,13 +109,13 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         profile: EquidistantMultiProfile = self._parent_wakefield.profile
 
         _continuous_hist_y_single_turn = profile._continuous_memory_hist_y
-        induced_voltage_multiturn = backend.fft.irfft(
-            backend.fft.rfft(
-                _continuous_hist_y_single_turn,
-                n=len(self._kernel_multiturn),  # zero pad to next turns
-            )
-            * backend.fft.rfft(self._kernel_multiturn)
-        )
+
+        n_fft = len(self._kernel_multiturn)
+
+        H = backend.fft.rfft(_continuous_hist_y_single_turn, n=n_fft)
+        K = backend.fft.rfft(self._kernel_multiturn, n=n_fft)
+
+        induced_voltage_multiturn = backend.fft.irfft(H * K, n=n_fft)
 
         plt.figure("compare")
         plt.subplot(3, 1, 3)
@@ -140,7 +142,7 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
 
         induced_voltage = induced_voltage_multiturn[
             : len(_continuous_hist_y_single_turn)
-        ][profile._continuous_memory_mask]
+        ][profile._continuous_memory_mask_prof]
 
         _factor = (-1 * beam.particle_type.charge * e) * (
             beam.intensity * (1.0 / beam.common_array_size)

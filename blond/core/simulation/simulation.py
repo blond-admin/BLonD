@@ -174,9 +174,9 @@ class Simulation(Preparable):
 
     def profiling(
         self,
-        beams: tuple[BeamBaseClass],
-        profile_n_turns: int | float,
-        profile_start_turn_i: int = 0,
+        beams: BeamBaseClass | tuple[BeamBaseClass],
+        n_turns: int | float,
+        start_turn_i: int = 0,
         sortby: SortKey = SortKey.CUMULATIVE,
     ) -> None:
         """
@@ -193,9 +193,9 @@ class Simulation(Preparable):
         ----------
         beams
             Beams to simulate during profiling (typically just one).
-        profile_n_turns
+        n_turns
             Number of turns to profile after starting.
-        profile_start_turn_i
+        start_turn_i
             Turn number at which to begin profiling.
         sortby
             How to sort the profiling results. Options include:
@@ -224,13 +224,13 @@ class Simulation(Preparable):
         >>> sim.profiling(
         ...     beams=(beam1,),
         ...
-        ...     profile_start_turn_i=10,  # Skip first 10 turns
-        ...     profile_n_turns=100,       # Profile next 100 turns
+        ...     start_turn_i=10,  # Skip first 10 turns
+        ...     n_turns=100,       # Profile next 100 turns
         ...     sortby=SortKey.CUMULATIVE,
         ... )
         # Prints detailed timing statistics
         """
-        assert profile_start_turn_i >= 0
+        assert start_turn_i >= 0
 
         import cProfile
         import io
@@ -250,11 +250,11 @@ class Simulation(Preparable):
             beam
                 The `Beam` object.
             """
-            if simulation.turn_i.value == profile_start_turn_i:
+            if simulation.turn_i.value == start_turn_i:
                 pr.enable()
 
-        end_turn = profile_start_turn_i + int_from_float_with_warning(
-            profile_n_turns, warning_stacklevel=2
+        end_turn = start_turn_i + int_from_float_with_warning(
+            n_turns, warning_stacklevel=2
         )
 
         self.run_simulation(

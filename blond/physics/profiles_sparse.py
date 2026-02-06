@@ -67,11 +67,15 @@ class EquidistantMultiProfile(MultiProfile):
 
     @property
     def hist_x(self):
-        return self._continuous_memory_hist_x[self._continuous_memory_mask]
+        return self._continuous_memory_hist_x[
+            self._continuous_memory_mask_prof
+        ]
 
     @property
     def hist_y(self):
-        return self._continuous_memory_hist_y[self._continuous_memory_mask]
+        return self._continuous_memory_hist_y[
+            self._continuous_memory_mask_prof
+        ]
 
     @property
     def n_bins(self):
@@ -110,31 +114,59 @@ class EquidistantMultiProfile(MultiProfile):
         self._make_memory_continuous()
 
     def _make_memory_continuous(self):
+        n = self._bins_per_profile
+        total = 2 * self.n_bins
+
         self._continuous_memory_hist_x = backend.zeros(
-            2
-            * self.n_bins,  # to leave one profile space in between each profile
-            # assume all dtypes are equal
+            total,
             dtype=self.profiles[0]._hist_x.dtype,
         )
         self._continuous_memory_hist_y = backend.zeros_like(
             self._continuous_memory_hist_x
         )
-        self._continuous_memory_mask = backend.zeros_like(
-            self._continuous_memory_hist_x,
-            dtype=bool,
-        )
+        self._continuous_memory_mask = backend.zeros(total, dtype=bool)
+        self._continuous_memory_mask_prof = backend.zeros(total, dtype=bool)
         for i, profile in enumerate(self.profiles):
-            start = 2 * i * self._bins_per_profile
-            stop = start + self._bins_per_profile
-            # must be slice to have pointer access in numpy
+            start = 2 * i * n
+            stop = start + n
             sel = slice(start, stop)
 
-            self._continuous_memory_mask[sel] = True
+            # core region
+            self._continuous_memory_mask_prof[sel] = True
             self._continuous_memory_hist_x[sel] = profile._hist_x
             self._continuous_memory_hist_y[sel] = profile._hist_y
-            # intentionally overwrite internal memory
+
+            # overwrite profile storage with views
             profile._hist_x = self._continuous_memory_hist_x[sel]
             profile._hist_y = self._continuous_memory_hist_y[sel]
+
+            # ---- TODO FIX 1: extend mask ----
+            # desired total width: 2*n - 1 centered on the profile
+            center = start + n // 2
+            half_width = n - 1
+            width = n
+
+            ext_start = max(start - n, 0)
+            ext_stop = min(stop, total)
+
+            self._continuous_memory_mask[ext_start:ext_stop] = True
+
+            # ---- TODO FIX 2: fill hist_x in extended region ----
+            dx = profile._hist_x[1] - profile._hist_x[0]
+
+            # left extension
+            if ext_start < start:
+                k = start - ext_start
+                self._continuous_memory_hist_x[ext_start:start] = (
+                    profile._hist_x[0] - dx * backend.arange(k, 0, -1)
+                )
+
+            # right extension
+            if stop < ext_stop:
+                k = ext_stop - stop
+                self._continuous_memory_hist_x[stop:ext_stop] = (
+                    profile._hist_x[-1] + dx * backend.arange(1, k + 1)
+                )
 
     def _track(self, beam: BeamBaseClass) -> None:
         for profile in self.profiles:

@@ -67,7 +67,6 @@ def make_multibunch_beam(
         full_dt[sel] = beam._dt.array_local + t_offset
 
     full_beam.setup_beam(dt=full_dt, dE=full_dE, mpi_mode="all-ranks")
-
     return full_beam
 
 
@@ -96,10 +95,11 @@ class MyTestCase(unittest.TestCase):
             if DEV_DRAW:
                 plt.figure("compare")
                 ax1 = plt.subplot(3, 1, 1)
-                profile.plot(linestyle="--")
+                center = profile.hist_x[len(profile.hist_x) // 2 - 1]
+                plt.plot(profile.hist_x - center, profile.hist_y)
                 plt.subplot(3, 1, 2, sharex=ax1)
                 plt.plot(
-                    profile.hist_x,
+                    profile.hist_x - center,
                     wakefield.induced_voltage,
                     "--",
                     label="single turn",
@@ -108,8 +108,8 @@ class MyTestCase(unittest.TestCase):
                 plt.show()
 
     def non_sparse_fake_multiturn(self, induced_voltage) -> WakeField:
-        FAKE_TUNRS = 1
-        wake_solver = TimeDomainFftSolver()
+        FAKE_TUNRS = 2
+        wake_solver = TimeDomainFftSolver(allow_next_fast_len=False)
         ring = Ring(
             circumference=6911.56,
         )
@@ -275,7 +275,7 @@ class MyTestCase(unittest.TestCase):
         rf_station.voltage = 0.0
         sim.check_circumference = "ignore"
 
-        sim.run_simulation(beams=beam, n_turns=1)
+        sim.run_simulation(beams=beam, n_turns=2)
         return wakefield
 
 
