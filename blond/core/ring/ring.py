@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 import copy
-import logging
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -34,11 +33,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
     from blond.physics.drifts import DriftBaseClass
 
-logger = logging.getLogger(__name__)
-
 
 class Ring(Preparable):
-    r"""
+    """
     Create a `Ring` object representing a synchrotron accelerator.
 
     A Ring (synchrotron) is the fundamental structure that contains all beam
@@ -59,26 +56,6 @@ class Ring(Preparable):
         Default is True.
     synchrotron_radiation_integrals
             Synchrotron radiation integrals.
-            First five synchrotron radiation integrals are required:
-            'I_1' = \int, related to the momentum compaction factor,
-            'I_2' = , related to the energy loss per turn,
-            'I_3' = , related to the natural energy spread,
-            'I_4' =  , required for the damping times,
-            'I_5' =  , required for the natural horizontal emittance
-            with '\rho' the bending radius of bending elements, 'D' the
-            horizontal dispersion function, 'K' the focusing strength and 'H =
-            \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
-            H-function.
-
-    References
-    ----------
-    Further information on synchrotron radiation damping and quantum excitation
-    can be found in:
-    - H. Wiedemann, Synchrotron Radiation, Springer, 2003
-    - S.Y. Lee, Accelerator Physics, World Scientific, Third edition,
-    2014 #check date
-    - A. Wolski, Introduction to Beam Dynamics in High-Energy Electron Storage
-    Rings, Morgan & Claypool Publishers, 2018
     """
 
     def __init__(
@@ -574,7 +551,6 @@ class Ring(Preparable):
         >>> ring.add_elements(rf_stations)
         """
         for element in elements:
-            logger.info(f"Adding {element}")
             self.add_element(
                 element=element,
                 deepcopy=deepcopy,
@@ -648,8 +624,6 @@ class Ring(Preparable):
                         element=element,
                         insert_at=k + already_inserted,
                     )
-                logger.info(f"Adding {element}")
-
                 self.elements.insert(
                     element=element,
                     insert_at=k + already_inserted,
@@ -661,8 +635,6 @@ class Ring(Preparable):
                     "Cannot overwrite the section indexes with deepcopy == False."
                 )
             for already_inserted, k in enumerate(insert_at):
-                logger.info(f"Adding {element}")
-
                 self.elements.insert(
                     element=element,
                     insert_at=k + already_inserted,
