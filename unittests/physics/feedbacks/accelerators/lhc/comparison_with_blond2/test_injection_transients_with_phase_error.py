@@ -1,8 +1,52 @@
 import unittest
 
 import numpy as np
+import scipy.constants as sc
 from matplotlib import pyplot as plt
 from tqdm import tqdm
+
+# Accelerator
+circumference = 26658.8832  # [m]
+momentum = 450e9
+n_bunches = 36
+intensity = 1.6e11 * n_bunches
+n_turns = 500
+gamma_t = 53.606713
+delta_f = -3480
+alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor [-]
+
+bunch_lengths = 1.2e-9
+
+bucket_shift = 10_000
+injection_phase_error = 40
+
+energy = np.sqrt(momentum**2 + (sc.proton_mass * sc.c**2 / sc.e) ** 2)
+rel_gamma = energy / (sc.proton_mass * sc.c**2 / sc.e)
+rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
+
+# The RF station
+h = 35640  # Harmonic number [-]
+voltage = 5e6  # RF voltage [V]
+dphi = 0  # Phase modulation/offset [rad]
+
+# Cavity Controller
+G_a = 6.79e-6  # Analog FB gain [A/V]
+G_d = 10  # Digital FB gain [-]
+tau_loop = 650e-9  # Overall loop delay [s]
+tau_a = 170e-6  # Analog FB delay [s]
+tau_d = 400e-6  # Digital FB delay [s]
+a_comb = 15 / 16  # Comb filter alpha [-]
+Q_L = 20000  # Loaded Quality factor [-]
+G_otfb = 10  # OTFB gain [-]
+tau_comp = 1200e-9  # Complimentary delay in OTFB [s]
+
+# The beam
+number_of_bunches = 36  # Length of the batch [number of bunches]
+bunch_intensity = 1.6e11  # Bunch intensity [p/b]
+n_macroparticles = 100_000  # Number of macroparticles per bunch [-]
+tau_bunch = 1.2e-9  # Bunch length [s]
+bunch_spacing = 10  # Bunch spacing [number of rf buckets]
+injection_energy_error = 0  # Injection energy error [eV]
 
 
 class TestInjectionWithPhaseError(unittest.TestCase):
@@ -36,25 +80,6 @@ class TestInjectionWithPhaseError(unittest.TestCase):
             backend.change_backend(Numpy64Bit)
             backend.set_specials("cpp")
 
-            circumference = 26658.8832  # [m]
-            momentum = 450e9
-            n_bunches = 36
-            intensity = 1.6e11 * n_bunches
-            n_turns = 500
-            voltage = 5e6
-            h = 35640
-            gamma_t = 53.606713
-            delta_f = -3480
-
-            bunch_lengths = 1.2e-9
-
-            bucket_shift = 10_000
-            injection_phase_error = 40
-
-            energy = np.sqrt(momentum**2 + proton.mass**2)
-            rel_gamma = energy / proton.mass
-            rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
-
             beam = Beam(
                 intensity,
                 proton,
@@ -69,7 +94,7 @@ class TestInjectionWithPhaseError(unittest.TestCase):
 
             cavity = MultiHarmonicRFStation(
                 voltage=np.array([voltage]),
-                phi_rf=np.array([0.0]),
+                phi_rf=np.array([dphi]),
                 harmonic=np.array([h]),
                 n_harmonics=1,
                 main_harmonic_idx=0,
@@ -207,7 +232,6 @@ class TestInjectionWithPhaseError(unittest.TestCase):
             from blond.legacy.blond2.beam.beam import Beam, Proton
             from blond.legacy.blond2.beam.distributions import (
                 bigaussian,
-                parabolic,
             )
             from blond.legacy.blond2.beam.profile import CutOptions, Profile
             from blond.legacy.blond2.input_parameters.rf_parameters import (
@@ -227,36 +251,11 @@ class TestInjectionWithPhaseError(unittest.TestCase):
             # Options
             PLT_SIMS = False
             DISABLE_PL = False
-
-            # The synchrotron ring
-            C = 26658.8832  # Machine circumference [m]
-            p_s = 450e9  # Synchronous momentum [eV/c]
-            gamma_t = 53.606713  # Transition gamma [-]
-            alpha = (
-                1.0 / gamma_t / gamma_t
-            )  # First order mom. comp. factor [-]
-            n_turns = 500  # Number of turns to track [-]
-
-            ring = Ring(C, alpha, p_s, Proton(), n_turns=n_turns + 1)
-
-            # The RF station
-            h = 35640  # Harmonic number [-]
-            V = 5e6  # RF voltage [V]
-            dphi = 0  # Phase modulation/offset [rad]
-
-            rfstation = RFStation(ring, [h], [V], [dphi], n_rf=1)
-
-            # The beam
-            number_of_bunches = 36  # Length of the batch [number of bunches]
-            bunch_intensity = 1.6e11  # Bunch intensity [p/b]
-            n_macroparticles = (
-                100_000  # Number of macroparticles per bunch [-]
+            ring = Ring(
+                circumference, alpha, momentum, Proton(), n_turns=n_turns + 1
             )
-            tau_bunch = 1.2e-9  # Bunch length [s]
-            bunch_spacing = 10  # Bunch spacing [number of rf buckets]
-            injection_energy_error = 0  # Injection energy error [eV]
-            injection_phase_error = 40
-            bucket_shift = 1000
+
+            rfstation = RFStation(ring, [h], [voltage], [dphi], n_rf=1)
 
             # Beam object for the batch
             N_m = n_macroparticles * number_of_bunches
@@ -283,7 +282,6 @@ class TestInjectionWithPhaseError(unittest.TestCase):
                 )
 
             # Add final corrections to the bunch positions
-            bucket_shift = 10000
             beam.dt += (
                 bucket_shift * rfstation.t_rf[0, 0]
                 + injection_phase_error * rfstation.t_rf[0, 0] / 360
@@ -314,18 +312,6 @@ class TestInjectionWithPhaseError(unittest.TestCase):
                 ax.set_yticks([])
 
                 plt.show()
-
-            # Cavity Controller
-            G_a = 6.79e-6  # Analog FB gain [A/V]
-            G_d = 10  # Digital FB gain [-]
-            tau_loop = 650e-9  # Overall loop delay [s]
-            tau_a = 170e-6  # Analog FB delay [s]
-            tau_d = 400e-6  # Digital FB delay [s]
-            a_comb = 15 / 16  # Comb filter alpha [-]
-            Q_L = 20000  # Loaded Quality factor [-]
-            G_otfb = 10  # OTFB gain [-]
-            tau_comp = 1200e-9  # Complimentary delay in OTFB [s]
-            delta_f = -3480  # Initial detuning due to 12 bunches [Hz]
 
             commissioning = LHCCavityLoopCommissioning(
                 G_a=G_a,
