@@ -17,61 +17,63 @@ import mplhep as hep
 
 plt.style.use(hep.style.CMS)
 
-def main():
+def test_all_the_same():
     """Run xsuite + blond element simulation."""
     zeta_xsuite, delta_xsuite, init_dist = run_xsuite()
-    zeta_blond, delta_blond = run_blond(init_distribution=init_dist)
+    zeta_blond, delta_blond, phi_s = run_blond(init_distribution=init_dist)
+
 
     assert zeta_blond.shape == zeta_xsuite.shape
     assert delta_blond.shape == delta_xsuite.shape
 
-    plt.scatter(zeta_blond[0], delta_blond[0], label='xsuite + BLonD')
-    plt.scatter(zeta_xsuite[0], delta_xsuite[0], label='xsuite')
+    plt.scatter(zeta_blond[:,0], delta_blond[:,0], label='xsuite + BLonD')
+    plt.scatter(zeta_xsuite[:,0], delta_xsuite[:,0], label='xsuite')
     plt.title('After 0 turns')
     plt.xlabel('$\zeta$ [m]')
     plt.ylabel(r'$p_{\tau}$')
     plt.legend()
+    plt.tight_layout()
+
+    plt.savefig(f'./ebeg_turns_{n_turns}.png')
+
     plt.show()
 
 
 
-    plt.scatter(zeta_blond[-1], delta_blond[-1], label='xsuite + BLonD')
-    plt.scatter(zeta_xsuite[-1], delta_xsuite[-1], label='xsuite')
+    plt.scatter(zeta_blond[:,-1], delta_blond[:,-1], label='xsuite + BLonD')
+    plt.scatter(zeta_xsuite[:,-1], delta_xsuite[:,-1], label='xsuite')
     plt.title('After 100 turns')
     plt.xlabel('$\zeta$ [m]')
     plt.ylabel(r'$p_{\tau}$')
     plt.legend()
+    plt.tight_layout()
+
+    plt.savefig('./end_turns_1000.png')
     plt.show()
 
-    plt.scatter(zeta_blond[-1], delta_blond[-1], label='xsuite + BLonD')
-    plt.scatter(zeta_xsuite[-1], delta_xsuite[-1], label='xsuite')
-    plt.title('After 100 turns')
-    plt.xlabel('$\zeta$ [m]')
-    plt.ylabel(r'$p_{\tau}$')
-    plt.legend()
-    plt.show()
 
-    dz = zeta_blond - zeta_xsuite  # shape (n_particles, n_turns)
-    dp = delta_blond - delta_xsuite
-    dist = np.sqrt(dz ** 2 + dp ** 2)  # (n_particles, n_turns)
+    dz = []
+    dp = []
+    for i in range(1000):
+        dz.append(zeta_blond[0,i] - zeta_xsuite[0,i])  # shape (n_particles, n_turns)
+        dp.append(delta_blond[0,i] -delta_xsuite[0,i])
 
-    max_diff_tbt = np.max(dist, axis=0)  # (n_turns,)
-    plt.figure()
-    plt.plot(max_diff_tbt, lw=2)
+    plt.plot(dz, label=r" $|\Delta\zeta|$")
+    plt.plot(dp, label=r" $|\Delta p_{\tau}|$")
     plt.xlabel("Turn")
-    plt.ylabel(r"max $|\Delta(\zeta, p_\tau)|$")
-    plt.title("Max phase-space difference (over particles)")
+    plt.ylabel("difference")
+    plt.legend()
     plt.grid(True)
+    plt.tight_layout()
+    plt.savefig('./difference_turns_1000_oscillation.png')
     plt.show()
 
-
-
-    # np.testing.assert_allclose(
-    #     zeta_blond,
-    #     zeta_xsuite,
-    #     rtol=1e-100,
-    #     atol=1e-100,
-    # )
+    np.testing.assert_allclose(
+        zeta_blond[-1],
+        zeta_xsuite[-1],
+        rtol=1e-15,
+        atol=1e-15,
+    )
     #
     # np.testing.assert_allclose(
     #     delta_blond,
@@ -79,7 +81,3 @@ def main():
     #     rtol=1e-100,
     #     atol=1e-100,
     # )
-
-
-if __name__ == "__main__":  # pragma: no cover
-    main()

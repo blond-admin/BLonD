@@ -37,7 +37,7 @@ def run_simulation(init_distribution: dict):
 
     line.set_particle_ref("proton", p0c=26e9)
 
-    N_TURNS = 10
+    N_TURNS = 1000
 
     bunch_intensity = 1e11
 
@@ -94,6 +94,6 @@ def run_simulation(init_distribution: dict):
     )
 
     return (
-        line.record_last_track.zeta[:, -1].copy(),
-        line.record_last_track.delta[:, -1].copy(),
+        line.record_last_track.zeta.copy(),
+        line.record_last_track.ptau.copy(),
     )

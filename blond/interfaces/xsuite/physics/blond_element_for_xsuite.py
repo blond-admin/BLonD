@@ -261,6 +261,13 @@ class BLonD3Cavity:
         phi_s = self.trackable.calc_phi_s_single_harmonic(beam=self.beam)
         self.dt_shift = (phi_s - self.trackable.phi_rf) / omega_rf
 
+    def calc_phi_s(self):
+        """
+        Calculate the phi_s.
+        """
+        phi_s = self.trackable.calc_phi_s_single_harmonic(beam=self.beam)
+        return phi_s
+
     def xsuite_to_blond_transform_particles(
         self, particles: Particles, beam: BeamBaseClass
     ):

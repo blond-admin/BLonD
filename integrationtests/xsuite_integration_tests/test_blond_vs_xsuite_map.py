@@ -10,8 +10,8 @@
 
 import numpy as np
 
-from .simple_ import run_simulation as run_blond
-from .simple_xsuite_line import run_simulation as run_xsuite
+from .simple_xsuite_blond_map import run_simulation as run_blond
+from .simple_xsuite_map import main as run_xsuite
 from matplotlib import pyplot as plt
 import mplhep as hep
 
@@ -19,10 +19,10 @@ plt.style.use(hep.style.CMS)
 
 def test_all_the_same():
     """Run xsuite + blond element simulation."""
-    zeta_xsuite, delta_xsuite, init_dist = run_xsuite()
-    zeta_blond, delta_blond = run_blond(init_distribution=init_dist)
+    n_turns = 100
 
-    print('here')
+    zeta_xsuite, delta_xsuite, init_dist = run_xsuite(n_turns=n_turns)
+    zeta_blond, delta_blond, phi_s = run_blond(n_turns=n_turns, init_dist=init_dist)
 
     assert zeta_blond.shape == zeta_xsuite.shape
     assert delta_blond.shape == delta_xsuite.shape
@@ -35,10 +35,8 @@ def test_all_the_same():
     plt.legend()
     plt.tight_layout()
 
-    plt.savefig('./ebeg_turns_1000.png')
-
+    plt.savefig(f'./ebeg_turns_{n_turns}.png')
     plt.show()
-
 
 
     plt.scatter(zeta_blond[:,-1], delta_blond[:,-1], label='xsuite + BLonD')
@@ -49,13 +47,13 @@ def test_all_the_same():
     plt.legend()
     plt.tight_layout()
 
-    plt.savefig('./end_turns_1000.png')
+    plt.savefig(f'./end_turns_{n_turns}.png')
     plt.show()
 
 
     dz = []
     dp = []
-    for i in range(1000):
+    for i in range(n_turns):
         dz.append(zeta_blond[0,i] - zeta_xsuite[0,i])  # shape (n_particles, n_turns)
         dp.append(delta_blond[0,i] -delta_xsuite[0,i])
 
@@ -66,7 +64,7 @@ def test_all_the_same():
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig('./difference_turns_1000_oscillation.png')
+    plt.savefig(f'./difference_turns_{n_turns}_oscillation.png')
     plt.show()
 
     np.testing.assert_allclose(
@@ -75,10 +73,10 @@ def test_all_the_same():
         rtol=1e-15,
         atol=1e-15,
     )
-    #
-    # np.testing.assert_allclose(
-    #     delta_blond,
-    #     delta_xsuite,
-    #     rtol=1e-100,
-    #     atol=1e-100,
-    # )
+
+    np.testing.assert_allclose(
+        delta_blond,
+        delta_xsuite,
+        rtol=1e-15,
+        atol=1e-15,
+    )

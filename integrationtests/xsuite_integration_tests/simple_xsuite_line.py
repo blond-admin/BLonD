@@ -37,13 +37,13 @@ def run_simulation():
     # tab_cav = tab.rows[tab.element_type == "Cavity"]
     # for nn in tab_cav.name:
     #    line[nn].voltage = 3e6
-    N_TURNS = 10
+    N_TURNS = 1000
 
     bunch_intensity = 1e11
     sigma_z = 22.5e-2
     nemitt_x = 2e-6
     nemitt_y = 2.5e-6
-    n_part = 20
+    n_part = 10
 
     particles = xp.generate_matched_gaussian_bunch(
         num_particles=n_part,
@@ -74,7 +74,7 @@ def run_simulation():
     )
 
     return (
-        line.record_last_track.zeta[:, -1].copy(),
-        line.record_last_track.delta[:, -1].copy(),
+        line.record_last_track.zeta.copy(),
+        line.record_last_track.ptau.copy(),
         init_dist,
     )

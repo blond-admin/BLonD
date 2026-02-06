@@ -112,14 +112,17 @@ def main():
 
         plt.scatter(
             line.record_last_track.zeta[:, 0],
-            line.record_last_track.delta[:, 0],
+            line.record_last_track.ptau[:, 0],
         )
         plt.scatter(
             line.record_last_track.zeta[:, -1],
-            line.record_last_track.delta[:, -1],
+            line.record_last_track.ptau[:, -1],
         )
         plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+
+
+
