@@ -274,11 +274,11 @@ class CavityFeedback:
 
         return V_set * np.ones(self.n_coarse)
 
-    def set_point_modulated(self, phase_modulation):
+    def set_point_modulated(self, phase_modulation, amplitude_modulation):
         r"""Computes the setpoint in I/Q based on the RF voltage"""
 
         V_set = polar_to_cartesian(
-            self.rf_station.voltage[self.n_h, self.counter] / self.n_cavities, phase_modulation
+            self.rf_station.voltage[self.n_h, self.counter] / self.n_cavities * amplitude_modulation, phase_modulation
         )
 
         return V_set
@@ -1600,7 +1600,7 @@ class LHCCavityLoop(CavityFeedback):
 
         self.ADAPTIVE_PHASE_DERIVATIVE = np.zeros(2 * self.n_coarse)
         self.PHASE_MODULATION = np.zeros(2 * self.n_coarse, dtype=float)
-        # self.AMPLITUDE_MODULATION = np.ones(2 * self.n_coarse, dtype=float)
+        self.AMPLITUDE_MODULATION = np.ones(2 * self.n_coarse, dtype=float)
 
         self.V_ANT_FINE = np.zeros(self.profile.n_slices + 1, dtype=complex)
         self.I_GEN_FINE = np.zeros(self.profile.n_slices + 1, dtype=complex)
@@ -1863,7 +1863,7 @@ class LHCCavityLoop(CavityFeedback):
             self.V_SET[-self.n_coarse:],
             self.set_point_modulated(
                 self.PHASE_MODULATION[-self.n_coarse:],
-                # self.AMPLITUDE_MODULATION[-self.n_coarse:]  # TODO: this is not written anywhere?
+                self.AMPLITUDE_MODULATION[-self.n_coarse:]  # TODO: this is not written anywhere?
             )
         ))
 
