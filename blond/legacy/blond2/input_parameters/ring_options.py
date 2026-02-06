@@ -407,25 +407,16 @@ class RingOptions:
 
         # Interpolate data recursively
         if self.interpolation == "linear":
-            time_interp.append(time_interp[-1]
-                               + circumference / (beta_interp[0] * c))
-
-            i = self.flat_bottom
-            for k in range(1, len(time)):
-
-                while time_interp[i + 1] <= time[k]:
-                    momentum_interp.append(
-                        momentum[k - 1] + (momentum[k] - momentum[k - 1]) *
-                        (time_interp[i + 1] - time[k - 1]) /
-                        (time[k] - time[k - 1]))
-
-                    beta_interp.append(
-                        np.sqrt(1 / (1 + (mass / momentum_interp[i + 1]) ** 2)))
-
-                    time_interp.append(
-                        time_interp[i + 1] + circumference / (beta_interp[i + 1] * c))
-
-                    i += 1
+            interps = self._linear_interpolation(
+                time_interp,
+                momentum_interp,
+                beta_interp,
+                circumference,
+                time,
+                momentum,
+                mass,
+            )
+            time_interp, momentum_interp, beta_interp = interps
 
         elif self.interpolation == "cubic":
             interps = self._cubic_interpolation(
