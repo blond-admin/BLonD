@@ -77,6 +77,7 @@ class Ring(Preparable):
         )
         self._circumference = circumference
         self._synchrotron_radiation_integrals = synchrotron_radiation_integrals
+        self._momentum_compaction_factor = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -158,6 +159,23 @@ class Ring(Preparable):
         the RF frequency.
         """
         return self._circumference
+
+    @property
+    def momentum_compaction_factor(self) -> float | None:
+        r"""
+        Calculate the momentum compaction factor.
+
+        This property computes the ring momentum compaction factor by
+        summing the contribution of all the drifts to recover:
+        \alpha_C = 1/C * \oint (frac{ds}{\rho})
+        where C is the ring circumference, and \rho its bending radius.
+
+        Returns
+        -------
+        momentum_compaction_factor
+            Ring momentum compaction factor.
+        """
+        return self._momentum_compaction_factor
 
     @property
     def synchrotron_radiation_integrals(self) -> NumpyArray | None:
