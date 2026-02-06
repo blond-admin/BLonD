@@ -18,7 +18,7 @@ from blond.physics.feedbacks.base import GlobalFeedback, LocalFeedback
 class TestLocalFeedbackBase(unittest.TestCase):
     def test_error_throwing_on_non_conformant_parent_cavity(self):
         class LocFdbkHelper(LocalFeedback):
-            def track(self, beam: BeamBaseClass) -> None:
+            def _track(self, beam: BeamBaseClass) -> None:
                 pass
 
             def on_run_simulation(
@@ -42,7 +42,7 @@ class TestLocalFeedbackBase(unittest.TestCase):
 class TestGlobalFeedbackBase(unittest.TestCase):
     def test_cavities_in_list(self):
         class GlobalFdbkHelper(GlobalFeedback):
-            def track(self, beam: BeamBaseClass) -> None:
+            def _track(self, beam: BeamBaseClass) -> None:
                 pass
 
             def on_run_simulation(

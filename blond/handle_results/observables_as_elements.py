@@ -118,7 +118,7 @@ class BeamObservationInRingElement(
             (n_entries, beam.common_array_size),
         )
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Record beam data without modifying it.
 
@@ -300,7 +300,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         """
         pass
 
-    def track(
+    def _track(
         self,
         beam: BeamBaseClass,
     ) -> None:

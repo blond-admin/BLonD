@@ -86,7 +86,9 @@ def _get_dE_from_dt(
     """
     from blond.physics.drifts import DriftSimple
 
-    drifts = simulation.ring.elements.get_elements(DriftSimple)
+    drifts = simulation.ring.elements.get_elements(
+        DriftSimple, recursive=False
+    )
     above_transition = not simulation.ring.is_below_transition(beam=beam)
 
     harmonic, omega_rf, phi_rf, voltage = get_main_harmonic_attributes(
@@ -102,7 +104,10 @@ def _get_dE_from_dt(
             charge=beam.particle_type.charge,
             voltage=voltage,
             energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-                1, 0, 0, particle_type=beam.particle_type
+                turn_i=0,
+                section_i=0,
+                reference_time=0,
+                particle_type=beam.particle_type,
             )
             - beam.reference.total_energy,
             above_transition=above_transition,
@@ -161,8 +166,10 @@ def get_main_harmonic_attributes(
     from blond.physics.cavities import SingleHarmonicRFStation
 
     rf_stations = simulation.ring.elements.get_elements(
-        SingleHarmonicRFStation
-    ) + simulation.ring.elements.get_elements(MultiHarmonicRFStation)
+        SingleHarmonicRFStation, recursive=False
+    ) + simulation.ring.elements.get_elements(
+        MultiHarmonicRFStation, recursive=False
+    )
     # omega_rf should be all same
     omega_rf = [
         rf.calc_main_harmonic_omega_rf(
@@ -285,7 +292,7 @@ class BiGaussian(MatchingRoutine):
         )
 
         drifts: tuple[DriftSimple, ...] = (
-            simulation.ring.elements.get_elements(DriftSimple)
+            simulation.ring.elements.get_elements(DriftSimple, recursive=False)
         )
 
         if self._sigma_dE is None:
@@ -304,7 +311,10 @@ class BiGaussian(MatchingRoutine):
                 charge=beam.particle_type.charge,
                 voltage=voltage,
                 energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-                    0, 0, 0, particle_type=beam.particle_type
+                    turn_i=0,
+                    section_i=0,
+                    reference_time=0,
+                    particle_type=beam.particle_type,
                 )
                 - beam.reference.total_energy,
                 above_transition=above_transition,

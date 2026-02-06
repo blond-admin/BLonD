@@ -17,7 +17,8 @@ import numpy as np
 
 from blond.core.base import Preparable
 from blond.core.beam.base import BeamBaseClass
-from blond.core.ring.helpers import get_elements
+from blond.core.helpers import find_instances_by_class
+from blond.core.ring.helpers import filter_elements
 from blond.core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -91,7 +92,7 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"Section indices must be increasing, but got {elem_section_indices}",
                 stacklevel=1,
             )
-        rf_stations = self.get_elements(RFStationBaseClass)
+        rf_stations = self.get_elements(RFStationBaseClass, recursive=False)
         rf_section_indices = [c.section_index for c in rf_stations]
         all_different = len(rf_section_indices) == len(set(rf_section_indices))
         if not all_different:
@@ -107,9 +108,10 @@ class BeamPhysicsRelevantElements(Preparable):
                 rf_stations = self.get_elements(
                     RFStationBaseClass,
                     section_i=section_index,  # type: ignore
+                    recursive=False,
                 )
                 drifts = self.get_elements(
-                    DriftBaseClass, section_i=section_index
+                    DriftBaseClass, section_i=section_index, recursive=False
                 )
                 if len(rf_stations) == 0:
                     raise RuntimeError(
@@ -175,7 +177,9 @@ class BeamPhysicsRelevantElements(Preparable):
         sections = self.get_sections_indices()
         result = np.empty(len(sections))
         for section_i in sections:
-            drifts = self.get_elements(DriftBaseClass, section_i=section_i)
+            drifts = self.get_elements(
+                DriftBaseClass, section_i=section_i, recursive=False
+            )
             if len(drifts) > 0:
                 result[section_i] = sum([d.orbit_length for d in drifts])
             else:
@@ -338,7 +342,10 @@ class BeamPhysicsRelevantElements(Preparable):
         return len(self.elements)
 
     def get_elements(
-        self, class_: type[T], section_i: int | None = None
+        self,
+        class_: type[T],
+        section_i: int | None = None,
+        recursive=False,
     ) -> tuple[T, ...]:
         """
         Get all elements of specified type (potentially filtered by section).
@@ -349,13 +356,16 @@ class BeamPhysicsRelevantElements(Preparable):
             Type of class to filter for.
         section_i
             Optional filter to get instances only in one section.
+        recursive
+            If ``True``, will recursively search all attributes of the
+            elements.
 
         Returns
         -------
         elements
             All elements of specified type (potentially filtered by section).
         """
-        key = f"{class_.__name__}_{section_i}"
+        key = f"{class_.__name__}_{section_i}_{recursive}"
         # use cache only after init of simulation
         CACHE_MAX = 32
         if len(self._get_element_cache) >= CACHE_MAX:
@@ -366,14 +376,27 @@ class BeamPhysicsRelevantElements(Preparable):
         def is_in_section(element: T) -> bool:
             return element.section_index == section_i
 
-        elements = get_elements(self.elements, class_)
+        elements = self.elements
         if section_i is not None:
             elements = tuple(filter(is_in_section, elements))
-        if self._on_init_simulation_passed:
-            self._get_element_cache[key] = elements
-        return elements
 
-    def get_element(self, class_: type[T], section_i: int | None = None) -> T:
+        if recursive:
+            elements_selected = tuple(
+                find_instances_by_class(root=elements, class_=class_)
+            )
+        else:
+            elements_selected = filter_elements(elements, class_)
+
+        if self._on_init_simulation_passed:
+            self._get_element_cache[key] = elements_selected
+        return elements_selected
+
+    def get_element(
+        self,
+        class_: type[T],
+        section_i: int | None = None,
+        recursive: bool = False,
+    ) -> T:
         """
         Retrieve a single element of the specified type, optionally filtered by section.
 
@@ -387,6 +410,8 @@ class BeamPhysicsRelevantElements(Preparable):
             The class type to filter elements by.
         section_i
             Optional section index to restrict the search to a specific section.
+        recursive
+            Whether to search subdirectories recursively. Defaults to True.
 
         Returns
         -------
@@ -406,6 +431,7 @@ class BeamPhysicsRelevantElements(Preparable):
         elements = self.get_elements(
             class_=class_,
             section_i=section_i,
+            recursive=recursive,
         )
         assert len(elements) == 1, (
             f"Expected exactly one `{class_.__name__}`,"
@@ -483,7 +509,12 @@ class BeamPhysicsRelevantElements(Preparable):
             elements_before_section + ordered_elements + elements_after_section
         )
 
-    def count(self, class_: type[T], section_i: int | None = None) -> int:
+    def count(
+        self,
+        class_: type[T],
+        section_i: int | None = None,
+        recursive: bool = False,
+    ) -> int:
         """
         Count instances in this class that match class-type.
 
@@ -493,13 +524,19 @@ class BeamPhysicsRelevantElements(Preparable):
             The class type to filter elements by.
         section_i
             Optional section index to restrict the search to a specific section.
+        recursive
+            Whether to search subdirectories recursively. Defaults to True.
 
         Returns
         -------
         count
             Number of instances that match class-type.
         """
-        return len(self.get_elements(class_=class_, section_i=section_i))
+        return len(
+            self.get_elements(
+                class_=class_, section_i=section_i, recursive=recursive
+            )
+        )
 
     def print_order(self) -> None:
         """Print current execution order."""

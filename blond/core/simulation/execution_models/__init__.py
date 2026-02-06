@@ -6,4 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Testing the performance of the BLonD backends."""
+"""
+Different implementations of main-loops, for example for counter-rotation.
+
+Notes
+-----
+Authors:
+S. Lauber
+L. Thiele
+"""
