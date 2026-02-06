@@ -19,6 +19,8 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Union
 
+from ..beam.sparse_profiles import _SparseProfileBaseClass
+
 try:
     import cupy as cp
 
@@ -591,14 +593,35 @@ class RingAndRFTracker:
                     else:
                         self.total_voltage = self.rf_voltage
 
-                    bm.linear_interp_kick(
-                        dt=self.beam.dt,
-                        dE=self.beam.dE,
-                        voltage=self.total_voltage,
-                        bin_centers=self.profile.bin_centers,
-                        charge=self.beam.particle.charge,
-                        acceleration_kick=self.acceleration_kick[turn],
-                    )
+                        # warpper bucket by bucket (profile by profile),
+                    if isinstance(self.profile, _SparseProfileBaseClass):
+                        for i, profile in enumerate(
+                            self.profile.profiles_list
+                        ):
+                            n_macroparticles = profile.n_slices
+                            bm.linear_interp_kick(
+                                dt=self.beam.dt[
+                                    i * n_macroparticles : (i + 1)
+                                    * n_macroparticles
+                                ],
+                                dE=self.beam.dE[
+                                    i * n_macroparticles : (i + 1)
+                                    * n_macroparticles
+                                ],
+                                voltage=self.total_voltage,
+                                bin_centers=profile.bin_centers,
+                                charge=self.beam.Particle.charge,
+                                acceleration_kick=self.acceleration_kick[turn],
+                            )
+                    else:
+                        bm.linear_interp_kick(
+                            dt=self.beam.dt,
+                            dE=self.beam.dE,
+                            voltage=self.total_voltage,
+                            bin_centers=self.profile.bin_centers,
+                            charge=self.beam.Particle.charge,
+                            acceleration_kick=self.acceleration_kick[turn],
+                        )
 
                 else:
                     self.kick(self.beam.dt, self.beam.dE, turn)
