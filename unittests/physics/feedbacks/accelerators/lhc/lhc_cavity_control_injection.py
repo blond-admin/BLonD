@@ -148,7 +148,9 @@ def setup_blond2():
         RFFB=RFFB,
     )
 
-    tracker = RingAndRFTracker(rf, beam, Profile=profile, CavityFeedback=CL)
+    tracker = RingAndRFTracker(
+        rf, beam, Profile=profile, CavityFeedback=CL, interpolation=True
+    )
     tracker = FullRingAndRF([tracker])
 
     rf_power_blond2 = np.zeros((n_turns, CL.n_coarse), dtype=complex)
