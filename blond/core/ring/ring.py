@@ -181,35 +181,6 @@ class Ring(Preparable):
         """
         return self._synchrotron_radiation_integrals
 
-    @property
-    def momentum_compaction_factor(self) -> float:
-        r"""
-        Calculate the momentum compaction factor.
-
-        This property computes the ring momentum compaction factor by
-        summing the contribution of all the drifts to recover:
-        \alpha_C = 1/C * \oint (frac{ds}{\rho})
-        where C is the ring circumference, and \rho its bending radius.
-
-        Returns
-        -------
-        momentum_compaction_factor
-            Ring momentum compaction factor.
-        """
-        from blond.physics.drifts import DriftBaseClass
-
-        momentum_compaction_factor_contributions = np.array(
-            [
-                e.momentum_compaction_factor
-                for e in self.elements.get_elements(class_=DriftBaseClass)
-            ]
-        )
-
-        momentum_compaction_factor = np.sum(
-            momentum_compaction_factor_contributions
-        )
-        return momentum_compaction_factor
-
     @cached_property
     def average_transition_gamma(self) -> complex:
         """
