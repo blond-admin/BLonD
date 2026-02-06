@@ -140,7 +140,10 @@ class TestWigglerMagnet(unittest.TestCase):
             section_index=0,
         )
         self.wiggler_magnet_none = WigglerMagnet(
-            wiggler_type=None,
+            wiggler_type="",
+            peak_field=1,
+            pole_length=0.095,
+            number_of_poles=43,
         )
 
     def test_inputs_and_properties(self):

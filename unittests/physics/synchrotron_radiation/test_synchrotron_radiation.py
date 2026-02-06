@@ -85,7 +85,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         )
 
     def test_set_synchrotron_radiation_integrals(self):
-        ring = Ring(90.65874532 * 1e3)
+        ring = Ring(circumference=90.65874532 * 1e3)
         SRM = SynchrotronRadiationMaster()
         with self.assertRaisesRegex(
             expected_exception=ValueError,
@@ -97,6 +97,8 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         ):
             SRM._set_synchrotron_radiation_integrals(ring=ring)
 
+        ring = Ring(circumference=90.65874532 * 1e3)
+        ring._momentum_compaction_factor = 0
         SRM._set_synchrotron_radiation_integrals(
             ring=ring, bending_radius=14428.78745218723
         )
