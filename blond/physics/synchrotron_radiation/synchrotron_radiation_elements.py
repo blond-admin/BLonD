@@ -15,9 +15,10 @@ L. Valle
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from numpy import dtype, ndarray
 from scipy.constants import c, e
 
 from blond.physics.synchrotron_radiation.base import (
@@ -40,31 +41,31 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
     Parameters
     ----------
-    name
-        Name of the damping wigglers.
-    section_index
-        Section index.
-    wiggler_type
-        Type of damping wiggler. Default: 'sinusoidal'.
-    number_of_wigglers
-        Number of damping wigglers.
     peak_field
         Magnetic peak field per wiggler.
     pole_length
         Pole length.
     number_of_poles
         Number of poles per wiggler.
+    number_of_wigglers
+        Number of damping wigglers.
+    wiggler_type
+        Type of damping wiggler. Default: 'sinusoidal'.
+    name
+        Name of the damping wigglers.
+    section_index
+        Section index.
     """
 
     def __init__(
         self,
-        name: str | None = None,
-        section_index: int | None = None,
-        wiggler_type: str | None = "sinusoidal",
-        number_of_wigglers: int | None = 1,
-        peak_field: float | None = 1.0,
-        pole_length: float | None = 0.095,
-        number_of_poles: int | None = 43,
+        peak_field: float,
+        pole_length: float,
+        number_of_poles: int,
+        number_of_wigglers: int = 1,
+        wiggler_type: str = "sinusoidal",
+        name: str = "",
+        section_index: int = 0,
     ):
         super().__init__(name=name, section_index=section_index)
 
@@ -264,7 +265,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         self,
         beam_reference_energy: float,
         calculation_only: bool = False,
-    ) -> None:
+    ) -> ndarray[tuple[Any, ...], dtype[Any]] | None:
         """
         Function to update the synchrotron radiation integrals.
 
