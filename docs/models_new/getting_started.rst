@@ -40,9 +40,9 @@ RF station is defined by its harmonic number, voltage, and phase:
 
 .. code-block:: python
 
-    from blond import SingleHarmonicRfStation
+    from blond import SingleHarmonicRFStation
 
-    rf_station1 = SingleHarmonicRfStation()
+    rf_station1 = SingleHarmonicRFStation()
     rf_station1.harmonic = 35640         # harmonic number
     rf_station1.voltage = 6e6            # voltage in V
     rf_station1.phi_rf = 0               # RF phase in radians
@@ -106,13 +106,13 @@ The cycle assumes each RF station provides an equal fraction of the energy kick 
 Advanced Cycle Options
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-**Per-RF-Station Control (MagneticCyclePerTurnAllRfStations)**
+**Per-RF-Station Control (MagneticCyclePerTurnAllRFStations)**
 
 For full control over each RF station's contribution at each turn:
 
 .. code-block:: python
 
-    from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRfStations
+    from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
 
     # REQUIRED: 2D array with shape (n_rf_stations, n_turns)
     # Each row represents one RF station, each column represents one turn
@@ -140,7 +140,7 @@ For cycles defined by continuous time interpolation:
     time_points = np.array([0, 1.0, 2.0, 3.0])  # time in seconds
     energy_values = np.array([450e9, 500e9, 600e9, 700e9])
 
-    energy_cycle = MagneticCycleByTime(F
+    energy_cycle = MagneticCycleByTime(
         reference_particle=proton,
         base_time=time_points,
         base_values=energy_values,
@@ -325,15 +325,15 @@ Access recorded data via:
 - ``stats_observation.sigma_dE``: Energy deviation standard deviation [eV]
 - ``stats_observation.emittance_stat``: Statistical emittance
 
-**RfStationPhaseObservation** - RF Station Parameters
+**RFStationPhaseObservation** - RF Station Parameters
 
 Tracks the evolution of RF station parameters (phase, frequency, voltage):
 
 .. code-block:: python
 
-    from blond import RfStationPhaseObservation
+    from blond import RFStationPhaseObservation
 
-    phase_observation = RfStationPhaseObservation(
+    phase_observation = RFStationPhaseObservation(
         each_turn_i=1,        # record every turn
         rf_station=rf_station1,   # which RF station to observe
     )
@@ -547,20 +547,21 @@ Here is the complete example putting it all together:
         Beam,
         BeamObservationEndOfTurn,
         BiGaussian,
-        RfStationPhaseObservation,
+        RFStationPhaseObservation,
         ConstantMagneticCycle,
         DriftSimple,
         Ring,
         Simulation,
-        SingleHarmonicRfStation,
+        SingleHarmonicRFStation,
         proton,
     )
 
     # Setup components
     ring = Ring(26658.883)
 
-    # Define RF station (SingleHarmonicCavity will be renamed to SingleHarmonicRfStation)
-    rf_station1 = SingleHarmonicRfStation()
+    # Define RF station (SingleHarmonicCavity will be renamed to
+    SingleHarmonicRFStation)
+    rf_station1 = SingleHarmonicRFStation()
     rf_station1.harmonic = 35640
     rf_station1.voltage = 6e6
     rf_station1.phi_rf = 0
@@ -593,7 +594,8 @@ Here is the complete example putting it all together:
     )
 
     # Setup observations
-    phase_observation = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
+    phase_observation = RFStationPhaseObservation(each_turn_i=1,
+    rf_station=rf_station1)
     bunch_observation = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
 
     # Run simulation
