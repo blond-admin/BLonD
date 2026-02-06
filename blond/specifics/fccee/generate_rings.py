@@ -8,6 +8,8 @@
 
 """Basic simulation generation for the FCCee collider and high-energy booster."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from blond import (
@@ -18,6 +20,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    WigglerMagnet,
     positron,
 )
 
@@ -116,3 +119,35 @@ def generate_fccee_collider_basic_simulation(
     )
 
     return fccee_simulation
+
+
+def WigglerMagnetFCCee(
+    number_of_wigglers: int = 2,
+    section_index: int = 0,
+) -> WigglerMagnet:
+    """
+    Damping wiggler magnets for the FCCee booster and collider.
+
+    Parameters from the Feasibility Study Report.
+
+    Parameters
+    ----------
+    number_of_wigglers
+        Number of damping wigglers.
+    section_index
+        Section index.
+
+    Returns
+    -------
+    damping_wiggler_magnet
+        WigglerMagnet object.
+    """
+    return WigglerMagnet(
+        name=f"DampingWiggler_{number_of_wigglers}",
+        section_index=section_index,
+        wiggler_type="sinusoidal",
+        number_of_wigglers=1,
+        peak_field=1.0,
+        pole_length=0.095,
+        number_of_poles=43,
+    )
