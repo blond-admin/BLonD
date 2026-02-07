@@ -126,6 +126,8 @@ class EquidistantMultiProfile(MultiProfile):
         )
         self._continuous_memory_mask = backend.zeros(total, dtype=bool)
         self._continuous_memory_mask_prof = backend.zeros(total, dtype=bool)
+        dx = self.profiles[0]._hist_x[1] - self.profiles[0]._hist_x[0]
+
         for i, profile in enumerate(self.profiles):
             start = 2 * i * n
             stop = start + n
@@ -140,19 +142,10 @@ class EquidistantMultiProfile(MultiProfile):
             profile._hist_x = self._continuous_memory_hist_x[sel]
             profile._hist_y = self._continuous_memory_hist_y[sel]
 
-            # ---- TODO FIX 1: extend mask ----
-            # desired total width: 2*n - 1 centered on the profile
-            center = start + n // 2
-            half_width = n - 1
-            width = n
-
             ext_start = max(start - n, 0)
             ext_stop = min(stop, total)
 
             self._continuous_memory_mask[ext_start:ext_stop] = True
-
-            # ---- TODO FIX 2: fill hist_x in extended region ----
-            dx = profile._hist_x[1] - profile._hist_x[0]
 
             # left extension
             if ext_start < start:
@@ -168,6 +161,56 @@ class EquidistantMultiProfile(MultiProfile):
                     profile._hist_x[-1] + dx * backend.arange(1, k + 1)
                 )
 
+    def _get_cut_arrays_and_bunch_indexes(self):
+        """
+        Build cut_left_array, cut_right_array, and bunch_indexes for sparse histogram.
+
+        Returns
+        -------
+        tuple
+            (cut_left_array, cut_right_array, bunch_indexes)
+        """
+        n_profiles = len(self.profiles)
+
+        # Extract cut edges from profiles
+        cut_left_array = backend.array(
+            [profile.cut_left for profile in self.profiles],
+            dtype=backend.float,
+        )
+        cut_right_array = backend.array(
+            [profile.cut_right for profile in self.profiles],
+            dtype=backend.float,
+        )
+
+        # Build bunch_indexes: maps bucket index to profile index
+        # For equidistant profiles, each profile occupies one bucket
+        # bucket i -> profile i (all buckets are filled)
+        bunch_indexes = backend.arange(n_profiles, dtype=backend.float)
+
+        return cut_left_array, cut_right_array, bunch_indexes
+
     def _track(self, beam: BeamBaseClass) -> None:
-        for profile in self.profiles:
-            profile.track(beam=beam)
+        """Track beam particles and fill histograms using optimized C++ function."""
+        if len(beam._dt.array_local) == 0:
+            # No particles to track
+            return
+
+        # Use optimized sparse_histogram_strided for single-call tracking
+        stride = 2 * self._bins_per_profile
+
+        # Build input arrays for C++ function
+        cut_left_array, cut_right_array, bunch_indexes = (
+            self._get_cut_arrays_and_bunch_indexes()
+        )
+
+        # Call optimized C++ function
+        backend.specials.sparse_histogram_strided(
+            beam._dt.array_local,
+            self._continuous_memory_hist_y,
+            cut_left_array,
+            cut_right_array,
+            bunch_indexes,
+            self._bins_per_profile,
+            self._n_profiles,
+            stride,
+        )
