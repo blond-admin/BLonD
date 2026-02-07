@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import mkl_fft
 import numpy as np
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import e
@@ -89,65 +90,49 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
             self._kernel_multiturn, n=(len(self._kernel_multiturn))
         )
 
-    def calc_induced_voltage(
-        self, beam: BeamBaseClass
-    ) -> NumpyArray | CupyArray:
-        """
-        Calculate the induced voltage based on the beam profile and beam parameters.
-
-        Parameters
-        ----------
-        beam
-            Simulation object of a particle beam.
-
-        Returns
-        -------
-        induced_voltage
-            Induced voltage, in [V].
-        """
+    def calc_induced_voltage(self, beam: BeamBaseClass) -> np.ndarray:
         if self._kernel_multiturn is None:
             self._update_kernel_multiturn()
 
         profile: EquidistantMultiProfile = self._parent_wakefield.profile
-
-        _continuous_hist_y_single_turn = profile._continuous_memory_hist_y
+        hist = profile._continuous_memory_hist_y
+        mask = profile._continuous_memory_mask_prof
 
         n_fft = len(self._kernel_multiturn)
 
-        H = backend.fft.rfft(_continuous_hist_y_single_turn, n=n_fft)
+        # -------------------------------------------------
+        # FFT (MKL, multithreaded)
+        # -------------------------------------------------
+        # zero-padded rfft
+        H = mkl_fft.rfft(hist, n=n_fft)
 
-        induced_voltage_multiturn = backend.fft.irfft(
-            H * self._rfft_kernel_multiturn, n=n_fft
-        )
+        # frequency-domain multiply
+        H *= self._rfft_kernel_multiturn
 
-        """plt.figure("compare")
-        plt.subplot(3, 1, 3)
-        plt.plot(
-            self._time_multiturn[self._mask_multiturn],
-            self._kernel_multiturn[self._mask_multiturn],
-            label="multiturn",
-        )"""
+        # inverse FFT
+        induced_voltage_multiturn = mkl_fft.irfft(H, n=n_fft)
+
+        # -------------------------------------------------
+        # MULTITURN ACCUMULATION
+        # -------------------------------------------------
+        n_single = len(hist)
 
         if self._previous_induced_voltage_multiturn is None:
             self._previous_induced_voltage_multiturn = (
-                induced_voltage_multiturn
+                induced_voltage_multiturn.copy()
             )
         else:
-            # forget about last turns first turn
-            induced_voltage_multiturn[
-                : -len(_continuous_hist_y_single_turn)
-            ] += self._previous_induced_voltage_multiturn[
-                len(_continuous_hist_y_single_turn) :
-            ]
-            self._previous_induced_voltage_multiturn = (
+            induced_voltage_multiturn[:-n_single] += (
+                self._previous_induced_voltage_multiturn[n_single:]
+            )
+            self._previous_induced_voltage_multiturn[:] = (
                 induced_voltage_multiturn
             )
 
-        induced_voltage = induced_voltage_multiturn[
-            : len(_continuous_hist_y_single_turn)
-        ][profile._continuous_memory_mask_prof]
+        induced_voltage = induced_voltage_multiturn[:n_single][mask]
 
-        _factor = (-1 * beam.particle_type.charge * e) * (
-            beam.intensity * (1.0 / beam.common_array_size)
+        _factor = -(beam.particle_type.charge * e) * (
+            beam.intensity / beam.common_array_size
         )
+
         return _factor * induced_voltage

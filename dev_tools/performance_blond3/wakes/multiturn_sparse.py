@@ -147,5 +147,7 @@ rf_station.voltage = 0.0
 sim.check_circumference = "ignore"
 
 backend.set_specials("cpp")
-sim.profiling(beams=beam, n_turns=3, sortby=SortKey.CUMULATIVE)
+sim.profiling(
+    beams=beam, n_turns=10, sortby=SortKey.CUMULATIVE, start_turn_i=2
+)
 # sim.run_simulation(beams=beam, n_turns=3000)
