@@ -113,8 +113,11 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
       else
         fffbin = (int)(fbin - 1.0);
 
-      histo[id][ffbin] = histo[id][ffbin] + 0.5 - distToCenter;
-      histo[id][fffbin] = histo[id][fffbin] + 0.5 + distToCenter;
+      // Bounds check to prevent buffer overrun
+      if (ffbin >= 0 && ffbin < n_slices)
+        histo[id][ffbin] = histo[id][ffbin] + 0.5 - distToCenter;
+      if (fffbin >= 0 && fffbin < n_slices)
+        histo[id][fffbin] = histo[id][fffbin] + 0.5 + distToCenter;
     }
 
 // Reduce to a single histogram

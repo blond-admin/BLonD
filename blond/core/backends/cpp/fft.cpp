@@ -21,6 +21,7 @@
 #include <fftw3.h>
 #include <functional>
 #include <iostream>
+#include <unordered_map>
 #include <vector>
 
 #include "blond_common.h"
@@ -41,8 +42,28 @@
 // May yield better performance but the input is not usable any more.
 // Can be combined with all the above
 
-static std::vector<fft_plan_t> planV;
-static std::vector<fftf_plan_t> planVf;
+// Hash function for plan cache key (optimization: O(1) lookup instead of O(n))
+struct PlanKey {
+  int inSize;
+  int fftSize;
+  int howmany;
+  fft_type_t type;
+
+  bool operator==(const PlanKey &other) const {
+    return inSize == other.inSize && fftSize == other.fftSize &&
+           howmany == other.howmany && type == other.type;
+  }
+};
+
+struct PlanKeyHash {
+  std::size_t operator()(const PlanKey &k) const {
+    return ((std::hash<int>()(k.inSize) ^ (std::hash<int>()(k.fftSize) << 1)) >> 1) ^
+           (std::hash<int>()(k.howmany) << 1) ^ (std::hash<int>()(k.type) << 2);
+  }
+};
+
+static std::unordered_map<PlanKey, fft_plan_t, PlanKeyHash> planMap;
+static std::unordered_map<PlanKey, fftf_plan_t, PlanKeyHash> planMapf;
 static bool hasBeenInit = false;
 const unsigned FFTW_FLAGS = FFTW_MEASURE | FFTW_DESTROY_INPUT;
 
@@ -140,15 +161,12 @@ fftw_plan init_irfft_packed(const int n, const int howmany, complex_t *in,
 // void destroy_fft(fftw_plan &p) { fftw_destroy_plan(p); }
 
 fft_plan_t find_plan(int fftSize, int inSize, fft_type_t type, int threads,
-                     vector<fft_plan_t> &v) {
-  // const uint flag = FFTW_FLAGS;
-  auto it =
-      find_if(v.begin(), v.end(), [inSize, fftSize, type](const fft_plan_t &s) {
-        return ((s.inSize == inSize) && (s.fftSize == fftSize) &&
-                (s.type == type) && (s.howmany == 1));
-      });
+                     std::unordered_map<PlanKey, fft_plan_t, PlanKeyHash> &planCache) {
+  // O(1) hash map lookup instead of O(n) vector search
+  PlanKey key = {inSize, fftSize, 1, type};
+  auto it = planCache.find(key);
 
-  if (it == v.end()) {
+  if (it == planCache.end()) {
     fft_plan_t plan;
     plan.inSize = inSize;
     plan.fftSize = fftSize;
@@ -204,24 +222,21 @@ fft_plan_t find_plan(int fftSize, int inSize, fft_type_t type, int threads,
       exit(-1);
     }
 
-    v.push_back(plan);
+    planCache[key] = plan;
     return plan;
   } else {
-    return *it;
+    return it->second;
   }
 }
 
 fft_plan_t find_plan_packed(int fftSize, int howmany, int inSize,
                             fft_type_t type, int threads,
-                            vector<fft_plan_t> &v) {
-  // const uint flag = FFTW_FLAGS;
-  auto it = find_if(v.begin(), v.end(),
-                    [inSize, fftSize, howmany, type](const fft_plan_t &s) {
-                      return ((s.inSize == inSize) && (s.fftSize == fftSize) &&
-                              (s.type == type) && (s.howmany == howmany));
-                    });
+                            std::unordered_map<PlanKey, fft_plan_t, PlanKeyHash> &planCache) {
+  // O(1) hash map lookup instead of O(n) vector search
+  PlanKey key = {inSize, fftSize, howmany, type};
+  auto it = planCache.find(key);
 
-  if (it == v.end()) {
+  if (it == planCache.end()) {
     fft_plan_t plan;
     plan.inSize = inSize;
     plan.fftSize = fftSize;
@@ -245,27 +260,27 @@ fft_plan_t find_plan_packed(int fftSize, int howmany, int inSize,
       exit(-1);
     }
 
-    v.push_back(plan);
+    planCache[key] = plan;
     return plan;
   } else {
-    return *it;
+    return it->second;
   }
 }
 
 void destroy_plans() {
-  for (auto &i : planV) {
-    fftw_destroy_plan(i.p);
-    fftw_free(i.in);
-    fftw_free(i.out);
+  for (auto &pair : planMap) {
+    fftw_destroy_plan(pair.second.p);
+    fftw_free(pair.second.in);
+    fftw_free(pair.second.out);
   }
-  planV.clear();
+  planMap.clear();
 
-  for (auto &i : planVf) {
-    fftwf_destroy_plan(i.p);
-    fftwf_free(i.in);
-    fftwf_free(i.out);
+  for (auto &pair : planMapf) {
+    fftwf_destroy_plan(pair.second.p);
+    fftwf_free(pair.second.in);
+    fftwf_free(pair.second.out);
   }
-  planVf.clear();
+  planMapf.clear();
 }
 
 // rfft
@@ -278,7 +293,7 @@ void rfft(real_t *in, const int inSize, complex_t *out, int n,
   n = n == 0 ? n = inSize : n;
   const int outSize = n / 2 + 1;
 
-  auto plan = find_plan(outSize, n, RFFT, threads, planV);
+  auto plan = find_plan(outSize, n, RFFT, threads, planMap);
   auto from = (real_t *)plan.in;
   auto to = (complex_t *)plan.out;
 
@@ -302,7 +317,7 @@ void irfft(complex_t *in, const int inSize, real_t *out, int outSize,
   outSize = outSize == 0 ? outSize = 2 * (inSize - 1) : outSize;
   const int n = outSize / 2 + 1;
 
-  auto plan = find_plan(outSize, n, IRFFT, threads, planV);
+  auto plan = find_plan(outSize, n, IRFFT, threads, planMap);
   auto from = (complex_t *)plan.in;
   auto to = (real_t *)plan.out;
 
@@ -332,7 +347,7 @@ void irfft_packed(complex_t *in, const int n0, const int howmany, real_t *out,
 
   const int n = outSize / 2 + 1;
 
-  auto plan = find_plan_packed(outSize, howmany, n, IRFFT, threads, planV);
+  auto plan = find_plan_packed(outSize, howmany, n, IRFFT, threads, planMap);
 
   auto from = (complex_t *)plan.in;
   auto to = (real_t *)plan.out;
@@ -360,7 +375,7 @@ void ifft(complex_t *in, const int inSize, complex_t *out, int fftSize,
   if (fftSize == 0)
     fftSize = inSize;
 
-  auto plan = find_plan(fftSize, inSize, IFFT, threads, planV);
+  auto plan = find_plan(fftSize, inSize, IFFT, threads, planMap);
   auto from = (complex_t *)plan.in;
   auto to = (complex_t *)plan.out;
   if (fftSize <= inSize)
@@ -385,7 +400,7 @@ void fft(complex_t *in, const int inSize, complex_t *out, int fftSize,
   if (fftSize == 0)
     fftSize = inSize;
 
-  auto plan = find_plan(fftSize, inSize, FFT, threads, planV);
+  auto plan = find_plan(fftSize, inSize, FFT, threads, planMap);
   auto from = (complex_t *)plan.in;
   auto to = (complex_t *)plan.out;
 
