@@ -1,4 +1,5 @@
 import os
+from pstats import SortKey
 
 import numpy as np
 
@@ -20,6 +21,8 @@ from blond.physics.impedances.sparse_profile.solvers import (
     MultiTurnSparseProfileSolver,
 )
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+
+backend.set_specials("cpp")
 
 
 def make_multibunch_beam(
@@ -140,13 +143,12 @@ for i, _prof in enumerate(profile.profiles):
         pass
     else:
         _prof.active = False
-
 drift.orbit_length = 0
 rf_station.voltage = 0.0
 sim.check_circumference = "ignore"
 
-backend.set_specials("cpp")
-# sim.profiling(
-#    beams=beam, n_turns=10, sortby=SortKey.TIME, start_turn_i=2
-# )
+sim.profiling(
+    beams=beam, n_turns=10, sortby=SortKey.CUMULATIVE, start_turn_i=2
+)
+
 sim.run_simulation(beams=beam, n_turns=3000)
