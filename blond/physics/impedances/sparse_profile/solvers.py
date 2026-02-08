@@ -55,6 +55,43 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         assert isinstance(parent_wakefield.profile, EquidistantMultiProfile)
         self._t_rev = simulation.get_t_rev_init()
 
+        # Pre-allocate profile histogram to full FFT size to avoid zero-padding overhead
+
+    def _resize_profile_for_fft(self) -> None:
+        """
+        Resize profile's continuous memory histogram to full FFT size.
+
+        This eliminates zero-padding overhead in rfft by pre-allocating
+        the histogram array to the size needed for n_turns convolution.
+        The extra space is filled with zeros and never modified, so rfft
+        can operate directly on the array without padding.
+        """
+        profile: EquidistantMultiProfile = self._parent_wakefield.profile
+
+        # Calculate required FFT size
+        original_size = len(profile._continuous_memory_hist_y)
+        fft_size = original_size * self._n_turns
+
+        # Create new larger array with zeros
+        new_hist_y = backend.zeros(fft_size, dtype=backend.float)
+
+        # Copy existing data to the beginning
+        new_hist_y[:original_size] = profile._continuous_memory_hist_y
+
+        # Replace profile's histogram with the larger pre-padded array
+        profile._continuous_memory_hist_y = new_hist_y
+
+        # Update profile views to point to the correct slice
+        # (individual profile histograms are views into the continuous array)
+        n = profile._bins_per_profile
+        for i, prof in enumerate(profile.profiles):
+            start = 2 * i * n
+            stop = start + n
+            prof._hist_y = profile._continuous_memory_hist_y[start:stop]
+
+        # Store original size for masking
+        self._original_profile_size = original_size
+
     def _update_kernel_multiturn(self) -> None:
         profile: EquidistantMultiProfile = self._parent_wakefield.profile
 
@@ -89,33 +126,49 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         self._rfft_kernel_multiturn = backend.fft.rfft(
             self._kernel_multiturn, n=(len(self._kernel_multiturn))
         )
+        self._resize_profile_for_fft()
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> np.ndarray:
         if self._kernel_multiturn is None:
+            _factor = -(beam.particle_type.charge * e) * (
+                beam.intensity / beam.common_array_size
+            )
             self._update_kernel_multiturn()
+            self._rfft_kernel_multiturn *= _factor
+            self.H = None
+            self.induced_voltage_multiturn = None
 
         profile: EquidistantMultiProfile = self._parent_wakefield.profile
         hist = profile._continuous_memory_hist_y
         mask = profile._continuous_memory_mask_prof
 
-        n_fft = len(self._kernel_multiturn)
-
         # -------------------------------------------------
-        # FFT (MKL, multithreaded)
+        # OPTIMIZATION: No zero-padding needed!
+        # hist is pre-allocated to full FFT size, with zeros at the end
         # -------------------------------------------------
-        # zero-padded rfft
-        H = mkl_fft.rfft(hist, n=n_fft)
+        # Direct FFT without padding (hist is already the right size)
+        if self.H is None:
+            H = mkl_fft.rfft(hist)
+            self.H = H
+        else:
+            mkl_fft.rfft(hist, out=self.H)
+            H = self.H
 
         # frequency-domain multiply
         H *= self._rfft_kernel_multiturn
 
-        # inverse FFT
-        induced_voltage_multiturn = mkl_fft.irfft(H, n=n_fft)
+        # inverse FFT (output is same size as hist)
+        if self.induced_voltage_multiturn is None:
+            self.induced_voltage_multiturn = mkl_fft.irfft(H)
+            induced_voltage_multiturn = self.induced_voltage_multiturn
+        else:
+            mkl_fft.irfft(H, out=self.induced_voltage_multiturn)
+            induced_voltage_multiturn = self.induced_voltage_multiturn
 
         # -------------------------------------------------
         # MULTITURN ACCUMULATION
         # -------------------------------------------------
-        n_single = len(hist)
+        n_single = self._original_profile_size  # Use original size, not padded
 
         if self._previous_induced_voltage_multiturn is None:
             self._previous_induced_voltage_multiturn = (
@@ -131,8 +184,8 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
 
         induced_voltage = induced_voltage_multiturn[:n_single][mask]
 
-        _factor = -(beam.particle_type.charge * e) * (
-            beam.intensity / beam.common_array_size
-        )
+        # Note: The padded region (hist[n_single:]) remains zero because:
+        # - C++ sparse_histogram_strided only writes to first n_single bins
+        # - The padding is never modified, stays zero for next FFT
 
-        return _factor * induced_voltage
+        return induced_voltage
