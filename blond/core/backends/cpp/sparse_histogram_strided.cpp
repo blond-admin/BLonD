@@ -17,7 +17,6 @@ Project website: http://blond.web.cern.ch/
 #include <string.h>     // memset()
 #include <stdlib.h>     // mmalloc()
 #include <math.h>
-#include <vector>
 
 #include "blond_common.h"
 #include "openmp.h"
@@ -34,9 +33,9 @@ extern "C" void sparse_histogram_strided(
     const int stride)
 {
     const real_t cut_left0 = cut_left_array[0];
+    const real_t profile_width = cut_right_array[0] - cut_left0;
     const real_t inv_hist_dist = real_t(1) / (cut_left_array[1] - cut_left0);
-    const real_t inv_bin_width =
-        real_t(n_slices_bucket) / (cut_right_array[0] - cut_left0);
+    const real_t inv_bin_width = real_t(n_slices_bucket) / profile_width;
 
     const int compact_size = n_filled_buckets * n_slices_bucket;
 
@@ -77,7 +76,7 @@ extern "C" void sparse_histogram_strided(
                 continue;
 
             const real_t cut_left = cut_left_array[hist_i];
-            if (a < cut_left || a >= cut_right_array[hist_i])
+            if (a < cut_left || a >= (cut_left + profile_width))
                 continue;
 
             const int bin = (int)((a - cut_left) * inv_bin_width);
@@ -88,20 +87,19 @@ extern "C" void sparse_histogram_strided(
         // Reduce compact histogram into strided output
 #pragma omp for schedule(static)
         for (int p = 0; p < n_filled_buckets; ++p) {
-            const int out_base = p * stride;
-            const int compact_base = p * n_slices_bucket;
+            real_t *__restrict__ dst = &output[p * stride];
 
-            for (int b = 0; b < n_slices_bucket; ++b) {
-                int sum = 0;
-                #pragma omp simd reduction(+:sum)
-                for (int t = 0; t < threads; ++t)
-                    sum += histo_all[t * histo_compact + compact_base + b];
-                output[out_base + b] = (real_t)sum;
+            // Zero entire profile slot (active + gap)
+            memset(dst, 0, stride * sizeof(real_t));
+
+            // Accumulate each thread's contribution
+            for (int t = 0; t < threads; ++t) {
+                const int *__restrict__ src =
+                    &histo_all[t * histo_compact + p * n_slices_bucket];
+                #pragma omp simd
+                for (int b = 0; b < n_slices_bucket; ++b)
+                    dst[b] += (real_t)src[b];
             }
-
-            // Zero the gap region
-            memset(&output[out_base + n_slices_bucket], 0,
-                   (stride - n_slices_bucket) * sizeof(real_t));
         }
     }
 }
