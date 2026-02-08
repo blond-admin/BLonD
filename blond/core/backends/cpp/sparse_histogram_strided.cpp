@@ -34,7 +34,6 @@ extern "C" void sparse_histogram_strided(const real_t * __restrict__ input,
   // Constants init
   const real_t inv_hist_dist = 1 / (cut_left_array[1] - cut_left_array[0]);
   const real_t inv_bin_width = n_slices_bucket / (cut_right_array[0] - cut_left_array[0]);
-  const real_t bin_width = (cut_right_array[0] - cut_left_array[0]) / n_slices_bucket;
   const int total = n_filled_buckets * stride;
   // memory alloc for per thread histo
   real_t **histo = (real_t **)malloc(omp_get_max_threads() * sizeof(real_t *));
@@ -52,27 +51,17 @@ extern "C" void sparse_histogram_strided(const real_t * __restrict__ input,
 // main calculation
 #pragma omp for
     for (int i = 0; i < n_macroparticles; i++) {
-      int fffbin = 0;
       real_t a = input[i];
       int hist_i = (int)((a - cut_left_array[0]) * inv_hist_dist);
 
-      real_t const1 = (cut_left_array[hist_i] + bin_width * 0.5);
-      real_t const2 = (cut_right_array[hist_i] - bin_width * 0.5);
-      if ((a < const1) || (a > const2))
+      real_t cut_left_loc = (cut_left_array[hist_i]);
+      real_t cut_right_loc = (cut_right_array[hist_i]);
+      if ((a < cut_left_loc) || (a > cut_right_loc))
         continue;
-      real_t fbin = (a - cut_left_array[hist_i]) * inv_bin_width;
-      int ffbin = (int)(fbin);
-      real_t distToCenter = fbin - (real_t)(ffbin);
-      if (distToCenter > 0.5)
-        fffbin = (int)(fbin + 1.0);
-      else
-        fffbin = (int)(fbin - 1.0);
-
-      // Bounds check to prevent buffer overrun
-      if (ffbin >= 0 && ffbin < n_slices_bucket)
-        histo[id][hist_i * stride + ffbin] = histo[id][hist_i * stride + ffbin] + 0.5 - distToCenter;
-      if (fffbin >= 0 && fffbin < n_slices_bucket)
-        histo[id][hist_i * stride + fffbin] = histo[id][hist_i * stride + fffbin] + 0.5 + distToCenter;
+      int bin_idx_loc = (a - cut_left_array[hist_i]) * inv_bin_width;
+      if (bin_idx_loc <n_slices_bucket){
+          histo[id][hist_i * stride + bin_idx_loc] += 1;
+      }
     }
 
 // Reduce to a single histogram
