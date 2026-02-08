@@ -38,23 +38,23 @@ extern "C" void sparse_histogram_strided(
     const real_t inv_bin_width =
         real_t(n_slices_bucket) / (cut_right_array[0] - cut_left0);
 
-    const int total = n_filled_buckets * stride;
+    const int compact_size = n_filled_buckets * n_slices_bucket;
 
-    // Persistent storage
-    static real_t *histo_all = nullptr;
+    // Persistent storage (int, compact layout without stride gaps)
+    static int *histo_all = nullptr;
     static int histo_threads = 0;
-    static int histo_size = 0;
+    static int histo_compact = 0;
 
     const int max_threads = omp_get_max_threads();
 
-    if (histo_all == nullptr || histo_threads < max_threads || histo_size < total) {
+    if (histo_all == nullptr || histo_threads < max_threads || histo_compact < compact_size) {
         free(histo_all);
 
         histo_threads = max_threads;
-        histo_size = total;
+        histo_compact = compact_size;
 
-        histo_all = (real_t *)malloc(
-            sizeof(real_t) * histo_threads * histo_size);
+        histo_all = (int *)malloc(
+            sizeof(int) * histo_threads * histo_compact);
 
         if (!histo_all)
             return;
@@ -63,10 +63,10 @@ extern "C" void sparse_histogram_strided(
 #pragma omp parallel
     {
         const int tid = omp_get_thread_num();
-        real_t *histo = histo_all + tid * histo_size;
+        const int threads = omp_get_num_threads();
+        int *histo = histo_all + tid * histo_compact;
 
-        // zero local histogram
-        memset(histo, 0, histo_size * sizeof(real_t));
+        memset(histo, 0, histo_compact * sizeof(int));
 
 #pragma omp for schedule(static)
         for (int i = 0; i < n_macroparticles; ++i) {
@@ -76,21 +76,32 @@ extern "C" void sparse_histogram_strided(
             if ((unsigned)hist_i >= (unsigned)n_filled_buckets)
                 continue;
 
-            const real_t cl = cut_left_array[hist_i];
-            if (a < cl || a >= cut_right_array[hist_i])
+            const real_t cut_left = cut_left_array[hist_i];
+            if (a < cut_left || a >= cut_right_array[hist_i])
                 continue;
 
-            const int bin = (int)((a - cl) * inv_bin_width);
+            const int bin = (int)((a - cut_left) * inv_bin_width);
             if ((unsigned)bin < (unsigned)n_slices_bucket)
-                histo[hist_i * stride + bin] += real_t(1);
+                histo[hist_i * n_slices_bucket + bin] += 1;
         }
 
+        // Reduce compact histogram into strided output
 #pragma omp for schedule(static)
-        for (int i = 0; i < total; ++i) {
-            real_t sum = 0;
-            for (int t = 0; t < omp_get_num_threads(); ++t)
-                sum += histo_all[t * histo_size + i];
-            output[i] = sum;
+        for (int p = 0; p < n_filled_buckets; ++p) {
+            const int out_base = p * stride;
+            const int compact_base = p * n_slices_bucket;
+
+            for (int b = 0; b < n_slices_bucket; ++b) {
+                int sum = 0;
+                #pragma omp simd reduction(+:sum)
+                for (int t = 0; t < threads; ++t)
+                    sum += histo_all[t * histo_compact + compact_base + b];
+                output[out_base + b] = (real_t)sum;
+            }
+
+            // Zero the gap region
+            memset(&output[out_base + n_slices_bucket], 0,
+                   (stride - n_slices_bucket) * sizeof(real_t));
         }
     }
 }
