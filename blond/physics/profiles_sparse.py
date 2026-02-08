@@ -84,11 +84,11 @@ class EquidistantMultiProfile(MultiProfile):
 
     def plot(self, **kwargs_plot):
         for profile in self.profiles:
-            profile.plot( **kwargs_plot)
+            profile.plot(**kwargs_plot)
 
     @staticmethod
     def headless(
-        t_rev:float,
+        t_rev: float,
         n_profiles: int,
         width_per_profile: float,
         bins_per_profile: int,
@@ -174,10 +174,6 @@ class EquidistantMultiProfile(MultiProfile):
             self._continuous_memory_hist_x[sel] = profile._hist_x
             self._continuous_memory_hist_y[sel] = profile._hist_y
 
-            # overwrite profile storage with views
-            profile._hist_x = self._continuous_memory_hist_x[sel]
-            profile._hist_y = self._continuous_memory_hist_y[sel]
-
             ext_start = max(start - n, 0)
             ext_stop = min(stop, total)
 
@@ -196,6 +192,17 @@ class EquidistantMultiProfile(MultiProfile):
                 self._continuous_memory_hist_x[stop:ext_stop] = (
                     profile._hist_x[-1] + dx * backend.arange(1, k + 1)
                 )
+            profile._hist_x = self._continuous_memory_hist_x[sel]
+            profile._hist_y = self._continuous_memory_hist_y[sel]
+
+    def fix_deepcopy(self):
+        for i, profile in enumerate(self.profiles):
+            start = 2 * i * self._bins_per_profile
+            stop = start + self._bins_per_profile
+            sel = slice(start, stop)
+
+            self.profiles[i]._hist_x = self._continuous_memory_hist_x[sel]
+            self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
 
     def _get_cut_arrays_and_bunch_indexes(self):
         """
@@ -241,12 +248,14 @@ class EquidistantMultiProfile(MultiProfile):
 
         # Call optimized C++ function
         backend.specials.sparse_histogram_strided(
-            beam._dt.array_local,
-            self._continuous_memory_hist_y,
-            cut_left_array,
-            cut_right_array,
-            bunch_indexes,
-            self._bins_per_profile,
-            self._n_profiles,
-            stride,
+            input_array=beam._dt.array_local,
+            output_array=self._continuous_memory_hist_y,
+            cut_left_array=cut_left_array,
+            cut_right_array=cut_right_array,
+            bunch_indexes=bunch_indexes,
+            n_slices_bucket=self._bins_per_profile,
+            n_filled_buckets=self._n_profiles,
+            stride=stride,
         )
+
+        self.fix_deepcopy()

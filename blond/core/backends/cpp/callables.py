@@ -479,6 +479,17 @@ def reload_cpp_backend(  # NOQA: PLR0915
             n_filled_buckets : Number of non-empty buckets
             stride : Memory stride between consecutive profiles (e.g., 2*n_slices_bucket)
             """
+            # todo move to python implementation
+            """for i in range(n_filled_buckets):
+                sel = slice(i * stride, i * stride + n_slices_bucket)
+                hist, bins_edges = np.histogram(
+                    input_array,
+                    bins=n_slices_bucket,
+                    range=(cut_left_array[i], cut_right_array[i]),
+                )
+                debug = output_array[sel]
+                output_array[sel] = hist
+            return"""
             assert input_array.dtype == floattype
             assert output_array.dtype == floattype
             assert cut_left_array.dtype == floattype
