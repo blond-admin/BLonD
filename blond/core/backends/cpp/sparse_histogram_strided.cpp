@@ -71,22 +71,42 @@ extern "C" void sparse_histogram_strided(const real_t * __restrict__ input,
     // Total histogram size with stride
     const int total_bins = n_filled_buckets * stride;
 
-    // Use std::vector for RAII and exception safety (optimization: avoid malloc/free)
-    const int num_threads = omp_get_max_threads();
-    std::vector<real_t> histo_storage(num_threads * total_bins, 0.0);
-    std::vector<real_t*> histo(num_threads);
-    for (int i = 0; i < num_threads; i++)
-        histo[i] = histo_storage.data() + total_bins * i;
+    // ====================================================================
+    // OPTIMIZATION 1: Static storage for thread-local histograms
+    // Avoids repeated allocation/deallocation overhead (~15MB per call)
+    // ====================================================================
+    static std::vector<std::vector<real_t>> thread_local_histograms;
+    static int cached_max_threads = 0;
+    static int cached_total_bins = 0;
+    static bool storage_initialized = false;
 
+    const int num_threads = omp_get_max_threads();
+
+    // Only allocate if size changed or first call
+    if (!storage_initialized || cached_max_threads != num_threads || cached_total_bins != total_bins) {
+        thread_local_histograms.clear();
+        thread_local_histograms.resize(num_threads);
+        for (int i = 0; i < num_threads; i++) {
+            thread_local_histograms[i].resize(total_bins);
+        }
+        cached_max_threads = num_threads;
+        cached_total_bins = total_bins;
+        storage_initialized = true;
+    }
 
     #pragma omp parallel
     {
         const int id = omp_get_thread_num();
         const int threads = omp_get_num_threads();
-        // Note: histo already initialized to 0 via vector constructor, no memset needed
 
-        // Histogram loop
-        #pragma omp for
+        // Zero-initialize thread-local histogram
+        // Use memset for faster clearing (optimized by compiler)
+        memset(thread_local_histograms[id].data(), 0, total_bins * sizeof(real_t));
+
+        // ====================================================================
+        // Histogram filling loop
+        // ====================================================================
+        #pragma omp for schedule(static)
         for (j = 0; j < n_macroparticles; j++){
             a = input[j];   // Particle dt
             if ((a < cut_left_array[0])||(a > cut_right_array[n_filled_buckets-1]))
@@ -123,19 +143,28 @@ extern "C" void sparse_histogram_strided(const real_t * __restrict__ input,
                 const int profile_start = i_bucket * stride;
                 const int profile_end = profile_start + n_slices_bucket;
                 if (ffbin >= profile_start && ffbin < profile_end) {
-                    histo[id][ffbin] += 1.0;
+                    thread_local_histograms[id][ffbin] += 1.0;
                 }
             }
         }
 
-        // Reduce to a single histogram
-        #pragma omp for
+        // ====================================================================
+        // OPTIMIZATION 2: Cache-friendly reduction
+        // Each thread processes a chunk of bins, improving cache locality
+        // ====================================================================
+        #pragma omp for schedule(static)
         for (int i = 0; i < total_bins; i++) {
-            output[i] = 0.;
-            for (int t = 0; t < threads; t++)
-                output[i] += histo[t][i];
+            real_t sum = 0.0;
+
+            // Vectorization hint: this inner loop can vectorize
+            #pragma omp simd reduction(+:sum)
+            for (int t = 0; t < threads; t++) {
+                sum += thread_local_histograms[t][i];
+            }
+
+            output[i] = sum;
         }
     }
 
-    // No need to free memory - vector automatically cleaned up (RAII)
+    // Note: Static storage persists between calls (intentional for performance)
 }
