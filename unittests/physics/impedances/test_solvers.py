@@ -268,9 +268,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         simulation.ring.circumference = 123
         self.inductive_impedance_solver._simulation = simulation
         _parent_wakefield.profile.gradient_hist_y = backend.linspace(1, 3)
-
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
+§
 
     def test_calc_induced_voltage(self):
         self.inductive_impedance_solver.calc_induced_voltage(

@@ -563,7 +563,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
             * self._parent_wakefield.profile.beam_spectrum(n_fft=n_fft)
         )
 
-        plt.figure("compare")
+        plt.figure("compare") # TODO remove
         plt.subplot(3, 1, 3)
         plt.plot(
             self._parent_wakefield.profile.hist_x,

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from abc import ABC
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import numpy as np
 
@@ -81,9 +82,44 @@ class EquidistantMultiProfile(MultiProfile):
     def n_bins(self):
         return self._n_profiles * self._bins_per_profile
 
-    def plot(self):
+    def plot(self, **kwargs_plot):
         for profile in self.profiles:
-            profile.plot()
+            profile.plot( **kwargs_plot)
+
+    @staticmethod
+    def headless(
+        t_rev:float,
+        n_profiles: int,
+        width_per_profile: float,
+        bins_per_profile: int,
+        offset: float = 0.0,
+        section_index: int = 0,
+        name: str | None = None,
+    ) -> EquidistantMultiProfile:
+        from blond.core.base import DynamicParameter
+
+        d = EquidistantMultiProfile(
+            n_profiles=n_profiles,
+            width_per_profile=width_per_profile,
+            bins_per_profile=bins_per_profile,
+            offset=offset,
+            section_index=section_index,
+            name=name,
+        )
+        from blond.core.beam.base import BeamBaseClass
+        from blond.core.simulation.simulation import Simulation
+
+        simulation = Mock(Simulation)
+        simulation.turn_i = Mock(DynamicParameter)
+        simulation.turn_i.value = 0
+        simulation.get_t_rev_init.return_value = t_rev
+        d.on_init_simulation(simulation=simulation)
+        d.on_run_simulation(
+            simulation=simulation,
+            n_turns=1,
+            beam=Mock(BeamBaseClass),
+        )
+        return d
 
     @requires(["RFStationBaseClass"])  # for `get_t_rev_init`
     def on_init_simulation(self, simulation: Simulation) -> None:
