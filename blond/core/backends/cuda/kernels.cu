@@ -326,3 +326,82 @@ __global__ void loss_box(
         }
         }
 }
+
+
+extern "C"
+__global__ void sparse_histogram_strided(
+    const real_t *__restrict__ input,
+    real_t *__restrict__ output,
+    const real_t first_left_cut,
+    const real_t left_cut_distance,
+    const real_t cut_width,
+    const int bins_per_profile,
+    const int n_profiles,
+    const int n_macroparticles,
+    const int stride)
+{
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+
+    const real_t cut_left0 = first_left_cut;
+    const real_t inv_hist_dist = real_t(1) / (left_cut_distance);
+    const real_t inv_bin_width =
+        real_t(bins_per_profile) / (cut_width);
+
+    const int compact_size = n_profiles * bins_per_profile;
+    extern __shared__ int shared_hist[];  // Shared memory for histogram (one per block)
+
+    // Initialize shared histogram memory
+    for (int i = threadIdx.x; i < compact_size; i += blockDim.x) {
+        shared_hist[i] = 0;
+    }
+    __syncthreads();
+
+    // Loop through input particles and update histograms in shared memory
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        const real_t a = input[i];
+
+        const int hist_i = (int)((a - cut_left0) * inv_hist_dist);
+        if ((unsigned)hist_i >= (unsigned)n_profiles)
+            continue;
+
+        const real_t cut_left = cut_left0 + hist_i * left_cut_distance;
+        const real_t cut_right = cut_left + cut_width;
+
+        // Check if the value is within the cut range
+        if (a == cut_right) {
+            atomicAdd(&shared_hist[hist_i * bins_per_profile + bins_per_profile - 1], 1);
+            continue;
+        }
+        if (a < cut_left || a >= cut_right)
+            continue;
+
+        // Calculate the bin index
+        const int bin = (int)((a - cut_left) * inv_bin_width);
+        if ((unsigned)bin < (unsigned)bins_per_profile) {
+            atomicAdd(&shared_hist[hist_i * bins_per_profile + bin], 1);
+        }
+    }
+    __syncthreads();
+
+    // Reduce shared histograms into global memory
+    for (int p = 0; p < n_profiles; ++p) {
+        const int out_base = p * stride;
+        const int compact_base = p * bins_per_profile;
+
+        // Sum up values from shared memory to global output
+        for (int b = 0; b < bins_per_profile; ++b) {
+            int sum = 0;
+            for (int i = threadIdx.x; i < blockDim.x; i += blockDim.x) {
+                sum += shared_hist[compact_base + b];
+            }
+            atomicAdd(&output[out_base + b], sum);
+        }
+
+        // Zero the gap region (if any)
+        if (threadIdx.x == 0) {
+            for (int i = bins_per_profile; i < stride; ++i) {
+                output[out_base + i] = 0.0f;
+            }
+        }
+    }
+}
