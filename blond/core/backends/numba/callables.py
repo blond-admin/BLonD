@@ -190,6 +190,16 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         sig_stop,
     )
 
+    sig_sparse_histogram_strided = (
+        sig_array_read,  # x
+        sig_array_write,  # out
+        nb_f[:],  # left_cuts
+        nb_f[:],  # right_cuts
+        numba.int32,  # bins_per_profile
+        numba.int32,  # n_profiles
+        numba.int32,  # stride
+    )
+
     sig_hist_x = nb_f[:]
     sig_hist_y = nb_f[:]
     sig_alpha = nb_f
@@ -551,6 +561,67 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 ids=ids,
             )
             return n_new
+
+    @staticmethod
+    @enforce_precision(floattype)
+    @njit(
+        sig_sparse_histogram_strided,
+        parallel=True,
+        fastmath=True,
+        cache=False,
+    )
+    def sparse_histogram_strided(
+        x: NumpyArray,
+        out: NumpyArray,
+        left_cuts: NumpyArray,
+        right_cuts: NumpyArray,
+        bins_per_profile: int,
+        n_profiles: int,
+        stride: int,
+    ) -> None:
+        """
+        Sparse histogram with strided memory layout (gaps between profiles).
+
+        Parameters
+        ----------
+        x
+            Particle dt values
+        out
+            Output histogram (n_filled_buckets * stride)
+        left_cuts
+            Left edges of each bucket
+        right_cuts
+            Right edges of each bucket
+        bins_per_profile
+            Number of bins per bucket
+        n_profiles
+            Number of non-empty buckets
+        stride
+            Memory stride between consecutive profiles (e.g., 2*bins_per_profile)
+        """
+        n_threads = numba.get_num_threads()  # this prevents caching
+        ive_profile_dist = 1 / (left_cuts[1] - left_cuts[0])
+        width = left_cuts[0] - right_cuts[0]
+        bin_step = width / bins_per_profile
+        inv_bin_step = 1 / bin_step
+        array_tmp = np.zeros((n_threads, len(out)))
+
+        for i in prange(len(x)):
+            thread_i = numba.get_thread_id()
+            hist_i = (x[i] - left_cuts[0]) * ive_profile_dist
+            if hist_i < 0 or hist_i >= n_profiles:
+                continue
+            start = left_cuts[hist_i]
+            stop = right_cuts[hist_i]
+            if x[i] == stop:
+                array_tmp[thread_i, -1] += 1
+                continue
+            idx = (x[i] - start) * inv_bin_step
+            if idx < 0 or idx >= bins_per_profile:
+                continue
+            else:
+                array_tmp[thread_i, int(hist_i * stride + idx)] += 1
+        out[:] = np.sum(array_tmp, axis=0)
 
     return NumbaSpecials
 
