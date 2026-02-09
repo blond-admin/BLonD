@@ -17,6 +17,7 @@ Simon Albright
 
 from __future__ import annotations
 
+import warnings
 from functools import wraps
 from typing import TYPE_CHECKING
 
@@ -25,12 +26,43 @@ from blond.core.backends import backend
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from blond.core.backends.backend import BackendBaseClass
+
 try:
     import cupy  # noqa: F401
 except ImportError:
     cupy_available = False
 else:
     cupy_available = True
+
+FORCE_ALL_BACKENDS = False
+
+
+def _backend_selection(*args: tuple[str]) -> dict[str, BackendBaseClass]:
+    if FORCE_ALL_BACKENDS:
+        # If FORCE_ALL_BACKENDS is True, the requested backends will all
+        # be used, whether or not they can be initialised.  For backends
+        # that cannot be initialised, they will fail when calling
+        # backend.change_backend in multi_backend_testcase.
+        backends = [backend.ALL_BACKENDS[b] for b in args]
+    else:
+        # If FORCE_ALL_BACKENDS is False, the requested backends will
+        # only be used if they are available.  This allows the testcase
+        # to run with the available subset of backends.
+        backends = []
+        for b in args:
+            try:
+                backends.append(backend.AVAILABLE_BACKENDS[b])
+            except KeyError:
+                warnings.warn(
+                    f"Backend {b} was requested but is not available"
+                    ", it will not be included in testing.  To force"
+                    " all backends to be considered, set "
+                    "`backend_testing.FORCE_ALL_BACKENDS = True`",
+                    stacklevel=2,
+                )
+
+    return backends
 
 
 def multi_backend_testcase(*args: tuple[str]) -> Callable:
@@ -76,9 +108,9 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
 
     if bare:
         fn = args[0]
-        tested_backends = backend.ALL_BACKENDS.values()
+        tested_backends = _backend_selection(*backend.ALL_BACKENDS.keys())
     else:
-        tested_backends = [backend.ALL_BACKENDS[b] for b in args]
+        tested_backends = _backend_selection(*args)
 
     def decorator(fn: Callable) -> Callable:
         @wraps(fn)
