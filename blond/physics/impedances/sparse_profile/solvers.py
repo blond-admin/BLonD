@@ -16,6 +16,7 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.constants import e
 
 from blond import backend
+from blond.core.backends.fft_helper import RepeatedFftHelper
 from blond.core.simulation.simulation import Simulation
 from blond.physics.impedances.base import (
     WakeField,
@@ -54,6 +55,9 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         self._mask_multiturn: NumpyArray | CupyArray = None
 
         self._previous_induced_voltage_multiturn: NumpyArray | CupyArray = None
+
+        self._rfft_helper = RepeatedFftHelper()
+        self._irfft_helper = RepeatedFftHelper()
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -181,24 +185,12 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         # hist is pre-allocated to full FFT size, with zeros at the end
         # -------------------------------------------------
         # Direct FFT without padding (hist is already the right size)
-        if self.H is None:
-            H = backend.rfft_parallel(hist)
-            self.H = H
-        else:
-            backend.rfft_parallel(hist, out=self.H)
-            H = self.H
+        H = self._rfft_helper.rfft(hist)
 
         # frequency-domain multiply
         H *= self._rfft_kernel_multiturn
 
-        # inverse FFT (output is same size as hist)
-        if self.induced_voltage_multiturn is None:
-            self.induced_voltage_multiturn = backend.irfft_parallel(H)
-            induced_voltage_multiturn = self.induced_voltage_multiturn
-        else:
-            backend.irfft_parallel(H, out=self.induced_voltage_multiturn)
-            induced_voltage_multiturn = self.induced_voltage_multiturn
-
+        induced_voltage_multiturn = self._irfft_helper.irfft(H)
         # -------------------------------------------------
         # MULTITURN ACCUMULATION
         # -------------------------------------------------

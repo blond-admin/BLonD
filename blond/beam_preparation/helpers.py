@@ -8,7 +8,12 @@
 
 """Helper functions for beam creation."""
 
-from blond import Beam, backend
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from blond import Beam
 
 
 def make_multibunch_beam(
@@ -33,6 +38,8 @@ def make_multibunch_beam(
     full_beam
         Beam with many ``dt``-shifted copies of the input beam.
     """
+    from blond import Beam, backend
+
     full_beam = Beam(
         intensity=n_times * beam.intensity,
         particle_type=beam.particle_type,
