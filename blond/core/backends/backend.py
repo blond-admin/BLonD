@@ -32,6 +32,13 @@ if TYPE_CHECKING:  # pragma: no cover
 DEFAULT_BACKEND = "python"
 DEFAULT_BITS = "64"
 
+ALL_BACKENDS = {}
+
+
+def _register_backend(bd: BackendBaseClass) -> BackendBaseClass:
+    ALL_BACKENDS[bd.__name__] = bd
+    return bd
+
 
 class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
@@ -711,6 +718,7 @@ class NumpyBackend(BackendBaseClass):
             print(f"Set special to `{mode}`")
 
 
+@_register_backend
 class Numpy32Bit(NumpyBackend):
     """Numpy backend with 32 bit precision."""
 
@@ -723,6 +731,7 @@ class Numpy32Bit(NumpyBackend):
         )
 
 
+@_register_backend
 class Numpy64Bit(NumpyBackend):
     """Numpy backend with 64 bit precision."""
 
@@ -833,6 +842,7 @@ class CupyBackend(BackendBaseClass):
             print(f"Set special to `{mode}`")
 
 
+@_register_backend
 class Cupy32Bit(CupyBackend):
     """Cupy backend with 64 bit precision."""
 
@@ -843,6 +853,7 @@ class Cupy32Bit(CupyBackend):
         )
 
 
+@_register_backend
 class Cupy64Bit(CupyBackend):
     """Cupy backend with 32 bit precision."""
 
