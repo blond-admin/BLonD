@@ -377,4 +377,4 @@ class EquidistantMultiProfile(MultiProfile):
             stride=stride,
         )
 
-        self.fix_deepcopy()
+        self._bind_profiles()

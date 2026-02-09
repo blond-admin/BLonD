@@ -12,8 +12,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import mkl_fft
-import numpy as np
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import e
 
@@ -118,13 +116,14 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         continuous_memory_mask = profile._continuous_memory_mask
         continuous_memory_hist_x = profile._continuous_memory_hist_x
 
-        time_multiturn = np.concatenate(
+        time_multiturn = backend.concatenate(
             [
                 continuous_memory_hist_x + i * self._t_rev
                 for i in range(self._n_turns)
-            ]
+            ],
+            dtype=backend.float,
         )
-        mask_multiturn = np.concatenate(
+        mask_multiturn = backend.concatenate(
             [continuous_memory_mask for _ in range(self._n_turns)]
         )
         time_multiturn -= continuous_memory_hist_x[
@@ -148,7 +147,9 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         )
         self._resize_profile_for_fft()
 
-    def calc_induced_voltage(self, beam: BeamBaseClass) -> np.ndarray:
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
         """
         Calculate the induced voltage.
 
@@ -167,7 +168,7 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
                 beam.intensity / beam.common_array_size
             )
             self._update_kernel_multiturn()
-            self._rfft_kernel_multiturn *= _factor
+            self._rfft_kernel_multiturn *= backend.float(_factor)
             self.H = None
             self.induced_voltage_multiturn = None
 
@@ -181,10 +182,10 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         # -------------------------------------------------
         # Direct FFT without padding (hist is already the right size)
         if self.H is None:
-            H = mkl_fft.rfft(hist)
+            H = backend.rfft_parallel(hist)
             self.H = H
         else:
-            mkl_fft.rfft(hist, out=self.H)
+            backend.rfft_parallel(hist, out=self.H)
             H = self.H
 
         # frequency-domain multiply
@@ -192,10 +193,10 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
 
         # inverse FFT (output is same size as hist)
         if self.induced_voltage_multiturn is None:
-            self.induced_voltage_multiturn = mkl_fft.irfft(H)
+            self.induced_voltage_multiturn = backend.irfft_parallel(H)
             induced_voltage_multiturn = self.induced_voltage_multiturn
         else:
-            mkl_fft.irfft(H, out=self.induced_voltage_multiturn)
+            backend.irfft_parallel(H, out=self.induced_voltage_multiturn)
             induced_voltage_multiturn = self.induced_voltage_multiturn
 
         # -------------------------------------------------
