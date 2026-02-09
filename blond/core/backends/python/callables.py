@@ -465,3 +465,43 @@ class PythonSpecials(Specials):
             ids=ids,
         )
         return n_new
+
+    @staticmethod
+    def sparse_histogram_strided(
+        x: NumpyArray,
+        out: NumpyArray,
+        left_cuts: NumpyArray,
+        right_cuts: NumpyArray,
+        bins_per_profile: int,
+        n_profiles: int,
+        stride: int,
+    ) -> None:
+        """
+        Sparse histogram with strided memory layout (gaps between profiles).
+
+        Parameters
+        ----------
+        x
+            Particle dt values
+        out
+            Output histogram (n_filled_buckets * stride)
+        left_cuts
+            Left edges of each bucket
+        right_cuts
+            Right edges of each bucket
+        bins_per_profile
+            Number of bins per bucket
+        n_profiles
+            Number of non-empty buckets
+        stride
+            Memory stride between consecutive profiles (e.g., 2*bins_per_profile)
+        """
+        assert stride >= bins_per_profile
+        for i in range(n_profiles):
+            sel = slice(i * stride, i * stride + bins_per_profile)
+            hist, _ = np.histogram(
+                x,
+                bins=bins_per_profile,
+                range=(float(left_cuts[i]), float(right_cuts[i])),
+            )
+            out[sel] = hist

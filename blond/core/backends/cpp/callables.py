@@ -440,17 +440,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 Memory stride between consecutive profiles (e.g., 2*bins_per_profile)
             """
             assert stride >= bins_per_profile
-            # todo move to python implementation
-            """for i in range(n_filled_buckets):
-                sel = slice(i * stride, i * stride + n_slices_bucket)
-                hist, bins_edges = np.histogram(
-                    input_array,
-                    bins=n_slices_bucket,
-                    range=(cut_left_array[i], cut_right_array[i]),
-                )
-                debug = output_array[sel]
-                output_array[sel] = hist
-            return"""
+
             assert x.dtype == floattype
             assert out.dtype == floattype
             assert left_cuts.dtype == floattype
