@@ -292,7 +292,10 @@ class EquidistantMultiProfile(MultiProfile):
         so that no side effects appear when applying convolution
         on the full array.
         """
-        n = self._bins_per_profile
+        bins_per_profile = self._bins_per_profile
+
+        # Keep one profile space in between each profile
+        # to make convolution on `_continuous_memory_hist_y` possible.
         total = 2 * self.n_bins
 
         self._continuous_memory_hist_x = backend.zeros(
@@ -307,8 +310,8 @@ class EquidistantMultiProfile(MultiProfile):
         dx = self.profiles[0]._hist_x[1] - self.profiles[0]._hist_x[0]
 
         for i, profile in enumerate(self.profiles):
-            start = 2 * i * n
-            stop = start + n
+            start = 2 * i * bins_per_profile
+            stop = start + bins_per_profile
             sel = slice(start, stop)
 
             # core region
@@ -316,7 +319,10 @@ class EquidistantMultiProfile(MultiProfile):
             self._continuous_memory_hist_x[sel] = profile._hist_x
             self._continuous_memory_hist_y[sel] = profile._hist_y
 
-            ext_start = max(start - n, 0)
+            # Extend the coordinates (for convolution),
+            # so that the profile time coordinates start already
+            # before the profile.
+            ext_start = max(start - bins_per_profile, 0)
             ext_stop = min(stop, total)
 
             self._continuous_memory_mask[ext_start:ext_stop] = True
@@ -334,8 +340,8 @@ class EquidistantMultiProfile(MultiProfile):
                 self._continuous_memory_hist_x[stop:ext_stop] = (
                     profile._hist_x[-1] + dx * backend.arange(1, k + 1)
                 )
-            profile._hist_x = self._continuous_memory_hist_x[sel]
-            profile._hist_y = self._continuous_memory_hist_y[sel]
+
+        self._bind_profiles()
 
     def _bind_profiles(self):  # TODO
         """Bind the memory of all ``self.profiles`` to the contigous memory."""
@@ -360,10 +366,6 @@ class EquidistantMultiProfile(MultiProfile):
             # No particles to track
             return
 
-        # Use optimized sparse_histogram_strided for single-call tracking
-        stride = 2 * self._bins_per_profile
-
-        # Call optimized C++ function
         backend.specials.sparse_histogram_strided(
             x=beam._dt.array_local,
             out=self._continuous_memory_hist_y,
@@ -374,7 +376,5 @@ class EquidistantMultiProfile(MultiProfile):
             bins_per_profile=self.profiles[0].n_bins,
             cut_width=(self.profiles[0].cut_right - self.profiles[0].cut_left),
             n_profiles=self._n_profiles,
-            stride=stride,
+            stride=(2 * self._bins_per_profile),
         )
-
-        self._bind_profiles()
