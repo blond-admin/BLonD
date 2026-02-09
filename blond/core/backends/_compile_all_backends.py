@@ -43,14 +43,7 @@ def main():  # pragma: no cover `main_cli_xxx` gets executed anyway by CI/CD  pi
 
     from blond.core.backends.cpp.compile import main_cli as main_cli_cpp
     from blond.core.backends.cuda.compile import main_cli as main_cli_cuda
-    from blond.core.backends.fortran.compile import (
-        main_cli as main_cli_fortran,
-    )
 
-    try:
-        main_cli_fortran()
-    except Exception as exc:
-        warnings.warn(str(exc), UserWarning, stacklevel=1)
     try:
         main_cli_cuda()
     except Exception as exc:

@@ -25,7 +25,6 @@ def main():  # pragma: no cover
 
     backend.change_backend(Numpy64Bit)
     from blond.core.backends.cpp.callables import CppSpecials
-    from blond.core.backends.fortran.callables import FortranSpecials
     from blond.core.backends.numba.callables import recompile_numba_backend
 
     NumbaSpecials = recompile_numba_backend(backend.float)
@@ -33,7 +32,6 @@ def main():  # pragma: no cover
     functions = (
         NumbaSpecials().kick_induced_voltage,
         CppSpecials().kick_induced_voltage,
-        FortranSpecials().kick_induced_voltage,
     )
     runtimes = {}
     for kick_induced_voltage in functions:
