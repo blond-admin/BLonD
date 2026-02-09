@@ -193,8 +193,9 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     sig_sparse_histogram_strided = (
         sig_array_read,  # x
         sig_array_write,  # out
-        nb_f[:],  # left_cuts
-        nb_f[:],  # right_cuts
+        nb_f,  # first_left_cut
+        nb_f,  # left_cut_distance
+        nb_f,  # cut_width
         numba.int32,  # bins_per_profile
         numba.int32,  # n_profiles
         numba.int32,  # stride
@@ -573,8 +574,9 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         def sparse_histogram_strided(
             x: NumpyArray,
             out: NumpyArray,
-            left_cuts: NumpyArray,
-            right_cuts: NumpyArray,
+            first_left_cut: float,
+            left_cut_distance: float,
+            cut_width: float,
             bins_per_profile: int,
             n_profiles: int,
             stride: int,
@@ -585,26 +587,26 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             Parameters
             ----------
             x
-                Particle dt values
+                An array, e.g., the particle dt values.
             out
-                Output histogram (n_filled_buckets * stride)
-            left_cuts
-                Left edges of each bucket
-            right_cuts
-                Right edges of each bucket
+                Output histogram (n_filled_buckets * stride).
+            first_left_cut
+                Start of the first histogram.
+            left_cut_distance
+                Distance between the start of each histogram.
+            cut_width
+                Distance between left and right edge of the histogram.
             bins_per_profile
-                Number of bins per bucket
+                Number of bins per bucket.
             n_profiles
-                Number of non-empty buckets
+                Number of non-empty buckets.
             stride
-                Memory stride between consecutive profiles (e.g., 2*bins_per_profile)
+                Memory stride between consecutive profiles (e.g.,
+                2*bins_per_profile).
             """
             n_threads = numba.get_num_threads()  # this prevents caching
-            first_left_cut = left_cuts[0]
-            ive_profile_dist = 1 / (left_cuts[1] - first_left_cut)
-            width = right_cuts[0] - first_left_cut
-            bin_step = width / bins_per_profile
-            inv_bin_step = 1 / bin_step
+            ive_profile_dist = 1 / left_cut_distance
+            inv_bin_step = bins_per_profile / cut_width
             array_tmp = np.zeros((n_threads, len(out)))
             for i in prange(len(x)):
                 thread_i = numba.get_thread_id()
@@ -613,8 +615,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 hist_i = int((xi - first_left_cut) * ive_profile_dist)
                 if hist_i < 0 or hist_i >= n_profiles:
                     continue
-                start = left_cuts[hist_i]
-                stop = start + width
+                start = first_left_cut + hist_i * left_cut_distance
+                stop = start + cut_width
                 if xi == stop:
                     write_idx = hist_i * stride + bins_per_profile - 1
                     array_tmp[thread_i, write_idx] += 1

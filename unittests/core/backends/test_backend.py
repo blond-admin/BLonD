@@ -215,12 +215,11 @@ class TestSpecials(unittest.TestCase):
         self.n_voltages = 3
         self.special_modes = [
             "python",
-            # "cpp",
+            "cpp",
             "numba",
         ]
-        # TODO add back uncommented lines
-        # if cupy_available:
-        #    self.special_modes.append("cuda")
+        if cupy_available:
+            self.special_modes.append("cuda")
         set_num_threads(8)
 
     @pytest.mark.backend_mutation
@@ -821,12 +820,9 @@ class TestSpecials(unittest.TestCase):
                     backend.specials.sparse_histogram_strided(
                         x=backend.linspace(-10, 10, 21, dtype=backend.float),
                         out=array_write,
-                        left_cuts=np.array(
-                            [-12, -4.0, 4.0], dtype=backend.float
-                        ),
-                        right_cuts=np.array(
-                            [-8.0, 0.0, 8.0], dtype=backend.float
-                        ),
+                        first_left_cut=-12,
+                        left_cut_distance=8,
+                        cut_width=4,
                         bins_per_profile=bins_per_profile,
                         n_profiles=n_profiles,
                         stride=bins_per_profile * 2,

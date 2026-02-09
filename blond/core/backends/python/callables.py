@@ -470,8 +470,9 @@ class PythonSpecials(Specials):
     def sparse_histogram_strided(
         x: NumpyArray,
         out: NumpyArray,
-        left_cuts: NumpyArray,
-        right_cuts: NumpyArray,
+        first_left_cut: float,
+        left_cut_distance: float,
+        cut_width: float,
         bins_per_profile: int,
         n_profiles: int,
         stride: int,
@@ -482,19 +483,22 @@ class PythonSpecials(Specials):
         Parameters
         ----------
         x
-            Particle dt values
+            An array, e.g., the particle dt values.
         out
-            Output histogram (n_filled_buckets * stride)
-        left_cuts
-            Left edges of each bucket
-        right_cuts
-            Right edges of each bucket
+            Output histogram (n_filled_buckets * stride).
+        first_left_cut
+            Start of the first histogram.
+        left_cut_distance
+            Distance between the start of each histogram.
+        cut_width
+            Distance between left and right edge of the histogram.
         bins_per_profile
-            Number of bins per bucket
+            Number of bins per bucket.
         n_profiles
-            Number of non-empty buckets
+            Number of non-empty buckets.
         stride
-            Memory stride between consecutive profiles (e.g., 2*bins_per_profile)
+            Memory stride between consecutive profiles (e.g.,
+            2*bins_per_profile).
         """
         assert stride >= bins_per_profile
         out[:] = 0
@@ -503,6 +507,9 @@ class PythonSpecials(Specials):
             hist, _ = np.histogram(
                 x,
                 bins=bins_per_profile,
-                range=(float(left_cuts[i]), float(right_cuts[i])),
+                range=(
+                    first_left_cut + i * left_cut_distance,
+                    first_left_cut + i * left_cut_distance + cut_width,
+                ),
             )
             out[sel] = hist

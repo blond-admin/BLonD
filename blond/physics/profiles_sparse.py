@@ -243,8 +243,8 @@ class EquidistantMultiProfile(MultiProfile):
         backend.specials.sparse_histogram_strided(
             x=beam._dt.array_local,
             out=self._continuous_memory_hist_y,
-            left_cuts=cut_left_array,
-            right_cuts=cut_right_array,
+            first_left_cut=cut_left_array,
+            left_cut_distance=cut_right_array,
             bins_per_profile=self._bins_per_profile,
             n_profiles=self._n_profiles,
             stride=stride,

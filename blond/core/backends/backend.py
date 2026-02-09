@@ -200,6 +200,42 @@ class Specials(ABC):
             "The backend for `move_flagged_elements_to_end` is missing."
         )
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def sparse_histogram_strided(
+        x: NumpyArray,
+        out: NumpyArray,
+        first_left_cut: float,
+        left_cut_distance: float,
+        cut_width: float,
+        bins_per_profile: int,
+        n_profiles: int,
+        stride: int,
+    ) -> None:
+        """
+        Sparse histogram with strided memory layout (gaps between profiles).
+
+        Parameters
+        ----------
+        x
+            An array, e.g., the particle dt values.
+        out
+            Output histogram (n_filled_buckets * stride).
+        first_left_cut
+            Start of the first histogram.
+        left_cut_distance
+            Distance between the start of each histogram.
+        cut_width
+            Distance between left and right edge of the histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        n_profiles
+            Number of non-empty buckets.
+        stride
+            Memory stride between consecutive profiles (e.g.,
+            2*bins_per_profile).
+        """
+
 
 class _ModeSwitchHelper:
     """
