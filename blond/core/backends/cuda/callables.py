@@ -453,7 +453,7 @@ def reload_cuda_backend(  # NOQA: D102
             assert out.dtype == floattype
             assert x.flags.c_contiguous
             assert out.flags.c_contiguous
-
+            out[:] = 0
             _sparse_histogram_strided(
                 args=(
                     x,  # input
@@ -461,16 +461,13 @@ def reload_cuda_backend(  # NOQA: D102
                     floattype(first_left_cut),  # first_left_cut
                     floattype(left_cut_distance),  # left_cut_distance
                     floattype(cut_width),  # cut_width
-                    floattype(bins_per_profile),  # bins_per_profile
+                    np.int32(bins_per_profile),  # bins_per_profile
                     np.int32(n_profiles),  # n_profiles
                     np.int32(len(x)),  # n_macroparticles
                     np.int32(stride),  # stride
                 ),
                 block=block_size,
                 grid=grid_size,
-                shared_mem=n_profiles
-                * bins_per_profile
-                * np.dtype(np.int32).itemsize,
             )
 
     return CudaSpecials

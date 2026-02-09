@@ -8,6 +8,7 @@ from blond import (
     Beam,
     BiGaussian,
     ConstantMagneticCycle,
+    Cupy64Bit,
     DriftSimple,
     Resonators,
     Ring,
@@ -22,7 +23,8 @@ from blond.physics.impedances.sparse_profile.solvers import (
 )
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
-backend.set_specials("cpp")
+backend.change_backend(Cupy64Bit)
+backend.set_specials("cuda")
 
 
 def make_multibunch_beam(
