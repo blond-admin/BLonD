@@ -57,7 +57,7 @@ class TestBackendBaseClass(unittest.TestCase):
     def test_apply_environment_variables(self):
         import os
 
-        backend_modes = ["python", "cpp", "numba", "fortran", "fail"]
+        backend_modes = ["python", "cpp", "numba", "fail"]
         backend_bits = ["32", "64", "fail"]
         try:
             import cupy
@@ -80,9 +80,7 @@ class TestBackendBaseClass(unittest.TestCase):
                         # Compiled backends might not be available locally --> skip.
                         # On the CI, these will always be available, as the before_script builds them
                         # or otherwise fails the CI
-                        if (
-                            backend_mode == "fortran" or backend_mode == "cpp"
-                        ):  # TODO better handling
+                        if backend_mode == "cpp":  # TODO better handling
                             warnings.warn(
                                 f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
                             )
@@ -198,13 +196,6 @@ class TestNumpyBackend(unittest.TestCase):
         self.numpy_backend.set_specials(mode="numba")
 
     @pytest.mark.backend_mutation
-    def test_set_specials_fortran(self) -> None:
-        try:
-            self.numpy_backend.set_specials(mode="fortran")
-        except FileNotFoundError:
-            self.skipTest("fortran not available!")
-
-    @pytest.mark.backend_mutation
     def test_set_specials_fails(self):
         with self.assertRaises(ValueError):
             self.numpy_backend.set_specials("doesnt exist")
@@ -217,7 +208,6 @@ class TestSpecials(unittest.TestCase):
             "python",
             "cpp",
             "numba",
-            "fortran",
         ]
         if cupy_available:
             self.special_modes.append("cuda")
@@ -229,7 +219,6 @@ class TestSpecials(unittest.TestCase):
             "python",
             "cpp",
             "numba",
-            "fortran",
         ):
             if dtype == np.float32:
                 backend.change_backend(Numpy32Bit)

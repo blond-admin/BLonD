@@ -256,7 +256,6 @@ class BackendBaseClass(ABC):
             "python",
             "cpp",
             "numba",
-            "fortran",
             "cuda",
         ],
         is_gpu: bool,
@@ -390,7 +389,6 @@ class BackendBaseClass(ABC):
             "python",
             "cpp",
             "numba",
-            "fortran",
             "cuda",
         )
         if _backend_mode_raw in _allowed_backend_modes:
@@ -398,7 +396,6 @@ class BackendBaseClass(ABC):
                 "python",
                 "cpp",
                 "numba",
-                "fortran",
                 "cuda",
             ] = _backend_mode_raw  # type: ignore
         else:
