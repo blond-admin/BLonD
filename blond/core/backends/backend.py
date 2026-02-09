@@ -994,7 +994,7 @@ class CupyBackend(BackendBaseClass):
 
         res = cp.fft.rfft(a=a, n=n)
         if out is not None:
-            out[:] = res
+            out.data = res.data
         return res
 
     def irfft_parallel(
@@ -1024,7 +1024,7 @@ class CupyBackend(BackendBaseClass):
 
         res = cp.fft.irfft(a=a, n=n)
         if out is not None:
-            out[:] = res
+            out.data = res.data
         return res
 
 
