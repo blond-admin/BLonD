@@ -15,7 +15,6 @@
 #include <string.h>     // memset()
 #include <stdlib.h>     // mmalloc()
 #include <math.h>
-#include <vector>
 
 #include "blond_common.h"
 #include "openmp.h"
