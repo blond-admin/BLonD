@@ -13,18 +13,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, overload
 
 import numpy as np
-from scipy.constants import speed_of_light as c  # type: ignore[import-untyped]
+from scipy.constants import c, e  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Ring
     from blond.cycles.magnetic_cycle import MagneticCycleBase
-<<<<<<< HEAD
     from blond.physics.cavities import RFManipulationBaseClass
-=======
-    from blond.physics.cavities import RfManipulationBaseClass
->>>>>>> Implement method to calculate the separatrix for a single harmonic RF
 
 
 def is_in_separatrix(
@@ -339,7 +335,7 @@ def separatrix_single_rf(
     turn_number: int,
 ) -> float | NumpyArray:
     """
-    Derive the analytical separatrix for a single harmonic RF.
+    Derive the analytical separatrix for a single harmonic RF using BLonD classes.
 
     Parameters
     ----------
@@ -397,6 +393,94 @@ def separatrix_single_rf(
     omega_rf = omega_0 * harmonic
 
     eta = ring.calc_average_eta_0(reference_gamma)
+
+    above_Transition = False
+    if eta > 0:
+        above_Transition = True
+
+    phi_s = calc_phi_s_single_harmonic(
+        charge=charge,
+        voltage=voltage,
+        energy_gain=energy_gain,
+        above_transition=above_Transition,
+    )
+
+    phi = dt_array * omega_rf
+
+    potential_energy = (
+        np.cos(np.pi - phi_s)
+        - np.cos(phi)
+        + (np.pi - phi - phi_s) * np.sin(phi_s)
+    )
+
+    mask_potential = potential_energy > 0
+    potential_energy = potential_energy[mask_potential]
+    dt_array = dt_array[mask_potential]
+
+    separatrix = np.sqrt(
+        2
+        * charge
+        * voltage
+        * beta**2
+        * energy
+        / (np.pi * harmonic * np.abs(eta))
+        * potential_energy
+    )
+
+    separatrix_array = np.concatenate((separatrix, -separatrix[::-1]))
+    phi_array = np.concatenate((dt_array, dt_array[::-1]))
+
+    return phi_array, separatrix_array
+
+
+def separatrix_single_rf_calculation(
+    voltage: float,
+    harmonic: int,
+    particle: ParticleType,
+    energy_gain: float,
+    omega_rf: float,
+    eta: float,
+    energy: float,
+    dt_array: NumpyArray,
+) -> float | NumpyArray:
+    """
+    Derive the analytical separatrix for a single harmonic RF .
+
+    Parameters
+    ----------
+    voltage
+        Voltage of the RF cavity.
+    harmonic
+        Main Harmonic of the RF cavity.
+    particle
+        Type of particle.
+    energy_gain
+        Energy_gain by turn.
+    omega_rf
+        RF Frequency.
+    eta
+        Slip factor.
+    energy
+        Kinetic energy in [eV] to calculate the separatrix for.
+    dt_array
+        Array of time coordinates at which to sample the separatrix, in [s].
+
+    Returns
+    -------
+    phi_array
+        The array containing the phases equivalent to the dt_array, in [rad].
+
+    separatrix_array
+        The separatrix values at each point in dt_array.
+    """
+    charge = particle.charge
+
+    rest_energy = particle.mass * c**2 / e
+
+    reference_total_energy = np.sqrt(energy**2 + rest_energy**2)
+    reference_gamma = reference_total_energy * particle.mass_inv
+
+    beta = np.sqrt(1.0 - 1.0 / (reference_gamma * reference_gamma))
 
     above_Transition = False
     if eta > 0:
