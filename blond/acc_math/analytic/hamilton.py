@@ -19,8 +19,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Ring
+    from blond.core.beam import BeamBaseClass
     from blond.cycles.magnetic_cycle import MagneticCycleBase
-    from blond.physics.cavities import RFManipulationBaseClass
+    from blond.physics.cavities import RFStationBaseClass
 
 
 def is_in_separatrix(
@@ -327,8 +328,9 @@ def calc_phi_s_single_harmonic(
     return phi
 
 
-def separatrix_single_rf(
-    rf_station: RFManipulationBaseClass,
+def separatrix_single_rf_blond(
+    rf_station: RFStationBaseClass,
+    beam: BeamBaseClass,
     magnetic_cylce: MagneticCycleBase,
     ring: Ring,
     dt_array: NumpyArray,
@@ -341,6 +343,8 @@ def separatrix_single_rf(
     ----------
     rf_station
         The RF station object.
+    beam
+        The beam object.
     magnetic_cylce
         The magnetic cycle object defining energy evolution.
     ring
@@ -358,8 +362,8 @@ def separatrix_single_rf(
     separatrix_array
         The separatrix values at each point in dt_array.
     """
-    voltage = rf_station.voltage
-    harmonic = rf_station.harmonic
+    voltage = rf_station.get_main_harmonic_voltage()
+    harmonic = rf_station.get_main_harmonic()
 
     charge = magnetic_cylce.reference_particle.charge
 
@@ -371,32 +375,15 @@ def separatrix_single_rf(
         energy_gain = 0
         energy = magnetic_cylce._value
 
-    circumference = ring.circumference
-
-    reference_total_energy = magnetic_cylce.get_target_total_energy(
-        particle_type=magnetic_cylce.reference_particle,
-        turn_i=turn_number,
-        section_i=0,
-        reference_time=0,
-    )
-
-    reference_gamma = (
-        reference_total_energy * magnetic_cylce.reference_particle.mass_inv
-    )
+    reference_gamma = beam.reference.gamma
 
     beta = np.sqrt(1.0 - 1.0 / (reference_gamma * reference_gamma))
-    reference_velocity = beta * c
 
-    t_rev = circumference / reference_velocity
-
-    omega_0 = (2 * np.pi) / t_rev
-    omega_rf = omega_0 * harmonic
+    omega_rf = rf_station._omega_rf
 
     eta = ring.calc_average_eta_0(reference_gamma)
 
-    above_Transition = False
-    if eta > 0:
-        above_Transition = True
+    above_Transition = ring.is_below_transition
 
     phi_s = calc_phi_s_single_harmonic(
         charge=charge,
