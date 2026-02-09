@@ -6,7 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to calculate the beam profile."""
+"""Collection of implementations to calculate the multi-profiles."""
 
 from __future__ import annotations
 
