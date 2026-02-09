@@ -17,6 +17,7 @@ Simon Albright
 
 from __future__ import annotations
 
+import os
 import warnings
 from functools import wraps
 from typing import TYPE_CHECKING
@@ -35,7 +36,18 @@ except ImportError:
 else:
     cupy_available = True
 
-FORCE_ALL_BACKENDS = False
+
+def _set_forcing() -> bool:
+    flag = os.environ.get("BLOND_FORCE_TEST_ALL_BACKENDS", "False")
+    if flag not in ("True", "False"):
+        raise OSError(
+            f"BLOND_FORCE_TEST_ALL_BACKENDS environment variable must be either True or False, not {flag}"
+        )
+    else:
+        return flag == "True"
+
+
+FORCE_ALL_BACKENDS = _set_forcing()
 
 
 def _backend_selection(*args: tuple[str]) -> dict[str, BackendBaseClass]:

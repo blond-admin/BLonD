@@ -1,3 +1,4 @@
+import os
 import unittest
 
 import blond.core.backends.backend as backend
@@ -31,6 +32,21 @@ class TestBackendTesting(unittest.TestCase):
 
     def tearDown(self):
         backend.backend.change_backend(self.init_backend)
+
+    def test_set_forcing(self):
+        flag_str = "BLOND_FORCE_TEST_ALL_BACKENDS"
+        init = os.environ.get(flag_str, "False")
+
+        os.environ[flag_str] = "True"
+        self.assertTrue(bend_test._set_forcing())
+        os.environ[flag_str] = "False"
+        self.assertFalse(bend_test._set_forcing())
+
+        os.environ[flag_str] = "Test"
+        with self.assertRaises(EnvironmentError):
+            bend_test._set_forcing()
+
+        os.environ["BLOND_FORCE_TEST_ALL_BACKENDS"] = init
 
     def test_backend_selection(self):
         bend_test.FORCE_ALL_BACKENDS = False
