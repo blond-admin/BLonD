@@ -1111,6 +1111,56 @@ class TestSpecials(unittest.TestCase):
         with self.assertRaises(ValueError):
             backend.cast_arr_float_if_needed([[1, 2], 3])
 
+    @pytest.mark.backend_mutation
+    @parameterized.expand([Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit])
+    def test_rfft_parallel(self, new_backend):
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
+
+        backend.change_backend(new_backend)
+
+        for in_dtype in (
+            np.float32,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
+            input = np.array([-1, 1, 2, 3], dtype=float)
+            target = np.fft.rfft(input)
+
+            actual = backend.rfft_parallel(
+                backend.array(input, dtype=in_dtype)
+            )
+            if isinstance(backend, CupyBackend):
+                actual = actual.get()
+
+            np.testing.assert_array_equal(actual, target)
+
+    @pytest.mark.backend_mutation
+    @parameterized.expand([Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit])
+    def test_irfft_parallel(self, new_backend):
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
+
+        backend.change_backend(new_backend)
+
+        for in_dtype in (
+            np.float32,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
+            input = np.array([-1, 1, 2, 3], dtype=float)
+            target = np.fft.irfft(input)
+
+            actual = backend.irfft_parallel(
+                backend.array(input, dtype=in_dtype)
+            )
+            if isinstance(backend, CupyBackend):
+                actual = actual.get()
+
+            np.testing.assert_array_equal(actual, target)
+
     def tearDown(self) -> None:
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
