@@ -147,15 +147,13 @@ class Coasting(base.BeamPreparationRoutine):
         # self.energy_bins.  An offset is applied to make each bin be
         # sampled uniformly.
         bin_width = self.energy_bins[1] - self.energy_bins[0]
-        e_shift = rng.uniform(
-            low=0, high=bin_width / 2, size=self._n_macroparticles_local
+        # Use overlapping triangular offsets to create a smoother distribution
+        e_shift = rng.triangular(
+            left=-bin_width,
+            mode=0,
+            right=bin_width,
+            size=self._n_macroparticles_local,
         )
-        # Generated offsets go from 0 -> binwidth/2, multiply every
-        # other value by -1 to go from -bin_width/2 -> +bin_width/2.
-        # The generation is of the form [low, high), so setting low to
-        # -bin_width/2 might slightly bias the result.
-        e_shift[::2] *= -1
-
         dE += e_shift
 
         # Set stop time to t_rev if not defined
