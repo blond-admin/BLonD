@@ -20,6 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond import Ring
     from blond.core.beam import BeamBaseClass
+    from blond.core.beam.particle_types import ParticleType
     from blond.cycles.magnetic_cycle import MagneticCycleBase
     from blond.physics.cavities import RFStationBaseClass
 
