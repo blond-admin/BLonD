@@ -497,6 +497,7 @@ class PythonSpecials(Specials):
             Memory stride between consecutive profiles (e.g., 2*bins_per_profile)
         """
         assert stride >= bins_per_profile
+        out[:] = 0
         for i in range(n_profiles):
             sel = slice(i * stride, i * stride + bins_per_profile)
             hist, _ = np.histogram(
