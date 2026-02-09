@@ -6,7 +6,9 @@ import numpy as np
 from blond.beam_preparation import coasting
 from blond.core.beam import beams
 from blond.core.beam.particle_types import proton
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.cycles.magnetic_cycle import ConstantMagneticCycle
+from blond.testing.backend_testing import multi_backend_testcase
 
 
 class TestCoasting(unittest.TestCase):
@@ -31,6 +33,7 @@ class TestCoasting(unittest.TestCase):
             particle_type=self.beam.particle_type,
         )
 
+    @multi_backend_testcase
     def test_init(self):
         kwargs = {
             "energy_bins": np.array([1, 2, 3]),
@@ -44,7 +47,7 @@ class TestCoasting(unittest.TestCase):
         for attr, target in kwargs.items():
             value = getattr(coast, attr)
             if isinstance(target, np.ndarray):
-                np.testing.assert_array_equal(target, value)
+                np.testing.assert_array_equal(target, copy_to_cpu(value))
             else:
                 self.assertEqual(target, value)
 
@@ -55,6 +58,7 @@ class TestCoasting(unittest.TestCase):
         with self.assertRaises(ValueError):
             coasting.Coasting(0, [], [], start_time=1, stop_time=0)
 
+    @multi_backend_testcase
     def test_prepare_beam_dflts(self):
         bins = np.linspace(-1, 1, 1000)
         dens = -(bins**2) + 1
@@ -77,6 +81,7 @@ class TestCoasting(unittest.TestCase):
             self.beam._dt.mean(), self.t_rev / 2, decimal=2
         )
 
+    @multi_backend_testcase
     def test_prepare_beam_custom(self):
         bins = np.linspace(-1, 1, 1000)
         dens = -(bins**2) + 1

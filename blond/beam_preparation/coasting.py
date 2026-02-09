@@ -154,7 +154,7 @@ class Coasting(base.BeamPreparationRoutine):
             right=bin_width,
             size=self._n_macroparticles_local,
         )
-        dE += e_shift
+        dE += backend.cast_arr_float_if_needed(e_shift)
 
         # Set stop time to t_rev if not defined
         if self.stop_time is None:
