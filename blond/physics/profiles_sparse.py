@@ -204,7 +204,7 @@ class EquidistantMultiProfile(MultiProfile):
             self.profiles[i]._hist_x = self._continuous_memory_hist_x[sel]
             self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
 
-    def _get_cut_arrays_and_bunch_indexes(self):
+    def _get_cut_arrays(self):
         """
         Build cut_left_array, cut_right_array, and bunch_indexes for sparse histogram.
 
@@ -225,12 +225,7 @@ class EquidistantMultiProfile(MultiProfile):
             dtype=backend.float,
         )
 
-        # Build bunch_indexes: maps bucket index to profile index
-        # For equidistant profiles, each profile occupies one bucket
-        # bucket i -> profile i (all buckets are filled)
-        bunch_indexes = backend.arange(n_profiles, dtype=backend.float)
-
-        return cut_left_array, cut_right_array, bunch_indexes
+        return cut_left_array, cut_right_array
 
     def _track(self, beam: BeamBaseClass) -> None:
         """Track beam particles and fill histograms using optimized C++ function."""
@@ -242,19 +237,16 @@ class EquidistantMultiProfile(MultiProfile):
         stride = 2 * self._bins_per_profile
 
         # Build input arrays for C++ function
-        cut_left_array, cut_right_array, bunch_indexes = (
-            self._get_cut_arrays_and_bunch_indexes()
-        )
+        cut_left_array, cut_right_array = self._get_cut_arrays()
 
         # Call optimized C++ function
         backend.specials.sparse_histogram_strided(
-            input_array=beam._dt.array_local,
-            output_array=self._continuous_memory_hist_y,
-            cut_left_array=cut_left_array,
-            cut_right_array=cut_right_array,
-            bunch_indexes=bunch_indexes,
-            n_slices_bucket=self._bins_per_profile,
-            n_filled_buckets=self._n_profiles,
+            x=beam._dt.array_local,
+            out=self._continuous_memory_hist_y,
+            left_cuts=cut_left_array,
+            right_cuts=cut_right_array,
+            bins_per_profile=self._bins_per_profile,
+            n_profiles=self._n_profiles,
             stride=stride,
         )
 

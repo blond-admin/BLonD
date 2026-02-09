@@ -23,20 +23,19 @@
 extern "C" void sparse_histogram_strided(
     const real_t *__restrict__ input,
     real_t *__restrict__ output,
-    const real_t *__restrict__ cut_left_array,
-    const real_t *__restrict__ cut_right_array,
-    const real_t *__restrict__ bunch_indexes,
-    const int n_slices_bucket,
-    const int n_filled_buckets,
+    const real_t *__restrict__ left_cuts,
+    const real_t *__restrict__ right_cuts,
+    const int bins_per_profile,
+    const int n_profiles,
     const int n_macroparticles,
     const int stride)
 {
-    const real_t cut_left0 = cut_left_array[0];
-    const real_t inv_hist_dist = real_t(1) / (cut_left_array[1] - cut_left0);
+    const real_t cut_left0 = left_cuts[0];
+    const real_t inv_hist_dist = real_t(1) / (left_cuts[1] - cut_left0);
     const real_t inv_bin_width =
-        real_t(n_slices_bucket) / (cut_right_array[0] - cut_left0);
+        real_t(bins_per_profile) / (right_cuts[0] - cut_left0);
 
-    const int compact_size = n_filled_buckets * n_slices_bucket;
+    const int compact_size = n_profiles * bins_per_profile;
 
     // Persistent storage (int, compact layout without stride gaps)
     static int *histo_all = nullptr;
@@ -71,25 +70,25 @@ extern "C" void sparse_histogram_strided(
             const real_t a = input[i];
 
             const int hist_i = (int)((a - cut_left0) * inv_hist_dist);
-            if ((unsigned)hist_i >= (unsigned)n_filled_buckets)
+            if ((unsigned)hist_i >= (unsigned)n_profiles)
                 continue;
 
-            const real_t cut_left = cut_left_array[hist_i];
-            if (a < cut_left || a >= cut_right_array[hist_i])
+            const real_t cut_left = left_cuts[hist_i];
+            if (a < cut_left || a >= right_cuts[hist_i])
                 continue;
 
             const int bin = (int)((a - cut_left) * inv_bin_width);
-            if ((unsigned)bin < (unsigned)n_slices_bucket)
-                histo[hist_i * n_slices_bucket + bin] += 1;
+            if ((unsigned)bin < (unsigned)bins_per_profile)
+                histo[hist_i * bins_per_profile + bin] += 1;
         }
 
         // Reduce compact histogram into strided output
 #pragma omp for schedule(static)
-        for (int p = 0; p < n_filled_buckets; ++p) {
+        for (int p = 0; p < n_profiles; ++p) {
             const int out_base = p * stride;
-            const int compact_base = p * n_slices_bucket;
+            const int compact_base = p * bins_per_profile;
 
-            for (int b = 0; b < n_slices_bucket; ++b) {
+            for (int b = 0; b < bins_per_profile; ++b) {
                 int sum = 0;
                 #pragma omp simd reduction(+:sum)
                 for (int t = 0; t < threads; ++t)
@@ -98,8 +97,8 @@ extern "C" void sparse_histogram_strided(
             }
 
             // Zero the gap region
-            memset(&output[out_base + n_slices_bucket], 0,
-                   (stride - n_slices_bucket) * sizeof(real_t));
+            memset(&output[out_base + bins_per_profile], 0,
+                   (stride - bins_per_profile) * sizeof(real_t));
         }
     }
 }
