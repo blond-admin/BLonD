@@ -60,7 +60,7 @@ class EquidistantMultiProfile(MultiProfile):
         self._offset = offset
         self._width_per_profile = width_per_profile
         self._bins_per_profile = bins_per_profile
-        self.profiles: tuple[StaticProfile] | None = None
+        self.profiles: tuple[StaticProfile, ...] | None = None
 
         self._continuous_memory_hist_x = None
         self._continuous_memory_hist_y = None
@@ -204,29 +204,6 @@ class EquidistantMultiProfile(MultiProfile):
             self.profiles[i]._hist_x = self._continuous_memory_hist_x[sel]
             self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
 
-    def _get_cut_arrays(self):
-        """
-        Build cut_left_array, cut_right_array, and bunch_indexes for sparse histogram.
-
-        Returns
-        -------
-        tuple
-            (cut_left_array, cut_right_array, bunch_indexes)
-        """
-        n_profiles = len(self.profiles)
-
-        # Extract cut edges from profiles
-        cut_left_array = backend.array(
-            [profile.cut_left for profile in self.profiles],
-            dtype=backend.float,
-        )
-        cut_right_array = backend.array(
-            [profile.cut_right for profile in self.profiles],
-            dtype=backend.float,
-        )
-
-        return cut_left_array, cut_right_array
-
     def _track(self, beam: BeamBaseClass) -> None:
         """Track beam particles and fill histograms using optimized C++ function."""
         if len(beam._dt.array_local) == 0:
@@ -236,16 +213,16 @@ class EquidistantMultiProfile(MultiProfile):
         # Use optimized sparse_histogram_strided for single-call tracking
         stride = 2 * self._bins_per_profile
 
-        # Build input arrays for C++ function
-        cut_left_array, cut_right_array = self._get_cut_arrays()
-
         # Call optimized C++ function
         backend.specials.sparse_histogram_strided(
             x=beam._dt.array_local,
             out=self._continuous_memory_hist_y,
-            first_left_cut=cut_left_array,
-            left_cut_distance=cut_right_array,
-            bins_per_profile=self._bins_per_profile,
+            first_left_cut=self.profiles[0].cut_left,
+            left_cut_distance=(
+                self.profiles[1].cut_left - self.profiles[0].cut_left
+            ),
+            bins_per_profile=self.profiles[0].n_bins,
+            cut_width=(self.profiles[0].cut_right - self.profiles[0].cut_left),
             n_profiles=self._n_profiles,
             stride=stride,
         )
