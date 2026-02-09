@@ -181,7 +181,8 @@ class MyTestCase(unittest.TestCase):
         sim.run_simulation(beams=beam, n_turns=1)
         save_profile = True
         if save_profile:
-            print()
+            pass
+            """print()
             print(
                 np.savetxt(
                     callers_relative_path(
@@ -190,7 +191,7 @@ class MyTestCase(unittest.TestCase):
                     profile._hist_y,
                 )
             )
-            print("saved hist_y")
+            print("saved hist_y")"""
         else:
             sim.intensity_effect_manager.set_profiles(
                 active=False
