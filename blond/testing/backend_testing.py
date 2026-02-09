@@ -119,7 +119,15 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
             for t in tested_backends:
                 backend.backend.change_backend(t)
                 self.setUp()
-                fn(self)
+                try:
+                    fn(self)
+                except Exception:
+                    # If a function call fails, force return to the
+                    # initial condition, then re-raise the exception.
+                    backend.backend.change_backend(
+                        backend.ALL_BACKENDS[init_backend]
+                    )
+                    raise
                 self.tearDown()
             backend.backend.change_backend(backend.ALL_BACKENDS[init_backend])
 

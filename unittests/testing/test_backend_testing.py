@@ -124,3 +124,22 @@ class TestBackendTesting(unittest.TestCase):
         self.assertListEqual(
             used_backends, list(backend.AVAILABLE_BACKENDS.keys())
         )
+
+    def test_multi_backend_testcase_failsafe(self):
+        bend_test.FORCE_ALL_BACKENDS = False
+
+        if self.init_backend == "Numpy32Bit":
+            backend.backend.change_backend(backend.Numpy64Bit)
+        else:
+            backend.backend.change_backend(backend.Numpy32Bit)
+
+        test_init_backend = backend.backend.__class__
+
+        @bend_test.multi_backend_testcase
+        def a_test(self):
+            raise RuntimeError
+
+        with self.assertRaises(RuntimeError):
+            a_test(self)
+
+        self.assertTrue(backend.backend.__class__ is test_init_backend)
