@@ -1,3 +1,5 @@
+"""Example of how to configure a simulation with sparse multiturn wakefields."""
+
 import os
 from pstats import SortKey
 
@@ -30,6 +32,25 @@ backend.set_specials("cuda")
 def make_multibunch_beam(
     beam: Beam, n_times: int, t_distance: float, common_offset: float = 0.0
 ) -> Beam:
+    """
+    Add a bunch repeatedly with different t offset.
+
+    Parameters
+    ----------
+    beam
+        The beam object that is used as a reference.
+    n_times
+        Number of times the beam should be repeatedly added.
+    t_distance
+        Distance between each beam that is added, in [s].
+    common_offset
+        Offset that is applied to all added bunches equally, in[s].
+
+    Returns
+    -------
+    full_beam
+        Beam with many ``dt``-shifted copies of the input beam.
+    """
     full_beam = Beam(
         intensity=n_times * beam.intensity,
         particle_type=beam.particle_type,

@@ -45,6 +45,29 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
 
 
 class EquidistantMultiProfile(MultiProfile):
+    """
+    Holds many profiles, that have an even distance to each other and the same size.
+
+    Parameters
+    ----------
+    n_profiles
+        Number of profiles to use internally.
+    width_per_profile
+        The width of each profile,
+        corresponding to ``cut_right - cut_left``.
+    bins_per_profile
+        Number of bins per profile.
+    offset
+        Offset all profiles by this number.
+    section_index
+        Identifier grouping elements that belong to the same section of the ring.
+        Defaults to 0.
+    name
+        Human-readable name for the element. If not provided, a unique name is
+        automatically generated.
+    **kwargs
+        Additional keyword arguments passed to the parent.
+    """
     def __init__(
         self,
         n_profiles: int,
@@ -68,21 +91,48 @@ class EquidistantMultiProfile(MultiProfile):
 
     @property
     def hist_x(self):
+        """
+        One array with all profile.hist_x concatenated.
+
+        Returns
+        -------
+        hist_x
+            One array with all profile.hist_x concatenated.
+        """
         return self._continuous_memory_hist_x[
             self._continuous_memory_mask_prof
         ]
 
     @property
     def hist_y(self):
+        """
+        One array with all profile.hist_y concatenated.
+
+        Returns
+        -------
+        hist_x
+            One array with all profile.hist_y concatenated.
+        """
         return self._continuous_memory_hist_y[
             self._continuous_memory_mask_prof
         ]
 
     @property
     def n_bins(self):
+        """Total number of bins among all profiles."""
         return self._n_profiles * self._bins_per_profile
 
     def plot(self, **kwargs_plot):
+        """
+        Plot each profile.
+
+        Parameters
+        ----------
+        kwargs_plot
+            Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
+            for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
+
+        """
         for profile in self.profiles:
             profile.plot(**kwargs_plot)
 
@@ -96,6 +146,35 @@ class EquidistantMultiProfile(MultiProfile):
         section_index: int = 0,
         name: str | None = None,
     ) -> EquidistantMultiProfile:
+        """
+        Make a instance of this class that does not rely on `Simulation`.
+
+        Parameters
+        ----------
+        t_rev
+            Revolution period.
+        n_profiles
+            Number of profiles to use internally.
+        width_per_profile
+            The width of each profile,
+            corresponding to ``cut_right - cut_left``.
+        bins_per_profile
+            Number of bins per profile.
+        offset
+            Offset all profiles by this number.
+        section_index
+            Identifier grouping elements that belong to the same section of the ring.
+            Defaults to 0.
+        name
+            Human-readable name for the element. If not provided, a unique name is
+            automatically generated.
+
+        Returns
+        -------
+        equidistant_profile
+            The fully initialized ``EquidistantMultiProfile``
+
+        """
         from blond.core.base import DynamicParameter
 
         d = EquidistantMultiProfile(
@@ -123,6 +202,14 @@ class EquidistantMultiProfile(MultiProfile):
 
     @requires(["RFStationBaseClass"])  # for `get_t_rev_init`
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager.
+        """
         t_rev = simulation.get_t_rev_init()
         half_width = float(self._width_per_profile / 2)
 
@@ -150,6 +237,17 @@ class EquidistantMultiProfile(MultiProfile):
         self._make_memory_continuous()
 
     def _make_memory_continuous(self):
+        """
+        Fuse all profiles together in one array.
+
+        This method fuses all profile arrays into one big array.
+        In between each histogram there is one histogram space,
+        so that no side effects appear when applying convolution
+        on the full array.
+        Returns
+        -------
+
+        """
         n = self._bins_per_profile
         total = 2 * self.n_bins
 
@@ -195,8 +293,9 @@ class EquidistantMultiProfile(MultiProfile):
             profile._hist_x = self._continuous_memory_hist_x[sel]
             profile._hist_y = self._continuous_memory_hist_y[sel]
 
-    def fix_deepcopy(self):
-        for i, profile in enumerate(self.profiles):
+    def _bind_profiles(self):  # TODO
+        """Bind the memory of all ``self.profiles`` to the contigous memory."""
+        for i, _profile in enumerate(self.profiles):
             start = 2 * i * self._bins_per_profile
             stop = start + self._bins_per_profile
             sel = slice(start, stop)
