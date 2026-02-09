@@ -140,7 +140,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
 
     cflags = [
-        "-Ofast",
+        "-O3",
         "-std=c++11",
         "-shared",
         "-funroll-loops",  # Aggressive loop unrolling
