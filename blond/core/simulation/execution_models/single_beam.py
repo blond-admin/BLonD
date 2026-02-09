@@ -98,7 +98,10 @@ class MainloopSingleBeam(ExecutionModel):
             iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
             # display to iteration
         for turn_i in iterator:
-            self._add_progressbar_info(iterator, n_particles, show_progressbar)
+            if show_progressbar:
+                self._add_progressbar_info(
+                    iterator, n_particles, show_progressbar
+                )
 
             simulation.turn_i.value = turn_i
 
