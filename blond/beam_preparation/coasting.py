@@ -48,18 +48,20 @@ class Coasting(base.BeamPreparationRoutine):
     n_macroparticles
         Number of macroparticles to be generated.
     energy_bins
-        The energy bins of the required energy distribution.
+        The energy bins of the required energy distribution, in [eV].
     energy_profile
         The required energy distribution corresponding to `energy_bins`.
     start_time
-        The start time of the distribution.
+        The start time of the distribution, in [s].
     stop_time
-        The stop time of the distribution.
+        The stop time of the distribution, in [s].
     energy_offset
         The energy offset to be applied after generating the
         distribution.
-        If this is a float, a global offset is introduced.
-        If this an array, it indicates the offset from `t_min` to `t_max`.
+        If this is a float, a global offset is introduced, in [eV].
+        If this an array, it should take the form [time, energy] and
+        will be interpolated along the generated distribution.  The
+        units are [s, eV].
     seed
         The seed for the random generator.
     """
