@@ -43,11 +43,6 @@ f_res = resonator_data[:, 0] * 10**9
 Q_factor = resonator_data[:, 1]
 
 
-hist_y_single_peak = np.loadtxt(
-    callers_relative_path("resources/hist_y.npy", stacklevel=1)
-)
-
-
 def make_multibunch_beam(
     beam: Beam, n_times: int, t_distance: float, common_offset: float = 0.0
 ) -> Beam:

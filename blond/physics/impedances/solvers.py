@@ -27,7 +27,6 @@ from collections import deque
 from typing import TYPE_CHECKING
 
 import numpy as np
-from matplotlib import pyplot as plt
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
@@ -562,18 +561,6 @@ class TimeDomainFftSolver(WakeFieldSolver):
             self._wake_imp_y
             * self._parent_wakefield.profile.beam_spectrum(n_fft=n_fft)
         )
-
-        plt.figure("compare")  # TODO remove
-        plt.subplot(3, 1, 3)
-        plt.plot(
-            self._parent_wakefield.profile.hist_x,
-            np.fft.irfft(self._wake_imp_y)[
-                : len(self._parent_wakefield.profile.hist_x)
-            ],
-            "--",
-            label="singel turn",
-        )
-        plt.legend()
 
         # calculation in frequency domain must be with full periodicity.
         # The profile and corresponding induced voltage is only a part of
