@@ -93,10 +93,15 @@ class MainloopSingleBeam(ExecutionModel):
             simulation.turn_i.value, simulation.turn_i.value + n_turns
         )
         if show_progressbar:
+            # Get particle count for throughput calculation
+            n_particles = beam._dt.global_size
             iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
             # display to iteration
         for turn_i in iterator:
+            self._add_progressbar_info(iterator, n_particles, show_progressbar)
+
             simulation.turn_i.value = turn_i
+
             simulation._calculate_current_t_rev(reference=beam.reference)
             for element in simulation._ring.elements.elements:
                 simulation.section_i.value = element.section_index
@@ -114,3 +119,20 @@ class MainloopSingleBeam(ExecutionModel):
         # make possible to run two main-loops after each other
         simulation.turn_i.value += 1
         simulation.section_i.value = 0
+
+    @staticmethod
+    def _add_progressbar_info(
+        iterator: tqdm, n_particles: int, show_progressbar: bool
+    ):
+        # Update tqdm with particle throughput metrics
+        if show_progressbar and hasattr(iterator, "format_dict"):
+            # Get current iteration rate (it/s) from tqdm
+            format_dict = iterator.format_dict
+            rate = format_dict.get("rate", None)
+            if rate is not None and rate > 0:
+                # Calculate particles per second per iteration
+                sec_per_particle = 1 / rate / n_particles
+                # Format in scientific notation for readability
+                particles_str = f"{sec_per_particle * 1e9:f}ns per particle"
+
+                iterator.set_postfix_str(f"{particles_str}", refresh=False)
