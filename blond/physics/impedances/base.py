@@ -477,7 +477,7 @@ class WakeField(ImpedanceBaseClass):
         ]
         # the induced voltage has to be provided with the backend precision
         # because the track() method below requires it by calling the backend.
-        return self.induced_voltage[: self.profile.n_bins]
+        return self.induced_voltage
 
     def _track(self, beam: BeamBaseClass) -> None:
         """

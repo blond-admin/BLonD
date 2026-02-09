@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import e
+from scipy.fft import next_fast_len
 
 from blond import backend
 from blond.core.backends.fft_helper import RepeatedFftHelper
@@ -82,22 +83,24 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         """
         Resize profile's continuous memory histogram to full FFT size.
 
-        This eliminates zero-padding overhead in rfft by pre-allocating
-        the histogram array to the size needed for n_turns convolution.
-        The extra space is filled with zeros and never modified, so rfft
+        This eliminates zero-padding overhead in `rfft` by pre-allocating
+        the histogram array to the size needed for `n_turns` convolution.
+        The extra space is filled with zeros and never modified, so `rfft`
         can operate directly on the array without padding.
         """
         profile: EquidistantMultiProfile = self._parent_wakefield.profile
 
         # Calculate required FFT size
-        original_size = len(profile._continuous_memory_hist_y)
-        fft_size = original_size * self._n_turns
+        n_memory_total_single_turn = len(profile._continuous_memory_hist_y)
+        new_size = next_fast_len(n_memory_total_single_turn * self._n_turns)
 
         # Create new larger array with zeros
-        new_hist_y = backend.zeros(fft_size, dtype=backend.float)
+        new_hist_y = backend.zeros(new_size, dtype=backend.float)
 
         # Copy existing data to the beginning
-        new_hist_y[:original_size] = profile._continuous_memory_hist_y
+        new_hist_y[:n_memory_total_single_turn] = (
+            profile._continuous_memory_hist_y
+        )
 
         # Replace profile's histogram with the larger pre-padded array
         profile._continuous_memory_hist_y = new_hist_y
@@ -111,7 +114,7 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
             prof._hist_y = profile._continuous_memory_hist_y[start:stop]
 
         # Store original size for masking
-        self._original_profile_size = original_size
+        self._n_memory_total_single_turn = n_memory_total_single_turn
 
     def _update_kernel_multiturn(self) -> None:
         """Update the wakefield kernel, that represents a single particle wake."""
@@ -194,7 +197,9 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         # -------------------------------------------------
         # MULTITURN ACCUMULATION
         # -------------------------------------------------
-        n_single = self._original_profile_size  # Use original size, not padded
+        n_single = (
+            self._n_memory_total_single_turn
+        )  # Use original size, not padded
 
         if self._previous_induced_voltage_multiturn is None:
             self._previous_induced_voltage_multiturn = (
