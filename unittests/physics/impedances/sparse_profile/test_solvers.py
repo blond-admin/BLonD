@@ -202,7 +202,7 @@ class MyTestCase(unittest.TestCase):
         return wakefield
 
     def multiturn(self, induced_voltage) -> WakeField:
-        backend.set_specials("cpp") # TODO remove
+        backend.set_specials("cpp")  # TODO remove
         ring = Ring(
             circumference=6911.56,
         )
