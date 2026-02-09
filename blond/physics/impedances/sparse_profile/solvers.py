@@ -6,6 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""Holds the `MultiTurnSparseProfileSolver` to be used with `EquidistantMultiProfile`."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -31,6 +33,15 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class MultiTurnSparseProfileSolver(WakeFieldSolver):
+    """
+    Wakefield solver that considers evely separated profiles.
+
+    Parameters
+    ----------
+    n_turns
+        Number of turns to accumulate for the wakefields.
+    """
+
     def __init__(self, n_turns: int):
         super().__init__()
         self._n_turns = n_turns
@@ -101,6 +112,7 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         self._original_profile_size = original_size
 
     def _update_kernel_multiturn(self) -> None:
+        """Update the wakefield kernel, that represents a single particle wake."""
         profile: EquidistantMultiProfile = self._parent_wakefield.profile
 
         continuous_memory_mask = profile._continuous_memory_mask
@@ -137,6 +149,19 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         self._resize_profile_for_fft()
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> np.ndarray:
+        """
+        Calculate the induced voltage.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+
+        Returns
+        -------
+        induced_voltage
+            The induced voltage in teh current turn.
+        """
         if self._kernel_multiturn is None:
             _factor = -(beam.particle_type.charge * e) * (
                 beam.intensity / beam.common_array_size

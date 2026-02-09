@@ -30,14 +30,13 @@ def perform_check():
             )
             is_fortran_file = name.endswith(".f90")
 
-            copyright_message = get_copyright_message(
-                is_cpp_file,
-                is_fortran_file,
-                is_python_file,
-                text_py,
-            )
-
             if is_python_file or is_cpp_file or is_fortran_file:
+                copyright_message = get_copyright_message(
+                    is_cpp_file,
+                    is_fortran_file,
+                    is_python_file,
+                    text_py,
+                )
                 full_path = os.path.join(dirpath, name)
                 if os.path.getsize(full_path) > 0:  # skip empty files
                     with open(full_path) as f:

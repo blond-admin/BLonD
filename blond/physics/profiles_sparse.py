@@ -26,12 +26,39 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class MultiProfile(BeamPhysicsRelevant, ABC):
+    """
+    Base class to implement a profile that represents several profiles.
+
+    Parameters
+    ----------
+    section_index
+            Identifier grouping elements that belong to the same section of the ring.
+            Defaults to 0.
+    name
+        Human-readable name for the element. If not provided, a unique name is
+        automatically generated.
+    **kwargs
+        Additional keyword arguments passed to the parent.
+    """
+
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(section_index, name)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Initialize the ring when a simulation is created.
+
+        This method is automatically called during simulation initialization to
+        validate the ring configuration. It checks that RF stations are properly
+        configured and section indices are correctly ordered.
+
+        Parameters
+        ----------
+        simulation
+            The `Simulation` context manager that owns this ring.
+        """
         pass
 
     def on_run_simulation(
@@ -41,6 +68,20 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
         n_turns: int,
         **kwargs,
     ) -> None:
+        """
+        Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation `Beam` object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
         pass
 
 
@@ -68,6 +109,7 @@ class EquidistantMultiProfile(MultiProfile):
     **kwargs
         Additional keyword arguments passed to the parent.
     """
+
     def __init__(
         self,
         n_profiles: int,
@@ -119,7 +161,14 @@ class EquidistantMultiProfile(MultiProfile):
 
     @property
     def n_bins(self):
-        """Total number of bins among all profiles."""
+        """
+        Total number of bins among all profiles.
+
+        Returns
+        -------
+        n_bins
+            Total number of bins among all profiles.
+        """
         return self._n_profiles * self._bins_per_profile
 
     def plot(self, **kwargs_plot):
@@ -128,10 +177,9 @@ class EquidistantMultiProfile(MultiProfile):
 
         Parameters
         ----------
-        kwargs_plot
+        **kwargs_plot
             Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
             for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
-
         """
         for profile in self.profiles:
             profile.plot(**kwargs_plot)
@@ -172,8 +220,7 @@ class EquidistantMultiProfile(MultiProfile):
         Returns
         -------
         equidistant_profile
-            The fully initialized ``EquidistantMultiProfile``
-
+            The fully initialized ``EquidistantMultiProfile``.
         """
         from blond.core.base import DynamicParameter
 
@@ -244,9 +291,6 @@ class EquidistantMultiProfile(MultiProfile):
         In between each histogram there is one histogram space,
         so that no side effects appear when applying convolution
         on the full array.
-        Returns
-        -------
-
         """
         n = self._bins_per_profile
         total = 2 * self.n_bins
@@ -304,7 +348,14 @@ class EquidistantMultiProfile(MultiProfile):
             self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
 
     def _track(self, beam: BeamBaseClass) -> None:
-        """Track beam particles and fill histograms using optimized C++ function."""
+        """
+        Main simulation routine to be called in the mainloop.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        """
         if len(beam._dt.array_local) == 0:
             # No particles to track
             return
