@@ -31,8 +31,6 @@ cpp_files = [
     # "music_track.cpp",
     # "blondmath.cpp",
     # "fast_resonator.cpp",
-    "sparse_histogram.cpp",
-    "sparse_histogram_strided.cpp",
     "beam_phase.cpp",
     "loss_box.cpp",
     "move_flagged_elements_to_end.cpp",
