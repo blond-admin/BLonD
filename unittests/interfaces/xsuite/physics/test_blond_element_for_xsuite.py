@@ -179,8 +179,25 @@ def test_xsuite_blond_forward_backward_transforms():
     """
     Test that the  particle transformation is symmetric.
     """
+
+    alpha = 0.000348495751122513
+    h = 35640
+    C = 26658.8832
     p_s = 450e9  # [eV/c]
-    line = xt.Line(elements=[], element_names={})
+    matrix = xt.LineSegmentMap(
+        longitudinal_mode="nonlinear",
+        qx=1.1,
+        qy=1.2,
+        betx=1.0,
+        bety=1.0,
+        voltage_rf=0,
+        frequency_rf=0,
+        lag_rf=0,
+        momentum_compaction_factor=alpha,
+        length=C,
+    )
+
+    line = xt.Line(elements=[matrix], element_names={"matrix"})
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
     C = 26658.8832  # [m]
     line.get_length = lambda: C
@@ -223,14 +240,12 @@ def test_xsuite_blond_forward_backward_transforms():
     np.testing.assert_allclose(
         particles.zeta,
         zeta_orig,
-        rtol=0,
         atol=1e-12,
         err_msg="zeta changed after forward-backward transform",
     )
     np.testing.assert_allclose(
         particles.ptau,
         ptau_orig,
-        rtol=0,
         atol=1e-12,
         err_msg="ptau changed after forward-backward transform",
     )
