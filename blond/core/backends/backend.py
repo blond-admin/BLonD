@@ -816,7 +816,7 @@ class NumpyBackend(BackendBaseClass):
         a_rfft
             The Fourier transform of `a`.
         """
-        return mkl_fft.rfft(a=a, n=n, out=out)
+        return mkl_fft.rfft(a, n=n, out=out)
 
     def irfft_parallel(
         self,
@@ -841,7 +841,7 @@ class NumpyBackend(BackendBaseClass):
         a_rfft
             The inverse Fourier transform of `a`.
         """
-        return mkl_fft.irfft(a=a, n=n, out=out)
+        return mkl_fft.irfft(a, n=n, out=out)
 
 
 class Numpy32Bit(NumpyBackend):
