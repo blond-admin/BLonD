@@ -379,7 +379,11 @@ def test_single_harmonic_separatrix_calculation():
         observation,
     )
 
-    omega_rf = one_turn_execution_order[1]._omega_rf
+    reference_velocity = beam.reference.velocity
+    circumference = ring.circumference
+    t_rev = circumference / reference_velocity
+
+    omega_rf = (2 * np.pi) * harmonic_number / t_rev
 
     ring.add_elements(one_turn_execution_order, reorder=False)
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
