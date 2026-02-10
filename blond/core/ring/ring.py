@@ -17,7 +17,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import Preparable
+from blond.core.base import (
+    Preparable,
+    SimulationElementBase,
+    UnsafeUserElement,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -452,7 +456,11 @@ class Ring(Preparable):
             element = copy.deepcopy(element)
         if section_index is not None:
             element._section_index = int(section_index)
-        self.elements.add_element(element, reorder=reorder)
+
+        if isinstance(element, SimulationElementBase):
+            self.elements.add_element(element, reorder=reorder)
+        else:
+            self.elements.add_element(UnsafeUserElement(element))
 
         if reorder:
             self.elements.reorder()
