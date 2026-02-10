@@ -438,3 +438,45 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         """Delete the stored values of functions with @cached_property."""
         # super()._invalidate_cache(DriftSimple.cached_props)
         pass
+
+class DriftExpert(DriftSimple):
+    """
+    Drift element using the exact relativistic drift formulation.
+
+    This replaces the simple drift with the exact solver based on:
+      - exact delta from dE
+      - full alpha(delta) expansion
+      - exact (1 + dE/E) / (1 + delta) factor
+    """
+
+    def _track(self, beam: BeamBaseClass) -> None:
+        """
+        Main simulation routine (exact drift).
+        """
+        # Common bookkeeping (checks, slicing, etc.)
+        super(DriftSimple, self)._track(beam=beam)
+
+        # Apply schedules if active
+        if self.schedule_active:
+            self.apply_schedules(
+                turn_i=self._simulation.turn_i.value,
+                reference_time=beam.reference.time,
+            )
+
+        # Advance reference particle
+        dt = self.track_reference(beam.reference)
+
+        # Track macroparticles
+        if beam.common_array_size > 0:
+            backend.specials.drift_exact(
+                dt=beam.write_partial_dt(),
+                dE=beam.read_partial_dE(),
+                T=dt,
+                alpha_0=self.alpha_0,
+                alpha_1=getattr(self, "alpha_1", 0.0),
+                alpha_2=getattr(self, "alpha_2", 0.0),
+                beta=beam.reference.beta,
+                energy=beam.reference.total_energy,
+            )
+
+
