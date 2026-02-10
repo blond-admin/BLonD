@@ -380,7 +380,11 @@ def separatrix_single_rf_blond(
 
     beta = np.sqrt(1.0 - 1.0 / (reference_gamma * reference_gamma))
 
-    omega_rf = rf_station._omega_rf
+    reference_velocity = beam.reference.velocity
+    circumference = ring.circumference
+    t_rev = circumference / reference_velocity
+
+    omega_rf = (2 * np.pi) * harmonic / t_rev
 
     eta = ring.calc_average_eta_0(reference_gamma)
 
