@@ -1,13 +1,23 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""Holds the `MultiTurnSparseProfileSolver` to be used with `EquidistantMultiProfile`."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import mkl_fft
-import numpy as np
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import e
+from scipy.fft import next_fast_len
 
 from blond import backend
+from blond.core.backends.fft_helper import RepeatedFftHelper
 from blond.core.simulation.simulation import Simulation
 from blond.physics.impedances.base import (
     WakeField,
@@ -23,6 +33,15 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class MultiTurnSparseProfileSolver(WakeFieldSolver):
+    """
+    Wakefield solver that considers evely separated profiles.
+
+    Parameters
+    ----------
+    n_turns
+        Number of turns to accumulate for the wakefields.
+    """
+
     def __init__(self, n_turns: int):
         super().__init__()
         self._n_turns = n_turns
@@ -37,6 +56,9 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         self._mask_multiturn: NumpyArray | CupyArray = None
 
         self._previous_induced_voltage_multiturn: NumpyArray | CupyArray = None
+
+        self._rfft_helper = RepeatedFftHelper()
+        self._irfft_helper = RepeatedFftHelper()
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -61,22 +83,24 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         """
         Resize profile's continuous memory histogram to full FFT size.
 
-        This eliminates zero-padding overhead in rfft by pre-allocating
-        the histogram array to the size needed for n_turns convolution.
-        The extra space is filled with zeros and never modified, so rfft
+        This eliminates zero-padding overhead in `rfft` by pre-allocating
+        the histogram array to the size needed for `n_turns` convolution.
+        The extra space is filled with zeros and never modified, so `rfft`
         can operate directly on the array without padding.
         """
         profile: EquidistantMultiProfile = self._parent_wakefield.profile
 
         # Calculate required FFT size
-        original_size = len(profile._continuous_memory_hist_y)
-        fft_size = original_size * self._n_turns
+        n_memory_total_single_turn = len(profile._continuous_memory_hist_y)
+        new_size = next_fast_len(n_memory_total_single_turn * self._n_turns)
 
         # Create new larger array with zeros
-        new_hist_y = backend.zeros(fft_size, dtype=backend.float)
+        new_hist_y = backend.zeros(new_size, dtype=backend.float)
 
         # Copy existing data to the beginning
-        new_hist_y[:original_size] = profile._continuous_memory_hist_y
+        new_hist_y[:n_memory_total_single_turn] = (
+            profile._continuous_memory_hist_y
+        )
 
         # Replace profile's histogram with the larger pre-padded array
         profile._continuous_memory_hist_y = new_hist_y
@@ -90,21 +114,23 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
             prof._hist_y = profile._continuous_memory_hist_y[start:stop]
 
         # Store original size for masking
-        self._original_profile_size = original_size
+        self._n_memory_total_single_turn = n_memory_total_single_turn
 
     def _update_kernel_multiturn(self) -> None:
+        """Update the wakefield kernel, that represents a single particle wake."""
         profile: EquidistantMultiProfile = self._parent_wakefield.profile
 
         continuous_memory_mask = profile._continuous_memory_mask
         continuous_memory_hist_x = profile._continuous_memory_hist_x
 
-        time_multiturn = np.concatenate(
+        time_multiturn = backend.concatenate(
             [
                 continuous_memory_hist_x + i * self._t_rev
                 for i in range(self._n_turns)
-            ]
+            ],
+            dtype=backend.float,
         )
-        mask_multiturn = np.concatenate(
+        mask_multiturn = backend.concatenate(
             [continuous_memory_mask for _ in range(self._n_turns)]
         )
         time_multiturn -= continuous_memory_hist_x[
@@ -128,13 +154,28 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         )
         self._resize_profile_for_fft()
 
-    def calc_induced_voltage(self, beam: BeamBaseClass) -> np.ndarray:
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
+        """
+        Calculate the induced voltage.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+
+        Returns
+        -------
+        induced_voltage
+            The induced voltage in teh current turn.
+        """
         if self._kernel_multiturn is None:
             _factor = -(beam.particle_type.charge * e) * (
                 beam.intensity / beam.common_array_size
             )
             self._update_kernel_multiturn()
-            self._rfft_kernel_multiturn *= _factor
+            self._rfft_kernel_multiturn *= backend.float(_factor)
             self.H = None
             self.induced_voltage_multiturn = None
 
@@ -147,28 +188,18 @@ class MultiTurnSparseProfileSolver(WakeFieldSolver):
         # hist is pre-allocated to full FFT size, with zeros at the end
         # -------------------------------------------------
         # Direct FFT without padding (hist is already the right size)
-        if self.H is None:
-            H = mkl_fft.rfft(hist)
-            self.H = H
-        else:
-            mkl_fft.rfft(hist, out=self.H)
-            H = self.H
+        H = self._rfft_helper.rfft(hist)
 
         # frequency-domain multiply
         H *= self._rfft_kernel_multiturn
 
-        # inverse FFT (output is same size as hist)
-        if self.induced_voltage_multiturn is None:
-            self.induced_voltage_multiturn = mkl_fft.irfft(H)
-            induced_voltage_multiturn = self.induced_voltage_multiturn
-        else:
-            mkl_fft.irfft(H, out=self.induced_voltage_multiturn)
-            induced_voltage_multiturn = self.induced_voltage_multiturn
-
+        induced_voltage_multiturn = self._irfft_helper.irfft(H)
         # -------------------------------------------------
         # MULTITURN ACCUMULATION
         # -------------------------------------------------
-        n_single = self._original_profile_size  # Use original size, not padded
+        n_single = (
+            self._n_memory_total_single_turn
+        )  # Use original size, not padded
 
         if self._previous_induced_voltage_multiturn is None:
             self._previous_induced_voltage_multiturn = (

@@ -17,7 +17,6 @@ C++ Math library
 #include <complex>
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 #include "blond_common.h"
 #include "blondmath.h"
@@ -49,28 +48,15 @@ void random_normal(real_t *__restrict__ arr, const real_t mean,
   using namespace std;
 #endif
 
-  // Thread-local RNG generators (fixed memory leak - was using raw pointers)
-  static vector<mt19937_64> thread_gens;
-  static bool gens_initialized = false;
-
-#pragma omp single
-  {
-    if (!gens_initialized) {
-      thread_gens.resize(omp_get_max_threads());
-      for (int t = 0; t < omp_get_max_threads(); t++) {
-        thread_gens[t].seed(seed + t);
-      }
-      gens_initialized = true;
-    }
-  }
-
 #pragma omp parallel
   {
-    const int tid = omp_get_thread_num();
+    static __thread mt19937_64 *gen = nullptr;
+    if (!gen)
+      gen = new mt19937_64(seed + omp_get_thread_num());
     static thread_local normal_distribution<real_t> dist(0.0, 1.0);
 #pragma omp for
     for (int i = 0; i < size; i++) {
-      arr[i] = mean + scale * dist(thread_gens[tid]);
+      arr[i] = mean + scale * dist(*gen);
     }
   }
 }
@@ -287,54 +273,18 @@ void interp(const real_t *__restrict__ x, const int N,
             const real_t *__restrict__ xp, const int M,
             const real_t *__restrict__ yp, const real_t left,
             const real_t right, real_t *__restrict__ y) {
-  // Check if x is sorted (for small N, quick check; for large N, sample check)
-  bool x_is_sorted = true;
-  const int check_stride = (N > 1000) ? N / 100 : 1;
-  for (int i = check_stride; i < N && x_is_sorted; i += check_stride) {
-    if (x[i] < x[i - check_stride]) {
-      x_is_sorted = false;
-    }
-  }
-
-  if (x_is_sorted && N > 100) {
-    // Optimized O(N+M) merge-based algorithm for sorted x
-    int j = 0;
-    for (int i = 0; i < N; ++i) {
-      // Move j forward while xp[j] < x[i]
-      while (j < M - 1 && xp[j + 1] < x[i]) {
-        j++;
-      }
-
-      if (x[i] < xp[0])
-        y[i] = left;
-      else if (x[i] > xp[M - 1])
-        y[i] = right;
-      else if (j < M - 1 && xp[j] <= x[i] && x[i] <= xp[j + 1]) {
-        if (xp[j] == x[i])
-          y[i] = yp[j];
-        else if (xp[j + 1] == x[i])
-          y[i] = yp[j + 1];
-        else
-          y[i] = yp[j] + (yp[j + 1] - yp[j]) * (x[i] - xp[j]) / (xp[j + 1] - xp[j]);
-      } else {
-        y[i] = yp[M - 1];
-      }
-    }
-  } else {
-    // Fall back to parallel binary search for unsorted x or small N
 #pragma omp parallel for
-    for (int i = 0; i < N; ++i) {
-      int pos = std::lower_bound(xp, xp + M, x[i]) - xp;
-      if (pos == M)
-        y[i] = right;
-      else if (xp[pos] == x[i])
-        y[i] = yp[pos];
-      else if (pos == 0)
-        y[i] = left;
-      else {
-        y[i] = yp[pos - 1] + (yp[pos] - yp[pos - 1]) * (x[i] - xp[pos - 1]) /
-                                 (xp[pos] - xp[pos - 1]);
-      }
+  for (int i = 0; i < N; ++i) {
+    int pos = std::lower_bound(xp, xp + M, x[i]) - xp;
+    if (pos == M)
+      y[i] = right;
+    else if (xp[pos] == x[i])
+      y[i] = yp[pos];
+    else if (pos == 0)
+      y[i] = left;
+    else {
+      y[i] = yp[pos - 1] + (yp[pos] - yp[pos - 1]) * (x[i] - xp[pos - 1]) /
+                               (xp[pos] - xp[pos - 1]);
     }
   }
 }

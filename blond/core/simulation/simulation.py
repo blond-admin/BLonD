@@ -300,7 +300,7 @@ class Simulation(Preparable):
             If False, normalizes so ``potential_well[0] = 0``.
         **kwargs_plot
             Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
-            for customizing the plot appearance (e.g., color='red', linewidth=2).
+            for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
 
         See Also
         --------

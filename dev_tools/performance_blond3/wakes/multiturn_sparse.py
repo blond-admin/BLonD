@@ -1,3 +1,5 @@
+"""Example of how to configure a simulation with sparse multiturn wakefields."""
+
 import os
 from pstats import SortKey
 
@@ -8,6 +10,7 @@ from blond import (
     Beam,
     BiGaussian,
     ConstantMagneticCycle,
+    Cupy64Bit,
     DriftSimple,
     Resonators,
     Ring,
@@ -15,6 +18,7 @@ from blond import (
     SingleHarmonicRFStation,
     WakeField,
     backend,
+    make_multibunch_beam,
     proton,
 )
 from blond.physics.impedances.sparse_profile.solvers import (
@@ -22,37 +26,8 @@ from blond.physics.impedances.sparse_profile.solvers import (
 )
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
-backend.set_specials("cpp")
-
-
-def make_multibunch_beam(
-    beam: Beam, n_times: int, t_distance: float, common_offset: float = 0.0
-) -> Beam:
-    full_beam = Beam(
-        intensity=n_times * beam.intensity,
-        particle_type=beam.particle_type,
-        is_counter_rotating=beam.is_counter_rotating,
-    )
-
-    size = beam._dt.local_size
-    full_dE = backend.repeat(beam._dE.array_local, n_times)
-
-    full_dt = backend.empty(
-        full_dE.shape,
-        dtype=backend.float,
-    )
-    for i in range(n_times):
-        t_offset = t_distance * i + common_offset
-        sel = slice(i * size, (i + 1) * size)
-        full_dt[sel] = beam._dt.array_local + t_offset
-
-    full_beam.setup_beam(
-        dt=full_dt,
-        dE=full_dE,
-        mpi_mode="all-ranks",
-    )
-    return full_beam
-
+backend.change_backend(Cupy64Bit)
+backend.set_specials("cuda")
 
 resonator_data = np.loadtxt(
     os.path.join(

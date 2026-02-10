@@ -6,7 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to calculate the beam profile."""
+"""Collection of implementations to calculate the multi-profiles."""
 
 from __future__ import annotations
 
@@ -26,12 +26,39 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class MultiProfile(BeamPhysicsRelevant, ABC):
+    """
+    Base class to implement a profile that represents several profiles.
+
+    Parameters
+    ----------
+    section_index
+            Identifier grouping elements that belong to the same section of the ring.
+            Defaults to 0.
+    name
+        Human-readable name for the element. If not provided, a unique name is
+        automatically generated.
+    **kwargs
+        Additional keyword arguments passed to the parent.
+    """
+
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(section_index, name)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Initialize the ring when a simulation is created.
+
+        This method is automatically called during simulation initialization to
+        validate the ring configuration. It checks that RF stations are properly
+        configured and section indices are correctly ordered.
+
+        Parameters
+        ----------
+        simulation
+            The `Simulation` context manager that owns this ring.
+        """
         pass
 
     def on_run_simulation(
@@ -41,10 +68,48 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
         n_turns: int,
         **kwargs,
     ) -> None:
+        """
+        Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation `Beam` object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
         pass
 
 
 class EquidistantMultiProfile(MultiProfile):
+    """
+    Holds many profiles, that have an even distance to each other and the same size.
+
+    Parameters
+    ----------
+    n_profiles
+        Number of profiles to use internally.
+    width_per_profile
+        The width of each profile,
+        corresponding to ``cut_right - cut_left``.
+    bins_per_profile
+        Number of bins per profile.
+    offset
+        Offset all profiles by this number.
+    section_index
+        Identifier grouping elements that belong to the same section of the ring.
+        Defaults to 0.
+    name
+        Human-readable name for the element. If not provided, a unique name is
+        automatically generated.
+    **kwargs
+        Additional keyword arguments passed to the parent.
+    """
+
     def __init__(
         self,
         n_profiles: int,
@@ -60,7 +125,7 @@ class EquidistantMultiProfile(MultiProfile):
         self._offset = offset
         self._width_per_profile = width_per_profile
         self._bins_per_profile = bins_per_profile
-        self.profiles: tuple[StaticProfile] | None = None
+        self.profiles: tuple[StaticProfile, ...] | None = None
 
         self._continuous_memory_hist_x = None
         self._continuous_memory_hist_y = None
@@ -68,21 +133,54 @@ class EquidistantMultiProfile(MultiProfile):
 
     @property
     def hist_x(self):
+        """
+        One array with all profile.hist_x concatenated.
+
+        Returns
+        -------
+        hist_x
+            One array with all profile.hist_x concatenated.
+        """
         return self._continuous_memory_hist_x[
             self._continuous_memory_mask_prof
         ]
 
     @property
     def hist_y(self):
+        """
+        One array with all profile.hist_y concatenated.
+
+        Returns
+        -------
+        hist_x
+            One array with all profile.hist_y concatenated.
+        """
         return self._continuous_memory_hist_y[
             self._continuous_memory_mask_prof
         ]
 
     @property
     def n_bins(self):
+        """
+        Total number of bins among all profiles.
+
+        Returns
+        -------
+        n_bins
+            Total number of bins among all profiles.
+        """
         return self._n_profiles * self._bins_per_profile
 
     def plot(self, **kwargs_plot):
+        """
+        Plot each profile.
+
+        Parameters
+        ----------
+        **kwargs_plot
+            Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
+            for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
+        """
         for profile in self.profiles:
             profile.plot(**kwargs_plot)
 
@@ -96,6 +194,34 @@ class EquidistantMultiProfile(MultiProfile):
         section_index: int = 0,
         name: str | None = None,
     ) -> EquidistantMultiProfile:
+        """
+        Make a instance of this class that does not rely on `Simulation`.
+
+        Parameters
+        ----------
+        t_rev
+            Revolution period.
+        n_profiles
+            Number of profiles to use internally.
+        width_per_profile
+            The width of each profile,
+            corresponding to ``cut_right - cut_left``.
+        bins_per_profile
+            Number of bins per profile.
+        offset
+            Offset all profiles by this number.
+        section_index
+            Identifier grouping elements that belong to the same section of the ring.
+            Defaults to 0.
+        name
+            Human-readable name for the element. If not provided, a unique name is
+            automatically generated.
+
+        Returns
+        -------
+        equidistant_profile
+            The fully initialized ``EquidistantMultiProfile``.
+        """
         from blond.core.base import DynamicParameter
 
         d = EquidistantMultiProfile(
@@ -123,6 +249,14 @@ class EquidistantMultiProfile(MultiProfile):
 
     @requires(["RFStationBaseClass"])  # for `get_t_rev_init`
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager.
+        """
         t_rev = simulation.get_t_rev_init()
         half_width = float(self._width_per_profile / 2)
 
@@ -150,7 +284,18 @@ class EquidistantMultiProfile(MultiProfile):
         self._make_memory_continuous()
 
     def _make_memory_continuous(self):
-        n = self._bins_per_profile
+        """
+        Fuse all profiles together in one array.
+
+        This method fuses all profile arrays into one big array.
+        In between each histogram there is one histogram space,
+        so that no side effects appear when applying convolution
+        on the full array.
+        """
+        bins_per_profile = self._bins_per_profile
+
+        # Keep one profile space in between each profile
+        # to make convolution on `_continuous_memory_hist_y` possible.
         total = 2 * self.n_bins
 
         self._continuous_memory_hist_x = backend.zeros(
@@ -165,8 +310,8 @@ class EquidistantMultiProfile(MultiProfile):
         dx = self.profiles[0]._hist_x[1] - self.profiles[0]._hist_x[0]
 
         for i, profile in enumerate(self.profiles):
-            start = 2 * i * n
-            stop = start + n
+            start = 2 * i * bins_per_profile
+            stop = start + bins_per_profile
             sel = slice(start, stop)
 
             # core region
@@ -174,7 +319,10 @@ class EquidistantMultiProfile(MultiProfile):
             self._continuous_memory_hist_x[sel] = profile._hist_x
             self._continuous_memory_hist_y[sel] = profile._hist_y
 
-            ext_start = max(start - n, 0)
+            # Extend the coordinates (for convolution),
+            # so that the profile time coordinates start already
+            # before the profile.
+            ext_start = max(start - bins_per_profile, 0)
             ext_stop = min(stop, total)
 
             self._continuous_memory_mask[ext_start:ext_stop] = True
@@ -192,11 +340,12 @@ class EquidistantMultiProfile(MultiProfile):
                 self._continuous_memory_hist_x[stop:ext_stop] = (
                     profile._hist_x[-1] + dx * backend.arange(1, k + 1)
                 )
-            profile._hist_x = self._continuous_memory_hist_x[sel]
-            profile._hist_y = self._continuous_memory_hist_y[sel]
 
-    def fix_deepcopy(self):
-        for i, profile in enumerate(self.profiles):
+        self._bind_profiles()
+
+    def _bind_profiles(self):  # TODO
+        """Bind the memory of all ``self.profiles`` to the contigous memory."""
+        for i, _profile in enumerate(self.profiles):
             start = 2 * i * self._bins_per_profile
             stop = start + self._bins_per_profile
             sel = slice(start, stop)
@@ -204,58 +353,28 @@ class EquidistantMultiProfile(MultiProfile):
             self.profiles[i]._hist_x = self._continuous_memory_hist_x[sel]
             self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
 
-    def _get_cut_arrays_and_bunch_indexes(self):
-        """
-        Build cut_left_array, cut_right_array, and bunch_indexes for sparse histogram.
-
-        Returns
-        -------
-        tuple
-            (cut_left_array, cut_right_array, bunch_indexes)
-        """
-        n_profiles = len(self.profiles)
-
-        # Extract cut edges from profiles
-        cut_left_array = backend.array(
-            [profile.cut_left for profile in self.profiles],
-            dtype=backend.float,
-        )
-        cut_right_array = backend.array(
-            [profile.cut_right for profile in self.profiles],
-            dtype=backend.float,
-        )
-
-        # Build bunch_indexes: maps bucket index to profile index
-        # For equidistant profiles, each profile occupies one bucket
-        # bucket i -> profile i (all buckets are filled)
-        bunch_indexes = backend.arange(n_profiles, dtype=backend.float)
-
-        return cut_left_array, cut_right_array, bunch_indexes
-
     def _track(self, beam: BeamBaseClass) -> None:
-        """Track beam particles and fill histograms using optimized C++ function."""
+        """
+        Main simulation routine to be called in the mainloop.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        """
         if len(beam._dt.array_local) == 0:
             # No particles to track
             return
 
-        # Use optimized sparse_histogram_strided for single-call tracking
-        stride = 2 * self._bins_per_profile
-
-        # Build input arrays for C++ function
-        cut_left_array, cut_right_array, bunch_indexes = (
-            self._get_cut_arrays_and_bunch_indexes()
-        )
-
-        # Call optimized C++ function
         backend.specials.sparse_histogram_strided(
-            input_array=beam._dt.array_local,
-            output_array=self._continuous_memory_hist_y,
-            cut_left_array=cut_left_array,
-            cut_right_array=cut_right_array,
-            bunch_indexes=bunch_indexes,
-            n_slices_bucket=self._bins_per_profile,
-            n_filled_buckets=self._n_profiles,
-            stride=stride,
+            x=beam._dt.array_local,
+            out=self._continuous_memory_hist_y,
+            first_left_cut=self.profiles[0].cut_left,
+            left_cut_distance=(
+                self.profiles[1].cut_left - self.profiles[0].cut_left
+            ),
+            bins_per_profile=self.profiles[0].n_bins,
+            cut_width=(self.profiles[0].cut_right - self.profiles[0].cut_left),
+            n_profiles=self._n_profiles,
+            stride=(2 * self._bins_per_profile),
         )
-
-        self.fix_deepcopy()

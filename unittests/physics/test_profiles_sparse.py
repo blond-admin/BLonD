@@ -4,7 +4,7 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond import Beam, uranium_29, backend
+from blond import Beam, backend, uranium_29
 from blond.core.beam.beams import ProbeBeam
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 

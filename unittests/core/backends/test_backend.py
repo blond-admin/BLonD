@@ -217,7 +217,6 @@ class TestSpecials(unittest.TestCase):
             "python",
             "cpp",
             "numba",
-            "fortran",
         ]
         if cupy_available:
             self.special_modes.append("cuda")
@@ -804,6 +803,45 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @pytest.mark.backend_mutation
+    def test_sparse_histogram_strided(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                bins_per_profile = 3
+                n_profiles = 3
+                array_write = backend.ones(
+                    bins_per_profile * n_profiles * 2, dtype=backend.float
+                )
+                for _ in range(2):
+                    backend.specials.sparse_histogram_strided(
+                        x=backend.linspace(-10, 10, 21, dtype=backend.float),
+                        out=array_write,
+                        first_left_cut=-12,
+                        left_cut_distance=8,
+                        cut_width=4,
+                        bins_per_profile=bins_per_profile,
+                        n_profiles=n_profiles,
+                        stride=bins_per_profile * 2,
+                    )
+                result = array_write
+
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    @pytest.mark.backend_mutation
     def test_histogram_long_profiles(self) -> None:
         """Specifically to test edge effects at beginning and end."""
         for dtype in (np.float32, np.float64):
@@ -1072,6 +1110,56 @@ class TestSpecials(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             backend.cast_arr_float_if_needed([[1, 2], 3])
+
+    @pytest.mark.backend_mutation
+    @parameterized.expand([Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit])
+    def test_rfft_parallel(self, new_backend):
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
+
+        backend.change_backend(new_backend)
+
+        for in_dtype in (
+            np.float32,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
+            input = np.array([-1, 1, 2, 3], dtype=float)
+            target = np.fft.rfft(input)
+
+            actual = backend.rfft_parallel(
+                backend.array(input, dtype=in_dtype)
+            )
+            if isinstance(backend, CupyBackend):
+                actual = actual.get()
+
+            np.testing.assert_array_equal(actual, target)
+
+    @pytest.mark.backend_mutation
+    @parameterized.expand([Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit])
+    def test_irfft_parallel(self, new_backend):
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
+
+        backend.change_backend(new_backend)
+
+        for in_dtype in (
+            np.float32,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
+            input = np.array([-1, 1, 2, 3], dtype=float)
+            target = np.fft.irfft(input)
+
+            actual = backend.irfft_parallel(
+                backend.array(input, dtype=in_dtype)
+            )
+            if isinstance(backend, CupyBackend):
+                actual = actual.get()
+
+            np.testing.assert_array_equal(actual, target)
 
     def tearDown(self) -> None:
         backend.change_backend(Numpy32Bit)

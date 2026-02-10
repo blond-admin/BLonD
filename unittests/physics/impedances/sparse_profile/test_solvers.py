@@ -43,11 +43,6 @@ f_res = resonator_data[:, 0] * 10**9
 Q_factor = resonator_data[:, 1]
 
 
-hist_y_single_peak = np.loadtxt(
-    callers_relative_path("resources/hist_y.npy", stacklevel=1)
-)
-
-
 def make_multibunch_beam(
     beam: Beam, n_times: int, t_distance: float, common_offset: float = 0.0
 ) -> Beam:
@@ -181,7 +176,8 @@ class MyTestCase(unittest.TestCase):
         sim.run_simulation(beams=beam, n_turns=1)
         save_profile = True
         if save_profile:
-            print()
+            pass
+            """print()
             print(
                 np.savetxt(
                     callers_relative_path(
@@ -190,7 +186,7 @@ class MyTestCase(unittest.TestCase):
                     profile._hist_y,
                 )
             )
-            print("saved hist_y")
+            print("saved hist_y")"""
         else:
             sim.intensity_effect_manager.set_profiles(
                 active=False
@@ -201,7 +197,7 @@ class MyTestCase(unittest.TestCase):
         return wakefield
 
     def multiturn(self, induced_voltage) -> WakeField:
-        backend.set_specials("cpp") # TODO remove
+        backend.set_specials("cpp")  # TODO remove
         ring = Ring(
             circumference=6911.56,
         )

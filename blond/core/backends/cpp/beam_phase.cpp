@@ -9,7 +9,6 @@
 #include "blond_common.h"
 #include "blondmath.h"
 #include "openmp.h"
-#include <vector>
 
 real_t trapz_const_delta(const real_t *__restrict__ f, const real_t deltaX,
                          const int nsub) {
@@ -32,10 +31,9 @@ extern "C" real_t beam_phase(const real_t *__restrict__ bin_centers,
                              const real_t alpha, const real_t omega_rf,
                              const real_t phi_rf, const real_t bin_size,
                              const int n_bins) {
-  // Use std::vector to avoid manual memory management and heap fragmentation
-  std::vector<real_t> base(n_bins);
-  std::vector<real_t> array1(n_bins);
-  std::vector<real_t> array2(n_bins);
+  real_t *base = new real_t[n_bins];
+  real_t *array1 = new real_t[n_bins];
+  real_t *array2 = new real_t[n_bins];
 
 #pragma omp parallel for
   for (int i = 0; i < n_bins; ++i) {
@@ -49,8 +47,12 @@ extern "C" real_t beam_phase(const real_t *__restrict__ bin_centers,
     array2[i] = base[i] * FAST_COS(a);
   }
 
-  real_t scoeff = trapz_const_delta(array1.data(), bin_size, n_bins);
-  real_t ccoeff = trapz_const_delta(array2.data(), bin_size, n_bins);
+  real_t scoeff = trapz_const_delta(array1, bin_size, n_bins);
+  real_t ccoeff = trapz_const_delta(array2, bin_size, n_bins);
+
+  delete[] base;
+  delete[] array1;
+  delete[] array2;
 
   return scoeff / ccoeff;
 }
@@ -59,9 +61,8 @@ extern "C" real_t beam_phase_fast(const real_t *__restrict__ bin_centers,
                                   const real_t *__restrict__ profile,
                                   const real_t omega_rf, const real_t phi_rf,
                                   const real_t bin_size, const int n_bins) {
-  // Use std::vector to avoid manual memory management and heap fragmentation
-  std::vector<real_t> array1(n_bins);
-  std::vector<real_t> array2(n_bins);
+  real_t *array1 = new real_t[n_bins];
+  real_t *array2 = new real_t[n_bins];
 
 #pragma omp parallel for
   for (int i = 0; i < n_bins; ++i) {
@@ -70,8 +71,11 @@ extern "C" real_t beam_phase_fast(const real_t *__restrict__ bin_centers,
     array2[i] = profile[i] * FAST_COS(a);
   }
 
-  real_t scoeff = trapz_const_delta(array1.data(), bin_size, n_bins);
-  real_t ccoeff = trapz_const_delta(array2.data(), bin_size, n_bins);
+  real_t scoeff = trapz_const_delta(array1, bin_size, n_bins);
+  real_t ccoeff = trapz_const_delta(array2, bin_size, n_bins);
+
+  delete[] array1;
+  delete[] array2;
 
   return scoeff / ccoeff;
 }

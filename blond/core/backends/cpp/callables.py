@@ -410,59 +410,14 @@ def reload_cpp_backend(  # NOQA: PLR0915
             return n_new
 
         @staticmethod
-        def sparse_histogram(
-            input_array: NumpyArray,
-            output_array: NumpyArray,
-            cut_left_array: NumpyArray,
-            cut_right_array: NumpyArray,
-            bunch_indexes: NumpyArray,
-            n_slices_bucket: int,
-            n_filled_buckets: int,
-        ) -> None:
-            """
-            Sparse histogram for non-contiguous buckets (contiguous memory layout).
-
-            Parameters
-            ----------
-            input_array : Particle dt values
-            output_array : Output histogram (n_filled_buckets * n_slices_bucket)
-            cut_left_array : Left edges of each bucket
-            cut_right_array : Right edges of each bucket
-            bunch_indexes : Mapping from bucket to profile index (-1 if empty)
-            n_slices_bucket : Number of bins per bucket
-            n_filled_buckets : Number of non-empty buckets
-            """
-            assert input_array.dtype == floattype
-            assert output_array.dtype == floattype
-            assert cut_left_array.dtype == floattype
-            assert cut_right_array.dtype == floattype
-            assert bunch_indexes.dtype == floattype
-            assert input_array.flags.c_contiguous
-            assert output_array.flags.c_contiguous
-            assert cut_left_array.flags.c_contiguous
-            assert cut_right_array.flags.c_contiguous
-            assert bunch_indexes.flags.c_contiguous
-
-            _LIBBLOND.sparse_histogram(
-                _getPointer(input_array),
-                _getPointer(output_array),
-                _getPointer(cut_left_array),
-                _getPointer(cut_right_array),
-                _getPointer(bunch_indexes),
-                ct.c_int(n_slices_bucket),
-                ct.c_int(n_filled_buckets),
-                ct.c_int(len(input_array)),  # n_macroparticles
-            )
-
-        @staticmethod
         def sparse_histogram_strided(
-            input_array: NumpyArray,
-            output_array: NumpyArray,
-            cut_left_array: NumpyArray,
-            cut_right_array: NumpyArray,
-            bunch_indexes: NumpyArray,
-            n_slices_bucket: int,
-            n_filled_buckets: int,
+            x: NumpyArray,
+            out: NumpyArray,
+            first_left_cut: float,
+            left_cut_distance: float,
+            cut_width: float,
+            bins_per_profile: int,
+            n_profiles: int,
             stride: int,
         ) -> None:
             """
@@ -470,46 +425,40 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
             Parameters
             ----------
-            input_array : Particle dt values
-            output_array : Output histogram (n_filled_buckets * stride)
-            cut_left_array : Left edges of each bucket
-            cut_right_array : Right edges of each bucket
-            bunch_indexes : Mapping from bucket to profile index (-1 if empty)
-            n_slices_bucket : Number of bins per bucket
-            n_filled_buckets : Number of non-empty buckets
-            stride : Memory stride between consecutive profiles (e.g., 2*n_slices_bucket)
+            x
+                An array, e.g., the particle dt values.
+            out
+                Output histogram (n_filled_buckets * stride).
+            first_left_cut
+                Start of the first histogram.
+            left_cut_distance
+                Distance between the start of each histogram.
+            cut_width
+                Distance between left and right edge of the histogram.
+            bins_per_profile
+                Number of bins per bucket.
+            n_profiles
+                Number of non-empty buckets.
+            stride
+                Memory stride between consecutive profiles (e.g.,
+                2*bins_per_profile).
             """
-            # todo move to python implementation
-            """for i in range(n_filled_buckets):
-                sel = slice(i * stride, i * stride + n_slices_bucket)
-                hist, bins_edges = np.histogram(
-                    input_array,
-                    bins=n_slices_bucket,
-                    range=(cut_left_array[i], cut_right_array[i]),
-                )
-                debug = output_array[sel]
-                output_array[sel] = hist
-            return"""
-            assert input_array.dtype == floattype
-            assert output_array.dtype == floattype
-            assert cut_left_array.dtype == floattype
-            assert cut_right_array.dtype == floattype
-            assert bunch_indexes.dtype == floattype
-            assert input_array.flags.c_contiguous
-            assert output_array.flags.c_contiguous
-            assert cut_left_array.flags.c_contiguous
-            assert cut_right_array.flags.c_contiguous
-            assert bunch_indexes.flags.c_contiguous
+            assert stride >= bins_per_profile
+
+            assert x.dtype == floattype
+            assert out.dtype == floattype
+            assert x.flags.c_contiguous
+            assert out.flags.c_contiguous
 
             _LIBBLOND.sparse_histogram_strided(
-                _getPointer(input_array),
-                _getPointer(output_array),
-                _getPointer(cut_left_array),
-                _getPointer(cut_right_array),
-                _getPointer(bunch_indexes),
-                ct.c_int(n_slices_bucket),
-                ct.c_int(n_filled_buckets),
-                ct.c_int(len(input_array)),  # n_macroparticles
+                _getPointer(x),
+                _getPointer(out),
+                c_real(first_left_cut, floattype),
+                c_real(left_cut_distance, floattype),
+                c_real(cut_width, floattype),
+                ct.c_int(bins_per_profile),
+                ct.c_int(n_profiles),
+                ct.c_int(len(x)),  # n_macroparticles
                 ct.c_int(stride),
             )
 

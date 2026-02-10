@@ -15,6 +15,7 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+import mkl_fft
 import numpy as np
 from numpy.exceptions import ComplexWarning
 
@@ -199,6 +200,42 @@ class Specials(ABC):
         raise NotImplementedError(
             "The backend for `move_flagged_elements_to_end` is missing."
         )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def sparse_histogram_strided(
+        x: NumpyArray,
+        out: NumpyArray,
+        first_left_cut: float,
+        left_cut_distance: float,
+        cut_width: float,
+        bins_per_profile: int,
+        n_profiles: int,
+        stride: int,
+    ) -> None:
+        """
+        Sparse histogram with strided memory layout (gaps between profiles).
+
+        Parameters
+        ----------
+        x
+            An array, e.g., the particle dt values.
+        out
+            Output histogram (n_filled_buckets * stride).
+        first_left_cut
+            Start of the first histogram.
+        left_cut_distance
+            Distance between the start of each histogram.
+        cut_width
+            Distance between left and right edge of the histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        n_profiles
+            Number of non-empty buckets.
+        stride
+            Memory stride between consecutive profiles (e.g.,
+            2*bins_per_profile).
+        """
 
 
 class _ModeSwitchHelper:
@@ -595,6 +632,48 @@ class BackendBaseClass(ABC):
         """
         return self._cast_arr_and_dtype(arr, self.complex)
 
+    @abstractmethod
+    def rfft_parallel(self, a, n, out):
+        """
+        Calculate the real-to-complex fourier transform.
+
+        Parameters
+        ----------
+        a
+            Input array to be transformed.
+        n
+           Consider `n` entries in a, potentially by zero-padding.
+        out
+            Write the result on this array.
+
+        Returns
+        -------
+        a_rfft
+            The Fourier transform of `a`.
+        """
+        pass
+
+    @abstractmethod
+    def irfft_parallel(self, a, n, out):
+        """
+        Calculate the real-to-complex inverse Fourier transform.
+
+        Parameters
+        ----------
+        a
+            Input array to be transformed.
+        n
+           Consider `n` entries in a, potentially by zero-padding.
+        out
+            Write the result on this array.
+
+        Returns
+        -------
+        a_rfft
+            The inverse Fourier transform of `a`.
+        """
+        pass
+
 
 class NumpyBackend(BackendBaseClass):
     """
@@ -713,6 +792,56 @@ class NumpyBackend(BackendBaseClass):
             raise ValueError(mode)
         if self.verbose and onchange:
             print(f"Set special to `{mode}`")
+
+    def rfft_parallel(
+        self,
+        a: NumpyArray,
+        n: int | None = None,
+        out: NumpyArray | None = None,
+    ):
+        """
+        Calculate the real-to-complex fourier transform.
+
+        Parameters
+        ----------
+        a
+            Input array to be transformed.
+        n
+           Consider `n` entries in a, potentially by zero-padding.
+        out
+            Write the result on this array.
+
+        Returns
+        -------
+        a_rfft
+            The Fourier transform of `a`.
+        """
+        return mkl_fft.rfft(a=a, n=n, out=out)
+
+    def irfft_parallel(
+        self,
+        a: NumpyArray,
+        n: int | None = None,
+        out: NumpyArray | None = None,
+    ):
+        """
+        Calculate the real-to-complex inverse Fourier transform.
+
+        Parameters
+        ----------
+        a
+            Input array to be transformed.
+        n
+           Consider `n` entries in a, potentially by zero-padding.
+        out
+            Write the result on this array.
+
+        Returns
+        -------
+        a_rfft
+            The inverse Fourier transform of `a`.
+        """
+        return mkl_fft.irfft(a=a, n=n, out=out)
 
 
 class Numpy32Bit(NumpyBackend):
@@ -837,6 +966,66 @@ class CupyBackend(BackendBaseClass):
             raise ValueError(mode)
         if self.verbose:
             print(f"Set special to `{mode}`")
+
+    def rfft_parallel(
+        self,
+        a: NumpyArray,
+        n: int | None = None,
+        out: NumpyArray | None = None,
+    ):
+        """
+        Calculate the real-to-complex fourier transform.
+
+        Parameters
+        ----------
+        a
+            Input array to be transformed.
+        n
+           Consider `n` entries in a, potentially by zero-padding.
+        out
+            Write the result on this array.
+
+        Returns
+        -------
+        a_rfft
+            The Fourier transform of `a`.
+        """
+        import cupy as cp  # type: ignore # import only if needed, which is not always the case
+
+        res = cp.fft.rfft(a=a, n=n)
+        if out is not None:
+            out.data = res.data
+        return res
+
+    def irfft_parallel(
+        self,
+        a: NumpyArray,
+        n: int | None = None,
+        out: NumpyArray | None = None,
+    ):
+        """
+        Calculate the real-to-complex inverse Fourier transform.
+
+        Parameters
+        ----------
+        a
+            Input array to be transformed.
+        n
+           Consider `n` entries in a, potentially by zero-padding.
+        out
+            Write the result on this array.
+
+        Returns
+        -------
+        a_rfft
+            The inverse Fourier transform of `a`.
+        """
+        import cupy as cp  # type: ignore # import only if needed, which is not always the case
+
+        res = cp.fft.irfft(a=a, n=n)
+        if out is not None:
+            out.data = res.data
+        return res
 
 
 class Cupy32Bit(CupyBackend):
