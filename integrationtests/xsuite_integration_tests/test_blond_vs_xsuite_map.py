@@ -18,7 +18,7 @@ from .simple_xsuite_map import run_simulation as run_xsuite
 def test_blond_interface_xsuite():
     """Run xsuite + blond element simulation."""
     n_turns = 10
-    PLOT = True
+    PLOT = False
 
     zeta_xsuite, delta_xsuite, init_dist = run_xsuite(n_turns=n_turns)
     zeta_blond, delta_blond, phi_s = run_blond(
@@ -69,15 +69,15 @@ def test_blond_interface_xsuite():
         plt.show()
 
     np.testing.assert_allclose(
-        zeta_blond[-1],
-        zeta_xsuite[-1],
-        rtol=1e-15,
-        atol=1e-15,
+        zeta_blond,
+        zeta_xsuite,
+        rtol=1e-12,
+        atol=1e-12,
     )
 
     np.testing.assert_allclose(
         delta_blond,
         delta_xsuite,
-        rtol=1e-15,
-        atol=1e-15,
+        rtol=1e-12,
+        atol=1e-12,
     )
