@@ -107,10 +107,24 @@ def test_reference_energy_matches_magnetic_cycle_target():
     cycle target total energy after tracking.
     """
 
-    C = 100.0  # circumference [m]
+    C = 26658.8832  # circumference [m]
     p0c = 450e9  # eV
+    alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
+    h = 35640
+    matrix = xt.LineSegmentMap(
+        longitudinal_mode="nonlinear",
+        qx=1.1,
+        qy=1.2,
+        betx=1.0,
+        bety=1.0,
+        voltage_rf=0,
+        frequency_rf=0,
+        lag_rf=0,
+        momentum_compaction_factor=alpha,
+        length=C,
+    )
 
-    line = xt.Line(elements=[])  # empty line
+    line = xt.Line(elements=[matrix], element_names={"matrix"})
     line.particle_ref = xp.Particles(
         p0c=p0c,
         mass0=xp.PROTON_MASS_EV,
@@ -128,9 +142,9 @@ def test_reference_energy_matches_magnetic_cycle_target():
 
     # --- BLonD cavity ---
     cavity = SingleHarmonicRFStation.headless(
-        section_index=1,
-        voltage=0.0,
-        harmonic=1,
+        section_index=0,
+        voltage=5e6,
+        harmonic=h,
         phi_rf=0.0,
         circumference=C,
         total_energy=float(np.sqrt(p0c**2 + mass0**2)),
@@ -155,7 +169,7 @@ def test_reference_energy_matches_magnetic_cycle_target():
 
     assert blond_cavity.beam.reference.total_energy == pytest.approx(
         E0_expected,
-        rtol=1e-12,
+        rel=1e-12,
     )
 
     magnetic_cycle.get_target_total_energy.assert_called()
@@ -183,8 +197,8 @@ def test_xsuite_blond_forward_backward_transforms():
 
     cavity = SingleHarmonicRFStation.headless(
         section_index=1,
-        voltage=0.0,
-        harmonic=1,
+        voltage=5e6,
+        harmonic=35640,
         phi_rf=0.0,
         circumference=26658.8832,
         total_energy=None,
@@ -198,8 +212,12 @@ def test_xsuite_blond_forward_backward_transforms():
     zeta_orig = particles.zeta.copy()
     ptau_orig = particles.ptau.copy()
 
-    blond_cavity.xsuite_to_blond_transform(particles, blond_cavity.beam)
-    blond_cavity.blond_to_xsuite_transform(particles, blond_cavity.beam)
+    blond_cavity.xsuite_to_blond_transform_particles(
+        particles, blond_cavity.beam
+    )
+    blond_cavity.blond_to_xsuite_transform_particles(
+        particles, blond_cavity.beam
+    )
 
     # --- Check that particles are unchanged (within tolerance) ---
     np.testing.assert_allclose(
