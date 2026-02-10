@@ -10,7 +10,6 @@ from blond import (
     Beam,
     BiGaussian,
     ConstantMagneticCycle,
-    Cupy64Bit,
     DriftSimple,
     Resonators,
     Ring,
@@ -26,8 +25,9 @@ from blond.physics.impedances.sparse_profile.solvers import (
 )
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
-backend.change_backend(Cupy64Bit)
-backend.set_specials("cuda")
+# backend.change_backend(Cupy64Bit)
+# backend.set_specials("cuda")
+backend.set_specials("cpp")
 
 resonator_data = np.loadtxt(
     os.path.join(
@@ -118,12 +118,8 @@ for i, _prof in enumerate(profile.profiles):
         pass
     else:
         _prof.active = False
-drift.orbit_length = 0
-rf_station.voltage = 0.0
-sim.check_circumference = "ignore"
 
-sim.profiling(
-    beams=beam, n_turns=10, sortby=SortKey.CUMULATIVE, start_turn_i=2
-)
+
+sim.profiling(beams=beam, n_turns=100, sortby=SortKey.TIME, start_turn_i=2)
 
 sim.run_simulation(beams=beam, n_turns=3000)
