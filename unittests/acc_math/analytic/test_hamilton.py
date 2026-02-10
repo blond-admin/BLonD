@@ -379,12 +379,6 @@ def test_single_harmonic_separatrix_calculation():
         observation,
     )
 
-    reference_velocity = beam.reference.velocity
-    circumference = ring.circumference
-    t_rev = circumference / reference_velocity
-
-    omega_rf = (2 * np.pi) * harmonic_number / t_rev
-
     ring.add_elements(one_turn_execution_order, reorder=False)
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
 
@@ -410,6 +404,12 @@ def test_single_harmonic_separatrix_calculation():
     )
 
     dt = np.arange(0, 5e-9, 1e-11)
+
+    reference_velocity = beam.reference.velocity
+    circumference = ring.circumference
+    t_rev = circumference / reference_velocity
+
+    omega_rf = (2 * np.pi) * harmonic_number / t_rev
 
     phi, separatrix_calc = separatrix_single_rf_calculation(
         voltage1,
