@@ -504,6 +504,10 @@ def test_single_harmonic_separatrix_magentic_cycle_per_turn_blond():
         beam=beam,
     )
 
+    phi, separatrix_calc = separatrix_single_rf_blond(
+        one_turn_execution_order[1], beam, energy_cycle, ring, dt, 0
+    )
+
     test_inside_separatrix = 0
     dt_array = beam.read_partial_dt()
     dE_array = beam.read_partial_dE()
@@ -586,6 +590,10 @@ def test_single_harmonic_separatrix():
         beam=beam,
     )
 
+    phi, separatrix_calc = separatrix_single_rf_blond(
+        one_turn_execution_order[1], beam, energy_cycle, ring, dt, 0
+    )
+
     test_inside_separatrix = 0
     dt_array = beam.read_partial_dt()
     dE_array = beam.read_partial_dE()
@@ -649,9 +657,6 @@ def test_single_harmonic_separatrix():
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
 
     dt = np.arange(0, 5e-9, 1e-11)
-    phi, separatrix_calc = separatrix_single_rf_blond(
-        one_turn_execution_order[1], beam, energy_cycle, ring, dt, 0
-    )
 
     sim.prepare_beam(
         preparation_routine=FilamentationMatcher(
@@ -734,9 +739,6 @@ def test_single_harmonic_separatrix_magentic_cycle_per_turn_blond():
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
 
     dt = np.arange(0, 5e-9, 1e-11)
-    phi, separatrix_calc = separatrix_single_rf_blond(
-        one_turn_execution_order[1], beam, energy_cycle, ring, dt, 0
-    )
 
     sim.prepare_beam(
         preparation_routine=FilamentationMatcher(
@@ -817,24 +819,6 @@ def test_single_harmonic_separatrix_calculation():
     ring.add_elements(one_turn_execution_order, reorder=False)
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
 
-    reference_gamma = beam.reference.gamma
-
-    eta = 1 / (transition_gamma * transition_gamma) - 1 / (
-        reference_gamma * reference_gamma
-    )
-
-    dt = np.arange(0, 5e-9, 1e-11)
-    phi, separatrix_calc = separatrix_single_rf_calculation(
-        voltage1,
-        harmonic_number,
-        proton,
-        energy_gain=0,
-        omega_rf=omega_rf,
-        eta=eta,
-        energy=p_s,
-        dt_array=dt,
-    )
-
     sim.prepare_beam(
         preparation_routine=FilamentationMatcher(
             time_limit=[0.1e-9, 4e-9],
@@ -848,6 +832,25 @@ def test_single_harmonic_separatrix_calculation():
             purge=True,
         ),
         beam=beam,
+    )
+
+    reference_gamma = beam.reference.gamma
+
+    eta = 1 / (transition_gamma * transition_gamma) - 1 / (
+        reference_gamma * reference_gamma
+    )
+
+    dt = np.arange(0, 5e-9, 1e-11)
+
+    phi, separatrix_calc = separatrix_single_rf_calculation(
+        voltage1,
+        harmonic_number,
+        proton,
+        energy_gain=0,
+        omega_rf=omega_rf,
+        eta=eta,
+        energy=p_s,
+        dt_array=dt,
     )
 
     test_inside_separatrix = 0
