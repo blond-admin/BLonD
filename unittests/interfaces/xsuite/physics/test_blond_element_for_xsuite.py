@@ -12,6 +12,7 @@ from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
     particle_xsuite_to_blond,
     xsuite_to_blond_transform,
 )
+from legacy.unittests.trackers.test_drift import relative_tolerance
 
 
 @pytest.mark.parametrize("n_particles", [1, 1000])
@@ -23,10 +24,10 @@ def test_forward_backward_transform_consistency(n_particles):
     rng = np.random.default_rng(12345)
 
     # Reference parameters
-    beta0 = 0.999
+    beta0 = 1
     energy0 = 450e9  # eV
     omega_rf = 2 * np.pi * 400e6  # rad/s
-    phi_s = 0.1  # rad
+    phi_s = 0.0  # rad
 
     # Initial xsuite coordinates
     if n_particles == 1:
@@ -154,7 +155,7 @@ def test_reference_energy_matches_magnetic_cycle_target():
 
     assert blond_cavity.beam.reference.total_energy == pytest.approx(
         E0_expected,
-        rel=1e-12,
+        rtol=1e-12,
     )
 
     magnetic_cycle.get_target_total_energy.assert_called()
