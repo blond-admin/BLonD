@@ -1,5 +1,4 @@
 import os
-import sys
 import unittest
 
 import matplotlib.pyplot as plt
@@ -53,6 +52,7 @@ class MyTestCase(unittest.TestCase):
             if DEV_DRAW:
                 plt.figure("compare")
                 ax1 = plt.subplot(3, 1, 1)
+                plt.xlim(4e-8, 6e-8)
                 profile.plot()
                 plt.subplot(3, 1, 2, sharex=ax1)
                 plt.plot(
@@ -70,6 +70,8 @@ class MyTestCase(unittest.TestCase):
                 plt.figure("compare")
                 ax1 = plt.subplot(3, 1, 1)
                 center = profile.hist_x[len(profile.hist_x) // 2 - 1]
+                center = 0
+                plt.xlim(4e-8, 6e-8)
                 plt.plot(profile.hist_x - center, profile.hist_y)
                 plt.subplot(3, 1, 2, sharex=ax1)
                 plt.plot(
@@ -79,10 +81,15 @@ class MyTestCase(unittest.TestCase):
                     label="single turn",
                 )
                 plt.legend()
+                plt.subplot(3, 1, 1)
+                plt.xlim(4e-8, 6e-8)
+                plt.subplot(3, 1, 3)
+                plt.cla()
+
                 plt.show()
 
     def non_sparse_fake_multiturn(self, induced_voltage) -> WakeField:
-        FAKE_TUNRS = 2
+        FAKE_TUNRS = 1
         wake_solver = TimeDomainFftSolver(allow_next_fast_len=False)
         ring = Ring(
             circumference=6911.56,
@@ -251,7 +258,7 @@ class MyTestCase(unittest.TestCase):
         rf_station.voltage = 0.0
         sim.check_circumference = "ignore"
 
-        sim.run_simulation(beams=beam, n_turns=2)
+        sim.run_simulation(beams=beam, n_turns=1)
         return wakefield
 
 
