@@ -11,8 +11,9 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -522,6 +523,62 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
             Additional keyword arguments.
         """
         pass
+
+
+# n.b.:  runtime_checkable will check the method is present, but does
+# not validate the signature.
+@runtime_checkable
+class _Trackable(Protocol):
+    def track(self, beam): ...
+
+
+class UnsafeUserElement(UserDefinedElement):
+    """
+    Class to wrap around an arbitrary user defined element.
+
+    Used to sanitise non-standard objects defined by the user, should
+    not be used for production code.
+
+    The given `.track` method will be called on every turn, and the
+    element will be taken as part of section 0.  For any other
+    behaviour, inheriting from `UserDefinedElement` is essential.
+
+    Parameters
+    ----------
+    element
+        The element defined by the user, must implement a
+        `.track(self, beam)` method.
+
+    Examples
+    --------
+    >>> class Test:
+    ...    def track(self, beam):
+    ...        print("This is a test")
+    >>> ring.add_element(Test())
+    """
+
+    def __init__(self, element: _Trackable):
+        if not isinstance(element, _Trackable):
+            raise TypeError(
+                "Arbitrary user elements must at minimum"
+                "define a `.track(self, beam)` method."
+            )
+        else:
+            warnings.warn(
+                f"Element {element} (class name {element.__class__.__name__}) "
+                "is not recognised, attempting to coerce it to a usable form, "
+                "but results are not guaranteed.  Inheriting from "
+                "`UserDefinedElement` is strongly recommended.",
+                stacklevel=2,
+            )
+
+        super().__init__()
+
+        # Use name mangling to prevent name collision
+        self.element = element
+
+    def _track(self, beam: BeamBaseClass):
+        self.element.track(beam)
 
 
 class SchedulerBaseClass(ABC):

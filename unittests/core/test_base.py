@@ -15,6 +15,8 @@ from blond.core.base import (
     Schedulable,
     ScheduledArray,
     ScheduledInterpolation,
+    UnsafeUserElement,
+    UserDefinedElement,
     get_scheduler,
 )
 from blond.core.beam.base import BeamBaseClass
@@ -296,6 +298,45 @@ class TestSchedulable(unittest.TestCase):
             ScheduledArray(np.ones(10)),
         )
         schedulable.schedule("voltage", np.ones(10))
+
+
+class TestUnsafeUserElement(unittest.TestCase):
+    def test_init(self):
+        class InvalidElement:
+            def not_track(self): ...
+
+        class ValidElement:
+            def track(self): ...
+
+        element = InvalidElement()
+        with self.assertRaises(TypeError):
+            UnsafeUserElement(element)
+
+        element = ValidElement()
+        with self.assertWarns(Warning):
+            wrapper = UnsafeUserElement(element)
+
+        self.assertTrue(wrapper._UnsafeUserElement__element is element)
+        self.assertIsInstance(wrapper, UserDefinedElement)
+        self.assertNotIsInstance(element, UserDefinedElement)
+        self.assertEqual(wrapper.section_index, 0)
+        self.assertTrue(wrapper.active)
+
+    def test_track(self):
+        called_with = []
+
+        class Element:
+            def track(self, beam):
+                called_with.append(beam)
+
+        element = Element()
+        wrapper = UnsafeUserElement(element)
+
+        call_args = [1, 2, 3]
+        for arg in call_args:
+            wrapper.track(arg)
+
+        self.assertListEqual(called_with, call_args)
 
 
 if __name__ == "__main__":
