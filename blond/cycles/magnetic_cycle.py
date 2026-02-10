@@ -1006,8 +1006,8 @@ class MagneticCycleByTime(MagneticCycleBase):
             Total relativistic energy, in [eV].
         """
         magnetic_rigidity = self._interpolator(reference_time)
-        assert not np.isnan(magnetic_rigidity)
-        assert not np.isinf(magnetic_rigidity)
+        assert not np.isnan(magnetic_rigidity), f"{magnetic_rigidity}"
+        assert not np.isinf(magnetic_rigidity), f"{magnetic_rigidity}"
         return calc_total_energy(
             mass=particle_type.mass,
             momentum=magnetic_rigidity_to_momentum(
