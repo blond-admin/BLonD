@@ -185,8 +185,8 @@ class BLonD3Cavity:
         )
 
         beam.setup_beam(
-            dt=[dt],
-            dE=[dE],
+            dt=dt,
+            dE=dE,
             reference_time=0,
             reference_total_energy=float(self.line.particle_ref.energy0),
         )

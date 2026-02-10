@@ -400,6 +400,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             local_wakefield=None,
             cavity_feedback=None,
             total_energy=939.0,
+            is_below_transition=False,
         )
         self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
 

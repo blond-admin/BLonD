@@ -18,7 +18,7 @@ from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
 
 
 def main():
-    PLOTTING = True
+    PLOTTING = False
     # Parameters #
     # Accelerator parameters
     C = 26658.8832  # Machine circumference [m]

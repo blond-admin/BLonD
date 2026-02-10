@@ -133,6 +133,7 @@ def test_reference_energy_matches_magnetic_cycle_target():
         phi_rf=0.0,
         circumference=C,
         total_energy=float(np.sqrt(p0c**2 + mass0**2)),
+        is_below_transition=False,
     )
 
     # --- Mock magnetic cycle ---
@@ -186,6 +187,7 @@ def test_xsuite_blond_forward_backward_transforms():
         phi_rf=0.0,
         circumference=26658.8832,
         total_energy=None,
+        is_below_transition=False,
     )
 
     blond_cavity = BLonD3Cavity(
