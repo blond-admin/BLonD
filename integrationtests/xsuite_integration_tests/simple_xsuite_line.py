@@ -10,13 +10,13 @@
 
 from copy import deepcopy
 
-import xpart as xp
+import numpy as np
 import xtrack as xt
 
 from blond.handle_results.helpers import callers_relative_path
 
 
-def run_simulation():
+def run_simulation(n_turns):
     """
     Run xsuite only simulation.
 
@@ -33,25 +33,21 @@ def run_simulation():
 
     line.set_particle_ref("proton", p0c=26e9)
 
-    # tab = line.get_table()
-    # tab_cav = tab.rows[tab.element_type == "Cavity"]
-    # for nn in tab_cav.name:
-    #    line[nn].voltage = 3e6
-    N_TURNS = 1000
+    tab = line.get_table()
+    tab_cav = tab.rows[tab.element_type == "Cavity"]
+    for nn in tab_cav.name:
+        line[nn].lag = 3.141592653589793 / np.pi * 180
+        line[nn].frequency = 200266136.96284187
 
-    bunch_intensity = 1e11
-    sigma_z = 22.5e-2
-    nemitt_x = 2e-6
-    nemitt_y = 2.5e-6
-    n_part = 10
+    N_TURNS = n_turns
 
-    particles = xp.generate_matched_gaussian_bunch(
-        num_particles=n_part,
-        total_intensity_particles=bunch_intensity,
-        nemitt_x=nemitt_x,
-        nemitt_y=nemitt_y,
-        sigma_z=sigma_z,
-        line=line,
+    particles = line.build_particles(
+        x=[0],
+        px=[0],
+        y=[0],
+        py=[0],
+        zeta=[0.1e-3],
+        delta=[0.1e-3],
     )
 
     init_dist = {
@@ -75,6 +71,6 @@ def run_simulation():
 
     return (
         line.record_last_track.zeta.copy(),
-        line.record_last_track.ptau.copy(),
+        line.record_last_track.delta.copy(),
         init_dist,
     )

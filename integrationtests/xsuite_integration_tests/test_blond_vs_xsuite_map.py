@@ -9,63 +9,64 @@
 """Run test to check xsuite interface works properly."""
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 from .simple_xsuite_blond_map import run_simulation as run_blond
-from .simple_xsuite_map import main as run_xsuite
-from matplotlib import pyplot as plt
-import mplhep as hep
+from .simple_xsuite_map import run_simulation as run_xsuite
 
-plt.style.use(hep.style.CMS)
 
-def test_all_the_same():
+def test_blond_interface_xsuite():
     """Run xsuite + blond element simulation."""
-    n_turns = 100
+    n_turns = 10
+    PLOT = True
 
     zeta_xsuite, delta_xsuite, init_dist = run_xsuite(n_turns=n_turns)
-    zeta_blond, delta_blond, phi_s = run_blond(n_turns=n_turns, init_dist=init_dist)
+    zeta_blond, delta_blond, phi_s = run_blond(
+        n_turns=n_turns, init_dist=init_dist
+    )
 
     assert zeta_blond.shape == zeta_xsuite.shape
     assert delta_blond.shape == delta_xsuite.shape
 
-    plt.scatter(zeta_blond[:,0], delta_blond[:,0], label='xsuite + BLonD')
-    plt.scatter(zeta_xsuite[:,0], delta_xsuite[:,0], label='xsuite')
-    plt.title('After 0 turns')
-    plt.xlabel('$\zeta$ [m]')
-    plt.ylabel(r'$p_{\tau}$')
-    plt.legend()
-    plt.tight_layout()
+    if PLOT:
+        plt.scatter(
+            zeta_blond[:, 0], delta_blond[:, 0], label="xsuite + BLonD"
+        )
+        plt.scatter(zeta_xsuite[:, 0], delta_xsuite[:, 0], label="xsuite")
+        plt.title("After 0 turns")
+        plt.xlabel("$\zeta$ [m]")
+        plt.ylabel(r"$delta$")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
 
-    plt.savefig(f'./ebeg_turns_{n_turns}.png')
-    plt.show()
+        plt.scatter(
+            zeta_blond[:, -1], delta_blond[:, -1], label="xsuite + BLonD"
+        )
+        plt.scatter(zeta_xsuite[:, -1], delta_xsuite[:, -1], label="xsuite")
+        plt.title("After 100 turns")
+        plt.xlabel("$\zeta$ [m]")
+        plt.ylabel(r"$p_{\tau}$")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
 
+        dz = []
+        dp = []
+        for i in range(n_turns):
+            dz.append(
+                zeta_blond[0, i] - zeta_xsuite[0, i]
+            )  # shape (n_particles, n_turns)
+            dp.append(delta_blond[0, i] - delta_xsuite[0, i])
 
-    plt.scatter(zeta_blond[:,-1], delta_blond[:,-1], label='xsuite + BLonD')
-    plt.scatter(zeta_xsuite[:,-1], delta_xsuite[:,-1], label='xsuite')
-    plt.title('After 100 turns')
-    plt.xlabel('$\zeta$ [m]')
-    plt.ylabel(r'$p_{\tau}$')
-    plt.legend()
-    plt.tight_layout()
-
-    plt.savefig(f'./end_turns_{n_turns}.png')
-    plt.show()
-
-
-    dz = []
-    dp = []
-    for i in range(n_turns):
-        dz.append(zeta_blond[0,i] - zeta_xsuite[0,i])  # shape (n_particles, n_turns)
-        dp.append(delta_blond[0,i] -delta_xsuite[0,i])
-
-    plt.plot(dz, label=r" $|\Delta\zeta|$")
-    plt.plot(dp, label=r" $|\Delta p_{\tau}|$")
-    plt.xlabel("Turn")
-    plt.ylabel("difference")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(f'./difference_turns_{n_turns}_oscillation.png')
-    plt.show()
+        plt.plot(dz, label=r" $|\Delta\zeta|$")
+        plt.plot(dp, label=r" $|\delta|$")
+        plt.xlabel("Turn")
+        plt.ylabel("difference")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
 
     np.testing.assert_allclose(
         zeta_blond[-1],

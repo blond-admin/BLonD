@@ -55,14 +55,16 @@ def main():
     momentum = np.linspace(p_s, p_f, N_TURNS)
 
     # --- Many particle  --- #
-    n_part = 1000
+    n_part = 100
+
+    rng = np.random.default_rng()
     particles = line.build_particles(
-        x=np.random.uniform(-1e-3, 1e-3, n_part),
-        px=np.random.uniform(-1e-5, 1e-5, n_part),
-        y=np.random.uniform(-2e-3, 2e-3, n_part),
-        py=np.random.uniform(-3e-5, 3e-5, n_part),
-        zeta=np.random.uniform(-2e-2, 2e-2, n_part),
-        delta=np.random.uniform(-1e-4, 1e-4, n_part),
+        x=rng.uniform(low=-1e-3, high=1e-3, size=n_part),
+        px=rng.uniform(-1e-5, 1e-5, n_part),
+        y=rng.uniform(-2e-3, 2e-3, n_part),
+        py=rng.uniform(-3e-5, 3e-5, n_part),
+        zeta=rng.uniform(-2e-2, 2e-2, n_part),
+        delta=rng.uniform(-1e-4, 1e-4, n_part),
     )
 
     # --- BLonD3Element  --- #
@@ -70,9 +72,9 @@ def main():
         section_index=1,
         voltage=V,
         harmonic=h,
-        phi_rf=-np.pi,  # todo, this is a shift between xsuite and blond
+        phi_rf=0,
         circumference=C,
-        total_energy=None,  # todo dynamically set the energy
+        total_energy=None,  #
         is_below_transition=None,
     )
 
@@ -123,6 +125,3 @@ def main():
 
 if __name__ == "__main__":  # pragma: no cover
     main()
-
-
-

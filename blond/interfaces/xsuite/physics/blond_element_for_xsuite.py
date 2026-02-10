@@ -264,6 +264,11 @@ class BLonD3Cavity:
     def calc_phi_s(self):
         """
         Calculate the phi_s.
+
+        Returns
+        -------
+        phi_s
+            Phi_s value.
         """
         phi_s = self.trackable.calc_phi_s_single_harmonic(beam=self.beam)
         return phi_s

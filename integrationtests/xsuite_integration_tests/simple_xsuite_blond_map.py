@@ -8,17 +8,14 @@
 
 """Running a simple xsuite map, LHC like."""
 
-
 import xpart as xp
 import xtrack as xt
 
-import numpy as np
-
-
-from blond import SingleHarmonicRFStation, proton
+from blond import SingleHarmonicRFStation
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
-    BLonD3Cavity, EnergyUpdate
+    BLonD3Cavity,
 )
+
 
 def run_simulation(init_dist, n_turns):
     """
@@ -30,14 +27,10 @@ def run_simulation(init_dist, n_turns):
     line.record_last_track.delta[:, -1]
     init_dist
     """
-
-    PLOTTING = True
     # Parameters #
     # Accelerator parameters
     C = 26658.8832  # Machine circumference [m]
     p_s = 450e9  # Synchronous momentum [eV/c]
-    p_f = 450e9  # Synchronous momentum, final
-    h = 35640  # Harmonic number [-]
     alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
     V = 5e6  # RF voltage [V]
 
@@ -65,8 +58,6 @@ def run_simulation(init_dist, n_turns):
     line = xt.Line(elements=[matrix], element_names={"matrix"})
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
 
-    momentum = np.linspace(p_s, p_f, N_TURNS)
-
     # --- Many particle  --- #
     particles = xt.Particles(
         mass0=xt.PROTON_MASS_EV,
@@ -80,12 +71,11 @@ def run_simulation(init_dist, n_turns):
         delta=init_dist["delta"],
     )
 
-
     # --- BLonD3Element  --- #
     cavity1 = SingleHarmonicRFStation.headless(
         section_index=0,
         voltage=V,
-        harmonic=h,
+        harmonic=35640,
         phi_rf=0,  # todo, this is a shift between xsuite and blond
         circumference=C,
         total_energy=None,  # todo dynamically set the energy
@@ -98,8 +88,11 @@ def run_simulation(init_dist, n_turns):
         line=line,
         initial_intensity=N_p,
     )
+
     phi_s = cavity.calc_phi_s()
-    print('phi_s', phi_s)
+    # omega_rf = cavity1.calc_main_harmonic_omega_rf(
+    #     beam_beta=cavity.beam.reference.beta, ring_circumference=C
+    # )
 
     # --- Insert cavity  --- #
     line.insert_element(
@@ -107,13 +100,6 @@ def run_simulation(init_dist, n_turns):
         element=cavity,
         name="BLonD_Cavity",
     )
-
-    # --- Insert energy ramp  --- #
-    #energy_update = EnergyUpdate(momentum=momentum)
-
-    #line.insert_element(
-        #index="matrix", element=energy_update, name="energy_update"
-    #)
 
     line.build_tracker()
     line.get_table().show()
@@ -127,6 +113,6 @@ def run_simulation(init_dist, n_turns):
 
     return (
         line.record_last_track.zeta.copy(),
-        line.record_last_track.ptau.copy(),
-        phi_s
+        line.record_last_track.delta.copy(),
+        phi_s,
     )

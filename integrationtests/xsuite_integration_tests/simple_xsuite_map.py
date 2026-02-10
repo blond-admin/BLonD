@@ -9,10 +9,13 @@
 """Running a simple xsuite map, LHC like."""
 
 from copy import deepcopy
+
+import numpy as np
 import xpart as xp
 import xtrack as xt
 
-def main(n_turns):
+
+def run_simulation(n_turns):
     """
     Run xsuite only simulation.
 
@@ -22,20 +25,14 @@ def main(n_turns):
     line.record_last_track.delta[:, -1]
     init_dist
     """
-
-    PLOTTING = True
     # Parameters #
     # Accelerator parameters
     C = 26658.8832  # Machine circumference [m]
     p_s = 450e9  # Synchronous momentum [eV/c]
-    p_f = 450e9  # Synchronous momentum, final
-    h = 35640  # Harmonic number [-]
     alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
     V = 5e6  # RF voltage [V]
 
     # Bunch parameters
-    N_p = 1.15e11  # Intensity # where is this used in xtrack?
-
     # Simulation parameters
     N_TURNS = n_turns
 
@@ -55,25 +52,25 @@ def main(n_turns):
 
     xsuite_cavity = xt.Cavity()
     xsuite_cavity.voltage = V
-    xsuite_cavity.frequency = 400.78962
-    xsuite_cavity.lag = 0#3.141592653589793*180/np.pi
+    xsuite_cavity.frequency = 400788731.3867354
+    xsuite_cavity.lag = 3.141592653589793 / np.pi * 180  # is this wrong?
 
     # Create line
     line = xt.Line(elements=[matrix], element_names={"matrix"})
-    line.insert_element(index=0, element=xsuite_cavity, name='xsuite_cavity')
+    line.insert_element(index=0, element=xsuite_cavity, name="xsuite_cavity")
 
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
 
-
     # --- Many particle  --- #
-    n_part = 1
+    n_part = 100
+    rng = np.random.default_rng()
     particles = line.build_particles(
-        x=[0],
-        px=[0],
-        y=[0],
-        py=[0],
-        zeta=[0.1e-2],
-        delta=[0.1e-4]
+        x=rng.uniform(-1e-3, 1e-3, n_part),
+        px=rng.uniform(-1e-5, 1e-5, n_part),
+        y=rng.uniform(-2e-3, 2e-3, n_part),
+        py=rng.uniform(-3e-5, 3e-5, n_part),
+        zeta=rng.uniform(-2e-2, 2e-2, n_part),
+        delta=rng.uniform(-1e-4, 1e-4, n_part),
     )
 
     init_dist = {
@@ -97,10 +94,6 @@ def main(n_turns):
 
     return (
         line.record_last_track.zeta.copy(),
-        line.record_last_track.ptau.copy(),
-        init_dist
+        line.record_last_track.delta.copy(),
+        init_dist,
     )
-
-
-if __name__ == '__main__':
-    main(10)

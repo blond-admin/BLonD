@@ -17,7 +17,7 @@ from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
 )
 
 
-def run_simulation(init_distribution: dict):
+def run_simulation(n_turns: int, init_distribution: dict):
     """
     Run simple xsuite + blond element simulation.
 
@@ -34,10 +34,11 @@ def run_simulation(init_distribution: dict):
         "./resources/line_no_spacecharge_and_particle.json", stacklevel=1
     )
     line = xt.load(sps_line_folder)
+    length = line.get_length()
 
     line.set_particle_ref("proton", p0c=26e9)
 
-    N_TURNS = 1000
+    N_TURNS = n_turns
 
     bunch_intensity = 1e11
 
@@ -55,7 +56,7 @@ def run_simulation(init_distribution: dict):
 
     # --- BLonD3Element  --- #
     cavity1 = SingleHarmonicRFStation.headless(
-        section_index=1,
+        section_index=0,
         voltage=3e6,
         harmonic=4620,
         phi_rf=0,
@@ -71,6 +72,12 @@ def run_simulation(init_distribution: dict):
         initial_intensity=bunch_intensity,
     )
 
+    phi_s = cavity.calc_phi_s()
+    omega_rf = cavity1.calc_main_harmonic_omega_rf(
+        beam_beta=cavity.beam.reference.beta, ring_circumference=length
+    )
+    print("phi_s", "omega_rf", phi_s, omega_rf)
+
     tab = line.get_table()
     tab_cav = tab.rows[tab.element_type == "Cavity"]
     for nn in tab_cav.name:
@@ -84,7 +91,6 @@ def run_simulation(init_distribution: dict):
     )
 
     line.build_tracker()
-    line.get_table().show()
 
     line.track(
         particles,
@@ -95,5 +101,5 @@ def run_simulation(init_distribution: dict):
 
     return (
         line.record_last_track.zeta.copy(),
-        line.record_last_track.ptau.copy(),
+        line.record_last_track.delta.copy(),
     )
