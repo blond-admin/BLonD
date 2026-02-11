@@ -499,7 +499,7 @@ class PythonSpecials(Specials):
 
         start = 0
         for i in range(n_profiles):
-            assert start == start_indices[i]
+            assert start == start_indices[i], f"{start=} {start_indices[i]=}"
             stop = start + bins_per_profile[i]
             sel = slice(start, stop)
             hist, _ = np.histogram(
