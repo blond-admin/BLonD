@@ -629,6 +629,19 @@ class Resonators(
         self._cache_impedance = impedance
         return impedance
 
+    def get_vectorfit(self):
+        warnings.warn(
+            "`get_vectorfit` untested and probably wrong!",
+            UserWarning,
+            stacklevel=1,
+        )
+        Q = self._quality_factors
+        omega = self._omega
+        R_s = self._shunt_impedances
+        poles = -omega / (2 * Q) + 1j * omega
+        residues = R_s * omega / (4 * Q) + 1j * R_s * omega / 2
+        return poles, residues
+
 
 class ImpedanceTable(WakeFieldSource):
     """Base class to manage impedance tables."""

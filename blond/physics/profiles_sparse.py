@@ -19,7 +19,6 @@ import numpy as np
 
 from blond import StaticProfile, backend
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -225,7 +224,6 @@ class StaticMultiProfile(MultiProfile):
         )
         return d
 
-    @requires(["RFStationBaseClass"])  # for `get_t_rev_init`
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.

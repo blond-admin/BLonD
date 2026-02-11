@@ -11,14 +11,17 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
+    Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
+    WakeField,
     backend,
     proton,
 )
 from blond.beam_preparation.helpers import make_multibunch_beam
+from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import StaticMultiProfile
 
 # backend.change_backend(Cupy64Bit)
@@ -86,19 +89,16 @@ profiles = (
     for i in range(n_profiles)
 )
 profile = StaticMultiProfile(profiles=profiles)
-"""
-from blond.physics.impedances.sparse_profile.solvers import (
-    MultiTurnSparseProfileSolver,
-)
+
+
 wakefield = WakeField(
     sources=(Resonators(R_shunt, f_res, Q_factor),),
-    solver=MultiTurnSparseProfileSolver(n_turns=10),
-    profile=profile,
-)"""
+    solver=MultiPoleSparseSolve(),
+    profile=profile,  # type: ignore
+)
 ring.add_elements(
     (
-        #       wakefield,
-        profile,
+        wakefield,
         drift,
         rf_station,
     )
@@ -122,13 +122,9 @@ beam = make_multibunch_beam(
     n_times=int(rf_station.harmonic // 10),
     t_distance=t_rf * 10,
 )
-for i, _prof in enumerate(profile.profiles):
-    if i % 10 == 0:
-        pass
-    else:
-        _prof.active = False
 
-
-sim.profiling(beams=beam, n_turns=100, sortby=SortKey.TIME, start_turn_i=2)
+sim.profiling(
+    beams=beam, n_turns=100, sortby=SortKey.CUMULATIVE, start_turn_i=2
+)
 
 sim.run_simulation(beams=beam, n_turns=3000)

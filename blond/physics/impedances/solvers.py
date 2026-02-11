@@ -42,6 +42,7 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
+from blond.physics.impedances.refactor_me2 import apply_poles2
 from blond.physics.impedances.sources import InductiveImpedance, Resonators
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
@@ -52,6 +53,8 @@ from blond.physics.profiles import (
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
+
+    from blond.physics.profiles_sparse import StaticMultiProfile
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
@@ -1163,3 +1166,83 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
             induced_voltage += self._previous_wakes[i][sel_current_profile(i)]
 
         return induced_voltage
+
+
+class MultiPoleSparseSolve(WakeFieldSolver):
+    def __init__(
+        self,
+    ) -> None:
+        self._poles = None
+        self._residues = None
+        self._profile: StaticMultiProfile | None = None
+        self._parent_wakefield = None
+        self._voltage = None
+
+    def on_wakefield_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
+        """
+        Lateinit method when WakeField is late-initialized.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        parent_wakefield
+            `WakeField` that this solver affiliated to.
+        """
+        self._parent_wakefield = parent_wakefield
+
+        self._profile: StaticMultiProfile = parent_wakefield.profile  # type: ignore
+
+    def _finalize_solver(self):
+        poles = []
+        residues = []
+        for i, source in enumerate(self._parent_wakefield.sources):
+            # source: TimeDomain  # type hint what the we expect # TODO
+            poles_, residues_ = source.get_vectorfit()
+            try:
+                poles.extend(poles_)
+                residues.extend(residues_)
+            except TypeError:  # if single value instead of iterable
+                poles.append(poles_)
+                residues.append(residues_)
+
+        self._poles = np.array(poles, dtype=complex)
+        self._residues = np.array(residues, dtype=complex)
+
+        self._voltage = backend.zeros(
+            self._parent_wakefield.profile.n_bins, dtype=backend.float
+        )
+        self._states = np.empty(len(self._poles) + 1, complex)
+        self._states[-1] = self._profile.profiles[0].cut_left
+
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
+        """
+        Calculate the induced voltage in this turn based on the last profiles.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam.
+
+        Returns
+        -------
+        induced_voltage
+            The induced voltage, in [V].
+        """
+        if self._poles is None:
+            self._finalize_solver()
+
+        apply_poles2(
+            profile=self._profile._continuous_memory_hist_y,
+            profile_dts=self._profile._continuous_memory_hist_x,
+            poles=self._poles,
+            residues=self._residues,
+            states=self._states,
+            voltage=self._voltage,
+        )
+
+        return self._voltage
