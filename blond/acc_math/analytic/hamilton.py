@@ -519,3 +519,74 @@ def separatrix_single_rf_calculation(
     phi_array = np.concatenate((dt_array, dt_array[::-1]))
 
     return phi_array, separatrix_array
+
+
+def separatrix_single_rf_blond(
+    rf_station: RFStationBaseClass,
+    beam: BeamBaseClass,
+    magnetic_cylce: MagneticCycleBase,
+    ring: Ring,
+    dt_array: NumpyArray,
+    turn_number: int,
+) -> float | NumpyArray:
+    """
+    Derive the analytical separatrix for a single harmonic RF using BLonD classes.
+
+    Parameters
+    ----------
+    rf_station
+        The RF station object.
+    beam
+        The beam object.
+    magnetic_cylce
+        The magnetic cycle object defining energy evolution.
+    ring
+        The ring object.
+    dt_array
+        Array of time coordinates at which to sample the separatrix, in [s].
+    turn_number
+        Turn at which to calculate the separatrix for.
+
+    Returns
+    -------
+    phi_array
+        The array containing the phases equivalent to the dt_array, in [rad].
+
+    separatrix_array
+        The separatrix values at each point in dt_array.
+    """
+    voltage = rf_station.get_main_harmonic_voltage()
+    harmonic = rf_station.get_main_harmonic()
+
+    particle = magnetic_cylce.reference_particle
+
+    if hasattr(magnetic_cylce, "_values_after_turn"):
+        energy_array = magnetic_cylce._values_after_turn
+        energy_gain = energy_array[1] - energy_array[0]
+        energy = energy_array[turn_number]
+    else:
+        energy_gain = 0
+        energy = magnetic_cylce._value
+
+    reference_gamma = beam.reference.gamma
+
+    reference_velocity = beam.reference.velocity
+    circumference = ring.circumference
+    t_rev = circumference / reference_velocity
+
+    omega_rf = (2 * np.pi) * harmonic / t_rev
+
+    eta = ring.calc_average_eta_0(reference_gamma)
+
+    phi_array, separatrix_array = separatrix_single_rf_calculation(
+        voltage,
+        harmonic,
+        particle,
+        energy_gain,
+        omega_rf,
+        eta,
+        energy,
+        dt_array,
+    )
+
+    return phi_array, separatrix_array
