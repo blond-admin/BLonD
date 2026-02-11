@@ -132,7 +132,7 @@ class MainloopSingleBeam(ExecutionModel):
             # Get current iteration rate (it/s) from tqdm
             format_dict = iterator.format_dict
             rate = format_dict.get("rate", None)
-            if rate is not None and rate > 0:
+            if rate is not None and rate > 0 and n_particles > 0:
                 # Calculate particles per second per iteration
                 sec_per_particle = 1 / rate / n_particles
                 # Format in scientific notation for readability
