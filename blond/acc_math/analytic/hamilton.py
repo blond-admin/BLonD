@@ -19,8 +19,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Ring
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.beam.particle_types import ParticleType
     from blond.cycles.magnetic_cycle import MagneticCycleBase
-    from blond.physics.cavities import RFManipulationBaseClass
+    from blond.physics.cavities import RFStationBaseClass
 
 
 def is_in_separatrix(
@@ -325,112 +327,6 @@ def calc_phi_s_single_harmonic(
         phi = np.pi - phi
 
     return phi
-
-
-def separatrix_single_rf(
-    rf_station: RFManipulationBaseClass,
-    magnetic_cylce: MagneticCycleBase,
-    ring: Ring,
-    dt_array: NumpyArray,
-    turn_number: int,
-) -> float | NumpyArray:
-    """
-    Derive the analytical separatrix for a single harmonic RF using BLonD classes.
-
-    Parameters
-    ----------
-    rf_station
-        The RF station object.
-    magnetic_cylce
-        The magnetic cycle object defining energy evolution.
-    ring
-        The ring object.
-    dt_array
-        Array of time coordinates at which to sample the separatrix, in [s].
-    turn_number
-        Turn at which to calculate the separatrix for.
-
-    Returns
-    -------
-    phi_array
-        The array containing the phases equivalent to the dt_array, in [rad].
-
-    separatrix_array
-        The separatrix values at each point in dt_array.
-    """
-    voltage = rf_station.voltage
-    harmonic = rf_station.harmonic
-
-    charge = magnetic_cylce.reference_particle.charge
-
-    if hasattr(magnetic_cylce, "_values_after_turn"):
-        energy_array = magnetic_cylce._values_after_turn
-        energy_gain = energy_array[1] - energy_array[0]
-        energy = energy_array[turn_number]
-    else:
-        energy_gain = 0
-        energy = magnetic_cylce._value
-
-    circumference = ring.circumference
-
-    reference_total_energy = magnetic_cylce.get_target_total_energy(
-        particle_type=magnetic_cylce.reference_particle,
-        turn_i=turn_number,
-        section_i=0,
-        reference_time=0,
-    )
-
-    reference_gamma = (
-        reference_total_energy * magnetic_cylce.reference_particle.mass_inv
-    )
-
-    beta = np.sqrt(1.0 - 1.0 / (reference_gamma * reference_gamma))
-    reference_velocity = beta * c
-
-    t_rev = circumference / reference_velocity
-
-    omega_0 = (2 * np.pi) / t_rev
-    omega_rf = omega_0 * harmonic
-
-    eta = ring.calc_average_eta_0(reference_gamma)
-
-    above_Transition = False
-    if eta > 0:
-        above_Transition = True
-
-    phi_s = calc_phi_s_single_harmonic(
-        charge=charge,
-        voltage=voltage,
-        energy_gain=energy_gain,
-        above_transition=above_Transition,
-    )
-
-    phi = dt_array * omega_rf
-
-    potential_energy = (
-        np.cos(np.pi - phi_s)
-        - np.cos(phi)
-        + (np.pi - phi - phi_s) * np.sin(phi_s)
-    )
-
-    mask_potential = potential_energy > 0
-    potential_energy = potential_energy[mask_potential]
-    dt_array = dt_array[mask_potential]
-
-    separatrix = np.sqrt(
-        2
-        * charge
-        * voltage
-        * beta**2
-        * energy
-        / (np.pi * harmonic * np.abs(eta))
-        * potential_energy
-    )
-
-    separatrix_array = np.concatenate((separatrix, -separatrix[::-1]))
-    phi_array = np.concatenate((dt_array, dt_array[::-1]))
-
-    return phi_array, separatrix_array
 
 
 def separatrix_single_rf_calculation(
