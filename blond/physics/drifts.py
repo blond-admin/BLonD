@@ -478,8 +478,8 @@ class DriftExpert(DriftSimple):
                 dE=beam.read_partial_dE(),
                 T=dt,
                 alpha_0=self.alpha_0,
-                alpha_1=getattr(self, "alpha_1", 0.0), # todo
-                alpha_2=getattr(self, "alpha_2", 0.0), # todo
+                alpha_1=getattr(self, "alpha_1", 0.0),  # todo
+                alpha_2=getattr(self, "alpha_2", 0.0),  # todo
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
             )
