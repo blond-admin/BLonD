@@ -7,10 +7,11 @@
 # Project website: http://blond.web.cern.ch/
 
 import numpy as np
+import xobjects as xo
 import xpart as xp
 import xtrack as xt
 
-from blond import SingleHarmonicRFStation, proton
+from blond import SingleHarmonicRFStation, backend, proton
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
     BLonD3Cavity,
     EnergyUpdate,
@@ -19,6 +20,7 @@ from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
 
 def main():
     PLOTTING = False
+
     # Parameters #
     # Accelerator parameters
     C = 26658.8832  # Machine circumference [m]
@@ -50,7 +52,13 @@ def main():
 
     # Create line
     line = xt.Line(elements=[matrix], element_names={"matrix"})
+    if backend.is_gpu:
+        context = xo.ContextCupy()
+    else:
+        context = xo.ContextCpu()
+
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
+    line.build_tracker(_context=context)
 
     momentum = np.linspace(p_s, p_f, N_TURNS)
 
@@ -99,7 +107,7 @@ def main():
         index="matrix", element=energy_update, name="energy_update"
     )
 
-    line.build_tracker()
+    # line.build_tracker()
     line.get_table().show()
 
     line.track(
