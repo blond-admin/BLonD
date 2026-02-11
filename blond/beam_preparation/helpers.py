@@ -49,14 +49,11 @@ def make_multibunch_beam(
     size = beam._dt.local_size
     full_dE = backend.repeat(beam._dE.array_local, n_times)
 
-    full_dt = backend.empty(
-        full_dE.shape,
-        dtype=backend.float,
-    )
+    full_dt = backend.repeat(beam._dt.array_local, n_times)
     for i in range(n_times):
         t_offset = t_distance * i + common_offset
         sel = slice(i * size, (i + 1) * size)
-        full_dt[sel] = beam._dt.array_local + t_offset
+        full_dt[sel] += t_offset
 
     full_beam.setup_beam(
         dt=full_dt,
