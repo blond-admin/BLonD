@@ -11,18 +11,14 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
-    Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
-    WakeField,
+    StaticProfile,
     backend,
-    make_multibunch_beam,
     proton,
 )
-from blond.physics.impedances.sparse_profile.solvers import (
-    MultiTurnSparseProfileSolver,
-)
+from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.physics.profiles_sparse import StaticMultiProfile
 
 # backend.change_backend(Cupy64Bit)
@@ -71,25 +67,38 @@ t_rf = (
     )
     / rf_station.harmonic
 )
-
-profile = StaticMultiProfile(
-    n_profiles=int(rf_station.harmonic // 10),
-    width_per_profile=magnetic_cycle.get_t_rev_init(
-        ring.circumference,
-        particle_type=proton,
+n_profiles = int(rf_station.harmonic // 10)
+t_rev = magnetic_cycle.get_t_rev_init(
+    ring.circumference,
+    particle_type=proton,
+)
+width_per_profile = t_rev / rf_station.harmonic
+bins_per_profile = 2**8
+offset = t_rf / 2
+step = t_rev / n_profiles
+t_starts = step * np.arange(n_profiles) + offset
+profiles = (
+    StaticProfile(
+        cut_left=float(t_starts[i]),
+        cut_right=float(t_starts[i] + width_per_profile),
+        n_bins=bins_per_profile,
     )
-    / rf_station.harmonic,
-    bins_per_profile=2**8,
-    offset=t_rf / 2,
+    for i in range(n_profiles)
+)
+profile = StaticMultiProfile(profiles=profiles)
+"""
+from blond.physics.impedances.sparse_profile.solvers import (
+    MultiTurnSparseProfileSolver,
 )
 wakefield = WakeField(
     sources=(Resonators(R_shunt, f_res, Q_factor),),
     solver=MultiTurnSparseProfileSolver(n_turns=10),
     profile=profile,
-)
+)"""
 ring.add_elements(
     (
-        wakefield,
+        #       wakefield,
+        profile,
         drift,
         rf_station,
     )
