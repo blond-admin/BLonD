@@ -452,7 +452,19 @@ class DriftExact(DriftSimple):
 
     Parameters
     ----------
-
+    orbit_length : float
+        Length of drift, in [m].
+        Length / Velocity => Time to pass the element.
+    section_index : int
+        Section index to group elements into sections.
+    transition_gamma : complex
+        Gamma of transition crossing.
+    momentum_compaction_factor : float
+        Momentum compaction factor.
+    higher_order_alpha : NumpyArray
+        Higher-order alpha array up to desired order.
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
     """
 
     def __init__(
@@ -482,12 +494,6 @@ class DriftExact(DriftSimple):
         ----------
         beam : BeamBaseClass
             Beam.
-        orbit_length : float
-            Orbit length of the drift.
-        transition_gamma : complex | float | None
-            Transition gamma.
-        momentum_compaction_factor : float | None
-            First order momentum compaction factor.
         """
         super(DriftSimple, self)._track(beam=beam)
 
