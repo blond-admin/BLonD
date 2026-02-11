@@ -608,6 +608,28 @@ class TestSimulation(unittest.TestCase):
                 observe=(),
             )
 
+    def test_finalize_warns(self) -> None:
+        self.simulation.check_circumference = "warn"
+        self.simulation.ring._circumference += 10
+        self.simulation.magnetic_cycle._n_turns_max = None
+        with self.assertWarnsRegex(UserWarning, "but should be"):
+            self.simulation.finalize(
+                beams=beam_mock,
+                n_turns=None,
+                observe=(),
+            )
+
+    def test_finalize_raises(self) -> None:
+        self.simulation.check_circumference = "ignore"
+        self.simulation.ring._circumference += 10
+
+        beam_mock.common_array_size = 1
+        self.simulation.finalize(
+            beams=beam_mock,
+            n_turns=1,
+            observe=(),
+        )
+
     @pytest.mark.backend_mutation
     def test_finalize_warns(self) -> None:
         from blond import backend
