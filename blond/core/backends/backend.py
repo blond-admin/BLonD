@@ -200,6 +200,37 @@ class Specials(ABC):
             "The backend for `move_flagged_elements_to_end` is missing."
         )
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def sparse_histogram(
+        x: CupyArray,
+        out: CupyArray,
+        left_cuts: CupyArray,
+        right_cuts: CupyArray,
+        bins_per_profile: CupyArray,
+        start_indices: CupyArray,
+    ) -> None:
+        """
+        Sparse histogram continuous memory layout.
+
+        Parameters
+        ----------
+        x
+            An array, e.g., the particle dt values.
+        out
+            Output histogram (n_filled_buckets * stride).
+        left_cuts
+            Start of each histogram.
+        right_cuts
+            Stop of each histogram.
+        bins_per_profile
+            Number of bins per histogram.
+        start_indices
+            Precomputed index to access out per histogram
+            ``out[start_indices[i]:start_indices[i] + bins_per_profile[i]]``.
+        """
+        pass
+
 
 class _ModeSwitchHelper:
     """
@@ -277,6 +308,8 @@ class BackendBaseClass(ABC):
         # Callables that link to e.g. Numpy, Cupy
         self.array: Callable = None  # type: ignore
         self.gradient: Callable = None  # type: ignore
+        self.empty: Callable = None  # type: ignore
+        self.repeat: Callable = None  # type: ignore
         self.linspace: Callable = None  # type: ignore
         self.histogram: Callable = None  # type: ignore
         self.zeros: Callable = None  # type: ignore
@@ -621,6 +654,8 @@ class NumpyBackend(BackendBaseClass):
 
         self.array = np.array
         self.gradient = np.gradient
+        self.empty = np.empty
+        self.repeat = np.repeat
         self.linspace = np.linspace
         self.histogram = np.histogram
         self.zeros = np.zeros
@@ -770,6 +805,8 @@ class CupyBackend(BackendBaseClass):
 
         self.array = cp.array
         self.gradient = cp.gradient
+        self.empty = cp.empty
+        self.repeat = cp.repeat
         self.linspace = cp.linspace
         self.histogram = cp.histogram
         self.zeros = cp.zeros

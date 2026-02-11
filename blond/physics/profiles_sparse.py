@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -20,7 +20,6 @@ import numpy as np
 from blond import StaticProfile, backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
-from blond.physics.profiles import DynamicProfileConstNBins
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -96,15 +95,8 @@ class StaticMultiProfile(MultiProfile):
 
     Parameters
     ----------
-    n_profiles
-        Number of profiles to use internally.
-    width_per_profile
-        The width of each profile,
-        corresponding to ``cut_right - cut_left``.
-    bins_per_profile
-        Number of bins per profile.
-    offset
-        Offset all profiles by this number.
+    profiles
+        A ;ist of profiles that should be considered by this class.
     section_index
         Identifier grouping elements that belong to the same section of the ring.
         Defaults to 0.
@@ -117,15 +109,20 @@ class StaticMultiProfile(MultiProfile):
 
     def __init__(
         self,
-        profiles: Sequence[StaticProfile],
+        profiles: Iterable[StaticProfile],
         section_index: int = 0,
         name: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(section_index, name, **kwargs)
-        self.profiles: Sequence[StaticProfile | DynamicProfileConstNBins] = (
-            profiles
-        )
+        profiles = tuple(sorted(profiles, key=lambda p: p.cut_left))
+        for i in range(len(profiles) - 1):
+            this_stop = profiles[i].cut_right
+            next_start = profiles[i + 1].cut_left
+            assert this_stop <= next_start, (
+                "The profiles are not allowed to overlap"
+            )
+        self.profiles: tuple[StaticProfile, ...] = profiles
         self._continuous_memory_hist_x: NumpyArray | CupyArray | None = None
         self._continuous_memory_hist_y: NumpyArray | CupyArray | None = None
         self._left_cuts: NumpyArray | CupyArray | None = None
@@ -302,4 +299,8 @@ class StaticMultiProfile(MultiProfile):
             left_cuts=self._left_cuts,
             right_cuts=self._right_cuts,
             bins_per_profile=self._bins_per_profile,
+            start_indices=backend.array(
+                np.cumsum(self._bins_per_profile) - self._bins_per_profile,
+                dtype=np.int32,
+            ),
         )

@@ -552,6 +552,67 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             )
             return n_new
 
+        @staticmethod
+        def sparse_histogram(
+            x: CupyArray,
+            out: CupyArray,
+            left_cuts: CupyArray,
+            right_cuts: CupyArray,
+            bins_per_profile: CupyArray,
+            start_indices: CupyArray,
+        ) -> None:
+            """
+            Sparse histogram continuous memory layout.
+
+            Parameters
+            ----------
+            x
+                An array, e.g., the particle dt values.
+            out
+                Output histogram (n_filled_buckets * stride).
+            left_cuts
+                Start of each histogram.
+            right_cuts
+                Stop of each histogram.
+            bins_per_profile
+                Number of bins per histogram.
+            start_indices
+                Precomputed index to access out per histogram
+                ``out[start_indices[i]:start_indices[i] + bins_per_profile[i]]``
+            """
+            n_cuts = len(right_cuts)
+            n_threads = numba.get_num_threads()  # this prevents caching
+            array_tmp = np.zeros((n_threads, len(out)))
+            for i in prange(len(x)):
+                thread_i = numba.get_thread_id()
+                xi = x[i]
+                cut_left = -1.0
+                for j in range(n_cuts):
+                    cut_right = right_cuts[j]
+                    if xi <= cut_right:
+                        cut_left = left_cuts[j]
+                        break
+                if cut_left == -1.0 and j == (n_cuts - 1):
+                    continue
+                if xi < cut_left:
+                    continue
+                hist_i = j
+
+                start = cut_left
+                stop = cut_right
+                if xi == stop:
+                    write_idx = start_indices[hist_i] + bins_per_profile - 1
+                    array_tmp[thread_i, write_idx] += 1
+                    continue
+                inv_bin_step = bins_per_profile[hist_i] / (
+                    cut_right - cut_left
+                )
+                idx = int((xi - start) * inv_bin_step)
+                write_idx = start_indices[hist_i] + idx
+                array_tmp[thread_i, write_idx] += 1
+            out[:] = np.sum(array_tmp, axis=0)
+            pass
+
     return NumbaSpecials
 
 

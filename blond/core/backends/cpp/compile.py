@@ -31,6 +31,7 @@ cpp_files = [
     # "music_track.cpp",
     # "blondmath.cpp",
     # "fast_resonator.cpp",
+    "sparse_histogram.cpp",
     "beam_phase.cpp",
     "loss_box.cpp",
     "move_flagged_elements_to_end.cpp",
@@ -142,13 +143,14 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         "-O3",
         "-std=c++11",
         "-shared",
-        # Necessary on windows, as here the M_PI etc.
-        # are not defined by mingw without the flag.
+        "-funroll-loops",  # Aggressive loop unrolling
     ]
     # Some additional warning reporting related flags
     cflags += [
         "-Wall",
         "-Wno-unknown-pragmas",
+        # Necessary on windows, as here the M_PI etc.
+        # are not defined by mingw without the flag.
         "-D_USE_MATH_DEFINES",
     ]
 
@@ -323,6 +325,15 @@ def _prepare_cflags(
         libname_double = os.path.abspath(root + "_double" + ext)
 
     elif "win" in sys.platform:
+        # Add optimization flags for Windows (same as POSIX)
+        if optimize:
+            if "-ffast-math" not in cflags:
+                cflags += ["-ffast-math"]
+            cflags = _add_avx_flags(
+                cflags=cflags,
+                compiler=compiler,
+            )
+
         root, ext = os.path.splitext(libname)
         if not ext:
             ext = ".dll"
