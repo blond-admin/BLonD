@@ -329,6 +329,53 @@ def calc_phi_s_single_harmonic(
     return phi
 
 
+def calc_synchrotron_tune_single_harmonic(
+    charge: float,
+    voltage: float,
+    beta: float,
+    energy: float,
+    phi_s: float,
+    harmonic: float,
+    eta_0: float,
+) -> float:
+    """
+    Function calculating the synchrotron tune.
+
+    The calculation assumes a single-harmonic RF system and no intensity
+    effects.
+
+    Parameters
+    ----------
+    charge
+        Particle charge, i.e. number of elementary charges `e`
+        Example: For an electron `charge=-1`.
+    voltage
+        RF voltage of the cavity, in [V].
+    beta
+        Relativistic beta factor [].
+    energy
+        Synchronous energy of the beam [eV].
+    phi_s
+        Synchronous phase [rad].
+    harmonic
+        Harmonic number of rf system [].
+    eta_0
+        Phase slip factor [].
+
+    Returns
+    -------
+    float
+        Synchrotron tune.
+    """
+    return np.sqrt(
+        harmonic
+        * np.abs(charge)
+        * voltage
+        * np.abs(eta_0 * np.cos(phi_s))
+        / (2 * np.pi * beta**2 * energy)
+    )
+
+
 def separatrix_single_rf_calculation(
     voltage: float,
     harmonic: int,

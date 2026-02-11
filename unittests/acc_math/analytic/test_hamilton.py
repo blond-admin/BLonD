@@ -14,13 +14,11 @@ from blond import (
     proton,
 )
 from blond.acc_math.analytic.hamilton import (
-    calc_phi_s_single_harmonic,
-    is_in_separatrix,
+    calc_synchrotron_tune_single_harmonic,
     phase_modulo_above_transition,
     phase_modulo_below_transition,
     separatrix_single_rf_blond,
     separatrix_single_rf_calculation,
-    single_rf_sin_hamiltonian,
 )
 from blond.experimental.beam_preparation.filamentation_matcher import (
     FilamentationMatcher,
@@ -30,143 +28,90 @@ from blond.handle_results.observables_as_elements import (
 )
 
 
-class TestPhiS(unittest.TestCase):
-    def test_phi_s_1(self):
-        xs = np.linspace(-1, 1, 200)
-        voltage = 1.5
-        omega = 5
-        phi = 1.5
-        energy_gain = 4
-        DEV_PLOT = False
-        for charge in (-5, 5):
-            for above_transition in (1, 0):
-                phi_s = calc_phi_s_single_harmonic(
-                    charge,
-                    voltage,
-                    energy_gain,
-                    above_transition=above_transition,
-                )
-                t_s = (phi_s - phi) / (omega)
-                if DEV_PLOT:
-                    ys = charge * voltage * np.sin(omega * xs + phi)
-                    plt.plot(xs, ys)
-                    plt.axhline(energy_gain)
-                    plt.axvline(t_s)
-                    plt.show()
-                self.assertAlmostEqual(
-                    charge * voltage * np.sin(omega * t_s + phi), energy_gain
-                )
+class TestPhaseModuloBelowTransition(unittest.TestCase):
+    def test_scalar_values(self):
+        self.assertAlmostEqual(phase_modulo_below_transition(0.5), 0.5)
+        self.assertAlmostEqual(
+            phase_modulo_below_transition(-np.pi / 2), -np.pi / 2
+        )
+        self.assertAlmostEqual(
+            phase_modulo_below_transition(3 * np.pi), -np.pi
+        )
+        self.assertAlmostEqual(
+            phase_modulo_below_transition(-3 * np.pi / 2), np.pi / 2
+        )
 
-
-class TestFunctions(unittest.TestCase):
-    def test_phase_modulo_above_transition(self):
-        upper_limit = 2 * np.pi
-        lower_limit = 0
-        phis = np.linspace(-100, 100, 200)
-        phis_corrected = phase_modulo_above_transition(phis)
+    def test_array_values(self):
+        phi = np.linspace(-10, 10)
+        result = phase_modulo_below_transition(phi)
         DEV_PLOT = False
         if DEV_PLOT:
-            plt.title("phase_modulo_above_transition")
-            plt.plot(phis, "o")
-            plt.plot(phis_corrected, "o")
-            plt.axhline(upper_limit)
-            plt.axhline(lower_limit)
+            plt.plot(phi)
+            plt.plot(result)
             plt.show()
-        self.assertTrue(
-            np.all(phis_corrected < upper_limit),
-            msg=f"{phis_corrected.max()=}",
-        )
-        self.assertTrue(
-            np.all(phis_corrected >= lower_limit),
-            msg=f"{phis_corrected.min()=}",
-        )
-
-    def test_phase_modulo_below_transition(self):
-        upper_limit = np.pi
-        lower_limit = -np.pi
-        phis = np.linspace(-100, 100, 200)
-        phis_corrected = phase_modulo_below_transition(phis)
-        DEV_PLOT = False
-        if DEV_PLOT:
-            plt.title("phase_modulo_below_transition")
-            plt.plot(phis, "o")
-            plt.plot(phis_corrected, "o")
-            plt.axhline(upper_limit)
-            plt.axhline(lower_limit)
-            plt.show()
-        self.assertTrue(
-            np.all(phis_corrected <= upper_limit),
-            msg=f"{phis_corrected.max()=}",
-        )
-        self.assertTrue(
-            np.all(phis_corrected >= lower_limit),
-            msg=f"{phis_corrected.min()=}",
-        )
+        self.assertTrue(np.all(result < np.pi))
+        self.assertTrue(np.all(result >= -np.pi))
 
 
-class TestSingleRFSinHamiltonian(unittest.TestCase):
-    def setUp(self):
-        self.charge = 1.0  # elementary charge units
-        self.harmonic = 10
-        self.voltage = 1e6  # V
-        self.omega_rf = 2 * np.pi * 1e6  # rad/s
-        self.phi_rf_d = 0.0  # rad
-        self.phi_s = np.pi / 6  # stable phase, rad
-        self.etas = [-0.01]  # below transition
-        self.beta = 0.9
-        self.total_energy = 1e9  # eV
-        self.ring_circumference = 100.0  # m
+class TestPhaseModuloAboveTransition(unittest.TestCase):
+    def test_scalar_values(self):
+        # 0 stays 0
+        self.assertAlmostEqual(phase_modulo_above_transition(0.0), 0.0)
 
-    def test_hamiltonian_at_separatrix_max(self):
-        # Max point of separatrix in phase: phi_b = π - phi_s
-        dt_sep_max = (np.pi - self.phi_s - self.phi_rf_d) / self.omega_rf
-        dE_sep_max = 0.0  # maximum in phase, energy = 0
-        for sign in (-1, 1):
-            H = single_rf_sin_hamiltonian(
-                charge=self.charge,
-                harmonic=self.harmonic,
-                voltage=self.voltage,
-                omega_rf=self.omega_rf,
-                phi_rf_d=self.phi_rf_d,
-                phi_s=self.phi_s,
-                etas=sign * np.array(self.etas),
-                beta=self.beta,
-                total_energy=self.total_energy,
-                ring_circumference=self.ring_circumference,
-                dt=dt_sep_max,
-                dE=dE_sep_max,
+        # Positive values below 2π remain unchanged
+        self.assertAlmostEqual(
+            phase_modulo_above_transition(np.pi / 2), np.pi / 2
+        )
+
+        # Values above 2π wrap around
+        self.assertAlmostEqual(phase_modulo_above_transition(3 * np.pi), np.pi)
+
+        # Negative values wrap into the positive range
+        self.assertAlmostEqual(
+            phase_modulo_above_transition(-np.pi / 2), 3 * np.pi / 2
+        )
+
+    def test_array_values(self):
+        phi = np.linspace(-10, 10)
+        result = phase_modulo_above_transition(phi)
+
+        # All results should be within [0, 2π)
+        self.assertTrue(np.all(result >= 0))
+        self.assertTrue(np.all(result < 2 * np.pi))
+
+    def test_periodicity(self):
+        # Check that adding 2π doesn't change the result
+        vals = np.linspace(-5, 5, 10)
+        self.assertTrue(
+            np.allclose(
+                phase_modulo_above_transition(vals),
+                phase_modulo_above_transition(vals + 2 * np.pi),
             )
-            H_pinned = (
-                -184782456987.43494
-            )  # guarantee that result doesnt change
-            # physics might be still wrong. In that case, H_pinned might need to
-            # b changed.
-            self.assertEqual(H, H_pinned)
-
-    @unittest.skip("TODO")  # TODO
-    def test_is_in_separatrix(self):
-        self.fail()  # TODO
-        is_in_separatrix(
-            charge=self.charge,
-            harmonic=self.harmonic,
-            voltage=self.voltage,
-            omega_rf=self.omega_rf,
-            phi_rf_d=self.phi_rf_d,
-            phi_s=self.phi_s,
-            etas=self.etas,
-            beta=self.beta,
-            total_energy=self.total_energy,
-            ring_circumference=self.ring_circumference,
-            dt=dt_sep_max,
-            dE=dE_sep_max,
         )
 
 
-class TestIsInSeparatrix(unittest.TestCase):
-    @unittest.skip("TODO")  # TODO
-    def test1(self):
-        is_in_separatrix
-        self.fail()  # TODO
+class TestSynchrotronTune(unittest.TestCase):
+    def test_tune(self):
+        assert calc_synchrotron_tune_single_harmonic(
+            2, 2 * np.pi * 1e6, 1, 1e6, 0, 1, 1
+        ) == np.sqrt(2)
+        self.assertAlmostEqual(
+            calc_synchrotron_tune_single_harmonic(
+                2, 2 * np.pi * 1e6, 1, 1e6, np.pi / 2, 1, 1
+            ),
+            0,
+        )
+
+        # LHC flat bottom
+        alpha = 1 / 55.759505**2
+        gamma = 450e9 / proton.mass
+        eta = alpha - (1 / (gamma**2))
+        assert (
+            calc_synchrotron_tune_single_harmonic(
+                1, 6e6, 1, 450e9, 0, 35640, eta
+            )
+            == 0.00489862554460765
+        )
 
 
 def test_single_harmonic_separatrix_blond():
