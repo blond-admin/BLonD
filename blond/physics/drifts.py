@@ -439,6 +439,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         # super()._invalidate_cache(DriftSimple.cached_props)
         pass
 
+
 class DriftExpert(DriftSimple):
     """
     Drift element using the exact relativistic drift formulation.
@@ -452,6 +453,11 @@ class DriftExpert(DriftSimple):
     def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine (exact drift).
+
+        Parameters
+        ----------
+        beam : BeamBaseClass
+            Beam.
         """
         # Common bookkeeping (checks, slicing, etc.)
         super(DriftSimple, self)._track(beam=beam)
@@ -478,5 +484,3 @@ class DriftExpert(DriftSimple):
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
             )
-
-

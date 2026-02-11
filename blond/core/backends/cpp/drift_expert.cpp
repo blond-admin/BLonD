@@ -48,6 +48,3 @@ extern "C" void drift_exact(real_t * __restrict__ beam_dt,
         );
     }
 }
-
-
-
