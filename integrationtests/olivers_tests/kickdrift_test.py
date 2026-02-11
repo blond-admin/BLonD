@@ -124,13 +124,6 @@ def main():  # noqa
             plt.pause(0.1)
             plt.cla()
 
-    """beam2 = deepcopy(beam1)
-    sim.profiling(
-        beams=(beam2,),
-        profile_start_turn_i=0,
-        profile_n_turns=N_TURNS,
-    )"""
-
     import cProfile
     import io
     import pstats
