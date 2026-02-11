@@ -22,8 +22,25 @@ class TestDenseArrayRecorder(unittest.TestCase):
     def tearDown(self):
         self.dense_array_recorder.purge_from_disk()
 
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
+    def test_init(self):
+        no_pre = DenseArrayRecorder(
+            filepath=callers_relative_path("deleteme", 1),
+            shape=(20, 10),
+            dtype=np.float32,
+            order="C",
+            overwrite=True,
+        )
+
+        pre = DenseArrayRecorder(
+            filepath=callers_relative_path("deleteme", 1),
+            shape=(20, 10),
+            dtype=np.float32,
+            order="C",
+            overwrite=True,
+            preallocate=True,
+        )
+
+        np.testing.assert_array_equal(pre._memory, no_pre._memory)
 
     def test_to_disk_from_disk(self):
         self.dense_array_recorder.to_disk()

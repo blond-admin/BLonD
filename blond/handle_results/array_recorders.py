@@ -97,6 +97,9 @@ class DenseArrayRecorder(ArrayRecorder):
         Memory layout order ('C' or 'F').
     overwrite
         Whether to overwrite existing files.
+    preallocate
+        Flag to force memory preallocation to ensure early failure if
+        too much data is requested.
 
     Notes
     -----
@@ -112,9 +115,15 @@ class DenseArrayRecorder(ArrayRecorder):
         dtype: DTypeLike | None = None,
         order: Literal["C", "F"] = "C",
         overwrite: bool = True,
+        preallocate: bool = False,
     ):
-        # reserve full memory at init to avoid memory overflow during runtime
+        # Declare expected size of data in advance use zeros for safety,
+        # less weird results in case of partial data
         self._memory = np.zeros(shape=shape, dtype=dtype, order=order)
+        if preallocate:
+            # Optionally, force full allocation to detect memory
+            # overflow early
+            self._memory *= 0
         self._write_idx = 0
 
         self.filepath = filepath
