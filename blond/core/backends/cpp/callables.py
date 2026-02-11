@@ -129,7 +129,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             raise TypeError(floattype)
     except (OSError, FileNotFoundError) as exc:
         raise OSError(
-            "`load_libblond` failed. Has the backend been compiled?"
+            "`load_libblond` failed. Has the backend been compiled?\n"
+            f"{__file__.replace('callables.py', 'compile.py')}:1"
         ) from exc
 
     def _getPointer(x: NumpyArray) -> ct.c_void_p:

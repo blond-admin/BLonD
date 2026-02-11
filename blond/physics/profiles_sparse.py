@@ -120,7 +120,8 @@ class StaticMultiProfile(MultiProfile):
             this_stop = profiles[i].cut_right
             next_start = profiles[i + 1].cut_left
             assert this_stop <= next_start, (
-                "The profiles are not allowed to overlap"
+                "The profiles are not allowed to overlap."
+                f"{this_stop=} {next_start=}"
             )
         self.profiles: tuple[StaticProfile, ...] = profiles
         self._continuous_memory_hist_x: NumpyArray | CupyArray | None = None
