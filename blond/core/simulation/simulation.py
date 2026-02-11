@@ -1270,7 +1270,7 @@ class Simulation(Preparable):
                 warnings.warn(str(exc), UserWarning, stacklevel=3)
         elif self.check_circumference == "ignore":
             pass
-        else:
+        else:  # pragma: no cover
             raise ValueError(f"Unknown {self.check_circumference=}")
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
