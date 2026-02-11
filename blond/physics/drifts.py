@@ -16,6 +16,9 @@ from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
+import numpy as np
+from numpy.typing import NDArray as NumpyArray
+
 from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
@@ -27,8 +30,6 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
-
-    from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
@@ -448,7 +449,30 @@ class DriftExpert(DriftSimple):
       - exact delta from dE
       - full alpha(delta) expansion
       - exact (1 + dE/E) / (1 + delta) factor
+
+    Parameters
+    ----------
+
     """
+
+    def __init__(
+        self,
+        orbit_length: float,
+        section_index: int = 0,
+        transition_gamma: complex | float | None = None,
+        momentum_compaction_factor: float | None = None,
+        higher_order_alpha: NumpyArray | None = None,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        super().__init__(
+            orbit_length=orbit_length,
+            section_index=section_index,
+            transition_gamma=transition_gamma,
+            momentum_compaction_factor=momentum_compaction_factor,
+            **kwargs,
+        )
+
+        self.higher_order_alpha = higher_order_alpha
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -458,6 +482,12 @@ class DriftExpert(DriftSimple):
         ----------
         beam : BeamBaseClass
             Beam.
+        orbit_length : float
+            Orbit length of the drift.
+        transition_gamma : complex | float | None
+            Transition gamma.
+        momentum_compaction_factor : float | None
+            First order momentum compaction factor.
         """
         super(DriftSimple, self)._track(beam=beam)
 
@@ -471,6 +501,8 @@ class DriftExpert(DriftSimple):
         # Advance reference
         dt = self.track_reference(beam.reference)
 
+        higher_alpha = np.asarray(self.higher_order_alpha, dtype=np.float64)
+
         # Track macroparticles
         if beam.common_array_size > 0:
             backend.specials.drift_exact(
@@ -478,8 +510,8 @@ class DriftExpert(DriftSimple):
                 dE=beam.read_partial_dE(),
                 T=dt,
                 alpha_0=self.alpha_0,
-                alpha_1=getattr(self, "alpha_1", 0.0),  # todo
-                alpha_2=getattr(self, "alpha_2", 0.0),  # todo
+                higher_alpha=higher_alpha,
+                n_alpha=len(higher_alpha),
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
             )
