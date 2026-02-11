@@ -26,6 +26,7 @@ import warnings
 from collections import deque
 from typing import TYPE_CHECKING
 
+import numba
 import numpy as np
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
@@ -1217,6 +1218,14 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._states = np.empty(len(self._poles) + 1, complex)
         self._states[-1] = self._profile.profiles[0].cut_left
 
+        n_threads = numba.config.NUMBA_NUM_THREADS
+        self._voltage_threaded = np.zeros((n_threads, len(self._voltage)))
+        self._update_on_bin = backend.array(
+            np.cumsum(self._profile._bins_per_profile)
+            - self._profile._bins_per_profile,
+            dtype=np.int32,
+        )
+
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
@@ -1235,7 +1244,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         """
         if self._poles is None:
             self._finalize_solver()
-
+        assert self._update_on_bin[0] == 0, "First bib must always update"
         apply_poles2(
             profile=self._profile._continuous_memory_hist_y,
             profile_dts=self._profile._continuous_memory_hist_x,
@@ -1243,6 +1252,8 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             residues=self._residues,
             states=self._states,
             voltage=self._voltage,
+            voltage_threaded=self._voltage_threaded,
+            update_on_bin=self._update_on_bin,
         )
 
         return self._voltage

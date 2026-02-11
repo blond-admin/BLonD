@@ -8,6 +8,7 @@
 
 import numba
 import numpy as np
+from numba import complex128, float64, int32, prange, void
 
 
 @numba.njit()
@@ -19,6 +20,7 @@ def apply_single_pole(
     voltage: np.ndarray,
     states: np.ndarray,
     pole_i: int,
+    update_on_bin: np.ndarray,
 ):
     # y[n] = profile[n] + exp(p * dt) * y[n-1]
     # V[n] = 2 * Re(r * y[n])
@@ -26,11 +28,16 @@ def apply_single_pole(
     # state = 0.0 + 0.0j
     state = states[pole_i]
     t_previous = states[-1]
+    mlk = 0
+    update_on_bin_i = update_on_bin[mlk]
     for bin_i in range(n_bins):
         profile_i_ = profile[bin_i]
-        t_current = profile_dts[bin_i]
-        dt = t_current - t_previous
-        decay = np.exp(pole * dt)
+        if bin_i == update_on_bin_i:
+            t_current = profile_dts[bin_i]
+            dt = t_current - t_previous
+            decay = np.exp(pole * dt)
+            mlk += 1
+            update_on_bin_i = update_on_bin[mlk]
 
         state = state * decay + 0.5 * profile_i_
         voltage[bin_i] += 2 * np.real(residue * state)
@@ -41,9 +48,6 @@ def apply_single_pole(
     states[-1] = t_previous
 
 
-from numba import complex128, float64, prange, void
-
-
 @numba.njit(
     void(
         float64[:],
@@ -52,6 +56,8 @@ from numba import complex128, float64, prange, void
         complex128[:],
         complex128[:],
         float64[:],
+        float64[:, :],
+        int32[:],
     ),
     fastmath=True,
     parallel=True,
@@ -65,11 +71,10 @@ def apply_poles2(
     # write
     states,
     voltage,
+    voltage_threaded,
+    update_on_bin,
 ):
-    n_threads = numba.get_num_threads()  # this prevents caching
     n_poles = len(poles)
-
-    array_tmp = np.zeros((n_threads, len(voltage)))
 
     for i in prange(n_poles):
         thread_i = numba.get_thread_id()
@@ -79,8 +84,9 @@ def apply_poles2(
             profile_dts,
             poles[i],
             residues[i],
-            array_tmp[thread_i, :],
+            voltage_threaded[thread_i, :],
             states,
             i,
+            update_on_bin,
         )
-    voltage[:] = np.sum(array_tmp, axis=0)
+    voltage[:] = np.sum(voltage_threaded, axis=0)
