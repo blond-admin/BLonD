@@ -495,7 +495,7 @@ class DriftExact(DriftSimple):
         beam : BeamBaseClass
             Beam.
         """
-        super(DriftSimple, self)._track(beam=beam)
+        super(DriftBaseClass)._track(beam=beam)
 
         # Apply schedules if active
         if self.schedule_active:
