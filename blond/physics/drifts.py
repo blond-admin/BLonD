@@ -442,7 +442,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
 class DriftExpert(DriftSimple):
     """
-    Drift element using the exact relativistic drift formulation.
+    Drift element using the exact drift formulation.
 
     This replaces the simple drift with the exact solver based on:
       - exact delta from dE
@@ -459,7 +459,6 @@ class DriftExpert(DriftSimple):
         beam : BeamBaseClass
             Beam.
         """
-        # Common bookkeeping (checks, slicing, etc.)
         super(DriftSimple, self)._track(beam=beam)
 
         # Apply schedules if active
@@ -469,7 +468,7 @@ class DriftExpert(DriftSimple):
                 reference_time=beam.reference.time,
             )
 
-        # Advance reference particle
+        # Advance reference
         dt = self.track_reference(beam.reference)
 
         # Track macroparticles
@@ -479,8 +478,8 @@ class DriftExpert(DriftSimple):
                 dE=beam.read_partial_dE(),
                 T=dt,
                 alpha_0=self.alpha_0,
-                alpha_1=getattr(self, "alpha_1", 0.0),
-                alpha_2=getattr(self, "alpha_2", 0.0),
+                alpha_1=getattr(self, "alpha_1", 0.0), # todo
+                alpha_2=getattr(self, "alpha_2", 0.0), # todo
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
             )
