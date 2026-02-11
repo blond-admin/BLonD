@@ -120,8 +120,8 @@ class Specials(ABC):
         dE: NumpyArray,
         T: float,
         alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
+        higher_alpha: NumpyArray,
+        n_alpha: int,
         beta: float,
         energy: float,
     ) -> None:

@@ -441,7 +441,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         pass
 
 
-class DriftExpert(DriftSimple):
+class DriftExact(DriftSimple):
     """
     Drift element using the exact drift formulation.
 
