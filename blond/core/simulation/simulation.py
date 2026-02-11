@@ -45,7 +45,7 @@ from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.warnings_ import PerformanceWarning
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
+    from typing import Any, Literal
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -122,6 +122,11 @@ class Simulation(Preparable):
     section_i
         Counter tracking the current section (element) within a turn. Value is ``None``
         when not running.
+    check_circumference
+        Behaviour, if  the drifts don't sum up to the ring.circumference.
+        - "raise": Raise an exception.
+        - "warn": User warning is displayed.
+        - "ignore": The program ignors the mismatch.
     _ring
         The synchrotron ring (read-only property).
     _magnetic_cycle
@@ -165,6 +170,8 @@ class Simulation(Preparable):
         self.section_i = DynamicParameter(0)
         self.intensity_effect_manager = IntensityEffectManager(simulation=self)
 
+        self.check_circumference: Literal["raise", "warn", "ignore"] = "raise"
+
         self._current_t_rev = None
         self._particle_performance_waning_threshold = int(1e3)
         self.execution_model: ExecutionModel | None = None
@@ -172,9 +179,9 @@ class Simulation(Preparable):
 
     def profiling(
         self,
-        beams: tuple[BeamBaseClass],
-        profile_n_turns: int | float,
-        profile_start_turn_i: int = 0,
+        beams: BeamBaseClass | tuple[BeamBaseClass],
+        n_turns: int | float,
+        start_turn_i: int = 0,
         sortby: SortKey = SortKey.CUMULATIVE,
     ) -> None:
         """
@@ -191,9 +198,9 @@ class Simulation(Preparable):
         ----------
         beams
             Beams to simulate during profiling (typically just one).
-        profile_n_turns
+        n_turns
             Number of turns to profile after starting.
-        profile_start_turn_i
+        start_turn_i
             Turn number at which to begin profiling.
         sortby
             How to sort the profiling results. Options include:
@@ -222,13 +229,13 @@ class Simulation(Preparable):
         >>> sim.profiling(
         ...     beams=(beam1,),
         ...
-        ...     profile_start_turn_i=10,  # Skip first 10 turns
-        ...     profile_n_turns=100,       # Profile next 100 turns
+        ...     start_turn_i=10,  # Skip first 10 turns
+        ...     n_turns=100,       # Profile next 100 turns
         ...     sortby=SortKey.CUMULATIVE,
         ... )
         # Prints detailed timing statistics
         """
-        assert profile_start_turn_i >= 0
+        assert start_turn_i >= 0
 
         import cProfile
         import io
@@ -248,11 +255,11 @@ class Simulation(Preparable):
             beam
                 The `Beam` object.
             """
-            if simulation.turn_i.value == profile_start_turn_i:
+            if simulation.turn_i.value == start_turn_i:
                 pr.enable()
 
-        end_turn = profile_start_turn_i + int_from_float_with_warning(
-            profile_n_turns, warning_stacklevel=2
+        end_turn = start_turn_i + int_from_float_with_warning(
+            n_turns, warning_stacklevel=2
         )
 
         self.run_simulation(
@@ -298,7 +305,7 @@ class Simulation(Preparable):
             If False, normalizes so ``potential_well[0] = 0``.
         **kwargs_plot
             Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
-            for customizing the plot appearance (e.g., color='red', linewidth=2).
+            for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
 
         See Also
         --------
@@ -1253,7 +1260,18 @@ class Simulation(Preparable):
         beams = _single_beam_to_tuple(beams)
         if self.execution_model is None:
             self._autoselect_execution_model(beams)
-        self.ring.assert_circumference()
+
+        if self.check_circumference == "raise":
+            self.ring.assert_circumference()
+        elif self.check_circumference == "warn":
+            try:
+                self.ring.assert_circumference()
+            except (AssertionError, ValueError) as exc:
+                warnings.warn(str(exc), UserWarning, stacklevel=3)
+        elif self.check_circumference == "ignore":
+            pass
+        else:
+            raise ValueError(f"Unknown {self.check_circumference=}")
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(

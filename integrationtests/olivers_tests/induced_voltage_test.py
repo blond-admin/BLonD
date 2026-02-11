@@ -146,14 +146,6 @@ def main():  # noqa
             label=f"BLonD3 {simulation.turn_i.value=}",
         )
 
-    """sim.profiling(
-        beams=(beam1,),
-        turn_i_init=0,
-        profile_start_turn_i=0,
-        profile_n_turns=N_TURNS,
-        sortby=SortKey.TIME,
-    )"""
-
     try:
         sim.load_results(
             n_turns=N_TURNS,
