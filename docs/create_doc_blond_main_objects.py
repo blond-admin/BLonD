@@ -97,6 +97,9 @@ def main():
     :show-inheritance:
     :noindex:
 
+.. autoclass::
+{blond.acc_math.synchrotron_radiation.synchrotron_radiation_maths}
+    :noindex:
 """
 
             category = ASSIGNED_CATEGORIES[name]
