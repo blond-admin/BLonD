@@ -326,17 +326,19 @@ class PythonSpecials(Specials):
 
     @staticmethod
     def drift_exact(
-            dt: NumpyArray,
-            dE: NumpyArray,
-            T: float,
-            alpha_0: float,
-            higher_alpha: NumpyArray,
-            n_alpha: int,
-            beta: float,
-            energy: float,
-            n_macroparticles: int,
+        dt: NumpyArray,
+        dE: NumpyArray,
+        T: float,
+        alpha_0: float,
+        higher_alpha: NumpyArray,
+        n_alpha: int,
+        beta: float,
+        energy: float,
+        n_macroparticles: int,
     ) -> None:  # pragma: no cover
-        """
+        r"""
+        Exact drift equation of motion with higher order momentum compaction factors.
+
         Parameters
         ----------
         dt : NumpyArray
@@ -348,26 +350,27 @@ class PythonSpecials(Specials):
         alpha_0 : float
             Momentum compaction factor [unitless].
         higher_alpha : NumpyArray
-            Momentum compaction factor to higher orders
+            Momentum compaction factor to higher orders.
         n_alpha : int
-            number of orders for momentum compaction factor.
+            Number of orders for momentum compaction factor.
         beta
             Relativistic velocity factor :math:\beta = v/c [unitless].
         energy
-            Total beam energy [eV]. """
-
+            Total beam energy [eV].
+        n_macroparticles
+            Number of macroparticles [unitless].
+        """
         invbetasq = 1.0 / (beta * beta)
         inv_energy = 1.0 / energy
         inv_energy_sq = inv_energy * inv_energy
 
         # delta (vectorized)
         beam_delta = (
-                np.sqrt(
-                    1.0
-                    + invbetasq
-                    * (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)
-                )
-                - 1.0
+            np.sqrt(
+                1.0
+                + invbetasq * (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)
+            )
+            - 1.0
         )
 
         # ---- Polynomial evaluation ----
@@ -381,12 +384,7 @@ class PythonSpecials(Specials):
                 delta_power *= beam_delta  # next power
 
         # ---- Final update ----
-        dt += T * (
-                poly
-                * (1.0 + dE * inv_energy)
-                / (1.0 + beam_delta)
-                - 1.0
-        )
+        dt += T * (poly * (1.0 + dE * inv_energy) / (1.0 + beam_delta) - 1.0)
 
     @staticmethod
     def kick_induced_voltage(

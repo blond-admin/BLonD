@@ -468,9 +468,7 @@ class DriftExact(DriftSimple):
 
     Notes
     -----
-    There is no such thing as a higher order transition gamma, it is defined
-
-    gamma_{tr} = \sqrt{1/alpha_0}.
+    There is no such thing as a higher order transition gamma.
     https://lss.fnal.gov/archive/test-fn/0000/fermilab-fn-0900-apc.pdf
     """
 
@@ -502,7 +500,6 @@ class DriftExact(DriftSimple):
         beam : BeamBaseClass
             Beam.
         """
-
         # Apply schedules if active
         if self.schedule_active:
             self.apply_schedules(
