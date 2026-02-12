@@ -174,7 +174,6 @@ test_minimum:
     # Compile C++, CUDA, Fortran backends
     - python blond/core/backends/cpp/compile.py --parallel
     - python blond/core/backends/cuda/compile.py
-    - python blond/core/backends/fortran/compile.py
 
   # Replace .main to use python from venv not python3 from system
   script:
