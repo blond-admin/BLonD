@@ -326,58 +326,66 @@ class PythonSpecials(Specials):
 
     @staticmethod
     def drift_exact(
-        dt: NumpyArray,
-        dE: NumpyArray,
-        T: float,
-        alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
-        beta: float,
-        energy: float,
-    ) -> None:  # pragma: no cover # TODO
-        r"""
-        Function to apply drift equation of motion.
-
+            dt: NumpyArray,
+            dE: NumpyArray,
+            T: float,
+            alpha_0: float,
+            higher_alpha: NumpyArray,
+            n_alpha: int,
+            beta: float,
+            energy: float,
+            n_macroparticles: int,
+    ) -> None:  # pragma: no cover
+        """
         Parameters
         ----------
-        dt
+        dt : NumpyArray
             Macro-particle time coordinates, in [s].
-        dE
+        dE : NumpyArray
             Macro-particle energy coordinates, in [eV].
-        T
+        T : float
             Revolution period, in [s].
-        alpha_0
+        alpha_0 : float
             Momentum compaction factor [unitless].
-        alpha_1
-            Momentum compaction factor [unitless].
-        alpha_2
-            Momentum compaction factor [unitless].
+        higher_alpha : NumpyArray
+            Momentum compaction factor to higher orders
+        n_alpha : int
+            number of orders for momentum compaction factor.
         beta
-            Relativistic velocity factor :math:`\beta = v/c` [unitless].
+            Relativistic velocity factor :math:\beta = v/c [unitless].
         energy
-            Total beam energy [eV].
-        """
-        # solver_decoded = solver.decode(encoding='utf_8')
+            Total beam energy [eV]. """
 
-        invbetasq = 1 / (beta * beta)
-        invenesq = 1 / (energy * energy)
-        # double beam_delta;
+        invbetasq = 1.0 / (beta * beta)
+        inv_energy = 1.0 / energy
+        inv_energy_sq = inv_energy * inv_energy
 
+        # delta (vectorized)
         beam_delta = (
-            np.sqrt(1.0 + invbetasq * (dE * dE * invenesq + 2.0 * dE / energy))
-            - 1.0
+                np.sqrt(
+                    1.0
+                    + invbetasq
+                    * (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)
+                )
+                - 1.0
         )
 
+        # ---- Polynomial evaluation ----
+        poly = 1.0 + alpha_0 * beam_delta
+
+        if n_alpha > 0:
+            delta_power = beam_delta * beam_delta  # δ²
+
+            for k in range(n_alpha):
+                poly += higher_alpha[k] * delta_power
+                delta_power *= beam_delta  # next power
+
+        # ---- Final update ----
         dt += T * (
-            (
-                1.0
-                + alpha_0 * beam_delta
-                + alpha_1 * (beam_delta * beam_delta)
-                + alpha_2 * (beam_delta * beam_delta * beam_delta)
-            )
-            * (1.0 + dE / energy)
-            / (1.0 + beam_delta)
-            - 1.0
+                poly
+                * (1.0 + dE * inv_energy)
+                / (1.0 + beam_delta)
+                - 1.0
         )
 
     @staticmethod

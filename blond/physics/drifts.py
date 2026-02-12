@@ -513,7 +513,7 @@ class DriftExact(DriftSimple):
         # Advance reference
         dt = self.track_reference(beam.reference)
 
-        higher_alpha = np.asarray(self.higher_order_alpha, dtype=np.float64)
+        higher_alpha = np.asarray(self.higher_order_alpha)
 
         # Track macroparticles
         if beam.common_array_size > 0:
