@@ -98,7 +98,7 @@ def main():
     :noindex:
 
 .. autoclass::
-{blond.acc_math.synchrotron_radiation.synchrotron_radiation_maths}
+{blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths}
     :noindex:
 """
 
