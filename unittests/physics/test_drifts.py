@@ -10,7 +10,7 @@ from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
-from blond.physics.drifts import DriftBaseClass, DriftSimple
+from blond.physics.drifts import DriftBaseClass, DriftSimple, DriftExact
 
 
 class DriftBaseClassHelper(DriftBaseClass):
@@ -227,6 +227,21 @@ class TestDriftSimple(unittest.TestCase):
                 momentum_compaction_factor=2.5,
                 transition_gamma=2.5j,
             )
+
+class TestDriftExact(unittest.TestCase):
+    def setUp(self):
+        self.gamma = 2.5
+        # params from
+        # https://proceedings.jacow.org/e08/papers/thpc044.pdf
+        self.drift_exact = DriftExact(
+            orbit_length=63.13,
+            section_index=0,
+            momentum_compaction_factor=0.0001278,
+            higher_order_alpha=np.array([1.49]))
+        # should this be higher order?
+        self.drift_exact.transition_gamma = 1/(np.sqrt(0.0001278))
+
+
 
 
 class TestDriftSpecial(unittest.TestCase):
