@@ -98,7 +98,7 @@ def main():
     :noindex:
 
 .. autoclass::
-{blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths}
+{"/builds/blond/BLonD/blond/acc_math/analytic/synchrotron_radiation/synchrotron_radiation_maths.py"}
     :noindex:
 """
 
