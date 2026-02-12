@@ -450,14 +450,6 @@ class DriftExact(DriftSimple):
       - full alpha(delta) expansion
       - exact (1 + dE/E) / (1 + delta) factor
 
-
-    Notes
-    -----
-    There is no such thing as a higher order transition gamma, it is defined
-
-    gamma_{tr} = 1/alpha_0.
-    https://lss.fnal.gov/archive/test-fn/0000/fermilab-fn-0900-apc.pdf
-
     Parameters
     ----------
     orbit_length : float
@@ -473,6 +465,13 @@ class DriftExact(DriftSimple):
         Higher-order alpha array up to desired order.
     **kwargs
         Additional keyword arguments for MRO of fused elements.
+
+    Notes
+    -----
+    There is no such thing as a higher order transition gamma, it is defined
+
+    gamma_{tr} = 1/alpha_0.
+    https://lss.fnal.gov/archive/test-fn/0000/fermilab-fn-0900-apc.pdf
     """
 
     def __init__(
@@ -481,7 +480,7 @@ class DriftExact(DriftSimple):
         section_index: int = 0,
         transition_gamma: complex | float | None = None,
         momentum_compaction_factor: float | None = None,
-        higher_order_alpha: NumpyArray | None = None, # or list?
+        higher_order_alpha: NumpyArray | None = None,  # or list?
         **kwargs: dict[str, Any],
     ) -> None:
         super().__init__(
@@ -529,6 +528,3 @@ class DriftExact(DriftSimple):
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
             )
-
-
-
