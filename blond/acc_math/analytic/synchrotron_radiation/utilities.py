@@ -9,7 +9,9 @@
 """
 Collection of gathering functions for synchrotron radiation simulations.
 
-Author:
+Notes
+-----
+Authors:
 L.Valle
 """
 
