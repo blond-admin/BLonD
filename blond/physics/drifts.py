@@ -470,7 +470,7 @@ class DriftExact(DriftSimple):
     -----
     There is no such thing as a higher order transition gamma, it is defined
 
-    gamma_{tr} = 1/alpha_0.
+    gamma_{tr} = \sqrt{1/alpha_0}.
     https://lss.fnal.gov/archive/test-fn/0000/fermilab-fn-0900-apc.pdf
     """
 
