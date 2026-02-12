@@ -256,7 +256,6 @@ class BackendBaseClass(ABC):
             "python",
             "cpp",
             "numba",
-            "fortran",
             "cuda",
         ],
         is_gpu: bool,
@@ -390,7 +389,6 @@ class BackendBaseClass(ABC):
             "python",
             "cpp",
             "numba",
-            "fortran",
             "cuda",
         )
         if _backend_mode_raw in _allowed_backend_modes:
@@ -398,7 +396,6 @@ class BackendBaseClass(ABC):
                 "python",
                 "cpp",
                 "numba",
-                "fortran",
                 "cuda",
             ] = _backend_mode_raw  # type: ignore
         else:
@@ -665,7 +662,6 @@ class NumpyBackend(BackendBaseClass):
             "python",
             "cpp",
             "numba",
-            "fortran",
         ],
     ) -> None:
         """
@@ -695,15 +691,6 @@ class NumpyBackend(BackendBaseClass):
 
             NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
-            self.specials_mode = mode
-        elif mode == "fortran":
-            from blond.core.backends.fortran.callables import (
-                reload_fortran_backend,
-            )
-
-            FortranSpecials = reload_fortran_backend(self.float)
-
-            self.specials = FortranSpecials()
             self.specials_mode = mode
         else:
             raise ValueError(mode)
