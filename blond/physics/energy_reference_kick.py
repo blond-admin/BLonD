@@ -53,7 +53,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
 
     def __init__(
         self,
-        section_index: int,
+        section_index: int = 0,
         name: str | None = None,
         **kwargs,
     ):

@@ -65,7 +65,6 @@ blond/                        BLonD beam dynamics software.
 ├──── backends/               All helper functions and implementations for the numeric backends of BLonD.
 ├────── cpp/                  Holds `CppSpecials` and helper functions.
 ├────── cuda/                 Holds `CduaSpecials` and helper functions.
-├────── fortran/              Holds `FortranSpecials` and helper functions.
 ├────── numba/                Holds `NumbaSpecials` and helper functions.
 ├────── python/               Holds `PythonSpecials` and helper functions.
 ├────── mpi_distributed/      Functions to interface with MPI distributed arrays.

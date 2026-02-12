@@ -110,7 +110,6 @@ blond.core.beam.beams
 blond.core.beam.base
 blond.core.base
 blond.core.backends.python.callables
-blond.core.backends.fortran.callables
 blond.core.backends.cpp.callables
 blond.core.backends.backend
 """
