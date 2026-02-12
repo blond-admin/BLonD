@@ -502,7 +502,6 @@ class DriftExact(DriftSimple):
         beam : BeamBaseClass
             Beam.
         """
-        super(DriftBaseClass)._track(beam=beam)
 
         # Apply schedules if active
         if self.schedule_active:
@@ -527,4 +526,5 @@ class DriftExact(DriftSimple):
                 n_alpha=len(higher_alpha),
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
+                n_macroparticles=beam.common_array_size,
             )

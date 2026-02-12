@@ -15,8 +15,7 @@
 
 extern "C" void drift_exact(real_t * __restrict__ beam_dt,
                             const real_t * __restrict__ beam_dE,
-                            const real_t T0,
-                            const real_t length_ratio,
+                            const real_t T,
                             const real_t alpha_zero,
                             const real_t* __restrict__ higher_alpha,
                             const int n_alpha,
@@ -24,7 +23,6 @@ extern "C" void drift_exact(real_t * __restrict__ beam_dt,
                             const real_t energy,
                             const int n_macroparticles)
 {
-    const real_t T = T0 * length_ratio;
     const real_t inv_beta_sq = 1.0 / (beta * beta);
     const real_t inv_energy  = 1.0 / energy;
     const real_t inv_energy_sq = inv_energy * inv_energy;

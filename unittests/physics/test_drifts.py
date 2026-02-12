@@ -240,8 +240,27 @@ class TestDriftExact(unittest.TestCase):
             momentum_compaction_factor=0.0001278,
             higher_order_alpha=np.array([1.49]),
         )
-        # should this be higher order?
-        self.drift_exact.transition_gamma = 1 / (np.sqrt(0.0001278))
+
+    def test_track(self):
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.common_array_size = 1
+        beam.reference.time = float(0)
+        beam.reference.beta = float(0.5)
+        beam.reference.velocity = float(beam.reference.beta * c0)
+        beam.reference.gamma = float(np.sqrt(1 - 0.25))
+        beam.reference.total_energy = float(938)
+
+        beam.dE = backend.linspace(
+            -1e6, 1e6, 10, dtype=backend.float
+        )  # delta E in eV
+        beam.dt = backend.linspace(
+            -1e-6, 1e-6, 10, dtype=backend.float
+        )  # delta t in s
+        beam.write_partial_dt.return_value = beam.dt
+        beam.read_partial_dE.return_value = beam.dE
+
+        self.drift_exact.track(beam=beam)
 
 
 class TestDriftSpecial(unittest.TestCase):

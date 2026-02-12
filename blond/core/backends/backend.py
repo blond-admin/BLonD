@@ -124,6 +124,7 @@ class Specials(ABC):
         n_alpha: int,
         beta: float,
         energy: float,
+        n_macroparticles: int,
     ) -> None:
         raise NotImplementedError(
             "Abstract method `drift_exact` is not implemented."
