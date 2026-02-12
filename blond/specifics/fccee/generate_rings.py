@@ -20,9 +20,13 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
-    SynchrotronRadiationMaster,
-    WigglerMagnet,
     positron,
+)
+from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (
+    WigglerMagnet,
+)
+from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
+    SynchrotronRadiationMaster,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
