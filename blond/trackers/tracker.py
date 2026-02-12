@@ -598,16 +598,9 @@ class RingAndRFTracker:
                         for i, profile in enumerate(
                             self.profile.profiles_list
                         ):
-                            n_macroparticles = profile.n_slices
                             bm.linear_interp_kick(
-                                dt=self.beam.dt[
-                                    i * n_macroparticles : (i + 1)
-                                    * n_macroparticles
-                                ],
-                                dE=self.beam.dE[
-                                    i * n_macroparticles : (i + 1)
-                                    * n_macroparticles
-                                ],
+                                dt=self.beam.dt,
+                                dE=self.beam.dE,
                                 voltage=self.total_voltage,
                                 bin_centers=profile.bin_centers,
                                 charge=self.beam.Particle.charge,
