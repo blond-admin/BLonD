@@ -45,14 +45,14 @@ def make_multibunch_beam(
         particle_type=beam.particle_type,
         is_counter_rotating=beam.is_counter_rotating,
     )
-
-    size = beam._dt.local_size
+    # np.repeat([1,2], 2)
+    # array([1, 1, 2, 2])
     full_dE = backend.repeat(beam._dE.array_local, n_times)
 
     full_dt = backend.repeat(beam._dt.array_local, n_times)
     for i in range(n_times):
         t_offset = t_distance * i + common_offset
-        sel = slice(i * size, (i + 1) * size)
+        sel = slice(i, None, n_times)
         full_dt[sel] += t_offset
 
     full_beam.setup_beam(
