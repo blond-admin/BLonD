@@ -1055,6 +1055,23 @@ class Simulation(Preparable):
             callbacks=callbacks,
         )
 
+    def _plot_input_info(
+        self,
+        beams: tuple[BeamBaseClass, ...],
+        n_turns: int | None = None,
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
+        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+    ):
+        for i, beam in enumerate(beams):
+            print(
+                f"Beam {i} has {beam._dt.global_size:.2e} macroparticles",
+                end="",
+            )
+            if beam._dt.is_distributed:
+                print(f" ({beam._dt.local_size:.2e} on this node)")
+        print(f"{n_turns=}")
+        print(f"{self.ring.elements.n_elements=}")
+
     def run_simulation(
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
@@ -1197,6 +1214,13 @@ class Simulation(Preparable):
             n_turns=n_turns,
             observe=observe,
         )
+        self._plot_input_info(
+            beams=beams,
+            n_turns=n_turns,
+            observe=observe,
+            callbacks=callbacks,
+        )
+
         self.mainloop(
             beams=beams,
             n_turns=_n_turns,
