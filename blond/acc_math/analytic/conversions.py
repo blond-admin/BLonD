@@ -23,8 +23,6 @@ from typing import TYPE_CHECKING, overload
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-from blond.core.backends.backend import backend
-
 if TYPE_CHECKING:
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
