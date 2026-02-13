@@ -15,6 +15,7 @@ from blond import (
     MagneticCyclePerTurnAllRFStations,
     proton,
 )
+from blond.acc_math.analytic.conversions import magnetic_rigidity_to_momentum
 from blond.acc_math.analytic.simple_math import (
     beta_by_momentum,
     calc_beta,
@@ -27,7 +28,6 @@ from blond.core.beam.particle_types import ParticleType, uranium_29
 from blond.cycles.magnetic_cycle import (
     MagneticCycleBase,
     _to_magnetic_rigidity,
-    magnetic_rigidity_to_momentum,
 )
 from blond.testing.simulation import (
     ExampleSimulation01,
