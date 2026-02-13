@@ -21,31 +21,39 @@ def apply_single_pole(
     states: np.ndarray,
     pole_i: int,
     update_on_bin: np.ndarray,
+    t_start,
 ):
+    print("pole_i", pole_i)
     # y[n] = profile[n] + exp(p * dt) * y[n-1]
     # V[n] = 2 * Re(r * y[n])
     n_bins = len(profile)
     # state = 0.0 + 0.0j
     state = states[pole_i]
-    t_previous = states[-1]
-    mlk = 0
-    update_on_bin_i = update_on_bin[mlk]
+    i_update = 0
+    update_on_bin_i = update_on_bin[i_update]
     for bin_i in range(n_bins):
         profile_i_ = profile[bin_i]
-        if bin_i == update_on_bin_i:
-            t_current = profile_dts[bin_i]
-            dt = t_current - t_previous
-            decay = np.exp(pole * dt)
-            mlk += 1
-            update_on_bin_i = update_on_bin[mlk]
 
-        state = state * decay + 0.5 * profile_i_
-        voltage[bin_i] += 2 * np.real(residue * state)
+        if bin_i == update_on_bin_i:
+            if bin_i == 0:
+                t_jump = profile_dts[0] - t_start
+            else:
+                t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1]
+            print(t_jump)
+            state *= np.exp(pole * t_jump)
+            dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
+            decay = np.exp(pole * dt)
+
+            i_update += 1
+            if i_update < len(update_on_bin):
+                update_on_bin_i = update_on_bin[i_update]
+        else:
+            state *= decay
         state += 0.5 * profile_i_
-        t_previous = t_current
+        voltage[bin_i] += 2 * np.real(residue * state)
+        state = state + 0.5 * profile_i_
 
     states[pole_i] = state
-    states[-1] = t_previous
 
 
 @numba.njit(
@@ -75,7 +83,7 @@ def apply_poles2(
     update_on_bin,
 ):
     n_poles = len(poles)
-
+    voltage_threaded[:] = 0
     for i in prange(n_poles):
         thread_i = numba.get_thread_id()
 
@@ -85,8 +93,12 @@ def apply_poles2(
             poles[i],
             residues[i],
             voltage_threaded[thread_i, :],
-            states,
+            states[:-1],
             i,
             update_on_bin,
+            states[-1],
         )
-    voltage[:] = np.sum(voltage_threaded, axis=0)
+
+    for thread_i in prange(numba.get_num_threads()):
+        voltage[:] += voltage_threaded[thread_i, :]
+    states[-1] = profile_dts[-1]

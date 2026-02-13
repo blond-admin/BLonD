@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import warnings
 from collections import deque
+from copy import copy
 from typing import TYPE_CHECKING
 
 import numba
@@ -1178,6 +1179,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._profile: StaticMultiProfile | None = None
         self._parent_wakefield = None
         self._voltage = None
+        self.last_reference_time = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -1213,13 +1215,15 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._residues = np.array(residues, dtype=complex)
 
         self._voltage = backend.zeros(
-            self._parent_wakefield.profile.n_bins, dtype=backend.float
+            len(self._parent_wakefield.profile._continuous_memory_hist_x),
+            dtype=backend.float,
         )
-        self._states = np.empty(len(self._poles) + 1, complex)
-        self._states[-1] = self._profile.profiles[0].cut_left
+        self._states = np.zeros(len(self._poles) + 1, complex)
+        self._states[-1] = self._profile._continuous_memory_hist_x[0]
 
-        n_threads = numba.config.NUMBA_NUM_THREADS
-        self._voltage_threaded = np.zeros((n_threads, len(self._voltage)))
+        self._voltage_threaded = np.zeros(
+            ((numba.get_num_threads()), len(self._voltage))
+        )
         self._update_on_bin = backend.array(
             np.cumsum(self._profile._bins_per_profile)
             - self._profile._bins_per_profile,
@@ -1245,6 +1249,11 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         if self._poles is None:
             self._finalize_solver()
         assert self._update_on_bin[0] == 0, "First bib must always update"
+        if self.last_reference_time is not None:
+            passed_time = beam.reference.time - self.last_reference_time
+            self._states[-1] = self._profile._continuous_memory_hist_x[0]
+        assert self._states[-1] <= self._profile._continuous_memory_hist_x[0]
+
         apply_poles2(
             profile=self._profile._continuous_memory_hist_y,
             profile_dts=self._profile._continuous_memory_hist_x,
@@ -1255,5 +1264,10 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             voltage_threaded=self._voltage_threaded,
             update_on_bin=self._update_on_bin,
         )
-
-        return self._voltage
+        self.last_reference_time = copy(beam.reference.time)
+        hist_y_to_density_factor = 1.0 / beam.common_array_size
+        factor = (-1 * beam.particle_type.charge * e) * (
+            beam.intensity * hist_y_to_density_factor
+        )
+        print(np.max(self._voltage * factor), "kV")
+        return self._voltage * factor
