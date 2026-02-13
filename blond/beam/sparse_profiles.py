@@ -406,6 +406,10 @@ class _SparseProfileBaseClass:
         )
         self.bin_centers = self.bin_centers_array.flatten()
 
+    @property
+    def number_of_indexes(self):
+        return self._number_of_indexes
+
 
 class SparseBucket(_SparseProfileBaseClass):
     '''

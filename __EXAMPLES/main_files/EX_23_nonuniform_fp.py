@@ -14,7 +14,7 @@ from scipy.constants import e
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
-from blond.beam.sparse_slices import SparseSlices
+from blond.beam.sparse_profiles import SparseBucket as SparseSlices
 from blond.beam.profile import Profile, CutOptions
 from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage, \
     InducedVoltageSparse

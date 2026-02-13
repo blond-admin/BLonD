@@ -246,10 +246,11 @@ class RingAndRFTracker:
             raise RuntimeError("ERROR in RingAndRFTracker: Empty RFStation" +
                                " with periodicity not yet implemented!")
         if (self.cavityFB is not None) and (self.interpolation is False):
-            if not isinstance(self.profile, _SparseProfileBaseClass):
-                #fixme
-                self.interpolation = False
-                warnings.warn('Setting interpolation to TRUE')
+            # if not isinstance(self.profile, _SparseProfileBaseClass):
+            #     #fixme
+            #     self.interpolation = False
+            self.interpolation = True
+            warnings.warn('Setting interpolation to TRUE')
 
         if (self.cavityFB is not None) and (not hasattr(self.cavityFB, '__iter__')):
             self.cavityFB = [self.cavityFB]
@@ -442,12 +443,23 @@ class RingAndRFTracker:
                             + self.totalInducedVoltage.induced_voltage
                     else:
                         self.total_voltage = self.rf_voltage
-
-                    bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
-                                          voltage=self.total_voltage,
-                                          bin_centers=self.profile.bin_centers,
-                                          charge=self.beam.Particle.charge,
-                                          acceleration_kick=self.acceleration_kick[turn])
+                    #warpper bucket by bucket (profile by profile),
+                    if isinstance(self.profile, _SparseProfileBaseClass):
+                        for i, profile in enumerate(
+                                self.profile.profiles_list):
+                            bm.linear_interp_kick(dt=self.beam.dt,
+                                                  dE=self.beam.dE,
+                                                  voltage=self.total_voltage,
+                                                  bin_centers=profile.bin_centers,
+                                                  charge=self.beam.Particle.charge,
+                                                  acceleration_kick=
+                                                  self.acceleration_kick[turn])
+                    else:
+                        bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
+                                              voltage=self.total_voltage,
+                                              bin_centers=self.profile.bin_centers,
+                                              charge=self.beam.Particle.charge,
+                                              acceleration_kick=self.acceleration_kick[turn])
 
                 else:
                     self.kick(self.beam.dt, self.beam.dE, turn)

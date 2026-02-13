@@ -1014,13 +1014,14 @@ class InducedVoltageSparse(_InducedVoltage):
 
         self.profile_object = profile_object
 
-        if isinstance(profile_object, _SparseBaseClass):
+        if isinstance(profile_object, _SparseProfileBaseClass):
             self.bin_centers = (
                 profile_object.bin_centers_array.flatten()).astype(
                 dtype=bm.precision.real_t, order='C', copy=False)
             # self.profile_object.n_macroparticles = (profile_object.n_macroparticles_array.flatten()).astype(
             #     dtype=bm.precision.real_t, order='C', copy=False)
-            self.n_slices = profile_object.n_slices_bucket * profile_object.n_filled_buckets
+            self.n_slices = (profile_object.number_of_slices_per_profile *
+                             profile_object.number_of_indexes)
             self.induced_voltage_1turn = self._induced_voltage_1turn_sparse
         elif isinstance(profile_object, Profile):
             self.bin_centers = profile_object.bin_centers.astype(
@@ -1033,7 +1034,7 @@ class InducedVoltageSparse(_InducedVoltage):
         self.impedance_source_list = impedance_source_list
 
         if adaptive_frequency_sampling:
-            if isinstance(profile_object, _SparseBaseClass):
+            if isinstance(profile_object, _SparseProfileBaseClass):
                 init_profile = self.profile_object.n_macroparticles_array.flatten()
             elif isinstance(profile_object, Profile):
                 init_profile = self.profile_object.n_macroparticles

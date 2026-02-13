@@ -1967,6 +1967,7 @@ class FCCBoosterCavityLoop(CavityFeedback):
         RFFB: LHCCavityLoopCommissioning = None,
         n_h: int = 0,
         n_s: int = 20,
+        correct_phase : bool = True,
     ):
         super().__init__(
             RFStation=RFStation, Profile=Profile, n_cavities=n_cavities,
@@ -1978,6 +1979,7 @@ class FCCBoosterCavityLoop(CavityFeedback):
 
         self.logger = logging.getLogger(__class__.__name__)
 
+        self.correct_phase = correct_phase
         # Options for commissioning the feedback
         if RFFB is None:
             RFFB = LHCCavityLoopCommissioning()
@@ -2032,24 +2034,27 @@ class FCCBoosterCavityLoop(CavityFeedback):
         self.logger.debug("Relative detuning is %.4e", self.detuning)
 
         # Arrays
-        self.V_EXC = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_FB_IN = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_AC_IN = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_BEAM_INDUCED = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_AN_IN = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_AN_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_DI_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_OTFB = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_OTFB_INT = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_FIR_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_FB_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_SWAP_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.I_TEST = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.TUNER_INPUT = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.TUNER_INTEGRATED = np.zeros(2 * self.n_coarse, dtype=complex)
+        if self.correct_phase:
+            self.dtype_array = complex
+        else:
+            self.dtype_array = float
+        self.V_EXC = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.V_FB_IN = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.V_AC_IN = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.V_AN_IN = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.V_AN_OUT = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.V_DI_OUT = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.V_OTFB = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.V_OTFB_INT = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.V_FIR_OUT = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.V_FB_OUT = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.V_SWAP_OUT = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.I_TEST = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.TUNER_INPUT = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
+        self.TUNER_INTEGRATED = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
 
-        self.V_ANT_FINE = np.zeros(self.profile.n_slices + 1, dtype=complex)
-        self.I_GEN_FINE = np.zeros(self.profile.n_slices + 1, dtype=complex)
+        self.V_ANT_FINE = np.zeros(self.profile.n_slices + 1, dtype=self.dtype_array)
+        self.I_GEN_FINE = np.zeros(self.profile.n_slices + 1, dtype=self.dtype_array)
 
         # Pre-track without beam
         self.logger.debug("Track without beam for %d turns", self.n_pretrack)
@@ -2105,14 +2110,22 @@ class FCCBoosterCavityLoop(CavityFeedback):
     def cavity_response(self, samples):
         r"""ACS cavity reponse model"""
 
-        self.V_ANT_COARSE[self.ind] = (
-            self.I_GEN_COARSE[self.ind - 1] * self.R_over_Q * samples
-            + self.V_ANT_COARSE[self.ind - 1]
-            * (1 - 0.5 * samples / self.Q_L + 1j * self.detuning * samples)
-            - self.I_BEAM_COARSE[self.ind - 1] * 0.5 * self.R_over_Q * samples
-        )
-        self.V_BEAM_INDUCED[self.ind] = (0.5*self.I_BEAM_COARSE[self.ind] *
-                                         self.R_over_Q * samples)
+        if self.correct_phase:
+            self.V_ANT_COARSE[self.ind] = (
+                self.I_GEN_COARSE[self.ind - 1] * self.R_over_Q * samples
+                + self.V_ANT_COARSE[self.ind - 1]
+                * (1 - 0.5 * samples / self.Q_L + 1j * self.detuning * samples)
+                - self.I_BEAM_COARSE[self.ind - 1] * 0.5 * self.R_over_Q * samples
+            )
+        else :
+            self.V_ANT_COARSE[self.ind] = np.real((
+                    self.I_GEN_COARSE[self.ind - 1] * self.R_over_Q * samples
+                    + self.V_ANT_COARSE[self.ind - 1]
+                    * (
+                                1 - 0.5 * samples / self.Q_L + 1j * self.detuning * samples)
+                    - self.I_BEAM_COARSE[
+                        self.ind - 1] * 0.5 * self.R_over_Q * samples
+            ))
 
     def cavity_response_fine_matrix(self):
         r"""ACS cavity response model in matrix form on the fine-grid"""
@@ -2328,51 +2341,53 @@ class FCCBoosterCavityLoop(CavityFeedback):
         present turn to prepare the next turn. All arrays except for V_SET."""
 
         self.V_ANT_COARSE = np.concatenate(
-            (self.V_ANT_COARSE[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.V_ANT_COARSE[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.V_FB_IN = np.concatenate(
-            (self.V_FB_IN[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.V_FB_IN[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.V_AC_IN = np.concatenate(
-            (self.V_AC_IN[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.V_AC_IN[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.V_AN_IN = np.concatenate(
-            (self.V_AN_IN[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.V_AN_IN[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.V_AN_OUT = np.concatenate(
-            (self.V_AN_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.V_AN_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.V_DI_OUT = np.concatenate(
-            (self.V_DI_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.V_DI_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.V_OTFB = np.concatenate(
-            (self.V_OTFB[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.V_OTFB[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.V_OTFB_INT = np.concatenate(
-            (self.V_OTFB_INT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.V_OTFB_INT[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.V_FIR_OUT = np.concatenate(
-            (self.V_FIR_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.V_FIR_OUT[self.n_coarse :], np.zeros(self.n_coarse,
+                                                       dtype=self.dtype_array))
         )
         self.V_FB_OUT = np.concatenate(
-            (self.V_FB_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.V_FB_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.V_SWAP_OUT = np.concatenate(
-            (self.V_SWAP_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.V_SWAP_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.I_GEN_COARSE = np.concatenate(
-            (self.I_GEN_COARSE[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.I_GEN_COARSE[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.I_TEST = np.concatenate(
-            (self.I_TEST[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.I_TEST[self.n_coarse :], np.zeros(self.n_coarse, dtype=self.dtype_array))
         )
         self.TUNER_INPUT = np.concatenate(
-            (self.TUNER_INPUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (self.TUNER_INPUT[self.n_coarse :], np.zeros(self.n_coarse,
+                                                         dtype=self.dtype_array))
         )
         self.TUNER_INTEGRATED = np.concatenate(
             (
                 self.TUNER_INTEGRATED[self.n_coarse :],
-                np.zeros(self.n_coarse, dtype=complex),
+                np.zeros(self.n_coarse, dtype=self.dtype_array),
             )
         )
 

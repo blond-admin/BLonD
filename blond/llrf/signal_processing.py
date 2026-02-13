@@ -202,11 +202,16 @@ def rf_beam_current(Profile: Profile | _SparseProfileBaseClass, omega_c: float, 
 
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    charges = Profile.beam.ratio * Profile.beam.Particle.charge * e \
+    if isinstance(Profile, _SparseProfileBaseClass):
+        charges = Profile.beam.ratio * Profile.beam.Particle.charge * e \
+                  * np.copy(Profile.n_macroparticles)
+    else:
+        charges = \
+            Profile.Beam.ratio * \
+            Profile.Beam.Particle.charge *\
+            e \
          * np.copy(Profile.n_macroparticles)
     logger.debug("Sum of particles: %d, total charge: %.4e C",
-                 np.sum(Profile.n_macroparticles), np.sum(charges))
-    print("Sum of particles: %d, total charge: %.4e C",
                  np.sum(Profile.n_macroparticles), np.sum(charges))
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
@@ -221,7 +226,6 @@ def rf_beam_current(Profile: Profile | _SparseProfileBaseClass, omega_c: float, 
         I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
         Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
-    print("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
     charges_fine = I_f + 1j * Q_f
     if external_reference:
         # slippage in phase due to a non-integer harmonic number
