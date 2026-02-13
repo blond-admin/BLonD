@@ -384,7 +384,7 @@ class BackendBaseClass(ABC):
         -----
         Following environment variables can be set:
 
-        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'fortran', 'cuda'
+        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'cuda'
         - `BLOND_BACKEND_BITS` can be '32' or '64'
         """
         _backend_mode_raw: str = os.environ.get(
