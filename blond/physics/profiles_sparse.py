@@ -175,8 +175,10 @@ class StaticMultiProfile(MultiProfile):
             Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
             for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
         """
+        artists = []
         for profile in self.profiles:
-            profile.plot(**kwargs_plot)
+            artists.extend(profile.plot(**kwargs_plot))
+        return artists
 
     @staticmethod
     def headless(
