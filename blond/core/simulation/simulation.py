@@ -42,6 +42,7 @@ from blond.core.helpers import (
 )
 from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
+from blond.generals.formatting_ import si_format
 from blond.generals.warnings_ import PerformanceWarning
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -1063,14 +1064,26 @@ class Simulation(Preparable):
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
     ):
         for i, beam in enumerate(beams):
+            size_bytes = sum(
+                (
+                    beam._dt.array_local.nbytes,
+                    beam._dE.array_local.nbytes,
+                    beam._ids.array_local.nbytes,
+                    beam._flags.array_local.nbytes,
+                )
+            )
+
             print(
-                f"Beam {i} has {beam._dt.global_size:.2e} macroparticles",
+                f"\nBeam {i} has {si_format(beam._dt.global_size)} macroparticles, "
+                f"{si_format(size_bytes)}B",
                 end="",
             )
             if beam._dt.is_distributed:
                 print(f" ({beam._dt.local_size:.2e} on this node)")
+            else:
+                print()
         print(f"{n_turns=}")
-        print(f"{self.ring.elements.n_elements=}")
+        print(f"n_elements={self.ring.elements.n_elements}")
 
     def run_simulation(
         self,
