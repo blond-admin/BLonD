@@ -113,11 +113,12 @@ beam = make_multibunch_beam(
     n_times=int(rf_station.harmonic // 10),
     t_distance=t_rf * 10,
 )
-for i, _prof in enumerate(profile.profiles):
-    if i % 10 == 0:
-        pass
-    else:
-        _prof.active = False
+
+
+"""drift.orbit_length = 0
+rf_station.voltage = 0.0
+sim.check_circumference = "ignore"
+"""
 
 
 sim.profiling(beams=beam, n_turns=100, sortby=SortKey.TIME, start_turn_i=2)
