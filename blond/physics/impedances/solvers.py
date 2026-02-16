@@ -1224,11 +1224,10 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._voltage_threaded = np.zeros(
             ((numba.get_num_threads()), len(self._voltage))
         )
-        self._update_on_bin = backend.array(
-            np.cumsum(self._profile._bins_per_profile)
-            - self._profile._bins_per_profile,
-            dtype=np.int32,
+        self._update_on_bin = np.unique(
+            self._profile._bucket_index_to_memory_index
         )
+        pass
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass

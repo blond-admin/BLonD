@@ -1,5 +1,4 @@
 import os
-import sys
 import unittest
 
 import matplotlib.pyplot as plt
@@ -22,10 +21,6 @@ from blond import (
     backend,
     make_multibunch_beam,
     proton,
-)
-from blond.handle_results.helpers import callers_relative_path
-from blond.physics.impedances.sparse_profile.solvers import (
-    MultiTurnSparseProfileSolver,
 )
 from blond.physics.profiles import ProfileBaseClass
 from blond.physics.profiles_sparse import EquidistantMultiProfile

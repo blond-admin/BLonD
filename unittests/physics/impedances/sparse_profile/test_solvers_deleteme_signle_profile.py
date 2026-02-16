@@ -24,7 +24,7 @@ from blond import (
 from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles import ProfileBaseClass
-from blond.physics.profiles_sparse import StaticMultiProfile
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 resonator_data = np.loadtxt(
     os.path.join(
@@ -44,7 +44,7 @@ class MyTestCase(unittest.TestCase):
     def test_something(self):
         for induces_voltage in (None,):  # TODO
             wakefield = self.multiturn(induced_voltage=induces_voltage)
-            profile: StaticMultiProfile = wakefield.profile
+            profile: EquidistantMultiProfile = wakefield.profile
             DEV_DRAW = True
             if DEV_DRAW:
                 plt.figure("compare")
@@ -210,18 +210,13 @@ class MyTestCase(unittest.TestCase):
         )
         width_per_profile = t_rev / rf_station.harmonic
         bins_per_profile = 2**8
-        offset = 0  # t_rf / 2
-        step = t_rev / n_profiles
-        t_starts = step * np.arange(n_profiles) + offset
-        profiles = (
-            StaticProfile(
-                cut_left=float(t_starts[i]),
-                cut_right=float(t_starts[i] + width_per_profile),
-                n_bins=bins_per_profile,
-            )
-            for i in range(n_profiles)
+
+        filling_pattern = np.zeros(rf_station.harmonic, bool)
+        filling_pattern[0] = 1
+
+        profile = EquidistantMultiProfile(
+            filling_pattern=filling_pattern, bins_per_profile=bins_per_profile
         )
-        profile = StaticMultiProfile(profiles=profiles)
         wakefield = WakeField(
             sources=(Resonators(R_shunt, f_res, Q_factor),),
             solver=MultiPoleSparseSolve(),

@@ -1,5 +1,6 @@
 """Example of how to configure a simulation with sparse multiturn wakefields."""
 
+import math
 from pstats import SortKey
 
 import numpy as np
@@ -14,14 +15,13 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
-    StaticProfile,
     WakeField,
     backend,
     electron,
 )
 from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
-from blond.physics.profiles_sparse import StaticMultiProfile
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 backend.set_specials("cpp")
 
@@ -57,25 +57,20 @@ t_rf = (
     / rf_station.harmonic
 )
 
-n_profiles = 1120
-t_rev = magnetic_cycle.get_t_rev_init(
-    ring.circumference,
-    particle_type=electron,
-)
-width_per_profile = t_rf
+n_profiles = 1118
 bins_per_profile = 2**10
-profile_offset = -t_rf / 2
-profile_center_distance = t_rf * int(rf_station.harmonic / n_profiles)
-t_starts = profile_center_distance * np.arange(n_profiles) + profile_offset
-profiles = (
-    StaticProfile(
-        cut_left=float(t_starts[i]),
-        cut_right=float(t_starts[i] + width_per_profile),
-        n_bins=bins_per_profile,
-    )
-    for i in range(n_profiles)
+filling_pattern = np.zeros(rf_station.harmonic, bool)
+step = int(math.ceil(rf_station.harmonic / n_profiles))
+filling_pattern[::step] = 1
+assert np.sum(filling_pattern) == n_profiles, (
+    f"{np.sum(filling_pattern)} == {n_profiles}"
 )
-profile = StaticMultiProfile(profiles=profiles)
+
+profile = EquidistantMultiProfile(
+    bins_per_profile=bins_per_profile,
+    filling_pattern=filling_pattern,
+    offset=-t_rf / 2,
+)
 
 R_over_Q = 315.2
 Q_factor = Q_loaded = 1e7
@@ -117,7 +112,7 @@ sim.prepare_beam(
 beam = make_multibunch_beam(
     beam=_bunch,
     n_times=n_profiles,
-    t_distance=profile_center_distance,
+    t_distance=profile.profiles[1].cut_left - profile.profiles[0].cut_left,
     common_offset=0,  # t_rf / 2,
 )
 

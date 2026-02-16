@@ -22,11 +22,7 @@ from blond import (
     make_multibunch_beam,
     proton,
 )
-from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
-from blond.physics.impedances.sparse_profile.solvers import (
-    MultiTurnSparseProfileSolver,
-)
 from blond.physics.profiles import ProfileBaseClass
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
@@ -43,6 +39,8 @@ R_shunt = resonator_data[:, 2] * 10**6
 f_res = resonator_data[:, 0] * 10**9
 Q_factor = resonator_data[:, 1]
 
+n_macroparticles = int(1e4)
+
 
 class MyTestCase(unittest.TestCase):
     def test_something(self):
@@ -54,7 +52,7 @@ class MyTestCase(unittest.TestCase):
                 plt.figure("compare")
                 ax1 = plt.subplot(3, 1, 1)
                 plt.xlim(4e-8, 6e-8)
-                profile.plot()
+                profile.plot(marker="x")
                 plt.subplot(3, 1, 2, sharex=ax1)
                 plt.plot(
                     profile.hist_x,
@@ -145,7 +143,7 @@ class MyTestCase(unittest.TestCase):
             preparation_routine=BiGaussian(
                 sigma_dt=2e-9 / 4,
                 seed=1,
-                n_macroparticles=1e4,
+                n_macroparticles=n_macroparticles,
             ),
             beam=_bunch,
         )
@@ -213,17 +211,15 @@ class MyTestCase(unittest.TestCase):
             )
             / rf_station.harmonic
         )
-
+        bins_per_profile = 2**8
+        filling_pattern = np.zeros(rf_station.harmonic, bool)
+        filling_pattern[::10] = 1
         profile = EquidistantMultiProfile(
-            n_profiles=int((rf_station.harmonic // 10)),
-            width_per_profile=magnetic_cycle.get_t_rev_init(
-                ring.circumference,
-                particle_type=proton,
-            )
-            / rf_station.harmonic,
-            bins_per_profile=2**8,
-            offset=t_rf / 2,
+            bins_per_profile=bins_per_profile,
+            filling_pattern=filling_pattern,
+            offset=0,
         )
+
         wakefield = WakeField(
             sources=(Resonators(R_shunt, f_res, Q_factor),),
             solver=MultiPoleSparseSolve(),
@@ -245,7 +241,7 @@ class MyTestCase(unittest.TestCase):
             preparation_routine=BiGaussian(
                 sigma_dt=2e-9 / 4,
                 seed=1,
-                n_macroparticles=1e4,
+                n_macroparticles=n_macroparticles,
             ),
             beam=_bunch,
         )

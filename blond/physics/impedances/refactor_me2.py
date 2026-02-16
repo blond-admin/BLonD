@@ -21,8 +21,7 @@ def apply_single_pole(
     pole: complex,
     residue: complex,
     voltage: np.ndarray,
-    states: np.ndarray,
-    pole_i: int,
+    state: complex,
     update_on_bin: np.ndarray,
     t_start,
 ):
@@ -30,7 +29,6 @@ def apply_single_pole(
     # V[n] = 2 * Re(r * y[n])
     n_bins = len(profile)
     # state = 0.0 + 0.0j
-    state = states[pole_i]
     i_update = 0
     update_on_bin_i = update_on_bin[i_update]
     for bin_i in range(n_bins):
@@ -54,7 +52,7 @@ def apply_single_pole(
         voltage[bin_i] += 2 * np.real(residue * state)
         state = state + 0.5 * profile_i_
 
-    states[pole_i] = state
+    return state
 
 
 @numba.njit(
@@ -68,9 +66,8 @@ def apply_single_pole(
         float64[:, :],
         int32[:],
     ),
-    fastmath=False,  # MUST BE TRUE
-    parallel=False,  # FIXME RACE CONDITION
-    debug=True,
+    fastmath=True,  # MUST BE TRUE
+    parallel=True,  # FIXME RACE CONDITION
 )
 def apply_poles2(
     # read
@@ -86,21 +83,22 @@ def apply_poles2(
 ):
     n_poles = len(poles)
     voltage_threaded[:] = 0
-    for i in prange(n_poles):
+    if not (voltage_threaded.shape[0] == numba.get_num_threads()):
+        raise Exception
+    for pole_i in prange(n_poles):
         thread_i = numba.get_thread_id()
 
-        apply_single_pole(
+        states[pole_i] = apply_single_pole(
             profile,
             profile_dts,
-            poles[i],
-            residues[i],
+            poles[pole_i],
+            residues[pole_i],
             voltage_threaded[thread_i, :],
-            states[:-1],
-            i,
+            states[pole_i],
             update_on_bin,
             states[-1],
         )
 
     for thread_i in prange(numba.get_num_threads()):
-        voltage[:] += voltage_threaded[thread_i, :]
+        voltage += voltage_threaded[thread_i, :]
     states[-1] = profile_dts[-1]
