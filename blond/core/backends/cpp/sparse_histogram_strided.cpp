@@ -7,101 +7,84 @@
 // Project website: http://blond.web.cern.ch/
 
 // Optimised C++ routine that calculates the histogram for a sparse beam
-// with STRIDED memory layout (empty space between profiles)
-// Author: Juan F. Esteban Mueller, Danilo Quartullo, Alexandre Lasheen, Markus
-// Schwarz Modified for strided layout: 2026-02-07
+// Author: Simon Lauber
 
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h> // mmalloc()
-#include <string.h> // memset()
+#include <stdlib.h>
+#include <string.h>
 
 #include "blond_common.h"
 #include "openmp.h"
 
 extern "C" void sparse_histogram_strided(
-    const real_t *__restrict__ input, real_t *__restrict__ output,
-    const real_t first_left_cut, const real_t left_cut_distance,
-    const real_t cut_width, const int bins_per_profile, const int n_profiles,
-    const int n_buckets, const int n_macroparticles,
+    const real_t *__restrict__ input,
+    real_t *__restrict__ output,
+    const real_t first_left_cut,
+    const real_t left_cut_distance,
+    const real_t cut_width,
+    const int bins_per_profile,
+    const int n_profiles,
+    const int n_buckets,
+    const int n_macroparticles,
     const bool *__restrict__ filling_pattern,
-    const int *__restrict__ bucket_index_to_memory_index) {
-  const real_t cut_left0 = first_left_cut;
-  const real_t inv_hist_dist = real_t(1) / (left_cut_distance);
-  const real_t inv_bin_width = real_t(bins_per_profile) / (cut_width);
+    const int *__restrict__ bucket_index_to_memory_index)
+{
+    const real_t cut_left0     = first_left_cut;
+    const real_t inv_hist_dist = real_t(1) / left_cut_distance;
+    const real_t inv_bin_width = real_t(bins_per_profile) / cut_width;
 
-  const int compact_size = n_profiles * bins_per_profile;
+    const int compact_size = n_profiles * bins_per_profile;
 
-  // Persistent storage (int, compact layout without stride gaps)
-  static int *histo_all = nullptr;
-  static int histo_threads = 0;
-  static int histo_compact = 0;
+    // -------------------------------------
+    // Zero output histogram (parallel)
+    // -------------------------------------
+#pragma omp parallel for schedule(static)
+    for (int i = 0; i < compact_size; ++i)
+        output[i] = real_t(0);
 
-  const int max_threads = omp_get_max_threads();
-
-  if (histo_all == nullptr || histo_threads < max_threads ||
-      histo_compact < compact_size) {
-    free(histo_all);
-
-    histo_threads = max_threads;
-    histo_compact = compact_size;
-
-    histo_all = (int *)malloc(sizeof(int) * histo_threads * histo_compact);
-
-    if (!histo_all)
-      return;
-  }
-
+    // -------------------------------------
+    // Main particle loop
+    // -------------------------------------
 #pragma omp parallel
-  {
-    const int tid = omp_get_thread_num();
-    const int threads = omp_get_num_threads();
-    int *histo = histo_all + tid * histo_compact;
+    {
+#pragma omp for schedule(static, 8192)
+        for (int i = 0; i < n_macroparticles; ++i)
+        {
+            const real_t a = input[i];
+            const real_t shifted = a - cut_left0;
 
-    memset(histo, 0, histo_compact * sizeof(int));
+            // Compute bucket index
+            const int bucket_i =
+                (int)(shifted * inv_hist_dist);
 
-#pragma omp for schedule(static)
-    for (int i = 0; i < n_macroparticles; ++i) {
-      const real_t a = input[i];
+            // Fast unsigned bounds check
+            if ((unsigned)bucket_i >= (unsigned)n_buckets)
+                continue;
 
-      const int bucket_i = (int)((a - cut_left0) * inv_hist_dist);
-      if (bucket_i >= n_buckets || bucket_i < 0)
-        continue;
-      if (!filling_pattern[bucket_i]) {
-        continue;
-      }
-      const real_t cut_left = cut_left0 + bucket_i * left_cut_distance;
-      const real_t cut_right = cut_left + cut_width;
-      if (a == cut_right) {
-        histo[bucket_index_to_memory_index[bucket_i] + bins_per_profile - 1] +=
-            1;
-        continue;
-      }
-      if (a < cut_left || a >= cut_right)
-        continue;
+            if (!filling_pattern[bucket_i])
+                continue;
 
-      const int bin = (int)((a - cut_left) * inv_bin_width);
-      if ((unsigned)bin < (unsigned)bins_per_profile)
-        histo[bucket_index_to_memory_index[bucket_i] + bin] += 1;
+            // Compute local coordinate
+            const real_t local =
+                shifted - bucket_i * left_cut_distance;
+
+            if (local >= cut_width)
+                continue;
+
+            const int bin =
+                (int)(local * inv_bin_width);
+
+            if ((unsigned)bin >= (unsigned)bins_per_profile)
+                continue;
+
+            const int base =
+                bucket_index_to_memory_index[bucket_i];
+
+            const int index = base + bin;
+
+            // Atomic increment (low contention in sparse case)
+#pragma omp atomic
+            output[index] += real_t(1);
+        }
     }
-
-    // Reduce compact histogram into strided output
-#pragma omp for schedule(static)
-    for (int p = 0; p < n_profiles; ++p) {
-      const int out_base = p * bins_per_profile;
-      const int compact_base = p * bins_per_profile;
-
-      for (int b = 0; b < bins_per_profile; ++b) {
-        int sum = 0;
-#pragma omp simd reduction(+ : sum)
-        for (int t = 0; t < threads; ++t)
-          sum += histo_all[t * histo_compact + compact_base + b];
-        output[out_base + b] = (real_t)sum;
-      }
-
-      // Zero the gap region
-      memset(&output[out_base + bins_per_profile], 0,
-             (bins_per_profile - bins_per_profile) * sizeof(real_t));
-    }
-  }
 }
