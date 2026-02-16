@@ -191,14 +191,15 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     )
 
     sig_sparse_histogram_strided = (
-        sig_array_read,  # x
-        sig_array_write,  # out
-        nb_f,  # first_left_cut
-        nb_f,  # left_cut_distance
-        nb_f,  # cut_width
-        numba.int32,  # bins_per_profile
-        numba.int32,  # n_profiles
-        numba.int32,  # stride
+        sig_array_read,  # x: NumpyArray,
+        sig_array_write,  # out: NumpyArray,
+        nb_f,  # first_left_cut: float,
+        nb_f,  # left_cut_distance: float,
+        nb_f,  # cut_width: float,
+        numba.int32,  # bins_per_profile: int,
+        numba.int32,  # n_profiles: int,
+        numba.bool[:],  # filling_pattern: NumpyArray,
+        numba.int32[:],  # bucket_index_to_memory_index: NumpyArray,
     )
 
     sig_hist_x = nb_f[:]
@@ -579,7 +580,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             cut_width: float,
             bins_per_profile: int,
             n_profiles: int,
-            stride: int,
+            filling_pattern: NumpyArray,
+            bucket_index_to_memory_index: NumpyArray,
         ) -> None:
             """
             Sparse histogram with strided memory layout (gaps between profiles).
@@ -600,32 +602,45 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 Number of bins per bucket.
             n_profiles
                 Number of non-empty buckets.
-            stride
-                Memory stride between consecutive profiles (e.g.,
-                2*bins_per_profile).
+            filling_pattern
+                Filling pattern as a boolean array
+                where ``True`` means filled bucket.
+            bucket_index_to_memory_index
+                Maps bucket index to memory index.
+                For a ``filling_pattern = [1, 0, 0, 1]``
+                ``bucket_index_to_memory_index = [8, 8, 8, 16]`` with
+                ``bins_per_profile = 8``.
             """
             n_threads = numba.get_num_threads()  # this prevents caching
             ive_profile_dist = 1 / left_cut_distance
             inv_bin_step = bins_per_profile / cut_width
             array_tmp = np.zeros((n_threads, len(out)))
+            n_buckets = len(filling_pattern)
             for i in prange(len(x)):
                 thread_i = numba.get_thread_id()
                 xi = x[i]
-
-                hist_i = int((xi - first_left_cut) * ive_profile_dist)
-                if hist_i < 0 or hist_i >= n_profiles:
+                bucket_i = int((xi - first_left_cut) * ive_profile_dist)
+                if bucket_i < 0 or bucket_i >= n_buckets:
                     continue
-                start = first_left_cut + hist_i * left_cut_distance
-                stop = start + cut_width
-                if xi == stop:
-                    write_idx = hist_i * stride + bins_per_profile - 1
+                if not filling_pattern[bucket_i]:
+                    continue
+                start_loc = first_left_cut + bucket_i * left_cut_distance
+                stop_loc = start_loc + cut_width
+                if xi == stop_loc:
+                    write_idx = (
+                        bucket_index_to_memory_index[bucket_i]
+                        + bins_per_profile
+                        - 1
+                    )
                     array_tmp[thread_i, write_idx] += 1
                     continue
-                idx = int((xi - start) * inv_bin_step)
+                idx = int((xi - start_loc) * inv_bin_step)
                 if idx < 0 or idx >= bins_per_profile:
                     continue
                 else:
-                    write_idx = int(hist_i * stride + idx)
+                    write_idx = int(
+                        bucket_index_to_memory_index[bucket_i] + idx
+                    )
                     array_tmp[thread_i, write_idx] += 1
             out[:] = np.sum(array_tmp, axis=0)
 

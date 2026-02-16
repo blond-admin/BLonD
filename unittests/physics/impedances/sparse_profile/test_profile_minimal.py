@@ -6,15 +6,16 @@ import numpy as np
 
 from blond import Beam, backend, uranium_29
 from blond.core.beam.beams import ProbeBeam
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 
 class MyTestCase(unittest.TestCase):
     def setUp(self):
+        filling_pattern = np.ones(5, bool)
         self.multiprofile_equidistant = EquidistantMultiProfile.headless(
             t_rev=5 * 10.0,
-            n_profiles=5,
-            width_per_profile=10.0,
+            filling_pattern=filling_pattern,
             bins_per_profile=4,
             offset=0,
         )

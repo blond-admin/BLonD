@@ -447,12 +447,19 @@ def reload_cuda_backend(  # NOQA: D102
             cut_width: float,
             bins_per_profile: int,
             n_profiles: int,
-            stride: int,
+            filling_pattern: CupyArray,
+            bucket_index_to_memory_index: CupyArray,
         ) -> None:
             assert x.dtype == floattype
             assert out.dtype == floattype
+            assert filling_pattern.dtype == np.bool
+            assert bucket_index_to_memory_index.dtype == np.int32
+
             assert x.flags.c_contiguous
             assert out.flags.c_contiguous
+            assert filling_pattern.flags.c_contiguous
+            assert bucket_index_to_memory_index.flags.c_contiguous
+
             out[:] = 0
             _sparse_histogram_strided(
                 args=(
@@ -462,9 +469,10 @@ def reload_cuda_backend(  # NOQA: D102
                     floattype(left_cut_distance),  # left_cut_distance
                     floattype(cut_width),  # cut_width
                     np.int32(bins_per_profile),  # bins_per_profile
-                    np.int32(n_profiles),  # n_profiles
+                    np.int32(len(filling_pattern)),  # n_buckets
                     np.int32(len(x)),  # n_macroparticles
-                    np.int32(stride),  # stride
+                    filling_pattern,
+                    bucket_index_to_memory_index,
                 ),
                 block=block_size,
                 grid=grid_size,

@@ -210,7 +210,8 @@ class Specials(ABC):
         cut_width: float,
         bins_per_profile: int,
         n_profiles: int,
-        stride: int,
+        filling_pattern: NumpyArray,
+        bucket_index_to_memory_index: NumpyArray,
     ) -> None:
         """
         Sparse histogram with strided memory layout (gaps between profiles).
@@ -231,9 +232,14 @@ class Specials(ABC):
             Number of bins per bucket.
         n_profiles
             Number of non-empty buckets.
-        stride
-            Memory stride between consecutive profiles (e.g.,
-            2*bins_per_profile).
+        filling_pattern
+            Filling pattern as a boolean array
+            where ``True`` means filled bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index.
+            For a ``filling_pattern = [1, 0, 0, 1]``
+            ``bucket_index_to_memory_index = [8, 8, 8, 16]`` with
+            ``bins_per_profile = 8``.
         """
 
 
@@ -335,6 +341,7 @@ class BackendBaseClass(ABC):
         self.max: Callable = None  # type: ignore
         self.dot: Callable = None  # type: ignore
         self.percentile: Callable = None  # type: ignore
+        self.cumulative_sum: Callable = None  # type: ignore
         self.array_split: Callable = None  # type: ignore
         self.sign: Callable = None  # type: ignore
         self.sin: Callable = None  # type: ignore
@@ -725,6 +732,7 @@ class NumpyBackend(BackendBaseClass):
         self.max = np.max
         self.dot = np.dot
         self.percentile = np.percentile
+        self.cumulative_sum = np.cumulative_sum
         self.array_split = np.array_split
         self.sign = np.sign
         self.sin = np.sin
@@ -931,6 +939,7 @@ class CupyBackend(BackendBaseClass):
         self.max = cp.max
         self.dot = cp.dot
         self.percentile = cp.percentile
+        self.cumulative_sum = cp.cumulative_sum
         self.array_split = cp.array_split
         self.sign = cp.sign
         self.sin = cp.sin

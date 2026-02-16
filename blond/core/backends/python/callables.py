@@ -475,7 +475,8 @@ class PythonSpecials(Specials):
         cut_width: float,
         bins_per_profile: int,
         n_profiles: int,
-        stride: int,
+        filling_pattern: NumpyArray,
+        bucket_index_to_memory_index: NumpyArray,
     ) -> None:
         """
         Sparse histogram with strided memory layout (gaps between profiles).
@@ -496,20 +497,30 @@ class PythonSpecials(Specials):
             Number of bins per bucket.
         n_profiles
             Number of non-empty buckets.
-        stride
-            Memory stride between consecutive profiles (e.g.,
-            2*bins_per_profile).
+        filling_pattern
+            Filling pattern as a boolean array
+            where ``True`` means filled bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index.
+            For a ``filling_pattern = [1, 0, 0, 1]``
+            ``bucket_index_to_memory_index = [8, 8, 8, 16]`` with
+            ``bins_per_profile = 8``.
         """
-        assert stride >= bins_per_profile
         out[:] = 0
-        for i in range(n_profiles):
-            sel = slice(i * stride, i * stride + bins_per_profile)
+        for bucket_i, active in enumerate(filling_pattern):
+            if not active:
+                continue
+            memory_i = bucket_index_to_memory_index[bucket_i]
+            sel = slice(
+                memory_i,
+                memory_i + bins_per_profile,
+            )
             hist, _ = np.histogram(
                 x,
                 bins=bins_per_profile,
                 range=(
-                    first_left_cut + i * left_cut_distance,
-                    first_left_cut + i * left_cut_distance + cut_width,
+                    first_left_cut + bucket_i * left_cut_distance,
+                    first_left_cut + bucket_i * left_cut_distance + cut_width,
                 ),
             )
             out[sel] = hist

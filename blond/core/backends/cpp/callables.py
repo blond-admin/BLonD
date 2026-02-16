@@ -419,7 +419,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             cut_width: float,
             bins_per_profile: int,
             n_profiles: int,
-            stride: int,
+            filling_pattern: NumpyArray,
+            bucket_index_to_memory_index: NumpyArray,
         ) -> None:
             """
             Sparse histogram with strided memory layout (gaps between profiles).
@@ -440,16 +441,24 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 Number of bins per bucket.
             n_profiles
                 Number of non-empty buckets.
-            stride
-                Memory stride between consecutive profiles (e.g.,
-                2*bins_per_profile).
+            filling_pattern
+                Filling pattern as a boolean array
+                where ``True`` means filled bucket.
+            bucket_index_to_memory_index
+                Maps bucket index to memory index.
+                For a ``filling_pattern = [1, 0, 0, 1]``
+                ``bucket_index_to_memory_index = [8, 8, 8, 16]`` with
+                ``bins_per_profile = 8``.
             """
-            assert stride >= bins_per_profile
-
             assert x.dtype == floattype
             assert out.dtype == floattype
+            assert filling_pattern.dtype == np.bool
+            assert bucket_index_to_memory_index.dtype == np.int32
+
             assert x.flags.c_contiguous
             assert out.flags.c_contiguous
+            assert filling_pattern.flags.c_contiguous
+            assert bucket_index_to_memory_index.flags.c_contiguous
 
             _LIBBLOND.sparse_histogram_strided(
                 _getPointer(x),
@@ -459,8 +468,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(cut_width, floattype),
                 ct.c_int(bins_per_profile),
                 ct.c_int(n_profiles),
+                ct.c_int(len(filling_pattern)),
                 ct.c_int(len(x)),  # n_macroparticles
-                ct.c_int(stride),
+                _getPointer(filling_pattern),
+                _getPointer(bucket_index_to_memory_index),
             )
 
     return CppSpecials
