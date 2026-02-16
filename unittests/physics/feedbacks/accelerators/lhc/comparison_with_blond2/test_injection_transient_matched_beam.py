@@ -106,14 +106,13 @@ class TestInjectionMatchedBeam(unittest.TestCase):
                 open_tuner=True,
                 d_phi_ad=0,
             )
-
             CL = LHCCavityLoop(
                 rf_station=rf,
                 profile=profile,
                 f_c=rf.omega_rf[0, 0] / (2 * np.pi) - 5e3,
                 I_gen_offset=0,
                 n_cavities=8,
-                n_pretrack=100,
+                n_pretrack=200,
                 Q_L=Q_L,
                 R_over_Q=R_over_Q,
                 tau_loop=tau_loop,
@@ -137,12 +136,23 @@ class TestInjectionMatchedBeam(unittest.TestCase):
             for i in range(n_turns):
                 profile.track()
                 tracker.track()
+
                 cls.rf_power_blond2[i, :] = CL.generator_power()[
                     -CL.n_coarse :
                 ]
                 cls.i_beam_blond2[i, :] = CL.I_BEAM_COARSE[-CL.n_coarse :]
                 cls.v_ant_blond2[i, :] = CL.V_ANT_COARSE[-CL.n_coarse :]
                 cls.line_density_blond2[i, :] = profile.n_macroparticles
+
+                plt.figure("ant_fine_2")
+                plt.title("blond2 fine")
+                plt.plot(CL.V_ANT_FINE)
+                plt.show(block=False)
+                plt.figure("ant_coarse_2")
+                plt.title("blond2 coarse")
+                plt.plot(CL.V_ANT_COARSE[-CL.n_coarse :])
+                plt.show(block=False)
+                return
 
         def setup_blond3():
             from blond import (
@@ -275,11 +285,12 @@ class TestInjectionMatchedBeam(unittest.TestCase):
                     dtype=_ids_tmp.array_local.dtype,
                 )
             )
+            buckets = t_rf * 10
 
             for i in range(n_bunches):
                 beam._dt.array_local[
                     i * n_macroparticles : (i + 1) * n_macroparticles
-                ] = _dt_tmp.array_local + 10 * t_rf * i + 1000 * t_rf
+                ] = _dt_tmp.array_local + 100 * buckets + 10 * t_rf * i
                 beam._dE.array_local[
                     i * n_macroparticles : (i + 1) * n_macroparticles
                 ] = _dE_tmp.array_local
@@ -295,26 +306,43 @@ class TestInjectionMatchedBeam(unittest.TestCase):
                 n_turns,
             )
             cls.line_density = np.zeros((n_turns, profile.n_bins))
-            cls.v_ant = np.zeros((n_turns, h // 10), dtype=complex)
+            cls.v_ant = np.zeros(
+                (n_turns, cavity_control.n_coarse), dtype=complex
+            )
             cls.v_ant_fine = np.zeros((n_turns, profile.n_bins), dtype=complex)
-            cls.i_beam = np.zeros((n_turns, h // 10), dtype=complex)
-            cls.rf_power = np.zeros((n_turns, h // 10), dtype=complex)
+            cls.i_beam = np.zeros(
+                (n_turns, cavity_control.n_coarse), dtype=complex
+            )
+            cls.rf_power = np.zeros(
+                (n_turns, cavity_control.n_coarse), dtype=complex
+            )
 
             for i in range(n_turns):
                 simulation.turn_i.value = i
 
                 for element in ring.elements.elements:
                     element.track(beam)
-
                 cls.line_density[i, :] = profile.hist_y
-                cls.v_ant[i, :] = cavity_control.V_ANT_COARSE[-h // 10 :]
+                cls.v_ant[i, :] = cavity_control.V_ANT_COARSE[
+                    -cavity_control.n_coarse :
+                ]
                 cls.v_ant_fine[i, :] = cavity_control.V_ANT_FINE[
                     -profile.n_bins :
                 ]
-                cls.i_beam[i, :] = cavity_control.I_BEAM_COARSE[-h // 10 :]
-                cls.rf_power[i, :] = cavity_control.generator_power()[
-                    -h // 10 :
+                cls.i_beam[i, :] = cavity_control.I_BEAM_COARSE[
+                    -cavity_control.n_coarse :
                 ]
+                cls.rf_power[i, :] = cavity_control.generator_power()[
+                    -cavity_control.n_coarse :
+                ]
+                plt.figure("ant_fine")
+                plt.title("blond3 fine")
+                plt.plot(cls.v_ant_fine[i, :])
+                plt.show(block=False)
+                plt.figure("ant_coarse")
+                plt.title("blond3 coarse")
+                plt.plot(cls.v_ant[i, :])
+                plt.show()
 
         setup_blond2()
         setup_blond3()
