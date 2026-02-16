@@ -69,8 +69,8 @@ def apply_single_pole(
         int32[:],
         float64,
     ),
-    fastmath=True,  # MUST BE TRUE
-    parallel=True,  # FIXME RACE CONDITION
+    fastmath=True,
+    parallel=True,
 )
 def apply_poles2(
     # read

@@ -1,6 +1,7 @@
 """Example of how to configure a simulation with sparse multiturn wakefields."""
 
 from abc import ABC, abstractmethod
+from pstats import SortKey
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -146,7 +147,7 @@ profile = EquidistantMultiProfile(
 )
 
 poles = Poles.from_file("resources/1_sps_gen_new.npz")
-poles.plot(np.linspace(0, 10e9, 10000))
+# poles.plot(np.linspace(0, 10e9, 10000))
 plt.show()
 poles.sort(by="residues")
 wakefield = WakeField(
@@ -182,9 +183,9 @@ beam = make_multibunch_beam(
     t_distance=t_rf * 10,
 )
 
-"""sim.profiling(
+sim.profiling(
     beams=beam, n_turns=100, sortby=SortKey.CUMULATIVE, start_turn_i=2
-)"""
+)
 
 from blond import Beam, Simulation
 
@@ -205,12 +206,12 @@ ax2 = plt.subplot(2, 1, 2, sharex=ax1)
 
 def my_callback(simulation: Simulation, beam: Beam) -> None:
     solver_: MultiPoleSparseSolve = wakefield.solver  # type: ignore
-
-    plt.figure(80920)
-    plt.cla()
-    beam.plot_hist2d(bins=(2096, 128), range=lims)
-    plt.draw()
-    plt.pause(1)
+    if True:
+        plt.figure(80920)
+        plt.cla()
+        beam.plot_hist2d(bins=(2096, 128), range=lims)
+        plt.draw()
+        plt.pause(1)
 
     """
     print(len(residues),len(states))
@@ -226,18 +227,17 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
              solver_._voltage)
     artists.extend(artists2)"""
 
-    states = solver_._states[:-1]
-    residues = solver_._residues
-
-    if True:
+    if False:
         plt.figure(8091)
         plt.title(simulation.turn_i.value)
+        states = solver_._states[:-1]
+        residues = solver_._residues
         artist = plt.scatter(
             simulation.turn_i.value * np.ones(len(states[:])),
             np.real(residues[:] * states[:]),
             c=cmap(np.arange(len(states[:]))),
         )
-    if True:
+    if False:
         plt.figure(8092)
         plt.sca(ax1)
         plt.cla()
@@ -272,5 +272,9 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
     # input("continue?")
 
 
-my_callback.each_turn_i = 1
-sim.run_simulation(beams=beam, n_turns=3000, callbacks=(my_callback,))
+my_callback.each_turn_i = 10
+sim.run_simulation(
+    beams=beam,
+    n_turns=3000,
+    # callbacks=(my_callback,),
+)
