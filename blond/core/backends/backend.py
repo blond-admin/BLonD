@@ -208,6 +208,37 @@ class Specials(ABC):
             "The backend for `move_flagged_elements_to_end` is missing."
         )
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def sparse_histogram(
+        x: CupyArray,
+        out: CupyArray,
+        left_cuts: CupyArray,
+        right_cuts: CupyArray,
+        bins_per_profile: CupyArray,
+        start_indices: CupyArray,
+    ) -> None:
+        """
+        Sparse histogram continuous memory layout.
+
+        Parameters
+        ----------
+        x
+            An array, e.g., the particle dt values.
+        out
+            Output histogram (n_filled_buckets * stride).
+        left_cuts
+            Start of each histogram.
+        right_cuts
+            Stop of each histogram.
+        bins_per_profile
+            Number of bins per histogram.
+        start_indices
+            Precomputed index to access out per histogram
+            ``out[start_indices[i]:start_indices[i] + bins_per_profile[i]]``.
+        """
+        pass
+
 
 class _ModeSwitchHelper:
     """
@@ -319,6 +350,7 @@ class BackendBaseClass(ABC):
         self.add: Callable = None  # type: ignore
         self.concatenate: Callable = None  # type: ignore
         self.unique: Callable = None  # type: ignore
+        self.repeat: Callable = None  # type: ignore
         self.ndarray: type = None  # type: ignore
 
     def _finalize(self) -> None:
@@ -664,6 +696,7 @@ class NumpyBackend(BackendBaseClass):
         self.add = np.add
         self.concatenate = np.concatenate
         self.unique = np.unique
+        self.repeat = np.repeat
         self.ndarray = np.ndarray
 
         self._finalize()
@@ -807,6 +840,7 @@ class CupyBackend(BackendBaseClass):
         self.add = cp.add
         self.concatenate = cp.concatenate
         self.unique = cp.unique
+        self.repeat = cp.repeat
         self.ndarray = cp.ndarray
 
         from blond.core.backends.cuda.callables import CudaSpecials
