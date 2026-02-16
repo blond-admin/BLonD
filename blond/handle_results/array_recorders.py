@@ -115,7 +115,7 @@ class DenseArrayRecorder(ArrayRecorder):
         dtype: DTypeLike | None = None,
         order: Literal["C", "F"] = "C",
         overwrite: bool = True,
-        preallocate: bool = False,
+        preallocate: bool = True,
     ):
         # Declare expected size of data in advance use zeros for safety,
         # less weird results in case of partial data

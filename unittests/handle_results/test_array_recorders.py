@@ -29,6 +29,7 @@ class TestDenseArrayRecorder(unittest.TestCase):
             dtype=np.float32,
             order="C",
             overwrite=True,
+            preallocate=False,
         )
 
         pre = DenseArrayRecorder(
