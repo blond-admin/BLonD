@@ -5,10 +5,13 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
+import os
 
 import numba
 import numpy as np
 from numba import complex128, float64, int32, prange, void
+
+os.environ["NUMBA_BOUNDSCHECK"] = "1"
 
 
 @numba.njit()
@@ -23,7 +26,6 @@ def apply_single_pole(
     update_on_bin: np.ndarray,
     t_start,
 ):
-    print("pole_i", pole_i)
     # y[n] = profile[n] + exp(p * dt) * y[n-1]
     # V[n] = 2 * Re(r * y[n])
     n_bins = len(profile)
@@ -39,7 +41,6 @@ def apply_single_pole(
                 t_jump = profile_dts[0] - t_start
             else:
                 t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1]
-            print(t_jump)
             state *= np.exp(pole * t_jump)
             dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
             decay = np.exp(pole * dt)
@@ -67,8 +68,9 @@ def apply_single_pole(
         float64[:, :],
         int32[:],
     ),
-    fastmath=True,
-    parallel=True,
+    fastmath=False,  # MUST BE TRUE
+    parallel=False,  # FIXME RACE CONDITION
+    debug=True,
 )
 def apply_poles2(
     # read

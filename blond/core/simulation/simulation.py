@@ -242,6 +242,8 @@ class Simulation(Preparable):
         import io
         import pstats
 
+        print("Starting performance profiling..")
+
         pr = cProfile.Profile()
 
         # trigger profiling later than turn 0

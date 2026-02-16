@@ -29,6 +29,7 @@ from os import PathLike
 from typing import TYPE_CHECKING
 
 import numpy as np
+import skrf as rf
 
 from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
@@ -47,6 +48,38 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+
+
+def get_poles(
+    freqs: np.ndarray,
+    Z: np.ndarray,
+    n_pole: int,
+    max_iterations: int | None = None,
+    plot_resul: bool = False,
+):
+    freq = rf.Frequency.from_f(freqs, unit="Hz")
+    ntwk = rf.Network(frequency=freq, s=Z.reshape(-1, 1, 1))
+
+    vf = rf.VectorFitting(ntwk)
+    if max_iterations is not None:
+        vf.max_iterations = max_iterations
+    vf.vector_fit(
+        n_poles_real=0,
+        n_poles_cmplx=n_pole,
+        fit_constant=True,
+        fit_proportional=True,
+    )
+
+    poles = vf.poles
+    residues = vf.residues
+    if plot_resul:
+        from matplotlib import pyplot as plt
+
+        vf.plot_s_db()  # overlay fit vs original
+        plt.show()
+    rms_error = vf.get_rms_error()
+
+    return poles, residues, rms_error, vf.proportional_coeff, vf.constant_coeff
 
 
 def get_hash(array1d: NumpyArray) -> int:
@@ -638,8 +671,21 @@ class Resonators(
         Q = self._quality_factors
         omega = self._omega
         R_s = self._shunt_impedances
-        poles = -omega / (2 * Q) + 1j * omega
-        residues = R_s * omega / (4 * Q) + 1j * R_s * omega / 2
+
+        # Impedances and Wakes in High Energy Particle Accelerators
+        #  Bruno W Zotter and Semyon Kheifets
+        # https://www.worldscientific.com/doi/epdf/10.1142/3068
+        # Page 84 visible (Page 104 with PDF tool)
+        Qbar = Q * np.sqrt(1 - 1 / 4 / Q**2)
+        omega1 = omega / Q * (1j / 2 + Qbar)
+        # omega2 = omega / Q * (1j / 2 - Qbar)
+        residues = R_s * omega1 / (2 * Qbar)
+        # fix to match `VectorFitting`
+        # probalby +- or complex-number problem in equations above
+        poles = 1j * np.real(omega1) - np.imag(omega1)
+        # proportional_coeff = 0
+        # constant_coeff = 0
+
         return poles, residues
 
 

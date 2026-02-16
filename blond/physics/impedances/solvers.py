@@ -1266,8 +1266,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
         self.last_reference_time = copy(beam.reference.time)
         hist_y_to_density_factor = 1.0 / beam.common_array_size
-        factor = (-1 * beam.particle_type.charge * e) * (
+        factor = -(1 * beam.particle_type.charge * e) * (
             beam.intensity * hist_y_to_density_factor
         )
-        print(np.max(self._voltage * factor), "kV")
         return self._voltage * factor

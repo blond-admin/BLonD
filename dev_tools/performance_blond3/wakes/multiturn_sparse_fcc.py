@@ -1,5 +1,7 @@
 """Example of how to configure a simulation with sparse multiturn wakefields."""
 
+from pstats import SortKey
+
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -20,7 +22,6 @@ from blond import (
 from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import StaticMultiProfile
-from pstats import SortKey
 
 backend.set_specials("cpp")
 
@@ -94,8 +95,7 @@ wakefield = WakeField(
 )
 ring.add_elements(
     (
-        # wakefield,
-        profile,
+        wakefield,
         drift,
         rf_station,
     )
