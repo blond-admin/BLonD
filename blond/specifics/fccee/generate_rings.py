@@ -55,7 +55,7 @@ def generate_fccee_booster_basic_simulation(
         Basic FCCee collider Simulation object.
     """
     # Parameters taken from the FCCee feasibility report of March 2025
-    collider_circumference = 90.65874532 * 1e3
+    booster_circumference = 90.65874532 * 1e3
     bending_radius = 10.021 * 1e3
     radiation_integrals = np.array(
         [
@@ -94,11 +94,11 @@ def generate_fccee_booster_basic_simulation(
         )
 
     ring = Ring(
-        circumference=collider_circumference,
+        circumference=booster_circumference,
         synchrotron_radiation_integrals=radiation_integrals,
     )
     drift = DriftSimple(
-        orbit_length=collider_circumference,
+        orbit_length=booster_circumference,
         momentum_compaction_factor=momentum_compaction_factor,
     )
 
@@ -106,10 +106,7 @@ def generate_fccee_booster_basic_simulation(
     cavity = SingleHarmonicRFStation(
         harmonic=242400, voltage=total_rf_voltage_injection, phi_rf=0
     )
-    ring.add_elements([cavity, drift])
-
     SRM = SynchrotronRadiationMaster()
-    SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring)
 
     magnetic_cycle = ConstantMagneticCycle(
         value=injection_energy,
@@ -120,7 +117,6 @@ def generate_fccee_booster_basic_simulation(
 
     beam = Beam(intensity=1e9, particle_type=particle)
     fccee_booster_simulation = Simulation.from_locals(locals())
-    fccee_booster_simulation.print_one_turn_execution_order()
 
     fccee_booster_simulation.prepare_beam(
         beam=beam,
