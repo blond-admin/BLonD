@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
-from numpy._typing import NDArray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond import Ring, Simulation, StaticProfile, proton

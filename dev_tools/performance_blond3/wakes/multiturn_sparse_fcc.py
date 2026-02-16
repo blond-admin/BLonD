@@ -122,20 +122,15 @@ sim.profiling(
 
 
 def my_callback(simulation: Simulation, beam: Beam) -> None:
-    if False:
-        plt.figure(1)
-        beam.plot_hist2d(
-            range=[
-                [
-                    -t_rf + 5 * profile_center_distance,
-                    t_rf + 5 * profile_center_distance,
-                ],
-                [
-                    -7e8,
-                    7e8,
-                ],
-            ]
-        )
+    """Utility function for plotting.
+
+    Parameters
+    ----------
+    simulation
+        `Simulation` context manager
+    beam
+        Simulation beam object
+    """
     plt.figure(2)
     plt.cla()
     profile.profiles[-1].plot()

@@ -141,7 +141,7 @@ class TestPole(unittest.TestCase):
                 (numba.get_num_threads(), len(hist_y)), dtype=float
             ),
             update_on_bin=np.zeros(1, dtype=np.int32),
-            factor=1.0
+            factor=1.0,
         )
         print("masked")
         print("-" * 79)
@@ -164,8 +164,7 @@ class TestPole(unittest.TestCase):
                 (numba.get_num_threads(), len(voltage_masked)), dtype=float
             ),
             update_on_bin=np.array([0, start], dtype=np.int32),
-            factor=1.0
-
+            factor=1.0,
         )
         voltage[mask] = voltage_masked
 

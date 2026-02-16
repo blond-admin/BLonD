@@ -50,13 +50,42 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
 
 
-def get_poles(
+def fit_poles(
     freqs: np.ndarray,
     Z: np.ndarray,
     n_pole: int,
     max_iterations: int | None = None,
     plot_resul: bool = False,
 ):
+    """
+    Use vector fitting to get a `VectorFittedModel`.
+
+    Parameters
+    ----------
+    freqs
+        Frequency array to be fitted, in [Hz].
+    Z
+        Impedance array to be fitted, in [Ω].
+    n_pole
+        Number of poles to fit.
+    max_iterations
+        Maximum number of iterations.
+    plot_resul
+        Whether to plot the result (needs ``plt.show()``.
+
+    Returns
+    -------
+    poles
+        Complex poles of an equivalent circuit.
+    residues
+        Complex residues of an equivalent circuit.
+    rms_error
+        Root mean square error of the fit.
+    proportional_coeff
+        Proportional coefficient.
+    constant_coeff
+        Constant coefficient.
+    """
     freq = rf.Frequency.from_f(freqs, unit="Hz")
     ntwk = rf.Network(frequency=freq, s=Z.reshape(-1, 1, 1))
 
@@ -662,7 +691,17 @@ class Resonators(
         self._cache_impedance = impedance
         return impedance
 
-    def get_vectorfit(self):
+    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray]:
+        """
+        Derive the poles and residues as in vector-fitting.
+
+        Returns
+        -------
+        poles
+            The complex poles.
+        residues
+            The complex residues.
+        """
         warnings.warn(
             "`get_vectorfit` untested and probably wrong!",
             UserWarning,

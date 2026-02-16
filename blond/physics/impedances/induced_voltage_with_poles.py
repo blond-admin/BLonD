@@ -5,6 +5,16 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
+
+"""Numba implementation to generate ``voltage`` from a vector fitting model."""
+
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
 import os
 
 import numba
@@ -15,7 +25,7 @@ os.environ["NUMBA_BOUNDSCHECK"] = "1"
 
 
 @numba.njit()
-def apply_single_pole(
+def _apply_single_pole(
     profile: np.ndarray,
     profile_dts: np.ndarray,
     pole: complex,
@@ -26,7 +36,7 @@ def apply_single_pole(
     t_start,
     factor,
     thread_i,
-):
+) -> complex:
     # y[n] = profile[n] + exp(p * dt) * y[n-1]
     # V[n] = 2 * Re(r * y[n])
     n_bins = len(profile)
@@ -84,7 +94,31 @@ def apply_poles2(
     voltage_threaded,
     update_on_bin,
     factor,
-):
+) -> None:
+    """
+    Apply poles based on the `profile` to generate `voltage`.
+
+    Parameters
+    ----------
+    profile
+        Beam profile histogram.
+    profile_dts
+        Base for time step, connected to `update_on_bin`.
+    poles
+        Complex poles of an equivalent circuit.
+    residues
+        Complex residues of an equivalent circuit.
+    states
+        Complex state vector, initially ``(0 + 0j)``.
+    voltage
+        Output voltage, in [V].
+    voltage_threaded
+        Cached `voltage` array per thread. For speedup.
+    update_on_bin
+        Index when to trigger an update of dt. For speedup.
+    factor
+        To convert `profile` to current per bun [A].
+    """
     n_poles = len(poles)
     voltage[:] = 0  # reset to zero from previous call
     voltage_threaded[:, :] = 0  # reset to zero from previous call
@@ -93,7 +127,7 @@ def apply_poles2(
     for pole_i in prange(n_poles):
         thread_i = numba.get_thread_id()
 
-        states[pole_i] = apply_single_pole(
+        states[pole_i] = _apply_single_pole(
             profile,
             profile_dts,
             poles[pole_i],

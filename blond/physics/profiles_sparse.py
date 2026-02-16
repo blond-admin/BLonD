@@ -337,7 +337,19 @@ class EquidistantMultiProfile(MultiProfile):
             self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
 
     def _get_slice_single_profile(self, i: int):
-        """Get slice indices to select the i-th active profiel."""
+        """
+        Get slice indices to select the i-th active profile.
+
+        Parameters
+        ----------
+        i
+            Activate profile number.
+
+        Returns
+        -------
+        sel
+            ``slice`` selection of the profile within the memory.
+        """
         bins_per_profile = self._bins_per_profile
         start = i * bins_per_profile
         stop = start + bins_per_profile

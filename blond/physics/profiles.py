@@ -111,6 +111,11 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         ----------
         **kwargs_plot
             Keyword arguments for `matplotlib.pyplot.plot`.
+
+        Returns
+        -------
+        artists
+            The plotting artists.
         """
         from blond import AllowPlotting
 

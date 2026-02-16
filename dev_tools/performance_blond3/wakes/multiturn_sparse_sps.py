@@ -1,7 +1,10 @@
 """Example of how to configure a simulation with sparse multiturn wakefields."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from pstats import SortKey
+from typing import TYPE_CHECKING
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -24,25 +27,72 @@ from blond.physics.impedances.base import WakeFieldSource
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
+if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray as NumpyArray
 backend.set_specials("cpp")
 
 
 sync_momentum = 25.92e9  # [eV / c]
 
 
-class SupportsPoles(ABC):
+class SupportsVectorFittedModel(ABC):
+    """
+    Mixin to define sources with poles.
+
+    See Also
+    --------
+    MultiPoleSparseSolve: The corresponding wakefield solver.
+    """
+
     @abstractmethod
-    def get_vectorfit(self):
+    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray]:
+        """
+        Derive the poles and residues as in vector-fitting.
+
+        Returns
+        -------
+        poles
+            Complex poles of an equivalent circuit.
+        residues
+            Complex residues of an equivalent circuit.
+        """
         pass
 
 
-class Poles(WakeFieldSource, SupportsPoles):
+class VectorFittedModel(WakeFieldSource, SupportsVectorFittedModel):
+    """
+    Each pole+residue represents a circuit.
+
+    Parameters
+    ----------
+    poles
+        Complex poles of an equivalent circuit.
+    residues
+        Complex residues of an equivalent circuit.
+
+    See Also
+    --------
+    MultiPoleSparseSolve: The corresponding wakefield solver.
+
+    References
+    ----------
+    https://scikit-rf.readthedocs.io/en/latest/tutorials/VectorFitting.html
+    """
+
     def __init__(self, poles, residues):
         assert len(poles) == len(residues), f"{len(poles)=}  {len(residues)=}"
         self.poles = poles
         self.residues = residues
 
     def sort(self, by: str = "residues"):
+        """
+        Sort the internal data.
+
+        Parameters
+        ----------
+        by
+            'residues' or 'poles'
+        """
         if by == "residues":
             order = np.argsort(np.abs(self.residues))
         elif by == "poles":
@@ -53,14 +103,30 @@ class Poles(WakeFieldSource, SupportsPoles):
         self.residues = self.residues[order]
 
     @staticmethod
-    def from_file(loc: str):
+    def from_file(loc: str) -> VectorFittedModel:
+        """
+        Load vector-fitting data from disk.
+
+        Parameters
+        ----------
+        loc
+            Location of file to load from.
+
+        Returns
+        -------
+        poles
+            `Poles`
+
+        """
         data = np.load(loc)
         residues = data["residues"].flatten()
         poles = data["poles"].flatten()
         print(f"Loaded {len(residues)} wake sources.")
-        return Poles(poles=poles, residues=residues)
+        return VectorFittedModel(poles=poles, residues=residues)
 
     def plot(self, freq):
+        """Plot the poles."""
+        # TODO without `rf`
         """Omega = 2 * np.pi * freq
         s = 1j * omega
         h = np.zeros_like(s)
@@ -98,7 +164,17 @@ class Poles(WakeFieldSource, SupportsPoles):
         plt.subplot(3, 1, 3)
         vf.plot_s_im()  # overlay fit vs original
 
-    def get_vectorfit(self):
+    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray]:
+        """
+        Derive the poles and residues as in vector-fitting.
+
+        Returns
+        -------
+        poles
+            The complex poles.
+        residues
+            The complex residues.
+        """
         return self.poles, self.residues
 
 
@@ -146,7 +222,7 @@ profile = EquidistantMultiProfile(
     bins_per_profile=bins_per_profile,
 )
 
-poles = Poles.from_file("resources/1_sps_gen_new.npz")
+poles = VectorFittedModel.from_file("resources/1_sps_gen_new.npz")
 # poles.plot(np.linspace(0, 10e9, 10000))
 plt.show()
 poles.sort(by="residues")
@@ -187,7 +263,6 @@ sim.profiling(
     beams=beam, n_turns=100, sortby=SortKey.CUMULATIVE, start_turn_i=2
 )
 
-from blond import Beam, Simulation
 
 ax = plt.subplot(2, 1, 1)
 
@@ -205,6 +280,7 @@ ax2 = plt.subplot(2, 1, 2, sharex=ax1)
 
 
 def my_callback(simulation: Simulation, beam: Beam) -> None:
+    """Plotting utility."""
     solver_: MultiPoleSparseSolve = wakefield.solver  # type: ignore
     if True:
         plt.figure(80920)
@@ -227,17 +303,19 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
              solver_._voltage)
     artists.extend(artists2)"""
 
-    if False:
+    PLOT_ATTENUATION = False
+    if PLOT_ATTENUATION:
         plt.figure(8091)
         plt.title(simulation.turn_i.value)
         states = solver_._states[:-1]
         residues = solver_._residues
-        artist = plt.scatter(
+        plt.scatter(
             simulation.turn_i.value * np.ones(len(states[:])),
             np.real(residues[:] * states[:]),
             c=cmap(np.arange(len(states[:]))),
         )
-    if False:
+    PLOT_PROFILE_VOLTAGE = False
+    if PLOT_PROFILE_VOLTAGE:
         plt.figure(8092)
         plt.sca(ax1)
         plt.cla()
@@ -271,6 +349,8 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
     #    artist.remove()
     # input("continue?")
 
+
+sim.profiling(beam, 50, 5)
 
 my_callback.each_turn_i = 10
 sim.run_simulation(

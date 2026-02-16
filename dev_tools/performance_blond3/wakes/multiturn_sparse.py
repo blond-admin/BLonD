@@ -1,6 +1,7 @@
 """Example of how to configure a simulation with sparse multiturn wakefields."""
 
 import os
+from pstats import SortKey
 
 import numpy as np
 
@@ -110,6 +111,6 @@ beam = make_multibunch_beam(
 )
 
 
-# sim.profiling(beams=beam, n_turns=100, sortby=SortKey.TIME, start_turn_i=2)
+sim.profiling(beams=beam, n_turns=100, sortby=SortKey.TIME, start_turn_i=2)
 
 sim.run_simulation(beams=beam, n_turns=3000)

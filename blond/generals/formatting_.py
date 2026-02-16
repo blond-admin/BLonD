@@ -1,7 +1,32 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""Helpers for string formatting."""
+
 import math
 
 
-def si_format(num, precision=2):
+def si_format(num, decimals=2) -> str:
+    """
+    Get a string with SI-postfix from a ``float``.
+
+    Parameters
+    ----------
+    num
+        Floating number to evaluate.
+    decimals
+        Number of decimals to output.
+
+    Returns
+    -------
+    si_postfix_num
+        Number with SI-postfix, e.g. ``si_format(1e3) = 1k``.
+    """
     if num == 0:
         return "0"
 
@@ -29,4 +54,4 @@ def si_format(num, precision=2):
     exponent = max(min(exponent, 24), -24)
 
     value = num / (10**exponent)
-    return f"{value:.{precision}f}{prefixes[exponent]}"
+    return f"{value:.{decimals}f}{prefixes[exponent]}"

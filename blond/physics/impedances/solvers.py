@@ -1171,6 +1171,15 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
 
 class MultiPoleSparseSolve(WakeFieldSolver):
+    """
+    Solver that uses an `VectorFittedModel` calculate the induced voltage.
+
+    See Also
+    --------
+    SupportsVectorFittedModel: Wakefield sources can support vector fitting.
+    VectorFittedModel: Basic interface to support vector fitting.
+    """
+
     def __init__(
         self,
     ) -> None:
@@ -1201,7 +1210,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     def _finalize_solver(self, beam):
         poles = []
         residues = []
-        for i, source in enumerate(self._parent_wakefield.sources):
+        for source in self._parent_wakefield.sources:
             # source: TimeDomain  # type hint what the we expect # TODO
             poles_, residues_ = source.get_vectorfit()
             try:
