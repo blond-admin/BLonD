@@ -104,6 +104,9 @@ class TestDriftIntegration(unittest.TestCase):
         sim.check_circumference = "warn"
         with self.assertWarnsRegex(UserWarning, "but should be"):
             sim.finalize(beams=beam, n_turns=N_TURNS)
+        with self.assertRaisesRegex(ValueError, "Unknown"):
+            sim.check_circumference = "some typo"
+            sim.finalize(beams=beam, n_turns=N_TURNS)
         sim.check_circumference = "ignore"
         sim.finalize(beams=beam, n_turns=N_TURNS)
 
