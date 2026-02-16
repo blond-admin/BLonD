@@ -8,7 +8,6 @@ def setup_blond2():
     )
     from blond.legacy.blond2.beam.profile import (
         CutOptions,
-        FitOptions,
         Profile,
     )
     from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
@@ -22,17 +21,8 @@ def setup_blond2():
         RingAndRFTracker,
     )
 
-    def optimum_ql(V, I_rf, R_over_Q=45):
-        return 2 * V / (R_over_Q * I_rf)
-
-    def P_avgopt(Q_L, V, I_rf, R_over_Q=45):
-        return (1 / 8) * V**2 / (R_over_Q * Q_L) + (
-            1 / 32
-        ) * R_over_Q * Q_L * I_rf**2
-
     voltages_tot = 7.9e6
     intensities = 2.3e11
-    loaded_q = 20000
     bunch_lengths = 1.25e-9
 
     # Constants
@@ -66,27 +56,7 @@ def setup_blond2():
     )  # Assume filamented with SPS emittance
     bunch = Beam(ring, n_macroparticles, intensities)
 
-    print(rf.energy[0])  # 450000978170.6162
-    print(ring.eta_0[0, 0])  # 0.00034114256309499084
-    print(rf.beta[0])  # 0.9999978262922445
-    print(rf.phi_s[0])  # 3.141592653589793
-
-    n_slices = 2**7
-    profile = Profile(
-        bunch,
-        CutOptions(n_slices=n_slices, cut_left=0, cut_right=rf.t_rf[0, 0]),
-        FitOptions=FitOptions(fit_option="rms"),
-    )
     bigaussian(ring, rf, bunch, sigma_dt=bunch_lengths / 4, seed=1234)
-
-    # tracker = RingAndRFTracker(rf, bunch, Profile=profile)
-    # tracker = FullRingAndRF([tracker])
-
-    # matched_from_distribution_function(bunch, tracker,
-    #    distribution_type = 'binomial', bunch_length = bunch_lengths, distribution_exponent = 1.5,
-    #    distribution_variable = 'Hamiltonian', bunch_length_fit = 'fwhm',
-    #    n_iterations=1
-    # )
 
     beam = Beam(ring, n_macroparticles * n_bunches, intensities * n_bunches)
     buckets = rf.t_rf[0, 0] * 10
@@ -109,8 +79,7 @@ def setup_blond2():
             cut_right=(1000 + 10 * n_bunches + 5) * rf.t_rf[0, 0],
         ),
     )
-    # print(buckets)
-    # print(100 * buckets - 5 * rf.t_rf[0, 0], 100 * buckets + (10 * n_bunches + 5) * rf.t_rf[0, 0])
+
     profile.track()
 
     np.savez(
