@@ -56,7 +56,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from blond.physics.profiles_sparse import StaticMultiProfile
+    from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
@@ -1176,7 +1176,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     ) -> None:
         self._poles = None
         self._residues = None
-        self._profile: StaticMultiProfile | None = None
+        self._profile: EquidistantMultiProfile | None = None
         self._parent_wakefield = None
         self._voltage = None
         self.last_reference_time = None
@@ -1196,7 +1196,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         """
         self._parent_wakefield = parent_wakefield
 
-        self._profile: StaticMultiProfile = parent_wakefield.profile  # type: ignore
+        self._profile: EquidistantMultiProfile = parent_wakefield.profile  # type: ignore
 
     def _finalize_solver(self):
         poles = []
