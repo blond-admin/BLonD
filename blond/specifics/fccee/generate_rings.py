@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond import (
     Beam,
     BiGaussian,
@@ -33,13 +35,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.particle_types import ParticleType
 
 
-# TODO:SR integrals - once the optics are frozen
-def generate_fccee_collider_basic_simulation(
+def generate_fccee_booster_basic_simulation(
     operation_mode: str = "Z",
     particle: ParticleType = positron,
 ) -> Simulation:
     """
-    Function to generate a basic simulation for the FCCee collider.
+    Function to generate a basic simulation for the FCCee booster at 20 GeV.
 
     Parameters
     ----------
@@ -54,29 +55,37 @@ def generate_fccee_collider_basic_simulation(
         Basic FCCee collider Simulation object.
     """
     # Parameters taken from the FCCee feasibility report of March 2025
-    collider_circumference = 90.658509e3
+    collider_circumference = 90.65874532 * 1e3
     bending_radius = 10.021 * 1e3
-
+    radiation_integrals = np.array(
+        [
+            0.646747216157,
+            0.0005936549319,
+            5.6814536525e-08,
+            5.92870407301e-09,
+            1.698280783e-11,
+        ]
+    )
     if operation_mode in {"Z", "ZZ"}:
-        reference_energy = 45.6 * 1e9
-        total_rf_voltage = 50 * 1e6
-        momentum_compaction_factor = 28.6 * 1e-6
-        radiation_integrals = None
+        injection_energy = 20 * 1e9
+        extraction_energy = 45.6 * 1e9
+        total_rf_voltage_injection = 50 * 1e6
+        momentum_compaction_factor = 7.120435962 * 1e-6
     elif operation_mode in {"W", "WW"}:
-        reference_energy = 80 * 1e9
-        total_rf_voltage = 50 * 1e6
-        momentum_compaction_factor = 28.6 * 1e-6
-        radiation_integrals = None
+        injection_energy = 20 * 1e9
+        extraction_energy = 80 * 1e9
+        total_rf_voltage_injection = 50 * 1e6
+        momentum_compaction_factor = 7.120435962 * 1e-6
     elif operation_mode in {"H", "ZH"}:
-        reference_energy = 120 * 1e9
-        total_rf_voltage = 50 * 1e6
-        momentum_compaction_factor = 28.6 * 1e-6
-        radiation_integrals = None
+        injection_energy = 20 * 1e9
+        extraction_energy = 120 * 1e9
+        total_rf_voltage_injection = 50 * 1e6
+        momentum_compaction_factor = 7.120435962 * 1e-6
     elif operation_mode in {"ttbar", "tt"}:
-        reference_energy = 182.5 * 1e9
-        total_rf_voltage = 50 * 1e6
-        momentum_compaction_factor = 28.6 * 1e-6
-        radiation_integrals = None
+        injection_energy = 20 * 1e9
+        extraction_energy = 182.5 * 1e9
+        total_rf_voltage_injection = 50 * 1e6
+        momentum_compaction_factor = 7.120435962 * 1e-6
     else:
         raise ValueError(
             f"Operation mode not recognised. Expected Z or ZZ, W or WW, "
@@ -95,7 +104,7 @@ def generate_fccee_collider_basic_simulation(
 
     # TODO: calculate initial total RF voltage required in the collider
     cavity = SingleHarmonicRFStation(
-        harmonic=121200, voltage=total_rf_voltage, phi_rf=0
+        harmonic=242400, voltage=total_rf_voltage_injection, phi_rf=0
     )
     ring.add_elements([cavity, drift])
 
@@ -103,17 +112,17 @@ def generate_fccee_collider_basic_simulation(
     SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring)
 
     magnetic_cycle = ConstantMagneticCycle(
-        value=reference_energy,
+        value=injection_energy,
         in_unit="total energy",
         reference_particle=particle,
         bending_radius=bending_radius,
     )
 
     beam = Beam(intensity=1e9, particle_type=particle)
-    fccee_simulation = Simulation.from_locals(locals())
-    fccee_simulation.print_one_turn_execution_order()
+    fccee_booster_simulation = Simulation.from_locals(locals())
+    fccee_booster_simulation.print_one_turn_execution_order()
 
-    fccee_simulation.prepare_beam(
+    fccee_booster_simulation.prepare_beam(
         beam=beam,
         preparation_routine=BiGaussian(
             sigma_dt=0.4e-9 / 4,
@@ -124,7 +133,7 @@ def generate_fccee_collider_basic_simulation(
         ),
         turn_i=1,
     )
-    return fccee_simulation
+    return fccee_booster_simulation
 
 
 def WigglerMagnetFCCee(
