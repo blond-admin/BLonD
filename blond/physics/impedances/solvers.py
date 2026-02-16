@@ -1198,7 +1198,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
         self._profile: EquidistantMultiProfile = parent_wakefield.profile  # type: ignore
 
-    def _finalize_solver(self):
+    def _finalize_solver(self, beam):
         poles = []
         residues = []
         for i, source in enumerate(self._parent_wakefield.sources):
@@ -1227,7 +1227,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._update_on_bin = np.unique(
             self._profile._bucket_index_to_memory_index
         )
-        pass
+        self.factor = -(1 * beam.particle_type.charge * e) * (
+            beam.intensity * 1.0 / beam.common_array_size
+        )
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
@@ -1246,13 +1248,21 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             The induced voltage, in [V].
         """
         if self._poles is None:
-            self._finalize_solver()
+            self._finalize_solver(beam=beam)
         assert self._update_on_bin[0] == 0, "First bib must always update"
-        if self.last_reference_time is not None:
-            passed_time = beam.reference.time - self.last_reference_time
-            self._states[-1] = self._profile._continuous_memory_hist_x[0]
-        assert self._states[-1] <= self._profile._continuous_memory_hist_x[0]
+        if self.last_reference_time is None:
+            self._states = np.zeros(len(self._poles) + 1, complex)
 
+            self._states[-1] = self._profile._continuous_memory_hist_x[0]
+        else:
+            passed_time = beam.reference.time - self.last_reference_time
+            self._states[-1] -= complex(passed_time)
+            assert (
+                self._states[-1].real
+                <= self._profile._continuous_memory_hist_x[0]
+            )
+
+        self._voltage[:] = 0.0
         apply_poles2(
             profile=self._profile._continuous_memory_hist_y,
             profile_dts=self._profile._continuous_memory_hist_x,
@@ -1262,10 +1272,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             voltage=self._voltage,
             voltage_threaded=self._voltage_threaded,
             update_on_bin=self._update_on_bin,
+            factor=self.factor,
         )
         self.last_reference_time = copy(beam.reference.time)
-        hist_y_to_density_factor = 1.0 / beam.common_array_size
-        factor = -(1 * beam.particle_type.charge * e) * (
-            beam.intensity * hist_y_to_density_factor
-        )
-        return self._voltage * factor
+        return self._voltage

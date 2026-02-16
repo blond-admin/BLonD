@@ -24,6 +24,7 @@ def apply_single_pole(
     state: complex,
     update_on_bin: np.ndarray,
     t_start,
+    factor,
 ):
     # y[n] = profile[n] + exp(p * dt) * y[n-1]
     # V[n] = 2 * Re(r * y[n])
@@ -49,7 +50,7 @@ def apply_single_pole(
         else:
             state *= decay
         state += 0.5 * profile_i_
-        voltage[bin_i] += 2 * np.real(residue * state)
+        voltage[bin_i] += 2 * factor * np.real(residue * state)
         state = state + 0.5 * profile_i_
 
     return state
@@ -65,6 +66,7 @@ def apply_single_pole(
         float64[:],
         float64[:, :],
         int32[:],
+        float64,
     ),
     fastmath=True,  # MUST BE TRUE
     parallel=True,  # FIXME RACE CONDITION
@@ -80,6 +82,7 @@ def apply_poles2(
     voltage,
     voltage_threaded,
     update_on_bin,
+    factor,
 ):
     n_poles = len(poles)
     voltage_threaded[:] = 0
@@ -97,6 +100,7 @@ def apply_poles2(
             states[pole_i],
             update_on_bin,
             states[-1],
+            factor,
         )
 
     for thread_i in prange(numba.get_num_threads()):
