@@ -1119,6 +1119,8 @@ class TestSPSTransmitterGain(unittest.TestCase):
             n_harmonics=1,
             main_harmonic_idx=0,
         )
+        cavity.omega_rf_design = np.array([200.222e6 * 2 * np.pi])
+
         self.rf = cavity
         drift = DriftSimple(
             orbit_length=2 * np.pi * 1100.009,
@@ -1141,11 +1143,11 @@ class TestSPSTransmitterGain(unittest.TestCase):
         self.beam.reference._particle_type = proton
         self.beam.reference.particle_type = proton
         self.beam.reference.gamma = calc_gamma(proton.mass, 25.92e9)
-        sim = Simulation(
+        self.sim = Simulation(
             ring=self.ring,
             magnetic_cycle=self.magnetic_cycle,
         )
-        sim.prepare_beam(
+        self.sim.prepare_beam(
             self.beam,
             BiGaussian(
                 n_macroparticles=int(1e5),
@@ -1157,7 +1159,6 @@ class TestSPSTransmitterGain(unittest.TestCase):
         beam_2 = deepcopy(self.beam)
         self.rf.track(beam_2)
         del beam_2
-        cavity.omega_rf_design = np.array([200.222e6 * 2 * np.pi])
 
         self.profile = StaticProfile(
             cut_left=0.0e-9,
@@ -1201,12 +1202,12 @@ class TestSPSTransmitterGain(unittest.TestCase):
             a_comb=15 / 16,
             commissioning=commissioning,
         )
-        omega = self.rf.get_main_harmonic_omega_rf_design(
-            beam_beta=self.beam.reference.beta,
-            ring_circumference=self.ring.circumference,
+        self.rf.omega_rf_design = np.array([200.222e6 * 2 * np.pi])
+        OTFB.set_hardware_commissioning(
+            omega_rf=self.rf.omega_rf_design, harmonic=4620
         )
-        OTFB.set_hardware_commissioning(omega_rf=omega, harmonic=4620)
         self.rf.attach_cavity_feedback(OTFB)
+        OTFB.on_run_simulation(self.sim, self.beam, 1)
         for i in range(100):
             OTFB.track_no_beam()
 
