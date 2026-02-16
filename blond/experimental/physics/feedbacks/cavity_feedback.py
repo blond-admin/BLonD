@@ -300,7 +300,7 @@ class BirksCavityFeedback(LocalFeedback):
         for i in range(n_pretrack):
             self.circuit_track(no_beam=True)
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         r"""
         Tracking method of the cavity feedback.
 

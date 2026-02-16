@@ -66,7 +66,7 @@ beam.read_partial_flags.return_value = beam._flags.array_local
 
 
 class ObservablesHelper(ObservablesOncePerTurnBase):
-    def update(self, simulation: Simulation) -> None:
+    def _update(self) -> None:
         pass
 
     def to_disk(self) -> None:
@@ -126,9 +126,7 @@ class TestObservables(unittest.TestCase):
             beam=beam,
             n_turns=100,
         )
-        self.observables.update(
-            simulation=simulation,
-        )
+        self.observables.update()
         self.observables.to_disk()
 
         self.observables.from_disk()
@@ -244,9 +242,7 @@ class TestBunchObservation(unittest.TestCase):
             beam=self.beam,
             n_turns=100,
         )
-        self.bunch_observation.update(
-            simulation=simulation,
-        )
+        self.bunch_observation.update()
 
         # test properties
         np.testing.assert_almost_equal(
@@ -342,9 +338,7 @@ class TestBunchStatistics(unittest.TestCase):
             beam=self.beam,
             n_turns=100,
         )
-        self.bunch_statistics.update(
-            simulation=simulation,
-        )
+        self.bunch_statistics.update()
 
         # test properties
         np.testing.assert_almost_equal(
@@ -434,9 +428,7 @@ class TestRFStationPhaseObservation(unittest.TestCase):
             beam=beam,
             n_turns=100,
         )
-        self.rf_station_phase_observation.update(
-            simulation=simulation,
-        )
+        self.rf_station_phase_observation.update()
         self.rf_station_phase_observation.to_disk()
 
         # test properties
@@ -510,9 +502,7 @@ class TestStaticProfileObservation(unittest.TestCase):
         )
         simulation.section_i.value = 0
         simulation.turn_i.value = 0
-        self.static_profile_observation.update(
-            simulation=simulation,
-        )
+        self.static_profile_observation.update()
         self.static_profile_observation.to_disk()
 
         self.static_profile_observation.from_disk()
@@ -530,15 +520,14 @@ class TestStaticProfileObservation(unittest.TestCase):
             [0]
         )
         simulation.section_i.value = 0
-        self.static_profile_observation.update(simulation=simulation)
+        self.static_profile_observation.update()
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "already called update in this turn for turn",
+        ):
+            self.static_profile_observation.update()
 
-        prof_obs = deepcopy(self.static_profile_observation)
-        before_len = len(prof_obs.hist_y)
-        prof_obs.update(simulation=simulation)
-
-        assert (
-            len(prof_obs.hist_y) == before_len
-        )  # no update since we already had this turn
+        assert len(self.static_profile_observation.hist_y) == 1
 
 
 class TestWakeFieldObservation(unittest.TestCase):
@@ -586,7 +575,7 @@ class TestWakeFieldObservation(unittest.TestCase):
         )
 
         simulation.section_i.value = 0
-        wf_obs.update(simulation=simulation)
+        wf_obs.update()
 
         with self.assertRaises(AttributeError):
             _ = wf.induced_voltage
@@ -605,9 +594,7 @@ class TestWakeFieldObservation(unittest.TestCase):
             n_turns=100,
         )
         simulation.section_i.value = 0
-        self.wake_field_observation.update(
-            simulation=simulation,
-        )
+        self.wake_field_observation.update()
         self.wake_field_observation.to_disk()
         self.wake_field_observation.from_disk()
 
@@ -655,9 +642,7 @@ class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
             beam=beam,
             n_turns=100,
         )
-        self.dynamic_profile_observation.update(
-            simulation=simulation,
-        )
+        self.dynamic_profile_observation.update()
         self.dynamic_profile_observation.to_disk()
 
         self.dynamic_profile_observation.from_disk()
@@ -730,42 +715,42 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         self.static_multi_profile_observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            obs_per_turn=2,
             n_turns=100,
         )
         simulation.section_i.value = 0
         simulation.turn_i.value = 0
-        self.static_multi_profile_observation.update(
-            simulation=simulation,
-        )
+        self.static_multi_profile_observation.update()
 
         self.static_multi_profile_observation.to_disk()
 
         self.static_multi_profile_observation.from_disk()
 
         np.testing.assert_allclose(
-            self.static_multi_profile_observation.hist_y[0],
+            self.static_multi_profile_observation.hist_y[0][0],
             self.profile.hist_y,
         )
-        assert len(self.static_multi_profile_observation.hist_y) == 1
-
-        simulation.section_i.value = 1
-        self.static_multi_profile_observation.update(
-            simulation=simulation,
-        )
-        assert len(self.static_multi_profile_observation.hist_y) == 2
         np.testing.assert_allclose(
-            self.static_multi_profile_observation.hist_y[1],
+            self.static_multi_profile_observation.hist_y[0][1],
             self.profile_2.hist_y,
         )
+        assert len(self.static_multi_profile_observation.hist_y) == 1
+        assert (
+            len(self.static_multi_profile_observation.hist_y[0]) == 2
+        )  # two profiles per turn
+
+        simulation.turn_i.value = 1
+        self.static_multi_profile_observation.update()
+        assert len(self.static_multi_profile_observation.hist_y) == 2
 
         # no update if we repeat
-        self.static_multi_profile_observation.update(
-            simulation=simulation,
-        )
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "already called update in this turn for turn",
+        ):
+            self.static_multi_profile_observation.update()
         assert len(self.static_multi_profile_observation.hist_y) == 2
         np.testing.assert_allclose(
-            self.static_multi_profile_observation.hist_y[1],
+            self.static_multi_profile_observation.hist_y[1][1],
             self.profile_2.hist_y,
         )
 

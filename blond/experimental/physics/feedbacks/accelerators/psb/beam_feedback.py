@@ -159,6 +159,6 @@ class PsbBeamFeedback(Blond2BeamFeedback):
         # Apply frequency correction
         self.domega_rf = -self.domega_PL - self.domega_RL
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """Phase and radial loops for PSB. See documentation on-line for details."""
         self.update_domega_rf(beam=beam)

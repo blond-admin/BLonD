@@ -92,7 +92,7 @@ def requires(dependencies: list[str]) -> Callable:
     return decorator
 
 
-def get_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
+def filter_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
     """
     Find all elements of a certain type.
 

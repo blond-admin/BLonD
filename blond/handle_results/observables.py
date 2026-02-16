@@ -168,6 +168,8 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         )  # to avoid double recordings with multiple drifts in one section
         self._last_section_i_observed = -1
 
+        self._simulation: Simulation | None = None
+
     def _calc_n_entries(self, n_turns: int) -> int:
         """
         Calculate the number of entries considering `each_turn_i`.
@@ -200,19 +202,20 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         return self._turns_array
 
     @abstractmethod  # pragma: no cover
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         pass
+
+    def update(self) -> None:
+        """Update memory with new values."""
+        if self._last_turn_i_observed != self._simulation.turn_i.value:
+            self._update()
+            self._last_turn_i_observed = self._simulation.turn_i.value
+        else:
+            raise RuntimeError(
+                f"{self} already called update in this turn for turn {self._last_turn_i_observed}."
+                f" Was this observation added twice?",
+            )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -250,6 +253,8 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
 
         self._turns_array = np.arange(0, n_turns, self.each_turn_i, dtype=int)
         assert len(self._turns_array) == self._calc_n_entries(n_turns=n_turns)
+
+        self._simulation = simulation
 
 
 class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
@@ -367,18 +372,8 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             (n_entries,),
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         # TODO allow several bunches
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
@@ -542,18 +537,8 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             n_entries,
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         # TODO allow several bunches
 
         self._bunch_position.write(np.average(self._beam.read_partial_dt()))
@@ -715,18 +700,8 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
             shape,
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         self._phases.write(
             None
             if self._rf_station.phi_rf is None
@@ -859,29 +834,11 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
             (n_entries, n_bins),
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        if (
-            self._last_turn_i_observed == simulation.turn_i.value
-            and self._last_section_i_observed == simulation.section_i.value
-        ):
-            return
-        self._last_turn_i_observed = simulation.turn_i.value
-        self._last_section_i_observed = simulation.section_i.value
+    def _update(self) -> None:
+        """Update memory with new values."""
         self._hist_y.write(
             self._profile.hist_y,
         )
-        # else return without recording
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray:
@@ -941,10 +898,18 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
     >>> turn_0_profile1 = 1  # turn_0 simulation
     >>> turn_2_profile0 = 2  # after 2 turns, because `each_turn_i = 2`
     >>> turn_2_profile1 = 3  # after 2 turns, because `each_turn_i = 2`
-    >>> for index in (turn_0_profile0, turn_0_profile1, turn_2_profile0, turn_2_profile1):
-    ...     plt.plot(
-    ...         profile_obs.hist_x[index % 2], profile_obs.hist_y[index, :]
-    ...     )
+    >>> plt.plot(
+    >>>     profile_obs.hist_x[0], profile_obs.hist_y[0][0]
+    >>> )
+    >>> plt.plot(
+    >>>     profile_obs.hist_x[1], profile_obs.hist_y[0][1]
+    >>> )
+    >>> plt.plot(
+    >>>     profile_obs.hist_x[0], profile_obs.hist_y[1][0]
+    >>> )
+    >>> plt.plot(
+    >>>     profile_obs.hist_x[1], profile_obs.hist_y[1][1]
+    >>> )
     """
 
     def __init__(
@@ -990,38 +955,17 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
-        n_entries = int(
-            (len(self._turns_array) * len(self._profiles)) // self.each_turn_i
-            + 2 * len(self._profiles)
-        )
+        n_turns_observation = int(len(self._turns_array) // self.each_turn_i)
         n_bins = self._profiles[0].n_bins
+        shape = (n_turns_observation, len(self._profiles), n_bins)
         self._hist_y = DenseArrayRecorder(
             f"{self.common_filepath}_hist_y",
-            (n_entries, n_bins),
+            shape,
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update the data in case the function has not been called on the current section and turn already.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        if (
-            self._last_turn_i_observed == simulation.turn_i.value
-            and self._last_section_i_observed == simulation.section_i.value
-        ):
-            return
-        self._last_turn_i_observed = simulation.turn_i.value
-        self._last_section_i_observed = simulation.section_i.value
-        for prof in self._profiles:
-            if simulation.section_i.value == prof.section_index:
-                self._hist_y.write(prof.hist_y)
+    def _update(self) -> None:
+        """Update the data."""
+        self._hist_y.write([prof.hist_y for prof in self._profiles])
 
     @property  # as readonly attributes
     def hist_x(self) -> list[NumpyArray]:
@@ -1126,18 +1070,8 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
             (n_entries, n_bins),
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         try:
             self._induced_voltage.write(
                 self._wakefield.induced_voltage,
@@ -1243,18 +1177,8 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
             shape,
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         self._hist_y.write(self._profile.hist_y)
         self._hist_x.write(self._profile.hist_x)
 

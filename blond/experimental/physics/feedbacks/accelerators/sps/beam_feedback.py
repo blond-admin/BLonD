@@ -61,7 +61,9 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         from blond.physics.drifts import DriftSimple
 
         self._simulation = simulation  # todo declare
-        self._drift = simulation.ring.elements.get_element(DriftSimple)
+        self._drift = simulation.ring.elements.get_element(
+            DriftSimple, recursive=False
+        )
 
     def on_run_simulation(
         self,
@@ -74,7 +76,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self.beta = beam.reference.beta
         self.energy = beam.reference.total_energy
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         r"""
         Calculation of the SPS RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
@@ -186,7 +188,7 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         #: | *Frequency loop gain.*
         self.gain2 = FL_gain
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Calculation of the SPS RF frequency correction from the phase
         difference between beam and RF (actual synchronous phase). Same as

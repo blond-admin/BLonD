@@ -19,3 +19,15 @@ class NotTestedWarning(UserWarning):
     """Warning for not tested code/classes."""
 
     pass
+
+
+class PrecisionWarning(UserWarning):
+    """Warning for changing the precision of floats."""
+
+    pass
+
+
+class ExperimentalFeaturesWarning(UserWarning):
+    """Warning for experimental features import."""
+
+    pass

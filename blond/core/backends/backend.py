@@ -16,6 +16,9 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
+from numpy.exceptions import ComplexWarning
+
+from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -23,10 +26,19 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import TYPE_CHECKING, Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
 DEFAULT_BACKEND = "python"
 DEFAULT_BITS = "64"
+
+ALL_BACKENDS: dict[str, BackendBaseClass] = {}
+AVAILABLE_BACKENDS: dict[str, BackendBaseClass] = {}
+
+
+def _register_backend(bd: BackendBaseClass) -> BackendBaseClass:
+    ALL_BACKENDS[bd.__name__] = bd
+    return bd
 
 
 class Specials(ABC):
@@ -252,7 +264,6 @@ class BackendBaseClass(ABC):
             "python",
             "cpp",
             "numba",
-            "fortran",
             "cuda",
         ],
         is_gpu: bool,
@@ -273,6 +284,8 @@ class BackendBaseClass(ABC):
         # Callables that link to e.g. Numpy, Cupy
         self.array: Callable = None  # type: ignore
         self.gradient: Callable = None  # type: ignore
+        self.empty: Callable = None  # type: ignore
+        self.repeat: Callable = None  # type: ignore
         self.linspace: Callable = None  # type: ignore
         self.histogram: Callable = None  # type: ignore
         self.zeros: Callable = None  # type: ignore
@@ -304,6 +317,9 @@ class BackendBaseClass(ABC):
         self.copy: Callable = None  # type: ignore
         self.ones_like: Callable = None  # type: ignore
         self.add: Callable = None  # type: ignore
+        self.concatenate: Callable = None  # type: ignore
+        self.unique: Callable = None  # type: ignore
+        self.ndarray: type = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -368,7 +384,7 @@ class BackendBaseClass(ABC):
         -----
         Following environment variables can be set:
 
-        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'fortran', 'cuda'
+        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'cuda'
         - `BLOND_BACKEND_BITS` can be '32' or '64'
         """
         _backend_mode_raw: str = os.environ.get(
@@ -383,7 +399,6 @@ class BackendBaseClass(ABC):
             "python",
             "cpp",
             "numba",
-            "fortran",
             "cuda",
         )
         if _backend_mode_raw in _allowed_backend_modes:
@@ -391,7 +406,6 @@ class BackendBaseClass(ABC):
                 "python",
                 "cpp",
                 "numba",
-                "fortran",
                 "cuda",
             ] = _backend_mode_raw  # type: ignore
         else:
@@ -467,6 +481,125 @@ class BackendBaseClass(ABC):
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
 
+    def _asarray_if_needed(self, arr: ArrayLike) -> NumpyArray | CupyArray:
+        # Faster to check than cast, so only cast if needed
+        if isinstance(arr, self.ndarray):
+            return arr
+
+        try:
+            gpu_arr = arr.device != "cpu"
+        except AttributeError:
+            gpu_arr = False
+
+        if gpu_arr:
+            arr = arr.get()
+
+        return self.array(arr)
+
+    def _cast_dtype_if_needed(
+        self, arr: NumpyArray | CupyArray, dtype: type
+    ) -> NumpyArray | CupyArray:
+        if arr.dtype != dtype:
+            warnings.warn(
+                f"Automatically casting dtype from {arr.dtype} to {dtype}",
+                stacklevel=3,
+                category=PrecisionWarning,
+            )
+            try:
+                # Casting numpy complex array -> float is smooth and
+                # includes an automatic ComplexWarning.  Trying to cast
+                # a cupy array in the same way raises an exception.
+                # Maybe a bug in CuPy?
+                # Catch the exception then throw the correct warning.
+                arr = arr.astype(dtype)
+            except AttributeError as e:
+                if (
+                    str(e)
+                    == "module 'numpy' has no attribute 'ComplexWarning'"
+                ):
+                    ComplexWarning(
+                        "Casting complex values to real discards the imaginary part"
+                    )
+                    arr = arr.real.astype(dtype)
+                else:  # pragma: no cover
+                    raise
+
+        return arr
+
+    def _cast_arr_and_dtype(
+        self, arr: ArrayLike, dtype: type
+    ) -> NumpyArray | CupyArray:
+        # Catch likely errors and reraise with slightly friendlier
+        # messages.  Raise from the original exception to aid
+        # debugging.
+        #
+        # ValueError is raised by backend.array(arr) if input is ragged.
+        # TypeError is raised by arr.astype(backend.[type]) if input
+        # cannot be coerced to the new type (e.g. str -> float)
+
+        try:
+            new_arr = self._asarray_if_needed(arr)
+        except ValueError as exc:
+            raise ValueError(
+                f"Unable to convert input data {arr} to array."
+            ) from exc
+
+        try:
+            new_arr = self._cast_dtype_if_needed(new_arr, dtype)
+        except (TypeError, ValueError) as exc:
+            raise type(exc)(
+                "Unable to automatically cast dtype of input data from "
+                f"{new_arr.dtype} to {dtype}."
+            ) from exc
+
+        return new_arr
+
+    def cast_arr_float_if_needed(
+        self, arr: ArrayLike
+    ) -> NumpyArray | CupyArray:
+        """
+        Convert input to backend.array with ``dtype=backend.float``.
+
+        Uses isinstance and dtype checks to only modify the object if
+        needed, which is faster and avoids breaking references.  If the
+        reference is required to change, `backend.array` should be
+        called directly.
+
+        Parameters
+        ----------
+        arr
+            The object that should be returned as an array.
+
+        Returns
+        -------
+        NumpyArray | CupyArray
+            The modified (if needed) array.
+        """
+        return self._cast_arr_and_dtype(arr, self.float)
+
+    def cast_arr_complex_if_needed(
+        self, arr: ArrayLike
+    ) -> NumpyArray | CupyArray:
+        """
+        Convert input to backend.array with ``dtype=backend.complex``.
+
+        Uses isinstance and dtype checks to only modify the object if
+        needed, which is faster and avoids breaking references.  If the
+        reference is required to change, `backend.array` should be
+        called directly.
+
+        Parameters
+        ----------
+        arr
+            The object that should be returned as an array.
+
+        Returns
+        -------
+        NumpyArray | CupyArray
+            The modified (if needed) array.
+        """
+        return self._cast_arr_and_dtype(arr, self.complex)
+
 
 class NumpyBackend(BackendBaseClass):
     """
@@ -495,6 +628,8 @@ class NumpyBackend(BackendBaseClass):
 
         self.array = np.array
         self.gradient = np.gradient
+        self.empty = np.empty
+        self.repeat = np.repeat
         self.linspace = np.linspace
         self.histogram = np.histogram
         self.zeros = np.zeros
@@ -527,6 +662,9 @@ class NumpyBackend(BackendBaseClass):
         self.copy = np.copy
         self.ones_like = np.ones_like
         self.add = np.add
+        self.concatenate = np.concatenate
+        self.unique = np.unique
+        self.ndarray = np.ndarray
 
         self._finalize()
 
@@ -536,7 +674,6 @@ class NumpyBackend(BackendBaseClass):
             "python",
             "cpp",
             "numba",
-            "fortran",
         ],
     ) -> None:
         """
@@ -567,21 +704,13 @@ class NumpyBackend(BackendBaseClass):
             NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
-        elif mode == "fortran":
-            from blond.core.backends.fortran.callables import (
-                reload_fortran_backend,
-            )
-
-            FortranSpecials = reload_fortran_backend(self.float)
-
-            self.specials = FortranSpecials()
-            self.specials_mode = mode
         else:
             raise ValueError(mode)
         if self.verbose and onchange:
             print(f"Set special to `{mode}`")
 
 
+@_register_backend
 class Numpy32Bit(NumpyBackend):
     """Numpy backend with 32 bit precision."""
 
@@ -594,6 +723,7 @@ class Numpy32Bit(NumpyBackend):
         )
 
 
+@_register_backend
 class Numpy64Bit(NumpyBackend):
     """Numpy backend with 64 bit precision."""
 
@@ -641,6 +771,8 @@ class CupyBackend(BackendBaseClass):
 
         self.array = cp.array
         self.gradient = cp.gradient
+        self.empty = cp.empty
+        self.repeat = cp.repeat
         self.linspace = cp.linspace
         self.histogram = cp.histogram
         self.zeros = cp.zeros
@@ -673,6 +805,9 @@ class CupyBackend(BackendBaseClass):
         self.copy = cp.copy
         self.ones_like = cp.ones_like
         self.add = cp.add
+        self.concatenate = cp.concatenate
+        self.unique = cp.unique
+        self.ndarray = cp.ndarray
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
@@ -701,6 +836,7 @@ class CupyBackend(BackendBaseClass):
             print(f"Set special to `{mode}`")
 
 
+@_register_backend
 class Cupy32Bit(CupyBackend):
     """Cupy backend with 64 bit precision."""
 
@@ -711,6 +847,7 @@ class Cupy32Bit(CupyBackend):
         )
 
 
+@_register_backend
 class Cupy64Bit(CupyBackend):
     """Cupy backend with 32 bit precision."""
 
@@ -725,3 +862,14 @@ default = Numpy64Bit()  # use .change_backend(...) to change it anywhere
 backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
 backend.verbose = True
 backend.apply_environment_variables()
+
+
+for k, v in ALL_BACKENDS.items():
+    try:
+        v()
+    # Skip on any exception, we only care that it's not available,
+    # we don't care why.
+    except Exception:
+        pass
+    else:
+        AVAILABLE_BACKENDS[k] = v
