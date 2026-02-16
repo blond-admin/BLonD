@@ -17,6 +17,8 @@ from blond.legacy.blond2.llrf.cavity_feedback import (
     LHCCavityLoopCommissioning,
 )
 
+DEBUG_PLOTTING = False
+
 batch_spacings = np.array(
     [
         330,
@@ -94,8 +96,6 @@ def setup_blond2():
 
     injection_scheme = np.zeros(np.sum(batch_lengths), dtype=int)
     NB = len(injection_scheme)
-
-    disable_plots = False
 
     ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=1)
     rf = RFStation(
@@ -192,7 +192,7 @@ def setup_blond2():
     transient = CL.generator_power()
     transient = transient * np.exp(1j * np.angle(CL.I_GEN_COARSE))
 
-    if not disable_plots:
+    if DEBUG_PLOTTING:
         plt.figure()
         plt.plot(np.abs(transient))
         plt.grid()
