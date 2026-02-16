@@ -99,6 +99,8 @@ def get_test_data():
     centers = edges[:-1] + np.diff(edges[:2]) / 2
     centers_extended = np.linspace(-0.2e-7, 3.5e-7, 100 * len(centers))
     hist_y_extended = np.interp(centers_extended, centers, hist_y)
+    centers_extended = np.array(centers_extended, dtype=float)
+    hist_y_extended = np.array(hist_y_extended, dtype=float)
     return centers_extended, hist_y_extended
 
 
@@ -139,6 +141,7 @@ class TestPole(unittest.TestCase):
                 (numba.get_num_threads(), len(hist_y)), dtype=float
             ),
             update_on_bin=np.zeros(1, dtype=np.int32),
+            factor=1.0
         )
         print("masked")
         print("-" * 79)
@@ -160,7 +163,9 @@ class TestPole(unittest.TestCase):
             voltage_threaded=np.zeros(
                 (numba.get_num_threads(), len(voltage_masked)), dtype=float
             ),
-            update_on_bin=np.array([0, start], dtype=int),
+            update_on_bin=np.array([0, start], dtype=np.int32),
+            factor=1.0
+
         )
         voltage[mask] = voltage_masked
 

@@ -35,9 +35,9 @@ resonator_data = np.loadtxt(
 )
 sync_momentum = 25.92e9  # [eV / c]
 
-R_shunt = resonator_data[:1, 2] * 10**6
-f_res = resonator_data[:1, 0] * 10**9
-Q_factor = resonator_data[:1, 1]
+R_shunt = resonator_data[:, 2] * 10**6
+f_res = resonator_data[:, 0] * 10**9
+Q_factor = resonator_data[:, 1]
 
 
 class MyTestCase(unittest.TestCase):
