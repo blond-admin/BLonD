@@ -3,7 +3,6 @@ import warnings
 
 import numpy as np
 import pytest
-from parameterized import parameterized
 
 from blond.core.backends.backend import (
     Cupy32Bit,
@@ -16,6 +15,10 @@ from blond.core.backends.backend import (
     default,
 )
 from blond.core.backends.numba.callables import recompile_numba_backend
+from blond.testing.backend_testing import (
+    multi_backend_testcase,
+    skip_if_no_cupy,
+)
 
 try:
     import cupy as cp  # type: ignore
@@ -897,10 +900,8 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"{special=} {dtype=}",
                     )
 
-    @pytest.mark.backend_mutation
-    @parameterized.expand([Numpy32Bit, Numpy64Bit])
-    def test_cast_float_arr_np_only(self, new_backend):
-        backend.change_backend(new_backend)
+    @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    def test_cast_float_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.float)
 
         for in_type in (tuple, list, np.array):
@@ -924,13 +925,9 @@ class TestSpecials(unittest.TestCase):
         unchanged = backend.cast_arr_float_if_needed(target)
         self.assertTrue(target is unchanged)
 
-    @pytest.mark.backend_mutation
-    @parameterized.expand([Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit])
-    def test_cast_float_arr_full(self, new_backend):
-        if not cupy_available:
-            self.skipTest(f"{cupy_available=}")
-
-        backend.change_backend(new_backend)
+    @skip_if_no_cupy
+    @multi_backend_testcase
+    def test_cast_float_arr_full(self):
         for in_type in (tuple, list, np.array, cp.array):
             # Recreate the target for each loop, avoids issues with
             # transferring back and forth between cupy and numpy.
@@ -973,13 +970,8 @@ class TestSpecials(unittest.TestCase):
         unchanged = backend.cast_arr_float_if_needed(target)
         self.assertTrue(target is unchanged)
 
-    @pytest.mark.backend_mutation
-    @parameterized.expand([Numpy32Bit, Numpy64Bit])
-    def test_cast_complex_arr_np_only(self, new_backend):
-        if not cupy_available and isinstance(new_backend, CupyBackend):
-            self.skipTest(f"{cupy_available=}")
-
-        backend.change_backend(new_backend)
+    @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    def test_cast_complex_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.complex)
         for in_type in (tuple, list, np.array):
             cast = backend.cast_arr_complex_if_needed(in_type(target))
@@ -1003,13 +995,9 @@ class TestSpecials(unittest.TestCase):
         unchanged = backend.cast_arr_complex_if_needed(target)
         self.assertTrue(target is unchanged)
 
-    @pytest.mark.backend_mutation
-    @parameterized.expand([Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit])
-    def test_cast_complex_arr_full(self, new_backend):
-        if not cupy_available:
-            self.skipTest(f"{cupy_available=}")
-
-        backend.change_backend(new_backend)
+    @skip_if_no_cupy
+    @multi_backend_testcase
+    def test_cast_complex_arr_full(self):
         for in_type in (tuple, list, np.array, cp.array):
             # Recreate the target for each loop, avoids issues with
             # transferring back and forth between cupy and numpy.

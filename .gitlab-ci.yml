@@ -49,6 +49,7 @@ workflow:
 .main:
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
+    BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
     MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
   script:
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
@@ -173,7 +174,6 @@ test_minimum:
     # Compile C++, CUDA, Fortran backends
     - python blond/core/backends/cpp/compile.py --parallel
     - python blond/core/backends/cuda/compile.py
-    - python blond/core/backends/fortran/compile.py
 
   # Replace .main to use python from venv not python3 from system
   script:
