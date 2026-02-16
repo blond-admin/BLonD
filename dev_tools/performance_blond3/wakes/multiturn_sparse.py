@@ -69,13 +69,11 @@ t_rf = (
     / rf_station.harmonic
 )
 
+filling_pattern = np.zeros(rf_station.harmonic, bool)
+filling_pattern[::10] = 1
+
 profile = EquidistantMultiProfile(
-    n_profiles=int(rf_station.harmonic // 10),
-    width_per_profile=magnetic_cycle.get_t_rev_init(
-        ring.circumference,
-        particle_type=proton,
-    )
-    / rf_station.harmonic,
+    filling_pattern=filling_pattern,
     bins_per_profile=2**8,
     offset=t_rf / 2,
 )

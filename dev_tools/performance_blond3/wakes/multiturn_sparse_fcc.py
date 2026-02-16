@@ -104,7 +104,7 @@ sim.prepare_beam(
     preparation_routine=BiGaussian(
         sigma_dt=50e-12,
         seed=1,
-        n_macroparticles=1e5,
+        n_macroparticles=1e4,
     ),
     beam=_bunch,
 )
@@ -145,4 +145,8 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
 
 my_callback.each_turn_i = 10
 
-sim.run_simulation(beams=beam, n_turns=3000, callbacks=my_callback)
+sim.run_simulation(
+    beams=beam,
+    n_turns=3000,
+    # callbacks=my_callback,
+)
