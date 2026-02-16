@@ -1249,11 +1249,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         """
         if self._poles is None:
             self._finalize_solver(beam=beam)
-        assert self._update_on_bin[0] == 0, "First bib must always update"
-        if self.last_reference_time is None:
-            self._states = np.zeros(len(self._poles) + 1, complex)
-
-            self._states[-1] = self._profile._continuous_memory_hist_x[0]
+            assert self._update_on_bin[0] == 0, "First bib must always update"
         else:
             passed_time = beam.reference.time - self.last_reference_time
             self._states[-1] -= complex(passed_time)
@@ -1262,7 +1258,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 <= self._profile._continuous_memory_hist_x[0]
             )
 
-        self._voltage[:] = 0.0
         apply_poles2(
             profile=self._profile._continuous_memory_hist_y,
             profile_dts=self._profile._continuous_memory_hist_x,

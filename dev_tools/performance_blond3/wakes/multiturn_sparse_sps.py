@@ -54,9 +54,48 @@ class Poles(WakeFieldSource, SupportsPoles):
     @staticmethod
     def from_file(loc: str):
         data = np.load(loc)
-        flatten = data["residues"].flatten()
-        print(f"Loaded {len(flatten)} wake sources.")
-        return Poles(poles=data["poles"].flatten(), residues=flatten)
+        residues = data["residues"].flatten()
+        poles = data["poles"].flatten()
+        print(f"Loaded {len(residues)} wake sources.")
+        return Poles(poles=poles, residues=residues)
+
+    def plot(self, freq):
+        """Omega = 2 * np.pi * freq
+        s = 1j * omega
+        h = np.zeros_like(s)
+        for i in range(len(self.poles)):
+            pk = self.poles[i]
+            ck = self.residues[i]
+            h += ck / (s - pk)
+        plt.subplot(3,1,1)
+        plt.plot(freq, np.abs(h))
+        plt.subplot(3,1,2)
+        plt.plot(freq, np.real(h))
+        plt.subplot(3,1,3)
+        plt.plot(freq, np.imag(h))
+        """
+        import skrf as rf
+
+        freq = rf.Frequency.from_f(freq, unit="Hz")
+        ntwk = rf.Network(
+            frequency=freq, s=np.zeros(len(freq), float).reshape(-1, 1, 1)
+        )
+        vf = rf.VectorFitting(ntwk)
+        # vf.proportional_coeff = np.array([np.sum(self.proportional_coeff)])
+        vf.proportional_coeff = np.array([0.0])
+        vf.constant_coeff = np.array([0.0])
+        # vf.constant_coeff = np.array([np.sum(self.constant_coeff)])
+        vf.poles = np.array(self.poles)[:]
+
+        vf.residues = np.array(self.residues)[np.newaxis, :]
+        plt.subplot(3, 1, 1)
+        vf.plot_s_db()  # overlay fit vs original
+
+        plt.subplot(3, 1, 2)
+        vf.plot_s_re()  # overlay fit vs original
+
+        plt.subplot(3, 1, 3)
+        vf.plot_s_im()  # overlay fit vs original
 
     def get_vectorfit(self):
         return self.poles, self.residues
@@ -80,7 +119,7 @@ drift = DriftSimple(
 )
 rf_station = SingleHarmonicRFStation(
     harmonic=4620,
-    voltage=0.9e6,
+    voltage=4e6,
     phi_rf=0.0,
 )
 t_rf = (
@@ -90,7 +129,6 @@ t_rf = (
     )
     / rf_station.harmonic
 )
-n_profiles = int(rf_station.harmonic // 10)
 t_rev = magnetic_cycle.get_t_rev_init(
     ring.circumference,
     particle_type=proton,
@@ -99,7 +137,8 @@ t_rev = magnetic_cycle.get_t_rev_init(
 
 filling_pattern = np.zeros(rf_station.harmonic, bool)
 filling_pattern[::10] = 1
-bins_per_profile = 2**8
+# filling_pattern[0] = 1
+bins_per_profile = 256
 
 profile = EquidistantMultiProfile(
     filling_pattern=filling_pattern,
@@ -107,6 +146,8 @@ profile = EquidistantMultiProfile(
 )
 
 poles = Poles.from_file("resources/1_sps_gen_new.npz")
+poles.plot(np.linspace(0, 10e9, 10000))
+plt.show()
 poles.sort(by="residues")
 wakefield = WakeField(
     sources=(poles,),
@@ -163,8 +204,6 @@ ax2 = plt.subplot(2, 1, 2, sharex=ax1)
 
 
 def my_callback(simulation: Simulation, beam: Beam) -> None:
-    if simulation.turn_i.value == 0:
-        return
     solver_: MultiPoleSparseSolve = wakefield.solver  # type: ignore
 
     plt.figure(80920)
@@ -201,12 +240,14 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
     if True:
         plt.figure(8092)
         plt.sca(ax1)
+        plt.cla()
         plt.plot(
             profile._continuous_memory_hist_x[:] + beam.reference.time,
             profile._continuous_memory_hist_y[:],
         )
 
         plt.sca(ax2)
+        plt.cla()
         plt.plot(
             profile._continuous_memory_hist_x[:] + beam.reference.time,
             wakefield.solver._voltage[:],
@@ -214,8 +255,17 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
 
     plt.draw()
     plt.pause(0.1)
-    if simulation.turn_i.value == 19:
-        plt.show()
+    if simulation.turn_i.value == 0:
+        print("saved histogram")
+        p = profile.profiles[0]
+        np.savez(
+            "/home/slauber/PycharmProjects/deleteme/manyideas"
+            "/linear_runtime_wakes/resources/hist.npz",
+            hist_x=p.hist_x,
+            hist_y=p.hist_y,
+        )
+    # if simulation.turn_i.value == 1:
+    #    plt.show()
     # artist.remove()
     # for artist in artists:
     #    artist.remove()
