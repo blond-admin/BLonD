@@ -126,7 +126,7 @@ class Specials(ABC):
     def drift_exact(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
-        T: float,
+        t_rev: float,
         alpha_0: float,
         higher_alpha: NumpyArray,
         n_alpha: int,
