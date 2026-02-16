@@ -326,3 +326,51 @@ __global__ void loss_box(
         }
         }
 }
+
+
+
+extern "C" __global__ void sparse_histogram(
+    const real_t *__restrict__ input, real_t *__restrict__ output,
+    const real_t *__restrict__ left_cuts, const real_t *__restrict__ right_cuts,
+    const int *__restrict__ bins_per_profile,
+    const int *__restrict__ start_indices,
+
+    const int n_profiles, const int total_bins, const int n_macroparticles) {
+  int tid = threadIdx.x + blockDim.x * blockIdx.x;
+
+  // Loop through input particles and update histograms in shared memory
+  for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+
+    const real_t a = input[i];
+
+    int hist_i = -1;
+    real_t cut_left;
+    real_t cut_right;
+    for (int j = 0; j < n_profiles; j++) {
+      cut_right = right_cuts[j];
+      if (a <= cut_right) {
+        hist_i = j;
+        cut_left = left_cuts[j];
+        break; // stop at first match
+      }
+    }
+    if (hist_i == -1)
+      continue;
+    ; // no interval found
+    if (a < cut_left)
+        continue;
+
+    if (a == cut_right) {
+      atomicAdd(&output[start_indices[hist_i] + bins_per_profile[hist_i] - 1],
+                1);
+
+      continue;
+    }
+    const real_t inv_bin_width =
+        bins_per_profile[hist_i] / (cut_right - cut_left);
+
+    const int bin = (int)((a - cut_left) * inv_bin_width);
+    atomicAdd(&output[start_indices[hist_i] + bin], 1);
+  }
+  __syncthreads();
+}

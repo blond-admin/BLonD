@@ -91,6 +91,7 @@ def reload_cuda_backend(  # NOQA: D102
     _gm_linear_interp_kick_help = gpu_module.get_function("lik_only_gm_copy")
     _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
     _loss_box = gpu_module.get_function("loss_box")
+    _sparse_histogram = gpu_module.get_function("sparse_histogram")
 
     default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
     default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -434,6 +435,68 @@ def reload_cuda_backend(  # NOQA: D102
 
             n_new = len(ids) - cp.sum(select)
             return n_new
+
+        @staticmethod
+        def sparse_histogram(
+            x: CupyArray,
+            out: CupyArray,
+            left_cuts: CupyArray,
+            right_cuts: CupyArray,
+            bins_per_profile: CupyArray,
+            start_indices: CupyArray,
+        ) -> None:
+            """
+            Sparse histogram continuous memory layout.
+
+            Parameters
+            ----------
+            x
+                An array, e.g., the particle dt values.
+            out
+                Output histogram (n_filled_buckets * stride).
+            left_cuts
+                Start of each histogram.
+            right_cuts
+                Stop of each histogram.
+            bins_per_profile
+                Number of bins per histogram.
+            start_indices
+                Precomputed index to access out per histogram
+                ``out[start_indices[i]:start_indices[i] + bins_per_profile[i]]``
+            """
+            assert x.dtype == floattype
+            assert out.dtype == floattype
+            assert left_cuts.dtype == floattype
+            assert right_cuts.dtype == floattype
+            assert bins_per_profile.dtype == np.int32
+            assert start_indices.dtype == np.int32
+
+            assert x.flags.c_contiguous
+            assert out.flags.c_contiguous
+            assert left_cuts.flags.c_contiguous
+            assert right_cuts.flags.c_contiguous
+            assert bins_per_profile.flags.c_contiguous
+            assert start_indices.flags.c_contiguous
+
+            n_profiles = len(bins_per_profile)
+            total_bins = len(out)
+
+            out[:] = 0
+            _sparse_histogram(
+                args=(
+                    x,  # input
+                    out,  # output
+                    left_cuts,
+                    right_cuts,
+                    bins_per_profile,
+                    start_indices,
+                    np.int32(n_profiles),  # n_profiles
+                    np.int32(total_bins),
+                    np.int32(len(x)),  # n_macroparticles
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
 
     return CudaSpecials
 
