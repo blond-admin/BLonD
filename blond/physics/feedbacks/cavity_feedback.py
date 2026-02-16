@@ -503,7 +503,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             Voltage setpoint on the fine grid [V].
         """
         return (
-            np.ones_like(self.profile.hist_y)
+            np.ones_like(self.antenna_voltage_coarse_grid)
             * self.get_voltage_from_parent_rf_station()
         )
 
