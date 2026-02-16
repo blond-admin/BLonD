@@ -112,9 +112,8 @@ class EquidistantMultiProfile(MultiProfile):
 
     def __init__(
         self,
-        n_profiles: int,
-        width_per_profile: float,
         bins_per_profile: int,
+        filling_pattern: NumpyArray,  # TODO
         offset: float = 0.0,
         section_index: int = 0,
         name: str | None = None,
@@ -153,7 +152,7 @@ class EquidistantMultiProfile(MultiProfile):
         hist_x
             One array with all profile.hist_y concatenated.
         """
-        return self._continuous_memory_hist_y[: self.n_bins]
+        return self._continuous_memory_hist_y
 
     @property
     def n_bins(self):
@@ -292,7 +291,7 @@ class EquidistantMultiProfile(MultiProfile):
 
         # Keep one profile space in between each profile
         # to make convolution on `_continuous_memory_hist_y` possible.
-        total = 2 * (self._n_profiles * bins_per_profile)
+        total = self._n_profiles * bins_per_profile
 
         self._continuous_memory_hist_x = backend.zeros(
             total,
@@ -301,48 +300,23 @@ class EquidistantMultiProfile(MultiProfile):
         self._continuous_memory_hist_y = backend.zeros_like(
             self._continuous_memory_hist_x
         )
-        self._continuous_memory_mask = backend.zeros(total, dtype=bool)
         self._continuous_memory_mask_prof = backend.zeros(total, dtype=bool)
-        dx = self.profiles[0]._hist_x[1] - self.profiles[0]._hist_x[0]
 
         for i, profile in enumerate(self.profiles):
-            start = 2 * i * bins_per_profile
+            start = i * bins_per_profile
             stop = start + bins_per_profile
             sel = slice(start, stop)
 
             # core region
-            self._continuous_memory_mask_prof[sel] = True
             self._continuous_memory_hist_x[sel] = profile._hist_x
             self._continuous_memory_hist_y[sel] = profile._hist_y
-
-            # Extend the coordinates (for convolution),
-            # so that the profile time coordinates start already
-            # before the profile.
-            ext_start = max(start - bins_per_profile, 0)
-            ext_stop = min(stop, total)
-
-            self._continuous_memory_mask[ext_start:ext_stop] = True
-
-            # left extension
-            if ext_start < start:
-                k = start - ext_start
-                self._continuous_memory_hist_x[ext_start:start] = (
-                    profile._hist_x[0] - dx * backend.arange(k, 0, -1)
-                )
-
-            # right extension
-            if stop < ext_stop:
-                k = ext_stop - stop
-                self._continuous_memory_hist_x[stop:ext_stop] = (
-                    profile._hist_x[-1] + dx * backend.arange(1, k + 1)
-                )
 
         self._bind_profiles()
 
     def _bind_profiles(self):  # TODO
         """Bind the memory of all ``self.profiles`` to the contigous memory."""
         for i, _profile in enumerate(self.profiles):
-            start = 2 * i * self._bins_per_profile
+            start = i * self._bins_per_profile
             stop = start + self._bins_per_profile
             sel = slice(start, stop)
 
@@ -372,5 +346,5 @@ class EquidistantMultiProfile(MultiProfile):
             bins_per_profile=self.profiles[0].n_bins,
             cut_width=(self.profiles[0].cut_right - self.profiles[0].cut_left),
             n_profiles=self._n_profiles,
-            stride=(2 * self._bins_per_profile),
+            stride=(self._bins_per_profile),
         )
