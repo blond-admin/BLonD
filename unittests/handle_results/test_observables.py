@@ -775,8 +775,8 @@ class TestSimulationObservation(unittest.TestCase):
             beam=beam,
             n_turns=10,
         )
-        self.obs.update(simulation)
-        self.obs.update(simulation)
+        self.obs._update()
+        self.obs._update()
         self.assertEqual(self.obs.t_revs[0], 123)
         self.assertEqual(len(self.obs.t_revs), 2)  # two updates before
 
@@ -803,8 +803,8 @@ class TestDriftObservation(unittest.TestCase):
             beam=beam,
             n_turns=10,
         )
-        self.obs.update(simulation)
-        self.obs.update(simulation)
+        self.obs._update()
+        self.obs._update()
         self.assertEqual(self.obs.eta_0s[0], 222)
         self.assertEqual(len(self.obs.eta_0s), 2)  # two updates before
 

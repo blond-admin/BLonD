@@ -1266,18 +1266,10 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         )
         self._simulation = simulation
 
-    def update(
+    def _update(
         self,
-        simulation: Simulation,
     ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+        """Update memory with new values."""
         self._t_revs.write(self._simulation.current_t_rev)
 
     @property  # as readonly attributes
@@ -1352,18 +1344,10 @@ class DriftObservation(ObservablesOncePerTurnBase):
             (self._calc_n_entries(n_turns=n_turns)),
         )
 
-    def update(
+    def _update(
         self,
-        simulation: Simulation,
     ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+        """Update memory with new values."""
         self._eta_0s.write(float(self._drift._last_eta_0))
 
     @property  # as readonly attributes
