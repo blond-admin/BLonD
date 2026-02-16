@@ -111,6 +111,8 @@ beam = make_multibunch_beam(
 )
 
 
-sim.profiling(beams=beam, n_turns=100, sortby=SortKey.TIME, start_turn_i=2)
+sim.profiling(
+    beams=beam, n_turns=100, sortby=SortKey.CUMULATIVE, start_turn_i=2
+)
 
 sim.run_simulation(beams=beam, n_turns=3000)
