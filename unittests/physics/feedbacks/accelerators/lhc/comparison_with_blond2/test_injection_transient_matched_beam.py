@@ -5,6 +5,35 @@ import numpy as np
 
 DEBUG_PLOTTING = False
 
+voltages_tot = 7.9e6
+intensities = 2.3e11
+bunch_lengths = 1.25e-9
+
+# Constants
+n_macroparticles = int(1e6)  # Macro-particles
+n_bunches = 36  # Number of bunches
+C = 26658.8832  # Machine circumference [m]
+p_s = 450e9  # Synchronous momentum [eV/c]
+h = 35640  # Harmonic number
+dphi = 0  # Phase modulation/offset
+R_over_Q = 45  # Cavity R/Q [Ohms]
+gamma_t = 53.8  # Transition gamma
+alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor
+
+n_turns = 100
+
+G_a = 6.79e-6  # Analog FB gain [A/V]
+G_d = 10  # Digital FB gain [-]
+tau_loop = 650e-9  # Overall loop delay [s]
+tau_a = 170e-6  # Analog FB delay [s]
+tau_d = 400e-6  # Digital FB delay [s]
+a_comb = 15 / 16  # Comb filter alpha [-]
+Q_L = 20000  # Loaded Quality factor [-]
+G_otfb = 10
+tau_comp = 1200e-9  # Complimentary delay in OTFB [s]
+G_gen = 1
+tau_o = 110e-6
+
 
 class TestInjectionMatchedBeam(unittest.TestCase):
     @classmethod
@@ -30,35 +59,6 @@ class TestInjectionMatchedBeam(unittest.TestCase):
                 FullRingAndRF,
                 RingAndRFTracker,
             )
-
-            voltages_tot = 7.9e6
-            intensities = 2.3e11
-            bunch_lengths = 1.25e-9
-
-            # Constants
-            n_macroparticles = int(1e6)  # Macro-particles
-            n_bunches = 36  # Number of bunches
-            C = 26658.8832  # Machine circumference [m]
-            p_s = 450e9  # Synchronous momentum [eV/c]
-            h = 35640  # Harmonic number
-            dphi = 0  # Phase modulation/offset
-            R_over_Q = 45  # Cavity R/Q [Ohms]
-            gamma_t = 53.8  # Transition gamma
-            alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor
-
-            n_turns = 100
-
-            G_a = 6.79e-6  # Analog FB gain [A/V]
-            G_d = 10  # Digital FB gain [-]
-            tau_loop = 650e-9  # Overall loop delay [s]
-            tau_a = 170e-6  # Analog FB delay [s]
-            tau_d = 400e-6  # Digital FB delay [s]
-            a_comb = 15 / 16  # Comb filter alpha [-]
-            Q_L = 20000  # Loaded Quality factor [-]
-            G_otfb = 10
-            tau_comp = 1200e-9  # Complimentary delay in OTFB [s]
-            G_gen = 1
-            tau_o = 110e-6
 
             ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=n_turns)
             rf = RFStation(
@@ -169,48 +169,23 @@ class TestInjectionMatchedBeam(unittest.TestCase):
             backend.change_backend(Numpy64Bit)
             backend.set_specials("cpp")
 
-            circumference = 26658.8832  # [m]
-            momentum = 450e9
-            voltage = 7.9e6
-            h = 35640
-            gamma_t = 53.8
-            n_macroparticles_per_bunch = 1_000_000
-
-            n_bunches = 36
-            intensity = 2.3e11 * n_bunches
-            n_turns = 100
-            bunch_lengths = 1.25e-9
-
-            G_a = 6.79e-6  # Analog FB gain [A/V]
-            G_d = 10  # Digital FB gain [-]
-            tau_loop = 650e-9  # Overall loop delay [s]
-            tau_a = 170e-6  # Analog FB delay [s]
-            tau_d = 400e-6  # Digital FB delay [s]
-            a_comb = 15 / 16  # Comb filter alpha [-]
-            Q_L = 20000  # Loaded Quality factor [-]
-            G_otfb = 10
-            tau_comp = 1200e-9  # Complimentary delay in OTFB [s]
-            G_gen = 1
-            tau_o = 110e-6
-            alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor
-
-            energy = np.sqrt(momentum**2 + proton.mass**2)
+            energy = np.sqrt(p_s**2 + proton.mass**2)
             rel_gamma = energy / proton.mass
             rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
 
             beam = Beam(
-                intensity,
+                intensities,
                 proton,
             )
 
-            cycle = ConstantMagneticCycle(proton, momentum, in_unit="momentum")
+            cycle = ConstantMagneticCycle(proton, p_s, in_unit="momentum")
 
             drift = DriftSimple(
-                orbit_length=circumference, momentum_compaction_factor=alpha
+                orbit_length=C, momentum_compaction_factor=alpha
             )
 
             cavity = MultiHarmonicRFStation(
-                voltage=np.array([voltage]),
+                voltage=np.array([voltages_tot]),
                 phi_rf=np.array([0.0]),
                 harmonic=np.array([h]),
                 n_harmonics=1,
@@ -257,13 +232,13 @@ class TestInjectionMatchedBeam(unittest.TestCase):
             cavity.attach_cavity_feedback(cavity_control)
 
             bigaussian = BiGaussian(
-                n_macroparticles_per_bunch,
+                n_macroparticles,
                 sigma_dt=bunch_lengths / 4,
                 seed=1234,
             )
 
             ring = Ring(
-                circumference,
+                C,
             )
 
             ring.add_elements(
@@ -303,20 +278,16 @@ class TestInjectionMatchedBeam(unittest.TestCase):
 
             for i in range(n_bunches):
                 beam._dt.array_local[
-                    i * n_macroparticles_per_bunch : (i + 1)
-                    * n_macroparticles_per_bunch
+                    i * n_macroparticles : (i + 1) * n_macroparticles
                 ] = _dt_tmp.array_local + 10 * t_rf * i + 1000 * t_rf
                 beam._dE.array_local[
-                    i * n_macroparticles_per_bunch : (i + 1)
-                    * n_macroparticles_per_bunch
+                    i * n_macroparticles : (i + 1) * n_macroparticles
                 ] = _dE_tmp.array_local
                 beam._flags.array_local[
-                    i * n_macroparticles_per_bunch : (i + 1)
-                    * n_macroparticles_per_bunch
+                    i * n_macroparticles : (i + 1) * n_macroparticles
                 ] = _flags_tmp.array_local
                 beam._ids.array_local[
-                    i * n_macroparticles_per_bunch : (i + 1)
-                    * n_macroparticles_per_bunch
+                    i * n_macroparticles : (i + 1) * n_macroparticles
                 ] = _ids_tmp.array_local
 
             simulation.finalize(
