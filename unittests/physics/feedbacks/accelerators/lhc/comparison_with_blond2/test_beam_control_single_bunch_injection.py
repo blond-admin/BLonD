@@ -5,6 +5,21 @@ import numpy as np
 
 DEBUG_PLOTTING = False
 
+circumference = 26658.8832  # [m]
+momentum = 450e9
+intensity = 1.6e11
+n_turns = 2_000
+voltage = 5e6
+h = 35640
+gamma_t = 53.8
+alpha = 1 / gamma_t / gamma_t
+
+injection_offset_phase = 40
+n_macroparticles = 1_000_000  # Number of macroparticles per bunch [-]
+tau_bunch = 1.2e-9
+number_of_bunches = 1  # Length of the batch [number of bunches]
+bunch_spacing = 10  # Bunch spacing [number of rf buckets]
+
 
 class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
     @classmethod
@@ -29,17 +44,6 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
 
             backend.change_backend(Numpy64Bit)
             backend.set_specials("cpp")
-
-            circumference = 26658.8832  # [m]
-            momentum = 450e9
-            intensity = 1.6e11
-            n_turns = 2_000
-            voltage = 5e6
-            h = 35640
-            gamma_t = 53.8
-            alpha = 1 / gamma_t / gamma_t
-
-            injection_offset_phase = 40
 
             energy = np.sqrt(momentum**2 + proton.mass**2)
             rel_gamma = energy / proton.mass
@@ -77,12 +81,13 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
                 n_bins=2**5 * (12 + 10),
             )
 
-            bigaussian = BiGaussian(1_000_000, sigma_dt=1.2e-9 / 4, seed=1234)
-
+            bigaussian = BiGaussian(
+                n_macroparticles, sigma_dt=tau_bunch / 4, seed=1234
+            )
             beam_control = LHCBeamControl(
                 profile,
                 pl_gain=1 / (5 * t_rev) * 1,
-                sl_gain=1 / (5 * t_rev) / 10 * 1,
+                sl_gain=1 / (5 * t_rev) / bunch_spacing * 1,
             )
 
             cavity.attach_beam_feedback(beam_control)
@@ -148,61 +153,34 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
             DISABLE_PL = False
 
             # Initialize the accelerator
-
-            # The synchrotron ring
-            C = 26658.8832  # Machine circumference [m]
-            p_s = 450e9  # Synchronous momentum [eV/c]
-            gamma_t = 53.8  # Transition gamma [-]
-            alpha = (
-                1.0 / gamma_t / gamma_t
-            )  # First order mom. comp. factor [-]
-            n_turns = 2000  # Number of turns to track [-]
-
-            ring = Ring(C, alpha, p_s, Proton(), n_turns=n_turns + 1)
+            ring = Ring(
+                circumference, alpha, momentum, Proton(), n_turns=n_turns + 1
+            )
 
             # The RF station
-            h = 35640  # Harmonic number [-]
-            V = 5e6  # RF voltage [V]
-            dphi = 0  # Phase modulation/offset [rad]
-
-            rfstation = RFStation(ring, [h], [V], [dphi], n_rf=1)
+            rfstation = RFStation(ring, [h], [voltage], [0], n_rf=1)
 
             # The beam
-            number_of_bunches = 1  # Length of the batch [number of bunches]
-            bunch_intensity = 1.6e11  # Bunch intensity [p/b]
-            n_macroparticles = (
-                1_000_000  # Number of macroparticles per bunch [-]
-            )
-            tau_bunch = 1.2e-9  # Bunch length [s]
-            bunch_spacing = 10  # Bunch spacing [number of rf buckets]
             injection_energy_error = 0  # Injection energy error [eV]
-            injection_phase_error = 40
-
             # First generate a single gaussian bunch
-            beam = Beam(ring, n_macroparticles, bunch_intensity)
+            beam = Beam(ring, n_macroparticles, intensity)
             bigaussian(
                 ring, rfstation, beam, sigma_dt=tau_bunch / 4, seed=1234
             )
 
             # Add final corrections to the bunch positions
-            bucket_shift = 0
-            beam.dt += (
-                bucket_shift * rfstation.t_rf[0, 0]
-                + injection_phase_error * rfstation.t_rf[0, 0] / 360
-            )
+            beam.dt += injection_offset_phase * rfstation.t_rf[0, 0] / 360
             beam.dE += injection_energy_error
 
             # The beam profile
             cut_options = CutOptions(
-                cut_left=(-5.5 + bucket_shift) * rfstation.t_rf[0, 0],
-                cut_right=(
-                    6.5 + number_of_bunches * bunch_spacing + bucket_shift
-                )
+                cut_left=(-5.5) * rfstation.t_rf[0, 0],
+                cut_right=(6.5 + number_of_bunches * bunch_spacing)
                 * rfstation.t_rf[
                     0,
                     0,
                 ],
-                n_slices=(10 * number_of_bunches + 12) * 2**5,
+                n_slices=(bunch_spacing * number_of_bunches + 12) * 2**5,
             )
             profile = Profile(beam, cut_options)
 
@@ -219,8 +197,9 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
 
             # Beam-phase loop
             # Beam Loops
+
             PL_gain = 1 / (5 * ring.t_rev[0]) * int(not DISABLE_PL)
-            SL_gain = PL_gain / 10
+            SL_gain = PL_gain / bunch_spacing
             bl_config = {
                 "machine": "LHC",
                 "PL_gain": PL_gain,
@@ -258,7 +237,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
                 beam_loop_error = (
                     beam_loop_error
                     - beam_loop_error[0]
-                    + injection_phase_error
+                    + injection_offset_phase
                 )
 
                 plt.figure("Phase evolution")
@@ -281,15 +260,15 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
 
             if SAVE_SIM:
                 if DISABLE_PL:
-                    cls.beam_loop_error_blond2 = (beam_loop_error,)
-                    cls.synchro_loop_error_blond2 = (synchro_loop_error,)
-                    cls.omega_rf_blond2 = (omega_rf,)
-                    cls.phi_rf_blond2 = (phi_rf,)
+                    cls.beam_loop_error_blond2 = beam_loop_error
+                    cls.synchro_loop_error_blond2 = synchro_loop_error
+                    cls.omega_rf_blond2 = omega_rf
+                    cls.phi_rf_blond2 = phi_rf
                 else:
-                    cls.beam_loop_error_blond2 = (beam_loop_error,)
-                    cls.synchro_loop_error_blond2 = (synchro_loop_error,)
-                    cls.omega_rf_blond2 = (omega_rf,)
-                    cls.phi_rf_blond2 = (phi_rf,)
+                    cls.beam_loop_error_blond2 = beam_loop_error
+                    cls.synchro_loop_error_blond2 = synchro_loop_error
+                    cls.omega_rf_blond2 = omega_rf
+                    cls.phi_rf_blond2 = phi_rf
 
         setup_blond2()
         setup_blond3()
