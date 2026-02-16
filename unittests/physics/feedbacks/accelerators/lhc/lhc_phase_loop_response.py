@@ -1,210 +1,280 @@
-import cProfile
-import os
-import pstats
-
 import matplotlib.pyplot as plt
 import numpy as np
-import scienceplots
+from scipy.signal import find_peaks
 from tqdm import tqdm
 
-# import beam_dynamics_tools.data_visualisation.make_plots_pretty
-plt.style.use("science")
-from beam_dynamics_tools.beam_profiles.bunch_profile_tools import (
-    get_beam_pattern,
-)
-
 # Import blond objects
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian, parabolic
-from blond.beam.profile import CutOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.llrf.beam_feedback import BeamFeedback
-from blond.trackers.tracker import RingAndRFTracker
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.distributions import bigaussian
+from blond.legacy.blond2.beam.profile import CutOptions, Profile
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
+from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
 
-# Options
-PLT_SIMS = True
-SAVE_SIM = True
-DISABLE_PL = False
-
-data_folder = "data/convergence_to_steadystate/"
+# from beam_dynamics_tools.beam_profiles.bunch_profile_tools import (
+#     get_beam_pattern,
+# )
 
 
-# Initialize the accelerator
-
-# The synchrotron ring
-C = 26658.8832  # Machine circumference [m]
-p_s = 450e9  # Synchronous momentum [eV/c]
-gamma_t = 53.8  # Transition gamma [-]
-alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor [-]
-n_turns = 2000  # Number of turns to track [-]
-
-ring = Ring(C, alpha, p_s, Proton(), n_turns=n_turns + 1)
-
-# The RF station
-h = 35640  # Harmonic number [-]
-V = 5e6  # RF voltage [V]
-dphi = 0  # Phase modulation/offset [rad]
-
-rfstation = RFStation(ring, [h], [V], [dphi], n_rf=1)
+DEBUG_PLOTTING = False
 
 
-# The beam
-number_of_bunches = 1  # Length of the batch [number of bunches]
-bunch_intensity = 1.6e11  # Bunch intensity [p/b]
-n_macroparticles = 1_000_000  # Number of macroparticles per bunch [-]
-tau_bunch = 1.2e-9  # Bunch length [s]
-bunch_spacing = 10  # Bunch spacing [number of rf buckets]
-injection_energy_error = 0  # Injection energy error [eV]
-injection_phase_error = 40
-bucket_shift = 1000
+def get_beam_pattern(
+    timeScale,
+    frames,
+    height_factor=0.015,
+    distance=500,
+    N_bunch_max=3564,
+    baseline_length=1,
+    BASE=False,
+    wind_len=10,
+):
+    fit_option = "fwhm"
+    appy_tf = False
 
+    def interp_f(time, bunch, level):
+        bunch_th = level * bunch.max()
+        time_bet_points = time[1] - time[0]
+        taux = np.where(bunch >= bunch_th)
+        taux1, taux2 = taux[0][0], taux[0][-1]
+        t1 = (
+            time[taux1]
+            - (bunch[taux1] - bunch_th)
+            / (bunch[taux1] - bunch[taux1 - 1])
+            * time_bet_points
+        )
+        t2 = (
+            time[taux2]
+            + (bunch[taux2] - bunch_th)
+            / (bunch[taux2] - bunch[taux2 + 1])
+            * time_bet_points
+        )
 
-# First generate a single gaussian bunch
-beam = Beam(ring, n_macroparticles, bunch_intensity)
-bigaussian(ring, rfstation, beam, sigma_dt=tau_bunch / 4, seed=1234)
+        return t1, t2
 
-# Add final corrections to the bunch positions
-bucket_shift = 0
-beam.dt += (
-    bucket_shift * rfstation.t_rf[0, 0]
-    + injection_phase_error * rfstation.t_rf[0, 0] / 360
-)
-beam.dE += injection_energy_error
+    def fwhm(x, y, level=0.5):
+        offset_level = np.mean(y[0:5])
+        amp = np.max(y) - offset_level
+        t1, t2 = interp_f(x, y, level)
+        mu = (t1 + t2) / 2.0
+        sigma = (t2 - t1) / 2.35482
+        popt = (mu, sigma, amp)
 
-# The beam profile
-cut_options = CutOptions(
-    cut_left=(-5.5 + bucket_shift) * rfstation.t_rf[0, 0],
-    cut_right=(6.5 + number_of_bunches * bunch_spacing + bucket_shift)
-    * rfstation.t_rf[
-        0,
-        0,
-    ],
-    n_slices=(10 * number_of_bunches + 12) * 2**5,
-)
-profile = Profile(beam, cut_options)
+        return popt
 
-# Plot profile
-profile.track()
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.plot(profile.bin_centers * 1e6, profile.n_macroparticles)
-ax.set_xlabel(r"$\Delta t$ [$\mu$s]")
-ax.set_ylabel(r"$\lambda (\Delta t)$ [arb. units]")
-ax.set_yticks([])
+    dt = (timeScale[-1] - timeScale[0]) / (len(timeScale) - 1)
+    fit_window = int(round(wind_len * 1e-9 / dt / 2))
+    N_frames = frames.shape[1]
+    N_bunches = np.zeros((N_frames,), dtype=int)
+    Bunch_positions = np.zeros((N_frames, N_bunch_max))
+    Bunch_lengths = np.zeros((N_frames, N_bunch_max))
+    Bunch_peaks = np.zeros((N_frames, N_bunch_max))
+    Bunch_intensities = np.zeros((N_frames, N_bunch_max))
+    Bunch_positionsFit = np.zeros((N_frames, N_bunch_max))
+    Bunch_peaksFit = np.zeros((N_frames, N_bunch_max))
+    Bunch_Exponent = np.zeros((N_frames, N_bunch_max))
+    Goodness_of_fit = np.zeros((N_frames, N_bunch_max))
 
-plt.show()
+    for i in np.arange(N_frames):
+        frame = frames[:, i]
 
-# Cavity Controller
-G_a = 6.79e-6  # Analog FB gain [A/V]
-G_d = 10  # Digital FB gain [-]
-tau_loop = 650e-9  # Overall loop delay [s]
-tau_a = 170e-6  # Analog FB delay [s]
-tau_d = 400e-6  # Digital FB delay [s]
-a_comb = 15 / 16  # Comb filter alpha [-]
-Q_L = 20000  # Loaded Quality factor [-]
-G_otfb = 10  # OTFB gain [-]
-tau_comp = 1200e-9  # Complimentary delay in OTFB [s]
-delta_f = -3480  # Initial detuning due to 12 bunches [Hz]
+        pos, _ = find_peaks(frame, height=height_factor, distance=distance)
+        N_bunches[i] = len(pos)
+        Bunch_positions[i, 0 : N_bunches[i]] = timeScale[pos]
+        Bunch_peaks[i, 0 : N_bunches[i]] = frame[pos]
 
+        for j, v in enumerate(pos):
+            x = 1e9 * timeScale[v - fit_window : v + fit_window]
+            y = frame[v - fit_window : v + fit_window]
+            if BASE:
+                baseline = np.mean(y[:baseline_length])
+                y = y - baseline
 
-# Beam-phase loop
-# Beam Loops
-PL_gain = 1 / (5 * ring.t_rev[0]) * int(not DISABLE_PL)
-SL_gain = PL_gain / 10
-bl_config = {"machine": "LHC", "PL_gain": PL_gain, "SL_gain": SL_gain}
+            (mu, sigma, amp) = fwhm(x, y, level=0.5)
 
-beam_loop = BeamFeedback(ring, rfstation, profile, bl_config)
+            Bunch_lengths[i, j] = 4 * sigma
+            Bunch_intensities[i, j] = np.sum(y)
+            Bunch_positionsFit[i, j] = mu
+            Bunch_peaksFit[i, j] = amp
 
-# The RF tracker
-rftracker = RingAndRFTracker(
-    rfstation,
-    beam,
-    Profile=profile,
-    interpolation=True,
-    BeamFeedback=beam_loop,
-)
+    N_bunches_max = np.max(N_bunches)
+    Bunch_positions = Bunch_positions[:, 0:N_bunches_max]
+    Bunch_peaks = Bunch_peaks[:, 0:N_bunches_max]
+    Bunch_lengths = Bunch_lengths[:, 0:N_bunches_max]
+    Bunch_intensities = Bunch_intensities[:, 0:N_bunches_max]
+    Bunch_positionsFit = Bunch_positionsFit[:, 0:N_bunches_max]
+    Bunch_peaksFit = Bunch_peaksFit[:, 0:N_bunches_max]
+    Bunch_Exponent = Bunch_Exponent[:, 0:N_bunches_max]
+    Goodness_of_fit = Goodness_of_fit[:, 0:N_bunches_max]
 
-
-# Initialize data arrays
-bunch_length = np.zeros(n_turns)
-bunch_length_spread = np.zeros(n_turns)
-beam_loop_error = np.zeros(n_turns)
-synchro_loop_error = np.zeros(n_turns)
-
-omega_rf = np.zeros(n_turns)
-phi_rf = np.zeros(n_turns)
-
-print(profile.bin_size * 1e12)
-
-# if DISABLE_PL:
-#    profile.track()
-#    beam_loop.track()
-# Tracking
-
-for i in tqdm(range(n_turns)):
-    profile.track()
-    rftracker.track()
-
-    bpos, blen, bpk, bpkpos, bint = get_beam_pattern(
-        profile.n_macroparticles,
-        profile.bin_centers,
-        height_factor=100,
-        distance=500,
-        single_turn=True,
+    return (
+        N_bunches,
+        Bunch_positions,
+        Bunch_peaks,
+        Bunch_lengths,
+        Bunch_intensities,
+        Bunch_positionsFit,
+        Bunch_peaksFit,
+        Bunch_Exponent,
+        Goodness_of_fit,
     )
 
-    # print(beam_loop.lhc_y)
 
-    bunch_length[i] = np.mean(blen)
-    bunch_length_spread[i] = np.std(blen)
-    beam_loop_error[i] = beam_loop.dphi * 180 / np.pi
-    synchro_loop_error[i] = rfstation.dphi_rf * 180 / np.pi
-    omega_rf[i] = rfstation.omega_rf[0, i]
-    phi_rf[i] = rfstation.phi_rf[0, i]
+def setup_blond2():
+    # Options
+    SAVE_SIM = True
+    DISABLE_PL = False
 
+    # Initialize the accelerator
 
-print(beam_loop.lhc_a)
-print(beam_loop.lhc_t)
+    # The synchrotron ring
+    C = 26658.8832  # Machine circumference [m]
+    p_s = 450e9  # Synchronous momentum [eV/c]
+    gamma_t = 53.8  # Transition gamma [-]
+    alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor [-]
+    n_turns = 2000  # Number of turns to track [-]
 
+    ring = Ring(C, alpha, p_s, Proton(), n_turns=n_turns + 1)
 
-beam_loop_error = beam_loop_error - beam_loop_error[0] + injection_phase_error
+    # The RF station
+    h = 35640  # Harmonic number [-]
+    V = 5e6  # RF voltage [V]
+    dphi = 0  # Phase modulation/offset [rad]
 
-plt.figure("Phase evolution")
-plt.plot(beam_loop_error, color="r", label="Beam-phase loop")
-plt.legend()
-plt.tight_layout()
-plt.grid()
-plt.xlim(0, n_turns - 1)
+    rfstation = RFStation(ring, [h], [V], [dphi], n_rf=1)
 
-plt.figure("Phase evolution")
-plt.plot(synchro_loop_error, color="r", label="Beam-phase loop")
-plt.legend()
-plt.tight_layout()
-plt.grid()
-plt.xlim(0, n_turns - 1)
+    # The beam
+    number_of_bunches = 1  # Length of the batch [number of bunches]
+    bunch_intensity = 1.6e11  # Bunch intensity [p/b]
+    n_macroparticles = 1_000_000  # Number of macroparticles per bunch [-]
+    tau_bunch = 1.2e-9  # Bunch length [s]
+    bunch_spacing = 10  # Bunch spacing [number of rf buckets]
+    injection_energy_error = 0  # Injection energy error [eV]
+    injection_phase_error = 40
 
+    # First generate a single gaussian bunch
+    beam = Beam(ring, n_macroparticles, bunch_intensity)
+    bigaussian(ring, rfstation, beam, sigma_dt=tau_bunch / 4, seed=1234)
 
-plt.show()
+    # Add final corrections to the bunch positions
+    bucket_shift = 0
+    beam.dt += (
+        bucket_shift * rfstation.t_rf[0, 0]
+        + injection_phase_error * rfstation.t_rf[0, 0] / 360
+    )
+    beam.dE += injection_energy_error
 
+    # The beam profile
+    cut_options = CutOptions(
+        cut_left=(-5.5 + bucket_shift) * rfstation.t_rf[0, 0],
+        cut_right=(6.5 + number_of_bunches * bunch_spacing + bucket_shift)
+        * rfstation.t_rf[
+            0,
+            0,
+        ],
+        n_slices=(10 * number_of_bunches + 12) * 2**5,
+    )
+    profile = Profile(beam, cut_options)
 
-if SAVE_SIM:
-    if DISABLE_PL:
-        np.savez(
-            f"generate_blond2_data/feedbacks/lhc/data/lhc_beam_control_{injection_phase_error:.1f}deg_nopl",
-            unch_length=bunch_length,
-            bunch_length_spread=bunch_length_spread,
-            beam_loop_error=beam_loop_error,
-            synchro_loop_error=synchro_loop_error,
-            omega_rf=omega_rf,
-            phi_rf=phi_rf,
+    if DEBUG_PLOTTING:
+        # Plot profile
+        profile.track()
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(profile.bin_centers * 1e6, profile.n_macroparticles)
+        ax.set_xlabel(r"$\Delta t$ [$\mu$s]")
+        ax.set_ylabel(r"$\lambda (\Delta t)$ [arb. units]")
+        ax.set_yticks([])
+
+        plt.show()
+
+    # Beam-phase loop
+    # Beam Loops
+    PL_gain = 1 / (5 * ring.t_rev[0]) * int(not DISABLE_PL)
+    SL_gain = PL_gain / 10
+    bl_config = {"machine": "LHC", "PL_gain": PL_gain, "SL_gain": SL_gain}
+
+    beam_loop = BeamFeedback(ring, rfstation, profile, bl_config)
+
+    # The RF tracker
+    rftracker = RingAndRFTracker(
+        rfstation,
+        beam,
+        Profile=profile,
+        interpolation=True,
+        BeamFeedback=beam_loop,
+    )
+
+    # Initialize data arrays
+    bunch_length = np.zeros(n_turns)
+    bunch_length_spread = np.zeros(n_turns)
+    beam_loop_error = np.zeros(n_turns)
+    synchro_loop_error = np.zeros(n_turns)
+
+    omega_rf = np.zeros(n_turns)
+    phi_rf = np.zeros(n_turns)
+
+    for i in tqdm(range(n_turns)):
+        profile.track()
+        rftracker.track()
+
+        _, _, _, blen, _, _, _, _, _ = get_beam_pattern(
+            profile.bin_centers,
+            profile.n_macroparticles,
+            height_factor=100,
+            distance=500,
         )
-    else:
-        np.savez(
-            f"generate_blond2_data/feedbacks/lhc/data/lhc_beam_control_{injection_phase_error:.1f}deg",
-            bunch_length=bunch_length,
-            bunch_length_spread=bunch_length_spread,
-            beam_loop_error=beam_loop_error,
-            synchro_loop_error=synchro_loop_error,
-            omega_rf=omega_rf,
-            phi_rf=phi_rf,
+
+        bunch_length[i] = np.mean(blen)
+        bunch_length_spread[i] = np.std(blen)
+        beam_loop_error[i] = beam_loop.dphi * 180 / np.pi
+        synchro_loop_error[i] = rfstation.dphi_rf * 180 / np.pi
+        omega_rf[i] = rfstation.omega_rf[0, i]
+        phi_rf[i] = rfstation.phi_rf[0, i]
+
+    if DEBUG_PLOTTING:
+        beam_loop_error = (
+            beam_loop_error - beam_loop_error[0] + injection_phase_error
         )
+
+        plt.figure("Phase evolution")
+        plt.plot(beam_loop_error, color="r", label="Beam-phase loop")
+        plt.legend()
+        plt.tight_layout()
+        plt.grid()
+        plt.xlim(0, n_turns - 1)
+
+        plt.figure("Phase evolution")
+        plt.plot(synchro_loop_error, color="r", label="Beam-phase loop")
+        plt.legend()
+        plt.tight_layout()
+        plt.grid()
+        plt.xlim(0, n_turns - 1)
+
+        plt.show()
+
+    if SAVE_SIM:
+        if DISABLE_PL:
+            np.savez(
+                f"lhc_beam_control_{injection_phase_error:.1f}deg_nopl_new",
+                unch_length=bunch_length,
+                bunch_length_spread=bunch_length_spread,
+                beam_loop_error=beam_loop_error,
+                synchro_loop_error=synchro_loop_error,
+                omega_rf=omega_rf,
+                phi_rf=phi_rf,
+            )
+        else:
+            np.savez(
+                f"lhc_beam_control_{injection_phase_error:.1f}deg_new",
+                bunch_length=bunch_length,
+                bunch_length_spread=bunch_length_spread,
+                beam_loop_error=beam_loop_error,
+                synchro_loop_error=synchro_loop_error,
+                omega_rf=omega_rf,
+                phi_rf=phi_rf,
+            )
+
+
+if __name__ == "__main__":
+    setup_blond2()
