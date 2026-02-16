@@ -91,7 +91,9 @@ def reload_cuda_backend(  # NOQA: D102
     _gm_linear_interp_kick_help = gpu_module.get_function("lik_only_gm_copy")
     _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
     _loss_box = gpu_module.get_function("loss_box")
-    _sparse_histogram = gpu_module.get_function("sparse_histogram")
+    _sparse_histogram_strided = gpu_module.get_function(
+        "sparse_histogram_strided"
+    )
 
     default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
     default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -435,6 +437,38 @@ def reload_cuda_backend(  # NOQA: D102
 
             n_new = len(ids) - cp.sum(select)
             return n_new
+
+        @staticmethod
+        def sparse_histogram_strided(
+            x: CupyArray,
+            out: CupyArray,
+            first_left_cut: float,
+            left_cut_distance: float,
+            cut_width: float,
+            bins_per_profile: int,
+            n_profiles: int,
+            stride: int,
+        ) -> None:
+            assert x.dtype == floattype
+            assert out.dtype == floattype
+            assert x.flags.c_contiguous
+            assert out.flags.c_contiguous
+            out[:] = 0
+            _sparse_histogram_strided(
+                args=(
+                    x,  # input
+                    out,  # output
+                    floattype(first_left_cut),  # first_left_cut
+                    floattype(left_cut_distance),  # left_cut_distance
+                    floattype(cut_width),  # cut_width
+                    np.int32(bins_per_profile),  # bins_per_profile
+                    np.int32(n_profiles),  # n_profiles
+                    np.int32(len(x)),  # n_macroparticles
+                    np.int32(stride),  # stride
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
 
     return CudaSpecials
 

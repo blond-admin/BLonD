@@ -410,6 +410,59 @@ def reload_cpp_backend(  # NOQA: PLR0915
             n_new = int(n_new)
             return n_new
 
+        @staticmethod
+        def sparse_histogram_strided(
+            x: NumpyArray,
+            out: NumpyArray,
+            first_left_cut: float,
+            left_cut_distance: float,
+            cut_width: float,
+            bins_per_profile: int,
+            n_profiles: int,
+            stride: int,
+        ) -> None:
+            """
+            Sparse histogram with strided memory layout (gaps between profiles).
+
+            Parameters
+            ----------
+            x
+                An array, e.g., the particle dt values.
+            out
+                Output histogram (n_filled_buckets * stride).
+            first_left_cut
+                Start of the first histogram.
+            left_cut_distance
+                Distance between the start of each histogram.
+            cut_width
+                Distance between left and right edge of the histogram.
+            bins_per_profile
+                Number of bins per bucket.
+            n_profiles
+                Number of non-empty buckets.
+            stride
+                Memory stride between consecutive profiles (e.g.,
+                2*bins_per_profile).
+            """
+            assert stride >= bins_per_profile
+
+            assert x.dtype == floattype
+            assert out.dtype == floattype
+            assert x.flags.c_contiguous
+            assert out.flags.c_contiguous
+
+            _LIBBLOND.sparse_histogram_strided(
+                _getPointer(x),
+                _getPointer(out),
+                c_real(first_left_cut, floattype),
+                c_real(left_cut_distance, floattype),
+                c_real(cut_width, floattype),
+                ct.c_int(bins_per_profile),
+                ct.c_int(n_profiles),
+                ct.c_int(len(x)),  # n_macroparticles
+                ct.c_int(stride),
+            )
+
     return CppSpecials
 
 

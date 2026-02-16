@@ -1,4 +1,5 @@
 import os
+import sys
 import unittest
 
 import matplotlib.pyplot as plt
@@ -11,6 +12,7 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     MagneticCyclePerTurn,
+    Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -21,6 +23,11 @@ from blond import (
     make_multibunch_beam,
     proton,
 )
+from blond.handle_results.helpers import callers_relative_path
+from blond.physics.impedances.sparse_profile.solvers import (
+    MultiTurnSparseProfileSolver,
+)
+from blond.physics.profiles import ProfileBaseClass
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 resonator_data = np.loadtxt(
@@ -38,46 +45,44 @@ Q_factor = resonator_data[:, 1]
 
 
 class MyTestCase(unittest.TestCase):
-    def compare(
-        self, profile: EquidistantMultiProfile, profile_wanted: StaticProfile
-    ):
-        self.assertAlmostEqual(
-            profile.profiles[0].cut_left, profile_wanted.cut_left
-        )
-
-        self.assertAlmostEqual(
-            profile.profiles[-1].cut_right, profile_wanted.cut_right
-        )
-
     def test_something(self):
         for induces_voltage in (None,):  # TODO
-            profile, profile_wanted = self.multiturn(
-                induced_voltage=induces_voltage
-            )
-            self.compare(profile, profile_wanted)
-
+            wakefield = self.multiturn(induced_voltage=induces_voltage)
+            profile: EquidistantMultiProfile = wakefield.profile
             DEV_DRAW = True
             if DEV_DRAW:
                 plt.figure("compare")
                 ax1 = plt.subplot(3, 1, 1)
-                plt.xlim(4e-8, 6e-8)
+                profile.plot()
+                plt.subplot(3, 1, 2, sharex=ax1)
                 plt.plot(
-                    profile._continuous_memory_hist_x,
-                    profile._continuous_memory_hist_y,
-                    "o",
+                    profile.hist_x,
+                    wakefield.induced_voltage,
+                    label="multiturn",
                 )
 
+            wakefield = self.non_sparse_fake_multiturn(
+                induced_voltage=induces_voltage
+            )
+            profile: ProfileBaseClass = wakefield.profile
             DEV_DRAW = True
             if DEV_DRAW:
                 plt.figure("compare")
                 ax1 = plt.subplot(3, 1, 1)
-                plt.plot(profile_wanted._hist_x, profile_wanted._hist_y, "x")
-                plt.xlim(4e-8, 6e-8)
-
+                center = profile.hist_x[len(profile.hist_x) // 2 - 1]
+                plt.plot(profile.hist_x - center, profile.hist_y)
+                plt.subplot(3, 1, 2, sharex=ax1)
+                plt.plot(
+                    profile.hist_x - center,
+                    wakefield.induced_voltage,
+                    "--",
+                    label="single turn",
+                )
+                plt.legend()
                 plt.show()
 
     def non_sparse_fake_multiturn(self, induced_voltage) -> WakeField:
-        FAKE_TUNRS = 1
+        FAKE_TUNRS = 2
         wake_solver = TimeDomainFftSolver(allow_next_fast_len=False)
         ring = Ring(
             circumference=6911.56,
@@ -102,7 +107,27 @@ class MyTestCase(unittest.TestCase):
             phi_rf=0.0,
         )
 
-        ring.add_elements((profile, rf_station, drift))
+        profile = StaticProfile.from_rad(
+            0,
+            2 * np.pi * FAKE_TUNRS,
+            2**8 * 4620 * FAKE_TUNRS,
+            magnetic_cycle.get_t_rev_init(
+                ring.circumference,
+                particle_type=proton,
+            ),
+        )
+        wakefield = WakeField(
+            sources=(Resonators(R_shunt, f_res, Q_factor),),
+            solver=wake_solver,
+            profile=profile,
+        )
+        ring.add_elements(
+            (
+                wakefield,
+                drift,
+                rf_station,
+            )
+        )
         sim = Simulation(
             ring=ring,
             magnetic_cycle=magnetic_cycle,
@@ -128,8 +153,27 @@ class MyTestCase(unittest.TestCase):
         )
 
         sim.run_simulation(beams=beam, n_turns=1)
+        save_profile = True
+        if save_profile:
+            pass
+            """print()
+            print(
+                np.savetxt(
+                    callers_relative_path(
+                        "resources/hist_y.npy", stacklevel=1
+                    ),
+                    profile._hist_y,
+                )
+            )
+            print("saved hist_y")"""
+        else:
+            sim.intensity_effect_manager.set_profiles(
+                active=False
+            )  # freeze profiles
+            profile._hist_y = hist_y_single_peak
+            profile.hist_y_to_density_factor = 1.0 / beam.common_array_size
 
-        return profile
+        return wakefield
 
     def multiturn(self, induced_voltage) -> WakeField:
         backend.set_specials("cpp")  # TODO remove
@@ -172,16 +216,18 @@ class MyTestCase(unittest.TestCase):
             bins_per_profile=2**8,
             offset=t_rf / 2,
         )
-        profile_wanted = StaticProfile.from_rad(
-            0,
-            2 * np.pi,
-            2**8 * 4620,
-            magnetic_cycle.get_t_rev_init(
-                ring.circumference,
-                particle_type=proton,
-            ),
+        wakefield = WakeField(
+            sources=(Resonators(R_shunt, f_res, Q_factor),),
+            solver=MultiTurnSparseProfileSolver(n_turns=2),
+            profile=profile,
         )
-        ring.add_elements((profile, profile_wanted, rf_station, drift))
+        ring.add_elements(
+            (
+                wakefield,
+                drift,
+                rf_station,
+            )
+        )
         sim = Simulation(
             ring=ring,
             magnetic_cycle=magnetic_cycle,
@@ -205,8 +251,8 @@ class MyTestCase(unittest.TestCase):
         rf_station.voltage = 0.0
         sim.check_circumference = "ignore"
 
-        sim.run_simulation(beams=beam, n_turns=1)
-        return profile, profile_wanted
+        sim.run_simulation(beams=beam, n_turns=2)
+        return wakefield
 
 
 if __name__ == "__main__":

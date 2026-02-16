@@ -19,12 +19,16 @@ from blond import (
     TimeDomainFftSolver,
     WakeField,
     backend,
+    make_multibunch_beam,
     proton,
 )
-from blond.beam_preparation.helpers import make_multibunch_beam
+from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
+from blond.physics.impedances.sparse_profile.solvers import (
+    MultiTurnSparseProfileSolver,
+)
 from blond.physics.profiles import ProfileBaseClass
-from blond.physics.profiles_sparse import StaticMultiProfile
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 resonator_data = np.loadtxt(
     os.path.join(
@@ -44,7 +48,7 @@ class MyTestCase(unittest.TestCase):
     def test_something(self):
         for induces_voltage in (None,):  # TODO
             wakefield = self.multiturn(induced_voltage=induces_voltage)
-            profile: StaticMultiProfile = wakefield.profile
+            profile: EquidistantMultiProfile = wakefield.profile
             DEV_DRAW = True
             if DEV_DRAW:
                 plt.figure("compare")
@@ -210,25 +214,16 @@ class MyTestCase(unittest.TestCase):
             / rf_station.harmonic
         )
 
-        n_profiles = int(rf_station.harmonic // 10)
-        t_rev = magnetic_cycle.get_t_rev_init(
-            ring.circumference,
-            particle_type=proton,
-        )
-        width_per_profile = t_rev / rf_station.harmonic
-        bins_per_profile = 2**8
-        offset = 0  # t_rf / 2
-        step = t_rev / n_profiles
-        t_starts = step * np.arange(n_profiles) + offset
-        profiles = (
-            StaticProfile(
-                cut_left=float(t_starts[i]),
-                cut_right=float(t_starts[i] + width_per_profile),
-                n_bins=bins_per_profile,
+        profile = EquidistantMultiProfile(
+            n_profiles=int((rf_station.harmonic // 10)),
+            width_per_profile=magnetic_cycle.get_t_rev_init(
+                ring.circumference,
+                particle_type=proton,
             )
-            for i in range(n_profiles)
+            / rf_station.harmonic,
+            bins_per_profile=2**8,
+            offset=t_rf / 2,
         )
-        profile = StaticMultiProfile(profiles=profiles)
         wakefield = WakeField(
             sources=(Resonators(R_shunt, f_res, Q_factor),),
             solver=MultiPoleSparseSolve(),

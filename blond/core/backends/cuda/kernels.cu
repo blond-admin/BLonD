@@ -326,3 +326,54 @@ __global__ void loss_box(
         }
         }
 }
+
+
+extern "C"
+__global__ void sparse_histogram_strided(
+    const real_t *__restrict__ input,
+    real_t *__restrict__ output,
+    const real_t first_left_cut,
+    const real_t left_cut_distance,
+    const real_t cut_width,
+    const int bins_per_profile,
+    const int n_profiles,
+    const int n_macroparticles,
+    const int stride)
+{
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+
+    const real_t cut_left0 = first_left_cut;
+    const real_t inv_hist_dist = real_t(1) / (left_cut_distance);
+    const real_t inv_bin_width =
+        real_t(bins_per_profile) / (cut_width);
+
+
+    // Loop through input particles and update histograms in shared memory
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        const real_t a = input[i];
+
+        const int hist_i = (int)((a - cut_left0) * inv_hist_dist);
+        if ((unsigned)hist_i >= (unsigned)n_profiles)
+            continue;
+
+        const real_t cut_left = cut_left0 + hist_i * left_cut_distance;
+        const real_t cut_right = cut_left + cut_width;
+
+        // Check if the value is within the cut range
+        if (a == cut_right) {
+            atomicAdd(&output[hist_i * stride + bins_per_profile - 1], 1);
+            continue;
+        }
+        if (a < cut_left || a >= cut_right)
+            continue;
+
+        // Calculate the bin index
+        const int bin = (int)((a - cut_left) * inv_bin_width);
+        if ((unsigned)bin < (unsigned)bins_per_profile) {
+            atomicAdd(&output[hist_i * stride + bin], 1);
+        }
+    }
+    __syncthreads();
+
+
+}

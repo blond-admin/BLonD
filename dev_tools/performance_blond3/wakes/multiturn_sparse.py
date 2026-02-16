@@ -1,7 +1,6 @@
 """Example of how to configure a simulation with sparse multiturn wakefields."""
 
 import os
-from pstats import SortKey
 
 import numpy as np
 
@@ -15,14 +14,13 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
-    StaticProfile,
     WakeField,
     backend,
+    make_multibunch_beam,
     proton,
 )
-from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
-from blond.physics.profiles_sparse import StaticMultiProfile
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 # backend.change_backend(Cupy64Bit)
 # backend.set_specials("cuda")
@@ -70,36 +68,25 @@ t_rf = (
     )
     / rf_station.harmonic
 )
-n_profiles = int(rf_station.harmonic // 10)
-t_rev = magnetic_cycle.get_t_rev_init(
-    ring.circumference,
-    particle_type=proton,
-)
-width_per_profile = t_rev / rf_station.harmonic
-bins_per_profile = 2**8
-offset = t_rf / 2
-step = t_rev / n_profiles
-t_starts = step * np.arange(n_profiles) + offset
-profiles = (
-    StaticProfile(
-        cut_left=float(t_starts[i]),
-        cut_right=float(t_starts[i] + width_per_profile),
-        n_bins=bins_per_profile,
+
+profile = EquidistantMultiProfile(
+    n_profiles=int(rf_station.harmonic // 10),
+    width_per_profile=magnetic_cycle.get_t_rev_init(
+        ring.circumference,
+        particle_type=proton,
     )
-    for i in range(n_profiles)
+    / rf_station.harmonic,
+    bins_per_profile=2**8,
+    offset=t_rf / 2,
 )
-profile = StaticMultiProfile(profiles=profiles)
-
-
 wakefield = WakeField(
     sources=(Resonators(R_shunt, f_res, Q_factor),),
     solver=MultiPoleSparseSolve(),
-    profile=profile,  # type: ignore
+    profile=profile,
 )
 ring.add_elements(
     (
         wakefield,
-        # profile,
         drift,
         rf_station,
     )
@@ -124,8 +111,7 @@ beam = make_multibunch_beam(
     t_distance=t_rf * 10,
 )
 
-sim.profiling(
-    beams=beam, n_turns=100, sortby=SortKey.CUMULATIVE, start_turn_i=2
-)
+
+# sim.profiling(beams=beam, n_turns=100, sortby=SortKey.TIME, start_turn_i=2)
 
 sim.run_simulation(beams=beam, n_turns=3000)
