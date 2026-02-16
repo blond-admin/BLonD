@@ -43,6 +43,9 @@ from blond.core.helpers import (
 from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.warnings_ import PerformanceWarning
+from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
+    SynchrotronRadiationMaster,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
@@ -826,6 +829,11 @@ class Simulation(Preparable):
         elements = filter_elements(locals_list, SimulationElementBase)
         ring.add_elements(elements=elements, reorder=True)
 
+        SRM = filter_elements(locals_list, SynchrotronRadiationMaster)
+        if SRM:
+            SRM[0].prepare_ring_for_synchrotron_radiation_tracking(
+                ring=ring,
+            )
         logger.debug(f"{ring=}")
         logger.debug(f"{beams=}")
         logger.debug(f"{elements=}")
