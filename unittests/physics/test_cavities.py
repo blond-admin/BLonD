@@ -294,7 +294,8 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         self.multi_harmonic_cavity.track(beam=self.beam)
         phi_c = self.multi_harmonic_cavity.delta_phi_rf.copy()
         print(phi_a, phi_b, phi_c)
-        self.assertTrue(phi_a[0] < phi_b[0] < phi_c[0])
+        self.assertTrue(phi_a[0] == phi_b[0] < phi_c[0])
+        # since the change will act on the next turn, the first two will be equivalent
 
     def test_track(self) -> None:
         self.multi_harmonic_cavity.track(beam=self.beam)
