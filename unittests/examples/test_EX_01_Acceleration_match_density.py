@@ -37,14 +37,14 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         tol = 1e-4 if backend.float == np.float32 else 1e-6
 
         # quasi 0
-        np.testing.assert_allclose(bunch._dt.mean(), dt_mean, atol=tol)
+        np.testing.assert_allclose(bunch._dt.mean(), dt_mean, atol=tol * 1e-10)
 
         np.testing.assert_allclose(bunch._dt.std(), dt_std, rtol=tol)
 
         # quasi 0
         np.testing.assert_allclose(bunch._dE.mean(), dE_mean, atol=tol * 1e9)
 
-        np.testing.assert_allclose(bunch._dE.std(), dE_std, rtol=tol * 1e9)
+        np.testing.assert_allclose(bunch._dE.std(), dE_std, rtol=tol)
 
     @pytest.mark.backend_mutation
     @pytest.mark.mpi
