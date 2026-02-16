@@ -615,6 +615,17 @@ class TestRing(unittest.TestCase):
         beam._ids = DistributedArray(np.array([4]))
         sim.finalize((beam,), n_turns=1)
 
+    def test_unsafe_element(self):
+        class Element:
+            def track(self, beam): ...
+
+        element = Element()
+
+        self.ring.add_element(element)
+
+        self.assertIsNot(element, self.ring.elements.elements[0])
+        self.assertIs(element, self.ring.elements.elements[0]._element)
+
 
 if __name__ == "__main__":
     unittest.main()
