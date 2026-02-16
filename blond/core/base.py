@@ -560,14 +560,14 @@ class UnsafeUserElement(UserDefinedElement):
     def __init__(self, element: _Trackable):
         if not isinstance(element, _Trackable):
             raise TypeError(
-                "Arbitrary user elements must at minimum"
+                "Arbitrary user elements must at minimum "
                 "define a `.track(self, beam)` method."
             )
         else:
             warnings.warn(
                 f"Element {element} (class name {element.__class__.__name__}) "
                 "is not recognised, attempting to coerce it to a usable form, "
-                "but results are not guaranteed.  Inheriting from "
+                "but results are not guaranteed. Inheriting from "
                 "`UserDefinedElement` is strongly recommended.",
                 stacklevel=2,
             )
