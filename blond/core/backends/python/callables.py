@@ -465,3 +465,50 @@ class PythonSpecials(Specials):
             ids=ids,
         )
         return n_new
+
+    @staticmethod
+    def sparse_histogram(
+        x: CupyArray,
+        out: CupyArray,
+        left_cuts: CupyArray,
+        right_cuts: CupyArray,
+        bins_per_profile: CupyArray,
+        start_indices: CupyArray,
+    ) -> None:
+        """
+        Sparse histogram with strided memory layout (gaps between profiles).
+
+        Parameters
+        ----------
+        x
+            An array, e.g., the particle dt values.
+        out
+            Output histogram (n_filled_buckets * stride).
+        left_cuts
+            Start of each histogram.
+        right_cuts
+            Stop of each histogram.
+        bins_per_profile
+            Number of bins per histogram.
+        start_indices
+            Precomputed index to access out per histogram
+            ``out[start_indices[i]:start_indices[i] + bins_per_profile[i]]``.
+        """
+        out[:] = 0
+        n_profiles = len(bins_per_profile)
+
+        start = 0
+        for i in range(n_profiles):
+            assert start == start_indices[i], f"{start=} {start_indices[i]=}"
+            stop = start + bins_per_profile[i]
+            sel = slice(start, stop)
+            hist, _ = np.histogram(
+                x,
+                bins=bins_per_profile[i],
+                range=(
+                    left_cuts[i],
+                    right_cuts[i],
+                ),
+            )
+            out[sel] = hist
+            start = stop  # next stat is current stop
