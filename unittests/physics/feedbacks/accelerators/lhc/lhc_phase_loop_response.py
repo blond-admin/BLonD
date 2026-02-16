@@ -19,20 +19,30 @@ from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
 
 DEBUG_PLOTTING = False
 
+#
+# def get_beam_pattern(
+#     timeScale,
+#     frames,
+#     height_factor=0.015,
+#     distance=500,
+#     N_bunch_max=3564,
+#     baseline_length=1,
+#     BASE=False,
+#     wind_len=10,
+# ):
+#     fit_option = "fwhm"
+#     appy_tf = False
+
 
 def get_beam_pattern(
-    timeScale,
-    frames,
+    profiles,
+    t,
     height_factor=0.015,
     distance=500,
-    N_bunch_max=3564,
-    baseline_length=1,
-    BASE=False,
-    wind_len=10,
+    n_bunch_max=3564,
+    wind_len=2.5e-9,
+    single_turn=False,
 ):
-    fit_option = "fwhm"
-    appy_tf = False
-
     def interp_f(time, bunch, level):
         bunch_th = level * bunch.max()
         time_bet_points = time[1] - time[0]
@@ -53,6 +63,10 @@ def get_beam_pattern(
 
         return t1, t2
 
+    def intensity(y):
+        offset_level = np.mean(y[0:5])
+        return np.sum(y - offset_level)
+
     def fwhm(x, y, level=0.5):
         offset_level = np.mean(y[0:5])
         amp = np.max(y) - offset_level
@@ -63,61 +77,65 @@ def get_beam_pattern(
 
         return popt
 
-    dt = (timeScale[-1] - timeScale[0]) / (len(timeScale) - 1)
-    fit_window = int(round(wind_len * 1e-9 / dt / 2))
-    N_frames = frames.shape[1]
-    N_bunches = np.zeros((N_frames,), dtype=int)
-    Bunch_positions = np.zeros((N_frames, N_bunch_max))
-    Bunch_lengths = np.zeros((N_frames, N_bunch_max))
-    Bunch_peaks = np.zeros((N_frames, N_bunch_max))
-    Bunch_intensities = np.zeros((N_frames, N_bunch_max))
-    Bunch_positionsFit = np.zeros((N_frames, N_bunch_max))
-    Bunch_peaksFit = np.zeros((N_frames, N_bunch_max))
-    Bunch_Exponent = np.zeros((N_frames, N_bunch_max))
-    Goodness_of_fit = np.zeros((N_frames, N_bunch_max))
+    if single_turn:
+        profiles = np.array([profiles])
 
-    for i in np.arange(N_frames):
-        frame = frames[:, i]
+    dt = t[1] - t[0]
+
+    fit_window = int(round(wind_len / dt / 2))
+    n_frames = profiles.shape[0]
+
+    n_bunches = np.zeros(n_frames, dtype=int)
+    bunch_positions = np.zeros((n_frames, n_bunch_max))
+    bunch_lengths = np.zeros((n_frames, n_bunch_max))
+    bunch_peaks = np.zeros((n_frames, n_bunch_max))
+    bunch_peak_position = np.zeros((n_frames, n_bunch_max))
+    bunch_intensities = np.zeros((n_frames, n_bunch_max))
+
+    for i in np.arange(n_frames):
+        frame = profiles[i, :]
 
         pos, _ = find_peaks(frame, height=height_factor, distance=distance)
-        N_bunches[i] = len(pos)
-        Bunch_positions[i, 0 : N_bunches[i]] = timeScale[pos]
-        Bunch_peaks[i, 0 : N_bunches[i]] = frame[pos]
+        n_bunches[i] = len(pos)
 
         for j, v in enumerate(pos):
-            x = 1e9 * timeScale[v - fit_window : v + fit_window]
+            x = t[v - fit_window : v + fit_window]
             y = frame[v - fit_window : v + fit_window]
-            if BASE:
-                baseline = np.mean(y[:baseline_length])
-                y = y - baseline
 
-            (mu, sigma, amp) = fwhm(x, y, level=0.5)
+            try:
+                (mu, sigma, amp) = fwhm(x, y, level=0.5)
+            except:
+                print(f"Something went wrong with bunch {j} at turn {i}...")
+                mu, sigma, amp = 0, 0, 0
 
-            Bunch_lengths[i, j] = 4 * sigma
-            Bunch_intensities[i, j] = np.sum(y)
-            Bunch_positionsFit[i, j] = mu
-            Bunch_peaksFit[i, j] = amp
+            bunch_lengths[i, j] = 4 * sigma
+            bunch_positions[i, j] = mu
+            bunch_peaks[i, j] = amp
+            # bunch_peak_position[i, j] = peak_position(x, y, level=0.5)
+            bunch_intensities[i, j] = intensity(y)
 
-    N_bunches_max = np.max(N_bunches)
-    Bunch_positions = Bunch_positions[:, 0:N_bunches_max]
-    Bunch_peaks = Bunch_peaks[:, 0:N_bunches_max]
-    Bunch_lengths = Bunch_lengths[:, 0:N_bunches_max]
-    Bunch_intensities = Bunch_intensities[:, 0:N_bunches_max]
-    Bunch_positionsFit = Bunch_positionsFit[:, 0:N_bunches_max]
-    Bunch_peaksFit = Bunch_peaksFit[:, 0:N_bunches_max]
-    Bunch_Exponent = Bunch_Exponent[:, 0:N_bunches_max]
-    Goodness_of_fit = Goodness_of_fit[:, 0:N_bunches_max]
+    n_bunch_max = np.max(n_bunches)
+    bunch_peaks = bunch_peaks[:, :n_bunch_max]
+    bunch_lengths = bunch_lengths[:, :n_bunch_max]
+    bunch_positions = bunch_positions[:, :n_bunch_max]
+    bunch_peak_position = bunch_peak_position[:, :n_bunch_max]
+    bunch_intensities = bunch_intensities[:, :n_bunch_max]
+
+    if single_turn:
+        return (
+            bunch_positions[0, :],
+            bunch_lengths[0, :],
+            bunch_peaks[0, :],
+            bunch_peak_position[0, :],
+            bunch_intensities[0, :],
+        )
 
     return (
-        N_bunches,
-        Bunch_positions,
-        Bunch_peaks,
-        Bunch_lengths,
-        Bunch_intensities,
-        Bunch_positionsFit,
-        Bunch_peaksFit,
-        Bunch_Exponent,
-        Goodness_of_fit,
+        bunch_positions,
+        bunch_lengths,
+        bunch_peaks,
+        bunch_peak_position,
+        bunch_intensities,
     )
 
 
@@ -218,11 +236,12 @@ def setup_blond2():
         profile.track()
         rftracker.track()
 
-        _, _, _, blen, _, _, _, _, _ = get_beam_pattern(
-            profile.bin_centers,
+        bpos, blen, bpk, bpkpos, bint = get_beam_pattern(
             profile.n_macroparticles,
+            profile.bin_centers,
             height_factor=100,
             distance=500,
+            single_turn=True,
         )
 
         bunch_length[i] = np.mean(blen)
