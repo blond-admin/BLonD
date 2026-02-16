@@ -67,8 +67,8 @@ def setup_blond2():
     N_p = 2.3e11
     Q_L = 20000
     tau = 1.25e-9
-    batch_lengths = np.ones(38) * 72
-    batch_lengths = np.concatenate(([12], batch_lengths))
+    batch_lengths = np.ones(38, dtype=int) * 72
+    batch_lengths = np.concatenate(([12], batch_lengths), dtype=int)
 
     # Constants
     N_m = 50000  # Macro-particles
