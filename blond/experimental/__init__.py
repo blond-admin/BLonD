@@ -27,7 +27,7 @@ from blond.experimental.cycles.noise_generators.vari_noise import (
 from blond.generals.warnings_ import ExperimentalFeaturesWarning
 
 _msg = """
-Importing experimental features.  These are under development and are
+Importing experimental features. These are under development and are
 liable to change or be removed without warning.
 """
 
