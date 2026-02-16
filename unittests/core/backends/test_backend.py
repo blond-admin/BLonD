@@ -3,6 +3,7 @@ import warnings
 
 import numpy as np
 import pytest
+from parameterized import parameterized
 
 from blond.core.backends.backend import (
     Cupy32Bit,
@@ -892,6 +893,55 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                     print(result_python.tolist())
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_sparse_histogram(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                bins_per_profile = 3
+                n_profiles = 3
+                array_write = backend.ones(
+                    bins_per_profile * n_profiles, dtype=backend.float
+                )
+                first_left_cut = -12
+                left_cut_distance = 8
+                cut_width = 4
+                bins_per_profile = bins_per_profile
+                n_profiles = n_profiles
+                left_cuts = first_left_cut + (
+                    backend.arange(n_profiles) * left_cut_distance
+                )
+                right_cuts = left_cuts + cut_width
+                left_cuts = backend.array(left_cuts, dtype=backend.float)
+                right_cuts = backend.array(right_cuts, dtype=backend.float)
+                for _ in range(2):
+                    backend.specials.sparse_histogram(
+                        x=backend.linspace(-10, 10, 21, dtype=backend.float),
+                        out=array_write,
+                        left_cuts=left_cuts,
+                        right_cuts=right_cuts,
+                        bins_per_profile=bins_per_profile
+                        * backend.ones(bins_per_profile, dtype=np.int32),
+                        start_indices=backend.array([0, 3, 6], dtype=np.int32),
+                    )
+                result = array_write
+
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
                 else:
                     np.testing.assert_allclose(
                         result,
