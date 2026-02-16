@@ -179,8 +179,13 @@ class TestSimulation(unittest.TestCase):
 
         mock_func = create_autospec(my_callback, return_value=True)
         self.simulation.turn_i.value = 0
-        self.simulation.mainloop_single_beam(
-            beam=self.beam,
+        self.simulation.finalize(
+            beams=self.beam,
+            n_turns=10,
+            observe=(observe,),
+        )
+        self.simulation.mainloop(
+            beams=self.beam,
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
@@ -201,8 +206,11 @@ class TestSimulation(unittest.TestCase):
         mock_func1 = create_autospec(my_callback1, return_value=True)
         mock_func2 = create_autospec(my_callback2, return_value=True)
         self.simulation.turn_i.value = 0
-        self.simulation.mainloop_single_beam(
-            beam=self.beam,
+        self.simulation.finalize(
+            beams=self.beam, n_turns=10, observe=(observe,)
+        )
+        self.simulation.mainloop(
+            beams=self.beam,
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
@@ -359,8 +367,8 @@ class TestSimulation(unittest.TestCase):
 
     def test_profiling(self):
         self.simulation.profiling(
-            profile_start_turn_i=10,
-            profile_n_turns=20,
+            start_turn_i=10,
+            n_turns=20,
             beams=(self.beam,),
         )
 
@@ -643,7 +651,13 @@ class TestSimulation(unittest.TestCase):
             )
 
     @pytest.mark.backend_mutation
+    @pytest.mark.cupy
     def test_compare_cpu_gpu(self):
+        try:
+            import cupy  # type: ignore
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
         DEV_DEBUG = False
         results = []
         for i, backend_type in enumerate((Cupy32Bit, Numpy32Bit)):

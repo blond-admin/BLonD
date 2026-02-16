@@ -113,17 +113,6 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         """
         pass
 
-    def track(self, beam: BeamBaseClass) -> None:
-        """
-        Main simulation routine to be called in the mainloop.
-
-        Parameters
-        ----------
-        beam
-            Beam class to interact with this element.
-        """
-        super().track(beam=beam)
-
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -363,7 +352,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
                 "or `.schedule(attribute='transition_gamma', value=...)`"
             )
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -372,7 +361,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         beam
             Beam class to interact with this element.
         """
-        super().track(beam=beam)
+        super()._track(beam=beam)
 
         if self.schedule_active:
             self.apply_schedules(

@@ -83,7 +83,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         """
         pass
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 

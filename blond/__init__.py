@@ -50,6 +50,8 @@ __all__ = [
     "DynamicProfileConstNBins",
     "StaticProfile",
 ]
+
+
 from blond.beam_preparation.bigaussian import BiGaussian
 from blond.core.backends.backend import (
     Cupy32Bit,
