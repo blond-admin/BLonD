@@ -1,14 +1,3 @@
-// Copyright CERN. This software is distributed under the
-// terms of the GNU General Public Licence version 3 (GPL Version 3),
-// copied verbatim in the file LICENCE.txt.
-// In applying this licence, CERN does not waive the privileges and immunities
-// granted to it by virtue of its status as an Intergovernmental Organization or
-// submit itself to any jurisdiction.
-// Project website: http://blond.web.cern.ch/
-
-// Optimised C++ routine that calculates the histogram for a sparse beam
-// Author: Simon Lauber
-
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,55 +25,71 @@ extern "C" void sparse_histogram_strided(
     const int compact_size = n_profiles * bins_per_profile;
 
     // -------------------------------------
-    // Zero output histogram (parallel)
+    // Zero global output
     // -------------------------------------
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < compact_size; ++i)
         output[i] = real_t(0);
 
     // -------------------------------------
-    // Main particle loop
+    // Parallel region
     // -------------------------------------
 #pragma omp parallel
     {
-#pragma omp for schedule(static, 8192)
+        // Thread-local persistent buffer
+        static thread_local real_t* local_output = nullptr;
+        static thread_local int     local_size   = 0;
+
+        // Allocate only if size changed or first use
+        if (local_size < compact_size)
+        {
+            free(local_output);
+            local_output = (real_t*) aligned_alloc(64, sizeof(real_t) * compact_size);
+            local_size   = compact_size;
+        }
+
+        // Clear only used portion
+        memset(local_output, 0, sizeof(real_t) * compact_size);
+
+        // ---------------------------------
+        // Particle loop
+        // ---------------------------------
+#pragma omp for schedule(static)
         for (int i = 0; i < n_macroparticles; ++i)
         {
-            const real_t a = input[i];
-            const real_t shifted = a - cut_left0;
+            const real_t shifted = input[i] - cut_left0;
 
-            // Compute bucket index
-            const int bucket_i =
-                (int)(shifted * inv_hist_dist);
-
-            // Fast unsigned bounds check
+            const int bucket_i = (int)(shifted * inv_hist_dist);
             if ((unsigned)bucket_i >= (unsigned)n_buckets)
                 continue;
 
             if (!filling_pattern[bucket_i])
                 continue;
 
-            // Compute local coordinate
             const real_t local =
                 shifted - bucket_i * left_cut_distance;
 
             if (local >= cut_width)
                 continue;
 
-            const int bin =
-                (int)(local * inv_bin_width);
-
+            const int bin = (int)(local * inv_bin_width);
             if ((unsigned)bin >= (unsigned)bins_per_profile)
                 continue;
 
-            const int base =
-                bucket_index_to_memory_index[bucket_i];
-
+            const int base  = bucket_index_to_memory_index[bucket_i];
             const int index = base + bin;
 
-            // Atomic increment (low contention in sparse case)
+            local_output[index] += real_t(1);
+        }
+
+        // ---------------------------------
+        // Reduction step
+        // ---------------------------------
+#pragma omp for schedule(static)
+        for (int i = 0; i < compact_size; ++i)
+        {
 #pragma omp atomic
-            output[index] += real_t(1);
+            output[i] += local_output[i];
         }
     }
 }
