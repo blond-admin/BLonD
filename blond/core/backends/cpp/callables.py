@@ -410,62 +410,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
             n_new = int(n_new)
             return n_new
 
-        @staticmethod
-        def sparse_histogram(
-            x: CupyArray,
-            out: CupyArray,
-            left_cuts: CupyArray,
-            right_cuts: CupyArray,
-            bins_per_profile: CupyArray,
-            start_indices: CupyArray,
-        ) -> None:
-            """
-            Sparse histogram continuous memory layout.
-
-            Parameters
-            ----------
-            x
-                An array, e.g., the particle dt values.
-            out
-                Output histogram (n_filled_buckets * stride).
-            left_cuts
-                Start of each histogram.
-            right_cuts
-                Stop of each histogram.
-            bins_per_profile
-                Number of bins per histogram.
-            start_indices
-                Precomputed index to access out per histogram
-                ``out[start_indices[i]:start_indices[i] + bins_per_profile[i]]``
-            """
-            assert x.dtype == floattype
-            assert out.dtype == floattype
-            assert left_cuts.dtype == floattype
-            assert right_cuts.dtype == floattype
-            assert bins_per_profile.dtype == np.int32
-            assert start_indices.dtype == np.int32
-
-            assert x.flags.c_contiguous
-            assert out.flags.c_contiguous
-            assert left_cuts.flags.c_contiguous
-            assert right_cuts.flags.c_contiguous
-            assert bins_per_profile.flags.c_contiguous
-            assert start_indices.flags.c_contiguous
-            n_profiles = len(bins_per_profile)
-            total_bins = len(out)
-
-            _LIBBLOND.sparse_histogram(
-                _getPointer(x),
-                _getPointer(out),
-                _getPointer(left_cuts),
-                _getPointer(right_cuts),
-                _getPointer(bins_per_profile),
-                _getPointer(start_indices),
-                ct.c_int(n_profiles),
-                ct.c_int(total_bins),
-                ct.c_int(len(x)),  # n_macroparticles
-            )
-
     return CppSpecials
 
 
