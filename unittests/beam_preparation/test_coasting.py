@@ -6,8 +6,8 @@ import numpy as np
 from blond.beam_preparation import coasting
 from blond.core.beam import beams
 from blond.core.beam.particle_types import proton
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.cycles.magnetic_cycle import ConstantMagneticCycle
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.testing.backend_testing import multi_backend_testcase
 
 
