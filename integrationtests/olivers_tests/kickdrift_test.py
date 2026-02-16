@@ -53,7 +53,6 @@ def main():  # noqa
 
     backend.change_backend(Numpy64Bit)
     backend.set_specials("numba")
-    # backend.set_specials("fortran")
 
     from blond import MultiHarmonicRFStation  # NOQA
     from blond import (  # NOQA

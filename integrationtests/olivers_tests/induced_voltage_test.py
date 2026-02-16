@@ -56,7 +56,6 @@ def main():  # noqa
 
     backend.change_backend(Numpy64Bit)
     backend.set_specials("cpp")
-    # backend.set_specials("fortran")
 
     from blond import (
         Beam,
