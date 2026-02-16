@@ -424,7 +424,7 @@ class IQCavityFeedback(LocalFeedback):
 
     def track_no_beam(self, n_pretrack: int | None = 1) -> None:
         r"""Tracking method of the cavity feedback without beam in the accelerator."""
-        # self.update_rf_variables()  # TODO: commented out
+        self.update_rf_variables()  # TODO: commented out
         self.update_fb_variables()
         for i in range(n_pretrack):
             self.circuit_track(no_beam=True)
