@@ -1054,6 +1054,9 @@ class TestSpecials(unittest.TestCase):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
 
+    def test_import(self):
+        from blond.core.backends import backend  # see if import works
+
 
 class TestNumbaCompilation(unittest.TestCase):
     @pytest.mark.backend_mutation
