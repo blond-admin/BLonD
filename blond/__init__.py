@@ -51,6 +51,8 @@ __all__ = [
     "StaticProfile",
     "make_multibunch_beam",
 ]
+
+
 from blond.beam_preparation.bigaussian import BiGaussian
 from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.core.backends.backend import (
