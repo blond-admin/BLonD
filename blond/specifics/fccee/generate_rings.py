@@ -152,7 +152,7 @@ def WigglerMagnetFCCee(
         name=f"DampingWiggler_{number_of_wigglers}",
         section_index=section_index,
         wiggler_type="sinusoidal",
-        number_of_wigglers=1,
+        number_of_wigglers=number_of_wigglers,
         peak_field=1.0,
         pole_length=0.095,
         number_of_poles=43,
