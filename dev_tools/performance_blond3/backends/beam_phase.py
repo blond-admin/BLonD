@@ -30,7 +30,6 @@ def main():  # pragma: no cover
     backend.change_backend(Numpy64Bit)
     from blond.core.backends.cpp.callables import CppSpecials
     from blond.core.backends.cuda.callables import CudaSpecials
-    from blond.core.backends.fortran.callables import FortranSpecials
     from blond.core.backends.numba.callables import recompile_numba_backend
     from blond.core.backends.python.callables import PythonSpecials
 
@@ -42,7 +41,6 @@ def main():  # pragma: no cover
         NumbaSpecials().beam_phase,
         CppSpecials().beam_phase,
         CudaSpecials().beam_phase,
-        FortranSpecials().beam_phase,
     )
     runtimes = {}
     for beam_phase in functions:
