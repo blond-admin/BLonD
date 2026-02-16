@@ -11,7 +11,7 @@ import xobjects as xo
 import xpart as xp
 import xtrack as xt
 
-from blond import Cupy32Bit, SingleHarmonicRFStation, backend
+from blond import SingleHarmonicRFStation, backend
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
     BLonD3Cavity,
 )
