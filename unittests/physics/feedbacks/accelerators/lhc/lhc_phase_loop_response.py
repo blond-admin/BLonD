@@ -12,131 +12,7 @@ from blond.legacy.blond2.input_parameters.ring import Ring
 from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
 from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
 
-# from beam_dynamics_tools.beam_profiles.bunch_profile_tools import (
-#     get_beam_pattern,
-# )
-
-
 DEBUG_PLOTTING = False
-
-#
-# def get_beam_pattern(
-#     timeScale,
-#     frames,
-#     height_factor=0.015,
-#     distance=500,
-#     N_bunch_max=3564,
-#     baseline_length=1,
-#     BASE=False,
-#     wind_len=10,
-# ):
-#     fit_option = "fwhm"
-#     appy_tf = False
-
-
-def get_beam_pattern(
-    profiles,
-    t,
-    height_factor=0.015,
-    distance=500,
-    n_bunch_max=3564,
-    wind_len=2.5e-9,
-    single_turn=False,
-):
-    def interp_f(time, bunch, level):
-        bunch_th = level * bunch.max()
-        time_bet_points = time[1] - time[0]
-        taux = np.where(bunch >= bunch_th)
-        taux1, taux2 = taux[0][0], taux[0][-1]
-        t1 = (
-            time[taux1]
-            - (bunch[taux1] - bunch_th)
-            / (bunch[taux1] - bunch[taux1 - 1])
-            * time_bet_points
-        )
-        t2 = (
-            time[taux2]
-            + (bunch[taux2] - bunch_th)
-            / (bunch[taux2] - bunch[taux2 + 1])
-            * time_bet_points
-        )
-
-        return t1, t2
-
-    def intensity(y):
-        offset_level = np.mean(y[0:5])
-        return np.sum(y - offset_level)
-
-    def fwhm(x, y, level=0.5):
-        offset_level = np.mean(y[0:5])
-        amp = np.max(y) - offset_level
-        t1, t2 = interp_f(x, y, level)
-        mu = (t1 + t2) / 2.0
-        sigma = (t2 - t1) / 2.35482
-        popt = (mu, sigma, amp)
-
-        return popt
-
-    if single_turn:
-        profiles = np.array([profiles])
-
-    dt = t[1] - t[0]
-
-    fit_window = int(round(wind_len / dt / 2))
-    n_frames = profiles.shape[0]
-
-    n_bunches = np.zeros(n_frames, dtype=int)
-    bunch_positions = np.zeros((n_frames, n_bunch_max))
-    bunch_lengths = np.zeros((n_frames, n_bunch_max))
-    bunch_peaks = np.zeros((n_frames, n_bunch_max))
-    bunch_peak_position = np.zeros((n_frames, n_bunch_max))
-    bunch_intensities = np.zeros((n_frames, n_bunch_max))
-
-    for i in np.arange(n_frames):
-        frame = profiles[i, :]
-
-        pos, _ = find_peaks(frame, height=height_factor, distance=distance)
-        n_bunches[i] = len(pos)
-
-        for j, v in enumerate(pos):
-            x = t[v - fit_window : v + fit_window]
-            y = frame[v - fit_window : v + fit_window]
-
-            try:
-                (mu, sigma, amp) = fwhm(x, y, level=0.5)
-            except:
-                print(f"Something went wrong with bunch {j} at turn {i}...")
-                mu, sigma, amp = 0, 0, 0
-
-            bunch_lengths[i, j] = 4 * sigma
-            bunch_positions[i, j] = mu
-            bunch_peaks[i, j] = amp
-            # bunch_peak_position[i, j] = peak_position(x, y, level=0.5)
-            bunch_intensities[i, j] = intensity(y)
-
-    n_bunch_max = np.max(n_bunches)
-    bunch_peaks = bunch_peaks[:, :n_bunch_max]
-    bunch_lengths = bunch_lengths[:, :n_bunch_max]
-    bunch_positions = bunch_positions[:, :n_bunch_max]
-    bunch_peak_position = bunch_peak_position[:, :n_bunch_max]
-    bunch_intensities = bunch_intensities[:, :n_bunch_max]
-
-    if single_turn:
-        return (
-            bunch_positions[0, :],
-            bunch_lengths[0, :],
-            bunch_peaks[0, :],
-            bunch_peak_position[0, :],
-            bunch_intensities[0, :],
-        )
-
-    return (
-        bunch_positions,
-        bunch_lengths,
-        bunch_peaks,
-        bunch_peak_position,
-        bunch_intensities,
-    )
 
 
 def setup_blond2():
@@ -224,8 +100,6 @@ def setup_blond2():
     )
 
     # Initialize data arrays
-    bunch_length = np.zeros(n_turns)
-    bunch_length_spread = np.zeros(n_turns)
     beam_loop_error = np.zeros(n_turns)
     synchro_loop_error = np.zeros(n_turns)
 
@@ -236,16 +110,6 @@ def setup_blond2():
         profile.track()
         rftracker.track()
 
-        bpos, blen, bpk, bpkpos, bint = get_beam_pattern(
-            profile.n_macroparticles,
-            profile.bin_centers,
-            height_factor=100,
-            distance=500,
-            single_turn=True,
-        )
-
-        bunch_length[i] = np.mean(blen)
-        bunch_length_spread[i] = np.std(blen)
         beam_loop_error[i] = beam_loop.dphi * 180 / np.pi
         synchro_loop_error[i] = rfstation.dphi_rf * 180 / np.pi
         omega_rf[i] = rfstation.omega_rf[0, i]
@@ -276,8 +140,6 @@ def setup_blond2():
         if DISABLE_PL:
             np.savez(
                 f"lhc_beam_control_{injection_phase_error:.1f}deg_nopl_new",
-                unch_length=bunch_length,
-                bunch_length_spread=bunch_length_spread,
                 beam_loop_error=beam_loop_error,
                 synchro_loop_error=synchro_loop_error,
                 omega_rf=omega_rf,
@@ -286,8 +148,6 @@ def setup_blond2():
         else:
             np.savez(
                 f"lhc_beam_control_{injection_phase_error:.1f}deg_new",
-                bunch_length=bunch_length,
-                bunch_length_spread=bunch_length_spread,
                 beam_loop_error=beam_loop_error,
                 synchro_loop_error=synchro_loop_error,
                 omega_rf=omega_rf,
