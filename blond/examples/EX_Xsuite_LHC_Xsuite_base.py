@@ -11,10 +11,9 @@ import xobjects as xo
 import xpart as xp
 import xtrack as xt
 
-from blond import SingleHarmonicRFStation, backend, proton
+from blond import Cupy32Bit, SingleHarmonicRFStation, backend
 from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
     BLonD3Cavity,
-    EnergyUpdate,
 )
 
 
@@ -101,11 +100,8 @@ def main():
     )
 
     # --- Insert energy ramp  --- #
-    energy_update = EnergyUpdate(momentum=momentum)
-
-    line.insert_element(
-        index="matrix", element=energy_update, name="energy_update"
-    )
+    # energy_update = EnergyUpdate(momentum=momentum)
+    # TODO use XSuite functionality for ramping
 
     # line.build_tracker()
     line.get_table().show()

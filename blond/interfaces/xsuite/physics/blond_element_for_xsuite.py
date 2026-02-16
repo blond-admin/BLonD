@@ -12,13 +12,11 @@ Functions and classes to interface BLonD with xsuite.
 :Authors: **Birk Emil Karlsen-Baeck**, **Thom Arnoldus van Rijswijk**, **Helga Timko**, **Elleanor Lamb**
 """
 
-from collections.abc import Sequence
-
 import numpy as np
 import xpart as xp
 from numpy.typing import NDArray
 from scipy.constants import c as c_light
-from xtrack import Line, Particles, ReferenceEnergyIncrease, ZetaShift
+from xtrack import Line, Particles, ZetaShift
 
 from blond import Beam, SingleHarmonicRFStation
 from blond.core.beam.base import BeamBaseClass, BeamFlags
@@ -165,8 +163,8 @@ class BLonD3Cavity:
             * np.pi
             * c_light
             * cavity.harmonic
-            * line.particle_ref.beta0
-            / line.get_length()
+            * float(line.particle_ref.beta0)
+            / float(line.get_length())
         )
 
         particle_type = particle_xsuite_to_blond(self.line.particle_ref)
@@ -174,9 +172,9 @@ class BLonD3Cavity:
         dt, dE = xsuite_to_blond_transform(
             zeta=particles.zeta,
             ptau=particles.ptau,
-            beta0=line.particle_ref.beta0,
-            energy0=line.particle_ref.energy0,
-            omega_rf=omega_rf,
+            beta0=float(line.particle_ref.beta0),
+            energy0=float(line.particle_ref.energy0),
+            omega_rf=float(omega_rf),
         )
 
         beam = Beam(
@@ -352,50 +350,3 @@ class BLonD3Cavity:
             * particles.beta0[self._previous_active_mask]
             * c_light
         )
-
-
-class EnergyUpdate:
-    """
-    Turn-by-turn reference energy update for Xsuite particles.
-
-    This class applies a reference momentum increment using
-    `xtrack.ReferenceEnergyIncrease` based on a predefined momentum
-    program. It is intended for use without the BLonD–Xsuite interface.
-
-    Parameters
-    ----------
-    momentum : Sequence
-        Sequence of reference momenta (p0c) for each turn.
-    """
-
-    def __init__(self, momentum: Sequence):
-        self.momentum = momentum
-
-        init_p0c = self.momentum[1] - self.momentum[0]
-
-        self.xsuite_energy_update = ReferenceEnergyIncrease(Delta_p0c=init_p0c)
-
-    def track(self, particles: Particles):
-        """
-        Update the reference energy of particles for the current turn.
-
-        The energy increment is computed from the predefined momentum
-        sequence and applied to all active particles.
-
-        Parameters
-        ----------
-        particles : xtrack.Particles
-            Xsuite particles whose reference energy is updated.
-        """
-        mask_alive = particles.state > 0
-
-        # Use the still alive particles to find the current turn momentum
-        p0c_before = particles.p0c[mask_alive]
-
-        # Find the momentum for the next turn
-        p0c_after = self.momentum[particles.at_turn[mask_alive][0]]
-        # Update the energy increment
-        self.xsuite_energy_update.Delta_p0c = p0c_after - p0c_before[0]
-
-        # Apply the energy increment to the particles
-        self.xsuite_energy_update.track(particles)
