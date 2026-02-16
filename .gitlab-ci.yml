@@ -164,8 +164,6 @@ test_py_314:
     # - .publish
   tags:
     - k8s-gpu
-  only:
-    - blonder
 
 test_minimum:
   image: gitlab-registry.cern.ch/blond/blond/python310
