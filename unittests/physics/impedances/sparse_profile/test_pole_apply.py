@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 from numba import complex128, float64
 from scipy.signal import fftconvolve
 
-from blond.physics.impedances.refactor_me2 import apply_poles2
+from blond.physics.impedances.induced_voltage_with_poles import apply_poles2
 
 
 def get_poles(

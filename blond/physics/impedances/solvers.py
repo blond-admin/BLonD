@@ -44,7 +44,7 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
-from blond.physics.impedances.refactor_me2 import apply_poles2
+from blond.physics.impedances.induced_voltage_with_poles import apply_poles2
 from blond.physics.impedances.sources import InductiveImpedance, Resonators
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
