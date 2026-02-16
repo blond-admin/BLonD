@@ -105,6 +105,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
                 mu=-20,
                 open_tuner=True,
                 d_phi_ad=0,
+                enable_klystron=False,
             )
             CL = LHCCavityLoop(
                 rf_station=rf,
@@ -144,16 +145,6 @@ class TestInjectionMatchedBeam(unittest.TestCase):
                 cls.v_ant_blond2[i, :] = CL.V_ANT_COARSE[-CL.n_coarse :]
                 cls.line_density_blond2[i, :] = profile.n_macroparticles
 
-                plt.figure("ant_fine_2")
-                plt.title("blond2 fine")
-                plt.plot(CL.V_ANT_FINE)
-                plt.show(block=False)
-                plt.figure("ant_coarse_2")
-                plt.title("blond2 coarse")
-                plt.plot(CL.V_ANT_COARSE[-CL.n_coarse :])
-                plt.show(block=False)
-                return
-
         def setup_blond3():
             from blond import (
                 Beam,
@@ -184,7 +175,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
             rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
 
             beam = Beam(
-                intensities,
+                intensities * n_bunches,
                 proton,
             )
 
@@ -226,6 +217,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
                 mu=-20,
                 open_tuner=True,
                 d_phi_ad=0,
+                enable_klystron=False,
             )
             cavity_control = LHCCavityLoop(
                 profile=profile,
@@ -335,14 +327,6 @@ class TestInjectionMatchedBeam(unittest.TestCase):
                 cls.rf_power[i, :] = cavity_control.generator_power()[
                     -cavity_control.n_coarse :
                 ]
-                plt.figure("ant_fine")
-                plt.title("blond3 fine")
-                plt.plot(cls.v_ant_fine[i, :])
-                plt.show(block=False)
-                plt.figure("ant_coarse")
-                plt.title("blond3 coarse")
-                plt.plot(cls.v_ant[i, :])
-                plt.show()
 
         setup_blond2()
         setup_blond3()
