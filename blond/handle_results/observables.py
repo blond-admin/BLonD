@@ -22,6 +22,7 @@ from numpy.typing import NDArray as NumpyArray
 from blond.core.base import MainLoopRelevant
 from blond.core.ring.helpers import requires
 from blond.handle_results.array_recorders import DenseArrayRecorder
+from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
@@ -36,6 +37,11 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
+
+# DEV NOTE
+# The main reason to have so much boilerplate code
+# is providing an interface that allows autocompletion
+# and allow testing beforehand.
 
 
 class ObservablesBaseClass(MainLoopRelevant):
@@ -166,6 +172,8 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         )  # to avoid double recordings with multiple drifts in one section
         self._last_section_i_observed = -1
 
+        self._simulation: Simulation | None = None
+
     def _calc_n_entries(self, n_turns: int) -> int:
         """
         Calculate the number of entries considering `each_turn_i`.
@@ -198,19 +206,20 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         return self._turns_array
 
     @abstractmethod  # pragma: no cover
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         pass
+
+    def update(self) -> None:
+        """Update memory with new values."""
+        if self._last_turn_i_observed != self._simulation.turn_i.value:
+            self._update()
+            self._last_turn_i_observed = self._simulation.turn_i.value
+        else:
+            raise RuntimeError(
+                f"{self} already called update in this turn for turn {self._last_turn_i_observed}."
+                f" Was this observation added twice?",
+            )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -246,12 +255,10 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         """
         self._n_turns = int(n_turns)
 
-        self._turns_array = np.linspace(
-            0, n_turns, num=self._calc_n_entries(n_turns), dtype=int
-        )
-        self._turns_array = np.append(
-            np.array([0]), self._turns_array
-        )  # prepend 0 for pre-running
+        self._turns_array = np.arange(0, n_turns, self.each_turn_i, dtype=int)
+        assert len(self._turns_array) == self._calc_n_entries(n_turns=n_turns)
+
+        self._simulation = simulation
 
 
 class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
@@ -369,18 +376,8 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             (n_entries,),
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         # TODO allow several bunches
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
@@ -544,18 +541,8 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             n_entries,
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         # TODO allow several bunches
 
         self._bunch_position.write(np.average(self._beam.read_partial_dt()))
@@ -717,18 +704,8 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
             shape,
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         self._phases.write(self._rf_station.phi_rf_actual)
         self._omegas.write(self._rf_station.omega_rf_actual)
         self._voltages.write(
@@ -1090,29 +1067,11 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
             (n_entries, n_bins),
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        if (
-            self._last_turn_i_observed == simulation.turn_i.value
-            and self._last_section_i_observed == simulation.section_i.value
-        ):
-            return
-        self._last_turn_i_observed = simulation.turn_i.value
-        self._last_section_i_observed = simulation.section_i.value
+    def _update(self) -> None:
+        """Update memory with new values."""
         self._hist_y.write(
             self._profile.hist_y,
         )
-        # else return without recording
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray:
@@ -1172,10 +1131,18 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
     >>> turn_0_profile1 = 1  # turn_0 simulation
     >>> turn_2_profile0 = 2  # after 2 turns, because `each_turn_i = 2`
     >>> turn_2_profile1 = 3  # after 2 turns, because `each_turn_i = 2`
-    >>> for index in (turn_0_profile0, turn_0_profile1, turn_2_profile0, turn_2_profile1):
-    ...     plt.plot(
-    ...         profile_obs.hist_x[index % 2], profile_obs.hist_y[index, :]
-    ...     )
+    >>> plt.plot(
+    >>>     profile_obs.hist_x[0], profile_obs.hist_y[0][0]
+    >>> )
+    >>> plt.plot(
+    >>>     profile_obs.hist_x[1], profile_obs.hist_y[0][1]
+    >>> )
+    >>> plt.plot(
+    >>>     profile_obs.hist_x[0], profile_obs.hist_y[1][0]
+    >>> )
+    >>> plt.plot(
+    >>>     profile_obs.hist_x[1], profile_obs.hist_y[1][1]
+    >>> )
     """
 
     def __init__(
@@ -1221,38 +1188,17 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
-        n_entries = int(
-            (len(self._turns_array) * len(self._profiles)) // self.each_turn_i
-            + 2 * len(self._profiles)
-        )
+        n_turns_observation = int(len(self._turns_array) // self.each_turn_i)
         n_bins = self._profiles[0].n_bins
+        shape = (n_turns_observation, len(self._profiles), n_bins)
         self._hist_y = DenseArrayRecorder(
             f"{self.common_filepath}_hist_y",
-            (n_entries, n_bins),
+            shape,
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update the data in case the function has not been called on the current section and turn already.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        if (
-            self._last_turn_i_observed == simulation.turn_i.value
-            and self._last_section_i_observed == simulation.section_i.value
-        ):
-            return
-        self._last_turn_i_observed = simulation.turn_i.value
-        self._last_section_i_observed = simulation.section_i.value
-        for prof in self._profiles:
-            if simulation.section_i.value == prof.section_index:
-                self._hist_y.write(prof.hist_y)
+    def _update(self) -> None:
+        """Update the data."""
+        self._hist_y.write([prof.hist_y for prof in self._profiles])
 
     @property  # as readonly attributes
     def hist_x(self) -> list[NumpyArray]:
@@ -1357,18 +1303,8 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
             (n_entries, n_bins),
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         try:
             self._induced_voltage.write(
                 self._wakefield.induced_voltage,
@@ -1474,18 +1410,8 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
             shape,
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         self._hist_y.write(self._profile.hist_y)
         self._hist_x.write(self._profile.hist_x)
 
@@ -1512,3 +1438,159 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
             Histogram x-axis array.
         """
         return self._hist_x.get_valid_entries()
+
+
+class SimulationObservation(ObservablesOncePerTurnBase):
+    """
+    Observation of the `Simulation` object itself.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        folder: str = "",
+    ):
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._simulation: Simulation | None = None
+
+        self._t_revs: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation beam object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+        )
+
+        n_entries = self._calc_n_entries(n_turns=n_turns)
+        shape = n_entries
+        self._t_revs = DenseArrayRecorder(
+            f"{self.common_filepath}_t_revs",
+            shape,
+        )
+        self._simulation = simulation
+
+    def _update(
+        self,
+    ) -> None:
+        """Update memory with new values."""
+        self._t_revs.write(self._simulation.current_t_rev)
+
+    @property  # as readonly attributes
+    def t_revs(self) -> NumpyArray:
+        """
+        Revolution time, in [s] of shape ``(n_observations)``.
+
+        Returns
+        -------
+        t_rev
+            Revolution time, in [s] of shape ``(n_observations)``.
+        """
+        return self._t_revs.get_valid_entries()
+
+
+class DriftObservation(ObservablesOncePerTurnBase):
+    """
+    Observation of `eta_0` of the `DriftSimple` object.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    drift
+        `DriftSimple` object.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        drift: DriftSimple,
+        folder: str = "",
+    ):
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._drift: DriftSimple = drift
+
+        self._eta_0s: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation beam object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+        )
+
+        self._eta_0s = DenseArrayRecorder(
+            f"{self.common_filepath}_eta_0s",
+            (self._calc_n_entries(n_turns=n_turns)),
+        )
+
+    def _update(
+        self,
+    ) -> None:
+        """Update memory with new values."""
+        self._eta_0s.write(float(self._drift._last_eta_0))
+
+    @property  # as readonly attributes
+    def eta_0s(self) -> NumpyArray:
+        """
+        Drift in arc parameter eta of shape ``(n_observations)``.
+
+        Returns
+        -------
+        eta_0
+            Drift in arc parameter eta of shape ``(n_observations)``.
+        """
+        return self._eta_0s.get_valid_entries()

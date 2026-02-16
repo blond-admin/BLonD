@@ -74,7 +74,7 @@ def generate_file_description_table(root_dir: os.PathLike) -> list[str]:
         if skip:
             continue
         try:
-            indent = root[root.index(str(Path("blond/"))) :].count(os.sep)
+            indent = root[root.index(str(Path("blond/"))) :].count(os.sep) - 1
         except ValueError:
             indent = 0
 
@@ -103,7 +103,10 @@ def _add_line(indent: int, content_write: list[str], root: str) -> None:
     # Extract the docstring
     docstring = extract_docstring(init_path)
     # Markdown entry for the folder and docstring
-    indent_string = "" if indent == 0 else f"├{2 * (indent) * '─'} "
+    if indent == 0:
+        indent_string = ""
+    else:
+        indent_string = "" if indent == 0 else f"├{2 * (indent) * '─'} "
     folder_string = f"{indent_string}{folder_name}/"
     max_spaces = 30
     spaces = max_spaces - len(folder_string)

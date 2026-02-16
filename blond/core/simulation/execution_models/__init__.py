@@ -6,4 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds `FortranSpecials` and helper functions."""
+"""
+Different implementations of main-loops, for example for counter-rotation.
+
+Notes
+-----
+Authors:
+S. Lauber
+L. Thiele
+"""

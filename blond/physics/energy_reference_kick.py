@@ -53,7 +53,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
 
     def __init__(
         self,
-        section_index: int,
+        section_index: int = 0,
         name: str | None = None,
         **kwargs,
     ):
@@ -108,7 +108,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
         """
         pass
 
-    def track(self, beam: BeamBaseClass):
+    def _track(self, beam: BeamBaseClass):
         """
         Update reference energy of the beam.
 
@@ -117,7 +117,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
         beam
             Simulation beam object.
         """
-        super().track(beam=beam)
+        super()._track(beam=beam)
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,

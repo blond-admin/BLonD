@@ -157,7 +157,7 @@ class BeamFeedbackBase(GlobalFeedback):
             else:
                 self.dphi += RFnoise.dphi[counter]
 
-    def track(self, beam: BeamBaseClass):
+    def _track(self, beam: BeamBaseClass):
         self.get_beam_attribute(  # could be mean energy, mean phase or whatever
             beam=beam,
         )

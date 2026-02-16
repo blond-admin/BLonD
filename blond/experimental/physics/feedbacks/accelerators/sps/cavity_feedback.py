@@ -1080,7 +1080,7 @@ class SPSCavityFeedback:
         self.OTFB_1.set_parent_rf_station(rf_station)
         self.OTFB_2.set_parent_rf_station(rf_station)
 
-    def track(self, beam: BeamBaseClass):
+    def _track(self, beam: BeamBaseClass):
         r"""
         Main tracking method for the SPSCavityFeedback. This tracks both cavity types
         with beam.
