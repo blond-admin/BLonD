@@ -27,8 +27,6 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
 from blond.core.base import BeamPhysicsRelevant, DynamicParameter
-from blond.core.beam.base import BeamBaseClass
-from blond.core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
