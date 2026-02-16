@@ -16,7 +16,6 @@ class TestInjectionMatchedBeam(unittest.TestCase):
             )
             from blond.legacy.blond2.beam.profile import (
                 CutOptions,
-                FitOptions,
                 Profile,
             )
             from blond.legacy.blond2.input_parameters.rf_parameters import (

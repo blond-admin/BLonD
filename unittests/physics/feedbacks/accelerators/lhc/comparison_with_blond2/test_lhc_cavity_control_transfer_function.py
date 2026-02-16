@@ -5,9 +5,7 @@ import numpy as np
 
 from blond import (
     StaticProfile,
-    backend,
 )
-from blond.core.backends.backend import Numpy64Bit
 from blond.experimental.physics.feedbacks.accelerators.lhc.cavity_feedback import (
     LHCCavityLoop,
     LHCCavityLoopCommissioning,
