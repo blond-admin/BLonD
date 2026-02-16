@@ -21,6 +21,7 @@ from numpy.typing import NDArray as NumpyArray
 
 from blond.core.base import MainLoopRelevant
 from blond.handle_results.array_recorders import DenseArrayRecorder
+from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -32,6 +33,11 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
+
+# DEV NOTE
+# The main reason to have so much boilerplate code
+# is providing an interface that allows autocompletion
+# and allow testing beforehand.
 
 
 class ObservablesBaseClass(MainLoopRelevant):
@@ -245,12 +251,8 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         """
         self._n_turns = int(n_turns)
 
-        self._turns_array = np.linspace(
-            0, n_turns, num=self._calc_n_entries(n_turns), dtype=int
-        )
-        self._turns_array = np.append(
-            np.array([0]), self._turns_array
-        )  # prepend 0 for pre-running
+        self._turns_array = np.arange(0, n_turns, self.each_turn_i, dtype=int)
+        assert len(self._turns_array) == self._calc_n_entries(n_turns=n_turns)
 
         self._simulation = simulation
 
@@ -1203,3 +1205,159 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
             Histogram x-axis array.
         """
         return self._hist_x.get_valid_entries()
+
+
+class SimulationObservation(ObservablesOncePerTurnBase):
+    """
+    Observation of the `Simulation` object itself.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        folder: str = "",
+    ):
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._simulation: Simulation | None = None
+
+        self._t_revs: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation beam object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+        )
+
+        n_entries = self._calc_n_entries(n_turns=n_turns)
+        shape = n_entries
+        self._t_revs = DenseArrayRecorder(
+            f"{self.common_filepath}_t_revs",
+            shape,
+        )
+        self._simulation = simulation
+
+    def _update(
+        self,
+    ) -> None:
+        """Update memory with new values."""
+        self._t_revs.write(self._simulation.current_t_rev)
+
+    @property  # as readonly attributes
+    def t_revs(self) -> NumpyArray:
+        """
+        Revolution time, in [s] of shape ``(n_observations)``.
+
+        Returns
+        -------
+        t_rev
+            Revolution time, in [s] of shape ``(n_observations)``.
+        """
+        return self._t_revs.get_valid_entries()
+
+
+class DriftObservation(ObservablesOncePerTurnBase):
+    """
+    Observation of `eta_0` of the `DriftSimple` object.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    drift
+        `DriftSimple` object.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        drift: DriftSimple,
+        folder: str = "",
+    ):
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._drift: DriftSimple = drift
+
+        self._eta_0s: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation beam object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+        )
+
+        self._eta_0s = DenseArrayRecorder(
+            f"{self.common_filepath}_eta_0s",
+            (self._calc_n_entries(n_turns=n_turns)),
+        )
+
+    def _update(
+        self,
+    ) -> None:
+        """Update memory with new values."""
+        self._eta_0s.write(float(self._drift._last_eta_0))
+
+    @property  # as readonly attributes
+    def eta_0s(self) -> NumpyArray:
+        """
+        Drift in arc parameter eta of shape ``(n_observations)``.
+
+        Returns
+        -------
+        eta_0
+            Drift in arc parameter eta of shape ``(n_observations)``.
+        """
+        return self._eta_0s.get_valid_entries()
