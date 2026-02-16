@@ -96,6 +96,18 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         return self._number_of_wigglers
 
     @property
+    def wiggler_type(self) -> str:
+        """
+        Type of damping wiggler.
+
+        Returns
+        -------
+        type
+            Type of damping wiggler.
+        """
+        return self._type
+
+    @property
     def length_wiggler(self) -> float | None:
         """
         Length of each damping wiggler.
