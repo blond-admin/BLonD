@@ -32,6 +32,14 @@ if TYPE_CHECKING:  # pragma: no cover
 DEFAULT_BACKEND = "python"
 DEFAULT_BITS = "64"
 
+ALL_BACKENDS: dict[str, BackendBaseClass] = {}
+AVAILABLE_BACKENDS: dict[str, BackendBaseClass] = {}
+
+
+def _register_backend(bd: BackendBaseClass) -> BackendBaseClass:
+    ALL_BACKENDS[bd.__name__] = bd
+    return bd
+
 
 class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
@@ -256,7 +264,6 @@ class BackendBaseClass(ABC):
             "python",
             "cpp",
             "numba",
-            "fortran",
             "cuda",
         ],
         is_gpu: bool,
@@ -277,6 +284,8 @@ class BackendBaseClass(ABC):
         # Callables that link to e.g. Numpy, Cupy
         self.array: Callable = None  # type: ignore
         self.gradient: Callable = None  # type: ignore
+        self.empty: Callable = None  # type: ignore
+        self.repeat: Callable = None  # type: ignore
         self.linspace: Callable = None  # type: ignore
         self.histogram: Callable = None  # type: ignore
         self.zeros: Callable = None  # type: ignore
@@ -375,7 +384,7 @@ class BackendBaseClass(ABC):
         -----
         Following environment variables can be set:
 
-        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'fortran', 'cuda'
+        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'cuda'
         - `BLOND_BACKEND_BITS` can be '32' or '64'
         """
         _backend_mode_raw: str = os.environ.get(
@@ -390,7 +399,6 @@ class BackendBaseClass(ABC):
             "python",
             "cpp",
             "numba",
-            "fortran",
             "cuda",
         )
         if _backend_mode_raw in _allowed_backend_modes:
@@ -398,7 +406,6 @@ class BackendBaseClass(ABC):
                 "python",
                 "cpp",
                 "numba",
-                "fortran",
                 "cuda",
             ] = _backend_mode_raw  # type: ignore
         else:
@@ -621,6 +628,8 @@ class NumpyBackend(BackendBaseClass):
 
         self.array = np.array
         self.gradient = np.gradient
+        self.empty = np.empty
+        self.repeat = np.repeat
         self.linspace = np.linspace
         self.histogram = np.histogram
         self.zeros = np.zeros
@@ -665,7 +674,6 @@ class NumpyBackend(BackendBaseClass):
             "python",
             "cpp",
             "numba",
-            "fortran",
         ],
     ) -> None:
         """
@@ -696,21 +704,13 @@ class NumpyBackend(BackendBaseClass):
             NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
-        elif mode == "fortran":
-            from blond.core.backends.fortran.callables import (
-                reload_fortran_backend,
-            )
-
-            FortranSpecials = reload_fortran_backend(self.float)
-
-            self.specials = FortranSpecials()
-            self.specials_mode = mode
         else:
             raise ValueError(mode)
         if self.verbose and onchange:
             print(f"Set special to `{mode}`")
 
 
+@_register_backend
 class Numpy32Bit(NumpyBackend):
     """Numpy backend with 32 bit precision."""
 
@@ -723,6 +723,7 @@ class Numpy32Bit(NumpyBackend):
         )
 
 
+@_register_backend
 class Numpy64Bit(NumpyBackend):
     """Numpy backend with 64 bit precision."""
 
@@ -770,6 +771,8 @@ class CupyBackend(BackendBaseClass):
 
         self.array = cp.array
         self.gradient = cp.gradient
+        self.empty = cp.empty
+        self.repeat = cp.repeat
         self.linspace = cp.linspace
         self.histogram = cp.histogram
         self.zeros = cp.zeros
@@ -833,6 +836,7 @@ class CupyBackend(BackendBaseClass):
             print(f"Set special to `{mode}`")
 
 
+@_register_backend
 class Cupy32Bit(CupyBackend):
     """Cupy backend with 64 bit precision."""
 
@@ -843,6 +847,7 @@ class Cupy32Bit(CupyBackend):
         )
 
 
+@_register_backend
 class Cupy64Bit(CupyBackend):
     """Cupy backend with 32 bit precision."""
 
@@ -857,3 +862,14 @@ default = Numpy64Bit()  # use .change_backend(...) to change it anywhere
 backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
 backend.verbose = True
 backend.apply_environment_variables()
+
+
+for k, v in ALL_BACKENDS.items():
+    try:
+        v()
+    # Skip on any exception, we only care that it's not available,
+    # we don't care why.
+    except Exception:  # pragma: no cover
+        pass
+    else:
+        AVAILABLE_BACKENDS[k] = v

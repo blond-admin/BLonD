@@ -3,7 +3,6 @@ import warnings
 
 import numpy as np
 import pytest
-from parameterized import parameterized
 
 from blond.core.backends.backend import (
     Cupy32Bit,
@@ -16,6 +15,10 @@ from blond.core.backends.backend import (
     default,
 )
 from blond.core.backends.numba.callables import recompile_numba_backend
+from blond.testing.backend_testing import (
+    multi_backend_testcase,
+    skip_if_no_cupy,
+)
 
 try:
     import cupy as cp  # type: ignore
@@ -57,7 +60,7 @@ class TestBackendBaseClass(unittest.TestCase):
     def test_apply_environment_variables(self):
         import os
 
-        backend_modes = ["python", "cpp", "numba", "fortran", "fail"]
+        backend_modes = ["python", "cpp", "numba", "fail"]
         backend_bits = ["32", "64", "fail"]
         try:
             import cupy
@@ -80,9 +83,7 @@ class TestBackendBaseClass(unittest.TestCase):
                         # Compiled backends might not be available locally --> skip.
                         # On the CI, these will always be available, as the before_script builds them
                         # or otherwise fails the CI
-                        if (
-                            backend_mode == "fortran" or backend_mode == "cpp"
-                        ):  # TODO better handling
+                        if backend_mode == "cpp":  # TODO better handling
                             warnings.warn(
                                 f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
                             )
@@ -198,13 +199,6 @@ class TestNumpyBackend(unittest.TestCase):
         self.numpy_backend.set_specials(mode="numba")
 
     @pytest.mark.backend_mutation
-    def test_set_specials_fortran(self) -> None:
-        try:
-            self.numpy_backend.set_specials(mode="fortran")
-        except FileNotFoundError:
-            self.skipTest("fortran not available!")
-
-    @pytest.mark.backend_mutation
     def test_set_specials_fails(self):
         with self.assertRaises(ValueError):
             self.numpy_backend.set_specials("doesnt exist")
@@ -217,7 +211,6 @@ class TestSpecials(unittest.TestCase):
             "python",
             "cpp",
             "numba",
-            "fortran",
         ]
         if cupy_available:
             self.special_modes.append("cuda")
@@ -229,7 +222,6 @@ class TestSpecials(unittest.TestCase):
             "python",
             "cpp",
             "numba",
-            "fortran",
         ):
             if dtype == np.float32:
                 backend.change_backend(Numpy32Bit)
@@ -908,10 +900,8 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"{special=} {dtype=}",
                     )
 
-    @pytest.mark.backend_mutation
-    @parameterized.expand([Numpy32Bit, Numpy64Bit])
-    def test_cast_float_arr_np_only(self, new_backend):
-        backend.change_backend(new_backend)
+    @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    def test_cast_float_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.float)
 
         for in_type in (tuple, list, np.array):
@@ -935,13 +925,9 @@ class TestSpecials(unittest.TestCase):
         unchanged = backend.cast_arr_float_if_needed(target)
         self.assertTrue(target is unchanged)
 
-    @pytest.mark.backend_mutation
-    @parameterized.expand([Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit])
-    def test_cast_float_arr_full(self, new_backend):
-        if not cupy_available:
-            self.skipTest(f"{cupy_available=}")
-
-        backend.change_backend(new_backend)
+    @skip_if_no_cupy
+    @multi_backend_testcase
+    def test_cast_float_arr_full(self):
         for in_type in (tuple, list, np.array, cp.array):
             # Recreate the target for each loop, avoids issues with
             # transferring back and forth between cupy and numpy.
@@ -984,13 +970,8 @@ class TestSpecials(unittest.TestCase):
         unchanged = backend.cast_arr_float_if_needed(target)
         self.assertTrue(target is unchanged)
 
-    @pytest.mark.backend_mutation
-    @parameterized.expand([Numpy32Bit, Numpy64Bit])
-    def test_cast_complex_arr_np_only(self, new_backend):
-        if not cupy_available and isinstance(new_backend, CupyBackend):
-            self.skipTest(f"{cupy_available=}")
-
-        backend.change_backend(new_backend)
+    @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    def test_cast_complex_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.complex)
         for in_type in (tuple, list, np.array):
             cast = backend.cast_arr_complex_if_needed(in_type(target))
@@ -1014,13 +995,9 @@ class TestSpecials(unittest.TestCase):
         unchanged = backend.cast_arr_complex_if_needed(target)
         self.assertTrue(target is unchanged)
 
-    @pytest.mark.backend_mutation
-    @parameterized.expand([Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit])
-    def test_cast_complex_arr_full(self, new_backend):
-        if not cupy_available:
-            self.skipTest(f"{cupy_available=}")
-
-        backend.change_backend(new_backend)
+    @skip_if_no_cupy
+    @multi_backend_testcase
+    def test_cast_complex_arr_full(self):
         for in_type in (tuple, list, np.array, cp.array):
             # Recreate the target for each loop, avoids issues with
             # transferring back and forth between cupy and numpy.
@@ -1076,6 +1053,9 @@ class TestSpecials(unittest.TestCase):
     def tearDown(self) -> None:
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
+
+    def test_import(self):
+        from blond.core.backends import backend  # see if import works
 
 
 class TestNumbaCompilation(unittest.TestCase):

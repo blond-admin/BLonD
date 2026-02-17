@@ -21,6 +21,5 @@ omit =
     blond/testing/*
     blond/core/backends/cuda/*
     blond/core/backends/cpp/*
-    blond/core/backends/fortran/*
     blond/core/backends/numba/*+
     blond/_version.py

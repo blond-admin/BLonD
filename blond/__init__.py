@@ -49,7 +49,11 @@ __all__ = [
     "BoxLosses",
     "DynamicProfileConstNBins",
     "StaticProfile",
+    "DriftObservation",
+    "SimulationObservation",
 ]
+
+
 from blond.beam_preparation.bigaussian import BiGaussian
 from blond.core.backends.backend import (
     Cupy32Bit,
@@ -79,7 +83,9 @@ from blond.cycles.magnetic_cycle import (
 from blond.generals.cupy.no_cupy_import import AllowPlotting
 from blond.handle_results.observables import (
     BeamObservationOncePerTurn,
+    DriftObservation,
     RFStationPhaseObservation,
+    SimulationObservation,
     StaticProfileObservation,
 )
 from blond.handle_results.observables_as_elements import (
