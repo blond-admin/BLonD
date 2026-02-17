@@ -523,8 +523,6 @@ class DriftExact(DriftSimple):
                 T=dt,
                 alpha_0=self.alpha_0,
                 higher_alpha=higher_alpha,
-                n_alpha=len(higher_alpha),
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
-                n_macroparticles=beam.common_array_size,
             )
