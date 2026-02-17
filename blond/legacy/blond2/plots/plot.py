@@ -45,7 +45,7 @@ from .plot_llrf import (
 )
 from .plot_slices import plot_beam_profile, plot_beam_spectrum
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
     from ..beam.beam import Beam
