@@ -110,7 +110,6 @@ class TestSPSCavityFeedback(unittest.TestCase):
     @unittest.skip("too slow and beam feedback is anyway not working for now")
     def setUp(self):
         backend.change_backend(Numpy64Bit)
-        # backend.set_specials("fortran")
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
         # Gamma at transition
         p_s = 25.92e9  # Synchronous momentum at injection [eV]

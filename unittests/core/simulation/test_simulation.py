@@ -370,8 +370,8 @@ class TestSimulation(unittest.TestCase):
 
     def test_profiling(self):
         self.simulation.profiling(
-            profile_start_turn_i=10,
-            profile_n_turns=20,
+            start_turn_i=10,
+            n_turns=20,
             beams=(self.beam,),
         )
 

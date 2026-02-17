@@ -58,7 +58,6 @@ def main():  # noqa
 
     backend.change_backend(Numpy64Bit)
     backend.set_specials("numba")
-    # backend.set_specials("fortran")
 
     from blond import MultiHarmonicRFStation  # NOQA
     from blond import (  # NOQA
@@ -128,13 +127,6 @@ def main():  # noqa
             plt.draw()
             plt.pause(0.1)
             plt.cla()
-
-    """beam2 = deepcopy(beam1)
-    sim.profiling(
-        beams=(beam2,),
-        profile_start_turn_i=0,
-        profile_n_turns=N_TURNS,
-    )"""
 
     import cProfile
     import io

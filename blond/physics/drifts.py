@@ -203,6 +203,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
         self._simulation: Simulation | None = None
 
+        self._last_eta_0: float | None = None
+
         self.momentum_compaction_factor: float | None = (
             momentum_compaction_factor
         )
@@ -294,14 +296,15 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             )
 
         dt = self.track_reference(beam.reference)
+        gamma = beam.reference.gamma
+        self._last_eta_0 = self.eta_0(gamma)
 
         if beam.common_array_size > 0:
-            gamma = beam.reference.gamma
             backend.specials.drift_simple(
                 dt=beam.write_partial_dt(),
                 dE=beam.read_partial_dE(),
                 T=dt,
-                eta_0=(self.alpha_0 - (1 / (gamma * gamma))),
+                eta_0=self._last_eta_0,
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
             )
