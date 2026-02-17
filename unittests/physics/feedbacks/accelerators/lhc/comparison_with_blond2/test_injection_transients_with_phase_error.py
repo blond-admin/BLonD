@@ -246,7 +246,7 @@ class TestInjectionWithPhaseError(unittest.TestCase):
             from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
             from blond.legacy.blond2.utils import bmath as bm
 
-            bm.use_cpp()
+            bm.use_numba()
 
             # Options
             PLT_SIMS = False
