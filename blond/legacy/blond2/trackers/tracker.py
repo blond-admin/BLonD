@@ -563,22 +563,16 @@ class RingAndRFTracker:
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
-        # self.rf_params.dphi_rf += (
-        #     2.0
-        #     * np.pi
-        #     * self.rf_params.harmonic[:, turn + 1]
-        #     * (
-        #         self.rf_params.omega_rf[:, turn + 1]
-        #         - self.rf_params.omega_rf_d[:, turn + 1]
-        #     )
-        #     / self.rf_params.omega_rf_d[:, turn + 1]
-        # )
-
-        self.rf_params.dphi_rf += ((self.rf_params.omega_rf[:, turn]
-                                    - 2 * np.pi * self.rf_params.harmonic[:, turn]
-                                    / self.rf_params.t_rev[turn])
-                                   * self.rf_params.t_rev[turn])
-
+        self.rf_params.dphi_rf += (
+            2.0
+            * np.pi
+            * self.rf_params.harmonic[:, turn]
+            * (
+                self.rf_params.omega_rf[:, turn]
+                - self.rf_params.omega_rf_d[:, turn]
+            )
+            / self.rf_params.omega_rf_d[:, turn]
+        )
 
         # Total phase offset
         self.rf_params.phi_rf[:, turn + 1] += self.rf_params.dphi_rf
