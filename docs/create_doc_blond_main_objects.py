@@ -98,10 +98,6 @@ def main():
     :undoc-members:
     :show-inheritance:
     :noindex:
-
-.. autoclass::
-{"/builds/blond/BLonD/blond/acc_math/analytic/synchrotron_radiation/synchrotron_radiation_maths.py"}
-    :noindex:
 """
 
             category = ASSIGNED_CATEGORIES[name]
