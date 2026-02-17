@@ -446,7 +446,7 @@ class RFStationBaseClass(
         """
         if eta_0 is None:
             assert self._ring is not None
-            eta_0 = self._ring.calc_average_eta_0(beam.reference_gamma)
+            eta_0 = self._ring.calc_average_eta_0(beam.reference.gamma)
 
         if phi_s is None:
             phi_s = self.calc_phi_s_single_harmonic(beam)
