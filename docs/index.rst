@@ -3,8 +3,12 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the BLonD documentation!
+Welcome to the BLonD 3 documentation!
 ===================================
+
+.. important:: The BlonD development team is actively working on a revision of the entire
+    BLonD package. If you have any suggestions, do not hesitate to contact us!
+    The release via PyPi is planned for the third quarter of 2024. A preview version is available via our GitLab page https://gitlab.cern.ch/blond/BLonD/ .
 
 Contents
 ========
