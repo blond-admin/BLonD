@@ -26,6 +26,7 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 main_files_dir = os.path.join(
     this_directory + "../../__EXAMPLES/mpi_main_files"
 )
+assert os.path.isdir(main_files_dir), f"{main_files_dir}"
 exec_args = ["mpirun", "-n", "2", sys.executable]
 timeout = 60  # Timeout in seconds
 
@@ -33,6 +34,7 @@ timeout = 60  # Timeout in seconds
 class TestMpiExamples(unittest.TestCase):
     def _runMPIExample(self, example, timeout=timeout):
         file = os.path.join(main_files_dir, example)
+        assert os.path.isfile(file), f"{file}"
         try:
             ret = subprocess.run(exec_args + [file], timeout=timeout)
             self.assertEqual(ret.returncode, 0)
