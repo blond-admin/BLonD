@@ -10,6 +10,7 @@ from blond.acc_math.analytic.longitudinal_beam_dynamics import (
     get_small_amplitude_angular_synchrotron_frequency,
     get_small_amplitude_angular_synchrotron_tune,
 )
+from blond.generals.function_helpers import UnevenArraySizes
 
 
 class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
@@ -138,7 +139,7 @@ class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
         self.places = 6 if backend.float == np.float32 else 12
 
     def test_get_linear_angular_synchrotron_frequency(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(UnevenArraySizes):
             get_small_amplitude_angular_synchrotron_frequency(
                 energy=self.energy,
                 voltage=self.voltage[0:3],
