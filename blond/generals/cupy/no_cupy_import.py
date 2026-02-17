@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.backends.backend import backend
-
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
@@ -89,16 +87,19 @@ class _AsarrayOverrideManager:
         *args: Any,
         **kwargs: Any,
     ) -> NumpyArray:
-        import cupy as cp  # type: ignore
-
-        if isinstance(a, cp.ndarray):
-            key = a.data.ptr
-            if key not in self.cache:
-                a = a.get()  # copy data from GPU
-                self.cache[key] = a
-            else:
-                # DON'T copy data from GPU, because it was done already
-                a = self.cache[key]
+        try:
+            import cupy as cp  # type: ignore
+        except (ImportError, ModuleNotFoundError):
+            pass
+        else:
+            if isinstance(a, cp.ndarray):
+                key = a.data.ptr
+                if key not in self.cache:
+                    a = a.get()  # copy data from GPU
+                    self.cache[key] = a
+                else:
+                    # DON'T copy data from GPU, because it was done already
+                    a = self.cache[key]
 
         return self._numpy_asarray_original(  # type: ignore
             a,
@@ -111,17 +112,21 @@ class _AsarrayOverrideManager:
     def array_override(
         self, p_object, dtype=None, *args, **kwargs
     ) -> NumpyArray:
-        import cupy as cp  # type: ignore
-
         a = p_object
-        if isinstance(a, cp.ndarray):
-            key = a.data.ptr
-            if key not in self.cache:
-                a = a.get()  # copy data from GPU
-                self.cache[key] = a
-            else:
-                # DON'T copy data from GPU, because it was done already
-                a = self.cache[key]
+
+        try:
+            import cupy as cp  # type: ignore
+        except (ImportError, ModuleNotFoundError):
+            pass
+        else:
+            if isinstance(a, cp.ndarray):
+                key = a.data.ptr
+                if key not in self.cache:
+                    a = a.get()  # copy data from GPU
+                    self.cache[key] = a
+                else:
+                    # DON'T copy data from GPU, because it was done already
+                    a = self.cache[key]
 
         return self._numpy_array_original(  # type: ignore
             a,
@@ -186,7 +191,7 @@ class AllowPlotting:
         exc_tb
             Exception traceback if an exception occurred.
         """
-        if not backend.is_gpu:
+        if not self.cupy_found:
             return  # do nothing
         # reset to original numpy function
         np.asarray = self.asarray_org

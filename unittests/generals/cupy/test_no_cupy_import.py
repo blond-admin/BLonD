@@ -56,7 +56,7 @@ class TestFunctions(unittest.TestCase):
 
         with no_cupy.AllowPlotting():
             plt.scatter(y, y)
-        plt.show()
+        plt.close("all")
 
     @pytest.mark.cupy
     def test_is_cupy_array(self):
