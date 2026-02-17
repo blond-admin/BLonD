@@ -197,7 +197,7 @@ class RFStationBaseClass(
 
         Returns
         -------
-        omega_rf_actual
+        omega_rf
             Actual angular rf frequency.
         """
         return self.omega_rf_design + self.delta_omega_rf
@@ -211,7 +211,7 @@ class RFStationBaseClass(
 
         Returns
         -------
-        phi_rf_actual
+        phi_rf
             Actual angular rf phase.
         """
         return self.phi_rf_design + self.delta_phi_rf
@@ -314,13 +314,13 @@ class RFStationBaseClass(
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_omega_rf_actual(self) -> float:
+    def get_main_harmonic_omega_rf(self) -> float:
         """
         Return the omega_rf of the main harmonic, in [rad/s].
 
         Returns
         -------
-        main_harmonic_omega_rf_actual
+        main_harmonic_omega_rf
             The omega_rf of the main harmonic, in [rad/s].
         """
         pass
@@ -349,13 +349,13 @@ class RFStationBaseClass(
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_t_rf_actual(self) -> float:
+    def get_main_harmonic_t_rf(self) -> float:
         """
         Return the actual t_rf of the main harmonic.
 
         Returns
         -------
-        main_harmonic_t_rf_curren
+        main_harmonic_t_rf
             The t_rf of the main harmonic, in [s].
         """
         pass
@@ -830,18 +830,18 @@ class SingleHarmonicRFStation(RFStationBaseClass):
             ring_circumference=ring_circumference,
         )
 
-    def get_main_harmonic_omega_rf_actual(self) -> float:
+    def get_main_harmonic_omega_rf(self) -> float:
         """
         Return the omega_rf of the main harmonic, in [rad/s].
 
         Returns
         -------
-        main_harmonic_omega_rf_actual
+        main_harmonic_omega_rf
             The omega_rf of the main harmonic, in [rad/s].
         """
         return self.omega_rf
 
-    def get_main_harmonic_t_rf_actual(
+    def get_main_harmonic_t_rf(
         self,
     ) -> float:
         """
@@ -849,10 +849,10 @@ class SingleHarmonicRFStation(RFStationBaseClass):
 
         Returns
         -------
-        main_harmonic_t_rf_actual
+        main_harmonic_t_rf
             The t_rf of the main harmonic, in [s].
         """
-        return (2 * np.pi) / self.get_main_harmonic_omega_rf_actual()
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf()
 
     def calc_main_harmonic_t_rf(
         self, beam_beta: float, ring_circumference: float
@@ -1307,9 +1307,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         )
 
         self._t_rf = (2 * np.pi) / self.omega_rf_design
-        self._t_rev = (
-            self.get_main_harmonic_t_rf_actual() * self.get_main_harmonic()
-        )
+        self._t_rev = self.get_main_harmonic_t_rf() * self.get_main_harmonic()
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
@@ -1394,18 +1392,18 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             ring_circumference=ring_circumference,
         )[self.main_harmonic_idx]
 
-    def get_main_harmonic_omega_rf_actual(self) -> float:
+    def get_main_harmonic_omega_rf(self) -> float:
         """
         Return the omega_rf of the main harmonic, in [rad/s].
 
         Returns
         -------
-        omega_rf_actual
+        omega_rf
             The angular frequency of the main harmonic, in [rad/s].
         """
         return self.omega_rf[self.main_harmonic_idx]
 
-    def get_main_harmonic_t_rf_actual(
+    def get_main_harmonic_t_rf(
         self,
     ) -> float:
         """
@@ -1413,10 +1411,10 @@ class MultiHarmonicRFStation(RFStationBaseClass):
 
         Returns
         -------
-        main_harmonic_t_rf_actual
+        main_harmonic_t_rf
             The t_rf of the main harmonic, in [s].
         """
-        return (2 * np.pi) / self.get_main_harmonic_omega_rf_actual()
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf()
 
     def calc_main_harmonic_t_rf(
         self, beam_beta: float, ring_circumference: float

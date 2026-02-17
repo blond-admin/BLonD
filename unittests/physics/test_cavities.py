@@ -389,16 +389,16 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             ]
         )
         assert (
-            self.multi_harmonic_cavity.get_main_harmonic_t_rf_actual()
+            self.multi_harmonic_cavity.get_main_harmonic_t_rf()
             == 2
             * np.pi
-            / self.multi_harmonic_cavity.get_main_harmonic_omega_rf_actual()
+            / self.multi_harmonic_cavity.get_main_harmonic_omega_rf()
         )
         assert (
             self.multi_harmonic_cavity.calc_main_harmonic_t_rf(
                 beam_beta=self.beam.reference.beta, ring_circumference=456
             )
-            == self.multi_harmonic_cavity.get_main_harmonic_t_rf_actual()
+            == self.multi_harmonic_cavity.get_main_harmonic_t_rf()
         )  # TODO: this fails since the first one is float32 and second float64
 
     def test_on_init_simulation_fails2(self) -> None:
@@ -499,14 +499,14 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             == self.single_harmonic_cavity.harmonic
         )
         assert (
-            self.single_harmonic_cavity.get_main_harmonic_t_rf_actual()
+            self.single_harmonic_cavity.get_main_harmonic_t_rf()
             == 2 * np.pi / self.single_harmonic_cavity.omega_rf
         )
         assert (
             self.single_harmonic_cavity.calc_main_harmonic_t_rf(
                 beam_beta=self.beam.reference.beta, ring_circumference=456
             )
-            == self.single_harmonic_cavity.get_main_harmonic_t_rf_actual()
+            == self.single_harmonic_cavity.get_main_harmonic_t_rf()
         )
 
     def test_on_init_simulation_fails(self) -> None:
