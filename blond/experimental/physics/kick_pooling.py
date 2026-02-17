@@ -74,7 +74,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         simulation
             `Simulation` context manager.
         """
-        self.wipe_buffer()
+        self.clear_buffer()
 
     def on_run_simulation(
         self,
@@ -101,14 +101,14 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         **kwargs
             Additional keyword arguments for simulation setup.
         """
-        self.wipe_buffer()
+        self.clear_buffer()
 
-    def wipe_buffer(self) -> None:
+    def clear_buffer(self) -> None:
         """
         Reset the buffer and forget about all previous `register` calls.
         """
-        self._buffer_voltage = {}
-        self._buffer_time_axis = {}
+        self._buffer_voltage.clear()
+        self._buffer_time_axis.clear()
 
     def register(self, time_axis: NumpyArray, voltage: NumpyArray) -> None:
         """
@@ -121,12 +121,11 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         voltage
             Voltage along the time axis, in [V].
         """
-        from blond.physics.impedances.sources import get_hash
 
-        key = get_hash(time_axis)
-        if key in self._buffer_voltage:
+        key = id(time_axis)
+        try:
             self._buffer_voltage[key] += voltage
-        else:
+        except KeyError:
             self._buffer_voltage[key] = voltage.copy()
             self._buffer_time_axis[key] = time_axis.copy()
 
