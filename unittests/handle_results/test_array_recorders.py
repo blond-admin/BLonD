@@ -2,7 +2,6 @@ import unittest
 
 import numpy
 import numpy as np
-
 from blond.handle_results.array_recorders import (
     DenseArrayRecorder,
 )

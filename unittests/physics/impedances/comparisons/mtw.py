@@ -1,5 +1,19 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from blond.core.backends.backend import Numpy64Bit, backend
+from blond.handle_results.observables import (
+    BunchObservationMetaParams,
+    StaticProfileObservation,
+    WakeFieldObservation,
+)
+from blond.physics.impedances.solvers import (
+    MultiPassResonatorSolver,
+    SingleTurnResonatorConvolutionSolver,
+)
+from blond.physics.impedances.sources import Resonators
+from blond.specifics.muon_collider.beam_preparation import (
+    load_beam_data_counterrot_from_file,
+)
 from scipy.constants import pi
 
 from blond import (
@@ -12,12 +26,6 @@ from blond import (
     StaticProfile,
     WakeField,
     mu_plus,
-)
-from blond.core.backends.backend import Numpy64Bit, backend
-from blond.handle_results.observables import (
-    BunchObservationMetaParams,
-    StaticProfileObservation,
-    WakeFieldObservation,
 )
 from blond.legacy.blond2.beam.beam import Beam as beam_b2
 from blond.legacy.blond2.beam.beam import MuPlus as mu_plus_b2
@@ -45,14 +53,6 @@ from blond.legacy.blond2.input_parameters.ring import Ring as ring_b2
 from blond.legacy.blond2.trackers.tracker import (
     FullRingAndRF,
     RingAndRFTracker,
-)
-from blond.physics.impedances.solvers import (
-    MultiPassResonatorSolver,
-    SingleTurnResonatorConvolutionSolver,
-)
-from blond.physics.impedances.sources import Resonators
-from blond.specifics.muon_collider.beam_preparation import (
-    load_beam_data_counterrot_from_file,
 )
 
 backend.change_backend(Numpy64Bit)

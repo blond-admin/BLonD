@@ -1,13 +1,13 @@
 import unittest
 
 import numpy as np
-
-from blond import BiGaussian
 from blond.beam_preparation.bigaussian import (
     _get_dE_from_dt,
     _get_dE_from_dt_core,
 )
 from blond.testing.simulation import ExampleSimulation01
+
+from blond import BiGaussian
 
 
 class TestFunctions(unittest.TestCase):

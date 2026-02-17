@@ -3,14 +3,14 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
-from scipy.constants import speed_of_light as c0
-
-from blond import Numpy32Bit, Simulation
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftBaseClass, DriftSimple
+from scipy.constants import speed_of_light as c0
+
+from blond import Numpy32Bit, Simulation
 
 
 class DriftBaseClassHelper(DriftBaseClass):

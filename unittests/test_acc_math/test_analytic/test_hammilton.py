@@ -1,8 +1,6 @@
 import unittest
 
 import numpy as np
-from matplotlib import pyplot as plt
-
 from blond.acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
     is_in_separatrix,
@@ -10,6 +8,7 @@ from blond.acc_math.analytic.hamilton import (
     phase_modulo_below_transition,
     single_rf_sin_hamiltonian,
 )
+from matplotlib import pyplot as plt
 
 
 class TestPhiS(unittest.TestCase):

@@ -1,7 +1,8 @@
 import unittest
 
-from blond import Simulation
 from blond.cycles.base import ProgrammedCycle
+
+from blond import Simulation
 
 
 class ProgrammedCycleHelper(ProgrammedCycle):

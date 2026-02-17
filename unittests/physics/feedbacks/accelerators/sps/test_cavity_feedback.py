@@ -4,6 +4,12 @@ from copy import deepcopy
 
 import numpy as np
 import pytest
+from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
+    SPSCavityFeedback,
+    SPSCavityLoopCommissioning,
+    SPSOneTurnFeedback,
+)
 from numpy.typing import NDArray as NumpyArray
 
 from blond import (
@@ -16,12 +22,6 @@ from blond import (
     Simulation,
     StaticProfile,
     proton,
-)
-from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
-    SPSCavityFeedback,
-    SPSCavityLoopCommissioning,
-    SPSOneTurnFeedback,
 )
 
 this_directory = os.path.dirname(os.path.realpath(__file__))

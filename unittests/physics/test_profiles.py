@@ -10,6 +10,14 @@ import unittest
 
 import numpy as np
 import pytest
+from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.physics.profiles import (
+    DynamicProfileConstCutoff,
+    DynamicProfileConstNBins,
+    ProfileBaseClass,
+    StaticProfile,
+)
 
 from blond import (
     AllowPlotting,
@@ -18,14 +26,6 @@ from blond import (
     Numpy64Bit,
     backend,
     uranium_29,
-)
-from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
-from blond.physics.profiles import (
-    DynamicProfileConstCutoff,
-    DynamicProfileConstNBins,
-    ProfileBaseClass,
-    StaticProfile,
 )
 
 

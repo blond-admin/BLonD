@@ -8,6 +8,10 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
+    SpsRlBeamFeedback,
+)
 
 from blond import (
     Beam,
@@ -20,10 +24,6 @@ from blond import (
     Simulation,
     StaticProfile,
     proton,
-)
-from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
-    SpsRlBeamFeedback,
 )
 
 

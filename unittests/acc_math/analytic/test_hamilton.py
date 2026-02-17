@@ -2,13 +2,13 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-from blond import proton
 from blond.acc_math.analytic.hamilton import (
     calc_synchrotron_tune_single_harmonic,
     phase_modulo_above_transition,
     phase_modulo_below_transition,
 )
+
+from blond import proton
 
 
 class TestPhaseModuloBelowTransition(unittest.TestCase):

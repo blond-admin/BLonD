@@ -2,6 +2,13 @@ import unittest
 
 import numpy as np
 import pytest
+from blond.core.backends.backend import Numpy64Bit, backend
+from blond.experimental.physics.feedbacks.helpers import (
+    cartesian_to_polar,
+    low_pass_filter,
+    polar_to_cartesian,
+    rf_beam_current,
+)
 from scipy.constants import elementary_charge as e
 
 from blond import (
@@ -14,13 +21,6 @@ from blond import (
     Simulation,
     StaticProfile,
     proton,
-)
-from blond.core.backends.backend import Numpy64Bit, backend
-from blond.experimental.physics.feedbacks.helpers import (
-    cartesian_to_polar,
-    low_pass_filter,
-    polar_to_cartesian,
-    rf_beam_current,
 )
 
 

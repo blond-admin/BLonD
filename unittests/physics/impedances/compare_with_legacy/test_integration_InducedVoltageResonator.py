@@ -3,6 +3,11 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from blond.core.backends.backend import Numpy64Bit, backend
+from blond.physics.impedances.solvers import (
+    SingleTurnResonatorConvolutionSolver,
+)
+from blond.physics.impedances.sources import Resonators
 
 from blond import (
     Beam,
@@ -15,11 +20,6 @@ from blond import (
     WakeField,
     proton,
 )
-from blond.core.backends.backend import Numpy64Bit, backend
-from blond.physics.impedances.solvers import (
-    SingleTurnResonatorConvolutionSolver,
-)
-from blond.physics.impedances.sources import Resonators
 
 from .test_integration_InducedVoltageFreq import (
     Q_factor,

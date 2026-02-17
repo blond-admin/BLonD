@@ -3,7 +3,6 @@ from copy import copy
 from unittest.mock import MagicMock, Mock
 
 import numpy as np
-
 from blond.core.base import DynamicParameter
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import proton

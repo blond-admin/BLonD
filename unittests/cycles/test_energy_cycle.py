@@ -5,16 +5,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
-from numpy.testing import assert_allclose
-from scipy.constants import speed_of_light as c0
-
-from blond import (
-    ConstantMagneticCycle,
-    MagneticCycleByTime,
-    MagneticCyclePerTurn,
-    MagneticCyclePerTurnAllRFStations,
-    proton,
-)
 from blond.acc_math.analytic.simple_math import (
     beta_by_momentum,
     calc_beta,
@@ -33,11 +23,20 @@ from blond.testing.simulation import (
     ExampleSimulation01,
     SimulationTwoRFStations,
 )
+from numpy.testing import assert_allclose
+from scipy.constants import speed_of_light as c0
+
+from blond import (
+    ConstantMagneticCycle,
+    MagneticCycleByTime,
+    MagneticCyclePerTurn,
+    MagneticCyclePerTurnAllRFStations,
+    proton,
+)
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray as NumpyArray
-
     from blond.cycles.magnetic_cycle import SynchronousDataTypes
+    from numpy.typing import NDArray as NumpyArray
 simulation_ex1 = ExampleSimulation01().simulation
 
 

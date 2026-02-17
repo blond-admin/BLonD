@@ -16,6 +16,18 @@ import unittest
 
 import numpy as np
 import pytest
+from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
+    SPSCavityLoopCommissioning,
+    SPSOneTurnFeedback,
+)
+from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response import (
+    SPS4Section200MHzTWC,
+    rectangle,
+    triangle,
+)
+from blond.physics.impedances.solvers import TimeDomainFftSolver
+from blond.physics.impedances.sources import TravelingWaveCavity
 from scipy.constants import c
 
 from blond import (
@@ -30,18 +42,6 @@ from blond import (
     WakeField,
     proton,
 )
-from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
-    SPSCavityLoopCommissioning,
-    SPSOneTurnFeedback,
-)
-from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response import (
-    SPS4Section200MHzTWC,
-    rectangle,
-    triangle,
-)
-from blond.physics.impedances.solvers import TimeDomainFftSolver
-from blond.physics.impedances.sources import TravelingWaveCavity
 
 
 class TestRectangle(unittest.TestCase):

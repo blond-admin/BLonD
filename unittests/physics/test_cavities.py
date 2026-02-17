@@ -2,10 +2,6 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
-from numpy._typing import NDArray as NumpyArray
-from scipy.constants import speed_of_light as c0
-
-from blond import Ring, Simulation, StaticProfile, proton
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
@@ -23,6 +19,10 @@ from blond.physics.cavities import (
 )
 from blond.physics.drifts import _assert_purely_real_or_imaginary
 from blond.physics.impedances.base import WakeField
+from numpy._typing import NDArray as NumpyArray
+from scipy.constants import speed_of_light as c0
+
+from blond import Ring, Simulation, StaticProfile, proton
 
 
 class TestRFStationBaseClass(unittest.TestCase):

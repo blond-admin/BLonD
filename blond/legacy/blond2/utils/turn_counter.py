@@ -4,7 +4,7 @@ from __future__ import annotations
 # General
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
 

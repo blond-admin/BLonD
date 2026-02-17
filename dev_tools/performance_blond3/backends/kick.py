@@ -11,7 +11,6 @@
 import time
 
 import cupy as cp
-
 from blond.core.backends.backend import Numpy32Bit, backend
 
 

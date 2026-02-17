@@ -5,13 +5,6 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from matplotlib import pyplot as plt
-from numpy import ndarray as NumpyArray
-from scipy.constants import pi
-from scipy.constants import speed_of_light as c0
-from scipy.signal import find_peaks
-
-from blond import Cupy32Bit, Cupy64Bit, Numpy32Bit, Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.simulation.simulation import Simulation
@@ -29,6 +22,13 @@ from blond.physics.impedances.sources import (
     Resonators,
     TravelingWaveCavity,
 )
+from matplotlib import pyplot as plt
+from numpy import ndarray as NumpyArray
+from scipy.constants import pi
+from scipy.constants import speed_of_light as c0
+from scipy.signal import find_peaks
+
+from blond import Cupy32Bit, Cupy64Bit, Numpy32Bit, Numpy64Bit, backend
 
 
 class TestImpedanceTable(unittest.TestCase):

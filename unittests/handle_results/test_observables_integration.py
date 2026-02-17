@@ -1,6 +1,16 @@
 import unittest
 
 import numpy as np
+from blond.handle_results.observables import (
+    DynamicProfileConstNBinsObservation,
+    RFStationPhaseObservation,
+    StaticMultiProfileObservation,
+    StaticProfileObservation,
+    WakeFieldObservation,
+)
+from blond.physics.impedances.solvers import TimeDomainFftSolver
+from blond.physics.impedances.sources import Resonators
+from blond.physics.profiles import DynamicProfileConstNBins
 
 from blond import (
     Beam,
@@ -13,16 +23,6 @@ from blond import (
     WakeField,
     uranium_29,
 )
-from blond.handle_results.observables import (
-    DynamicProfileConstNBinsObservation,
-    RFStationPhaseObservation,
-    StaticMultiProfileObservation,
-    StaticProfileObservation,
-    WakeFieldObservation,
-)
-from blond.physics.impedances.solvers import TimeDomainFftSolver
-from blond.physics.impedances.sources import Resonators
-from blond.physics.profiles import DynamicProfileConstNBins
 
 
 class TestObservables(unittest.TestCase):

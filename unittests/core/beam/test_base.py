@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
-
-from blond import Simulation, proton
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
 from blond.generals.distributed.distributed_array import DistributedArray
+
+from blond import Simulation, proton
 
 if TYPE_CHECKING:
     from typing import Literal

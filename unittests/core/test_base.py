@@ -3,8 +3,6 @@ from functools import cached_property
 
 import numpy as np
 import scipy
-
-from blond import Simulation
 from blond.core.base import (
     BeamObservationElement,
     BeamPhysicsRelevant,
@@ -19,6 +17,8 @@ from blond.core.base import (
 )
 from blond.core.beam.base import BeamBaseClass
 from blond.handle_results.helpers import callers_relative_path
+
+from blond import Simulation
 
 
 class BeamPhysicsRelevantTester(BeamPhysicsRelevant):

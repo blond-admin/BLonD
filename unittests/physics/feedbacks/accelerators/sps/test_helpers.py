@@ -1,7 +1,6 @@
 import unittest
 
 import numpy as np
-
 from blond.experimental.physics.feedbacks.accelerators.sps.helpers import (
     comb_filter,
     get_power_gen_i,

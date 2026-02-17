@@ -1,6 +1,8 @@
 import unittest
 
 import numpy as np
+from blond.core.base import BeamPhysicsRelevant
+from blond.core.beam.particle_types import ParticleType, electron, mu_plus
 from scipy.constants import (
     c,
     e,
@@ -13,8 +15,6 @@ from scipy.constants import (
 )
 
 from blond import proton
-from blond.core.base import BeamPhysicsRelevant
-from blond.core.beam.particle_types import ParticleType, electron, mu_plus
 
 
 class TestParticleType(unittest.TestCase):

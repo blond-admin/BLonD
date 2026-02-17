@@ -2,12 +2,12 @@ import os
 import unittest
 
 import numpy as np
-
-from blond import Beam, proton
 from blond.specifics.muon_collider.beam_preparation import (
     load_beam_coordinates_counterrot_from_file,
     load_beam_coordinates_from_file,
 )
+
+from blond import Beam, proton
 
 
 class TestBeamPreparationMuCol(unittest.TestCase):

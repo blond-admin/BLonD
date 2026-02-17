@@ -1,7 +1,6 @@
 import unittest
 
 import pytest
-
 from blond.core.backends.backend import (
     Cupy32Bit,
     Cupy64Bit,

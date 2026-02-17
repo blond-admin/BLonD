@@ -4,8 +4,6 @@ from unittest.mock import Mock
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-
-from blond import Beam, Simulation, proton, uranium_29
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.core.beam.beams import ProbeBeam
 from blond.generals.distributed.distributed_array import DistributedArray
@@ -14,6 +12,8 @@ from blond.generals.distributed.helpers import (
     MPI_SIZE,
     mpi_is_distributed,
 )
+
+from blond import Beam, Simulation, proton, uranium_29
 
 
 class TestBeam(unittest.TestCase):

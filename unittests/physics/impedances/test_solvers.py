@@ -9,22 +9,6 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from matplotlib import pyplot as plt
-from scipy.constants import c, e
-from scipy.fft import next_fast_len
-
-from blond import (
-    Beam,
-    ConstantMagneticCycle,
-    Cupy64Bit,
-    Numpy64Bit,
-    Ring,
-    Simulation,
-    SingleHarmonicRFStation,
-    WakeField,
-    mu_plus,
-    uranium_29,
-)
 from blond.core.backends.backend import Cupy32Bit, Numpy32Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
@@ -44,6 +28,22 @@ from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
     StaticProfile,
+)
+from matplotlib import pyplot as plt
+from scipy.constants import c, e
+from scipy.fft import next_fast_len
+
+from blond import (
+    Beam,
+    ConstantMagneticCycle,
+    Cupy64Bit,
+    Numpy64Bit,
+    Ring,
+    Simulation,
+    SingleHarmonicRFStation,
+    WakeField,
+    mu_plus,
+    uranium_29,
 )
 
 

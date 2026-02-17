@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-
 from blond.generals.distributed.helpers import mpi_barrier, mpi_is_distributed
 
 

@@ -1,6 +1,10 @@
 import unittest
 
 import numpy as np
+from blond.experimental.physics.feedbacks.accelerators.lhc.cavity_feedback import (
+    LHCCavityLoop,
+    LHCCavityLoopCommissioning,
+)
 
 from blond import (
     Beam,
@@ -11,10 +15,6 @@ from blond import (
     Simulation,
     StaticProfile,
     proton,
-)
-from blond.experimental.physics.feedbacks.accelerators.lhc.cavity_feedback import (
-    LHCCavityLoop,
-    LHCCavityLoopCommissioning,
 )
 
 

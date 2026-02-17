@@ -4,9 +4,8 @@ from unittest.mock import Mock
 import numba
 import numpy as np
 import pytest
-from matplotlib import pyplot as plt
-
 from blond.generals.cupy.no_cupy_import import is_cupy_array
+from matplotlib import pyplot as plt
 
 
 class TestFunctions(unittest.TestCase):
