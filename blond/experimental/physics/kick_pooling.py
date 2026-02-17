@@ -150,7 +150,11 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                     charge=beam.particle_type.charge,
                     acceleration_kick=0.0,
                 )
-            self._buffer_voltage[key][:] = 0  # consume buffer
+
+            # Consume buffer,
+            # so that `self._buffer_voltage[key] += voltage`
+            # at `register(...)` accumulates correctly.
+            self._buffer_voltage[key][:] = 0.0  # consume buffer
 
 
 class SupportsPooledInterpolationKickMixIn(Preparable):
