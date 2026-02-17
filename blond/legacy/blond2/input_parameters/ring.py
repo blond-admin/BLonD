@@ -23,7 +23,7 @@ from scipy.constants import c
 from ..utils.legacy_support import handle_legacy_kwargs
 from .ring_options import RingOptions
 
-if TYPE_CHECKING:  # only for Python type hints
+if TYPE_CHECKING:  # pragma: no cover  # only for Python type hints
     from typing import Any, Iterable, Literal, Optional
 
     from numpy.typing import NDArray as NumpyArray

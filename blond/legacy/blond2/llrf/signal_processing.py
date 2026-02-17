@@ -28,7 +28,7 @@ from scipy.special import comb
 
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
     from numpy.typing import NDArray as NumpyArray
