@@ -1,0 +1,234 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+
+"""
+**Various beam phase loops with optional synchronisation/frequency/radial loops
+for the CERN machines**
+
+Notes
+-----
+Authors:
+Helga Timko
+Alexandre Lasheen
+"""
+
+from __future__ import annotations
+
+from abc import abstractmethod
+from typing import TYPE_CHECKING
+
+import numpy as np
+
+from blond.core.backends.backend import backend
+from blond.physics.feedbacks.base import LocalFeedback
+
+if TYPE_CHECKING:  # pragma: no cover
+    from blond.core.beam.base import BeamBaseClass
+    from blond.physics.cavities import RFStationBaseClass
+    from blond.physics.profiles import ProfileBaseClass
+
+
+class GeneralBeamFeedback(LocalFeedback):
+    _parent_rf_station: RFStationBaseClass
+
+    def __init__(self, profile: ProfileBaseClass):
+        super().__init__(profile=profile)
+
+    @abstractmethod
+    def get_beam_attribute(self, beam: BeamBaseClass):
+        # could be mean energy, mean phase or whatever
+        pass
+
+    @abstractmethod
+    def apply_corrections(self):
+        # shift the RF station phase or so
+        pass
+
+    def _track(self, beam: BeamBaseClass):
+        self.get_beam_attribute(  # could be mean energy, mean phase or whatever
+            beam=beam,
+        )
+        self.apply_corrections()
+
+
+class Blond2BeamFeedback(LocalFeedback):
+    """
+    One-turn beam phase loop
+
+    One-turn beam phase loop for different machines with different hardware.
+    Use 'period' for a phase loop that is active only in certain turns.
+    The phase loop acts directly on the RF frequency of all harmonics and
+    affects the RF phase as well.
+
+    Parameters
+    ----------
+    profile
+        Base class to calculate the beam profile
+    PL_gain
+        Phase loop gain. Implementation depends on machine.
+    window_coefficient
+        Band-pass filter window coefficient for beam phase calculation.
+    time_offset
+        Determines from which RF-buckets the band-pass filter starts to acts
+    delay
+        Number of turns that the feedback starts acting later
+    section_index
+        Section index to group elements into sections
+    name
+        User given name of the element
+
+    Attributes
+    ----------
+    profile
+        Base class to calculate the beam profile
+    delay
+        Number of turns that the feedback starts acting later
+    alpha
+        Band-pass filter window coefficient for beam phase calculation.
+    time_offset
+        Determines from which RF-buckets the band-pass filter starts to acts
+    gain
+        Phase loop gain. Implementation depends on machine.
+    drho
+        Phase loop frequency correction of the main RF system.
+    domega_rf
+        Phase loop frequency correction of the main RF system.
+    phi_beam
+        Beam phase measured at the main RF frequency.
+    dphi
+        Phase difference between beam and RF.
+    reference
+        Reference signal for secondary loop to test step response.
+    """
+
+    def __init__(
+        self,
+        profile: ProfileBaseClass,
+        PL_gain: float,
+        window_coefficient: float = 0.0,
+        time_offset: float | None = None,
+        delay: int = 0,
+        section_index: int = 0,
+        name: str | None = None,
+    ):
+        """
+        One-turn beam phase loop base class
+
+        One-turn beam phase loop for different machines with different hardware.
+        Use 'period' for a phase loop that is active only in certain turns.
+        The phase loop acts directly on the RF frequency of all harmonics and
+        affects the RF phase as well.
+
+        Parameters
+        ----------
+        profile
+            Base class to calculate the beam profile
+        PL_gain
+            Phase loop gain. Implementation depends on machine.
+        window_coefficient
+            Band-pass filter window coefficient for beam phase calculation.
+        time_offset
+            Determines from which RF-buckets the band-pass filter starts to acts
+        delay
+            # TODO UNKNOWN
+        section_index
+            Section index to group elements into sections
+        name
+            User given name of the element
+        """
+        super().__init__(
+            profile=profile,
+            name=name,
+        )
+        self.profile = profile
+
+        self.delay = delay
+
+        self.alpha = window_coefficient
+
+        self.time_offset = time_offset
+
+        self.gain = PL_gain
+
+        self.drho = 0.0
+
+        self.domega_rf = 0.0
+
+        self.phi_beam = 0.0
+
+        self.dphi = 0.0
+
+        self.reference = 0.0
+
+        self.RFnoise = None  # FIXME remove this!
+
+    @abstractmethod  # pragma: no cover
+    def update_domega_rf(self, beam: BeamBaseClass) -> None:
+        pass
+
+    def update_phi_beam(self):
+        """
+        Beam phase measured at the main RF frequency and phase.
+
+        Beam phase measured at the main RF frequency and phase. The beam is
+        convolved with the window function of the band-pass filter of the
+        machine. The coefficients of sine and cosine components determine the
+        beam phase, projected to the range -Pi/2 to 3/2 Pi. Note that this beam
+        phase is already w.r.t. the instantaneous RF phase.
+        """
+        # Main RF frequency at the present turn
+        omega_rf = (
+            self._parent_rf_station._omega_rf[0]
+            + self._parent_rf_station.delta_omega_rf
+        )
+        phi_rf = (
+            self._parent_rf_station.phi_rf[0]
+            + self._parent_rf_station.delta_phi_rf
+        )
+
+        if self.time_offset is None:
+            coeff = backend.specials.beam_phase(
+                self.profile.hist_x,
+                self.profile.hist_y,
+                self.alpha,
+                omega_rf,
+                phi_rf,
+                self.profile.hist_step,
+            )
+        else:
+            indexes = self.profile.hist_x >= self.time_offset
+            coeff = backend.specials.beam_phase(
+                self.profile.hist_x[indexes],
+                self.profile.hist_y[indexes],
+                self.alpha,
+                omega_rf,
+                phi_rf,
+                self.profile.hist_step,
+            )
+
+        # Project beam phase to (pi/2,3pi/2) range
+        self.phi_beam = np.arctan(coeff) + np.pi
+
+    def update_dphi(self, beam: BeamBaseClass):
+        """
+        Phase difference between beam and RF phase of the main RF system.
+        Optional: add RF phase noise through dphi directly.
+        """
+        # Correct for design stable phase
+        self.dphi = self.phi_beam - self._parent_rf_station.phi_s
+
+        # TODO fix this code
+        # Possibility to add RF phase noise through the PL
+        if self.RFnoise is not None:
+            if self.noiseFB is not None:
+                self.dphi += self.noiseFB.x * self.RFnoise.dphi[current_turn]
+            elif self.machine == "PSB":
+                self.dphi = self.dphi
+            else:
+                self.dphi += self.RFnoise.dphi[current_turn]
