@@ -93,11 +93,10 @@ class Blond3:
         ring = Ring(circumference=circumference)
         drift = DriftSimple(orbit_length=circumference)
         drift.transition_gamma = 4.4
-        cavity = SingleHarmonicRFStation(
-            harmonic=1,
-            voltage=8e3,
-            phi_rf=np.pi,
-        )
+        cavity = SingleHarmonicRFStation()
+        cavity.harmonic = 1
+        cavity.voltage = 8e3
+        cavity.phi_rf_design = np.pi
         profile = StaticProfile(
             blond2.profile.cut_left,
             blond2.profile.cut_right,

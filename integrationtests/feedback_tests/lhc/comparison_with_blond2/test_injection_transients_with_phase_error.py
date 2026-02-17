@@ -1,3 +1,5 @@
+"""Test LHC feedback with injection phase error."""
+
 import unittest
 
 import numpy as np
@@ -50,9 +52,14 @@ injection_energy_error = 0  # Injection energy error [eV]
 
 
 class TestInjectionWithPhaseError(unittest.TestCase):
+    """Test LHC feedback with injection phase error."""
+
     @classmethod
-    def setUpClass(cls):
-        def setup_blond3():
+    def setUpClass(cls):  # noqa: PLR0915
+        """Running simulations for both blond2 and 3 and save the results."""
+
+        def setup_blond3():  # noqa: PLR0915
+            """Set up blond3 feedback simulation and save the results."""
             from blond import (
                 Beam,
                 BiGaussian,
@@ -228,7 +235,8 @@ class TestInjectionWithPhaseError(unittest.TestCase):
                 + injection_phase_error
             )
 
-        def setup_blond2():
+        def setup_blond2():  # noqa: PLR0915
+            """Set up blond2 feedback simulation and saves the results."""
             from blond.legacy.blond2.beam.beam import Beam, Proton
             from blond.legacy.blond2.beam.distributions import (
                 bigaussian,
@@ -474,6 +482,7 @@ class TestInjectionWithPhaseError(unittest.TestCase):
         setup_blond2()
 
     def test_beam_phase_loop(self):
+        """Test phase loop error."""
         np.testing.assert_allclose(
             self.beam_loop_phase + 10,
             self.beam_loop_phase_blond2 + 10,
@@ -482,6 +491,7 @@ class TestInjectionWithPhaseError(unittest.TestCase):
         )
 
     def test_rf_beam_current(self):
+        """Test rf beam current error."""
         np.testing.assert_allclose(
             self.rf_beam_current_phase + 10,
             self.rf_beam_current_phase_blond2 + 10,
@@ -504,6 +514,7 @@ class TestInjectionWithPhaseError(unittest.TestCase):
         )
 
     def test_rf_voltage_transient(self):
+        """Test rf voltage error."""
         np.testing.assert_allclose(
             np.abs(self.v_ant),
             np.abs(self.rf_voltage_blond2),
@@ -519,6 +530,7 @@ class TestInjectionWithPhaseError(unittest.TestCase):
         )
 
     def test_rf_power_transient(self):
+        """Test rf power error."""
         np.testing.assert_allclose(
             np.abs(self.rf_power),
             np.abs(self.rf_power_blond2),
