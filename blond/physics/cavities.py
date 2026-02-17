@@ -355,6 +355,52 @@ class RFStationBaseClass(
         """
         return (2 * np.pi) / self.get_main_harmonic_omega_rf()
 
+    def gap_voltage(
+        self,
+        ts: NumpyArray,
+        harmonic_index: int | None = None,
+        phase_offsets: NumpyArray | float = 0.0,
+        voltage_correction_factors: NumpyArray | float = 1.0,
+    ) -> NumpyArray:
+        """
+        Calculate voltage of RF station for current parameters.
+
+        Parameters
+        ----------
+        ts
+            Time array, in [s] to calculate voltage.
+        harmonic_index
+            Harmonic index to use, default is None, which will use the full array/float.
+        phase_offsets
+            Absolute Phase offset array, in [rad/s].
+        voltage_correction_factors
+            Relative voltage correction factors, in [1].
+
+        Returns
+        -------
+        gap_voltage
+            RF station voltage in [V] at time `ts`.
+
+        Notes
+        -----
+        This function is intended for small `ts` arrays
+        and not executed in parallel.
+        """
+        gap_voltage = (
+            self.voltage[harmonic_index]
+            if harmonic_index
+            else self.voltage
+            * voltage_correction_factors
+            * np.sin(
+                self.omega_rf[harmonic_index]
+                if harmonic_index
+                else self.omega_rf * ts + self.phi_rf[harmonic_index]
+                if harmonic_index
+                else self.omega_rf + phase_offsets
+            )
+        )
+        return gap_voltage
+
     def calc_main_harmonic_t_rf(
         self, beam_beta: float, closed_orbit_length: float
     ) -> float:
@@ -404,15 +450,18 @@ class RFStationBaseClass(
             cavity_feedback, LocalFeedback
         ):  # TODO: what if a wrong object is given?
             cavity_feedback = (cavity_feedback,)
+        # TODO: ensure length is same as harmonic array, otherwise this will break calc_gap_voltage --> throw warning and extend tuple
         for feedback in cavity_feedback:
             if not isinstance(feedback, LocalFeedback):
-                raise ValueError("given feedback is not a LocalFeedback")
+                raise ValueError(
+                    f"Given feedback is not a `LocalFeedback`, but {type(feedback)}."
+                )
 
             feedback.set_parent_rf_station(rf_station=self)
 
         if self._cavity_feedback is not None:
             raise Warning(
-                "Already present cavity feedbacks are being overridden"
+                "Already present cavity feedbacks are being overridden."
             )
 
         self._cavity_feedback = cavity_feedback
@@ -614,18 +663,6 @@ class RFStationBaseClass(
         reference_energy_change = target_total_energy - reference.total_energy
         reference.total_energy = target_total_energy
         return reference_energy_change
-
-    @abstractmethod  # pragma: no cover
-    def voltage_waveform_tmp(self, ts: NumpyArray):
-        """
-        Calculate voltage of RF station for current turn.
-
-        Parameters
-        ----------
-        ts
-            Time array, in [s] to calculate voltage.
-        """
-        pass
 
     def calc_omega_rf_design(
         self,
@@ -857,7 +894,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
             else:
-                gap_voltage = self.calc_gap_voltage()
+                gap_voltage = self.calc_gap_voltage_with_feedbacks()
                 backend.specials.kick_induced_voltage(
                     dt=beam.read_partial_dt(),
                     dE=beam.write_partial_dE(),
@@ -870,7 +907,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         if self.delta_omega_rf != 0:
             self._update_delta_phi_rf_from_beam_feedback()
 
-    def calc_gap_voltage(self):
+    def calc_gap_voltage_with_feedbacks(self):
         """
         Calculate total gap voltage in the RF station.
 
@@ -883,47 +920,15 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         gap_voltage
             Gap voltage in [V] within the length of the profile.
         """
-        x_arr = self._cavity_feedback[0].profile.hist_x
-
-        voltages = self.voltage
-        omega_rf = self.omega_rf
-        phi_rf = self.phi_rf
-
-        gap_voltage = (
-            voltages
-            * self._cavity_feedback[0].relative_voltage_correction
-            * np.sin(
-                omega_rf * x_arr
-                + phi_rf
-                + self._cavity_feedback[0].phase_correction
-            )
+        gap_voltage = self.gap_voltage(
+            ts=self._cavity_feedback[0].profile.hist_x,
+            phase_offsets=self._cavity_feedback[0].phase_correction,
+            voltage_correction_factors=self._cavity_feedback[
+                0
+            ].relative_voltage_correction,
         )
 
         return gap_voltage
-
-    def voltage_waveform_tmp(self, ts: NumpyArray):
-        """
-        Calculate voltage of RF station for current turn.
-
-        Parameters
-        ----------
-        ts
-            Time array, in [s] to calculate voltage.
-
-        Returns
-        -------
-        voltage_waveform
-            RF station voltage in [V] at time `ts`.
-
-        Notes
-        -----
-        This function is intended for small `ts` arrays
-        and not executed in parallel.
-        """
-        voltage = self.voltage
-        phi_rf = self.phi_rf
-        omega_rf = self.omega_rf
-        return voltage * np.sin(omega_rf * ts + phi_rf)
 
     @staticmethod
     def headless(
@@ -1192,7 +1197,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         """
         return self.omega_rf[self.main_harmonic_idx]
 
-    def calc_gap_voltage(self):
+    def calc_gap_voltage_with_feedbacks(self):
         """
         Calculate total gap voltage in the RF station.
 
@@ -1205,58 +1210,21 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         gap_voltage
             Gap voltage in [V] within the length of the profile.
         """
-        n_slices = self._cavity_feedback[0].profile.n_bins
-        x_arr = self._cavity_feedback[0].profile.hist_x
-
-        voltages = np.outer(self.voltage, backend.ones(n_slices))
-        omega_rf = np.outer(self.omega_rf, backend.ones(n_slices))
-        phi_rf = np.outer(self.phi_rf, backend.ones(n_slices))
-
-        gap_voltage = backend.zeros(n_slices)
+        gap_voltage = backend.zeros(self._cavity_feedback[0].profile.n_bins)
         for ind, feedback in enumerate(self._cavity_feedback):
             if feedback is not None:
-                gap_voltage = (
-                    voltages[ind]
-                    * feedback.relative_voltage_correction
-                    * np.sin(
-                        omega_rf[ind] * x_arr
-                        + phi_rf[ind]
-                        + feedback.phase_correction
-                    )
+                gap_voltage += self.gap_voltage(
+                    self._cavity_feedback[0].profile.hist_x,
+                    harmonic_index=ind,
+                    voltage_correction_factors=feedback.relative_voltage_correction,
+                    phase_offsets=feedback.phase_correction,
                 )
             else:
-                gap_voltage = voltages[ind] * np.sin(
-                    omega_rf[ind] * x_arr + phi_rf[ind]
+                gap_voltage += self.gap_voltage(
+                    self._cavity_feedback[0].profile.hist_x, harmonic_index=ind
                 )
 
         return gap_voltage
-
-    def voltage_waveform_tmp(self, ts: NumpyArray):  # pragma: no cover
-        """
-        Calculate voltage of cavity for current turn.
-
-        Parameters
-        ----------
-        ts
-            Time array, in [s] to calculate voltage.
-
-        Notes
-        -----
-        This function is intended for small ts arrays
-        and not executed in parallel.
-        """
-        raise NotImplementedError
-        voltage = self.voltage[0] * np.sin(
-            self.omega_rf[0] * ts
-            + self.phi_rf_design[0]
-            + self.delta_phi_rf[0]
-        )
-        for i in range(1, len(self.voltage)):
-            voltage += self.voltage[i] * np.sin(
-                self.omega_rf[i] * ts
-                + self.phi_rf_design[i]
-                + self.delta_phi_rf[i]
-            )
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -1289,7 +1257,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
             else:
-                gap_voltage = self.calc_gap_voltage()
+                gap_voltage = self.calc_gap_voltage_with_feedbacks()
                 backend.specials.kick_induced_voltage(
                     dt=beam.read_partial_dt(),
                     dE=beam.write_partial_dE(),
