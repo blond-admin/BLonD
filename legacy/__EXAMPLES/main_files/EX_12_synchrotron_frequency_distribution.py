@@ -115,7 +115,7 @@ matched_from_distribution_function(
 )
 
 slice_beam.track()
-
+beam.statistics()
 (
     [sync_freq_distribution_left, sync_freq_distribution_right],
     [emittance_array_left, emittance_array_right],
