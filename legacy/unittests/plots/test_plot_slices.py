@@ -1,6 +1,6 @@
 import unittest
 
-from blond.plots.plot_slices import (
+from blond.legacy.blond2.plots.plot_slices import (
     plot_beam_profile,
     plot_beam_profile_derivative,
     plot_beam_spectrum,

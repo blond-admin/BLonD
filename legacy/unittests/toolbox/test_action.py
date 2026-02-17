@@ -1,6 +1,6 @@
 import unittest
 
-from blond.toolbox.action import (
+from blond.legacy.blond2.toolbox.action import (
     action_from_oscillation_amplitude,
     action_from_phase_amplitude,
     oscillation_amplitude_from_coordinates,

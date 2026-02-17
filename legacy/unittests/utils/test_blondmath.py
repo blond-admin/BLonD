@@ -33,7 +33,7 @@ else:
 
 
 def test_verify_installation():
-    np.testing.assert_equal(blond.test(), 0)
+    np.testing.assert_equal(blond.legacy.blond2.test(), 0)
 
 
 class TestFastResonator(unittest.TestCase):

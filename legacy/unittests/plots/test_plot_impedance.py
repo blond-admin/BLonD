@@ -1,6 +1,6 @@
 import unittest
 
-from blond.plots.plot_impedance import (
+from blond.legacy.blond2.plots.plot_impedance import (
     plot_impedance_vs_frequency,
     plot_induced_voltage_vs_bin_centers,
     plot_wake_vs_time,

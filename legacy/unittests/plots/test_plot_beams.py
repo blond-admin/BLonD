@@ -1,6 +1,6 @@
 import unittest
 
-from blond.plots.plot_beams import (
+from blond.legacy.blond2.plots.plot_beams import (
     plot_bunch_length_evol,
     plot_bunch_length_evol_gaussian,
     plot_energy_evol,

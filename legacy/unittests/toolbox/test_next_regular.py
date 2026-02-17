@@ -1,6 +1,6 @@
 import unittest
 
-from blond.toolbox.next_regular import next_regular
+from blond.legacy.blond2.toolbox.next_regular import next_regular
 
 
 class TestFunctions(unittest.TestCase):

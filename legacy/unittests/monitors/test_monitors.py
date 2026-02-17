@@ -1,6 +1,6 @@
 import unittest
 
-from blond.monitors.monitors import (
+from blond.legacy.blond2.monitors.monitors import (
     BunchMonitor,
     MultiBunchMonitor,
     SlicesMonitor,

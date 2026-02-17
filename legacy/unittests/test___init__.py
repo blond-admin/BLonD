@@ -1,6 +1,6 @@
 import unittest
 
-from blond import test
+from blond.legacy.blond2 import test
 
 
 class TestFunctions(unittest.TestCase):

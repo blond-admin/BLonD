@@ -1,6 +1,6 @@
 import unittest
 
-from blond.toolbox.logger import Logger
+from blond.legacy.blond2.toolbox.logger import Logger
 
 
 class TestLogger(unittest.TestCase):

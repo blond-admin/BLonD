@@ -1,6 +1,7 @@
 import unittest
 
-from blond.toolbox.tomoscope import distribution_from_tomoscope_data
+from blond.legacy.blond2.toolbox.tomoscope import (
+    distribution_from_tomoscope_data)
 
 
 class TestFunctions(unittest.TestCase):

@@ -1,6 +1,6 @@
 import unittest
 
-from blond.plots.plot_llrf import (
+from blond.legacy.blond2.plots.plot_llrf import (
     plot_COM_motion,
     plot_LHCNoiseFB,
     plot_LHCNoiseFB_FWHM,

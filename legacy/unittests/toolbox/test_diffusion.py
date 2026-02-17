@@ -1,6 +1,6 @@
 import unittest
 
-from blond.toolbox.diffusion import phase_noise_diffusion
+from blond.legacy.blond2.toolbox.diffusion import phase_noise_diffusion
 
 
 class TestFunctions(unittest.TestCase):

@@ -1,6 +1,6 @@
 import unittest
 
-from blond.plots.plot_parameters import plot_voltage_programme
+from blond.legacy.blond2.plots.plot_parameters import plot_voltage_programme
 
 
 class TestFunctions(unittest.TestCase):

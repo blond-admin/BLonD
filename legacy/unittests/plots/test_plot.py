@@ -1,6 +1,6 @@
 import unittest
 
-from blond.plots.plot import Plot, fig_folder
+from blond.legacy.blond2.plots.plot import Plot, fig_folder
 
 
 class TestFunctions(unittest.TestCase):

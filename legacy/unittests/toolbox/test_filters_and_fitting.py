@@ -1,6 +1,6 @@
 import unittest
 
-from blond.toolbox.filters_and_fitting import (
+from blond.legacy.blond2.toolbox.filters_and_fitting import (
     beam_profile_filter_chebyshev,
     fwhm,
     fwhm_multibunch,
