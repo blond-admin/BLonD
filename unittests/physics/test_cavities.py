@@ -338,7 +338,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             copy_to_cpu(local_cav.voltage), np.array([1, 2])
         )
         np.testing.assert_allclose(
-            copy_to_cpu(local_cav.phi_rf_actual), np.array([3, 4])
+            copy_to_cpu(local_cav.phi_rf), np.array([3, 4])
         )
         np.testing.assert_allclose(
             copy_to_cpu(local_cav.harmonic), np.array([5, 6])
@@ -500,7 +500,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         )
         assert (
             self.single_harmonic_cavity.get_main_harmonic_t_rf_actual()
-            == 2 * np.pi / self.single_harmonic_cavity.omega_rf_actual
+            == 2 * np.pi / self.single_harmonic_cavity.omega_rf
         )
         assert (
             self.single_harmonic_cavity.calc_main_harmonic_t_rf(

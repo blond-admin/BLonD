@@ -396,9 +396,9 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             Actual RF frequency of the parent cavity at harmonic_index.
         """
         if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
-            return self._parent_rf_station.omega_rf_actual
+            return self._parent_rf_station.omega_rf
         else:
-            return self._parent_rf_station.omega_rf_actual[self.harmonic_index]
+            return self._parent_rf_station.omega_rf[self.harmonic_index]
 
     @property
     def phi_rf_actual(self) -> float:
@@ -411,9 +411,9 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             Actual RF phase of the parent cavity at harmonic_index.
         """
         if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
-            return self._parent_rf_station.phi_rf_actual
+            return self._parent_rf_station.phi_rf
         else:
-            return self._parent_rf_station.phi_rf_actual[self.harmonic_index]
+            return self._parent_rf_station.phi_rf[self.harmonic_index]
 
     cached_props = (
         "t_rf_actual",

@@ -164,7 +164,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             alpha_array=np.atleast_1d(alpha_c),
             harmonic_list=np.atleast_1d(rf_station.harmonic),
             voltage_list=np.atleast_1d(rf_station.voltage),
-            phi_offset_list=np.atleast_1d(rf_station.phi_rf_actual + np.pi),
+            phi_offset_list=np.atleast_1d(rf_station.phi_rf + np.pi),
             p_increment=0,
         )
 

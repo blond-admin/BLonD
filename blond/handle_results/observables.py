@@ -706,8 +706,8 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
 
     def _update(self) -> None:
         """Update memory with new values."""
-        self._phases.write(self._rf_station.phi_rf_actual)
-        self._omegas.write(self._rf_station.omega_rf_actual)
+        self._phases.write(self._rf_station.phi_rf)
+        self._omegas.write(self._rf_station.omega_rf)
         self._voltages.write(
             self._rf_station.voltage,
         )

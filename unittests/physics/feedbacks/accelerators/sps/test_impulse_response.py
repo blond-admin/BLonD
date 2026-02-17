@@ -295,7 +295,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         ) * np.sin(
             OTFB_4.omega_rf * profile.hist_x
             + np.angle(OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_bins :])
-            + rf.phi_rf_actual[0]
+            + rf.phi_rf[0]
             - np.angle(OTFB_4.V_SET[-OTFB_4.n_coarse])
         )
 

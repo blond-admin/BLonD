@@ -307,14 +307,12 @@ class IQCavityFeedback(LocalFeedback):
 
         if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
             harmonic = self._parent_rf_station.harmonic
-            omega_rf = self._parent_rf_station.omega_rf_actual
-            phi_rf = self._parent_rf_station.phi_rf_actual
+            omega_rf = self._parent_rf_station.omega_rf
+            phi_rf = self._parent_rf_station.phi_rf
         else:
             harmonic = self._parent_rf_station.harmonic[self.harmonic_index]
-            omega_rf = self._parent_rf_station.omega_rf_actual[
-                self.harmonic_index
-            ]
-            phi_rf = self._parent_rf_station.phi_rf_actual[self.harmonic_index]
+            omega_rf = self._parent_rf_station.omega_rf[self.harmonic_index]
+            phi_rf = self._parent_rf_station.phi_rf[self.harmonic_index]
         return harmonic, omega_rf, phi_rf
 
     def get_harmonic_and_omega_rf_phi_rf_design(

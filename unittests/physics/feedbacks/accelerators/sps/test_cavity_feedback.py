@@ -68,8 +68,8 @@ def rf_voltage_calculation(
 
     """
     voltages = np.ascontiguousarray(rf_params.voltage[:])
-    omega_rf = np.ascontiguousarray(rf_params.omega_rf_actual[:])
-    phi_rf = np.ascontiguousarray(rf_params.phi_rf_actual[:])
+    omega_rf = np.ascontiguousarray(rf_params.omega_rf[:])
+    phi_rf = np.ascontiguousarray(rf_params.phi_rf[:])
     # TODO: test with multiple harmonics, think about 800 MHz OTFB
     if cavityFB is not None:
         # Allocate memory for rf_voltage and reset it to zero
@@ -841,7 +841,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         t_sig[-self.OTFB.n_coarse :] = (
             (1 / 9)
             * 10e6
-            * np.exp(1j * (np.pi / 2 - self.rfstation.phi_rf_actual[0]))
+            * np.exp(1j * (np.pi / 2 - self.rfstation.phi_rf[0]))
         )
 
         np.testing.assert_allclose(self.OTFB.V_SET, t_sig)
