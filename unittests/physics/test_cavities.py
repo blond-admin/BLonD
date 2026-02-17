@@ -396,7 +396,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         )
         assert (
             self.multi_harmonic_cavity.calc_main_harmonic_t_rf(
-                beam_beta=self.beam.reference.beta, ring_circumference=456
+                beam_beta=self.beam.reference.beta, closed_orbit_length=456
             )
             == self.multi_harmonic_cavity.get_main_harmonic_t_rf()
         )  # TODO: this fails since the first one is float32 and second float64
@@ -504,7 +504,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         )
         assert (
             self.single_harmonic_cavity.calc_main_harmonic_t_rf(
-                beam_beta=self.beam.reference.beta, ring_circumference=456
+                beam_beta=self.beam.reference.beta, closed_orbit_length=456
             )
             == self.single_harmonic_cavity.get_main_harmonic_t_rf()
         )

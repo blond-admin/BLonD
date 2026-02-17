@@ -174,7 +174,7 @@ def get_main_harmonic_attributes(
     omega_rf = [
         rf.calc_main_harmonic_omega_rf_design(
             beam_beta=beam.reference.beta,
-            ring_circumference=simulation.ring.circumference,
+            closed_orbit_length=simulation.ring.circumference,
         )
         for rf in rf_stations
     ]

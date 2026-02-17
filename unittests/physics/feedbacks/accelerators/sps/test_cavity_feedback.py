@@ -175,7 +175,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         omega_rf = float(
             rf.calc_omega_rf_design(
                 beam_beta=self.beam.reference.beta,
-                ring_circumference=ring.circumference,
+                closed_orbit_length=ring.circumference,
             )
         )
         t_rf = (2 * np.pi) / omega_rf

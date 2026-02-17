@@ -181,11 +181,12 @@ class RFStationBaseClass(
         self.delta_omega_rf: NumpyArray | float = 0.0
         self.phi_rf_design: NumpyArray | float | None = None
         self.delta_phi_rf: NumpyArray | float = 0.0
+        self._dphi_rf_next: NumpyArray | float = 0.0
         self._t_rf: float | None = None
         self._t_rev: float | None = None
         self.voltage: NumpyArray | None = None
         self.harmonic: NumpyArray | None = None
-        self.phi_s: NumpyArray | None = None
+        self.phi_s: NumpyArray | float | None = None
         self.omega_s0: NumpyArray | None = None
 
     @property
@@ -294,7 +295,7 @@ class RFStationBaseClass(
     def calc_main_harmonic_omega_rf_design(
         self,
         beam_beta: float,
-        ring_circumference: float,
+        closed_orbit_length: float,
     ) -> float:
         """
         Calculate the omega_rf of the main harmonic, in [rad/s].
@@ -303,7 +304,7 @@ class RFStationBaseClass(
         ----------
         beam_beta
             Relativistic beta of the beam.
-        ring_circumference
+        closed_orbit_length
             Ring circumference, in [m].
 
         Returns
@@ -329,7 +330,7 @@ class RFStationBaseClass(
     def calc_main_harmonic_t_rf(
         self,
         beam_beta: float,
-        ring_circumference: float,
+        closed_orbit_length: float,
     ) -> float:
         """
         Calculate the t_rf of the main harmonic.
@@ -338,7 +339,7 @@ class RFStationBaseClass(
         ----------
         beam_beta
             Relativistic beta of the beam.
-        ring_circumference
+        closed_orbit_length
             Ring circumference, in [m].
 
         Returns
@@ -504,7 +505,6 @@ class RFStationBaseClass(
         """
         return self._n_rf
 
-    @abstractmethod  # pragma: no cover
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
         """
         Update internal data based on the tracked beam.
@@ -514,7 +514,18 @@ class RFStationBaseClass(
         beam
             Beam to update the attributes from.
         """
-        pass
+        self.omega_rf_design = self.calc_omega_rf_design(
+            beam_beta=beam.reference.beta,
+            closed_orbit_length=self._ring.circumference,
+        )
+
+        self._t_rf = (2 * np.pi) / self.omega_rf_design  # TODO: remove
+        self._t_rev = self.get_main_harmonic_t_rf() * self.get_main_harmonic()
+        try:
+            self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
+        except Exception as exc:
+            warnings.warn(str(exc), UserWarning, stacklevel=1)
+            self.phi_s = np.nan
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -530,62 +541,6 @@ class RFStationBaseClass(
         # set design omega etc. for this turn
         self._update_beam_based_attributes(beam=beam)
 
-        # TODO incorrect for simulations that start later
-        # Determine phase loop correction on RF phase and frequency
-        """
-        if self._beam_feedback is not None and (
-            self._turn_i.value >= self._beam_feedback.delay
-        ):  # TODO incorrect for simulations that start later
-            # domega_rf is updated later
-            # this means domega_rf is effectively from last turn
-            assert self.harmonic is not None
-            omega_increment = (
-                self._beam_feedback.domega_rf  # dynamically updated by `update_domega_rf`
-                * self.harmonic[:]
-                / self.harmonic[0]
-            )
-            self.delta_omega_rf = omega_increment
-        # Update the RF phase of all systems for the next turn
-        # Accumulated phase offset due to beam phase loop or frequency offset
-        if np.any(
-            self.delta_omega_rf
-        ):  # equivalent to np.any(self.delta_omega_rf != 0)
-            assert self.harmonic is not None
-            assert self.omega_rf_actual is not None
-            assert self.delta_omega_rf is not None
-            phi_increment = (
-                2.0
-                * np.pi
-                * self.harmonic[:]
-                * self.delta_omega_rf
-                / self.omega_rf_actual[:]
-            )
-
-            self.delta_phi_rf += phi_increment
-        """
-
-        """
-        # Add phase noise directly to the cavity RF phase
-        if self.phi_noise is not None:
-            if self.noiseFB is not None:
-                self.phi_rf[:, current_turn] += \
-                    self.noiseFB.x * self.phi_noise[:, current_turn]
-            else:
-                self.phi_rf[:, current_turn] += \
-                    self.phi_noise[:, current_turn]
-
-        # Add phase modulation directly to the cavity RF phase
-        if self.phi_modulation is not None:
-            self.phi_rf[:, current_turn] += \
-                self.phi_modulation[0][:, current_turn]
-            self.omega_rf[:, current_turn] += \
-                self.phi_modulation[1][:, current_turn]
-        """
-
-        # Determine phase loop correction on RF phase and frequency
-        # if self._beam_feedback is not None:
-        #    self._beam_feedback.track(beam=beam)  # TODO: this is currently wrong, the corrections need to be applied before the cavity loop starts to apply corrections
-
         # Correction from cavity loop
         if (
             not isinstance(beam, ProbeBeam)
@@ -597,6 +552,22 @@ class RFStationBaseClass(
 
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
+
+    def _update_delta_phi_rf_from_beam_feedback(self):
+        """
+        Update the phase slip for the next turn depending on the frequency change from the beam feedback.
+
+        Update the RF phase of all systems for the next turn
+        Accumulated phase offset due to beam phase loop or frequency offset.
+        """
+        assert self.harmonic is not None
+        assert self.omega_rf is not None
+
+        phi_increment = (
+            2.0 * np.pi * self.harmonic * self.delta_omega_rf / self.omega_rf
+        )
+
+        self._dphi_rf_next += phi_increment
 
     def track_reference(
         self,
@@ -808,7 +779,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
     def calc_main_harmonic_omega_rf_design(
         self,
         beam_beta: float,
-        ring_circumference: float,
+        closed_orbit_length: float,
     ) -> float:
         """
         Return the omega_rf of the main harmonic, in [rad/s].
@@ -817,7 +788,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         ----------
         beam_beta
             Relativistic beta of the beam.
-        ring_circumference
+        closed_orbit_length
             Ring circumference, in [m].
 
         Returns
@@ -827,7 +798,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         """
         return self.calc_omega_rf_design(
             beam_beta=beam_beta,
-            ring_circumference=ring_circumference,
+            closed_orbit_length=closed_orbit_length,
         )
 
     def get_main_harmonic_omega_rf(self) -> float:
@@ -855,7 +826,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         return (2 * np.pi) / self.get_main_harmonic_omega_rf()
 
     def calc_main_harmonic_t_rf(
-        self, beam_beta: float, ring_circumference: float
+        self, beam_beta: float, closed_orbit_length: float
     ) -> float:
         """
         Return the t_rf of the main harmonic, in [s].
@@ -864,7 +835,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         ----------
         beam_beta
             Relativistic beta of the beam.
-        ring_circumference
+        closed_orbit_length
             Ring circumference, in [m].
 
         Returns
@@ -873,7 +844,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
             The t_rf of the main harmonic, in [s].
         """
         return (2 * np.pi) / self.calc_main_harmonic_omega_rf_design(
-            beam_beta, ring_circumference
+            beam_beta, closed_orbit_length
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -903,20 +874,6 @@ class SingleHarmonicRFStation(RFStationBaseClass):
                 "You need to define `harmonic` via `.harmonic=...` "
                 f"or `.schedule(attribute='harmonic', value=...)` for {self.name}"
             )
-
-    def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
-        self.omega_rf_design = self.calc_omega_rf_design(
-            beam_beta=beam.reference.beta,
-            ring_circumference=self._ring.circumference,
-        )
-
-        self._t_rf = (2 * np.pi) / self.omega_rf_design  # TODO: remove
-        self._t_rev = self._t_rf * self.harmonic
-        try:
-            self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
-        except Exception as exc:
-            warnings.warn(str(exc), UserWarning, stacklevel=1)
-            self.phi_s = np.nan
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -966,25 +923,13 @@ class SingleHarmonicRFStation(RFStationBaseClass):
             )
             self.delta_omega_rf = omega_increment
 
-        # Update the RF phase of all systems for the next turn
-        # Accumulated phase offset due to beam phase loop or frequency offset
         if self.delta_omega_rf != 0:
-            assert self.harmonic is not None
-            assert self.omega_rf is not None
-            phi_increment = (
-                2.0
-                * np.pi
-                * self.harmonic
-                * self.delta_omega_rf
-                / self.omega_rf_design
-            )
-
-            self.delta_phi_rf += phi_increment
+            self._update_delta_phi_rf_from_beam_feedback()
 
     def calc_omega_rf_design(
         self,
         beam_beta: float,
-        ring_circumference: float,
+        closed_orbit_length: float,
     ) -> float:
         """
         Calculate angular frequency of RF station, in [rad/s].
@@ -993,7 +938,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         ----------
         beam_beta
             Beam reference fraction of speed of light (v/c0).
-        ring_circumference
+        closed_orbit_length
             Reference synchrotron circumference, in [m].
 
         Returns
@@ -1001,7 +946,9 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         omega
             Angular frequency (2 PI f) of RF station, in [rad/s].
         """
-        return self.harmonic * float(TWOPI_C0 * beam_beta / ring_circumference)
+        return self.harmonic * float(
+            TWOPI_C0 * beam_beta / closed_orbit_length
+        )
 
     def calc_gap_voltage(self):
         """
@@ -1300,24 +1247,10 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                 f"`.harmonic=...` or `.schedule(attribute='harmonic', value=...)`"
             )
 
-    def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
-        self.omega_rf_design = self.calc_omega_rf_design(
-            beam_beta=beam.reference.beta,
-            ring_circumference=self._ring.circumference,
-        )
-
-        self._t_rf = (2 * np.pi) / self.omega_rf_design
-        self._t_rev = self.get_main_harmonic_t_rf() * self.get_main_harmonic()
-        try:
-            self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
-        except Exception as exc:
-            warnings.warn(str(exc), stacklevel=1)
-            self.phi_s = np.nan
-
     def calc_omega_rf_design(
         self,
         beam_beta: float,
-        ring_circumference: float,
+        closed_orbit_length: float,
     ) -> NumpyArray:
         """
         Calculate angular frequency of RF station in [rad/s].
@@ -1326,7 +1259,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         ----------
         beam_beta
             Beam reference fraction of speed of light (v/c0).
-        ring_circumference
+        closed_orbit_length
             Reference synchrotron circumference, in [m].
 
         Returns
@@ -1334,7 +1267,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         omega
             Angular frequency (2 PI f) of RF station in [rad/s].
         """
-        return self.harmonic * (TWOPI_C0 * beam_beta / ring_circumference)
+        return self.harmonic * (TWOPI_C0 * beam_beta / closed_orbit_length)
 
     def get_main_harmonic(self) -> float:
         """
@@ -1370,7 +1303,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         return self.phi_rf[self.main_harmonic_idx]
 
     def calc_main_harmonic_omega_rf_design(
-        self, beam_beta: float, ring_circumference: float
+        self, beam_beta: float, closed_orbit_length: float
     ) -> float:
         """
         Return the omega_rf of the main harmonic, in [rad/s].
@@ -1379,7 +1312,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         ----------
         beam_beta
             Relativistic beta of the beam.
-        ring_circumference
+        closed_orbit_length
             Ring circumference, in [m].
 
         Returns
@@ -1389,7 +1322,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         """
         return self.calc_omega_rf_design(
             beam_beta=beam_beta,
-            ring_circumference=ring_circumference,
+            closed_orbit_length=closed_orbit_length,
         )[self.main_harmonic_idx]
 
     def get_main_harmonic_omega_rf(self) -> float:
@@ -1417,7 +1350,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         return (2 * np.pi) / self.get_main_harmonic_omega_rf()
 
     def calc_main_harmonic_t_rf(
-        self, beam_beta: float, ring_circumference: float
+        self, beam_beta: float, closed_orbit_length: float
     ) -> float:
         """
         Calculate the t_rf of the main harmonic, in [s].
@@ -1426,7 +1359,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         ----------
         beam_beta
             Relativistic beta of the beam.
-        ring_circumference
+        closed_orbit_length
             Ring circumference, in [m].
 
         Returns
@@ -1435,7 +1368,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             The t_rf of the main harmonic, in [s].
         """
         return (2 * np.pi) / self.calc_main_harmonic_omega_rf_design(
-            beam_beta, ring_circumference
+            beam_beta, closed_orbit_length
         )
 
     def calc_gap_voltage(self):
@@ -1548,32 +1481,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
         if self.delta_omega_rf[self.main_harmonic_idx] != 0:
-            assert self.harmonic is not None
-            assert self.omega_rf is not None
-            phi_increment = (
-                2.0
-                * np.pi
-                * self.harmonic[:]
-                * (self.delta_omega_rf[:])
-                / self.omega_rf[:]
-            )
-
-            self._dphi_rf_next += phi_increment
-        """
-        if self._beam_feedback is not None and (
-            self._turn_i.value >= self._beam_feedback.delay
-        ):  # TODO incorrect for simulations that start later
-            # domega_rf is updated later
-            # this means domega_rf is effectively from last turn
-            assert self.harmonic is not None
-            omega_increment = (
-                self._beam_feedback.domega_rf
-                * self.harmonic[:]
-                / self.harmonic[
-                    self.main_harmonic_idx
-                ]  # dynamically updated by `update_domega_rf`
-            )
-            self.delta_omega_rf = omega_increment"""
+            self._update_delta_phi_rf_from_beam_feedback()
 
     @staticmethod
     def headless(

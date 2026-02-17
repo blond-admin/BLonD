@@ -282,7 +282,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
         omega = rf.calc_main_harmonic_omega_rf_design(
             beam_beta=beam.reference.beta,
-            ring_circumference=ring.circumference,
+            closed_orbit_length=ring.circumference,
         )
         OTFB_4.set_hardware_commissioning(omega_rf=omega, harmonic=4620)
         rf.attach_cavity_feedback(OTFB_4)
@@ -414,7 +414,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         omega = rf.calc_main_harmonic_omega_rf_design(
             beam_beta=beam2.reference.beta,
-            ring_circumference=ring.circumference,
+            closed_orbit_length=ring.circumference,
         )
         OTFB.set_hardware_commissioning(omega_rf=omega, harmonic=4620)
         rf.attach_cavity_feedback(OTFB)
