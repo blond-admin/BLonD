@@ -24,9 +24,6 @@ from blond import (
     SingleHarmonicRFStation,
     positron,
 )
-from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (
-    WigglerMagnet,
-)
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
@@ -130,35 +127,3 @@ def generate_fccee_booster_basic_simulation(
         turn_i=1,
     )
     return fccee_booster_simulation
-
-
-def WigglerMagnetFCCee(
-    number_of_wigglers: int = 2,
-    section_index: int = 0,
-) -> WigglerMagnet:
-    """
-    Damping wiggler magnets for the FCCee booster and collider.
-
-    Parameters from the Feasibility Study Report.
-
-    Parameters
-    ----------
-    number_of_wigglers
-        Number of damping wigglers.
-    section_index
-        Section index.
-
-    Returns
-    -------
-    damping_wiggler_magnet
-        WigglerMagnet object.
-    """
-    return WigglerMagnet(
-        name=f"DampingWiggler_{number_of_wigglers}",
-        section_index=section_index,
-        wiggler_type="sinusoidal",
-        number_of_wigglers=number_of_wigglers,
-        peak_field=1.0,
-        pole_length=0.095,
-        number_of_poles=43,
-    )

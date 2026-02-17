@@ -29,9 +29,8 @@ from blond.core.base import Schedulable
 from blond.core.beam.base import BeamBaseClass
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
-from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (
+from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
-    WigglerMagnet,
 )
 
 if TYPE_CHECKING:
@@ -232,16 +231,6 @@ class SynchrotronRadiationMaster(Schedulable):
             len(self._synchrotron_radiation_integrals)
         )
 
-        wiggler_magnet_list = ring.elements.get_elements(
-            class_=WigglerMagnet,
-        )
-        for element in wiggler_magnet_list:
-            synchrotron_radiation_shift_from_wigglers += (
-                element.update_synchrotron_radiation_integrals(
-                    beam_reference_energy=beam.reference.total_energy,
-                    calculation_only=True,
-                )
-            )
         (
             self._energy_loss_per_turn,
             self._longitudinal_damping_time,

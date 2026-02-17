@@ -199,15 +199,6 @@ synchrotron radiation trackers into the ring.
 :class: 'SynchrotronRadiationMaster'. Trackers are inserted before drift
 elements and after RF cavities.
 
-**Radiating Elements**
-
-- :class:`WigglerMagnet`: damping wiggler class to include their contribution
-to the synchrotron radiation during the simulation.
-The contribution of radiating elements does not affect the radiation integrals
-of the main ring: their contribution is updated based on the beam energy during
-tracking.
----
-
 Algorithmic Workflow
 --------------------
 
@@ -279,14 +270,6 @@ Base Element Class
 ^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: SynchrotronRadiationBaseClass
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Wiggler Magnet
-^^^^^^^^^^^^^^
-
-.. autoclass:: WigglerMagnet
    :members:
    :undoc-members:
    :show-inheritance:
@@ -385,32 +368,6 @@ Example
    )
 
 
-**Adding Damping Wigglers**
-
-.. code-block:: python
-
-   from blond import Ring
-   from blond.physics.synchrotron_radiation import WigglerMagnet
-
-   ring = Ring(circumference=844.0)
-
-   # Add a damping wiggler to the ring
-   wiggler = WigglerMagnet(
-       name="DampingWiggler_1",
-       section_index=0,
-       wiggler_type="sinusoidal",
-       number_of_wigglers=2,      # Two identical wigglers
-       peak_field=1.8,            # Peak magnetic field [T]
-       pole_length=0.095,         # Pole length [m]
-       number_of_poles=43,        # Poles per wiggler
-   )
-
-   ring.add_element(wiggler)
-
-   # The wiggler will automatically update its radiation integrals based on
-   # the beam energy during tracking
-
-
 **Computing Synchrotron Radiation Parameters**
 
 .. code-block:: python
@@ -480,8 +437,6 @@ Nota Bene
 - **Quantum excitation**: Can be disabled via ``disable_quantum_excitation=True``
   to study the effect of radiation damping only.
 
-- **Wiggler magnets**: Use :class:`WigglerMagnet` to add damping wigglers
-  which boost the emission of radiation and its damping effect.
 
 - **Energy dependence**: All synchrotron radiation parameters
   (:math:`U_0`, :math:`\tau_z`, :math:`\sigma_E`) are recomputed at each

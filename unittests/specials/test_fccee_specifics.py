@@ -4,7 +4,6 @@ import numpy as np
 
 from blond import positron
 from blond.specifics.fccee.generate_rings import (
-    WigglerMagnetFCCee,
     generate_fccee_booster_basic_simulation,
 )
 
@@ -99,19 +98,3 @@ class TestFCCColliderBasicSimulation(unittest.TestCase):
             ),
             20e9,
         )
-
-
-class TestFCCeeWigglerMagnet(unittest.TestCase):
-    def setUp(self):
-        self.wigglermagnet = WigglerMagnetFCCee()
-
-    def test_inputs(self):
-        number_of_wigglers = 2
-        self.assertEqual(
-            self.wigglermagnet.name, f"DampingWiggler_{number_of_wigglers}"
-        )
-        self.assertEqual(self.wigglermagnet.section_index, 0)
-        self.assertEqual(self.wigglermagnet.wiggler_type, "sinusoidal")
-        self.assertEqual(self.wigglermagnet.number_of_wigglers, 2)
-        self.assertEqual(self.wigglermagnet.peak_magnetic_field, 1.0)
-        self.assertEqual(self.wigglermagnet.pole_length, 0.095)
