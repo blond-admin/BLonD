@@ -50,6 +50,8 @@ __all__ = [
     "DynamicProfileConstNBins",
     "StaticProfile",
     "make_multibunch_beam",
+    "DriftObservation",
+    "SimulationObservation",
 ]
 
 
@@ -83,7 +85,9 @@ from blond.cycles.magnetic_cycle import (
 from blond.generals.cupy.no_cupy_import import AllowPlotting
 from blond.handle_results.observables import (
     BeamObservationOncePerTurn,
+    DriftObservation,
     RFStationPhaseObservation,
+    SimulationObservation,
     StaticProfileObservation,
 )
 from blond.handle_results.observables_as_elements import (
