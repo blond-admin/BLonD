@@ -289,7 +289,7 @@ class TestSpecials(unittest.TestCase):
                 backend.specials.drift_exact(
                     dt=self.dt,
                     dE=self.dE,
-                    T=self.T,
+                    T=self.t_rev * self.length_ratio,
                     alpha_0=self.alpha_0,
                     higher_alpha=self.higher_alpha,
                     beta=self.beta,
