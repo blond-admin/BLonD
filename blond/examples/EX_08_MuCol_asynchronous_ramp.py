@@ -53,13 +53,13 @@ def main():
     for rf_station_i in range(n_sections):
         rf_station = SingleHarmonicRFStation(
             section_index=rf_station_i,
-            voltage=voltage_per_section,
-            phi_rf=phi_s,
-            harmonic=25900,
         )
         profile = StaticProfile(
             cut_left=0, cut_right=1, n_bins=256, section_index=rf_station_i
         )
+        rf_station.voltage = voltage_per_section
+        rf_station.phi_rf_design = phi_s
+        rf_station.harmonic = 25900
 
         one_turn_model.extend(
             [
@@ -98,13 +98,6 @@ def main():
     )
 
     zmax = ring.circumference / (2 * 25900)  # maximum bunch length z
-
-    total_rf_station = SingleHarmonicRFStation(
-        section_index=rf_station_i,
-        voltage=voltage_per_section,
-        phi_rf=phi_s,
-        harmonic=25900,
-    )
 
     sim.prepare_beam(
         beam=beam1,

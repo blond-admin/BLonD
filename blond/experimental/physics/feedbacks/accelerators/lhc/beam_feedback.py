@@ -65,7 +65,7 @@ class LHCBeamControl(BeamFeedbackBase):
                 simulation.ring.calc_average_eta_0(beam.reference.gamma),
             ) * np.ones(n_turns + 1)
 
-            omega_rf = self.cavities[0].get_main_harmonic_omega_rf_design(
+            omega_rf = self.cavities[0].calc_main_harmonic_omega_rf_design(
                 beam.reference.beta, simulation.ring.circumference
             ) * np.ones(n_turns + 1)
 

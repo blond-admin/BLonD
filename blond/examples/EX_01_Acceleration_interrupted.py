@@ -41,7 +41,10 @@ logging.basicConfig(level=logging.INFO)
 def main():
     ring = Ring(26658.883)
 
-    rf_station = SingleHarmonicRFStation(voltage=6e6, phi_rf=0, harmonic=35640)
+    rf_station = SingleHarmonicRFStation()
+    rf_station.harmonic = 35640
+    rf_station.voltage = 6e6
+    rf_station.phi_rf_design = 0
 
     N_TURNS = int(1e3)
 

@@ -193,7 +193,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
                 main_harmonic_idx=0,
             )
 
-            f_rf = cavity.get_main_harmonic_omega_rf_design(
+            f_rf = cavity.calc_main_harmonic_omega_rf_design(
                 rel_beta, drift.orbit_length
             ) / (2 * np.pi)
             t_rf = 1 / f_rf

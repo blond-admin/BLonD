@@ -38,11 +38,11 @@ class ExampleSimulation01:
     def __init__(self):
         ring = Ring(circumference=26658.883)
 
-        rf_station = SingleHarmonicRFStation(
-            harmonic=35640,
-            voltage=6e6,
-            phi_rf=0.0,
-        )
+        rf_station = SingleHarmonicRFStation()
+
+        rf_station.harmonic = 35640
+        rf_station.voltage = 6e6
+        rf_station.phi_rf_design = 0
 
         N_TURNS = 10
         energy_cycle = MagneticCyclePerTurn(
@@ -125,9 +125,11 @@ class SimulationTwoRFStations:
             main_harmonic_idx=0,
         )
 
-        rf_station_2 = SingleHarmonicRFStation(
-            section_index=1, harmonic=35640, voltage=6e6, phi_rf=0
-        )
+        rf_station_2 = SingleHarmonicRFStation(section_index=1)
+
+        rf_station_2.harmonic = 35640
+        rf_station_2.voltage = 6e6
+        rf_station_2.phi_rf_design = 0
 
         N_TURNS = int(1e6)
         energy_cycle = ConstantMagneticCycle(
@@ -189,9 +191,11 @@ class SimulationTwoRFStationsWithWake:
             main_harmonic_idx=0,
         )
 
-        rf_station_2 = SingleHarmonicRFStation(
-            section_index=1, harmonic=35640, voltage=6e6, phi_rf=0
-        )
+        rf_station_2 = SingleHarmonicRFStation(section_index=1)
+
+        rf_station_2.harmonic = 35640
+        rf_station_2.voltage = 6e6
+        rf_station_2.phi_rf_design = 0
 
         N_TURNS = int(1e6)
         energy_cycle = MagneticCyclePerTurn(

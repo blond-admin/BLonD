@@ -280,7 +280,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         # Compute impulse response
         OTFB_4.TWC.impulse_response_beam(OTFB_4.omega_c, profile.hist_x)
 
-        omega = rf.get_main_harmonic_omega_rf_design(
+        omega = rf.calc_main_harmonic_omega_rf_design(
             beam_beta=beam.reference.beta,
             ring_circumference=ring.circumference,
         )
@@ -412,7 +412,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         OTFB.TWC.impulse_response_beam(
             OTFB.omega_c, OTFB.profile.hist_x, OTFB.rf_centers
         )
-        omega = rf.get_main_harmonic_omega_rf_design(
+        omega = rf.calc_main_harmonic_omega_rf_design(
             beam_beta=beam2.reference.beta,
             ring_circumference=ring.circumference,
         )

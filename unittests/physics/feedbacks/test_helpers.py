@@ -101,7 +101,7 @@ class TestRFBeamCurrent(unittest.TestCase):
                 particle_type=proton,
             )
         )
-        self.omega_rf = self.rf.get_main_harmonic_omega_rf_design(
+        self.omega_rf = self.rf.calc_main_harmonic_omega_rf_design(
             self.beam.reference.beta, self.ring.circumference
         )
         self.beam.setup_beam(dt=np.zeros(N_m), dE=np.zeros(N_m))
@@ -182,7 +182,7 @@ class TestRFBeamCurrent(unittest.TestCase):
         self.profile.track(beam=self.beam)
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
-            / self.rf.get_main_harmonic_omega_rf_design(
+            / self.rf.calc_main_harmonic_omega_rf_design(
                 self.beam.reference.beta, self.ring.circumference
             )
         )
@@ -430,7 +430,7 @@ class TestRFBeamCurrent(unittest.TestCase):
         )
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
-            / self.rf.get_main_harmonic_omega_rf_design(
+            / self.rf.calc_main_harmonic_omega_rf_design(
                 self.beam.reference.beta, self.ring.circumference
             )
         )
@@ -679,7 +679,7 @@ class TestRFBeamCurrent(unittest.TestCase):
     def test_4(self):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
-            / self.rf.get_main_harmonic_omega_rf_design(
+            / self.rf.calc_main_harmonic_omega_rf_design(
                 self.beam.reference.beta, self.ring.circumference
             )
         )

@@ -296,7 +296,7 @@ class RFStationBaseClass(
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_omega_rf_design(
+    def calc_main_harmonic_omega_rf_design(
         self,
         beam_beta: float,
         ring_circumference: float,
@@ -810,7 +810,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         """
         return self.phi_rf_design
 
-    def get_main_harmonic_omega_rf_design(
+    def calc_main_harmonic_omega_rf_design(
         self,
         beam_beta: float,
         ring_circumference: float,
@@ -877,7 +877,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         main_harmonic_t_rf
             The t_rf of the main harmonic, in [s].
         """
-        return (2 * np.pi) / self.get_main_harmonic_omega_rf_design(
+        return (2 * np.pi) / self.calc_main_harmonic_omega_rf_design(
             beam_beta, ring_circumference
         )
 
@@ -1376,7 +1376,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         """
         return self.phi_rf_actual[self.main_harmonic_idx]
 
-    def get_main_harmonic_omega_rf_design(
+    def calc_main_harmonic_omega_rf_design(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
         """
@@ -1441,7 +1441,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         main_harmonic_t_rf
             The t_rf of the main harmonic, in [s].
         """
-        return (2 * np.pi) / self.get_main_harmonic_omega_rf_design(
+        return (2 * np.pi) / self.calc_main_harmonic_omega_rf_design(
             beam_beta, ring_circumference
         )
 

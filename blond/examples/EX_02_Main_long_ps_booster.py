@@ -65,9 +65,10 @@ def main():
         value=sync_momentum,
         reference_particle=proton,
     )
-    rf_station_1 = SingleHarmonicRFStation(
-        harmonic=1, voltage=8e3, phi_rf=np.pi
-    )
+    rf_station_1 = SingleHarmonicRFStation()
+    rf_station_1.harmonic = 1
+    rf_station_1.voltage = 8e3
+    rf_station_1.phi_rf_design = np.pi
 
     drift = DriftSimple(
         orbit_length=ring.circumference,

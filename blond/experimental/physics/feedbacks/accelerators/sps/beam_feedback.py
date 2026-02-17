@@ -123,7 +123,7 @@ class SPSBeamControl(BeamFeedbackBase):
 
         t_rev = float(
             (2 * np.pi * self.cavities[0].harmonic[0])
-            / self.cavities[0].get_main_harmonic_omega_rf_design(
+            / self.cavities[0].calc_main_harmonic_omega_rf_design(
                 beam.reference.beta, self.cavities[0]._ring.circumference
             )
         )
