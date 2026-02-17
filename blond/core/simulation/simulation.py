@@ -265,7 +265,7 @@ class Simulation(Preparable):
             n_turns, warning_stacklevel=2
         )
 
-        self.run_simulation(
+        deepcopy(self).run_simulation(
             beams=beams,
             n_turns=end_turn,
             show_progressbar=False,
