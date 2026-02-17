@@ -8,10 +8,21 @@
 
 """Collection of helpers to develop new functions and modules."""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 
+from numpy import ndarray as numpyarray
+from numpy.typing import NDArray as NumpyArray
 
-def raise_on_uneven_array_sizes(*args: tuple[Sequence]):
+
+class UnevenArraySizes(Exception):
+    """Exception of uneven array sizes in function arguments."""
+
+    pass
+
+
+def raise_on_uneven_array_sizes(*args: tuple[Sequence | NumpyArray]):
     """
     Check if the tuple of arguments have the same length.
 
@@ -19,12 +30,23 @@ def raise_on_uneven_array_sizes(*args: tuple[Sequence]):
     ----------
     *args
         Tuple of Sequence.
+
+    Returns
+    -------
+    UnevenArraySizes exception
+        If any input arrays or sequences have different lengths.
+
+    Examples
+    --------
+    >>> def function(*args):
+    >>>     args = tuple(locals().values())
+    >>>     raise_on_uneven_array_sizes(args)
     """
     lengths = []
-    for a in args:
-        if isinstance(a, Sequence):
+    for a in args[0]:
+        if isinstance(a, Sequence | numpyarray):
             lengths.append(len(a))
     if len(set(lengths)) > 1:
-        raise ValueError(
+        raise UnevenArraySizes(
             "Input sequences of more than one element have different lengths."
         )
