@@ -155,7 +155,7 @@ class TestSyntheticData:
             voltages, omega_rf, phi_rf, bin_centers
         )
         import cupy as cp
-        from blond.gpu import butils_wrap_cupy
+        from blond.legacy.blond2.gpu import butils_wrap_cupy
 
         bm.use_gpu()
         voltages = bm.array(voltages)
