@@ -74,6 +74,8 @@ def apply_poles2(
         To convert `profile` to current per bun [A].
     """
     n_poles = len(poles)
+    two_factor = 2 * factor
+
     voltage[:] = 0  # reset to zero from previous call
     voltage_threaded[:, :] = 0  # reset to zero from previous call
     if not (voltage_threaded.shape[0] == numba.get_num_threads()):
@@ -88,14 +90,14 @@ def apply_poles2(
         i_update = 0
         update_on_bin_i = update_on_bin[i_update]
 
-        pole = poles[pole_i]
-        residue = residues[pole_i]
-        state = states[pole_i]
+        pole = complex(poles[pole_i])
+        residue = complex(residues[pole_i])
+        state = complex(states[pole_i])
 
         t_start = states[-1]
 
         for bin_i in range(n_bins):
-            profile_i_ = profile[bin_i]
+            profile_i_ = complex(0.5 * profile[bin_i])
 
             if bin_i == update_on_bin_i:
                 if bin_i == 0:
@@ -111,11 +113,10 @@ def apply_poles2(
                     update_on_bin_i = update_on_bin[i_update]
             else:
                 state *= decay
-            state += 0.5 * profile_i_
-            voltage_threaded[thread_i, bin_i] += (
-                2 * factor * np.real(residue * state)
-            )
-            state = state + 0.5 * profile_i_
+            state += profile_i_
+            amp = float(np.real(residue * state))
+            voltage_threaded[thread_i, bin_i] += two_factor * amp
+            state += profile_i_
         states[pole_i] = state
 
     for thread_i in prange(numba.get_num_threads()):
