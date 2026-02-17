@@ -1522,7 +1522,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         """
         self.delta_phi_rf = np.copy(self._dphi_rf_next)
 
-        super().track(beam=beam)
+        super()._track(beam=beam)
 
         reference = beam.reference
         reference_energy_change = self.track_reference(

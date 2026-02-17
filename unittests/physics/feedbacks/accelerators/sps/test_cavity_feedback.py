@@ -1203,7 +1203,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
         )
         self.rf.omega_rf_design = np.array([200.222e6 * 2 * np.pi])
         OTFB.set_hardware_commissioning(
-            omega_rf=self.rf.omega_rf_design, harmonic=4620
+            omega_rf=self.rf.omega_rf_design[0], harmonic=4620
         )
         self.rf.attach_cavity_feedback(OTFB)
         OTFB.on_run_simulation(self.sim, self.beam, 1)
