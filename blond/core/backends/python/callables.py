@@ -328,13 +328,11 @@ class PythonSpecials(Specials):
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
+        T: float,
         alpha_0: float,
         higher_alpha: NumpyArray,
-        n_alpha: int,
         beta: float,
         energy: float,
-        n_macroparticles: int,
     ) -> None:  # pragma: no cover
         r"""
         Exact drift equation of motion with higher order momentum compaction factors.
@@ -345,21 +343,18 @@ class PythonSpecials(Specials):
             Macro-particle time coordinates, in [s].
         dE : NumpyArray
             Macro-particle energy coordinates, in [eV].
-        t_rev : float
+        T : float
             Revolution period, in [s].
         alpha_0 : float
             Momentum compaction factor [unitless].
         higher_alpha : NumpyArray
             Momentum compaction factor to higher orders.
-        n_alpha : int
-            Length of compaction array + 1 .
         beta
             Relativistic velocity factor :math:\beta = v/c [unitless].
         energy
             Total beam energy [eV].
-        n_macroparticles
-            Number of macroparticles [unitless].
         """
+        n_alpha = len(higher_alpha)
         invbetasq = 1.0 / (beta * beta)
         inv_energy = 1.0 / energy
         inv_energy_sq = inv_energy * inv_energy
@@ -384,9 +379,7 @@ class PythonSpecials(Specials):
                 delta_power *= beam_delta  # next power
 
         # ---- Final update ----
-        dt += t_rev * (
-            poly * (1.0 + dE * inv_energy) / (1.0 + beam_delta) - 1.0
-        )
+        dt += T * (poly * (1.0 + dE * inv_energy) / (1.0 + beam_delta) - 1.0)
 
     @staticmethod
     def kick_induced_voltage(

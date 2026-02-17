@@ -277,7 +277,6 @@ class TestSpecials(unittest.TestCase):
     def test___init__(self):
         pass
 
-    @unittest.skip
     @pytest.mark.backend_mutation
     def test_drift_exact(self) -> None:
         for dtype in (np.float32, np.float64):
@@ -290,11 +289,9 @@ class TestSpecials(unittest.TestCase):
                 backend.specials.drift_exact(
                     dt=self.dt,
                     dE=self.dE,
-                    t_rev=self.t_rev,
-                    length_ratio=self.length_ratio,
+                    T=self.T,
                     alpha_0=self.alpha_0,
-                    alpha_1=self.alpha_1,
-                    alpha_2=self.alpha_2,
+                    higher_alpha=self.higher_alpha,
                     beta=self.beta,
                     energy=self.energy,
                 )

@@ -107,8 +107,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     sig_eta_1 = nb_f
     sig_eta_2 = nb_f
     sig_alpha_0 = nb_f
-    sig_alpha_1 = nb_f
-    sig_alpha_2 = nb_f
+    sig_higher_alpha = nb_f[:]
     sig_alpha_order = nb_i
     sig_beta = nb_f
     sig_energy = nb_f
@@ -160,15 +159,13 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     )
 
     sig_drift_exact = void(
-        sig_dt,
-        sig_dE,
-        sig_t_rev,
-        sig_length_ratio,
-        sig_alpha_0,
-        sig_alpha_1,
-        sig_alpha_2,
-        sig_beta,
-        sig_energy,
+        sig_dt,  # dt: NumpyArray,
+        sig_dE,  # dE: NumpyArray,
+        sig_t_rev,  # T: float,
+        sig_alpha_0,  # alpha_0: float,
+        sig_higher_alpha,  # higher_alpha: NumpyArray,
+        sig_beta,  # beta: float,
+        sig_energy,  # energy: float,
     )
 
     sig_kick_induced_voltage = void(
@@ -464,38 +461,41 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         def drift_exact(
             dt: NumpyArray,
             dE: NumpyArray,
-            t_rev: float,
-            length_ratio: float,
+            T: float,
             alpha_0: float,
-            alpha_1: float,
-            alpha_2: float,
+            higher_alpha: NumpyArray,
             beta: float,
             energy: float,
-        ) -> None:  # pragma: no cover # TODO
-            T = t_rev * length_ratio
-            invbetasq = 1 / (beta * beta)
-            invenesq = 1 / (energy * energy)
-            # double beam_delta;
+        ) -> None:
+            inv_beta_sq = 1.0 / (beta * beta)
+            inv_energy = 1.0 / energy
+            inv_energy_sq = inv_energy * inv_energy
+
+            n_alpha = len(higher_alpha)
+
             for i in prange(len(dt)):
-                beam_delta = (
+                dEi = dE[i]
+
+                delta = (
                     np.sqrt(
                         1.0
-                        + invbetasq
-                        * (dE[i] * dE[i] * invenesq + 2.0 * dE[i] / energy)
+                        + inv_beta_sq
+                        * (dEi * dEi * inv_energy_sq + 2.0 * dEi * inv_energy)
                     )
                     - 1.0
                 )
 
+                poly = 1.0 + alpha_0 * delta
+
+                if n_alpha > 0:
+                    delta_power = delta * delta  # starts at δ²
+
+                    for k in range(n_alpha):
+                        poly += higher_alpha[k] * delta_power
+                        delta_power *= delta  # next power
+
                 dt[i] += T * (
-                    (
-                        1.0
-                        + alpha_0 * beam_delta
-                        + alpha_1 * (beam_delta * beam_delta)
-                        + alpha_2 * (beam_delta * beam_delta * beam_delta)
-                    )
-                    * (1.0 + dE[i] / energy)
-                    / (1.0 + beam_delta)
-                    - 1.0
+                    poly * (1.0 + dEi * inv_energy) / (1.0 + delta) - 1.0
                 )
 
         @staticmethod

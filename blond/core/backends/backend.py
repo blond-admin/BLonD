@@ -126,13 +126,11 @@ class Specials(ABC):
     def drift_exact(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
+        T: float,
         alpha_0: float,
         higher_alpha: NumpyArray,
-        n_alpha: int,
         beta: float,
         energy: float,
-        n_macroparticles: int,
     ) -> None:
         raise NotImplementedError(
             "Abstract method `drift_exact` is not implemented."

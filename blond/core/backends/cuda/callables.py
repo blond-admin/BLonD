@@ -261,10 +261,8 @@ def reload_cuda_backend(  # NOQA: D102
             t_rev: float,
             alpha_0: float,
             higher_alpha: CupyArray,
-            n_alpha: int,
             beta: float,
             energy: float,
-            n_macroparticles: int,
         ) -> None:
             assert dt.dtype == floattype
             assert dE.dtype == floattype
