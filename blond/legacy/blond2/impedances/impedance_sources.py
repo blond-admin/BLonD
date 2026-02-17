@@ -32,7 +32,7 @@ from scipy.special import kv, polygamma
 
 from ..utils import bmath as bm
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Iterable, Optional
 
     from numpy.typing import ArrayLike

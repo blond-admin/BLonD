@@ -11,7 +11,7 @@
 
 :Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**,
           **Juan F. Esteban Mueller**, **Theodoros Argyropoulos**,
-          **Joel Repond**
+          **Joel Repond**, **Markus Schwarz**
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
 from .profile import CutOptions, Profile
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Callable, Literal, Optional
 
     from numpy.typing import NDArray as NumpyArray
@@ -53,6 +53,9 @@ if TYPE_CHECKING:
     from ..impedances.impedance import TotalInducedVoltage
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring
+    from ..synchrotron_radiation.synchrotron_radiation import (
+        SynchrotronRadiation,
+    )
     from ..trackers.tracker import FullRingAndRF, MainHarmonicOptionType
     from ..utils.types import (
         BunchLengthFitTypes,
@@ -1023,10 +1026,10 @@ def populate_bunch(
     particle density in phase space.*
     """
     # Initialise the random number generator
-    np.random.seed(seed=seed)
+    rng = np.random.default_rng(seed)
     # Generating particles randomly inside the grid cells according to the
     # provided density_grid
-    indexes = np.random.choice(
+    indexes = rng.choice(
         np.arange(0, np.size(density_grid)),
         beam.n_macroparticles,
         p=density_grid.flatten(),
@@ -1036,13 +1039,13 @@ def populate_bunch(
     beam.dt = (
         np.ascontiguousarray(
             time_grid.flatten()[indexes]
-            + (np.random.rand(beam.n_macroparticles) - 0.5) * time_step
+            + (rng.random(beam.n_macroparticles) - 0.5) * time_step
         )
     ).astype(dtype=bm.precision.real_t, order="C", copy=False)
     beam.dE = (
         np.ascontiguousarray(
             deltaE_grid.flatten()[indexes]
-            + (np.random.rand(beam.n_macroparticles) - 0.5) * deltaE_step
+            + (rng.random(beam.n_macroparticles) - 0.5) * deltaE_step
         )
     ).astype(dtype=bm.precision.real_t, order="C", copy=False)
 
@@ -1427,3 +1430,172 @@ def _get_dE_from_dt(
     )
 
     return dE_amplitude
+
+
+def Haissinski(
+    ring_tracker: FullRingAndRF,
+    synchrotron_radiation: SynchrotronRadiation,
+    verbose: bool = True,
+    seed: int = 1234,
+    root_kwargs: dict = {},
+):
+    r"""Solves the Haissinksi equation to find the equilibrum bunch distribution of the
+    Vlasov-Fokker-Planck equation. The algorithm is based on root-finding, as described
+    in [Warnock2018]_. The function requires a :class:`~blond.trackers.tracker.FullRingAndRF`
+    with the :class:`~blond.beam.beam.Beam`, :class:`~input_parameters.rf_parameters.RFStation`.
+    Collective effects are included if `ring_tracker` includes an
+    :class:`~impedances.impedance.TotalInducedVoltage` object. The
+    :class:`~blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation` object
+    is needed for the energy loss due to synchrotron radiation.
+
+    The Beam object of `ring_tracker` will contain the Haissinski distribution. If `verbose`
+    is True, the `OptimizeResult` object will be returned.
+    The behavior of the root finding algorithm, such as the method used, can be controlled
+    by `root_kwargs`, which gets passed on to `scipy.optimize.root`.
+
+    Parameters
+    ----------
+    ring_tracker : class
+        A FullRingAndRF type class
+    synchrotron_radiation : class
+        A SynchrotronRadiation type class
+    verbose : bool, optional
+        If True, returns the `scipy.optimize._optimize.OptimizeResult` object of the
+        root finding algorithm
+    seed : int, optional
+        Seed to use for the creation of the macro-particle distribtution
+    root_kwargs: dict, optional
+        Options passed on to `scipy.optimize.root` such as the method. Default parameters
+        are used if it is empty.
+
+    References
+    ----------
+    .. [Warnock2018] R. Warnock, K. Bane, "Numerical solution of the Haissinski equation
+    for the equilibrium state of a stored electron beam", *Phys. Rev. Accl. Beams*,
+    vol 21, p. 124401, 2018.
+
+
+    Returns
+    -------
+    Haissinski_solution : scipy.optimize._optimize.OptimizeResult
+        The result of the root finding algorithm is returned when verbose is True.
+
+    """
+
+    def Gauss(t, sigma):
+        return np.exp(-0.5 * t**2 / sigma**2) / np.sqrt(2 * np.pi) / sigma
+
+    # computes the induced voltage for a given profile line density
+    def Vind(line_density, induced_voltage):
+        if induced_voltage is None:
+            return 0.0
+        else:
+            # update profile used in the computation of Vind
+            profile.n_macroparticles = (
+                line_density * profile.bin_size * n_macroparticles
+            )
+
+            induced_voltage.induced_voltage_sum()
+            return induced_voltage.induced_voltage
+
+    tracker = ring_tracker.ring_and_rf_section[0]
+    counter = tracker.counter
+
+    rf_station = tracker.rf_params
+
+    profile = tracker.profile
+
+    n_macroparticles = tracker.beam.n_macroparticles
+
+    energy = rf_station.energy[counter]
+    q = rf_station.particle.charge
+    eta0 = rf_station.eta_0[counter]
+    tRev = rf_station.t_rev[counter]
+
+    voltage_rf = rf_station.voltage[0, counter]
+    omega_rf = rf_station.omega_rf[0, counter]
+    phi_rf = rf_station.phi_rf[0, counter]
+    # equilibrium energy spread [eV]
+    sigmaE = energy * synchrotron_radiation.sigma_dE
+
+    # zero-current bunch length [s]
+    sigma0 = (
+        np.abs(eta0)
+        / (rf_station.beta[counter] * energy)
+        * sigmaE
+        / rf_station.omega_s0[counter]
+    )
+
+    # initial Gaussian profile
+    line_density_0 = Gauss(profile.bin_centers, sigma0)
+    # also initialize Profile object
+    profile.n_macroparticles = (
+        line_density_0 * profile.bin_size * n_macroparticles
+    )
+
+    # scale factor [s]
+    Tau = -eta0 * sigmaE**2 / energy / (q * voltage_rf) * tRev
+
+    # arguments passed to the root finding algorithm
+    args = tracker, Tau, synchrotron_radiation.U0
+
+    def N(line_density, tracker, Tau, U0):
+        # compute rf voltage
+        tracker.rf_voltage_calculation()
+        # primitive of the potential energy
+        exponent = (
+            scipy.integrate.cumulative_trapezoid(
+                tracker.rf_voltage
+                + Vind(line_density, tracker.totalInducedVoltage)
+                - U0 / q,
+                tracker.profile.bin_centers,
+                initial=0,
+            )
+            / rf_station.voltage[0, counter]
+        )
+        # integration constant
+        exponent += (
+            -np.cos(omega_rf * tracker.profile.bin_centers[0] + phi_rf)
+            / omega_rf
+            + np.cos(phi_rf) / omega_rf
+        )
+
+        term2 = np.exp(-exponent / Tau)
+
+        fac1 = scipy.integrate.trapezoid(term2, tracker.profile.bin_centers)
+
+        return line_density * fac1 - term2
+
+    # obtain the Haissinski solution
+    fun = lambda l: N(
+        l, *args
+    )  # helper function since root needs a function of one argument
+    sol = scipy.optimize.root(fun, line_density_0, **root_kwargs)
+    haiss_dt = sol.x
+
+    # create macro-particles from distribution
+
+    deltaE_array = np.linspace(-4 * sigmaE, 4 * sigmaE, num=profile.n_slices)
+    time_grid, deltaE_grid = np.meshgrid(profile.bin_centers, deltaE_array)
+
+    haiss_dE = Gauss(deltaE_array, sigmaE)
+
+    # create phase space distribution from which to draw (psi~exp(-H(tau,dE)))
+    density_grid = np.zeros((profile.n_slices, len(deltaE_array)))
+    for i in range(profile.n_slices):
+        for j in range(len(deltaE_array)):
+            density_grid[i, j] = haiss_dt[i] * haiss_dE[j]
+    density_grid /= np.sum(density_grid)  # normalize
+
+    populate_bunch(
+        tracker.beam,
+        time_grid,
+        deltaE_grid,
+        density_grid.T,
+        profile.bin_size,
+        deltaE_array[1] - deltaE_array[0],
+        seed=seed,
+    )
+
+    if verbose:
+        return sol
