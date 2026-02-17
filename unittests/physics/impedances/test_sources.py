@@ -4,13 +4,14 @@ from unittest import skipIf
 from unittest.mock import Mock
 
 import numpy as np
+import pytest
 from matplotlib import pyplot as plt
 from numpy import ndarray as NumpyArray
 from scipy.constants import pi
 from scipy.constants import speed_of_light as c0
 from scipy.signal import find_peaks
 
-from blond import backend
+from blond import Cupy32Bit, Cupy64Bit, Numpy32Bit, Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.simulation.simulation import Simulation
@@ -760,9 +761,12 @@ class TestTravelingWaveCavity(unittest.TestCase):
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
+    @pytest.mark.backend_mutation
     def test_get_impedance(self):
-        if backend.float != np.float32:
-            self.skipTest("test only configured for float32")
+        if isinstance(backend, Numpy32Bit):
+            backend.change_backend(Numpy64Bit)
+        if isinstance(backend, Cupy32Bit):
+            backend.change_backend(Cupy64Bit)
         impedance = self.twc.get_impedance(
             freq_x=backend.linspace(0, 10),
             simulation=Mock(Simulation),

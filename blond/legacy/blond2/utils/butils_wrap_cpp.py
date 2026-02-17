@@ -17,7 +17,7 @@ import numpy as np
 
 from . import c_complex64, c_complex128, c_real, precision
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal, Optional, Type
 
     from numpy.typing import NDArray as NumpyArray
@@ -91,6 +91,8 @@ def where_cpp(
     less_than: Optional[float] = None,
     result: Optional[NumpyArray] = None,
 ) -> NumpyArray:
+    raise NotImplementedError("Fix bugs")
+    # TODO make testcases working. Result should be int, not double
     if result is None:
         result = np.empty_like(x, dtype=bool)
     if more_than is None and less_than is not None:
@@ -382,6 +384,10 @@ def arange_cpp(
             ct.c_int(stop),
             ct.c_int(step),
             __getPointer(result),
+        )
+    else:
+        raise ValueError(
+            f"Unexpected dtype {dtype=}. Use one of `None`, `int`, `float` instead"
         )
 
     return result
@@ -846,7 +852,7 @@ def rf_volt_comp(
     omega_rf = omega_rf.astype(dtype=precision.real_t, order="C", copy=False)
     phi_rf = phi_rf.astype(dtype=precision.real_t, order="C", copy=False)
 
-    rf_voltage = np.zeros(len(bin_centers), dtype=precision.real_t, order="C")
+    rf_voltage = np.empty(len(bin_centers), dtype=precision.real_t, order="C")
 
     get_libblond().rf_volt_comp(
         __getPointer(voltages),
@@ -1128,6 +1134,8 @@ def synchrotron_radiation_full(
 
 
 def set_random_seed(seed):
+    raise NotImplementedError("This function needs further development!")
+    # TODO fix this function and make testcases working
     get_libblond().set_random_seed(ct.c_int(seed))
 
 
@@ -1136,7 +1144,7 @@ def fast_resonator(
     Q: np.ndarray,
     frequency_array: np.ndarray,
     frequency_R: np.ndarray,
-    impedance: Optional[NDArray] = None,
+    impedance: Optional[NumpyArray] = None,
 ) -> NumpyArray:
     R_S = R_S.astype(dtype=precision.real_t, order="C", copy=False)
     Q = Q.astype(dtype=precision.real_t, order="C", copy=False)

@@ -3,8 +3,8 @@ import unittest
 
 from blond.core.ring.helpers import (
     _build_dependency_graph,
+    filter_elements,
     get_dependencies,
-    get_elements,
     get_required_order,
     requires,
 )
@@ -73,13 +73,15 @@ class TestFunctions(unittest.TestCase):
 
     def test_get_elements(self) -> None:
         a = A()
-        elements_selected = get_elements(elements=(a, B(), C()), _class=A)
+        elements_selected = filter_elements(elements=(a, B(), C()), _class=A)
         assert elements_selected[0] is a
 
     def test_get_elements2(self) -> None:
         a = A()
         ad = AD()
-        elements_selected = get_elements(elements=(a, B(), C(), ad), _class=A)
+        elements_selected = filter_elements(
+            elements=(a, B(), C(), ad), _class=A
+        )
         assert elements_selected[0] is a
         assert elements_selected[1] is ad
 

@@ -6,6 +6,7 @@ import numpy as np
 
 from blond import (
     Beam,
+    DriftSimple,
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
@@ -21,9 +22,11 @@ from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BeamObservationOncePerTurn,
     BeamStatisticsOncePerTurn,
+    DriftObservation,
     DynamicProfileConstNBinsObservation,
     ObservablesOncePerTurnBase,
     RFStationPhaseObservation,
+    SimulationObservation,
     StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
@@ -44,6 +47,7 @@ simulation.section_i = DynamicParameter(None)
 simulation.section_i.current_group = 0
 simulation.turn_i = DynamicParameter(None)
 simulation.turn_i.value = 0
+simulation.current_t_rev = 123
 beam = Mock(BeamBaseClass)
 beam._dE = Mock(DistributedArray)
 beam._dt = Mock(DistributedArray)
@@ -62,7 +66,7 @@ beam.read_partial_flags.return_value = beam._flags.array_local
 
 
 class ObservablesHelper(ObservablesOncePerTurnBase):
-    def update(self, simulation: Simulation) -> None:
+    def _update(self) -> None:
         pass
 
     def to_disk(self) -> None:
@@ -122,9 +126,7 @@ class TestObservables(unittest.TestCase):
             beam=beam,
             n_turns=100,
         )
-        self.observables.update(
-            simulation=simulation,
-        )
+        self.observables.update()
         self.observables.to_disk()
 
         self.observables.from_disk()
@@ -140,7 +142,7 @@ class TestObservables(unittest.TestCase):
         )
 
         assert len(self.observables._turns_array) == (
-            self.observables._n_turns + 1
+            self.observables._n_turns
         )
         assert np.all(
             np.where(np.diff(self.observables._turns_array) <= 0)
@@ -240,9 +242,7 @@ class TestBunchObservation(unittest.TestCase):
             beam=self.beam,
             n_turns=100,
         )
-        self.bunch_observation.update(
-            simulation=simulation,
-        )
+        self.bunch_observation.update()
 
         # test properties
         np.testing.assert_almost_equal(
@@ -338,9 +338,7 @@ class TestBunchStatistics(unittest.TestCase):
             beam=self.beam,
             n_turns=100,
         )
-        self.bunch_statistics.update(
-            simulation=simulation,
-        )
+        self.bunch_statistics.update()
 
         # test properties
         np.testing.assert_almost_equal(
@@ -430,9 +428,7 @@ class TestRFStationPhaseObservation(unittest.TestCase):
             beam=beam,
             n_turns=100,
         )
-        self.rf_station_phase_observation.update(
-            simulation=simulation,
-        )
+        self.rf_station_phase_observation.update()
         self.rf_station_phase_observation.to_disk()
 
         # test properties
@@ -506,9 +502,7 @@ class TestStaticProfileObservation(unittest.TestCase):
         )
         simulation.section_i.value = 0
         simulation.turn_i.value = 0
-        self.static_profile_observation.update(
-            simulation=simulation,
-        )
+        self.static_profile_observation.update()
         self.static_profile_observation.to_disk()
 
         self.static_profile_observation.from_disk()
@@ -526,15 +520,14 @@ class TestStaticProfileObservation(unittest.TestCase):
             [0]
         )
         simulation.section_i.value = 0
-        self.static_profile_observation.update(simulation=simulation)
+        self.static_profile_observation.update()
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "already called update in this turn for turn",
+        ):
+            self.static_profile_observation.update()
 
-        prof_obs = deepcopy(self.static_profile_observation)
-        before_len = len(prof_obs.hist_y)
-        prof_obs.update(simulation=simulation)
-
-        assert (
-            len(prof_obs.hist_y) == before_len
-        )  # no update since we already had this turn
+        assert len(self.static_profile_observation.hist_y) == 1
 
 
 class TestWakeFieldObservation(unittest.TestCase):
@@ -582,7 +575,7 @@ class TestWakeFieldObservation(unittest.TestCase):
         )
 
         simulation.section_i.value = 0
-        wf_obs.update(simulation=simulation)
+        wf_obs.update()
 
         with self.assertRaises(AttributeError):
             _ = wf.induced_voltage
@@ -601,9 +594,7 @@ class TestWakeFieldObservation(unittest.TestCase):
             n_turns=100,
         )
         simulation.section_i.value = 0
-        self.wake_field_observation.update(
-            simulation=simulation,
-        )
+        self.wake_field_observation.update()
         self.wake_field_observation.to_disk()
         self.wake_field_observation.from_disk()
 
@@ -651,9 +642,7 @@ class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
             beam=beam,
             n_turns=100,
         )
-        self.dynamic_profile_observation.update(
-            simulation=simulation,
-        )
+        self.dynamic_profile_observation.update()
         self.dynamic_profile_observation.to_disk()
 
         self.dynamic_profile_observation.from_disk()
@@ -726,44 +715,98 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         self.static_multi_profile_observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            obs_per_turn=2,
             n_turns=100,
         )
         simulation.section_i.value = 0
         simulation.turn_i.value = 0
-        self.static_multi_profile_observation.update(
-            simulation=simulation,
-        )
+        self.static_multi_profile_observation.update()
 
         self.static_multi_profile_observation.to_disk()
 
         self.static_multi_profile_observation.from_disk()
 
         np.testing.assert_allclose(
-            self.static_multi_profile_observation.hist_y[0],
+            self.static_multi_profile_observation.hist_y[0][0],
             self.profile.hist_y,
         )
-        assert len(self.static_multi_profile_observation.hist_y) == 1
-
-        simulation.section_i.value = 1
-        self.static_multi_profile_observation.update(
-            simulation=simulation,
-        )
-        assert len(self.static_multi_profile_observation.hist_y) == 2
         np.testing.assert_allclose(
-            self.static_multi_profile_observation.hist_y[1],
+            self.static_multi_profile_observation.hist_y[0][1],
             self.profile_2.hist_y,
         )
+        assert len(self.static_multi_profile_observation.hist_y) == 1
+        assert (
+            len(self.static_multi_profile_observation.hist_y[0]) == 2
+        )  # two profiles per turn
+
+        simulation.turn_i.value = 1
+        self.static_multi_profile_observation.update()
+        assert len(self.static_multi_profile_observation.hist_y) == 2
 
         # no update if we repeat
-        self.static_multi_profile_observation.update(
-            simulation=simulation,
-        )
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "already called update in this turn for turn",
+        ):
+            self.static_multi_profile_observation.update()
         assert len(self.static_multi_profile_observation.hist_y) == 2
         np.testing.assert_allclose(
-            self.static_multi_profile_observation.hist_y[1],
+            self.static_multi_profile_observation.hist_y[1][1],
             self.profile_2.hist_y,
         )
+
+
+class TestSimulationObservation(unittest.TestCase):
+    def setUp(self):
+        self.obs = SimulationObservation(each_turn_i=2)
+
+    def test___init__(self):
+        pass  # done by setup
+
+    def test_on_run(self):
+        self.obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=100,
+        )
+
+    def test_update(self):
+        self.obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=10,
+        )
+        self.obs._update()
+        self.obs._update()
+        self.assertEqual(self.obs.t_revs[0], 123)
+        self.assertEqual(len(self.obs.t_revs), 2)  # two updates before
+
+
+class TestDriftObservation(unittest.TestCase):
+    def setUp(self):
+        drift = Mock(DriftSimple)
+        drift._last_eta_0 = 222
+        self.obs = DriftObservation(each_turn_i=2, drift=drift)
+
+    def test___init__(self):
+        pass  # done by setup
+
+    def test_on_run(self):
+        self.obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=100,
+        )
+
+    def test_update(self):
+        self.obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=10,
+        )
+        self.obs._update()
+        self.obs._update()
+        self.assertEqual(self.obs.eta_0s[0], 222)
+        self.assertEqual(len(self.obs.eta_0s), 2)  # two updates before
 
 
 if __name__ == "__main__":

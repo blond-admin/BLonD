@@ -121,8 +121,8 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
             plt.show()
 
         counts, _, _, image = plt.hist2d(
-            copy_to_cpu(self.example.beam1._dt),
-            copy_to_cpu(self.example.beam1._dE),
+            copy_to_cpu(self.example.beam1._dt.array_local),
+            copy_to_cpu(self.example.beam1._dE.array_local),
         )
 
         filepath = callers_relative_path(

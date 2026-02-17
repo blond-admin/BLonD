@@ -325,7 +325,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
         return multi_gauss_fit(_hist_x, _hist_y, n_bunches)
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -621,7 +621,7 @@ class DynamicProfile(ProfileBaseClass):
         """
         pass
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -631,7 +631,7 @@ class DynamicProfile(ProfileBaseClass):
             Beam class to interact with this element.
         """
         self.update_attributes(beam=beam)
-        super().track(beam=beam)
+        super()._track(beam=beam)
 
 
 class DynamicProfileConstCutoff(DynamicProfile):

@@ -339,7 +339,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
 
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(
-                ProfileBaseClass, section_i=self.section_index
+                ProfileBaseClass, section_i=self.section_index, recursive=False
             )
             assert len(profiles) == 1, (
                 f"Found {len(profiles)} profiles in "
@@ -483,7 +483,7 @@ class WakeField(ImpedanceBaseClass):
         # because the track() method below requires it by calling the backend.
         return self.induced_voltage[: self.profile.n_bins]
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Calculate induced voltage and apply this voltage to the beam.
 
