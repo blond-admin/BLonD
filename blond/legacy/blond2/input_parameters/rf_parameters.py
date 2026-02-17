@@ -434,7 +434,7 @@ class RFStation:
         # and that can be changed by feedbacks
         self.phi_rf = np.array(self.phi_rf_d).astype(
             bm.precision.real_t, order="F"
-        )  # TODO: order="F" is new here --> in all of them
+        )
         # F contigous, so phi_rf[:,turn_i] is contigous
 
         self.dphi_rf = np.zeros(self.n_rf).astype(
@@ -695,7 +695,7 @@ def calculate_phi_s(
         Synchronous phase.
 
     """
-    if particle is None:  # TODO: this is very dangerous
+    if particle is None:
         particle = Proton()
     eta0 = rf_station.eta_0
 
