@@ -1,9 +1,8 @@
+"""Test LHC feedback with injection phase error."""
+
 import unittest
-from pathlib import Path
 
 import numpy as np
-
-from blond.handle_results.helpers import callers_relative_path
 
 f_rf = 400.789e6
 harmonic = 35640
@@ -28,10 +27,13 @@ tau_o = 110e-6
 
 
 class TestLHCTransferFunction(unittest.TestCase):
+    """Test LHC feedback transfer functions."""
+
     @staticmethod
     def measure_transfer_function_blond3(
         open_loop: bool = False, open_otfb: bool = False
     ):
+        """Measure full transfer function in blond3."""
         from blond import (
             StaticProfile,
         )
@@ -80,7 +82,10 @@ class TestLHCTransferFunction(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        def measure_transfer_functions_blond2():
+        """Measure full transfer function in blond2 and save the results."""
+
+        def measure_transfer_functions_blond2():  # noqa: PLR0915
+            """Measure full transfer function in blond2."""
             from blond.legacy.blond2.beam.beam import Beam, Proton
             from blond.legacy.blond2.beam.profile import CutOptions, Profile
             from blond.legacy.blond2.input_parameters.rf_parameters import (
@@ -252,6 +257,7 @@ class TestLHCTransferFunction(unittest.TestCase):
         measure_transfer_functions_blond2()
 
     def test_open_loop_transfer_function(self):
+        """Measure open loop transfer function in blond3 and compare with blond2."""
         tf_est, freq_est = self.measure_transfer_function_blond3(
             open_loop=True, open_otfb=True
         )
@@ -270,6 +276,7 @@ class TestLHCTransferFunction(unittest.TestCase):
         )
 
     def test_closed_loop_transfer_function(self):
+        """Measure closed loop transfer function in blond3 and compare with blond2."""
         tf_est, freq_est = self.measure_transfer_function_blond3(
             open_loop=False, open_otfb=True
         )
@@ -288,6 +295,7 @@ class TestLHCTransferFunction(unittest.TestCase):
         )
 
     def test_close_loop_transfer_function_with_otfb(self):
+        """Measure open loop transfer function with otfb in blond3 and compare with blond2."""
         tf_est, freq_est = self.measure_transfer_function_blond3(
             open_loop=False, open_otfb=False
         )
