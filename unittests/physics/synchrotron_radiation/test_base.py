@@ -333,3 +333,13 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             energy_after_two_kicks,
             previous_energy + energy_kick + second_energy_kick,
         )
+
+    # def test_energy_kick_with_quantum_excitation(self):
+    #     energy_kick = calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
+    # beam_delta_energy_array = 20e9,
+    # energy_lost = 13e6,
+    # longitudinal_damping_time = 14955,
+    # natural_energy_spread = 1e-3,
+    # total_energy: float | None = None,
+    # random_generator: Generator | None = None,
+    # disable_quantum_excitation: bool = False,
