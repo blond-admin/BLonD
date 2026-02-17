@@ -3,9 +3,6 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from blond.core.backends.backend import Numpy64Bit, backend
-from blond.physics.impedances.solvers import PeriodicFreqSolver
-from blond.physics.impedances.sources import InductiveImpedance
 from scipy.constants import c, e, m_p
 
 from blond import (
@@ -19,6 +16,9 @@ from blond import (
     WakeField,
     proton,
 )
+from blond.core.backends.backend import Numpy64Bit, backend
+from blond.physics.impedances.solvers import PeriodicFreqSolver
+from blond.physics.impedances.sources import InductiveImpedance
 
 DEV_PLOT = False
 

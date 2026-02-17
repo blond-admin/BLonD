@@ -19,6 +19,7 @@ import time
 
 import numba
 import numpy as np
+
 from blond.core.backends.backend import backend
 
 

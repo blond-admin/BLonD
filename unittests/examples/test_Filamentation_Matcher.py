@@ -2,6 +2,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import pytest
+
 from blond.core.backends.backend import (
     Cupy32Bit,
     Cupy64Bit,

@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+
 from blond.core.backends.python.callables import PythonSpecials
 
 

@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 import pytest
+
 from blond.core.backends.mpi_distributed.callables import (
     rms_emittance,
 )

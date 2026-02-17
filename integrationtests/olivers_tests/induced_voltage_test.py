@@ -11,12 +11,12 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
+
 from blond.handle_results.observables import (
     StaticProfileObservation,
     WakeFieldObservation,
 )
-from tqdm import tqdm
-
 from blond.legacy.blond2.impedances.impedance import TotalInducedVoltage
 
 
@@ -57,9 +57,6 @@ def main():  # noqa
     backend.change_backend(Numpy64Bit)
     backend.set_specials("cpp")
 
-    from blond.physics.impedances.solvers import PeriodicFreqSolver
-    from blond.physics.impedances.sources import Resonators
-
     from blond import (
         Beam,
         BeamObservationOncePerTurn,
@@ -73,6 +70,8 @@ def main():  # noqa
         WakeField,
         proton,
     )
+    from blond.physics.impedances.solvers import PeriodicFreqSolver
+    from blond.physics.impedances.sources import Resonators
 
     ring = Ring(circumference=CIRCUMFERENCE)
 

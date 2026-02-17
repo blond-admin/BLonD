@@ -2,8 +2,6 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
-from blond.core.beam.base import BeamBaseClass
-from blond.physics.feedbacks.base import GlobalFeedback, LocalFeedback
 
 from blond import (
     ConstantMagneticCycle,
@@ -13,6 +11,8 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
 )
+from blond.core.beam.base import BeamBaseClass
+from blond.physics.feedbacks.base import GlobalFeedback, LocalFeedback
 
 
 class TestLocalFeedbackBase(unittest.TestCase):

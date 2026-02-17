@@ -3,12 +3,6 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from blond.physics.impedances.solvers import (
-    InductiveImpedanceSolver,
-    PeriodicFreqSolver,
-    TimeDomainFftSolver,
-)
-from blond.physics.impedances.sources import InductiveImpedance
 from scipy.constants import c, e, m_p
 
 from blond import (
@@ -22,6 +16,12 @@ from blond import (
     WakeField,
     proton,
 )
+from blond.physics.impedances.solvers import (
+    InductiveImpedanceSolver,
+    PeriodicFreqSolver,
+    TimeDomainFftSolver,
+)
+from blond.physics.impedances.sources import InductiveImpedance
 
 DEV_PLOT = False
 

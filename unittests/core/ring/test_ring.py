@@ -2,13 +2,6 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
-from blond.core.base import BeamPhysicsRelevant
-from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.particle_types import lead_82
-from blond.generals.distributed.distributed_array import DistributedArray
-from blond.physics.cavities import RFStationBaseClass
-from blond.physics.drifts import DriftBaseClass, DriftSimple
-from blond.testing.mocks import simulation_mock
 
 from blond import (
     Beam,
@@ -18,6 +11,13 @@ from blond import (
     Simulation,
     SingleHarmonicRFStation,
 )
+from blond.core.base import BeamPhysicsRelevant
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import lead_82
+from blond.generals.distributed.distributed_array import DistributedArray
+from blond.physics.cavities import RFStationBaseClass
+from blond.physics.drifts import DriftBaseClass, DriftSimple
+from blond.testing.mocks import simulation_mock
 
 
 class BeamPhysicsRelevantHelper(BeamPhysicsRelevant):

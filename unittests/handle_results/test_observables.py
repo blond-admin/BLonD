@@ -3,6 +3,16 @@ from copy import deepcopy
 from unittest.mock import Mock, PropertyMock
 
 import numpy as np
+
+from blond import (
+    Beam,
+    DriftSimple,
+    Simulation,
+    SingleHarmonicRFStation,
+    StaticProfile,
+    WakeField,
+    electron,
+)
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
@@ -26,16 +36,6 @@ from blond.physics.impedances.solvers import (
 )
 from blond.physics.impedances.sources import Resonators
 from blond.physics.profiles import DynamicProfileConstNBins
-
-from blond import (
-    Beam,
-    DriftSimple,
-    Simulation,
-    SingleHarmonicRFStation,
-    StaticProfile,
-    WakeField,
-    electron,
-)
 
 simulation = Mock(
     Simulation,

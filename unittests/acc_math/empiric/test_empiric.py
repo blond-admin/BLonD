@@ -9,8 +9,9 @@
 import unittest
 
 import numpy as np
-from blond.acc_math.empiric.empiric import gauss, gauss_fit, multi_gauss_fit
 from scipy.stats import norm
+
+from blond.acc_math.empiric.empiric import gauss, gauss_fit, multi_gauss_fit
 
 
 def test_gauss_fit():

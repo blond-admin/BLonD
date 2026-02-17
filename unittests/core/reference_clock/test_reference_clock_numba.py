@@ -1,14 +1,14 @@
 import unittest
 
 import numpy as np
+from scipy.constants import speed_of_light as c0
+
+from blond import uranium_29
 from blond.core.reference_clock.reference_clock_numba import (
     beta,
     gamma,
     velocity,
 )
-from scipy.constants import speed_of_light as c0
-
-from blond import uranium_29
 
 
 class TestCallables(unittest.TestCase):

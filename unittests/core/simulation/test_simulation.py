@@ -8,6 +8,19 @@ from unittest.mock import Mock, create_autospec
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+
+from blond import (
+    Beam,
+    Cupy32Bit,
+    DriftSimple,
+    Ring,
+    Simulation,
+    SingleHarmonicRFStation,
+    WakeField,
+    backend,
+    mu_plus,
+    proton,
+)
 from blond.core.backends.backend import Numpy32Bit, NumpyBackend
 from blond.core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -22,19 +35,6 @@ from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
 )
 from blond.testing.mocks import beam_mock
-
-from blond import (
-    Beam,
-    Cupy32Bit,
-    DriftSimple,
-    Ring,
-    Simulation,
-    SingleHarmonicRFStation,
-    WakeField,
-    backend,
-    mu_plus,
-    proton,
-)
 
 if TYPE_CHECKING:  # pragma: no cover
     pass  # type: ignore
@@ -627,9 +627,8 @@ class TestSimulation(unittest.TestCase):
         backend.set_specials(mode=special_mode_org)
 
     def test__sanitize_callbacks(self):
-        from blond.testing.mocks import simulation_mock
-
         from blond import Simulation
+        from blond.testing.mocks import simulation_mock
 
         def callback(sim, beam):
             return

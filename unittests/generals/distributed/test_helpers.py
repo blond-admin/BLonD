@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
+
 from blond.generals.distributed.helpers import (
     MPI_RANK,
     distributed_arange,

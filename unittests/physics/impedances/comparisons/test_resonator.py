@@ -3,11 +3,6 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from blond.physics.impedances.solvers import (
-    PeriodicFreqSolver,
-    TimeDomainFftSolver,
-)
-from blond.physics.impedances.sources import Resonators
 
 from blond import (
     Beam,
@@ -20,6 +15,11 @@ from blond import (
     WakeField,
     proton,
 )
+from blond.physics.impedances.solvers import (
+    PeriodicFreqSolver,
+    TimeDomainFftSolver,
+)
+from blond.physics.impedances.sources import Resonators
 
 DEV_PLOT = False
 

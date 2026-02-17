@@ -3,10 +3,6 @@ import unittest
 
 import numpy as np
 import pytest
-from blond.core.backends.backend import Numpy32Bit, backend
-from blond.core.base import DynamicParameter
-from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.testing.mocks import simulation_mock
 
 from blond import (
     Beam,
@@ -20,6 +16,10 @@ from blond import (
     proton,
     uranium_29,
 )
+from blond.core.backends.backend import Numpy32Bit, backend
+from blond.core.base import DynamicParameter
+from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.testing.mocks import simulation_mock
 
 
 class TestDriftIntegration(unittest.TestCase):

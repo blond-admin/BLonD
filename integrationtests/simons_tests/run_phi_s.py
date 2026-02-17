@@ -7,7 +7,6 @@ Simon Lauber
 
 import matplotlib.pyplot as plt
 import numpy as np
-from blond.core.beam.particle_types import ParticleType, c, e, m_p
 
 from blond import (
     Beam,
@@ -18,6 +17,7 @@ from blond import (
     SingleHarmonicRFStation,
     backend,
 )
+from blond.core.beam.particle_types import ParticleType, c, e, m_p
 
 backend.set_specials("cpp")
 

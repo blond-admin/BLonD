@@ -2,6 +2,8 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
+
+from blond import Simulation
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.beam_physics_relevant_elements import (
@@ -10,8 +12,6 @@ from blond.core.ring.beam_physics_relevant_elements import (
 )
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
-
-from blond import Simulation
 
 
 class TestFunctions(unittest.TestCase):

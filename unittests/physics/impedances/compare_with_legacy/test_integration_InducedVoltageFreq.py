@@ -3,9 +3,6 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from blond.core.backends.backend import Numpy64Bit, backend
-from blond.physics.impedances.solvers import PeriodicFreqSolver
-from blond.physics.impedances.sources import Resonators
 
 from blond import (
     Beam,
@@ -18,6 +15,9 @@ from blond import (
     WakeField,
     proton,
 )
+from blond.core.backends.backend import Numpy64Bit, backend
+from blond.physics.impedances.solvers import PeriodicFreqSolver
+from blond.physics.impedances.sources import Resonators
 
 R_shunt = np.array(
     [

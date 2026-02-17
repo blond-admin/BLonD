@@ -2,11 +2,6 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
-from blond.experimental.beam_preparation.semi_empiric_matcher import (
-    SemiEmpiricMatcher,
-    get_hamilton_semi_analytic,
-)
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 from blond import (
     Beam,
@@ -17,6 +12,11 @@ from blond import (
     WakeField,
     backend,
 )
+from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    SemiEmpiricMatcher,
+    get_hamilton_semi_analytic,
+)
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 
 class TestSemiEmpiricMatcher(unittest.TestCase):

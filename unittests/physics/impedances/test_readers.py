@@ -3,6 +3,7 @@ from enum import Enum
 from pathlib import Path
 
 import numpy as np
+
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.readers import (
     ExampleImpedanceReader2,
