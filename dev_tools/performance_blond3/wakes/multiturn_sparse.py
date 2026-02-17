@@ -86,6 +86,7 @@ wakefield = WakeField(
 ring.add_elements(
     (
         wakefield,
+        # profile,
         drift,
         rf_station,
     )

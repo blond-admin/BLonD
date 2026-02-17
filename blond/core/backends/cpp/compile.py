@@ -35,6 +35,7 @@ cpp_files = [
     "beam_phase.cpp",
     "loss_box.cpp",
     "move_flagged_elements_to_end.cpp",
+    "poles.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
 ]

@@ -44,7 +44,6 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
-from blond.physics.impedances.induced_voltage_with_poles import apply_poles2
 from blond.physics.impedances.sources import InductiveImpedance, Resonators
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
@@ -1267,7 +1266,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 <= self._profile._continuous_memory_hist_x[0]
             )
 
-        apply_poles2(
+        backend.specials.apply_poles2(
             profile=self._profile._continuous_memory_hist_y,
             profile_dts=self._profile._continuous_memory_hist_x,
             poles=self._poles,
