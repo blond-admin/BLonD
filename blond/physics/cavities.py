@@ -39,7 +39,6 @@ from blond.physics.feedbacks.base import LocalFeedback
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Ring
@@ -230,6 +229,24 @@ class RFStationBaseClass(
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
+        if (self.voltage is None) and "voltage" not in self.schedules:
+            raise ValueError(
+                f"You need to define `voltage` for '{self.name}' via "
+                f"`.voltage=...` or `.schedule(attribute='voltage', value=...)`"
+            )
+        if (
+            self.phi_rf_design is None
+        ) and "phi_rf_design" not in self.schedules:
+            raise ValueError(
+                f"You need to define `phi_rf_design` for '{self.name}' via "
+                f"`.phi_rf_design=...` or `.schedule(attribute='phi_rf_design', value=...)`"
+            )
+        if (self.harmonic is None) and "harmonic" not in self.schedules:
+            raise ValueError(
+                f"You need to define `harmonic` for '{self.name}' via "
+                f"`.harmonic=...` or `.schedule(attribute='harmonic', value=...)`"
+            )
+
     @requires(["BeamBaseClass"])
     def on_run_simulation(
         self,
@@ -326,14 +343,24 @@ class RFStationBaseClass(
         """
         pass
 
-    @abstractmethod  # pragma: no cover
-    def calc_main_harmonic_t_rf(
+    def get_main_harmonic_t_rf(
         self,
-        beam_beta: float,
-        closed_orbit_length: float,
     ) -> float:
         """
-        Calculate the t_rf of the main harmonic.
+        Return the t_rf of the main harmonic, in [s].
+
+        Returns
+        -------
+        main_harmonic_t_rf
+            The t_rf of the main harmonic, in [s].
+        """
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf()
+
+    def calc_main_harmonic_t_rf(
+        self, beam_beta: float, closed_orbit_length: float
+    ) -> float:
+        """
+        Calculate the t_rf of the main harmonic, in [s].
 
         Parameters
         ----------
@@ -344,22 +371,12 @@ class RFStationBaseClass(
 
         Returns
         -------
-        main_harmonic_t_rf(
-            The t_rf of the main harmonic, in [s].
-        """
-        pass
-
-    @abstractmethod  # pragma: no cover
-    def get_main_harmonic_t_rf(self) -> float:
-        """
-        Return the actual t_rf of the main harmonic.
-
-        Returns
-        -------
         main_harmonic_t_rf
             The t_rf of the main harmonic, in [s].
         """
-        pass
+        return (2 * np.pi) / self.calc_main_harmonic_omega_rf_design(
+            beam_beta, closed_orbit_length
+        )
 
     def attach_beam_feedback(self, beam_feedback: BeamFeedbackBase):
         """
@@ -613,12 +630,11 @@ class RFStationBaseClass(
         """
         pass
 
-    @abstractmethod  # pragma: no cover
     def calc_omega_rf_design(
         self,
         beam_beta: float,
         closed_orbit_length: float,
-    ):
+    ) -> float | NumpyArray:
         """
         Calculate angular frequency of RF station, in [rad/s].
 
@@ -627,14 +643,16 @@ class RFStationBaseClass(
         beam_beta
             Beam reference fraction of speed of light (v/c0).
         closed_orbit_length
-            Length of the closed orbit, in [m].
+            Reference synchrotron circumference, in [m].
 
         Returns
         -------
         omega
             Angular frequency (2 PI f) of RF station, in [rad/s].
         """
-        pass
+        return self.harmonic * float(
+            TWOPI_C0 * beam_beta / closed_orbit_length
+        )
 
     def info_string(self, prefix="") -> str:
         """
@@ -812,69 +830,6 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         """
         return self.omega_rf
 
-    def get_main_harmonic_t_rf(
-        self,
-    ) -> float:
-        """
-        Return the t_rf of the main harmonic, in [s].
-
-        Returns
-        -------
-        main_harmonic_t_rf
-            The t_rf of the main harmonic, in [s].
-        """
-        return (2 * np.pi) / self.get_main_harmonic_omega_rf()
-
-    def calc_main_harmonic_t_rf(
-        self, beam_beta: float, closed_orbit_length: float
-    ) -> float:
-        """
-        Return the t_rf of the main harmonic, in [s].
-
-        Parameters
-        ----------
-        beam_beta
-            Relativistic beta of the beam.
-        closed_orbit_length
-            Ring circumference, in [m].
-
-        Returns
-        -------
-        main_harmonic_t_rf
-            The t_rf of the main harmonic, in [s].
-        """
-        return (2 * np.pi) / self.calc_main_harmonic_omega_rf_design(
-            beam_beta, closed_orbit_length
-        )
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        super().on_init_simulation(simulation=simulation)
-        if (self.voltage is None) and "voltage" not in self.schedules:
-            raise ValueError(
-                "You need to define `voltage` via `.voltage=...` "
-                f"or `.schedule(attribute='voltage', value=...)` for {self.name}"
-            )
-        if (
-            self.phi_rf_design is None
-        ) and "phi_rf_design" not in self.schedules:
-            raise ValueError(
-                "You need to define `phi_rf_design` via `.phi_rf_design=...` "
-                f"or `.schedule(attribute='phi_rf_design', value=...)` for {self.name}"
-            )
-        if (self.harmonic is None) and "harmonic" not in self.schedules:
-            raise ValueError(
-                "You need to define `harmonic` via `.harmonic=...` "
-                f"or `.schedule(attribute='harmonic', value=...)` for {self.name}"
-            )
-
     def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
@@ -884,7 +839,10 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         beam
             Beam class to interact with this element.
         """
+        self.delta_phi_rf = np.copy(self._dphi_rf_next)
+
         super()._track(beam=beam)
+
         reference = beam.reference
         reference_energy_change = self.track_reference(
             reference, beam.is_counter_rotating
@@ -912,43 +870,8 @@ class SingleHarmonicRFStation(RFStationBaseClass):
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
 
-        if self._beam_feedback is not None and (
-            self._turn_i.value >= self._beam_feedback.delay
-        ):  # TODO incorrect for simulations that start later
-            # domega_rf is updated later
-            # this means domega_rf is effectively from last turn
-            assert self.harmonic is not None
-            omega_increment = (
-                self._beam_feedback.domega_rf  # dynamically updated by `update_domega_rf`
-            )
-            self.delta_omega_rf = omega_increment
-
         if self.delta_omega_rf != 0:
             self._update_delta_phi_rf_from_beam_feedback()
-
-    def calc_omega_rf_design(
-        self,
-        beam_beta: float,
-        closed_orbit_length: float,
-    ) -> float:
-        """
-        Calculate angular frequency of RF station, in [rad/s].
-
-        Parameters
-        ----------
-        beam_beta
-            Beam reference fraction of speed of light (v/c0).
-        closed_orbit_length
-            Reference synchrotron circumference, in [m].
-
-        Returns
-        -------
-        omega
-            Angular frequency (2 PI f) of RF station, in [rad/s].
-        """
-        return self.harmonic * float(
-            TWOPI_C0 * beam_beta / closed_orbit_length
-        )
 
     def calc_gap_voltage(self):
         """
@@ -963,12 +886,11 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         gap_voltage
             Gap voltage in [V] within the length of the profile.
         """
-        n_slices = self._cavity_feedback[0].profile.n_bins
         x_arr = self._cavity_feedback[0].profile.hist_x
 
-        voltages = self.voltage * backend.ones(n_slices)
-        omega_rf = self.omega_rf * backend.ones(n_slices)
-        phi_rf = self.phi_rf * backend.ones(n_slices)
+        voltages = self.voltage
+        omega_rf = self.omega_rf
+        phi_rf = self.phi_rf
 
         gap_voltage = (
             voltages
@@ -1170,21 +1092,17 @@ class MultiHarmonicRFStation(RFStationBaseClass):
 
         self.main_harmonic_idx = main_harmonic_idx
 
-        self.voltage: NumpyArray | CupyArray | None = (
-            backend.array(voltage) if (voltage is not None) else None
+        self.voltage: NumpyArray | None = (
+            np.array(voltage) if (voltage is not None) else None
         )
-        self.phi_rf_design: NumpyArray | CupyArray | None = (
-            backend.array(phi_rf) if (phi_rf is not None) else None
+        self.phi_rf_design: NumpyArray | None = (
+            np.array(phi_rf) if (phi_rf is not None) else None
         )
-        self.harmonic: NumpyArray | CupyArray | None = (
-            backend.array(harmonic) if (harmonic is not None) else None
+        self.harmonic: NumpyArray | None = (
+            np.array(harmonic) if (harmonic is not None) else None
         )
-        self.delta_phi_rf: NumpyArray | CupyArray | None = backend.zeros(
-            n_harmonics
-        )  # TODO
-        self.delta_omega_rf: NumpyArray | CupyArray | None = backend.zeros(
-            n_harmonics
-        )  # TODO
+        self.delta_phi_rf: NumpyArray | None = np.zeros(n_harmonics)
+        self.delta_omega_rf: NumpyArray | None = np.zeros(n_harmonics)
 
         for array_name, input_array in (
             ("voltage", voltage),
@@ -1202,72 +1120,13 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             f"but needs to be smaller than {n_harmonics}"
         )
 
-        self.delta_phi_rf: NumpyArray | CupyArray | None = backend.zeros(
-            n_harmonics
-        )
-        self.delta_omega_rf: NumpyArray | CupyArray | None = backend.zeros(
-            n_harmonics
-        )
+        self.delta_phi_rf: NumpyArray | None = np.zeros(n_harmonics)
+        self.delta_omega_rf: NumpyArray | None = np.zeros(n_harmonics)
 
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
 
-        self._domega_rf_next: NumpyArray | CupyArray | None = backend.zeros(
-            n_harmonics
-        )  # TODO: unused atm
-        self._dphi_rf_next: NumpyArray | CupyArray | None = backend.zeros(
-            n_harmonics
-        )
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        super().on_init_simulation(simulation=simulation)
-        if (self.voltage is None) and "voltage" not in self.schedules:
-            raise ValueError(
-                f"You need to define `voltage` for '{self.name}' via "
-                f"`.voltage=...` or `.schedule(attribute='voltage', value=...)`"
-            )
-        if (
-            self.phi_rf_design is None
-        ) and "phi_rf_design" not in self.schedules:
-            raise ValueError(
-                f"You need to define `phi_rf_design` for '{self.name}' via "
-                f"`.phi_rf_design=...` or `.schedule(attribute='phi_rf_design', value=...)`"
-            )
-        if (self.harmonic is None) and "harmonic" not in self.schedules:
-            raise ValueError(
-                f"You need to define `harmonic` for '{self.name}' via "
-                f"`.harmonic=...` or `.schedule(attribute='harmonic', value=...)`"
-            )
-
-    def calc_omega_rf_design(
-        self,
-        beam_beta: float,
-        closed_orbit_length: float,
-    ) -> NumpyArray:
-        """
-        Calculate angular frequency of RF station in [rad/s].
-
-        Parameters
-        ----------
-        beam_beta
-            Beam reference fraction of speed of light (v/c0).
-        closed_orbit_length
-            Reference synchrotron circumference, in [m].
-
-        Returns
-        -------
-        omega
-            Angular frequency (2 PI f) of RF station in [rad/s].
-        """
-        return self.harmonic * (TWOPI_C0 * beam_beta / closed_orbit_length)
+        self._dphi_rf_next: NumpyArray | None = np.zeros(n_harmonics)
 
     def get_main_harmonic(self) -> float:
         """
@@ -1335,41 +1194,6 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             The angular frequency of the main harmonic, in [rad/s].
         """
         return self.omega_rf[self.main_harmonic_idx]
-
-    def get_main_harmonic_t_rf(
-        self,
-    ) -> float:
-        """
-        Return the t_rf of the main harmonic, in [s].
-
-        Returns
-        -------
-        main_harmonic_t_rf
-            The t_rf of the main harmonic, in [s].
-        """
-        return (2 * np.pi) / self.get_main_harmonic_omega_rf()
-
-    def calc_main_harmonic_t_rf(
-        self, beam_beta: float, closed_orbit_length: float
-    ) -> float:
-        """
-        Calculate the t_rf of the main harmonic, in [s].
-
-        Parameters
-        ----------
-        beam_beta
-            Relativistic beta of the beam.
-        closed_orbit_length
-            Ring circumference, in [m].
-
-        Returns
-        -------
-        main_harmonic_t_rf
-            The t_rf of the main harmonic, in [s].
-        """
-        return (2 * np.pi) / self.calc_main_harmonic_omega_rf_design(
-            beam_beta, closed_orbit_length
-        )
 
     def calc_gap_voltage(self):
         """
@@ -1478,8 +1302,6 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
 
-        # Update the RF phase of all systems for the next turn
-        # Accumulated phase offset due to beam phase loop or frequency offset
         if self.delta_omega_rf[self.main_harmonic_idx] != 0:
             self._update_delta_phi_rf_from_beam_feedback()
 
@@ -1566,7 +1388,6 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         multi_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
             n_turns=1,
-            turn_i_init=simulation.turn_i.value,
             beam=beam,
         )
 
