@@ -1,5 +1,5 @@
-Mathematical Background
-=======================
+Further Reading
+===============
 
 This section describes the theoretical and mathematical foundations used in
 BLonD, including equations of motion, RF cavity modelling, and empirical
