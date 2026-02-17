@@ -181,12 +181,11 @@ class RFStationBaseClass(
         self.phi_rf_design: NumpyArray | float | None = None
         self.delta_phi_rf: NumpyArray | float = 0.0
         self._dphi_rf_next: NumpyArray | float = 0.0
-        self._t_rf: float | None = None
-        self._t_rev: float | None = None
-        self.voltage: NumpyArray | None = None
-        self.harmonic: NumpyArray | None = None
+
+        self.voltage: NumpyArray | float | None = None
+        self.harmonic: NumpyArray | float | None = None
         self.phi_s: NumpyArray | float | None = None
-        self.omega_s0: NumpyArray | None = None
+        self.omega_s0: NumpyArray | float | None = None
 
     @property
     def omega_rf(self) -> NumpyArray | float:
@@ -536,8 +535,6 @@ class RFStationBaseClass(
             closed_orbit_length=self._ring.circumference,
         )
 
-        self._t_rf = (2 * np.pi) / self.omega_rf_design  # TODO: remove
-        self._t_rev = self.get_main_harmonic_t_rf() * self.get_main_harmonic()
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
