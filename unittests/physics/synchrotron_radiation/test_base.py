@@ -20,6 +20,7 @@ from blond.core.beam.particle_types import ParticleType
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
+    calculation_synchrotron_radiation_and_quantum_excitation_energy_kick,
 )
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationTracker,
@@ -334,12 +335,29 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             previous_energy + energy_kick + second_energy_kick,
         )
 
-    # def test_energy_kick_with_quantum_excitation(self):
-    #     energy_kick = calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
-    # beam_delta_energy_array = 20e9,
-    # energy_lost = 13e6,
-    # longitudinal_damping_time = 14955,
-    # natural_energy_spread = 1e-3,
-    # total_energy: float | None = None,
-    # random_generator: Generator | None = None,
-    # disable_quantum_excitation: bool = False,
+    def test_energy_kick_with_quantum_excitation(self):
+        rng = np.random.default_rng(seed=self.seed)
+        energy_kick = calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
+            beam_delta_energy_array=20e9 * np.ones(1000),
+            energy_lost=13e6,
+            longitudinal_damping_time=14955,
+            natural_energy_spread=1e-3,
+            total_energy=20e9,
+            random_generator=rng,
+            disable_quantum_excitation=False,
+        )
+
+        expected_energy_kick = (
+            -13e6
+            - 2.0 / 14955 * 20e9 * np.ones(1000)
+            + 2.0
+            * 1e-3
+            / np.sqrt(14955)
+            * 20e9
+            * rng.standard_normal(size=1000)
+        )
+        np.testing.assert_allclose(
+            energy_kick,
+            expected_energy_kick,
+            rtol=1,
+        )
