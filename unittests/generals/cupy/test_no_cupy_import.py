@@ -41,6 +41,19 @@ class TestFunctions(unittest.TestCase):
         plt.close()
 
     @pytest.mark.cupy
+    def test_scatter(self):
+        import cupy as cp
+        from matplotlib import pyplot as plt
+
+        import blond.generals.cupy.no_cupy_import as no_cupy
+
+        y = cp.ones(12)
+
+        with no_cupy.AllowPlotting():
+            plt.scatter(y, y)
+        plt.show()
+
+    @pytest.mark.cupy
     def test_is_cupy_array(self):
         try:
             import cupy as cp  # type: ignore

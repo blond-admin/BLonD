@@ -79,6 +79,7 @@ class _AsarrayOverrideManager:
         """Override functionality for 'np.asarray' to handle Cupy."""
         self.cache: dict[int, np.ndarray] = {}
         self._numpy_asarray_original = deepcopy(np.asarray)
+        self._numpy_array_original = deepcopy(np.array)
 
     def asarray_override(
         self,
@@ -107,6 +108,28 @@ class _AsarrayOverrideManager:
             **kwargs,
         )
 
+    def array_override(
+        self, p_object, dtype=None, *args, **kwargs
+    ) -> NumpyArray:
+        import cupy as cp  # type: ignore
+
+        a = p_object
+        if isinstance(a, cp.ndarray):
+            key = a.data.ptr
+            if key not in self.cache:
+                a = a.get()  # copy data from GPU
+                self.cache[key] = a
+            else:
+                # DON'T copy data from GPU, because it was done already
+                a = self.cache[key]
+
+        return self._numpy_array_original(  # type: ignore
+            a,
+            dtype=dtype,
+            *args,  # NOQA: B026
+            **kwargs,
+        )
+
 
 class AllowPlotting:
     """
@@ -125,18 +148,25 @@ class AllowPlotting:
     """
 
     def __init__(self) -> None:
-        if not backend.is_gpu:
+        try:
+            self.cupy_found = True
+
+        except Exception:
+            self.cupy_found = False
             return  # do nothing
         # initialize cache, make override function available
         self.asarray_override_manager = _AsarrayOverrideManager()
 
     def __enter__(self) -> None:
         """Override np.asarray with own function to handle .get() for Cupy arrays."""
-        if not backend.is_gpu:
+        if not self.cupy_found:
             return
         # override numpy "asarray" function with own function
         self.asarray_org = deepcopy(np.asarray)
         np.asarray = self.asarray_override_manager.asarray_override
+
+        self.array_org = deepcopy(np.array)
+        np.array = self.asarray_override_manager.array_override
 
     def __exit__(
         self,
@@ -160,3 +190,4 @@ class AllowPlotting:
             return  # do nothing
         # reset to original numpy function
         np.asarray = self.asarray_org
+        np.array = self.array_org
