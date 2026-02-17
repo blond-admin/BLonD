@@ -14,6 +14,8 @@ __all__ = [
     "VariNoise",
     "PooledInterpolationKick",
 ]
+import warnings
+
 from blond.experimental.beam_preparation.filamentation_matcher import (
     FilamentationMatcher,
 )
@@ -24,3 +26,11 @@ from blond.experimental.cycles.noise_generators.vari_noise import (
     VariNoise,
 )
 from blond.experimental.physics.kick_pooling import PooledInterpolationKick
+from blond.generals.warnings_ import ExperimentalFeaturesWarning
+
+_msg = """
+Importing experimental features. These are under development and are
+liable to change or be removed without warning.
+"""
+
+warnings.warn(_msg, ExperimentalFeaturesWarning, stacklevel=1)
