@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import unittest
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -9,6 +10,7 @@ import numpy as np
 from scipy.constants import c, e
 from scipy.constants import speed_of_light as c0
 
+from blond import Simulation
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
@@ -16,6 +18,7 @@ from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.synchrotron_radiation.synchrotron_radiation_elements import (
     WigglerMagnet,
 )
+from unittests.handle_results.test_observables_as_elements import simulation
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -168,6 +171,41 @@ class TestWigglerMagnet(unittest.TestCase):
 
         self.assertEqual(self.wiggler_magnet.pole_length, 0.01)
         self.assertEqual(self.wiggler_magnet_none.pole_length, 0.095)
+
+        self.assertEqual(
+            self.wiggler_magnet.__str__(),
+            (
+                f"{self.wiggler_magnet.number_of_wigglers} "
+                f"damping wigglers of "
+                f"{self.wiggler_magnet.peak_magnetic_field} T "
+                f"and composed of "
+                f"{self.wiggler_magnet.number_of_poles} poles "
+                f"of {self.wiggler_magnet.pole_length}"
+                f" m each have been added to "
+                f"the "
+                f"simulation. \n"
+            ),
+        )
+
+    def test_on_init(self):
+        wiggler_magnet = copy.deepcopy(self.wiggler_magnet)
+        self.wiggler_magnet._calculate_contribution_to_synchrotron_radiation_integrals_without_beam_energy()
+        simulation = Mock(Simulation)
+        simulation.turn_i = 0
+
+        wiggler_magnet.on_init_simulation(simulation=simulation)
+
+        np.testing.assert_array_equal(
+            wiggler_magnet._contribution_to_synchrotron_radiation_integrals_without_energy,
+            self.wiggler_magnet._contribution_to_synchrotron_radiation_integrals_without_energy,
+        )
+
+    def test_on_run(self):
+        wiggler_magnet = copy.deepcopy(self.wiggler_magnet)
+        simulation = Mock(Simulation)
+        simulation.turn_i = 0
+
+        wiggler_magnet.on_run_simulation(simulation=simulation)
 
     def test_calculate_energy_contribution_to_synchrotron_radiation_integrals(
         self,
