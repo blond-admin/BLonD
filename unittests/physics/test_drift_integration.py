@@ -82,7 +82,7 @@ class TestDriftIntegration(unittest.TestCase):
         sim.ring.assert_circumference()
 
         self.assertAlmostEqual(
-            sim.ring.average_momentum_compaction_factor,
+            sim.ring.momentum_compaction_factor,
             momentum_compaction_factor_,
         )
 
@@ -156,7 +156,7 @@ class TestDriftIntegration(unittest.TestCase):
             sim.run_simulation(beams=p, n_turns=5)
 
             global_momentum_compaction_factor = (
-                sim.ring.average_momentum_compaction_factor
+                sim.ring.momentum_compaction_factor
             )  # this is tested
 
             return p._dt.array_local, global_momentum_compaction_factor

@@ -156,8 +156,8 @@ class Ring(Preparable):
         return self._circumference
 
     @property
-    def average_momentum_compaction_factor(self) -> float:
-        """
+    def momentum_compaction_factor(self) -> float:
+        r"""
         Calculate the orbit-length weighted average momentum compaction factor.
 
         Returns
@@ -170,6 +170,55 @@ class Ring(Preparable):
         Currently only considers DriftSimple elements. The weighting is based on
         the orbit length of each drift section. This value is cached after first
         calculation.
+
+        The following derivation is only relevant for a *multi-drift simulation
+        setup*.
+
+        The global momentum compaction factor is defined as
+
+        .. math::
+
+            \\alpha_0 = \\frac{1}{C} \\int_C \\frac{D(s)}{\\rho} \\, ds
+
+        where :math:`C` is the total circumference, :math:`D(s)` is the dispersion
+        function, and :math:`\\rho` is the bending radius.
+
+        For two sections of length :math:`A` and :math:`B` such that
+        :math:`C = A + B`, this becomes
+
+        .. math::
+
+            \\alpha_0 = \\frac{1}{C}
+            \\left(
+                \\int_A \\frac{D(s)}{\\rho} \\, ds
+                +
+                \\int_B \\frac{D(s)}{\\rho} \\, ds
+            \\right)
+
+        Introducing the section-averaged momentum compaction factors
+
+        .. math::
+
+            \\alpha_A = \\frac{1}{A} \\int_A \\frac{D(s)}{\\rho} \\, ds
+
+        .. math::
+
+            \\alpha_B = \\frac{1}{B} \\int_B \\frac{D(s)}{\\rho} \\, ds
+
+        the total momentum compaction factor can be written as
+
+        .. math::
+
+            \\alpha_0 =
+            \\frac{1}{C}
+            \\left(
+                A \\, \\alpha_A
+                +
+                B \\, \\alpha_B
+            \\right)
+
+        i.e. the orbit-length weighted average of the individual drift-section
+        momentum compaction factors.
         """
         from blond import DriftSimple  # prevent cyclic import
 
@@ -179,16 +228,16 @@ class Ring(Preparable):
         ]
         weights = [e.orbit_length for e in drifts]
         # todo not only simple drift
-        average_momentum_compaction_factor_ = float(
+        average_momentum_compaction_factor = float(
             np.average(
                 momentum_compaction_factors,
                 weights=weights,
             )
         )
-        return average_momentum_compaction_factor_
+        return average_momentum_compaction_factor
 
     @property
-    def global_transition_gamma(self) -> complex:
+    def transition_gamma(self) -> complex:
         """
         The overall transition gamma, taking into account all drifts.
 
@@ -197,7 +246,7 @@ class Ring(Preparable):
         global_transition_gamma
             The overall transition gamma, taking into account all drifts.
         """
-        momentum_compaction_factor = self.average_momentum_compaction_factor
+        momentum_compaction_factor = self.momentum_compaction_factor
         return 1 / cmath.sqrt(momentum_compaction_factor)
 
     def calc_average_eta_0(self, gamma: float) -> float:

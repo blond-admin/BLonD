@@ -11,7 +11,6 @@ import logging
 
 import numpy as np
 from matplotlib import pyplot as plt
-from numpy.random import gamma
 
 from blond import (
     Beam,

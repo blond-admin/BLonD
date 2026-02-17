@@ -538,7 +538,7 @@ class TestRing(unittest.TestCase):
 
         self.ring.add_element(drift_simple_mock, deepcopy=True)
 
-        self.assertEqual(self.ring.average_momentum_compaction_factor, 30)
+        self.assertEqual(self.ring.momentum_compaction_factor, 30)
 
     def test_is_below_transition(self):
         from blond.testing.mocks import beam_mock
