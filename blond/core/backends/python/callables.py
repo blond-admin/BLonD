@@ -381,7 +381,7 @@ class PythonSpecials(Specials):
         )
 
     @staticmethod
-    def change_dE_interpolated(
+    def kick_interpolated(
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,

@@ -267,7 +267,7 @@ def reload_cuda_backend(  # NOQA: D102
             raise NotImplementedError()
 
         @staticmethod
-        def change_dE_interpolated(
+        def kick_interpolated(
             dt: CupyArray,
             dE: CupyArray,
             voltage: CupyArray,

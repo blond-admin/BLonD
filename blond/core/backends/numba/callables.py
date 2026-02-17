@@ -506,7 +506,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             fastmath=True,
             cache=True,
         )
-        def change_dE_interpolated(
+        def kick_interpolated(
             dt: NumpyArray,
             dE: NumpyArray,
             voltage: NumpyArray,

@@ -1849,7 +1849,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             local_res_counterrot_corot.calc_induced_voltage(beam_corot)
         )
         backend.set_specials("python")
-        backend.specials.change_dE_interpolated(
+        backend.specials.kick_interpolated(
             dt=beam_corot.read_partial_dt(),
             dE=beam_corot.dE,
             voltage=counterrot_corot_ind_volt,
@@ -1874,7 +1874,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             counterrot_corot_ind_volt, -counterrot_counterrot_ind_volt
         )
 
-        backend.specials.change_dE_interpolated(
+        backend.specials.kick_interpolated(
             dt=beam.read_partial_dt(),
             dE=beam.dE,
             voltage=counterrot_counterrot_ind_volt,

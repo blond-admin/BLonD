@@ -197,7 +197,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
-        def change_dE_interpolated(
+        def kick_interpolated(
             dt: NumpyArray,
             dE: NumpyArray,
             voltage: NumpyArray,

@@ -143,7 +143,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
             if beam.common_array_size > 0:
                 voltage = self._buffer_voltage[key]
                 time = self._buffer_time_axis[key]
-                backend.specials.change_dE_interpolated(
+                backend.specials.kick_interpolated(
                     dt=beam.read_partial_dt(),
                     dE=beam.write_partial_dE(),
                     bin_centers=time,

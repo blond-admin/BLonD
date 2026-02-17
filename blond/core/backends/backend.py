@@ -139,7 +139,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def change_dE_interpolated(  # NOQA: D102
+    def kick_interpolated(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
