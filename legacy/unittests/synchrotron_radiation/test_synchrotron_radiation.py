@@ -1,6 +1,6 @@
 import unittest
 
-from blond.synchrotron_radiation.synchrotron_radiation import (
+from blond.legacy.blond2.synchrotron_radiation.synchrotron_radiation import (
     SynchrotronRadiation,
 )
 

@@ -1,6 +1,6 @@
 import unittest
 
-from blond.utils.track_iteration import TrackIteration
+from blond.legacy.blond2.utils.track_iteration import TrackIteration
 
 
 class TestTrackIteration(unittest.TestCase):

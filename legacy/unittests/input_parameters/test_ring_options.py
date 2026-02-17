@@ -1,6 +1,6 @@
 import unittest
 
-from blond.input_parameters.ring_options import (
+from blond.legacy.blond2.input_parameters.ring_options import (
     load_data,
     convert_data,
     RingOptions,

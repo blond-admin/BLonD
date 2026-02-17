@@ -1,6 +1,6 @@
 import unittest
 
-from blond.beam.distributions_multibunch import (
+from blond.legacy.blond2.beam.distributions_multibunch import (
     compute_H0,
     compute_x_grid,
     match_a_bunch,

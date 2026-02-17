@@ -1,6 +1,6 @@
 import unittest
 
-from blond.utils.turn_counter import get_turn_counter, TurnCounter
+from blond.legacy.blond2.utils.turn_counter import get_turn_counter, TurnCounter
 
 
 class TestFunctions(unittest.TestCase):

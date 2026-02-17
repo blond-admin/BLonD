@@ -1,6 +1,6 @@
 import unittest
 
-from blond.llrf.transfer_function import tf_estimate, TransferFunction
+from blond.legacy.blond2.llrf.transfer_function import tf_estimate, TransferFunction
 
 
 class TestFunctions(unittest.TestCase):

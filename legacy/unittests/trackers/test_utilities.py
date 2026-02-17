@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from blond.trackers.utilities import (
+from blond.legacy.blond2.trackers.utilities import (
     hamiltonian,
     is_in_separatrix,
     potential_well_cut,

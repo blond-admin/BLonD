@@ -1,6 +1,6 @@
 import unittest
 
-from blond.input_parameters.rf_parameters_options import (
+from blond.legacy.blond2.input_parameters.rf_parameters_options import (
     combine_rf_functions,
     RFStationOptions,
 )

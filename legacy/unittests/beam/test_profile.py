@@ -1,6 +1,6 @@
 import unittest
 
-from blond.beam.profile import CutOptions, Profile, FilterOptions
+from blond.legacy.blond2.beam.profile import CutOptions, Profile, FilterOptions
 
 
 class TestCutOptions(unittest.TestCase):

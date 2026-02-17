@@ -1,6 +1,6 @@
 import unittest
 
-from blond.input_parameters.rf_parameters import (
+from blond.legacy.blond2.input_parameters.rf_parameters import (
     calculate_phi_s,
     RFStation,
     calculate_Q_s,

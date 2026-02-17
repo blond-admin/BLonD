@@ -1,6 +1,6 @@
 import unittest
 
-from blond.llrf.notch_filter import impedance_notches
+from blond.legacy.blond2.llrf.notch_filter import impedance_notches
 
 
 class TestFunctions(unittest.TestCase):

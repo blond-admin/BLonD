@@ -2,21 +2,21 @@ import unittest
 
 # BLonD imports
 # --------------
-from blond.beam.beam import Beam, Electron
-from blond.beam.profile import Profile, CutOptions
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
-from blond.impedances.impedance_sources import CoherentSynchrotronRadiation
-from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
-from blond.synchrotron_radiation.synchrotron_radiation import (
+from blond.legacy.blond2.beam.beam import Beam, Electron
+from blond.legacy.blond2.beam.profile import Profile, CutOptions
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.trackers.tracker import FullRingAndRF, RingAndRFTracker
+from blond.legacy.blond2.impedances.impedance_sources import CoherentSynchrotronRadiation
+from blond.legacy.blond2.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
+from blond.legacy.blond2.synchrotron_radiation.synchrotron_radiation import (
     SynchrotronRadiation,
 )
-from blond.beam.distributions import Haissinski
-from blond.utils import bmath as bm
+from blond.legacy.blond2.beam.distributions import Haissinski
+from blond.legacy.blond2.utils import bmath as bm
 import scipy
 
-from blond.beam.distributions import (
+from blond.legacy.blond2.beam.distributions import (
     x0_from_bunch_length,
     distribution_function,
     line_density,

@@ -1,6 +1,6 @@
 import unittest
 
-from blond.utils import bmath
+from blond.legacy.blond2.utils import bmath
 
 
 class TestFunctions(unittest.TestCase):

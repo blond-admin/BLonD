@@ -1,6 +1,6 @@
 import unittest
 
-from blond.utils import (
+from blond.legacy.blond2.utils import (
     c_complex,
     c_real,
     PrecisionClass,

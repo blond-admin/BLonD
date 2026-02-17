@@ -30,7 +30,7 @@ from blond.legacy.blond2.utils import bmath as bm
 from blond.legacy.blond2.impedances.impedance import InducedVoltageResonator
 from blond.legacy.blond2.impedances.impedance_sources import Resonators
 from blond.legacy.blond2.beam.profile import CutOptions, FitOptions, Profile
-from blond.utils.butils_wrap_python import (
+from blond.legacy.blond2.utils.butils_wrap_python import (
     distribution_from_tomoscope,
     sparse_histogram,
 )

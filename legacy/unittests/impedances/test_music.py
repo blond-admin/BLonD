@@ -1,6 +1,6 @@
 import unittest
 
-from blond.impedances.music import Music
+from blond.legacy.blond2.impedances.music import Music
 
 
 class TestMusic(unittest.TestCase):
