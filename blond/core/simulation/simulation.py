@@ -1084,7 +1084,8 @@ class Simulation(Preparable):
             )
 
             print(
-                f"\nBeam {i} has {si_format(beam._dt.global_size)} macroparticles"
+                f"\nBeam {i} has {si_format(beam._dt.global_size)} "
+                f"macroparticles",
                 end="",
             )
             if beam._dt.is_distributed:
