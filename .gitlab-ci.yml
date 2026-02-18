@@ -88,6 +88,7 @@ workflow:
       - ${project_root}junit-report.xml
     # reports:
     #   junit: ${project_root}/coverage-report.xml
+    when: always
 
 precommit-check:
 
