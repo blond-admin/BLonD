@@ -93,8 +93,6 @@ workflow:
 
 
 .publish_coverage:
-  dependencies:
-    - .main  # Ensures that artifacts from .main (like .coverage) are available here
   script:
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
     - cd ${project_root}
