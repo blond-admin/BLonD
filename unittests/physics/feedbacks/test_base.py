@@ -15,28 +15,37 @@ from blond.core.beam.base import BeamBaseClass
 from blond.physics.feedbacks.base import GlobalFeedback, LocalFeedback
 
 
+class LocFdbkHelper(LocalFeedback):
+    def _track(self, beam: BeamBaseClass) -> None:
+        pass
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs,
+    ) -> None:
+        pass
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
+
 class TestLocalFeedbackBase(unittest.TestCase):
     def test_error_throwing_on_non_conformant_parent_cavity(self):
-        class LocFdbkHelper(LocalFeedback):
-            def _track(self, beam: BeamBaseClass) -> None:
-                pass
-
-            def on_run_simulation(
-                self,
-                simulation: Simulation,
-                beam: BeamBaseClass,
-                n_turns: int,
-                **kwargs,
-            ) -> None:
-                pass
-
-            def on_init_simulation(self, simulation: Simulation) -> None:
-                pass
-
         prof = Mock(StaticProfile)
         fdbk = LocFdbkHelper(profile=prof)
         with self.assertRaisesRegex(ValueError, "Local feedbacks can only be"):
             fdbk.set_parent_rf_station(prof)
+
+    def test_set_partent_rf_station_working(self):
+        fdbk = LocFdbkHelper(profile=Mock(spec=StaticProfile))
+        rf_station = Mock(spec=SingleHarmonicRFStation)
+        rf_station.section_index = 0
+        fdbk.set_parent_rf_station(rf_station)
+        assert fdbk._parent_rf_station is rf_station
+        assert fdbk._parent_rf_station.section_index == 0
 
 
 class TestGlobalFeedbackBase(unittest.TestCase):
