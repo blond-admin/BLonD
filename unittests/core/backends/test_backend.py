@@ -287,15 +287,16 @@ class TestSpecials(unittest.TestCase):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 # todo, fix
-                backend.specials.drift_exact(
-                    dt=self.dt,
-                    dE=self.dE,
-                    T=self.t_rev * self.length_ratio,
-                    alpha_0=self.alpha_0,
-                    higher_alpha=backend.array([1, 2]),
-                    beta=self.beta,
-                    energy=self.energy,
-                )
+                for _ in range(2):
+                    backend.specials.drift_exact(
+                        dt=self.dt,
+                        dE=self.dE,
+                        T=self.t_rev * self.length_ratio,
+                        alpha_0=self.alpha_0,
+                        higher_alpha=backend.array([1.0, 2.0], dtype=dtype),
+                        beta=self.beta,
+                        energy=self.energy,
+                    )
                 result = self.dt
                 if special == "cuda":
                     result = result.get()

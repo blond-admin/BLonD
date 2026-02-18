@@ -102,13 +102,9 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
 
     sig_t_rev = nb_f
     sig_T = nb_f
-    sig_length_ratio = nb_f
     sig_eta_0 = nb_f
-    sig_eta_1 = nb_f
-    sig_eta_2 = nb_f
     sig_alpha_0 = nb_f
     sig_higher_alpha = nb_f[:]
-    sig_alpha_order = nb_i
     sig_beta = nb_f
     sig_energy = nb_f
 
@@ -142,18 +138,6 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         sig_dE,
         sig_T,
         sig_eta_0,
-        sig_beta,
-        sig_energy,
-    )
-    sig_drift_legacy = void(
-        sig_dt,
-        sig_dE,
-        sig_t_rev,
-        sig_length_ratio,
-        sig_alpha_order,
-        sig_eta_0,
-        sig_eta_1,
-        sig_eta_2,
         sig_beta,
         sig_energy,
     )
@@ -409,46 +393,6 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                         * np.sin(omega_rf[j] * dti + phi_rf[j])
                     )
                 dE[i] += de_sum + acceleration_kick
-
-        @staticmethod
-        @enforce_precision(floattype)
-        @njit(sig_drift_legacy, parallel=True, fastmath=False)
-        def drift_legacy(
-            dt: NumpyArray,
-            dE: NumpyArray,
-            t_rev: float,
-            length_ratio: float,
-            alpha_order: int,
-            eta_0: float,
-            eta_1: float,
-            eta_2: float,
-            beta: float,
-            energy: float,
-        ) -> None:  # pragma: no cover # TODO
-            T = t_rev * length_ratio
-            coeff = 1.0 / (beta * beta * energy)
-            eta0 = eta_0 * coeff
-            eta1 = eta_1 * coeff * coeff
-            eta2 = eta_2 * coeff * coeff * coeff
-            for i in prange(len(dt)):
-                dEi = dE[i]
-                if alpha_order == 0:
-                    dt[i] += T * (1.0 / (1.0 - eta0 * dEi) - 1.0)
-                elif alpha_order == 1:
-                    dt[i] += T * (
-                        1.0 / (1.0 - eta0 * dEi - eta1 * dEi * dEi) - 1.0
-                    )
-                else:
-                    dt[i] += T * (
-                        1.0
-                        / (
-                            1.0
-                            - eta0 * dEi
-                            - eta1 * dEi * dEi
-                            - eta2 * dEi * dEi * dEi
-                        )
-                        - 1.0
-                    )
 
         @staticmethod
         @enforce_precision(floattype)

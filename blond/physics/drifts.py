@@ -16,7 +16,6 @@ from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
-import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
 from blond.core.backends.backend import backend
@@ -513,7 +512,9 @@ class DriftExact(DriftSimple):
         # Advance reference
         dt = self.track_reference(beam.reference)
 
-        higher_alpha = np.asarray(self.higher_order_alpha)
+        higher_alpha = backend.array(
+            self.higher_order_alpha, dtype=backend.float
+        )
 
         # Track macroparticles
         if beam.common_array_size > 0:

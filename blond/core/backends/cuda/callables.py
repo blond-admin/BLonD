@@ -241,29 +241,19 @@ def reload_cuda_backend(  # NOQA: D102
             )
 
         @staticmethod
-        def drift_legacy(
-            dt: CupyArray,
-            dE: CupyArray,
-            T: float,
-            alpha_order: int,
-            eta_0: float,
-            eta_1: float,
-            eta_2: float,
-            beta: float,
-            energy: float,
-        ) -> None:
-            raise NotImplementedError()
-
-        @staticmethod
         def drift_exact(
             dt: CupyArray,
             dE: CupyArray,
-            t_rev: float,
+            T: float,
             alpha_0: float,
             higher_alpha: CupyArray,
             beta: float,
             energy: float,
         ) -> None:
+            assert dt.device != "cpu"
+            assert dE.device != "cpu"
+            assert higher_alpha.device != "cpu"
+
             assert dt.dtype == floattype
             assert dE.dtype == floattype
             assert higher_alpha.dtype == floattype
@@ -272,7 +262,7 @@ def reload_cuda_backend(  # NOQA: D102
             assert dE.flags.c_contiguous
             assert higher_alpha.flags.c_contiguous
 
-            t_rev = floattype(t_rev)
+            T = floattype(T)
             alpha_0 = floattype(alpha_0)
             beta = floattype(beta)
             energy = floattype(energy)
@@ -281,7 +271,7 @@ def reload_cuda_backend(  # NOQA: D102
                 args=(
                     dt,  # beam_dt
                     dE,  # beam_dE
-                    t_rev,  # t_rev
+                    T,  # t_rev
                     alpha_0,  # alpha_zero
                     higher_alpha,  # higher_alpha
                     np.int32(len(higher_alpha)),  # n_alpha
