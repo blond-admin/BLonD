@@ -213,6 +213,7 @@ class RFStationBaseClass(
 
         Returns
         -------
+        cavity_feedback_attached
             If one array element is not None in self._cavity_feedback, return True.
         """
         return any(
@@ -484,7 +485,7 @@ class RFStationBaseClass(
         else:
             raise TypeError(f"{type(beam_feedback)=}")
 
-    def attach_cavity_feedback(
+    def attach_cavity_feedback(  # noqa: PLR0912
         self,
         cavity_feedback: LocalFeedback | list[LocalFeedback | None],
         harmonic_index: int | None = None,
@@ -497,72 +498,56 @@ class RFStationBaseClass(
         cavity_feedback
             Cavity feedback to be attached to the RF station.
         harmonic_index
-            # TODO
+            Harmonic index at which to place the provided feedback.
+            This needs to be provided for multiharmonic cavities,
+            where a single LocalFeedback is provided.
         """
         if isinstance(cavity_feedback, LocalFeedback):
-            cavity_feedback = [
-                cavity_feedback,
-            ]
-        if not isinstance(cavity_feedback, list):
-            raise TypeError(
-                f"Expected list[LocalFeedback, ...],"
-                f" but got {cavity_feedback=},"
-                f" {type(cavity_feedback)=}"
-            )
+            if harmonic_index is None:
+                if isinstance(self, SingleHarmonicRFStation):
+                    harmonic_index = 0
+                else:
+                    raise ValueError(
+                        "If a single feedback is provided, the harmonic_index needs to be provided as well"
+                    )
 
-        for feedback in cavity_feedback:
-            if not isinstance(feedback, LocalFeedback):
-                raise TypeError(f"{type(feedback)=}.")
-
-            feedback.set_parent_rf_station(rf_station=self)  # type: ignore
-
-        if harmonic_index is not None:
             if harmonic_index > self._n_rf:
                 raise ValueError(
                     "Harmonic index must be less than the number of RF stations."
                 )
 
-        if isinstance(self, MultiHarmonicRFStation):
+            cavity_feedback.set_parent_rf_station(rf_station=self)  # type: ignore
+            self._cavity_feedback[harmonic_index] = cavity_feedback
+
+        elif isinstance(cavity_feedback, list):
             if len(cavity_feedback) != self._n_rf:
-                if harmonic_index is None:
-                    raise ValueError(
-                        "If the length of the cavity feedback does not coincide"
-                        " with the number of RF stations, the harmonic index has to be provided."
-                    )
+                raise ValueError(
+                    f"Provided list has incorrect length, must be {self._n_rf=} but was {len(cavity_feedback)=}"
+                )
+
+            if harmonic_index is not None:
+                warnings.warn(
+                    "Given harmonic_index will be ignored since a list was provided.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+            for feedback in cavity_feedback:
+                if isinstance(feedback, LocalFeedback):
+                    feedback.set_parent_rf_station(rf_station=self)  # type: ignore
+                elif feedback is None:
+                    pass
                 else:
-                    if len(cavity_feedback) != 1:
-                        raise ValueError(
-                            "with a harmonic index given, only lists with a"
-                            " single entry and single cavity_feedbacks are allowed."
-                        )
-                    self._cavity_feedback[harmonic_index] = cavity_feedback[0]
-            else:
+                    raise TypeError("Unknown type in provided feedback list.")
+            if self._cavity_feedback_attached:
                 warnings.warn(
                     "Already present cavity feedbacks are being overridden.",
                     UserWarning,
                     stacklevel=1,
                 )
-                self._cavity_feedback = cavity_feedback
-
-        elif isinstance(self, SingleHarmonicRFStation):
-            if len(cavity_feedback) != 1 or harmonic_index is not None:
-                raise RuntimeError(
-                    "Single Harmonic RFStation only supports a"
-                    " single cavity feedback and no `harmonic_index`."
-                )
-            else:
-                if self._cavity_feedback_attached:
-                    warnings.warn(
-                        "Already present cavity feedbacks are being overridden.",
-                        UserWarning,
-                        stacklevel=1,
-                    )
-                self._cavity_feedback = cavity_feedback
-
+            self._cavity_feedback = cavity_feedback
         else:
-            raise RuntimeError(
-                f"Cavity type {type(self)} does not support feedbacks."
-            )
+            raise TypeError(f"Invalid input type{type(cavity_feedback)=}")
 
     def calc_synchrotron_tune_main_harmonic(  # TODO move into feedback or make it
         self,
@@ -1350,65 +1335,6 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                 )
 
         return gap_voltage
-
-    def attach_cavity_feedback(
-        self,
-        cavity_feedback: LocalFeedback | list[LocalFeedback | None],
-        harmonic_index: int | None = None,
-    ):
-        """
-        Attach cavity feedback to the RF station after initialization.
-
-        Parameters
-        ----------
-        cavity_feedback
-            Cavity feedback to be attached to the RF station.
-        harmonic_index
-            # TODO
-        """
-        if isinstance(cavity_feedback, LocalFeedback):
-            cavity_feedback = [
-                cavity_feedback,
-            ]
-        if not isinstance(cavity_feedback, list):
-            raise TypeError(
-                f"Expected list[LocalFeedback, ...],"
-                f" but got {cavity_feedback=},"
-                f" {type(cavity_feedback)=}"
-            )
-
-        for feedback in cavity_feedback:
-            if not isinstance(feedback, LocalFeedback):
-                raise TypeError(f"{type(feedback)=}.")
-
-            feedback.set_parent_rf_station(rf_station=self)  # type: ignore
-
-        if harmonic_index is not None:
-            if harmonic_index > self._n_rf:
-                raise ValueError(
-                    "Harmonic index must be less than the number of RF stations."
-                )
-
-        if len(cavity_feedback) != self._n_rf:
-            if harmonic_index is None:
-                raise ValueError(
-                    "If the length of the cavity feedback does not coincide"
-                    " with the number of RF stations, the harmonic index has to be provided."
-                )
-            else:
-                if len(cavity_feedback) != 1:
-                    raise ValueError(
-                        "with a harmonic index given, only lists with a"
-                        " single entry and single cavity_feedbacks are allowed."
-                    )
-                self._cavity_feedback[harmonic_index] = cavity_feedback[0]
-        else:
-            warnings.warn(
-                "Already present cavity feedbacks are being overridden.",
-                UserWarning,
-                stacklevel=1,
-            )
-            self._cavity_feedback = cavity_feedback
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
