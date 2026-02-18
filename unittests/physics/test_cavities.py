@@ -18,7 +18,10 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSOneTurnFeedback,
 )
-from blond.experimental.physics.feedbacks.base import LocalFeedback
+from blond.experimental.physics.feedbacks.base import (
+    GlobalFeedback,
+    LocalFeedback,
+)
 from blond.experimental.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
@@ -248,7 +251,64 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         assert self.track_called
 
-    @unittest.skip("feedbacks not working")
+    def test_single_cavity_feedbacks_allowed_mhc(self):
+        self.track_called = False
+
+        def dummy_track(beam: BeamBaseClass):
+            self.track_called = True
+            return
+
+        prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
+
+        cavity_feedback_good = Mock(spec=LocalFeedback)
+        cavity_feedback_good.track = dummy_track
+        cavity_feedback_good.profile = prof
+        cavity_feedback_good.phase_correction = 0
+        cavity_feedback_good.relative_voltage_correction = 0
+
+        mhc = MultiHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            voltage=np.array([6e6]),
+            harmonic=np.array([25000]),
+            n_harmonics=1,
+            main_harmonic_idx=0,
+            phi_rf=np.array([0]),
+            cavity_feedback=cavity_feedback_good,
+        )
+
+        mhc._turn_i = 1
+        mhc._ring = Mock(Ring)
+        mhc._ring.circumference = 456
+
+        simulation = Mock(Simulation)
+        simulation.turn_i = DynamicParameter(1)
+        simulation.ring.circumference = 456
+        simulation.ring.section_lengths = np.array(
+            [simulation.ring.circumference]
+        )
+        simulation.magnetic_cycle = Mock(ConstantMagneticCycle)
+        simulation.magnetic_cycle.get_target_total_energy.return_value = 1.0
+
+        self.beam.ratio = 0.01
+
+        mhc.on_init_simulation(simulation=simulation)
+        mhc.on_run_simulation(
+            simulation=simulation,
+            beam=self.beam,
+            n_turns=100,
+        )
+        cavity_feedback_good.on_run_simulation(
+            simulation=simulation,
+            beam=self.beam,
+            n_turns=100,
+        )
+
+        mhc.track(beam=self.beam)
+
+        assert self.track_called
+
+    # @unittest.skip("feedbacks not working")
     def test_track_with_feedbacks(self):
         SingleHarmonicRFStation(
             section_index=1,
@@ -257,12 +317,8 @@ class TestRFStationBaseClass(unittest.TestCase):
             cavity_feedback=None,
         )
         # prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
-        beam_feedback_good = LHCBeamControl(
-            profile=Mock(StaticProfile), pl_gain=1, sl_gain=1
-        )
-        cavity_feedback_good = Mock(
-            SPSOneTurnFeedback
-        )  # profile=prof, _parent_rf_station=mhc, n_sections=3)
+        beam_feedback_good = Mock(spec=BeamFeedbackBase)
+        cavity_feedback_good = Mock(spec=SPSOneTurnFeedback)
         cavity_feedback_good.info_string.return_value = (
             "Unnamed-LocalFeedback-000"
         )
@@ -488,7 +544,16 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                 beam_beta=self.beam.reference.beta, closed_orbit_length=456
             )
             == self.multi_harmonic_cavity.get_main_harmonic_t_rf()
-        )  # TODO: this fails since the first one is float32 and second float64
+        )
+
+        self.multi_harmonic_cavity.cavity_feedback_list = [
+            Mock(spec=LocalFeedback),
+        ]
+        with self.assertWarnsRegex(
+            UserWarning,
+            "`get_main_harmonic_voltage` returns unperturbed voltage",
+        ):
+            self.multi_harmonic_cavity.get_main_harmonic_voltage()
 
     def test_on_init_simulation_fails2(self) -> None:
         simulation = Mock(Simulation)
@@ -597,6 +662,14 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             )
             == self.single_harmonic_cavity.get_main_harmonic_t_rf()
         )
+        self.single_harmonic_cavity.cavity_feedback_list = [
+            Mock(spec=LocalFeedback),
+        ]
+        with self.assertWarnsRegex(
+            UserWarning,
+            "`get_main_harmonic_voltage` returns unperturbed voltage",
+        ):
+            self.single_harmonic_cavity.get_main_harmonic_voltage()
 
     def test_on_init_simulation_fails(self) -> None:
         simulation = Mock(Simulation)
