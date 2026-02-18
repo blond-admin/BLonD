@@ -174,7 +174,7 @@ class RFStationBaseClass(
         )
         self._n_rf = n_rf
 
-        self._cavity_feedback: list[LocalFeedback | None] = [
+        self.cavity_feedback_list: list[LocalFeedback | None] = [
             None,
         ] * self._n_rf
 
@@ -208,7 +208,7 @@ class RFStationBaseClass(
         self.harmonic: NumpyArray | float | None = None
 
     @property
-    def _any_feedback_not_none(self) -> bool:
+    def any_feedback_not_none(self) -> bool:
         """
         Check if there is a cavity feedback in the list of feedbacks, which is not None.
 
@@ -219,7 +219,7 @@ class RFStationBaseClass(
         """
         return any(
             cavity_feedback is not None
-            for cavity_feedback in self._cavity_feedback
+            for cavity_feedback in self.cavity_feedback_list
         )
 
     @property
@@ -518,7 +518,7 @@ class RFStationBaseClass(
                 )
 
             cavity_feedback.set_parent_rf_station(rf_station=self)  # type: ignore
-            self._cavity_feedback[harmonic_index] = cavity_feedback
+            self.cavity_feedback_list[harmonic_index] = cavity_feedback
 
         elif isinstance(cavity_feedback, list):
             if len(cavity_feedback) != self._n_rf:
@@ -540,13 +540,13 @@ class RFStationBaseClass(
                     pass
                 else:
                     raise TypeError(f"{type(feedback)=}")
-            if self._any_feedback_not_none:
+            if self.any_feedback_not_none:
                 warnings.warn(
                     "Already present cavity feedbacks are being overridden.",
                     UserWarning,
                     stacklevel=1,
                 )
-            self._cavity_feedback = cavity_feedback
+            self.cavity_feedback_list = cavity_feedback
         else:
             raise TypeError(f"Invalid input type {type(cavity_feedback)=}")
 
@@ -698,9 +698,9 @@ class RFStationBaseClass(
         # Correction from cavity loop
         if (
             not isinstance(beam, ProbeBeam)
-            and self._cavity_feedback is not None
+            and self.cavity_feedback_list is not None
         ):
-            for feedback in self._cavity_feedback:
+            for feedback in self.cavity_feedback_list:
                 if feedback is not None:
                     feedback.track(beam=beam)
 
@@ -797,8 +797,8 @@ class RFStationBaseClass(
             Information string.
         """
         content = ""
-        if self._cavity_feedback is not None:
-            for feedback in self._cavity_feedback:
+        if self.cavity_feedback_list is not None:
+            for feedback in self.cavity_feedback_list:
                 if feedback is not None:
                     content += (
                         f"{feedback.info_string(prefix=prefix + ' ↓ ')}\n"
@@ -916,7 +916,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         main_harmonic_voltage
             Voltage of the main harmonic, in [V].
         """
-        if self._any_feedback_not_none:
+        if self.any_feedback_not_none:
             warnings.warn(
                 "`get_main_harmonic_voltage` returns unperturbed "
                 "voltage, even though feedbacks are active.",
@@ -993,13 +993,13 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         )
 
         if beam.common_array_size > 0:
-            if self._any_feedback_not_none:
+            if self.any_feedback_not_none:
                 gap_voltage = self.calc_gap_voltage_with_feedbacks()
                 backend.specials.kick_induced_voltage(
                     dt=beam.read_partial_dt(),
                     dE=beam.write_partial_dE(),
                     voltage=backend.array(gap_voltage, dtype=backend.float),
-                    bin_centers=self._cavity_feedback[0].profile.hist_x,
+                    bin_centers=self.cavity_feedback_list[0].profile.hist_x,
                     charge=beam.particle_type.charge,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
@@ -1028,9 +1028,9 @@ class SingleHarmonicRFStation(RFStationBaseClass):
             Gap voltage in [V] within the length of the profile.
         """
         gap_voltage = self._get_gap_voltage_per_harmonic(
-            ts=self._cavity_feedback[0].profile.hist_x,
-            phase_offsets=self._cavity_feedback[0].phase_correction,
-            voltage_correction_factors=self._cavity_feedback[
+            ts=self.cavity_feedback_list[0].profile.hist_x,
+            phase_offsets=self.cavity_feedback_list[0].phase_correction,
+            voltage_correction_factors=self.cavity_feedback_list[
                 0
             ].relative_voltage_correction,
         )
@@ -1253,7 +1253,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         main_harmonic_voltage
             Voltage of the main harmonic, in [V].
         """
-        if self._any_feedback_not_none:
+        if self.any_feedback_not_none:
             warnings.warn(
                 "`get_main_harmonic_voltage` returns unperturbed "
                 "voltage, even though feedbacks are active.",
@@ -1320,18 +1320,20 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         gap_voltage
             Gap voltage in [V] within the length of the profile.
         """
-        gap_voltage = backend.zeros(self._cavity_feedback[0].profile.n_bins)
-        for ind, feedback in enumerate(self._cavity_feedback):
+        gap_voltage = backend.zeros(
+            self.cavity_feedback_list[0].profile.n_bins
+        )
+        for ind, feedback in enumerate(self.cavity_feedback_list):
             if feedback is not None:
                 gap_voltage += self._get_gap_voltage_per_harmonic(
-                    ts=self._cavity_feedback[0].profile.hist_x,
+                    ts=self.cavity_feedback_list[0].profile.hist_x,
                     harmonic_index=ind,
                     voltage_correction_factors=feedback.relative_voltage_correction,
                     phase_offsets=feedback.phase_correction,
                 )
             else:
                 gap_voltage += self._get_gap_voltage_per_harmonic(
-                    ts=self._cavity_feedback[0].profile.hist_x,
+                    ts=self.cavity_feedback_list[0].profile.hist_x,
                     harmonic_index=ind,
                 )
 
@@ -1358,13 +1360,13 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         )
 
         if beam.common_array_size > 0:
-            if self._any_feedback_not_none:
+            if self.any_feedback_not_none:
                 gap_voltage = self.calc_gap_voltage_with_feedbacks()
                 backend.specials.kick_induced_voltage(
                     dt=beam.read_partial_dt(),
                     dE=beam.write_partial_dE(),
                     voltage=backend.array(gap_voltage, dtype=backend.float),
-                    bin_centers=self._cavity_feedback[0].profile.hist_x,
+                    bin_centers=self.cavity_feedback_list[0].profile.hist_x,
                     charge=beam.particle_type.charge,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
