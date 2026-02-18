@@ -338,19 +338,13 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
 
         for i in range(self.N_t):
             self.long_tracker.track()
-            print(
+            self.assertEqual(
                 self.long_tracker.rf_params.phi_rf[
-                    :, self.long_tracker.counter[0]
-                ]
+                    :, self.long_tracker.counter[0] - 1
+                ],
+                self.rf.phi_modulation[0][0][i],
+                msg="""Phi modulation not added correctly in tracker""",
             )
-            print(self.rf.phi_modulation[0][0][i])
-            # self.assertEqual(
-            #     self.long_tracker.rf_params.phi_rf[
-            #         :, self.long_tracker.counter[0] - 1
-            #     ],
-            #     self.rf.phi_modulation[0][0][i],
-            #     msg="""Phi modulation not added correctly in tracker""",
-            # )
 
 
 class Test:
