@@ -199,8 +199,18 @@ class RFStationBaseClass(
         -------
         omega_rf
             Actual angular rf frequency.
+
+        Notes
+        -----
+        `omega_rf` can not be set, use `omega_rf_design` instead
         """
         return self.omega_rf_design + self.delta_omega_rf
+
+    @omega_rf.setter
+    def omega_rf(self, _) -> None:
+        raise AttributeError(
+            "`omega_rf` can not be set, use `omega_rf_design` instead!"
+        )
 
     @property
     def phi_rf(self) -> NumpyArray | float:
@@ -213,8 +223,18 @@ class RFStationBaseClass(
         -------
         phi_rf
             Actual angular rf phase.
+
+        Notes
+        -----
+        `phi_rf` can not be set, use `phi_rf_design` instead!
         """
         return self.phi_rf_design + self.delta_phi_rf
+
+    @phi_rf.setter
+    def phi_rf(self, _) -> None:
+        raise AttributeError(
+            "`phi_rf` can not be set, use `phi_rf_design` instead!"
+        )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
