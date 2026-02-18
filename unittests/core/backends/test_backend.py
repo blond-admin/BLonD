@@ -292,7 +292,7 @@ class TestSpecials(unittest.TestCase):
                     dE=self.dE,
                     T=self.t_rev * self.length_ratio,
                     alpha_0=self.alpha_0,
-                    higher_alpha=backend.ndarray([1, 2]),
+                    higher_alpha=backend.array([1, 2]),
                     beta=self.beta,
                     energy=self.energy,
                 )
