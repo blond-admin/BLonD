@@ -515,7 +515,7 @@ class RFStationBaseClass(
                     harmonic_index = 0
                 else:
                     raise ValueError(
-                        "If a single feedback is provided, the harmonic_index needs to be provided as well"
+                        "If a single feedback is provided, the harmonic_index needs to be provided as well."
                     )
 
             if harmonic_index > self._n_rf:
@@ -529,7 +529,7 @@ class RFStationBaseClass(
         elif isinstance(cavity_feedback, list):
             if len(cavity_feedback) != self._n_rf:
                 raise ValueError(
-                    f"Provided list has incorrect length, must be {self._n_rf=} but was {len(cavity_feedback)=}"
+                    f"Provided list has incorrect length, must be {self._n_rf=} but was {len(cavity_feedback)=}."
                 )
 
             if harmonic_index is not None:
