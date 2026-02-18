@@ -146,12 +146,8 @@ def reload_cuda_backend(  # NOQA: D102
             charge: float,
             acceleration_kick: float,
         ) -> None:
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
-
             assert dt.dtype == floattype
             assert dE.dtype == floattype
-
             assert dt.flags.c_contiguous
             assert dE.flags.c_contiguous
 
@@ -172,8 +168,8 @@ def reload_cuda_backend(  # NOQA: D102
 
         @staticmethod
         def kick_multi_harmonic(
-            dt: CupyArray,
-            dE: CupyArray,
+            dt: CupyArray | CupyArray,
+            dE: CupyArray | CupyArray,
             voltage: CupyArray,
             omega_rf: CupyArray,
             phi_rf: CupyArray,
@@ -181,12 +177,6 @@ def reload_cuda_backend(  # NOQA: D102
             n_rf: int,
             acceleration_kick: float,
         ) -> None:
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
-            assert phi_rf.device != "cpu"
-            assert voltage.device != "cpu"
-            assert omega_rf.device != "cpu"
-
             assert dt.dtype == floattype
             assert dE.dtype == floattype
             assert phi_rf.dtype == floattype
@@ -224,12 +214,8 @@ def reload_cuda_backend(  # NOQA: D102
             beta: float,
             energy: float,
         ) -> None:
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
-
             assert dt.dtype == floattype
             assert dE.dtype == floattype
-
             assert dt.flags.c_contiguous
             assert dE.flags.c_contiguous
 
@@ -266,8 +252,6 @@ def reload_cuda_backend(  # NOQA: D102
             energy: float,
         ) -> None:
             raise NotImplementedError()
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
 
         @staticmethod
         def drift_exact(
@@ -281,8 +265,6 @@ def reload_cuda_backend(  # NOQA: D102
             energy: float,
         ) -> None:
             raise NotImplementedError()
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
 
         @staticmethod
         def kick_induced_voltage(
@@ -293,11 +275,6 @@ def reload_cuda_backend(  # NOQA: D102
             charge: float,
             acceleration_kick: float,
         ) -> None:
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
-            assert voltage.device != "cpu"
-            assert bin_centers.device != "cpu"
-
             assert dt.dtype == floattype
             assert dE.dtype == floattype
             assert voltage.dtype == floattype
@@ -351,9 +328,6 @@ def reload_cuda_backend(  # NOQA: D102
             start: float,
             stop: float,
         ) -> None:
-            assert array_read.device != "cpu"
-            assert array_write.device != "cpu"
-
             assert array_read.dtype == floattype
             assert array_write.dtype == floattype
             assert array_read.flags.c_contiguous
@@ -405,9 +379,6 @@ def reload_cuda_backend(  # NOQA: D102
             phi_rf: float,
             bin_size: float,
         ) -> float:
-            assert hist_x.device != "cpu"
-            assert hist_y.device != "cpu"
-
             assert hist_x.dtype == floattype
             assert hist_y.dtype == floattype
             assert hist_x.flags.c_contiguous
