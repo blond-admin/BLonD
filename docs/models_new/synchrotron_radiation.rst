@@ -3,7 +3,7 @@
 Synchrotron Radiation
 =====================
 
-.. currentmodule:: blond.physics.synchrotron_radiation.synchrotron_radiation
+.. currentmodule:: blond.physics.synchrotron_radiation.synchrotron_radiation_master
 
 Overview
 --------
@@ -252,40 +252,6 @@ Then, ``_SynchrotronRadiationTracker`` elements are inserted:
    b. Calculates the energy kick (as described above), including radiation
    damping and quantum excitation,
    c. Updates the bean relative energy array accordingly.
-
----
-
-API Reference
--------------
-
-Master Class
-^^^^^^^^^^^^
-
-.. autoclass:: SynchrotronRadiationMaster
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Base Element Class
-^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: SynchrotronRadiationBaseClass
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Utility Functions
-^^^^^^^^^^^^^^^^^
-
-.. autofunction:: blond.acc_math.analytic.synchrotron_radiation.utilities.gather_longitudinal_synchrotron_radiation_parameters
-
-.. autofunction:: blond.acc_math.analytic.synchrotron_radiation.utilities.calculate_isomagnetic_radiation_integrals
-
-.. autofunction:: blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths.calculate_energy_loss_per_turn
-
-.. autofunction:: blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths.calculate_longitudinal_damping_time_in_turns
-
-.. autofunction:: blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths.calculate_natural_energy_spread
 
 ---
 

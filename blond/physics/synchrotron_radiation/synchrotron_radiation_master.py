@@ -9,6 +9,8 @@
 r"""
 Collection to include synchrotron radiation and quantum excitation effects.
 
+Notes
+-----
 Authors:
 L. Valle
 """
@@ -393,14 +395,14 @@ class SynchrotronRadiationMaster(Schedulable):
         """
         Function to create and insert the SR trackers in the ring.
 
-        This function inserts SynchrotronRadiationBaseClass elements in the
+        This function inserts `SynchrotronRadiationBaseClass` elements in the
         ring either:
-            - before the drifts if track_before_element_type is None or
-            DriftBaseClass. In that case, _SynchrotronRadiationDrift
-            trackers will be inserted in the ring before each drift.
-            - after the RF cavities if track_before_element_type is
-            RFStationBaseClass. In that case, _SynchrotronRadiationSection
-            trackers will be inserted in the ring.
+        - before the drifts if track_before_element_type is ``None``
+          or `DriftBaseClass`. In that case, `_SynchrotronRadiationDrift`
+         trackers will be inserted in the ring before each drift.
+        - after the RF cavities if track_before_element_type is `RFStationBaseClass`.
+          In that case, `_SynchrotronRadiationSection` trackers will be
+          inserted in the ring.
 
         Parameters
         ----------
@@ -459,7 +461,7 @@ class SynchrotronRadiationMaster(Schedulable):
         ring
             `Ring` context manager.
         element_list
-            DriftBaseClass of RFStationBaseClass element list.
+            `DriftBaseClass` of `RFStationBaseClass` element list.
         shares_of_synchrotron_radiation_integrals
             Share of synchrotron radiation integrals.
         after_element

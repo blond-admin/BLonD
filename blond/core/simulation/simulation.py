@@ -206,9 +206,9 @@ class Simulation(Preparable):
             Turn number at which to begin profiling.
         sortby
             How to sort the profiling results. Options include:
-                - SortKey.CUMULATIVE: Sort by cumulative time (default, most useful)
-                - SortKey.TIME: Sort by internal time
-                - SortKey.CALLS: Sort by call count
+            - SortKey.CUMULATIVE: Sort by cumulative time (default, most useful)
+            - SortKey.TIME: Sort by internal time
+            - SortKey.CALLS: Sort by call count
 
         See Also
         --------
@@ -315,10 +315,10 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - This method creates the plot but does not call ``plt.show()``. You must
-          call that separately to display the plot.
-        - With multiple RF stations and drifts, the potential may show distortions
-          due to phase advances between stations.
+        - This method creates the plot but does not call ``plt.show()``.
+          You must call that separately to display the plot.
+        - With multiple RF stations and drifts, the potential may show
+          distortions due to phase advances between stations.
 
         Examples
         --------
@@ -398,8 +398,8 @@ class Simulation(Preparable):
         causing them to arrive at different times.
 
         This is the complementary measurement to ``get_potential_well_empiric()``:
-            - ``get_potential_well_empiric``: starts with time offsets, measures energy changes
-            - ``get_drift_term_empiric``: starts with energy offsets, measures time changes
+        - ``get_potential_well_empiric``: starts with time offsets, measures energy changes
+        - ``get_drift_term_empiric``: starts with energy offsets, measures time changes
 
         Parameters
         ----------
@@ -424,9 +424,8 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - Higher energy particles typically travel a longer path
-          (above transition) or shorter path (below transition), causing
-          time shifts.
+        - Higher energy particles typically travel a longer path (above transition)
+          or shorter path (below transition), causing time shifts.
         - This is related to the slip factor (eta).
         - The method creates a temporary probe beam and tracks it for one turn.
 
@@ -486,10 +485,10 @@ class Simulation(Preparable):
         measuring their energy changes.
 
         This is useful for:
-            - Visualizing stable and unstable regions for particles
-            - Understanding bucket shapes and separatrices
-            - Verifying RF configurations
-            - Analyzing beam matching
+        - Visualizing stable and unstable regions for particles
+        - Understanding bucket shapes and separatrices
+        - Verifying RF configurations
+        - Analyzing beam matching
 
         The method accounts for realistic effects like phase advances between multiple
         RF stations and drift sections.
@@ -744,10 +743,10 @@ class Simulation(Preparable):
         manually pass each component to the ``Simulation`` constructor.
 
         The method searches for:
-            - Exactly one ``Ring`` object (required)
-            - Exactly one ``MagneticCycleBase`` object (required)
-            - All``SimulationElementBase`` objects like RF stations, drifts, etc.
-            - Any number of ``Beam`` objects
+        - Exactly one ``Ring`` object (required)
+        - Exactly one ``MagneticCycleBase`` object (required)
+        - All``SimulationElementBase`` objects like RF stations, drifts, etc.
+        - Any number of ``Beam`` objects
 
         All found elements are automatically added to the ring in the correct execution order.
 
@@ -778,11 +777,11 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - The execution order of elements within the ring is automatically determined based
-          on their dependencies and types.
+        - The execution order of elements within the ring is automatically
+          determined based on their dependencies and types.
         - All RF stations and drifts must be defined before calling this method.
-        - The beam does not need to be prepared yet - use ``sim.prepare_beam()`` after
-          creating the simulation.
+        - The beam does not need to be prepared yet - use ``sim.prepare_beam()``
+          after creating the simulation.
 
         Examples
         --------
@@ -892,9 +891,9 @@ class Simulation(Preparable):
         understanding the simulation flow.
 
         The output includes:
-            - Element type (e.g., SingleHarmonicRFStation, DriftSimple)
-            - Element name or identifier
-            - Section index for each element
+        - Element type (e.g., SingleHarmonicRFStation, DriftSimple)
+        - Element name or identifier
+        - Section index for each element
 
         See Also
         --------
@@ -929,10 +928,10 @@ class Simulation(Preparable):
         distribution of particles.
 
         Common preparation routines include:
-            - ``BiGaussian``: Simple Gaussian distribution in time and energy
-            - ``EmpiricMatcher``: Grid-based distribution matching
-            - ``SemiEmpiricMatcher``: Hamiltonian-based matched distribution
-            - ``XsuiteRFBucketMatcher``: Interface to XSuite's RF bucket matching
+        - ``BiGaussian``: Simple Gaussian distribution in time and energy
+        - ``EmpiricMatcher``: Grid-based distribution matching
+        - ``SemiEmpiricMatcher``: Hamiltonian-based matched distribution
+        - ``XsuiteRFBucketMatcher``: Interface to XSuite's RF bucket matching
 
         Parameters
         ----------
@@ -956,12 +955,12 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - This method should be called after creating the ``Simulation`` but
-          before ``run_simulation()``.
-        - The beam preparation uses the current simulation state (RF programs, energy,
-          etc.) to calculate the appropriate phase space distribution.
-        - Different preparation routines produce different beam characteristics and may
-          be more or less matched to the RF bucket.
+        - This method should be called after creating the ``Simulation``
+          but before ``run_simulation()``.
+        - The beam preparation uses the current simulation state (RF programs, energy, etc.)
+          to calculate the appropriate phase space distribution.
+        - Different preparation routines produce different beam characteristics
+          and may be more or less matched to the RF bucket.
 
         Examples
         --------
@@ -1133,8 +1132,8 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - The beam must be prepared with ``prepare_beam()`` or
-        ``beam.setup_beam()`` before calling this method.
+        - The beam must be prepared with ``prepare_beam()`` or ``beam.setup_beam()``
+          before calling this method.
         - Observables are updated after each drift section, not after every element.
         - The progress bar shows turns per second, which helps estimate total runtime.
         - For counter-rotating beams, elements are traversed in opposite order for
@@ -1395,8 +1394,8 @@ class Simulation(Preparable):
 
         After running a simulation, this method saves the data collected by observables
         (like RF phase evolution, beam profiles, etc.) to disk. This is useful for:
-            - Analyzing results later without re-running the simulation
-            - Sharing results with others
+        - Analyzing results later without re-running the simulation
+        - Sharing results with others
 
         Each observable is saved according to its own format (typically NumPy arrays).
 
@@ -1418,8 +1417,7 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - Saved files are typically stored in the current working directory or a
-          subdirectory defined by the observable.
+        - Saved files are typically stored in the current working directory or a subdirectory defined by the observable.
         - Use ``load_results()`` to load saved data without re-running the simulation.
 
         Examples
@@ -1505,10 +1503,9 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - The observables must be created with the same parameters as when the data
-          was saved.
-        - The simulation setup (ring, RF stations, etc.) should match the original
-          simulation, though only the observables are populated with data.
+        - The observables must be created with the same parameters as when the data was saved.
+        - The simulation setup (ring, RF stations, etc.) should match the original simulation,
+          though only the observables are populated with data.
         - This method calls ``finalize()`` internally to set up the simulation state.
 
         Examples
