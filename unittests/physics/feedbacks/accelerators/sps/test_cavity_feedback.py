@@ -823,7 +823,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.OTFB.update_fb_variables()
 
         self.turn_array = np.linspace(
-            0, 2 * self.rfstation._t_rev, 2 * self.OTFB.n_coarse
+            0,
+            2 * self.rfstation.get_main_harmonic_t_rf(),
+            int(2 * self.OTFB.n_coarse),
         )
 
     @pytest.mark.backend_mutation
@@ -858,10 +860,16 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
     def test_comb(self):
         sig = np.zeros(self.OTFB.n_coarse)
         self.OTFB.DV_COMB_OUT = np.sin(
-            2 * np.pi * self.turn_array / self.rfstation._t_rev
+            2
+            * np.pi
+            * self.turn_array
+            / self.rfstation.get_main_harmonic_t_rf()
         )
         self.OTFB.DV_GEN = -np.sin(
-            2 * np.pi * self.turn_array / self.rfstation._t_rev
+            2
+            * np.pi
+            * self.turn_array
+            / self.rfstation.get_main_harmonic_t_rf()
         )
         self.OTFB.a_comb = 0.5
 
@@ -1161,7 +1169,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
 
         self.profile = StaticProfile(
             cut_left=0.0e-9,
-            cut_right=self.rf._t_rev,
+            cut_right=self.rf.get_main_harmonic_t_rf(),
             n_bins=4620,
         )
         self.profile.track(self.beam)

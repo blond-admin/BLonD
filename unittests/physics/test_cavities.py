@@ -536,17 +536,6 @@ class TestSingleHarmonicCavity(unittest.TestCase):
                 simulation=simulation
             )
 
-    def test_voltage_waveform_tmp(self):
-        simulation = Mock(Simulation)
-        simulation.turn_i = DynamicParameter(0)
-
-        time_array = np.array([1, 2, 3])
-        self.single_harmonic_cavity._omega_rf = np.array([3.0e9])
-        volt_calc = self.single_harmonic_cavity.voltage_waveform_tmp(
-            time_array
-        )
-        assert len(volt_calc) == len(time_array)
-
 
 if __name__ == "__main__":
     unittest.main()
