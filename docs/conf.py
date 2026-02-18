@@ -116,7 +116,6 @@ exclude_patterns = [
     "Thumbs.db",
     ".DS_Store",
     "*/blond.core.backends.cpp.compiled.*",
-    "*/blond.core.backends.fortran.compiled.*",
     "*/blond.core.backends.cuda.compiled.*",
     "*/blond.legacy.*",
     "*/blond.performance_blond3.*",
@@ -124,7 +123,6 @@ exclude_patterns = [
     "*/blond.examples.*",
     "*/blond._versio*",
     "*/blond.core.backends.cuda.call*",
-    "*/blond.core.backends.fortran.call*",
     "*/blond.core.backends.cpp.call*",
     "*/blond.core.backends.cpp.lib*",
     "*/blond.generals._files*",
@@ -134,7 +132,7 @@ exclude_patterns = [
     "*/blond.interfaces.xsuite.*",
     "*/blond.specifics.cern.*",  # empty at the moment
 ]
-# callables are only importable with cupy/fortran compiled
+# callables are only importable with cupy compiled
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
