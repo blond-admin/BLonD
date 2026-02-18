@@ -65,12 +65,45 @@ workflow:
       --cov-append
       --cov
       --cov-config=.coveragerc
-      --cov-report html:coverage-html
-      --cov-report xml:coverage.xml
-      --junitxml=junit-report.xml
+  artifacts:
+    paths:
+      - .coverage              # Store the .coverage file for later use in publishing the coverage
+    expire_in: 1 week           # Optional: define how long you want the artifacts to persist
+
+.main_no_cupy:
+  variables:
+    BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
+    BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
+    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
+  script:
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    - pip list
+    - cd ${project_root}
+    - pip uninstall -y cupy-cuda12x
+    - python3 -m pytest
+      -v unittests/
+      --import-mode=importlib
+      --cov-append
+      --cov
+      --cov-config=.coveragerc
+  artifacts:
+    paths:
+      - .coverage              # Store the .coverage file for later use in publishing the coverage
+    expire_in: 1 week           # Optional: define how long you want the artifacts to persist
+
+
+.publish_coverage:
+  dependencies:
+    - .main  # Ensures that artifacts from .main (like .coverage) are available here
+  script:
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    - cd ${project_root}
+    - python -m coverage html --rcfile=.coveragerc -d coverage-html # requires .coverage
+    - python -m coverage xml --rcfile=.coveragerc -o coverage.xml # requires .coverage
     - COV=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
     - echo "XML_COVERAGE=$COV"
   coverage: '/XML_COVERAGE=(\d+\.\d+)/'
+
 
 .publish:
   artifacts:
@@ -80,17 +113,11 @@ workflow:
       coverage_report:
         coverage_format: cobertura
         path: ${project_root}coverage.xml
-      # Enables https://docs.gitlab.com/ee/ci/unit_test_reports.html
-      junit: ${project_root}junit-report.xml
     paths:
       - ${project_root}coverage-html/*
       - ${project_root}coverage.xml
-      - ${project_root}junit-report.xml
-    # reports:
-    #   junit: ${project_root}/coverage-report.xml
 
 precommit-check:
-
   image: python:3.12 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
   stage: precommit
   interruptible: true
@@ -110,10 +137,13 @@ test_py_310:
   extends:
     - .before
     - .main
-#    - .after
+    - .main_no_cupy
+    - .publish_coverage
     - .publish
   tags:
     - k8s-gpu
+
+
 
 test_py_311:
   image: gitlab-registry.cern.ch/blond/blond/python311
