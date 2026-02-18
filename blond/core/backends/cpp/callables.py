@@ -129,7 +129,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             raise TypeError(floattype)
     except (OSError, FileNotFoundError) as exc:
         raise OSError(
-            "`load_libblond` failed. Has the backend been compiled?"
+            "`load_libblond` failed. Has the backend been compiled?\n"
+            f"{__file__.replace('callables.py', 'compile.py')}:1"
         ) from exc
 
     def _getPointer(x: NumpyArray) -> ct.c_void_p:
@@ -408,6 +409,123 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
             n_new = int(n_new)
             return n_new
+
+        @staticmethod
+        def sparse_histogram_strided(
+            x: NumpyArray,
+            out: NumpyArray,
+            first_left_cut: float,
+            left_cut_distance: float,
+            cut_width: float,
+            bins_per_profile: int,
+            n_profiles: int,
+            filling_pattern: NumpyArray,
+            bucket_index_to_memory_index: NumpyArray,
+        ) -> None:
+            """
+            Sparse histogram with strided memory layout (gaps between profiles).
+
+            Parameters
+            ----------
+            x
+                An array, e.g., the particle dt values.
+            out
+                Output histogram (n_filled_buckets * stride).
+            first_left_cut
+                Start of the first histogram.
+            left_cut_distance
+                Distance between the start of each histogram.
+            cut_width
+                Distance between left and right edge of the histogram.
+            bins_per_profile
+                Number of bins per bucket.
+            n_profiles
+                Number of non-empty buckets.
+            filling_pattern
+                Filling pattern as a boolean array
+                where ``True`` means filled bucket.
+            bucket_index_to_memory_index
+                Maps bucket index to memory index.
+                For a ``filling_pattern = [1, 0, 0, 1]``
+                ``bucket_index_to_memory_index = [8, 8, 8, 16]`` with
+                ``bins_per_profile = 8``.
+            """
+            assert x.dtype == floattype
+            assert out.dtype == floattype
+            assert filling_pattern.dtype == np.bool
+            assert bucket_index_to_memory_index.dtype == np.int32
+
+            assert x.flags.c_contiguous
+            assert out.flags.c_contiguous
+            assert filling_pattern.flags.c_contiguous
+            assert bucket_index_to_memory_index.flags.c_contiguous
+
+            _LIBBLOND.sparse_histogram_strided(
+                _getPointer(x),
+                _getPointer(out),
+                c_real(first_left_cut, floattype),
+                c_real(left_cut_distance, floattype),
+                c_real(cut_width, floattype),
+                ct.c_int(bins_per_profile),
+                ct.c_int(n_profiles),
+                ct.c_int(len(filling_pattern)),
+                ct.c_int(len(x)),  # n_macroparticles
+                _getPointer(filling_pattern),
+                _getPointer(bucket_index_to_memory_index),
+            )
+
+        @staticmethod
+        def apply_poles2(
+            # read
+            profile,
+            profile_dts,
+            poles,
+            residues,
+            # write
+            states,
+            voltage,
+            voltage_threaded,
+            update_on_bin,
+            factor,
+        ) -> None:
+            complextype = (
+                np.complex64 if floattype == np.float32 else np.complex128
+            )
+
+            assert profile.dtype == floattype
+            assert profile_dts.dtype == floattype
+            assert poles.dtype == complextype
+            assert residues.dtype == complextype
+            assert states.dtype == complextype
+            assert voltage.dtype == floattype
+            assert voltage_threaded.dtype == floattype
+            assert update_on_bin.dtype == np.int32
+
+            assert profile.flags.c_contiguous
+            assert profile_dts.flags.c_contiguous
+            assert poles.flags.c_contiguous
+            assert residues.flags.c_contiguous
+            assert states.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert voltage_threaded.flags.c_contiguous
+            assert update_on_bin.flags.c_contiguous
+
+            _LIBBLOND.apply_poles(
+                _getPointer(profile),
+                _getPointer(profile_dts),
+                _getPointer(poles),
+                _getPointer(residues),
+                _getPointer(states),
+                _getPointer(voltage),
+                _getPointer(voltage_threaded),
+                _getPointer(update_on_bin),
+                c_real(factor, floattype),
+                ct.c_int(len(profile)),  # n_bins
+                ct.c_int(len(poles)),  # n_poles
+                ct.c_int(voltage_threaded.shape[0]),  # n_threads
+                ct.c_int(len(update_on_bin)),  # n_updates
+                ct.c_int(len(profile_dts)),  # n_profile_dts
+            )
 
     return CppSpecials
 
