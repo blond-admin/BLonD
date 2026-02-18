@@ -96,7 +96,7 @@ def mpi_aware_random_generator_cpu(
     ...
     >>> n_macroparticles = 10
     >>> local_size = mpi_local_size(
-    ...     int_from_float_with_warning(n_macroparticles, warning_stacklevel=2),
+    ...     int_from_float_with_warning(n_macroparticles, warning_stacklevel=1),
     ...     warning_hint="n_macroparticles",
     ... )
     >>> random_array = mpi_aware_random_generator_cpu(
