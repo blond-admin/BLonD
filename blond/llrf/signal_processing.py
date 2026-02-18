@@ -33,8 +33,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from .impulse_response import TravellingWaveCavity
     from ..beam.profile import Profile
+    from .impulse_response import TravellingWaveCavity
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +269,9 @@ def rf_beam_current(
             )
 
         # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.round((profile.bin_centers + dT - np.pi / omega_c) / T_s)
+        ind_fine = np.round(
+            (profile.bin_centers - dT - np.pi / omega_c) / T_s
+        )  # TODO: is this wrong?
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
@@ -279,7 +281,7 @@ def rf_beam_current(
             charges_fine[np.arange(indices[0])]
         )
         for i in range(1, len(indices)):
-            charges_coarse[i + ind_fine[0]] = np.sum(
+            charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
                 charges_fine[np.arange(indices[i - 1], indices[i])]
             )
 
@@ -446,7 +448,9 @@ def fir_filter(coeff: NumpyArray, signal: NumpyArray):
     """
 
     n_taps = len(coeff)
-    filtered_signal = np.zeros(len(signal) - n_taps)
+    filtered_signal = np.zeros(
+        len(signal) - n_taps, dtype=complex
+    )  # TODO: why should this be complex?
     for i in range(n_taps, len(signal)):
         for k in range(n_taps):
             filtered_signal[i - n_taps] += coeff[k] * signal[i - k]
