@@ -1261,7 +1261,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                 backend.specials.kick_induced_voltage(
                     dt=beam.read_partial_dt(),
                     dE=beam.write_partial_dE(),
-                    voltage=gap_voltage,
+                    voltage=gap_voltage.astype(backend.float),
                     bin_centers=self._cavity_feedback[0].profile.hist_x,
                     charge=beam.particle_type.charge,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
