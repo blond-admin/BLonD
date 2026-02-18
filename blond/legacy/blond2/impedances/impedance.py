@@ -25,7 +25,7 @@ from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Callable, Dict, Literal, Optional
 
     from cupy.typing import NDArray as CupyArray
@@ -40,9 +40,6 @@ if TYPE_CHECKING:
     from .impedance_sources import Resonators, _ImpedanceObject
 
     MtwModeTypes = Literal["freq", "time"]
-
-if TYPE_CHECKING:
-    from typing import Literal
 
 
 class TotalInducedVoltage:

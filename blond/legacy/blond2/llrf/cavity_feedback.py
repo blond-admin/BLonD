@@ -40,13 +40,6 @@ from .impulse_response import (  # noqa
     cavity_response_sparse_matrix,
 )
 from .longitudinal_damper import LHCLongitudinalDamper  # file missing
-
-# Import SPS3Section and feedforward_filter for eval(..) below
-# noqa statement is used to block autoformatter from
-# removing seemingly unused import statements
-# Import SPS3Section and feedforward_filter for eval(..) below
-# noqa statement is used to block autoformatter from
-# removing seemingly unused import statements
 from .signal_processing import (  # noqa
     cartesian_to_polar,
     comb_filter,
@@ -62,7 +55,7 @@ from .signal_processing import (  # noqa
     smooth_step,
 )
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Optional
 
     from numpy.typing import NDArray as NumpyArray
@@ -591,9 +584,6 @@ class SPSOneTurnFeedback(CavityFeedback):
 
         # 200 MHz travelling wave cavity (TWC) model
         if n_sections in [3, 4, 5]:
-            self.TWC = eval(
-                "SPS" + str(n_sections) + "Section200MHzTWC(" + str(df) + ")"
-            )
             if n_sections == 3:
                 self.TWC = SPS3Section200MHzTWC(df)
             elif n_sections == 4:
@@ -1733,6 +1723,7 @@ class LHCCavityLoop(CavityFeedback):
         Generator response
 
         Attributes
+        ----------
         I_TEST : complex array
             Test point for open loop measurements (when injecting a generator
             offset)
