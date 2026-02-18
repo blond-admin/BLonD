@@ -489,7 +489,7 @@ class Beam(BeamBaseClass):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
         is_counter_rotating: bool = False,
-    ):
+    ) -> Beam:
         """
         Generate a beam with gaussian macro-particle positions.
 
@@ -535,6 +535,19 @@ class Beam(BeamBaseClass):
         -------
         beam
             A beam that is ready to be used in a simulation.
+
+        Examples
+        --------
+        >>> from blond import Beam, proton
+        >>> beam = Beam.simple_gaussian(
+        ...     n_macroparticles=10_000,
+        ...     intensity=1e10,
+        ...     particle_type=proton,
+        ...     dt_scale=1e-9,
+        ...     dE_scale=1e9,
+        ...     dE_offset=0.5e9,
+        ...     dt_offset=0.5e-9,
+        ... )
         """
         local_size = mpi_local_size(
             int_from_float_with_warning(
@@ -568,6 +581,7 @@ class Beam(BeamBaseClass):
             reference_time=reference_time,
             reference_total_energy=reference_total_energy,
         )
+        return beam
 
 
 class ProbeBeam(Beam):
