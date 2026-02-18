@@ -11,9 +11,13 @@ from blond import (
     StaticProfile,
     proton,
 )
+from blond.acc_math.analytic.hamilton import (
+    calc_synchrotron_tune_single_harmonic,
+)
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import ParticleType
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSOneTurnFeedback,
@@ -434,6 +438,114 @@ class TestRFStationBaseClass(unittest.TestCase):
         with self.assertRaises(AttributeError):
             shc.track(beam=self.beam)
             assert wf.track.assert_called_once()
+
+    def test_tune_main_harmonic(self):
+        mhc = MultiHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            voltage=np.array([2 * np.pi * 1e6, 6e6]),
+            harmonic=np.array([1, 2]),
+            n_harmonics=2,
+            main_harmonic_idx=0,
+            phi_rf=np.array([0, 2]),
+        )
+        mhc._ring = Mock(spec=Ring)
+        mhc._ring.calc_average_eta_0.return_value = 1
+
+        def phi_s(beam):
+            return np.pi / 2
+
+        mhc.calc_phi_s_main_harmonic = phi_s
+
+        beam = Mock(spec=BeamBaseClass)
+        beam.particle_type = Mock(spec=ParticleType)
+        beam.particle_type.charge = 2
+        beam.reference = Mock(spec=ReferenceCoordinates)
+        beam.reference.beta = 1
+        beam.reference.total_energy = 1e6
+        self.assertAlmostEqual(
+            mhc.calc_synchrotron_tune_main_harmonic(beam),
+            calc_synchrotron_tune_single_harmonic(
+                charge=2,
+                voltage=2 * np.pi * 1e6,
+                beta=1,
+                energy=1e6,
+                phi_s=np.pi / 2,
+                harmonic=1,
+                eta_0=1,
+            ),
+        )
+
+        mhc = MultiHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            voltage=np.array([2 * np.pi * 1e6, 6e6]),
+            harmonic=np.array([1, 2]),
+            n_harmonics=2,
+            main_harmonic_idx=0,
+            phi_rf=np.array([0, 2]),
+        )
+        mhc._ring = Mock(spec=Ring)
+        mhc._ring.calc_average_eta_0.return_value = 1
+
+        def phi_s(beam):
+            return 0
+
+        mhc.calc_phi_s_main_harmonic = phi_s
+        self.assertEqual(
+            mhc.calc_synchrotron_tune_main_harmonic(beam), np.sqrt(2)
+        )
+
+        mhc = MultiHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            voltage=np.array([6e6, 9e6]),
+            harmonic=np.array([35640, 2]),
+            n_harmonics=2,
+            main_harmonic_idx=0,
+            phi_rf=np.array([0, 2]),
+        )
+        alpha = 1 / 55.759505**2
+        gamma = 450e9 / proton.mass
+        eta = alpha - (1 / (gamma**2))
+        mhc._ring = Mock(spec=Ring)
+        mhc._ring.calc_average_eta_0.return_value = eta
+
+        def phi_s(beam):
+            return 0
+
+        mhc.calc_phi_s_main_harmonic = phi_s
+
+        beam = Mock(spec=BeamBaseClass)
+        beam.particle_type = Mock(spec=ParticleType)
+        beam.particle_type.charge = 1
+        beam.reference = Mock(spec=ReferenceCoordinates)
+        beam.reference.beta = 1
+        beam.reference.total_energy = 450e9
+        self.assertAlmostEqual(
+            mhc.calc_synchrotron_tune_main_harmonic(beam), 0.00489862554460765
+        )
+
+        assert calc_synchrotron_tune_single_harmonic(
+            2, 2 * np.pi * 1e6, 1, 1e6, 0, 1, 1
+        ) == np.sqrt(2)
+        self.assertAlmostEqual(
+            calc_synchrotron_tune_single_harmonic(
+                2, 2 * np.pi * 1e6, 1, 1e6, np.pi / 2, 1, 1
+            ),
+            0,
+        )
+
+        # LHC flat bottom
+        alpha = 1 / 55.759505**2
+        gamma = 450e9 / proton.mass
+        eta = alpha - (1 / (gamma**2))
+        assert (
+            calc_synchrotron_tune_single_harmonic(
+                1, 6e6, 1, 450e9, 0, 35640, eta
+            )
+            == 0.00489862554460765
+        )
 
 
 class TestCallables(unittest.TestCase):
