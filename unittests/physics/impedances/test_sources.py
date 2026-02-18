@@ -726,6 +726,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         frequency_R = [1, 2, 3]
         a_factor = [1, 2, 3]
         self.twc = TravelingWaveCavity(R_S, frequency_R, a_factor)
+        self.twc_floats = TravelingWaveCavity(3.0, 3.0, 3.0)
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -764,6 +765,39 @@ class TestTravelingWaveCavity(unittest.TestCase):
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
+        wake_impedance_float = self.twc_floats.get_wake_impedance(
+            time=backend.linspace(1, 1e-9),
+            simulation=Mock(Simulation),
+            beam=Mock(BeamBaseClass),
+            n_fft=None,
+        )
+
+        # pinned to an arbitrary value, physics is not checked or guaranteed
+        # to work
+        if SAVE_PINNED:
+            np.savetxt(
+                callers_relative_path(
+                    "resources/wake_impedance_float.csv", stacklevel=1
+                ),
+                np.column_stack(
+                    (wake_impedance_float.real, wake_impedance_float.imag)
+                ),
+            )
+        wake_impedance_pinned_float = np.loadtxt(
+            callers_relative_path(
+                "resources/wake_impedance_float.csv", stacklevel=1
+            )
+        )
+        wake_impedance_pinned_float = (
+            wake_impedance_pinned_float[:, 0]
+            + 1j * wake_impedance_pinned_float[:, 1]
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(wake_impedance_float),
+            wake_impedance_pinned_float,
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+        )
+
     @pytest.mark.backend_mutation
     def test_get_impedance(self):
         if isinstance(backend, Numpy32Bit):
@@ -790,6 +824,34 @@ class TestTravelingWaveCavity(unittest.TestCase):
         np.testing.assert_allclose(
             copy_to_cpu(impedance),
             impedance_pinned,
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+        )
+
+        impedance_float = self.twc_floats.get_impedance(
+            freq_x=backend.linspace(0, 10),
+            simulation=Mock(Simulation),
+            beam=Mock(BeamBaseClass),
+        )
+        # pinned to an arbitrary value, physics is not checked or guaranteed
+        # to work
+        if SAVE_PINNED:
+            np.savetxt(
+                callers_relative_path(
+                    "resources/impedance_float.csv", stacklevel=1
+                ),
+                np.column_stack((impedance_float.real, impedance_float.imag)),
+            )
+        impedance_pinned_float = np.loadtxt(
+            callers_relative_path(
+                "resources/impedance_float.csv", stacklevel=1
+            )
+        )
+        impedance_pinned_float = (
+            impedance_pinned_float[:, 0] + 1j * impedance_pinned_float[:, 1]
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(impedance_float),
+            impedance_pinned_float,
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
