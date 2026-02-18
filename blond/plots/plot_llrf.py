@@ -23,7 +23,7 @@ from pylab import cm
 
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
 
     from numpy.typing import NDArray as NumpyArray
