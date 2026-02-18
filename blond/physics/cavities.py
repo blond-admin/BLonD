@@ -134,6 +134,21 @@ class RFStationBaseClass(
         User given name of the element.
     **kwargs
         Additional keyword arguments for MRO of fused elements.
+
+    Attributes
+    ----------
+    omega_rf_design
+        # TODO
+    delta_omega_rf
+        # TODO
+    phi_rf_design
+        # TODO
+    delta_phi_rf
+        # TODO
+    voltage
+        # TODO
+    harmonic
+        # TODO
     """
 
     skip_find_instances_attributes = ["omega_rf_design"]
@@ -176,16 +191,16 @@ class RFStationBaseClass(
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
 
-        # TODO MOVE
         self.omega_rf_design: NumpyArray | float | None = None
         self.delta_omega_rf: NumpyArray | float = 0.0
+
         self.phi_rf_design: NumpyArray | float | None = None
         self.delta_phi_rf: NumpyArray | float = 0.0
+
         self._dphi_rf_next: NumpyArray | float = 0.0
 
         self.voltage: NumpyArray | float | None = None
         self.harmonic: NumpyArray | float | None = None
-        self.omega_s0: NumpyArray | float | None = None
 
     @property
     def omega_rf(self) -> NumpyArray | float:
