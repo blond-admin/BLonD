@@ -23,9 +23,9 @@ from packaging.version import Version
 from scipy.constants import c
 
 from ..beam.beam import Particle, Proton
-from .rf_parameters_options import RFStationOptions
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
+from .rf_parameters_options import RFStationOptions
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -33,12 +33,13 @@ else:
     from scipy.integrate import cumtrapz
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Literal, Optional, Iterable
+    from typing import Iterable, Literal, Optional
 
     from numpy.typing import NDArray
 
-    from .ring import Ring
+    from ..beam.beam import Beam, Particle, Proton
     from ..utils.types import DeviceType
+    from .ring import Ring
 
 
 class RFStation:
@@ -271,7 +272,7 @@ class RFStation:
         )
         self.t_rev = ring.t_rev
         self.momentum = ring.momentum[self.section_index]
-        self.beta = ring.beta[self.section_index]
+        self.beta = ring.beta[self.section_index, :]
         self.gamma = ring.gamma[self.section_index]
         self.energy = ring.energy[self.section_index]
         self.delta_E = ring.delta_E[self.section_index]
@@ -396,8 +397,8 @@ class RFStation:
                 if len(system) == 0:
                     raise ValueError("No matching harmonic in phi_modulation")
                 elif len(system) > 1:
-                    raise RuntimeError("""Phase modulation not yet 
-                                       implemented with multiple systems 
+                    raise RuntimeError("""Phase modulation not yet
+                                       implemented with multiple systems
                                        at the same harmonic.""")
                 else:
                     system = system[0]
@@ -493,6 +494,28 @@ class RFStation:
                 eta_i = getattr(self, "eta_" + str(i))[counter]
                 eta += eta_i * (delta**i)
             return eta
+
+    def bucket_center(self, bucket_number, n_h=0):
+        """
+        Computes the center of a given RF bucket in time relative to the start of the turn.
+        """
+        # The edge of the bucket in time
+        dt_bucket = (
+            2 * np.pi * bucket_number / self.omega_rf[n_h, self.counter[0]]
+        )
+
+        # If the beam control is acting in the simulation
+        if self.eta_0[self.counter[0]] > 0:
+            dt_bucket -= (
+                self.phi_rf[n_h, self.counter[0]] - np.pi
+            ) / self.omega_rf[n_h, self.counter[0]]
+        else:
+            dt_bucket -= (
+                self.phi_rf[n_h, self.counter[0]]
+                / self.omega_rf[n_h, self.counter[0]]
+            )
+
+        return dt_bucket
 
     def compute_voltage_waveform(
         self,
