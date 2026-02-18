@@ -196,6 +196,62 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         np.testing.assert_allclose(mhc.calc_gap_voltage_with_feedbacks(), sol)
 
+    def test_attach_cavity_feedback(self):
+        cavity_feedback_good = Mock(spec=LocalFeedback)
+
+        mhc = MultiHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            voltage=np.array([6e6]),
+            harmonic=np.array([25000]),
+            n_harmonics=1,
+            main_harmonic_idx=0,
+            phi_rf=np.array([0]),
+        )
+        mhc.attach_cavity_feedback(cavity_feedback_good)
+
+        mhc = MultiHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            voltage=np.array([6e6, 6e6]),
+            harmonic=np.array([25000, 2]),
+            n_harmonics=2,
+            main_harmonic_idx=0,
+            phi_rf=np.array([0, 2]),
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "If a single feedback is provided, "
+            "the harmonic_index needs to be provided as well",
+        ):
+            mhc.attach_cavity_feedback(cavity_feedback_good)
+        mhc.attach_cavity_feedback(cavity_feedback_good, 0)
+        assert mhc.any_feedback_not_none
+        assert mhc.cavity_feedback_list[1] is None
+        mhc.attach_cavity_feedback(cavity_feedback_good, 1)
+        assert mhc.any_feedback_not_none
+
+        # TODO: reset
+        mhc = MultiHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            voltage=np.array([6e6, 6e6]),
+            harmonic=np.array([25000, 2]),
+            n_harmonics=2,
+            main_harmonic_idx=0,
+            phi_rf=np.array([0, 2]),
+        )
+        with self.assertRaisesRegex(TypeError, "Invalid input type"):
+            mhc.attach_cavity_feedback(Mock("not_a_fdbk"))
+
+        with self.assertRaisesRegex(ValueError, "incorrect length"):
+            mhc.attach_cavity_feedback([cavity_feedback_good, None, None], 0)
+
+        with self.assertWarnsRegex(UserWarning, "will be ignored"):
+            mhc.attach_cavity_feedback([cavity_feedback_good, None], 0)
+        with self.assertWarnsRegex(UserWarning, "are being overridden"):
+            mhc.attach_cavity_feedback([cavity_feedback_good, None], 0)
+
     def test_single_cavity_feedback_allowed(self):
         self.track_called = False
 
