@@ -181,9 +181,9 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             macroparticlenumber=self.n_macroparticles
         )
 
-        omega = rf_station.calc_omega(
+        omega = rf_station.calc_omega_rf_design(
             beam_beta=beam.reference.beta,
-            ring_circumference=simulation.ring.circumference,
+            closed_orbit_length=simulation.ring.circumference,
         )
         # convert zeta to t coordinate
         T = (2 * np.pi) / omega

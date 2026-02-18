@@ -23,6 +23,9 @@ from blond import (
 )
 from blond.core.backends.backend import Numpy32Bit, NumpyBackend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.ring.beam_physics_relevant_elements import (
+    BeamPhysicsRelevantElements,
+)
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
@@ -45,9 +48,10 @@ class TestSimulation(unittest.TestCase):
         ring = Ring(circumference=26658.883)
 
         cavity1 = SingleHarmonicRFStation()
+
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
 
         N_TURNS = int(1e3)
         magnetic_cycle = MagneticCyclePerTurn(
@@ -69,6 +73,7 @@ class TestSimulation(unittest.TestCase):
             reference_total_energy=450e9,
         )
         self.simulation = Simulation.from_locals(locals())
+        self.simulation._beams = (beam1,)
         self.beam = beam1
 
     def test___init__(self):
@@ -407,9 +412,9 @@ class TestSimulation(unittest.TestCase):
             / cavity.harmonic,
             20000,
         )
-        phis = ts * cavity.calc_omega(
+        phis = ts * cavity.calc_omega_rf_design(
             beam_beta=self.beam.reference.beta,
-            ring_circumference=self.simulation.ring.circumference,
+            closed_orbit_length=self.simulation.ring.circumference,
         )
         potential_well, factor, tilt_dt_per_dE = (
             self.simulation.get_potential_well_empiric(
@@ -485,7 +490,7 @@ class TestSimulation(unittest.TestCase):
         cavity1 = SingleHarmonicRFStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
 
         N_TURNS = int((20 * 60) * 11e3)
         energies = np.linspace(450e9, 7e12, N_TURNS)
@@ -526,9 +531,9 @@ class TestSimulation(unittest.TestCase):
             / cavity.harmonic,
             20000,
         )
-        phis = ts * cavity.calc_omega(
+        phis = ts * cavity.calc_omega_rf_design(
             beam_beta=beam.reference.beta,
-            ring_circumference=simulation.ring.circumference,
+            closed_orbit_length=simulation.ring.circumference,
         )
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
@@ -537,7 +542,7 @@ class TestSimulation(unittest.TestCase):
         )
         DEV_PLOT = False
         simulation.turn_i.value = 0
-        phi_s = float(cavity.calc_phi_s_single_harmonic(beam=beam1))
+        phi_s = float(cavity.calc_phi_s_main_harmonic(beam=beam1))
 
         potential_well_analytic = (
             particle_type.charge
@@ -618,6 +623,15 @@ class TestSimulation(unittest.TestCase):
         beam_mock.common_array_size = int(1e32)
         special_mode_org = backend.specials_mode
         backend.set_specials(mode="python")
+        self.simulation.ring._elements = BeamPhysicsRelevantElements(
+            check_section_indices=False
+        )
+        self.simulation.ring._elements.add_element(
+            DriftSimple(
+                momentum_compaction_factor=1,
+                orbit_length=self.simulation.ring.circumference,
+            )
+        )
         with self.assertWarns(PerformanceWarning):
             self.simulation.finalize(
                 beams=(beam_mock,),

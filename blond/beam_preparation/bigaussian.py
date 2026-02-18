@@ -172,9 +172,9 @@ def get_main_harmonic_attributes(
     )
     # omega_rf should be all same
     omega_rf = [
-        rf.calc_main_harmonic_omega_rf(
+        rf.calc_main_harmonic_omega_rf_design(
             beam_beta=beam.reference.beta,
-            ring_circumference=simulation.ring.circumference,
+            closed_orbit_length=simulation.ring.circumference,
         )
         for rf in rf_stations
     ]
@@ -184,17 +184,8 @@ def get_main_harmonic_attributes(
     omega_rf = float(omega_rf[0])
 
     # phi_rf should be all same
-    try:
-        phi_rf = [
-            rf.get_main_harmonic_phi_rf()
-            + rf.delta_phi_rf[rf.main_harmonic_idx]
-            for rf in rf_stations
-        ]
-    except AttributeError:
-        phi_rf = [
-            rf.get_main_harmonic_phi_rf() + rf.delta_phi_rf
-            for rf in rf_stations
-        ]
+    phi_rf = [rf.get_main_harmonic_phi_rf() for rf in rf_stations]
+
     assert all_equal(phi_rf), (
         f"Expected all `phi_rf` to be the same, but got {phi_rf}."
     )

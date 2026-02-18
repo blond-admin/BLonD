@@ -37,11 +37,11 @@ class TestDriftIntegration(unittest.TestCase):
         cavity1 = SingleHarmonicRFStation(section_index=0)
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
         cavity2 = SingleHarmonicRFStation(section_index=1)
         cavity2.harmonic = 35640
         cavity2.voltage = 6e6
-        cavity2.phi_rf = 0
+        cavity2.phi_rf_design = 0
 
         N_TURNS = int(1e3)
         energy_cycle = MagneticCyclePerTurn(
@@ -82,7 +82,7 @@ class TestDriftIntegration(unittest.TestCase):
         cavity1 = SingleHarmonicRFStation(section_index=0)
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
 
         N_TURNS = int(1e3)
         energy_cycle = ConstantMagneticCycle(
