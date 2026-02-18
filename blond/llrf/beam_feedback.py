@@ -26,9 +26,9 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
-    from ..beam.profile import Profile
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring
+    from ..beam.profile import Profile
     from ..utils.types import DeviceType
     from .rf_noise import LHCNoiseFB
 

@@ -59,13 +59,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..beam.profile import Profile
     from ..input_parameters.rf_parameters import RFStation
+    from ..beam.profile import Profile
 
 
 class CavityFeedback:
-    r"""
-    Parent class for implementing cavity feedback models interfacing with BLonD
+    r"""Parent class for implementing cavity feedback models interfacing with BLonD
 
     Parameters
     ----------
@@ -319,8 +318,7 @@ class CavityFeedback:
 
 
 class SPSCavityLoopCommissioning:
-    r"""
-    Class containing commissioning settings for the cavity feedback
+    r"""Class containing commissioning settings for the cavity feedback
 
     Parameters
     ----------
@@ -484,8 +482,7 @@ class LHCCavityLoopCommissioning:
 
 
 class SPSOneTurnFeedback(CavityFeedback):
-    r"""
-    The SPS one-turn delay feedback and feedforward model in BLonD for a single cavity type.
+    r"""The SPS one-turn delay feedback and feedforward model in BLonD for a single cavity type.
 
     Parameters
     ----------

@@ -23,9 +23,9 @@ from packaging.version import Version
 from scipy.constants import c
 
 from ..beam.beam import Particle, Proton
+from .rf_parameters_options import RFStationOptions
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
-from .rf_parameters_options import RFStationOptions
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -33,11 +33,10 @@ else:
     from scipy.integrate import cumtrapz
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Iterable, Literal, Optional
+    from typing import Literal, Optional, Iterable
 
     from numpy.typing import NDArray
 
-    from ..beam.beam import Beam, Particle, Proton
     from ..utils.types import DeviceType
     from .ring import Ring
 

@@ -46,14 +46,15 @@ else:
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Literal
 
-    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
-    from ..beam.beam import Beam
-    from ..beam.profile import Profile
     from ..impedances.impedance import TotalInducedVoltage
-    from ..input_parameters.rf_parameters import RFStation
     from ..llrf.beam_feedback import BeamFeedback
+    from ..beam.profile import Profile
+    from ..beam.beam import Beam
+    from ..input_parameters.rf_parameters import RFStation
+
     from ..utils.types import DeviceType
 
     MainHarmonicOptionType = (
@@ -301,9 +302,7 @@ class RingAndRFTracker:
     periodicity : bool (optional)
         Option to switch periodic solver on/off; default is False (off)
     interpolation : bool (optional)
-        Option to use sliced and interpolated voltage for the kicker. This option is required for the usage of
-        induced voltages; default is False
-
+        Option to use sliced and interpolated voltage for the kicker; default is False.
     """
 
     @handle_legacy_kwargs
@@ -599,6 +598,7 @@ class RingAndRFTracker:
                         charge=self.beam.particle.charge,
                         acceleration_kick=self.acceleration_kick[turn],
                     )
+
                 else:
                     self.kick(self.beam.dt, self.beam.dE, turn)
                     if self.totalInducedVoltage is not None:

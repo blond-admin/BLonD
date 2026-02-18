@@ -33,8 +33,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..beam.profile import Profile
     from .impulse_response import TravellingWaveCavity
+    from ..beam.profile import Profile
 
 logger = logging.getLogger(__name__)
 
