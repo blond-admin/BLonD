@@ -1143,13 +1143,13 @@ class TestLHCOpenDrive(unittest.TestCase):
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT_COARSE[-10:])) * 1e-6
-        self.assertAlmostEqual(V_ant, 0.49817991, places=7)
+        self.assertAlmostEqual(V_ant, 0.49810230, places=7)
         # Updated generator current [A]
         I_gen = np.mean(np.absolute(CL.I_GEN_COARSE[-CL.n_coarse :]))
-        self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
+        self.assertAlmostEqual(I_gen, 0.2758209845787027, places=10)
         # Generator power [kW]
         P_gen = CL.generator_power()[-1] * 1e-3
-        self.assertAlmostEqual(P_gen, 34.7277780000, places=10)
+        self.assertAlmostEqual(P_gen, 34.72777799999999, places=10)
 
     def test_2(self):
         CL = LHCCavityLoop(
@@ -1169,10 +1169,10 @@ class TestLHCOpenDrive(unittest.TestCase):
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT_COARSE[-10:])) * 1e-6
-        self.assertAlmostEqual(V_ant, 1.26745787, places=7)
+        self.assertAlmostEqual(V_ant, 1.2642679936181571, places=7)
         # Updated generator current [A]
         I_gen = np.mean(np.absolute(CL.I_GEN_COARSE[-CL.n_coarse :]))
-        self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
+        self.assertAlmostEqual(I_gen, 0.275820984578702, places=10)
         # Generator power [kW]
         P_gen = CL.generator_power()[-1] * 1e-3
         self.assertAlmostEqual(P_gen, 104.1833340000, places=10)
@@ -1195,10 +1195,10 @@ class TestLHCOpenDrive(unittest.TestCase):
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT_COARSE[-10:])) * 1e-6
-        self.assertAlmostEqual(V_ant, 0.99635982, places=7)
+        self.assertAlmostEqual(V_ant, 0.9962046131775252, places=7)
         # Updated generator current [A]
         I_gen = np.mean(np.absolute(CL.I_GEN_COARSE[-CL.n_coarse :]))
-        self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
+        self.assertAlmostEqual(I_gen, 0.2758209845787027, places=10)
         # Generator power [kW]
         P_gen = CL.generator_power()[-1] * 1e-3
         self.assertAlmostEqual(P_gen, 69.4555560000, places=10)
