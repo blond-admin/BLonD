@@ -121,9 +121,9 @@ class BeamFeedbackBase(GlobalFeedback):
 
         # Correct for design stable phase
         counter = self.cavities[0]._turn_i.value
-        self.dphi = self.phi_beam - self.cavities[
-            0
-        ].calc_phi_s_single_harmonic(beam)
+        self.dphi = self.phi_beam - self.cavities[0].calc_phi_s_main_harmonic(
+            beam
+        )
 
         # Phase offset due to beam loading
         if self.cavities[0]._cavity_feedback is not None:

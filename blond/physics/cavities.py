@@ -160,17 +160,18 @@ class RFStationBaseClass(
         self._cavity_feedback: (
             LocalFeedback | tuple[LocalFeedback, ...] | None
         ) = None
+
         if cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
 
+        self._beam_feedback: BeamFeedbackBase | None = (
+            None  # set by  `attach_beam_feedback`
+        )
         if beam_feedback is not None:
-            if isinstance(beam_feedback, BeamFeedbackBase):
-                self.attach_beam_feedback(beam_feedback)
-            else:
-                raise ValueError(beam_feedback)
+            self.attach_beam_feedback(beam_feedback)
+
         self._n_rf = n_rf
         self._local_wakefield = local_wakefield
-        self._beam_feedback = beam_feedback
 
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
@@ -439,7 +440,10 @@ class RFStationBaseClass(
         beam_feedback
             Beam feedback to be attached to the RF station.
         """
-        self._beam_feedback = beam_feedback
+        if isinstance(beam_feedback, BeamFeedbackBase):
+            self._beam_feedback = beam_feedback
+        else:
+            raise TypeError(f"{type(beam_feedback)=}")
 
     def attach_cavity_feedback(
         self, cavity_feedback: LocalFeedback | tuple[LocalFeedback, ...]
@@ -453,27 +457,31 @@ class RFStationBaseClass(
             Cavity feedback to be attached to the RF station.
         """
         # TODO: This can also be list of cavity feedbacks and can also be called multiple times to keep adding CCFBs
-        if isinstance(
-            cavity_feedback, LocalFeedback
-        ):  # TODO: what if a wrong object is given?
+        if isinstance(cavity_feedback, LocalFeedback):
             cavity_feedback = (cavity_feedback,)
         # TODO: ensure length is same as harmonic array, otherwise this will break calc_gap_voltage --> throw warning and extend tuple
+        if not isinstance(cavity_feedback, tuple):
+            raise TypeError(
+                f"Expected tuple[LocalFeedback, ...],"
+                f" but got {cavity_feedback=},"
+                f" {type(cavity_feedback)=}"
+            )
         for feedback in cavity_feedback:
             if not isinstance(feedback, LocalFeedback):
-                raise ValueError(
-                    f"Given feedback is not a `LocalFeedback`, but {type(feedback)}."
-                )
+                raise TypeError(f"{type(feedback)=}.")
 
-            feedback.set_parent_rf_station(rf_station=self)
+            feedback.set_parent_rf_station(rf_station=self)  # type: ignore
 
         if self._cavity_feedback is not None:
-            raise Warning(
-                "Already present cavity feedbacks are being overridden."
+            warnings.warn(
+                "Already present cavity feedbacks are being overridden.",
+                UserWarning,
+                stacklevel=1,
             )
 
         self._cavity_feedback = cavity_feedback
 
-    def calc_synchrotron_tune_single_harmonic(
+    def calc_synchrotron_tune_main_harmonic(  # move into feedback or make it
         self,
         beam: BeamBaseClass,
         phi_s: float | None = None,
@@ -504,7 +512,7 @@ class RFStationBaseClass(
             eta_0 = self._ring.calc_average_eta_0(beam.reference.gamma)
 
         if phi_s is None:
-            phi_s = self.calc_phi_s_single_harmonic(beam)
+            phi_s = self.calc_phi_s_main_harmonic(beam)
 
         from blond.acc_math.analytic.hamilton import (
             calc_synchrotron_tune_single_harmonic,
@@ -524,7 +532,7 @@ class RFStationBaseClass(
 
         return Q_s0
 
-    def calc_phi_s_single_harmonic(self, beam: BeamBaseClass) -> float:
+    def calc_phi_s_main_harmonic(self, beam: BeamBaseClass) -> float:
         """
         Calculate the main harmonic synchronous phase.
 
@@ -535,7 +543,7 @@ class RFStationBaseClass(
 
         Returns
         -------
-        phi_s_single_harmonic
+        phi_s_main_harmonic
             Synchronous phase for the current RF parameters, in [rad].
         """
         assert self._magnetic_cycle is not None
@@ -592,7 +600,7 @@ class RFStationBaseClass(
         )
 
         try:
-            self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
+            self.phi_s = self.calc_phi_s_main_harmonic(beam=beam)
         except Exception as exc:
             warnings.warn(str(exc), UserWarning, stacklevel=1)
             self.phi_s = np.nan

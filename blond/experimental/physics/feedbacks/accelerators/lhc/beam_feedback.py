@@ -59,7 +59,7 @@ class LHCBeamControl(BeamFeedbackBase):
         )
 
         if self.sl_gain != 0:
-            Q_s0 = self.cavities[0].calc_synchrotron_tune_single_harmonic(
+            Q_s0 = self.cavities[0].calc_synchrotron_tune_main_harmonic(
                 beam,
                 np.pi,
                 simulation.ring.calc_average_eta_0(beam.reference.gamma),

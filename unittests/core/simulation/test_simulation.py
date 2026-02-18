@@ -542,7 +542,7 @@ class TestSimulation(unittest.TestCase):
         )
         DEV_PLOT = False
         simulation.turn_i.value = 0
-        phi_s = float(cavity.calc_phi_s_single_harmonic(beam=beam1))
+        phi_s = float(cavity.calc_phi_s_main_harmonic(beam=beam1))
 
         potential_well_analytic = (
             particle_type.charge
