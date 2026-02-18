@@ -12,6 +12,8 @@ Functions and classes to interface BLonD with xsuite.
 :Authors: **Birk Emil Karlsen-Baeck**, **Thom Arnoldus van Rijswijk**, **Helga Timko**, **Elleanor Lamb**
 """
 
+import warnings
+
 import numpy as np
 import xpart as xp
 from numpy.typing import NDArray
@@ -149,11 +151,16 @@ class BLonD3Cavity:
         cavity: SingleHarmonicRFStation,
         particles: Particles,
         line: Line,
-        initial_intensity: float
-        | int
-        | None = None,  # todo check with Birk update zeta
+        initial_intensity: float | int | None = None,
     ):
+        if self.line.energy_program is not None:
+            warnings.warn(
+                "energy_program is set for this line. The energy cycle must be flat.",
+                UserWarning,
+                stacklevel=2,
+            )
         self.line = line
+
         self.dt_shift = None
         self.trackable = cavity
         self.orbit_shift = ZetaShift(dzeta=0)
