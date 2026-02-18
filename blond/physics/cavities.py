@@ -506,7 +506,7 @@ class RFStationBaseClass(
 
         self._cavity_feedback = cavity_feedback
 
-    def calc_synchrotron_tune_main_harmonic(  # move into feedback or make it
+    def calc_synchrotron_tune_main_harmonic(  # TODO move into feedback or make it
         self,
         beam: BeamBaseClass,
         phi_s: float | None = None,
