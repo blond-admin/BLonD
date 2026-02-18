@@ -50,11 +50,9 @@ def run_simulation(n_turns):
         length=C,
     )
 
-    xsuite_cavity = xt.Cavity()
-    xsuite_cavity.voltage = V
-    xsuite_cavity.frequency = 400788731.3867354
-    xsuite_cavity.lag = 3.141592653589793 / np.pi * 180  # is this wrong?
-
+    xsuite_cavity = xt.Cavity(voltage=V,
+                              frequency=400788731.3867354,
+                              lag=3.141592653589793 / np.pi * 180)
     # Create line
     line = xt.Line(elements=[matrix], element_names={"matrix"})
     line.insert_element(index=0, element=xsuite_cavity, name="xsuite_cavity")
