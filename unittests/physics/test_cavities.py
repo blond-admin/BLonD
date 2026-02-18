@@ -74,7 +74,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             beam_feedback=beam_feedback_good,
             cavity_feedback=None,
         )
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             SingleHarmonicRFStation(
                 section_index=1,
                 local_wakefield=None,
@@ -107,7 +107,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             phi_rf=np.array([1]),
             cavity_feedback=(cavity_feedback_good,),
         )
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             SingleHarmonicRFStation(
                 section_index=1, local_wakefield=None, cavity_feedback=(prof,)
             )
