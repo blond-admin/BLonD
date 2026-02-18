@@ -192,16 +192,16 @@ class RFStationBaseClass(
         self._ring: Ring | None = None
 
         self.omega_rf_design: NumpyArray | float | None = None
-        self.delta_omega_rf: NumpyArray | float = 0.0
+        self.delta_omega_rf: NumpyArray | float | None = None
 
         self.phi_rf_design: NumpyArray | float | None = None
-        self.delta_phi_rf: NumpyArray | float = 0.0
+        self.delta_phi_rf: NumpyArray | float | None = None
 
         # `_dphi_rf_next` is used to apply
         # the phase shift that was caused in
         # last turn to this turn before beam and
         # cavity feedbacks get updated.
-        self._dphi_rf_next: NumpyArray | float = 0.0
+        self._dphi_rf_next: NumpyArray | float | None = None
 
         self.voltage: NumpyArray | float | None = None
         self.harmonic: NumpyArray | float | None = None
@@ -845,6 +845,10 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         self.phi_rf_design: float | None = phi_rf
         self.harmonic: float | None = harmonic
 
+        self.delta_phi_rf: float | None = 0.0
+        self.delta_omega_rf: float | None = 0.0
+        self._dphi_rf_next: float | None = 0.0
+
     def get_main_harmonic(self) -> float:
         """
         Return the harmonic number of the main harmonic.
@@ -1072,9 +1076,9 @@ class MultiHarmonicRFStation(RFStationBaseClass):
     The energy change is calculated as:
 
     .. math::
-        dE = \sum_{j} \left( n_\text{charge} \cdot V[j] \cdot
-        \sin\left(\omega_{\text{rf}}[j] \cdot dt + \phi_{\text{rf}}[
-        j]\right) \right) + \Delta E_\text{reference}
+        dE = \sum_{j} \left( n_\text{charge} \cdot V_j \cdot
+        \sin\left(\omega_{\text{rf}, j} \cdot dt + \phi_{\text{rf}, j}\right)
+        \right) + \Delta E_\text{reference}
 
     where :math:`\Delta E_\text{reference}` is the change of reference energy.
 
@@ -1180,10 +1184,6 @@ class MultiHarmonicRFStation(RFStationBaseClass):
 
         self.delta_phi_rf: NumpyArray | None = np.zeros(n_harmonics)
         self.delta_omega_rf: NumpyArray | None = np.zeros(n_harmonics)
-
-        self._t_rf: NumpyArray | None = None
-        self._t_rev: float | None = None
-
         self._dphi_rf_next: NumpyArray | None = np.zeros(n_harmonics)
 
     def get_main_harmonic(self) -> float:
