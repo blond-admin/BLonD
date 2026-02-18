@@ -141,17 +141,17 @@ class RFStationBaseClass(
     Attributes
     ----------
     omega_rf_design
-        # TODO
+        Design angular frequency relating to the harmonic numbers, in [rad/s].
     delta_omega_rf
-        # TODO
+        Correction term to omega_rf_design, used by feedbacks, in [rad/s].
     phi_rf_design
-        # TODO
+        Design angular phase, in [rad].
     delta_phi_rf
-        # TODO
+        Correction term for phi_rf_design, used by feedbacks, in [rad].
     voltage
-        # TODO
+        Voltage/s, in [V].
     harmonic
-        # TODO
+        Harmonic number, relating the rf frequency/ies to the revolution frequency.
     """
 
     skip_find_instances_attributes = ["omega_rf_design"]
@@ -217,7 +217,7 @@ class RFStationBaseClass(
 
         Returns
         -------
-        cavity_feedback_attached
+        any_feedback_not_none
             If one array element is not None in self._cavity_feedback, return True.
         """
         return any(
@@ -235,7 +235,7 @@ class RFStationBaseClass(
         Returns
         -------
         omega_rf
-            Actual angular rf frequency.
+            Angular rf frequency, potentially with feedback corrections.
 
         Notes
         -----
@@ -259,7 +259,7 @@ class RFStationBaseClass(
         Returns
         -------
         phi_rf
-            Actual angular rf phase.
+            Angular rf phase, potentially with feedback corrections.
 
         Notes
         -----
@@ -556,7 +556,7 @@ class RFStationBaseClass(
         else:
             raise TypeError(f"Invalid input type {type(cavity_feedback)=}")
 
-    def calc_synchrotron_tune_main_harmonic(  # TODO move into feedback or make it
+    def calc_synchrotron_tune_main_harmonic(
         self,
         beam: BeamBaseClass,
         phi_s: float | None = None,
@@ -702,10 +702,7 @@ class RFStationBaseClass(
         self._update_beam_based_attributes(beam=beam)
 
         # Correction from cavity loop
-        if (
-            not isinstance(beam, ProbeBeam)
-            and self.cavity_feedback_list is not None
-        ):
+        if not isinstance(beam, ProbeBeam) and self.any_feedback_not_none:
             for feedback in self.cavity_feedback_list:
                 if feedback is not None:
                     feedback.track(beam=beam)
