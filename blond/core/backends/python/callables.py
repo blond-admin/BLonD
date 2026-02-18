@@ -258,7 +258,8 @@ class PythonSpecials(Specials):
         dE
             Macro-particle energy coordinates, in [eV].
         T
-            Revolution period, in [s].
+            Time spend in the drift region, in [s].
+            :math:`T = L / (\beta c_0)`.
         eta_0
             General synchrotron parameter (zeroth-order slippage factor) [unitless].
         beta

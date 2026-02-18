@@ -1,0 +1,287 @@
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""Automatic code generation of empty testcases."""
+
+import ast
+import json
+import os
+import re
+from pathlib import Path
+
+COVERAGE_JSON_PATH = (
+    Path(__file__).parent / Path("../../unittests/coverage.json")
+).resolve()
+PROJECT_ROOT = (Path(__file__).parent / Path("../../blond/")).resolve()
+TEST_ROOT = (Path(__file__).parent / Path("../../unittests")).resolve()
+
+
+def classname_to_varname(name):
+    """
+    Convert a CamelCase class name into snake_case variable name.
+
+    Parameters
+    ----------
+    name
+        Class name in CamelCase format.
+
+    Returns
+    -------
+    varname
+        Converted class name in snake_case format.
+    """
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    s2 = re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1)
+    return s2.lower()
+
+
+def load_coverage_data(path: str | os.PathLike):
+    """
+    Load coverage data from a JSON file.
+
+    Parameters
+    ----------
+    path
+        Path to the coverage JSON file.
+
+    Returns
+    -------
+    coverage_data
+        Parsed coverage data loaded from JSON.
+    """
+    with open(path) as f:
+        return json.load(f)
+
+
+def _get_function_end_lineno(node):
+    """
+    Determine the ending line number of an AST function node.
+
+    Parameters
+    ----------
+    node
+        AST node representing a function definition.
+
+    Returns
+    -------
+    end_lineno
+        The last line number occupied by the function in source code.
+    """
+    if hasattr(node, "end_lineno"):
+        return node.end_lineno
+    max_lineno = node.lineno
+    for child in ast.walk(node):
+        if hasattr(child, "lineno"):
+            max_lineno = max(max_lineno, child.lineno)
+    return max_lineno
+
+
+class FunctionVisitor(ast.NodeVisitor):
+    """AST visitor that collects untested functions and class methods."""
+
+    def __init__(self):
+        """Initialize visitor state."""
+        self.stack = []
+        self.results = []  # List of (func_name, class_name, args)
+        self.class_methods = {}  # class_name -> list of (func_name, args)
+        self.class_missing = set()
+        self.missing_lines = None
+
+    def visit_ClassDef(self, node):
+        """
+        Visit a class definition node.
+
+        Parameters
+        ----------
+        node
+            Class definition AST node.
+        """
+        self.stack.append(node.name)
+        self.class_methods[self.stack[-1]] = []
+        self.generic_visit(node)
+        self.stack.pop()
+
+    def visit_FunctionDef(self, node):
+        """
+        Visit a function definition node and record untested ones.
+
+        Parameters
+        ----------
+        node
+            Function definition AST node.
+        """
+        start = node.lineno
+        end = _get_function_end_lineno(node)
+        class_name = self.stack[-1] if self.stack else None
+        args = [arg.arg for arg in node.args.args]
+        if class_name and args and args[0] == "self":
+            args = args[1:]
+
+        if class_name:
+            self.class_methods.setdefault(class_name, []).append(
+                (node.name, args)
+            )
+
+        if any(start <= line <= end for line in self.missing_lines):
+            if class_name and node.name != "__init__":
+                self.class_missing.add(class_name)
+
+            self.results.append((node.name, class_name, args))
+
+        self.generic_visit(node)
+
+
+def extract_untested_functions(cov_data):
+    """
+    Extract functions and methods with missing coverage.
+
+    Parameters
+    ----------
+    cov_data
+        Coverage JSON data structure.
+
+    Returns
+    -------
+    untested
+        Dictionary mapping file paths to lists of untested functions.
+        Format:
+        {
+            filepath: [(func_name, class_name, args), ...]
+        }
+        .
+    """
+    untested = {}
+    files = cov_data.get("files", {})
+
+    for filepath, info in files.items():
+        missing_lines = set(info.get("missing_lines", []))
+        if len(missing_lines) == 0:
+            continue
+
+        with open(filepath, encoding="utf-8") as f:
+            source = f.read()
+        tree = ast.parse(source, filename=filepath)
+
+        visitor = FunctionVisitor()
+        visitor.missing_lines = missing_lines
+        visitor.visit(tree)
+
+        for cls in visitor.class_missing:
+            methods = visitor.class_methods.get(cls, [])
+            for func_name, args in methods:
+                if (func_name == "__init__") and (
+                    not any(
+                        rn == "__init__" and rcls == cls
+                        for rn, rcls, _ in visitor.results
+                    )
+                ):
+                    visitor.results.append(("__init__", cls, args))
+
+        if visitor.results:
+            untested[filepath] = visitor.results
+
+    return untested
+
+
+def write_boilerplate_tests(untested_functions):
+    """
+    Generate boilerplate unittest test cases for untested functions.
+
+    Parameters
+    ----------
+    untested_functions
+        Dictionary mapping file paths to lists of untested functions.
+        Format:
+        {
+            filepath: [(func_name, class_name, args), ...]
+        }
+        .
+    """
+    for src_path, functions_tmp in untested_functions.items():
+        functions = sorted(
+            functions_tmp,
+            key=lambda x: ("", x[0]) if x[1] is None else (x[1], x[0]),
+        )
+        rel_path = os.path.relpath(src_path, PROJECT_ROOT)
+        test_path_dir = os.path.join(TEST_ROOT, os.path.dirname(rel_path))
+        test_filename = f"test_{os.path.basename(src_path)}"
+        test_file = os.path.join(test_path_dir, test_filename)
+
+        os.makedirs(test_path_dir, exist_ok=True)
+
+        existing = ""
+        if os.path.exists(test_file):
+            with open(test_file, encoding="utf-8") as f:
+                existing = f.read()
+
+        content = ""
+        if "import unittest" not in existing:
+            content += "import unittest\n\n"
+
+        classes = {}
+
+        for func_name, class_name, args in functions:
+            test_func = f"test_{func_name}"
+            if test_func in existing:
+                continue
+
+            call_args = ", ".join([f"{arg}=None" for arg in args])
+            if class_name:
+                var_name = classname_to_varname(class_name)
+                if test_func == "test___init__":
+                    call_line = (
+                        f"        self.{var_name} = {class_name}({call_args})\n"
+                        f"    @unittest.skip\n"
+                        f"    def {test_func}(self):\n"
+                        f"        pass # calls __init__ in  self.setUp"
+                    )
+
+                    test_code = (
+                        f"    @unittest.skip\n"
+                        f"    def setUp(self):\n        # TODO: "
+                        f"implement test for `{func_name}`\n{call_line}\n"
+                    )
+                else:
+                    call_line = (
+                        f"        self.{var_name}.{func_name}({call_args})"
+                    )
+                    test_code = (
+                        f"    @unittest.skip\n"
+                        f"    def {test_func}(self):\n        # TODO: implement test for `{func_name}`\n{call_line}\n"
+                    )
+                test_class = f"Test{class_name}"
+            else:
+                call_line = f"        {func_name}({call_args})"
+                test_code = (
+                    f"    @unittest.skip\n"
+                    f"    def {test_func}(self):\n        # TODO: implement test for `{func_name}`\n{call_line}\n"
+                )
+                test_class = "TestFunctions"
+
+            classes.setdefault(test_class, []).append(test_code)
+
+        for class_name, methods in classes.items():
+            if f"class {class_name}" not in existing:
+                content += f"\n\nclass {class_name}(unittest.TestCase):"
+            for method in methods:
+                content += "\n" + method
+
+        with open(test_file, "a", encoding="utf-8") as f:
+            f.write(content)
+
+
+def main():
+    """Main entry point for boilerplate test generation."""
+    cov_data = load_coverage_data(COVERAGE_JSON_PATH)
+    untested_funcs = extract_untested_functions(cov_data)
+    write_boilerplate_tests(untested_funcs)
+    print("✅ Boilerplate test cases generated with mirrored structure.")
+
+
+if __name__ == "__main__":
+    main()
