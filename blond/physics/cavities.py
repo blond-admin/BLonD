@@ -197,6 +197,10 @@ class RFStationBaseClass(
         self.phi_rf_design: NumpyArray | float | None = None
         self.delta_phi_rf: NumpyArray | float = 0.0
 
+        # `_dphi_rf_next` is used to apply
+        # the phase shift that was caused in
+        # last turn to this turn before beam and
+        # cavity feedbacks get updated.
         self._dphi_rf_next: NumpyArray | float = 0.0
 
         self.voltage: NumpyArray | float | None = None
