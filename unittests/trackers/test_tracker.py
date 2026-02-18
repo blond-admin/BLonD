@@ -315,7 +315,7 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
             self.long_tracker.rf_voltage, orig_rf_voltage, decimal=8
         )
 
-    @pytest.skip("phi_modulation currently not supported.")
+    @unittest.skip("phi_modulation currently not supported.")
     def test_phi_modulation(self):
         timebase = np.linspace(0, 0.2, 10000)
         freq = 2e3
