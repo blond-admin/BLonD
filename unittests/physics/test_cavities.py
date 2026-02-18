@@ -230,8 +230,11 @@ class TestRFStationBaseClass(unittest.TestCase):
         assert mhc.cavity_feedback_list[1] is None
         mhc.attach_cavity_feedback(cavity_feedback_good, 1)
         assert mhc.any_feedback_not_none
+        with self.assertRaisesRegex(
+            ValueError, "must be less than the number of RF stations."
+        ):
+            mhc.attach_cavity_feedback(cavity_feedback_good, 2)
 
-        # TODO: reset
         mhc = MultiHarmonicRFStation(
             section_index=1,
             local_wakefield=None,
@@ -364,7 +367,6 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         assert self.track_called
 
-    # @unittest.skip("feedbacks not working")
     def test_track_with_feedbacks(self):
         SingleHarmonicRFStation(
             section_index=1,
