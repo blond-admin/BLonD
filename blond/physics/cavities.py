@@ -386,18 +386,25 @@ class RFStationBaseClass(
         This function is intended for small `ts` arrays
         and not executed in parallel.
         """
-        gap_voltage = (
+        phi_rf = (
+            self.phi_rf[harmonic_index]
+            if harmonic_index is not None
+            else self.phi_rf
+        )
+        omega_rf = (
+            self.omega_rf[harmonic_index]
+            if harmonic_index is not None
+            else self.omega_rf
+        )
+        voltage = (
             self.voltage[harmonic_index]
-            if harmonic_index
+            if harmonic_index is not None
             else self.voltage
+        )
+        gap_voltage = (
+            voltage
             * voltage_correction_factors
-            * np.sin(
-                self.omega_rf[harmonic_index]
-                if harmonic_index
-                else self.omega_rf * ts + self.phi_rf[harmonic_index]
-                if harmonic_index
-                else self.omega_rf + phase_offsets
-            )
+            * np.sin(omega_rf * ts + phi_rf + phase_offsets)
         )
         return gap_voltage
 
