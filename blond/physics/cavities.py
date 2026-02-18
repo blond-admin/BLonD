@@ -781,7 +781,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
     ----------
     voltage
         RF station's effective voltage, in [V].
-    phi_rf
+    phi_rf_design
         RF station's design phase, in [rad].
     harmonic
         RF station's design harmonic [].
@@ -901,6 +901,8 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         beam
             Beam class to interact with this element.
         """
+        # Apply phase shift that was caused in last turn
+        # to this turn before beam and cavity feedbacks get updated.
         self.delta_phi_rf = np.copy(self._dphi_rf_next)
 
         super()._track(beam=beam)
