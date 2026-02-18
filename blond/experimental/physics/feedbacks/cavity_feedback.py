@@ -189,9 +189,6 @@ class IQCavityFeedback(LocalFeedback):
         self.V_corr: NumpyArray | None = None
         self.alpha_sum: NumpyArray | None = None
         self.phi_corr: NumpyArray | None = None
-        self.omega_carrier_prev: float | None = None
-        self.T_s_prev: float | None = None
-        self.rf_centers_prev: NumpyArray | None = None
 
         self.V_SET: NumpyArray | None = None
         self.I_BEAM_COARSE: NumpyArray | None = None
@@ -202,8 +199,6 @@ class IQCavityFeedback(LocalFeedback):
         self.I_GEN_FINE: NumpyArray | None = None
 
         self.gap_voltage_phase: NumpyArray | None = None
-
-        self.dT: float | None = None
 
     @requires(["RFStationBaseClass", "BeamBaseClass"])
     def on_run_simulation(
