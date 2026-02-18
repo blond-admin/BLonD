@@ -644,6 +644,9 @@ class RFStationBaseClass(
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
+        if self.delta_omega_rf != 0:
+            self._update_delta_phi_rf_from_beam_feedback()
+
     def _update_delta_phi_rf_from_beam_feedback(self):
         """
         Update the phase slip for the next turn depending on the frequency change from the beam feedback.
@@ -843,6 +846,13 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         main_harmonic_voltage
             Voltage of the main harmonic, in [V].
         """
+        if self._cavity_feedback is not None:
+            warnings.warn(
+                "`get_main_harmonic_voltage` returns unperturbed "
+                "voltage, even though feedbacks are active.",
+                UserWarning,
+                stacklevel=2,
+            )
         return self.voltage
 
     def get_main_harmonic_phi_rf(self) -> float:
@@ -854,7 +864,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         main_harmonic_phi_rf
             The phi_rf of the main harmonic, in [rad].
         """
-        return self.phi_rf_design
+        return self.phi_rf
 
     def calc_main_harmonic_omega_rf_design(
         self,
@@ -933,9 +943,6 @@ class SingleHarmonicRFStation(RFStationBaseClass):
                     charge=beam.particle_type.charge,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
-
-        if self.delta_omega_rf != 0:
-            self._update_delta_phi_rf_from_beam_feedback()
 
     def calc_gap_voltage_with_feedbacks(self):
         """
@@ -1169,7 +1176,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         main_harmonic
             Harmonic number of the main harmonic.
         """
-        return self.harmonic[self.main_harmonic_idx]
+        return self.harmonic[self.main_harmonic_idx]  # type: ignore
 
     def get_main_harmonic_voltage(self) -> float:
         """
@@ -1180,7 +1187,14 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         main_harmonic_voltage
             Voltage of the main harmonic, in [V].
         """
-        return self.voltage[self.main_harmonic_idx]
+        if self._cavity_feedback is not None:
+            warnings.warn(
+                "`get_main_harmonic_voltage` returns unperturbed "
+                "voltage, even though feedbacks are active.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return self.voltage[self.main_harmonic_idx]  # type: ignore
 
     def get_main_harmonic_phi_rf(self) -> float:
         """
@@ -1191,7 +1205,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         main_harmonic_phi_rf
             The phi_rf of the main harmonic, in [rad].
         """
-        return self.phi_rf[self.main_harmonic_idx]
+        return self.phi_rf[self.main_harmonic_idx]  # type: ignore
 
     def calc_main_harmonic_omega_rf_design(
         self, beam_beta: float, closed_orbit_length: float
@@ -1265,6 +1279,8 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         beam
             Beam class to interact with this element.
         """
+        # Apply phase shift that was caused in last turn
+        # to this turn before beam and cavity feedbacks get updated.
         self.delta_phi_rf = np.copy(self._dphi_rf_next)
 
         super()._track(beam=beam)
@@ -1296,9 +1312,6 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                     charge=beam.particle_type.charge,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
-
-        if self.delta_omega_rf[self.main_harmonic_idx] != 0:
-            self._update_delta_phi_rf_from_beam_feedback()
 
     @staticmethod
     def headless(
