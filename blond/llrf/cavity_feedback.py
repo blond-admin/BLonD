@@ -297,14 +297,14 @@ class CavityFeedback:
         self.T_s = self.n_s * 2 * np.pi / self.omega_rf
 
         # Update the coarse grid sampling
-        # self.n_coarse = round(
-        #     self.rf_station.t_rev[self.rf_station.counter[0]] / self.T_s
-        # )
+        self.n_coarse = round(
+            self.rf_station.t_rev[self.rf_station.counter[0]] / self.T_s
+        )  # TODO: without this, the testcase fails, which is due to the fact that n_coarse fails
 
         # TODO: old above, new below
-        self.n_coarse = round(
-            self.rf_station.harmonic[self.n_h, self.counter] / self.n_s
-        )
+        # self.n_coarse = round(
+        #     self.rf_station.harmonic[self.n_h, self.counter] / self.n_s
+        # )  # TODO: this is necessary for correctness?
 
         # Present coarse grid and save previous turn coarse grid
         self.rf_centers_prev = np.copy(self.rf_centers)
