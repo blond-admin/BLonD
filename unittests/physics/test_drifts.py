@@ -7,6 +7,7 @@ from scipy.constants import speed_of_light as c0
 
 from blond import Numpy32Bit, Simulation
 from blond.core.backends.backend import Numpy64Bit, backend
+from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
@@ -259,7 +260,15 @@ class TestDriftExact(unittest.TestCase):
         )  # delta t in s
         beam.write_partial_dt.return_value = beam.dt
         beam.read_partial_dE.return_value = beam.dE
+        self.drift_exact._simulation = Mock(Simulation)
+        self.drift_exact._simulation.turn_i = DynamicParameter(1)
 
+        self.drift_exact.schedule(
+            "higher_order_alpha",
+            np.array(
+                [[1.49, 23], [1.49, 24]],
+            ),
+        )
         self.drift_exact.track(beam=beam)
 
 
