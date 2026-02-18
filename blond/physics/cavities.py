@@ -185,7 +185,6 @@ class RFStationBaseClass(
 
         self.voltage: NumpyArray | float | None = None
         self.harmonic: NumpyArray | float | None = None
-        self.phi_s: NumpyArray | float | None = None
         self.omega_s0: NumpyArray | float | None = None
 
     @property
@@ -362,19 +361,6 @@ class RFStationBaseClass(
             The omega_rf of the main harmonic, in [rad/s].
         """
         pass
-
-    def get_main_harmonic_t_rf(
-        self,
-    ) -> float:
-        """
-        Return the t_rf of the main harmonic, in [s].
-
-        Returns
-        -------
-        main_harmonic_t_rf
-            The t_rf of the main harmonic, in [s].
-        """
-        return (2 * np.pi) / self.get_main_harmonic_omega_rf()
 
     def gap_voltage(
         self,
@@ -593,6 +579,19 @@ class RFStationBaseClass(
 
         return phi_s
 
+    def get_main_harmonic_t_rf(
+        self,
+    ) -> float:
+        """
+        Return the t_rf of the main harmonic, in [s].
+
+        Returns
+        -------
+        main_harmonic_t_rf
+            The t_rf of the main harmonic, in [s].
+        """
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf()
+
     @property  # as readonly attributes
     def n_rf(self) -> int:
         """
@@ -618,12 +617,6 @@ class RFStationBaseClass(
             beam_beta=beam.reference.beta,
             closed_orbit_length=self._ring.circumference,
         )
-
-        try:
-            self.phi_s = self.calc_phi_s_main_harmonic(beam=beam)
-        except Exception as exc:
-            warnings.warn(str(exc), UserWarning, stacklevel=1)
-            self.phi_s = np.nan
 
     def _track(self, beam: BeamBaseClass) -> None:
         """

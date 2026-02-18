@@ -343,7 +343,10 @@ class Blond2BeamFeedback(LocalFeedback):
         Optional: add RF phase noise through dphi directly.
         """
         # Correct for design stable phase
-        self.dphi = self.phi_beam - self._parent_rf_station.phi_s
+        self.dphi = (
+            self.phi_beam
+            - self._parent_rf_station.calc_phi_s_main_harmonic(beam=beam)
+        )
 
         # TODO fix this code
         # Possibility to add RF phase noise through the PL
