@@ -518,7 +518,7 @@ class RFStationBaseClass(
                         "If a single feedback is provided, the harmonic_index needs to be provided as well."
                     )
 
-            if harmonic_index > self._n_rf:
+            if harmonic_index > self._n_rf - 1:
                 raise ValueError(
                     "Harmonic index must be less than the number of RF stations."
                 )
@@ -597,7 +597,7 @@ class RFStationBaseClass(
 
         Q_s0 = calc_synchrotron_tune_single_harmonic(
             charge=beam.particle_type.charge,
-            voltage=float(self.voltage),
+            voltage=self.get_main_harmonic_voltage(),
             beta=beam.reference.beta,
             energy=beam.reference.total_energy,
             phi_s=phi_s,
