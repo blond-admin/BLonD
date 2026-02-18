@@ -803,7 +803,7 @@ class RFStationBaseClass(
             Information string.
         """
         content = ""
-        if self.cavity_feedback_list is not None:
+        if self.any_feedback_not_none:
             for feedback in self.cavity_feedback_list:
                 if feedback is not None:
                     content += (
