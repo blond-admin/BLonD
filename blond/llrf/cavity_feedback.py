@@ -25,7 +25,6 @@ import numpy as np
 import numpy.random as rnd
 import scipy.signal
 from scipy.interpolate import interp1d
-from scipy.signal import firwin
 
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -55,7 +54,7 @@ from .signal_processing import (  # noqa
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Optional
+    from typing import Optional, Any
 
     from numpy.typing import NDArray as NumpyArray
 

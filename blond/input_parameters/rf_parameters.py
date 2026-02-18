@@ -37,8 +37,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray
 
-    from ..utils.types import DeviceType
     from .ring import Ring
+    from ..utils.types import DeviceType
 
 
 class RFStation:
