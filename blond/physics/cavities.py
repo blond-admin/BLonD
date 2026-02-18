@@ -159,7 +159,7 @@ class RFStationBaseClass(
         section_index: int,
         local_wakefield: WakeField | None,
         cavity_feedback: LocalFeedback
-        | tuple[LocalFeedback, ...]
+        | list[LocalFeedback | None]
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
@@ -207,7 +207,7 @@ class RFStationBaseClass(
         self.harmonic: NumpyArray | float | None = None
 
     @property
-    def _cavity_feedback_attached(self) -> bool:
+    def _any_feedback_not_none(self) -> bool:
         """
         Check if there is a cavity feedback in the list of feedbacks, which is not None.
 
@@ -538,8 +538,8 @@ class RFStationBaseClass(
                 elif feedback is None:
                     pass
                 else:
-                    raise TypeError("Unknown type in provided feedback list.")
-            if self._cavity_feedback_attached:
+                    raise TypeError(f"{type(feedback)=}")
+            if self._any_feedback_not_none:
                 warnings.warn(
                     "Already present cavity feedbacks are being overridden.",
                     UserWarning,
@@ -915,7 +915,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         main_harmonic_voltage
             Voltage of the main harmonic, in [V].
         """
-        if self._cavity_feedback_attached():
+        if self._any_feedback_not_none:
             warnings.warn(
                 "`get_main_harmonic_voltage` returns unperturbed "
                 "voltage, even though feedbacks are active.",
@@ -1252,7 +1252,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         main_harmonic_voltage
             Voltage of the main harmonic, in [V].
         """
-        if self._cavity_feedback_attached:
+        if self._any_feedback_not_none:
             warnings.warn(
                 "`get_main_harmonic_voltage` returns unperturbed "
                 "voltage, even though feedbacks are active.",
