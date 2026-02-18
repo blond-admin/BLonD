@@ -18,6 +18,8 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSOneTurnFeedback,
 )
+from blond.experimental.physics.feedbacks.base import LocalFeedback
+from blond.experimental.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
@@ -51,7 +53,6 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         self.beam.common_array_size = len(self.beam.dE)
 
-    @unittest.skip("feedbacks not working")
     def test_init_of_feedbacks(self):
         # default init
         SingleHarmonicRFStation(
@@ -61,7 +62,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             cavity_feedback=None,
         )
         prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
-        beam_feedback_good = Mock(LHCBeamControl)
+        beam_feedback_good = Mock(spec=BeamFeedbackBase)
 
         SingleHarmonicRFStation(
             section_index=1,
@@ -77,7 +78,7 @@ class TestRFStationBaseClass(unittest.TestCase):
                 cavity_feedback=None,
             )
 
-        cavity_feedback_good = SPSOneTurnFeedback(profile=prof, n_sections=3)
+        cavity_feedback_good = Mock(spec=LocalFeedback)
 
         mhc = MultiHarmonicRFStation.headless(
             section_index=1,
@@ -113,19 +114,100 @@ class TestRFStationBaseClass(unittest.TestCase):
                 ],
             )
 
-    @unittest.skip("feedbacks not working")
-    def test_single_cavity_feedback_allowed(self):
-        prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
-        cavity_feedback_good = PassiveCavity(
-            profile=prof,
-            R_over_Q=1,
-            Q_L=2,
-            f_center=200e6,
-            f_detuning=1,
-            n_cavities=5,
-            generator_current=6,
-            n_pretrack=5,
+    def test_raising_error_setters_omega_rf_phi_rf(self):
+        shc = SingleHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
         )
+        with self.assertRaisesRegex(AttributeError, "`omega_rf` can not be"):
+            shc.omega_rf = 0
+        with self.assertRaisesRegex(AttributeError, "`phi_rf` can not be"):
+            shc.phi_rf = 0
+
+    def test__get_gap_voltage_per_harmonic(self):
+        def calc_rf_waveform(
+            _time_arr, _omega, _phi, _voltage, _v_corr=1, _phi_corr=0
+        ):
+            return (
+                _voltage
+                * _v_corr
+                * np.sin(_omega * _time_arr + _phi + _phi_corr)
+            )
+
+        ts = np.linspace(0, 20, 100)
+        phi_rf = np.array([0, 1, 2, 3])
+        omega_rf = np.array([4, 5, 6, 7])
+        voltage = np.array([10, 20, 30, 40])
+        harmonic_index = np.array([0, 1, 2, 3])
+
+        mhc = MultiHarmonicRFStation(
+            voltage=voltage,
+            n_harmonics=len(harmonic_index),
+            phi_rf=phi_rf,
+            main_harmonic_idx=0,
+            harmonic=np.zeros(len(harmonic_index)),
+        )
+        mhc.omega_rf_design = omega_rf
+
+        for harm_ind in harmonic_index:
+            np.testing.assert_allclose(
+                mhc._get_gap_voltage_per_harmonic(ts, harm_ind),
+                calc_rf_waveform(
+                    ts, omega_rf[harm_ind], phi_rf[harm_ind], voltage[harm_ind]
+                ),
+            )
+
+        cav_fb_0 = Mock(spec=LocalFeedback)
+        cav_fb_0.relative_voltage_correction = np.ones(len(ts)) * 5
+        cav_fb_0.phase_correction = np.arange(0.1, 0.7, 100)
+        cav_fb_2 = Mock(spec=LocalFeedback)
+        cav_fb_2.relative_voltage_correction = np.ones(len(ts)) * 10
+        cav_fb_2.phase_correction = np.arange(0.7, 1.7, len(ts))
+        mhc.cavity_feedback_list = [cav_fb_0, None, cav_fb_2, None]
+        cav_fb_0.profile = Mock(spec=StaticProfile)
+        cav_fb_0.profile.n_bins = len(ts)
+        cav_fb_0.profile.hist_x = ts
+
+        sol = calc_rf_waveform(
+            ts,
+            omega_rf[0],
+            phi_rf[0],
+            voltage[0],
+            _v_corr=np.ones(len(ts)) * 5,
+            _phi_corr=np.arange(0.1, 0.7, 100),
+        )
+        sol += calc_rf_waveform(
+            ts,
+            omega_rf[2],
+            phi_rf[2],
+            voltage[2],
+            _v_corr=np.ones(len(ts)) * 10,
+            _phi_corr=np.arange(0.7, 1.7, 100),
+        )
+        for harm_ind in [1, 3]:
+            sol += calc_rf_waveform(
+                ts, omega_rf[harm_ind], phi_rf[harm_ind], voltage[harm_ind]
+            )
+
+        np.testing.assert_allclose(mhc.calc_gap_voltage_with_feedbacks(), sol)
+
+    def test_single_cavity_feedback_allowed(self):
+        self.track_called = False
+
+        def dummy_track(beam: BeamBaseClass):
+            self.track_called = True
+            return
+
+        prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
+
+        cavity_feedback_good = Mock(spec=LocalFeedback)
+        cavity_feedback_good.track = dummy_track
+        cavity_feedback_good.profile = prof
+        cavity_feedback_good.phase_correction = 0
+        cavity_feedback_good.relative_voltage_correction = 0
+
         mhc = SingleHarmonicRFStation(
             section_index=1,
             local_wakefield=None,
@@ -163,6 +245,8 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
 
         mhc.track(beam=self.beam)
+
+        assert self.track_called
 
     @unittest.skip("feedbacks not working")
     def test_track_with_feedbacks(self):

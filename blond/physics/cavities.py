@@ -31,6 +31,9 @@ from blond.core.base import (
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
+from blond.experimental.physics.feedbacks.base import (
+    LocalFeedback as LocalFeedbackExp,
+)
 from blond.experimental.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
 )
@@ -488,7 +491,10 @@ class RFStationBaseClass(
 
     def attach_cavity_feedback(  # noqa: PLR0912
         self,
-        cavity_feedback: LocalFeedback | list[LocalFeedback | None],
+        cavity_feedback: LocalFeedback
+        | list[LocalFeedback | None]
+        | LocalFeedbackExp
+        | list[LocalFeedbackExp | None],
         harmonic_index: int | None = None,
     ):
         """
@@ -503,7 +509,7 @@ class RFStationBaseClass(
             This needs to be provided for multiharmonic cavities,
             where a single LocalFeedback is provided.
         """
-        if isinstance(cavity_feedback, LocalFeedback):
+        if isinstance(cavity_feedback, LocalFeedback | LocalFeedbackExp):
             if harmonic_index is None:
                 if self._n_rf == 1:
                     harmonic_index = 0
@@ -534,7 +540,7 @@ class RFStationBaseClass(
                 )
 
             for feedback in cavity_feedback:
-                if isinstance(feedback, LocalFeedback):
+                if isinstance(feedback, LocalFeedback | LocalFeedbackExp):
                     feedback.set_parent_rf_station(rf_station=self)  # type: ignore
                 elif feedback is None:
                     pass
