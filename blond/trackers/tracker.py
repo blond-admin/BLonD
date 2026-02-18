@@ -46,14 +46,14 @@ else:
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Literal
 
-    from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
+    from numpy.typing import NDArray as NumpyArray
 
-    from ..impedances.impedance import TotalInducedVoltage
-    from ..llrf.beam_feedback import BeamFeedback
-    from ..beam.profile import Profile
     from ..beam.beam import Beam
+    from ..beam.profile import Profile
+    from ..impedances.impedance import TotalInducedVoltage
     from ..input_parameters.rf_parameters import RFStation
+    from ..llrf.beam_feedback import BeamFeedback
     from ..utils.types import DeviceType
 
     MainHarmonicOptionType = (
@@ -301,8 +301,8 @@ class RingAndRFTracker:
     periodicity : bool (optional)
         Option to switch periodic solver on/off; default is False (off)
     interpolation : bool (optional)
-        Option to use sliced and interpolated voltage for the kicker; default
-        is False
+        Option to use sliced and interpolated voltage for the kicker. This option is required for the usage of
+        induced voltages; default is False
 
     """
 
@@ -321,6 +321,10 @@ class RingAndRFTracker:
         profile: Optional[Profile] = None,
         total_induced_voltage: Optional[TotalInducedVoltage] = None,
     ):
+        if not interpolation and total_induced_voltage is not None:
+            raise RuntimeError(
+                "Total induced voltage is not usable without interpolation"
+            )
         # Set up logging
         # self.logger = logging.getLogger(__class__.__name__)
         # self.logger.info("Class initialized")
@@ -547,6 +551,12 @@ class RingAndRFTracker:
                 1
             ][:, turn]
 
+        # Correction from cavity loop
+        if self.cavityFB is not None:
+            for feedback in self.cavityFB:
+                if feedback is not None:
+                    feedback.track()
+
         # Determine phase loop correction on RF phase and frequency
         if self.beamFB is not None and turn >= self.beamFB.delay:
             self.beamFB.track()
@@ -556,22 +566,16 @@ class RingAndRFTracker:
         self.rf_params.dphi_rf += (
             2.0
             * np.pi
-            * self.rf_params.harmonic[:, turn + 1]
+            * self.rf_params.harmonic[:, turn]
             * (
-                self.rf_params.omega_rf[:, turn + 1]
-                - self.rf_params.omega_rf_d[:, turn + 1]
+                self.rf_params.omega_rf[:, turn]
+                - self.rf_params.omega_rf_d[:, turn]
             )
-            / self.rf_params.omega_rf_d[:, turn + 1]
+            / self.rf_params.omega_rf_d[:, turn]
         )
 
         # Total phase offset
         self.rf_params.phi_rf[:, turn + 1] += self.rf_params.dphi_rf
-
-        # Correction from cavity loop
-        if self.cavityFB is not None:
-            for feedback in self.cavityFB:
-                if feedback is not None:
-                    feedback.track()
 
         if self.periodicity:
             if hasattr(self, "_device") and self._device == "GPU":
@@ -599,9 +603,17 @@ class RingAndRFTracker:
                         charge=self.beam.particle.charge,
                         acceleration_kick=self.acceleration_kick[turn],
                     )
-
                 else:
                     self.kick(self.beam.dt, self.beam.dE, turn)
+                    if self.totalInducedVoltage is not None:
+                        bm.linear_interp_kick(
+                            dt=self.beam.dt,
+                            dE=self.beam.dE,
+                            voltage=self.totalInducedVoltage.induced_voltage,
+                            bin_centers=self.profile.bin_centers,
+                            charge=self.beam.particle.charge,
+                            acceleration_kick=0,
+                        )
 
             self.drift(self.beam.dt, self.beam.dE, turn + 1)
 
