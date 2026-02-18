@@ -113,9 +113,14 @@ def reload_cuda_backend(  # NOQA: D102
             dE: CupyArray,
             flags: CupyArray,
         ) -> None:
+            assert dt.device != "cpu"
+            assert dE.device != "cpu"
+            assert flags.device != "cpu"
+
             assert dt.dtype == backend.float
             assert dE.dtype == backend.float
-            assert dE.dtype == backend.float
+            assert flags.dtype == np.int32
+
             assert isinstance(e_max, backend.float)
             assert isinstance(e_min, backend.float)
             assert isinstance(t_min, backend.float)
@@ -445,6 +450,11 @@ def reload_cuda_backend(  # NOQA: D102
             dE: CupyArray,
             ids: CupyArray,
         ):
+            assert flags.device != "cpu"
+            assert dt.device != "cpu"
+            assert dE.device != "cpu"
+            assert ids.device != "cpu"
+
             # TODO write a kernel that works with gpu kernels
             #  to have a smaller memory footprint.
             flag = np.int32(flag)
