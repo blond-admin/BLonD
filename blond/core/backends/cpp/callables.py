@@ -474,59 +474,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _getPointer(bucket_index_to_memory_index),
             )
 
-        @staticmethod
-        def apply_poles2(
-            # read
-            profile,
-            profile_dts,
-            poles,
-            residues,
-            # write
-            states,
-            voltage,
-            voltage_threaded,
-            update_on_bin,
-            factor,
-        ) -> None:
-            complextype = (
-                np.complex64 if floattype == np.float32 else np.complex128
-            )
-
-            assert profile.dtype == floattype
-            assert profile_dts.dtype == floattype
-            assert poles.dtype == complextype
-            assert residues.dtype == complextype
-            assert states.dtype == complextype
-            assert voltage.dtype == floattype
-            assert voltage_threaded.dtype == floattype
-            assert update_on_bin.dtype == np.int32
-
-            assert profile.flags.c_contiguous
-            assert profile_dts.flags.c_contiguous
-            assert poles.flags.c_contiguous
-            assert residues.flags.c_contiguous
-            assert states.flags.c_contiguous
-            assert voltage.flags.c_contiguous
-            assert voltage_threaded.flags.c_contiguous
-            assert update_on_bin.flags.c_contiguous
-
-            _LIBBLOND.apply_poles(
-                _getPointer(profile),
-                _getPointer(profile_dts),
-                _getPointer(poles),
-                _getPointer(residues),
-                _getPointer(states),
-                _getPointer(voltage),
-                _getPointer(voltage_threaded),
-                _getPointer(update_on_bin),
-                c_real(factor, floattype),
-                ct.c_int(len(profile)),  # n_bins
-                ct.c_int(len(poles)),  # n_poles
-                ct.c_int(voltage_threaded.shape[0]),  # n_threads
-                ct.c_int(len(update_on_bin)),  # n_updates
-                ct.c_int(len(profile_dts)),  # n_profile_dts
-            )
-
     return CppSpecials
 
 
