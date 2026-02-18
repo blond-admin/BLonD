@@ -322,7 +322,6 @@ class BLonD3Cavity:
         # Particle activity flags
         self._previous_active_mask = active_mask
 
-        # todo check for really killed state and remove intensity effects
         beam.purge_flagged_entries()
 
     def blond_to_xsuite_transform_particles(
