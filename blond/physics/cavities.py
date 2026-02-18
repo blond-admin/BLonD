@@ -1080,7 +1080,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
     ----------
     voltage
         RF station's effective voltages (per harmonic) in [V].
-    phi_rf
+    phi_rf_design
         RF station's design phases (per harmonic) in [rad].
     harmonic
         RF station's design harmonics (per harmonic) [].
