@@ -22,9 +22,10 @@ from blond import (
     proton,
 )
 from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
-    SpsRlBeamFeedback,
-)
+
+# from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
+#     SpsRlBeamFeedback,
+# )
 
 
 class TestBeamFeedback(unittest.TestCase):

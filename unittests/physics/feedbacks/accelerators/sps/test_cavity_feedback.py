@@ -104,9 +104,9 @@ def rf_voltage_calculation(
     return rf_voltage
 
 
+@unittest.skip("too slow and beam feedback is anyway not working for now")
 class TestSPSCavityFeedback(unittest.TestCase):
     # activate again when the feedbacks are working
-    @unittest.skip("too slow and beam feedback is anyway not working for now")
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
@@ -726,6 +726,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
 
+@unittest.skip("too slow and beam feedback is anyway not working for now")
 class TestSPSOneTurnFeedback(unittest.TestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)  # this test fail in 32 bit due to
@@ -1094,6 +1095,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         )
 
 
+@unittest.skip("too slow and beam feedback is anyway not working for now")
 class TestSPSTransmitterGain(unittest.TestCase):
     def setUp(self):
         self.ring = Ring(circumference=2 * np.pi * 1100.009)

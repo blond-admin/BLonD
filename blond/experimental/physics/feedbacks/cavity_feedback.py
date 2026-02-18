@@ -18,11 +18,6 @@ from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
 from blond.physics.cavities import SingleHarmonicRFStation
 from blond.physics.feedbacks.base import LocalFeedback
-from blond.physics.feedbacks.helpers import (
-    cartesian_to_polar,
-    polar_to_cartesian,
-    rf_beam_current,
-)
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -32,7 +27,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond import Simulation
     from blond.core.beam.base import BeamBaseClass
-    from blond.physics.cavities import MultiHarmonicRFStation
 
 # TODO rewrite all docstrings
 
@@ -432,6 +426,8 @@ class IQCavityFeedback(LocalFeedback):
             Simulation `Beam` object
 
         """
+        from blond.physics.feedbacks.helpers import cartesian_to_polar
+
         # Update parameters from rest of BLonD classes
         self.update_rf_variables()
         self.update_fb_variables()
@@ -469,6 +465,8 @@ class IQCavityFeedback(LocalFeedback):
         use_lowpass_filter: bool = False,
     ) -> None:
         r"""Calculate RF beam current from beam profile"""
+        from blond.physics.feedbacks.helpers import rf_beam_current
+
         harmonic, omega_rf_design, _ = (
             self.get_harmonic_and_omega_rf_phi_rf_design()
         )
@@ -500,6 +498,8 @@ class IQCavityFeedback(LocalFeedback):
 
     def set_point_from_rfstation(self) -> NumpyArray:
         r"""Computes the setpoint in I/Q based on the RF voltage in the RFStation"""
+        from blond.physics.feedbacks.helpers import polar_to_cartesian
+
         V_set = polar_to_cartesian(
             self.get_voltage_from_parent_rf_station() / self.n_cavities,
             0,
