@@ -172,9 +172,11 @@ class RFStationBaseClass(
             name=name,
             **kwargs,  # for MRO of fused elements
         )
+        self._n_rf = n_rf
+
         self._cavity_feedback: list[LocalFeedback | None] = [
             None,
-        ] * n_rf
+        ] * self._n_rf
 
         if cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
@@ -185,7 +187,6 @@ class RFStationBaseClass(
         if beam_feedback is not None:
             self.attach_beam_feedback(beam_feedback)
 
-        self._n_rf = n_rf
         self._local_wakefield = local_wakefield
 
         self._magnetic_cycle: MagneticCycleBase | None = None
@@ -504,7 +505,7 @@ class RFStationBaseClass(
         """
         if isinstance(cavity_feedback, LocalFeedback):
             if harmonic_index is None:
-                if isinstance(self, SingleHarmonicRFStation):
+                if self._n_rf == 1:
                     harmonic_index = 0
                 else:
                     raise ValueError(
@@ -547,7 +548,7 @@ class RFStationBaseClass(
                 )
             self._cavity_feedback = cavity_feedback
         else:
-            raise TypeError(f"Invalid input type{type(cavity_feedback)=}")
+            raise TypeError(f"Invalid input type {type(cavity_feedback)=}")
 
     def calc_synchrotron_tune_main_harmonic(  # TODO move into feedback or make it
         self,
@@ -706,7 +707,7 @@ class RFStationBaseClass(
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
-        if self.delta_omega_rf != 0:
+        if np.any(self.delta_omega_rf != 0):
             self._update_delta_phi_rf_from_beam_feedback()
 
     def _update_delta_phi_rf_from_beam_feedback(self):
@@ -992,23 +993,23 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         )
 
         if beam.common_array_size > 0:
-            if self._cavity_feedback is None:
-                backend.specials.kick_single_harmonic(
-                    dt=beam.read_partial_dt(),
-                    dE=beam.write_partial_dE(),
-                    voltage=self.voltage,
-                    phi_rf=self.phi_rf,
-                    omega_rf=self.omega_rf,
-                    charge=beam.particle_type.charge,
-                    acceleration_kick=-reference_energy_change,  # Mind the minus!
-                )
-            else:
+            if self._any_feedback_not_none:
                 gap_voltage = self.calc_gap_voltage_with_feedbacks()
                 backend.specials.kick_induced_voltage(
                     dt=beam.read_partial_dt(),
                     dE=beam.write_partial_dE(),
                     voltage=backend.array(gap_voltage, dtype=backend.float),
                     bin_centers=self._cavity_feedback[0].profile.hist_x,
+                    charge=beam.particle_type.charge,
+                    acceleration_kick=-reference_energy_change,  # Mind the minus!
+                )
+            else:
+                backend.specials.kick_single_harmonic(
+                    dt=beam.read_partial_dt(),
+                    dE=beam.write_partial_dE(),
+                    voltage=self.voltage,
+                    phi_rf=self.phi_rf,
+                    omega_rf=self.omega_rf,
                     charge=beam.particle_type.charge,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
@@ -1357,7 +1358,17 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         )
 
         if beam.common_array_size > 0:
-            if self._cavity_feedback is None:
+            if self._any_feedback_not_none:
+                gap_voltage = self.calc_gap_voltage_with_feedbacks()
+                backend.specials.kick_induced_voltage(
+                    dt=beam.read_partial_dt(),
+                    dE=beam.write_partial_dE(),
+                    voltage=backend.array(gap_voltage, dtype=backend.float),
+                    bin_centers=self._cavity_feedback[0].profile.hist_x,
+                    charge=beam.particle_type.charge,
+                    acceleration_kick=-reference_energy_change,  # Mind the minus!
+                )
+            else:
                 backend.specials.kick_multi_harmonic(
                     dt=beam.read_partial_dt(),
                     dE=beam.write_partial_dE(),
@@ -1366,16 +1377,6 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                     omega_rf=backend.array(self.omega_rf, dtype=backend.float),
                     charge=beam.particle_type.charge,
                     n_rf=self.n_rf,
-                    acceleration_kick=-reference_energy_change,  # Mind the minus!
-                )
-            else:
-                gap_voltage = self.calc_gap_voltage_with_feedbacks()
-                backend.specials.kick_induced_voltage(
-                    dt=beam.read_partial_dt(),
-                    dE=beam.write_partial_dE(),
-                    voltage=backend.array(gap_voltage, dtype=backend.float),
-                    bin_centers=self._cavity_feedback[0].profile.hist_x,
-                    charge=beam.particle_type.charge,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
 

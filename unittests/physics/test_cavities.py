@@ -105,11 +105,17 @@ class TestRFStationBaseClass(unittest.TestCase):
             voltage=np.array([1]),
             harmonic=np.array([1]),
             phi_rf=np.array([1]),
-            cavity_feedback=(cavity_feedback_good,),
+            cavity_feedback=[
+                cavity_feedback_good,
+            ],
         )
         with self.assertRaises(TypeError):
             SingleHarmonicRFStation(
-                section_index=1, local_wakefield=None, cavity_feedback=(prof,)
+                section_index=1,
+                local_wakefield=None,
+                cavity_feedback=[
+                    prof,
+                ],
             )
 
     def test_single_cavity_feedback_allowed(self):
@@ -189,7 +195,9 @@ class TestRFStationBaseClass(unittest.TestCase):
             voltage=np.array([1]),
             phi_rf=np.array([1]),
             harmonic=np.array([1]),
-            cavity_feedback=(cavity_feedback_good,),
+            cavity_feedback=[
+                cavity_feedback_good,
+            ],
             beam_feedback=beam_feedback_good,
         )
 

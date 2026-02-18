@@ -66,7 +66,7 @@ class BeamFeedbackBase(GlobalFeedback):
     ) -> None:
         if (
             self.current_thres is None
-            and self.cavities[0]._cavity_feedback is not None
+            and self.cavities[0]._any_feedback_not_none
         ):
             raise RuntimeError(
                 "The filled slots in the machine is needed to compute the cavity sum phase"
@@ -126,7 +126,7 @@ class BeamFeedbackBase(GlobalFeedback):
         )
 
         # Phase offset due to beam loading
-        if self.cavities[0]._cavity_feedback is not None:
+        if self.cavities[0]._any_feedback_not_none:
             filled_slots = (
                 np.abs(
                     self.cavities[0]
