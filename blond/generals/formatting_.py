@@ -25,7 +25,7 @@ def si_format(num, decimals=2) -> str:
     Returns
     -------
     si_postfix_num
-        Number with SI-postfix, e.g. ``si_format(1e3) = 1k``.
+        Number with SI-postfix, e.g. ``si_format(1e3) = '1k'``.
     """
     if num == 0:
         return "0"

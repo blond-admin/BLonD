@@ -1084,14 +1084,13 @@ class Simulation(Preparable):
             )
 
             print(
-                f"\nBeam {i} has {si_format(beam._dt.global_size)} macroparticles, "
-                f"{si_format(size_bytes)}B",
+                f"\nBeam {i} has {si_format(beam._dt.global_size)} macroparticles"
                 end="",
             )
             if beam._dt.is_distributed:
                 print(f" ({beam._dt.local_size:.2e} on this node)")
             else:
-                print()
+                print(f" {si_format(size_bytes)}B")
         print(f"{n_turns=}")
         print(f"n_elements={self.ring.elements.n_elements}")
 
