@@ -362,7 +362,7 @@ class RFStationBaseClass(
         """
         pass
 
-    def gap_voltage(
+    def _get_gap_voltage_per_harmonic(
         self,
         ts: NumpyArray,
         harmonic_index: int | None = None,
@@ -385,7 +385,7 @@ class RFStationBaseClass(
 
         Returns
         -------
-        gap_voltage
+        gap_voltage_per_harmonic
             RF station voltage in [V] at time `ts`.
 
         Notes
@@ -957,7 +957,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         gap_voltage
             Gap voltage in [V] within the length of the profile.
         """
-        gap_voltage = self.gap_voltage(
+        gap_voltage = self._get_gap_voltage_per_harmonic(
             ts=self._cavity_feedback[0].profile.hist_x,
             phase_offsets=self._cavity_feedback[0].phase_correction,
             voltage_correction_factors=self._cavity_feedback[
@@ -1225,7 +1225,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         main_harmonic_omega_rf
             The omega_rf of the main harmonic, in [rad/s].
         """
-        return self.calc_omega_rf_design(
+        return self.calc_omega_rf_design(  # type: ignore
             beam_beta=beam_beta,
             closed_orbit_length=closed_orbit_length,
         )[self.main_harmonic_idx]
@@ -1257,15 +1257,16 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         gap_voltage = backend.zeros(self._cavity_feedback[0].profile.n_bins)
         for ind, feedback in enumerate(self._cavity_feedback):
             if feedback is not None:
-                gap_voltage += self.gap_voltage(
-                    self._cavity_feedback[0].profile.hist_x,
+                gap_voltage += self._get_gap_voltage_per_harmonic(
+                    ts=self._cavity_feedback[0].profile.hist_x,
                     harmonic_index=ind,
                     voltage_correction_factors=feedback.relative_voltage_correction,
                     phase_offsets=feedback.phase_correction,
                 )
             else:
-                gap_voltage += self.gap_voltage(
-                    self._cavity_feedback[0].profile.hist_x, harmonic_index=ind
+                gap_voltage += self._get_gap_voltage_per_harmonic(
+                    ts=self._cavity_feedback[0].profile.hist_x,
+                    harmonic_index=ind,
                 )
 
         return gap_voltage
