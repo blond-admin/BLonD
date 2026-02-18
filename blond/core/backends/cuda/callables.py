@@ -138,8 +138,8 @@ def reload_cuda_backend(  # NOQA: D102
 
         @staticmethod
         def kick_single_harmonic(
-            dt: CupyArray | CupyArray,
-            dE: CupyArray | CupyArray,
+            dt: CupyArray,
+            dE: CupyArray,
             voltage: float,
             omega_rf: float,
             phi_rf: float,
