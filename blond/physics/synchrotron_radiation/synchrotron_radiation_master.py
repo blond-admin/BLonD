@@ -221,7 +221,6 @@ class SynchrotronRadiationMaster(Schedulable):
     def compute_synchrotron_radiation_parameters(
         self,
         beam: BeamBaseClass,
-        ring: Ring,
     ) -> None:
         """
         Calculate the synchrotron radiation parameters for a given beam energy.
@@ -230,8 +229,6 @@ class SynchrotronRadiationMaster(Schedulable):
         ----------
         beam
             `Beam` object.
-        ring
-            `Ring` context manager.
         """
         (
             self._energy_loss_per_turn,
