@@ -72,38 +72,51 @@ class PotentialWellHelper:
         y = self.voltage_axis
         x = self.time_axis
 
+        epsilon = float(np.max(np.diff(self.voltage_axis)))
+
         maxima_indices, _ = find_peaks(y)
         buckets = []
 
-        for i in range(len(maxima_indices)):  # type: ignore
-            index_anchor: int = maxima_indices[i]  # type: ignore
-            threshold_y = y[index_anchor]
+        for nth_maximum in range(len(maxima_indices)):  # type: ignore
+            max_idx: int = maxima_indices[nth_maximum]  # type: ignore
 
-            # Search to the left
-            for j in range(index_anchor - 1, 0, -1):
-                if y[j] >= threshold_y:
-                    not_out_of_bounds = (j + 1) <= len(y)
-                    second_anchor_index = (j + 1) if not_out_of_bounds else j
-                    buckets.append(
-                        (
-                            x[min(index_anchor, second_anchor_index)],
-                            x[max(index_anchor, second_anchor_index)],
-                        )
-                    )
-                    break
+            threshold_y = float(y[max_idx])
+            for direction, range_args in zip(
+                (1, -1),
+                ((max_idx + 1, len(y) - 1, +1), (max_idx + -1, 1, -1)),
+                strict=False,
+            ):
+                inside_local_region = True
 
-            # Search to the right
-            for j in range(index_anchor + 1, len(y)):
-                if y[j] >= threshold_y:
-                    not_out_of_bounds = (j - 1) >= 0
-                    second_anchor_index = j - 1 if not_out_of_bounds else j
-                    buckets.append(
-                        (
-                            x[min(index_anchor, second_anchor_index)],
-                            x[max(index_anchor, second_anchor_index)],
+                # Search to the left of the maximum
+                for j in range(range_args[0], range_args[1], range_args[2]):
+                    current_y = y[j]
+                    next_y = y[j + direction]
+                    if (current_y > (threshold_y + epsilon)) or (
+                        current_y < (threshold_y - epsilon)
+                    ):
+                        inside_local_region = False  # once false stays false
+                    within_threshold_region = (
+                        current_y >= (threshold_y - epsilon)
+                    ) and (current_y <= (threshold_y + epsilon))
+                    next_falling = next_y < current_y
+                    next_above = next_y > threshold_y
+                    if (
+                        not inside_local_region
+                        and within_threshold_region
+                        and (next_falling or next_above)
+                    ):
+                        not_out_of_bounds = (j + 1) <= len(y)
+                        second_anchor_index = (
+                            (j + 1) if not_out_of_bounds else j
                         )
-                    )
-                    break
+                        buckets.append(
+                            (
+                                x[min(max_idx, second_anchor_index)],
+                                x[max(max_idx, second_anchor_index)],
+                            )
+                        )
+                        break
 
         return np.array(buckets)
 
