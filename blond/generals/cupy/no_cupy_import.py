@@ -75,7 +75,6 @@ def copy_to_cpu(array: NumpyArray | CupyArray) -> NumpyArray:
 class _AsarrayOverrideManager:
     def __init__(self) -> None:
         """Override functionality for 'np.asarray' to handle Cupy."""
-        self.cache: dict[int, np.ndarray] = {}
         self._numpy_asarray_original = deepcopy(np.asarray)
         self._numpy_array_original = deepcopy(np.array)
 
@@ -93,13 +92,7 @@ class _AsarrayOverrideManager:
             pass
         else:
             if isinstance(a, cp.ndarray):
-                key = a.data.ptr
-                if key not in self.cache:
-                    a = a.get()  # copy data from GPU
-                    self.cache[key] = a
-                else:
-                    # DON'T copy data from GPU, because it was done already
-                    a = self.cache[key]
+                a = a.get()  # copy data from GPU
 
         return self._numpy_asarray_original(  # type: ignore
             a,
@@ -120,13 +113,7 @@ class _AsarrayOverrideManager:
             pass
         else:
             if isinstance(a, cp.ndarray):
-                key = a.data.ptr
-                if key not in self.cache:
-                    a = a.get()  # copy data from GPU
-                    self.cache[key] = a
-                else:
-                    # DON'T copy data from GPU, because it was done already
-                    a = self.cache[key]
+                a = a.get()  # copy data from GPU
 
         return self._numpy_array_original(  # type: ignore
             a,
