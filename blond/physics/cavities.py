@@ -13,6 +13,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -981,7 +982,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         """
         # Apply phase shift that was caused in last turn
         # to this turn before beam and cavity feedbacks get updated.
-        self.delta_phi_rf = np.copy(self._dphi_rf_next)[0]
+        self.delta_phi_rf = deepcopy(self._dphi_rf_next)
 
         super()._track(beam=beam)
 
