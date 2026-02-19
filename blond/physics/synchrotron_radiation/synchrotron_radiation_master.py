@@ -312,7 +312,7 @@ class SynchrotronRadiationMaster(Schedulable):
                         "Could not transform the input into an array"
                     ) from ve
                 if (
-                    integrals.__len__()
+                    len(integrals)
                     >= minimum_number_of_expected_synchrotron_radiation_integrals
                 ):
                     self._synchrotron_radiation_integrals = integrals
