@@ -158,6 +158,28 @@ class TestBeam(unittest.TestCase):
         with self.assertRaises(ValueError):
             Beam.plot_hist(beam, axis=10)
 
+    def test_simple_gaussian(self):
+        beam = Beam.simple_gaussian(
+            n_macroparticles=10_000,
+            intensity=1e10,
+            particle_type=proton,
+            dt_scale=1e-9,
+            dE_scale=1e9,
+            dE_offset=0.5e9,
+            dt_offset=0.5e-9,
+        )
+        # places=1 because using random generator with low number of particles
+        self.assertAlmostEqual(
+            beam._dt.mean(), 5.194208272517843e-10, places=1
+        )
+        self.assertAlmostEqual(beam._dt.std(), 1.003710018454918e-09, places=1)
+        self.assertAlmostEqual(
+            beam._dE.mean() / 1e9, 510497638.7958076 / 1e9, places=1
+        )
+        self.assertAlmostEqual(
+            beam._dE.std() / 1e9, 996310643.973366 / 1e9, places=1
+        )
+
     def test_plot_hist_executes_kwargs(self) -> None:
         beam = Mock(Beam)
         beam._dE = DistributedArray(np.ones(10))
