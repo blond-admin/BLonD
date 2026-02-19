@@ -107,7 +107,6 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Beam class to interact with this element.
         """
         super()._track(beam=beam)
-        assert self._turn_i is not None
         if self.schedule_active:
             self.apply_schedules(
                 turn_i=self._turn_i.value,
@@ -584,7 +583,6 @@ class RFStationBaseClass(
             Synchrotron tune.
         """
         if eta_0 is None:
-            assert self._ring is not None
             eta_0 = self._ring.calc_average_eta_0(beam.reference.gamma)
 
         if phi_s is None:
@@ -593,8 +591,6 @@ class RFStationBaseClass(
         from blond.acc_math.analytic.hamilton import (
             calc_synchrotron_tune_single_harmonic,
         )
-
-        assert self.voltage is not None
 
         Q_s0 = calc_synchrotron_tune_single_harmonic(
             charge=beam.particle_type.charge,
@@ -622,9 +618,6 @@ class RFStationBaseClass(
         phi_s_main_harmonic
             Synchronous phase for the current RF parameters, in [rad].
         """
-        assert self._magnetic_cycle is not None
-        assert self._turn_i is not None
-        assert self._ring is not None
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
@@ -638,8 +631,6 @@ class RFStationBaseClass(
             target_total_energy - beam.reference.total_energy
         )
 
-        assert self.voltage is not None
-        assert self.phi_rf is not None
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
             voltage=float(self.get_main_harmonic_voltage()),
