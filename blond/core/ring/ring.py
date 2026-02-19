@@ -223,10 +223,10 @@ class Ring(Preparable):
         from blond import DriftSimple  # prevent cyclic import
 
         drifts = self.elements.get_elements(DriftSimple, recursive=False)
-        momentum_compaction_factors = [
-            e.momentum_compaction_factor for e in drifts
-        ]
-        weights = [e.orbit_length for e in drifts]
+        momentum_compaction_factors = np.array(
+            [e.momentum_compaction_factor for e in drifts]
+        )
+        weights = np.array([e.orbit_length for e in drifts])
         # todo not only simple drift
         momentum_compaction_factor = float(
             np.average(
