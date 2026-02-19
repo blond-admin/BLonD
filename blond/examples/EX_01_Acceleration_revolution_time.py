@@ -48,8 +48,8 @@ def main() -> None:
     drift1 = DriftSimple(
         orbit_length=26658.883,
     )
-    drift1.momentum_compaction_factor = momentum_compaction_factor(
-        transition_gamma=55.759505
+    drift1.momentum_compaction_factor = float(
+        momentum_compaction_factor(transition_gamma=55.759505)
     )
 
     sim = Simulation.from_locals(locals())
