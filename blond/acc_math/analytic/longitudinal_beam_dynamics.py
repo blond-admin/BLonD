@@ -54,8 +54,15 @@ def get_small_amplitude_angular_synchrotron_tune(
     angular_synchrotron_tune
         Angular synchrotron tune.
     """
-    args = tuple(locals().values())
-    raise_on_uneven_array_sizes(args)
+    raise_on_uneven_array_sizes(
+        (
+            energy,
+            voltage,
+            harmonic_number,
+            synchronous_phase,
+            phase_slip_factor,
+        )
+    )
 
     angular_synchrotron_tune = np.sqrt(
         (
@@ -100,8 +107,16 @@ def get_small_amplitude_angular_synchrotron_frequency(
     angular_synchrotron_frequency
             Angular synchrotron frequency, in [rad].
     """
-    args = tuple(locals().values())
-    raise_on_uneven_array_sizes(args)
+    raise_on_uneven_array_sizes(
+        (
+            energy,
+            voltage,
+            harmonic_number,
+            synchronous_phase,
+            phase_slip_factor,
+            revolution_frequency,
+        )
+    )
 
     small_amplitude_angular_synchrotron_tune = (
         get_small_amplitude_angular_synchrotron_tune(
@@ -150,8 +165,15 @@ def get_angular_synchrotron_tune(
     angular_synchrotron_frequency
             Angular synchrotron frequency, in [rad].
     """
-    args = tuple(locals().values())
-    raise_on_uneven_array_sizes(args)
+    raise_on_uneven_array_sizes(
+        (
+            energy,
+            voltage,
+            harmonic_number,
+            synchronous_phase,
+            phase_slip_factor,
+        )
+    )
 
     small_amplitude_angular_synchrotron_tune = (
         get_small_amplitude_angular_synchrotron_tune(
@@ -203,8 +225,16 @@ def get_angular_synchrotron_frequency(
     angular_synchrotron_frequency
             Angular synchrotron frequency, in [rad].
     """
-    args = tuple(locals().values())
-    raise_on_uneven_array_sizes(args)
+    raise_on_uneven_array_sizes(
+        (
+            energy,
+            voltage,
+            harmonic_number,
+            synchronous_phase,
+            phase_slip_factor,
+            revolution_frequency,
+        )
+    )
 
     angular_synchrotron_tune = get_angular_synchrotron_tune(
         energy=energy,
