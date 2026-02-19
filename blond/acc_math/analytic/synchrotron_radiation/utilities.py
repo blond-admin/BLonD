@@ -17,10 +17,9 @@ L.Valle
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy import dtype, ndarray
 
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_energy_loss_per_turn,
@@ -38,9 +37,9 @@ def gather_longitudinal_synchrotron_radiation_parameters(
     synchrotron_radiation_integrals: NumpyArray,
     particle_type: ParticleType = electron,
 ) -> tuple[
-    float | ndarray[tuple[Any, ...], dtype[Any]],
-    float | ndarray[tuple[Any, ...], dtype[Any]],
-    float | ndarray[tuple[Any, ...], dtype[Any]],
+    float | NumpyArray,
+    float | NumpyArray,
+    float | NumpyArray,
 ]:
     """
     Calculate the relevant synchrotron radiation parameters for tracking.

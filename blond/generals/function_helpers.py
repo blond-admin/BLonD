@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 from numpy import ndarray as numpyarray
 from numpy.typing import NDArray as NumpyArray
@@ -22,7 +23,9 @@ class UnevenArraySizes(Exception):
     pass
 
 
-def raise_on_uneven_array_sizes(*args: tuple[Sequence | NumpyArray]):
+def raise_on_uneven_array_sizes(
+    *args: tuple[float | Sequence | NumpyArray],
+) -> Any:
     """
     Check if the tuple of arguments have the same length.
 
