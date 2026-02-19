@@ -199,6 +199,11 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         np.testing.assert_allclose(mhc.calc_gap_voltage_with_feedbacks(), sol)
 
+        with self.assertRaisesRegex(
+            ValueError, "If no harmonic_index is provided"
+        ):
+            mhc._get_gap_voltage_per_harmonic(ts=ts)
+
     def test_attach_cavity_feedback(self):
         cavity_feedback_good = Mock(spec=LocalFeedback)
 
@@ -311,7 +316,7 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         mhc.track(beam=self.beam)
 
-        assert self.track_called
+        self.assertTrue(self.track_called)
 
     def test_single_cavity_feedbacks_allowed_mhc(self):
         self.track_called = False
@@ -368,7 +373,7 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         mhc.track(beam=self.beam)
 
-        assert self.track_called
+        self.assertTrue(self.track_called)
 
     def test_track_with_feedbacks(self):
         SingleHarmonicRFStation(
@@ -525,9 +530,12 @@ class TestRFStationBaseClass(unittest.TestCase):
             mhc.calc_synchrotron_tune_main_harmonic(beam), 0.00489862554460765
         )
 
-        assert calc_synchrotron_tune_single_harmonic(
-            2, 2 * np.pi * 1e6, 1, 1e6, 0, 1, 1
-        ) == np.sqrt(2)
+        self.assertEqual(
+            calc_synchrotron_tune_single_harmonic(
+                2, 2 * np.pi * 1e6, 1, 1e6, 0, 1, 1
+            ),
+            np.sqrt(2),
+        )
         self.assertAlmostEqual(
             calc_synchrotron_tune_single_harmonic(
                 2, 2 * np.pi * 1e6, 1, 1e6, np.pi / 2, 1, 1
@@ -539,11 +547,11 @@ class TestRFStationBaseClass(unittest.TestCase):
         alpha = 1 / 55.759505**2
         gamma = 450e9 / proton.mass
         eta = alpha - (1 / (gamma**2))
-        assert (
+        self.assertEqual(
             calc_synchrotron_tune_single_harmonic(
                 1, 6e6, 1, 450e9, 0, 35640, eta
-            )
-            == 0.00489862554460765
+            ),
+            0.00489862554460765,
         )
 
 

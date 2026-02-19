@@ -154,8 +154,6 @@ class RFStationBaseClass(
         Harmonic number, relating the rf frequency/ies to the revolution frequency.
     """
 
-    skip_find_instances_attributes = ["omega_rf_design"]
-
     def __init__(
         self,
         n_rf: int,
@@ -168,8 +166,6 @@ class RFStationBaseClass(
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
-        # prevent cyclic import
-
         super().__init__(
             section_index=section_index,
             name=name,
@@ -178,8 +174,8 @@ class RFStationBaseClass(
         self._n_rf = n_rf
 
         self.cavity_feedback_list: list[LocalFeedback | None] = [
-            None,
-        ] * self._n_rf
+            None for _ in range(self._n_rf)
+        ]
 
         if cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
@@ -431,6 +427,11 @@ class RFStationBaseClass(
         This function is intended for small `ts` arrays
         and not executed in parallel.
         """
+        if harmonic_index is None and not isinstance(self.phi_rf, float):
+            raise ValueError(
+                "If no harmonic_index is provided, phi_rf needs to be a float."
+            )
+
         phi_rf = (
             self.phi_rf[harmonic_index]
             if harmonic_index is not None
@@ -720,9 +721,6 @@ class RFStationBaseClass(
         Update the RF phase of all systems for the next turn
         Accumulated phase offset due to beam phase loop or frequency offset.
         """
-        assert self.harmonic is not None
-        assert self.omega_rf is not None
-
         phi_increment = (
             2.0 * np.pi * self.harmonic * self.delta_omega_rf / self.omega_rf
         )
@@ -893,9 +891,9 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         self.phi_rf_design: float | None = phi_rf
         self.harmonic: float | None = harmonic
 
-        self.delta_phi_rf: float | None = 0.0
-        self.delta_omega_rf: float | None = 0.0
-        self._dphi_rf_next: float | None = 0.0
+        self.delta_phi_rf: float = 0.0
+        self.delta_omega_rf: float = 0.0
+        self._dphi_rf_next: float = 0.0
 
     def get_main_harmonic(self) -> float:
         """
@@ -920,7 +918,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         if self.any_feedback_not_none:
             warnings.warn(
                 "`get_main_harmonic_voltage` returns unperturbed "
-                "voltage, even though feedbacks are active.",
+                "voltage, even though local feedbacks are active.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -1211,8 +1209,6 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         self.harmonic: NumpyArray | None = (
             np.array(harmonic) if (harmonic is not None) else None
         )
-        self.delta_phi_rf: NumpyArray | None = np.zeros(n_harmonics)
-        self.delta_omega_rf: NumpyArray | None = np.zeros(n_harmonics)
 
         for array_name, input_array in (
             ("voltage", voltage),
@@ -1230,9 +1226,9 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             f"but needs to be smaller than {n_harmonics}"
         )
 
-        self.delta_phi_rf: NumpyArray | None = np.zeros(n_harmonics)
-        self.delta_omega_rf: NumpyArray | None = np.zeros(n_harmonics)
-        self._dphi_rf_next: NumpyArray | None = np.zeros(n_harmonics)
+        self.delta_phi_rf: NumpyArray = np.zeros(n_harmonics)
+        self.delta_omega_rf: NumpyArray = np.zeros(n_harmonics)
+        self._dphi_rf_next: NumpyArray = np.zeros(n_harmonics)
 
     def get_main_harmonic(self) -> float:
         """
@@ -1257,7 +1253,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         if self.any_feedback_not_none:
             warnings.warn(
                 "`get_main_harmonic_voltage` returns unperturbed "
-                "voltage, even though feedbacks are active.",
+                "voltage, even though local feedbacks are active.",
                 UserWarning,
                 stacklevel=2,
             )
