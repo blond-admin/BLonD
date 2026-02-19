@@ -1130,17 +1130,17 @@ class MultiHarmonicRFStation(RFStationBaseClass):
 
     Parameters
     ----------
+    n_harmonics
+        Number of different RF waves for interaction.
+    main_harmonic_idx
+        Index of the RF station's main harmonic.
+        Used to calculate attributes that rely on only one harmonic.
     voltage
         Cavity's effective voltages (per harmonic) in [V].
     phi_rf
         Cavity's design phases (per harmonic) in [rad].
     harmonic
         Cavity's design harmonics (per harmonic) [].
-    n_harmonics
-        Number of different RF waves for interaction.
-    main_harmonic_idx
-        Index of the RF station's main harmonic.
-        Used to calculate attributes that rely on only one harmonic.
     section_index
         Section index to group elements into sections.
     local_wakefield
@@ -1172,11 +1172,11 @@ class MultiHarmonicRFStation(RFStationBaseClass):
 
     def __init__(
         self,
-        voltage: NumpyArray,
-        phi_rf: NumpyArray,
-        harmonic: NumpyArray,
         n_harmonics: int,
         main_harmonic_idx: int,
+        voltage: NumpyArray | None = None,
+        phi_rf: NumpyArray | None = None,
+        harmonic: NumpyArray | None = None,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback
