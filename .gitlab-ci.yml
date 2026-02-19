@@ -257,9 +257,5 @@ pages:
   artifacts:
     paths:
       - ${project_root}public
-  rules:
-    # Run on branch blonder
-    - if: '$CI_COMMIT_BRANCH == "blonder"'
-
-    # ALSO run in merge requests targeting blonder
-    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "blonder"'
+  only:
+    - blonder
