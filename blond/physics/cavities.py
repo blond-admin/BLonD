@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -129,10 +130,9 @@ class RFStationBaseClass(
     local_wakefield
         Optional wakefield to interact with beam.
     cavity_feedback
-        Optional cavity feedback to change cavity parameters.
-        For multi-harmonic cavities this needs to be a list with
-        the same length as `n_rf`. Any number of elements in this list can be None.
-        For a single-harmonic cavity either a list of length
+        For multi-harmonic cavities this needs to be a Sequence with
+        the same length as `n_rf`. Any number of elements in this Sequence can be None.
+        For a single-harmonic cavity either a Sequence of length
         one or a LocalFeedback object can be provided.
         See :meth:`attach_cavity_feedback`.
     beam_feedback
@@ -164,7 +164,8 @@ class RFStationBaseClass(
         section_index: int,
         local_wakefield: WakeField | None,
         cavity_feedback: LocalFeedback
-        | list[LocalFeedback | None]
+        | LocalFeedbackExp
+        | Sequence[LocalFeedback | LocalFeedbackExp | None]
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
@@ -177,9 +178,9 @@ class RFStationBaseClass(
         )
         self._n_rf = n_rf
 
-        self.cavity_feedback_list: list[LocalFeedback | None] = [
-            None for _ in range(self._n_rf)
-        ]
+        self.cavity_feedback_list: list[
+            LocalFeedback | LocalFeedbackExp | None
+        ] = [None for _ in range(self._n_rf)]
 
         if cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
@@ -497,9 +498,8 @@ class RFStationBaseClass(
     def attach_cavity_feedback(  # noqa: PLR0912
         self,
         cavity_feedback: LocalFeedback
-        | list[LocalFeedback | None]
         | LocalFeedbackExp
-        | list[LocalFeedbackExp | None],
+        | Sequence[LocalFeedbackExp | LocalFeedback | None],
         harmonic_index: int | None = None,
     ):
         """
@@ -508,9 +508,9 @@ class RFStationBaseClass(
         Parameters
         ----------
         cavity_feedback
-            For multi-harmonic cavities this needs to be a list with
-            the same length as `n_rf`. Any number of elements in this list can be None.
-            For a single-harmonic cavity either a list of length
+            For multi-harmonic cavities this needs to be a Sequence with
+            the same length as `n_rf`. Any number of elements in this Sequence can be None.
+            For a single-harmonic cavity either a Sequence of length
             one or a LocalFeedback object can be provided.
         harmonic_index
             Harmonic index at which to place the provided feedback.
@@ -534,7 +534,7 @@ class RFStationBaseClass(
             cavity_feedback.set_parent_rf_station(rf_station=self)  # type: ignore
             self.cavity_feedback_list[harmonic_index] = cavity_feedback
 
-        elif isinstance(cavity_feedback, list):
+        elif isinstance(cavity_feedback, Sequence):
             if len(cavity_feedback) != self._n_rf:
                 raise ValueError(
                     f"Provided list has incorrect length, must be {self._n_rf=} but was {len(cavity_feedback)=}."
@@ -560,7 +560,7 @@ class RFStationBaseClass(
                     UserWarning,
                     stacklevel=1,
                 )
-            self.cavity_feedback_list = cavity_feedback
+            self.cavity_feedback_list = list(cavity_feedback)
         else:
             raise TypeError(f"Invalid input type {type(cavity_feedback)=}")
 
@@ -981,7 +981,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         """
         # Apply phase shift that was caused in last turn
         # to this turn before beam and cavity feedbacks get updated.
-        self.delta_phi_rf = np.copy(self._dphi_rf_next)
+        self.delta_phi_rf = np.copy(self._dphi_rf_next)[0]
 
         super()._track(beam=beam)
 
