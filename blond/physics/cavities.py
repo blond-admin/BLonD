@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
 from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -131,9 +130,9 @@ class RFStationBaseClass(
     local_wakefield
         Optional wakefield to interact with beam.
     cavity_feedback
-        For multi-harmonic cavities this needs to be a Sequence with
-        the same length as `n_rf`. Any number of elements in this Sequence can be None.
-        For a single-harmonic cavity either a Sequence of length
+        For multi-harmonic cavities this needs to be a list with
+        the same length as `n_rf`. Any number of elements in this list can be None.
+        For a single-harmonic cavity either a list of length
         one or a LocalFeedback object can be provided.
         See :meth:`attach_cavity_feedback`.
     beam_feedback
@@ -166,7 +165,7 @@ class RFStationBaseClass(
         local_wakefield: WakeField | None,
         cavity_feedback: LocalFeedback
         | LocalFeedbackExp
-        | Sequence[LocalFeedback | LocalFeedbackExp | None]
+        | list[LocalFeedback | LocalFeedbackExp | None]
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
@@ -500,7 +499,7 @@ class RFStationBaseClass(
         self,
         cavity_feedback: LocalFeedback
         | LocalFeedbackExp
-        | Sequence[LocalFeedbackExp | LocalFeedback | None],
+        | list[LocalFeedbackExp | LocalFeedback | None],
         harmonic_index: int | None = None,
     ):
         """
@@ -509,9 +508,9 @@ class RFStationBaseClass(
         Parameters
         ----------
         cavity_feedback
-            For multi-harmonic cavities this needs to be a Sequence with
-            the same length as `n_rf`. Any number of elements in this Sequence can be None.
-            For a single-harmonic cavity either a Sequence of length
+            For multi-harmonic cavities this needs to be a list with
+            the same length as `n_rf`. Any number of elements in this list can be None.
+            For a single-harmonic cavity either a list of length
             one or a LocalFeedback object can be provided.
         harmonic_index
             Harmonic index at which to place the provided feedback.
@@ -535,10 +534,7 @@ class RFStationBaseClass(
             cavity_feedback.set_parent_rf_station(rf_station=self)  # type: ignore
             self.cavity_feedback_list[harmonic_index] = cavity_feedback
 
-        elif isinstance(cavity_feedback, Sequence):
-            print(type(cavity_feedback))
-            print(isinstance(cavity_feedback, Sequence))
-            print(isinstance(cavity_feedback, list))
+        elif isinstance(cavity_feedback, list):
             if len(cavity_feedback) != self._n_rf:
                 raise ValueError(
                     f"Provided list has incorrect length, must be {self._n_rf=} but was {len(cavity_feedback)=}."
