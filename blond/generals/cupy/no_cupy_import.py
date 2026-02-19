@@ -88,7 +88,8 @@ class _AsarrayOverrideManager:
     ) -> NumpyArray:
         try:
             import cupy as cp  # type: ignore
-        except (ImportError, ModuleNotFoundError):
+        # TODO remove PRAGMA when Issue #194 is done.
+        except (ImportError, ModuleNotFoundError):  # pragma: no cover
             pass
         else:
             if isinstance(a, cp.ndarray):
@@ -109,7 +110,8 @@ class _AsarrayOverrideManager:
 
         try:
             import cupy as cp  # type: ignore
-        except (ImportError, ModuleNotFoundError):
+        # TODO remove PRAGMA when Issue #194 is done.
+        except (ImportError, ModuleNotFoundError):  # pragma: no cover
             pass
         else:
             if isinstance(a, cp.ndarray):
@@ -141,9 +143,11 @@ class AllowPlotting:
 
     def __init__(self) -> None:
         try:
-            self.cupy_found = True
+            import cupy  # NOQA
 
-        except Exception:
+            self.cupy_found = True
+        # TODO remove PRAGMA when Issue #194 is done.
+        except (ImportError, ModuleNotFoundError):  # pragma: no cover
             self.cupy_found = False
             return  # do nothing
         # initialize cache, make override function available
@@ -151,7 +155,8 @@ class AllowPlotting:
 
     def __enter__(self) -> None:
         """Override np.asarray with own function to handle .get() for Cupy arrays."""
-        if not self.cupy_found:
+        # TODO remove PRAGMA when Issue #194 is done.
+        if not self.cupy_found:  # pragma: no cover
             return
         # override numpy "asarray" function with own function
         self.asarray_org = deepcopy(np.asarray)
@@ -178,7 +183,8 @@ class AllowPlotting:
         exc_tb
             Exception traceback if an exception occurred.
         """
-        if not self.cupy_found:
+        # TODO remove PRAGMA when Issue #194 is done.
+        if not self.cupy_found:  # pragma: no cover
             return  # do nothing
         # reset to original numpy function
         np.asarray = self.asarray_org
