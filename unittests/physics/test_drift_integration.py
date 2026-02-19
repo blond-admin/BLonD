@@ -105,7 +105,8 @@ class TestDriftIntegration(unittest.TestCase):
             section_index=0,
         )
         beam = EmptyBeam(proton)
-        drift1.momentum_compaction_factor = 1 / 55.759505**2
+        momentum_compaction_factor_ = 1 / 55.759505**2
+        drift1.momentum_compaction_factor = momentum_compaction_factor_
         sim = Simulation.from_locals(locals())
         with self.assertRaisesRegex(AssertionError, "but should be"):
             sim.ring.assert_circumference()
