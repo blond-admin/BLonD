@@ -228,13 +228,13 @@ class Ring(Preparable):
         ]
         weights = [e.orbit_length for e in drifts]
         # todo not only simple drift
-        average_momentum_compaction_factor = float(
+        momentum_compaction_factor = float(
             np.average(
                 momentum_compaction_factors,
                 weights=weights,
             )
         )
-        return average_momentum_compaction_factor
+        return momentum_compaction_factor
 
     @property
     def transition_gamma(self) -> complex:
