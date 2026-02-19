@@ -48,6 +48,31 @@ class TestDriftBaseClass(unittest.TestCase):
     def test_orbit_length(self):
         self.assertEqual(123, self.drift_base_class.orbit_length)
 
+    def test_synchrotron_radiation_integrals(self):
+        self.assertIsNone(
+            self.drift_base_class.synchrotron_radiation_integrals
+        )
+
+        radiation_integrals = np.array(
+            [
+                0.646747216157,
+                0.0005936549319,
+                5.6814536525e-08,
+                5.92870407301e-09,
+                1.71368060083e-11,
+            ]
+        )
+        drift_base_class = DriftBaseClassHelper(
+            orbit_length=123,
+            section_index=0,
+            synchrotron_radiation_integrals=radiation_integrals,
+        )
+
+        np.testing.assert_equal(
+            drift_base_class.synchrotron_radiation_integrals,
+            radiation_integrals,
+        )
+
 
 class TestDriftSimple(unittest.TestCase):
     def setUp(self):
