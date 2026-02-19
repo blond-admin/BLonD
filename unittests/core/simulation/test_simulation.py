@@ -414,7 +414,7 @@ class TestSimulation(unittest.TestCase):
         )
         phis = ts * cavity.calc_omega_rf_design(
             beam_beta=self.beam.reference.beta,
-            closed_orbit_length=self.simulation.ring.circumference,
+            ring_circumference=self.simulation.ring.circumference,
         )
         potential_well, factor, tilt_dt_per_dE = (
             self.simulation.get_potential_well_empiric(
@@ -533,7 +533,7 @@ class TestSimulation(unittest.TestCase):
         )
         phis = ts * cavity.calc_omega_rf_design(
             beam_beta=beam.reference.beta,
-            closed_orbit_length=simulation.ring.circumference,
+            ring_circumference=simulation.ring.circumference,
         )
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(

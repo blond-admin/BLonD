@@ -369,7 +369,7 @@ class RFStationBaseClass(
     def calc_main_harmonic_omega_rf_design(
         self,
         beam_beta: float,
-        closed_orbit_length: float,
+        ring_circumference: float,
     ) -> float:
         """
         Calculate the omega_rf of the main harmonic, in [rad/s].
@@ -378,7 +378,7 @@ class RFStationBaseClass(
         ----------
         beam_beta
             Relativistic beta of the beam.
-        closed_orbit_length
+        ring_circumference
             Ring circumference, in [m].
 
         Returns
@@ -454,7 +454,7 @@ class RFStationBaseClass(
         return gap_voltage
 
     def calc_main_harmonic_t_rf(
-        self, beam_beta: float, closed_orbit_length: float
+        self, beam_beta: float, ring_circumference: float
     ) -> float:
         """
         Calculate the t_rf of the main harmonic, in [s].
@@ -463,7 +463,7 @@ class RFStationBaseClass(
         ----------
         beam_beta
             Relativistic beta of the beam.
-        closed_orbit_length
+        ring_circumference
             Ring circumference, in [m].
 
         Returns
@@ -472,7 +472,7 @@ class RFStationBaseClass(
             The t_rf of the main harmonic, in [s].
         """
         return (2 * np.pi) / self.calc_main_harmonic_omega_rf_design(
-            beam_beta, closed_orbit_length
+            beam_beta, ring_circumference
         )
 
     def attach_beam_feedback(self, beam_feedback: BeamFeedbackBase):
@@ -684,7 +684,7 @@ class RFStationBaseClass(
         """
         self.omega_rf_design = self.calc_omega_rf_design(
             beam_beta=beam.reference.beta,
-            closed_orbit_length=self._ring.circumference,
+            ring_circumference=self._ring.circumference,
         )
 
     def _track(self, beam: BeamBaseClass) -> None:
@@ -764,7 +764,7 @@ class RFStationBaseClass(
     def calc_omega_rf_design(
         self,
         beam_beta: float,
-        closed_orbit_length: float,
+        ring_circumference: float,
     ) -> float | NumpyArray:
         """
         Calculate angular frequency of RF station, in [rad/s].
@@ -773,7 +773,7 @@ class RFStationBaseClass(
         ----------
         beam_beta
             Beam reference fraction of speed of light (v/c0).
-        closed_orbit_length
+        ring_circumference
             Reference synchrotron circumference, in [m].
 
         Returns
@@ -781,9 +781,7 @@ class RFStationBaseClass(
         omega
             Angular frequency (2 PI f) of RF station, in [rad/s].
         """
-        return self.harmonic * float(
-            TWOPI_C0 * beam_beta / closed_orbit_length
-        )
+        return self.harmonic * float(TWOPI_C0 * beam_beta / ring_circumference)
 
     def info_string(self, prefix="") -> str:
         """
@@ -942,7 +940,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
     def calc_main_harmonic_omega_rf_design(
         self,
         beam_beta: float,
-        closed_orbit_length: float,
+        ring_circumference: float,
     ) -> float:
         """
         Return the omega_rf of the main harmonic, in [rad/s].
@@ -951,7 +949,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         ----------
         beam_beta
             Relativistic beta of the beam.
-        closed_orbit_length
+        ring_circumference
             Ring circumference, in [m].
 
         Returns
@@ -961,7 +959,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         """
         return self.calc_omega_rf_design(
             beam_beta=beam_beta,
-            closed_orbit_length=closed_orbit_length,
+            ring_circumference=ring_circumference,
         )
 
     def get_main_harmonic_omega_rf(self) -> float:
@@ -1277,7 +1275,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         return self.phi_rf[self.main_harmonic_idx]  # type: ignore
 
     def calc_main_harmonic_omega_rf_design(
-        self, beam_beta: float, closed_orbit_length: float
+        self, beam_beta: float, ring_circumference: float
     ) -> float:
         """
         Return the omega_rf of the main harmonic, in [rad/s].
@@ -1286,7 +1284,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         ----------
         beam_beta
             Relativistic beta of the beam.
-        closed_orbit_length
+        ring_circumference
             Ring circumference, in [m].
 
         Returns
@@ -1296,7 +1294,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         """
         return self.calc_omega_rf_design(  # type: ignore
             beam_beta=beam_beta,
-            closed_orbit_length=closed_orbit_length,
+            ring_circumference=ring_circumference,
         )[self.main_harmonic_idx]
 
     def get_main_harmonic_omega_rf(self) -> float:
