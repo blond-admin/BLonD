@@ -341,7 +341,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
                 circumference=ring.circumference,
                 particle_type=beam.particle_type,
             )
-            / rf.harmonic
+            / rf.get_main_harmonic()
         )
         bunch_spacing = 5 * t_rf
 
