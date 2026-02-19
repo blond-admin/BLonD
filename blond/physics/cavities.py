@@ -536,6 +536,9 @@ class RFStationBaseClass(
             self.cavity_feedback_list[harmonic_index] = cavity_feedback
 
         elif isinstance(cavity_feedback, Sequence):
+            print(type(cavity_feedback))
+            print(isinstance(cavity_feedback, Sequence))
+            print(isinstance(cavity_feedback, list))
             if len(cavity_feedback) != self._n_rf:
                 raise ValueError(
                     f"Provided list has incorrect length, must be {self._n_rf=} but was {len(cavity_feedback)=}."
