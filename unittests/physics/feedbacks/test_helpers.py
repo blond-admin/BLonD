@@ -428,7 +428,7 @@ class TestRFBeamCurrent(unittest.TestCase):
             ),
         )
         t_rev = float(
-            (2 * np.pi * self.rf.harmonic)
+            (2 * np.pi * self.rf.get_main_harmonic())
             / self.rf.calc_omega(
                 self.beam.reference.beta, self.ring.circumference
             )
