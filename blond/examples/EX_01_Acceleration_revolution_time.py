@@ -20,6 +20,7 @@ from blond import (
     Simulation,
     SimulationObservation,
     SingleHarmonicRFStation,
+    momentum_compaction_factor,
     proton,
 )
 from blond.core.beam.beams import EmptyBeam
@@ -47,7 +48,9 @@ def main() -> None:
     drift1 = DriftSimple(
         orbit_length=26658.883,
     )
-    drift1.transition_gamma = 55.759505
+    drift1.momentum_compaction_factor = momentum_compaction_factor(
+        transition_gamma=55.759505
+    )
 
     sim = Simulation.from_locals(locals())
     sim.print_one_turn_execution_order()
