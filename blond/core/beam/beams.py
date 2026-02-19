@@ -78,6 +78,24 @@ class Beam(BeamBaseClass):
             is_distributed=False,
         )
 
+    def is_set_up(self) -> bool:
+        """
+        ``True`` of all required arrays are initialized.
+
+        Returns
+        -------
+        is_set_up
+            ``True`` of all required arrays are initialized.
+        """
+        return all(
+            (
+                self._dE is not None,
+                self._dt is not None,
+                self._flags is not None,
+                self._ids is not None,
+            )
+        )
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Initialize beam parameters when the simulation is created.

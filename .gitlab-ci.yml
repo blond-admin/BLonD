@@ -125,8 +125,12 @@ test_py_311:
     # - .publish
   tags:
     - k8s-gpu
-  only:
-    - blonder
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+
+    # ALSO run in merge requests targeting blonder
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "blonder"'
 
 test_py_312:
   image: gitlab-registry.cern.ch/blond/blond/python312
@@ -138,8 +142,12 @@ test_py_312:
     # - .publish
   tags:
     - k8s-gpu
-  only:
-    - blonder
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+
+    # ALSO run in merge requests targeting blonder
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "blonder"'
 
 test_py_313:
   image: gitlab-registry.cern.ch/blond/blond/python313
@@ -151,8 +159,12 @@ test_py_313:
     # - .publish
   tags:
     - k8s-gpu
-  only:
-    - blonder
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+
+    # ALSO run in merge requests targeting blonder
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "blonder"'
 
 
 test_minimum:
@@ -185,8 +197,12 @@ test_minimum:
       --import-mode=importlib
   tags:
     - k8s-gpu
-  only:
-    - blonder
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+
+    # ALSO run in merge requests targeting blonder
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "blonder"'
 
 release_sdist_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
