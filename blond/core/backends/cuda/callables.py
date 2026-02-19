@@ -75,6 +75,8 @@ def reload_cuda_backend(  # NOQA: D102
             raise FileNotFoundError(
                 f"The compiled CUDA backend was not found at {path=}.\n"
                 f"Has the backend been compiled?"
+                f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
+                # make PyCharm automatically link the correct file
             )
         gpu_module = cp.RawModule(
             path=path,
