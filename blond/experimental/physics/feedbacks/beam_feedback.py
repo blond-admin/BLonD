@@ -46,13 +46,13 @@ class BeamFeedbackBase(GlobalFeedback):
         delay: int = 0,
         window_coefficient: float = 0.0,
         time_offset: float | None = None,
-        current_thres=None,
+        beam_current_threshold=None,
     ):
         super().__init__(profile=profile)
         self.delay = delay
         self.window_coefficient = window_coefficient
         self.time_offset = time_offset
-        self.current_thres = current_thres
+        self.beam_current_threshold = beam_current_threshold
 
         self.domega_rf = 0
 
@@ -68,7 +68,7 @@ class BeamFeedbackBase(GlobalFeedback):
         **kwargs,
     ) -> None:
         if (
-            self.current_thres is None
+            self.beam_current_threshold is None
             and self.cavities[0].any_feedback_not_none
         ):
             raise RuntimeError(
@@ -137,7 +137,7 @@ class BeamFeedbackBase(GlobalFeedback):
                         -self.cavities[0].cavity_feedback_list[0].n_coarse :
                     ]
                 )
-                > self.current_thres
+                > self.beam_current_threshold
             )
 
             gap_phase_in_slots = (
