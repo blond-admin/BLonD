@@ -162,7 +162,7 @@ class Ring(Preparable):
 
         Returns
         -------
-        average_momentum_compaction_factor
+        momentum_compaction_factor
             The weighted average momentum compaction factor (dimensionless).
 
         Notes
@@ -307,7 +307,7 @@ class Ring(Preparable):
 
         See Also
         --------
-        average_momentum_compaction_factor : This method is internally used.
+        momentum_compaction_factor : This method is internally used.
         """
         return bool(self.calc_average_eta_0(gamma=beam.reference.gamma) < 0)
 
