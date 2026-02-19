@@ -745,16 +745,19 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         # pinned to an arbitrary value, physics is not checked or guaranteed
         # to work
-        SAVE_PINNED = False
+        SAVE_PINNED = True
         if SAVE_PINNED:
             np.savetxt(
                 callers_relative_path(
-                    "resources/wake_impedance.csv", stacklevel=1
+                    "resources/TWC_wake_impedance_array_source.csv",
+                    stacklevel=1,
                 ),
                 np.column_stack((wake_impedance.real, wake_impedance.imag)),
             )
         wake_impedance_pinned = np.loadtxt(
-            callers_relative_path("resources/wake_impedance.csv", stacklevel=1)
+            callers_relative_path(
+                "resources/TWC_wake_impedance_array_source.csv", stacklevel=1
+            )
         )
         wake_impedance_pinned = (
             wake_impedance_pinned[:, 0] + 1j * wake_impedance_pinned[:, 1]
@@ -777,7 +780,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
         if SAVE_PINNED:
             np.savetxt(
                 callers_relative_path(
-                    "resources/wake_impedance_float.csv", stacklevel=1
+                    "resources/TWC_wake_impedance_float_source.csv",
+                    stacklevel=1,
                 ),
                 np.column_stack(
                     (wake_impedance_float.real, wake_impedance_float.imag)
@@ -785,7 +789,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
             )
         wake_impedance_pinned_float = np.loadtxt(
             callers_relative_path(
-                "resources/wake_impedance_float.csv", stacklevel=1
+                "resources/TWC_wake_impedance_float_source.csv", stacklevel=1
             )
         )
         wake_impedance_pinned_float = (
@@ -811,14 +815,18 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         # pinned to an arbitrary value, physics is not checked or guaranteed
         # to work
-        SAVE_PINNED = False
+        SAVE_PINNED = True
         if SAVE_PINNED:
             np.savetxt(
-                callers_relative_path("resources/impedance.csv", stacklevel=1),
+                callers_relative_path(
+                    "resources/TWC_impedance_array_source.csv", stacklevel=1
+                ),
                 np.column_stack((impedance.real, impedance.imag)),
             )
         impedance_pinned = np.loadtxt(
-            callers_relative_path("resources/impedance.csv", stacklevel=1)
+            callers_relative_path(
+                "resources/TWC_impedance_array_source.csv", stacklevel=1
+            )
         )
         impedance_pinned = impedance_pinned[:, 0] + 1j * impedance_pinned[:, 1]
         np.testing.assert_allclose(
@@ -837,13 +845,13 @@ class TestTravelingWaveCavity(unittest.TestCase):
         if SAVE_PINNED:
             np.savetxt(
                 callers_relative_path(
-                    "resources/impedance_float.csv", stacklevel=1
+                    "resources/TWC_impedance_float_source.csv", stacklevel=1
                 ),
                 np.column_stack((impedance_float.real, impedance_float.imag)),
             )
         impedance_pinned_float = np.loadtxt(
             callers_relative_path(
-                "resources/impedance_float.csv", stacklevel=1
+                "resources/TWC_impedance_float_source.csv", stacklevel=1
             )
         )
         impedance_pinned_float = (
