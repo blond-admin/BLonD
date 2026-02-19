@@ -653,9 +653,9 @@ class NumpyBackend(BackendBaseClass):
         self.max = np.max
         self.dot = np.dot
         self.percentile = np.percentile
-        try:
+        try:  # pragma: no cover
             self.cumulative_sum = np.cumulative_sum
-        except AttributeError:
+        except AttributeError:  # pragma: no cover
             self.cumulative_sum = np.cumsum
         self.array_split = np.array_split
         self.sign = np.sign
