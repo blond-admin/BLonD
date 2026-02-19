@@ -19,13 +19,14 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
+    SPSOneTurnFeedback,
+)
 from blond.experimental.physics.feedbacks.base import (
+    GlobalFeedback,
     LocalFeedback,
 )
 from blond.experimental.physics.feedbacks.beam_feedback import BeamFeedbackBase
-from blond.experimental.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedback,
-)
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
@@ -379,7 +380,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
         # prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
         beam_feedback_good = Mock(spec=BeamFeedbackBase)
-        cavity_feedback_good = Mock(spec=IQCavityFeedback)
+        cavity_feedback_good = Mock(spec=SPSOneTurnFeedback)
         cavity_feedback_good.info_string.return_value = (
             "Unnamed-LocalFeedback-000"
         )
