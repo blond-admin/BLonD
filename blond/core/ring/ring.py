@@ -243,7 +243,7 @@ class Ring(Preparable):
 
         Returns
         -------
-        global_transition_gamma
+        transition_gamma
             The overall transition gamma, taking into account all drifts.
         """
         momentum_compaction_factor = self.momentum_compaction_factor

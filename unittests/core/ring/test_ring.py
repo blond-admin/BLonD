@@ -520,7 +520,7 @@ class TestRing(unittest.TestCase):
         self.ring.add_element(drift_simple_mock, deepcopy=True)
         self.ring.add_element(drift_simple_mock, deepcopy=True)
 
-        self.assertEqual(self.ring.global_transition_gamma, 42)
+        self.assertEqual(self.ring.transition_gamma, 42)
 
     def test_average_transition_gamma2(self):
         self.ring._circumference = 129
