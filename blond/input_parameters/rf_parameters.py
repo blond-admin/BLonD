@@ -380,9 +380,6 @@ class RFStation:
             self.phi_noise = None
 
         if phi_modulation is not None:
-            raise NotImplementedError(
-                "Phi modulation currently not supported."
-            )
             try:
                 iter(phi_modulation)
             except TypeError:
