@@ -798,7 +798,7 @@ class CupyBackend(BackendBaseClass):
         self.max = cp.max
         self.dot = cp.dot
         self.percentile = cp.percentile
-        self.cumulative_sum = cp.cumulative_sum
+        self.cumulative_sum = cp.C
         self.array_split = cp.array_split
         self.sign = cp.sign
         self.sin = cp.sin
