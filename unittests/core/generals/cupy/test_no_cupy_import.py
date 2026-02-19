@@ -53,6 +53,9 @@ class TestAsarrayOverrideManager(unittest.TestCase):
         arr_cpu = self.manger.asarray_override(arr_gpu)
         np.testing.assert_array_equal(arr_cpu, np.ones(10))
 
+        arr_cpu = self.manger.array_override(arr_gpu)
+        np.testing.assert_array_equal(arr_cpu, np.ones(10))
+
 
 if __name__ == "__main__":
     unittest.main()
