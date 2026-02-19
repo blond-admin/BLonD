@@ -75,10 +75,13 @@ class MainloopCounterRotatingBeams(ExecutionModel):
             The callback can be defined as follows.
             The rate at with which this function is
             called can be set by `each_turn_i`.
-            >>> from blond import Beam, Simulation
-            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
-            ...     ...
-            >>> my_callback.each_turn_i = 2
+
+        Examples
+        --------
+        >>> from blond import Beam, Simulation
+        >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
+        ...     ...
+        >>> my_callback.each_turn_i = 2
             .
         """
         assert (
