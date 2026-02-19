@@ -191,7 +191,6 @@ class SynchrotronRadiationMaster(Schedulable):
     def print_synchrotron_radiation_parameters(
         self,
         beam: BeamBaseClass,
-        ring: Ring,
     ) -> None:
         """
         Print the synchrotron radiation parameter of a given turn.
@@ -203,10 +202,8 @@ class SynchrotronRadiationMaster(Schedulable):
         ----------
         beam
             `Beam` object.
-        ring
-            `Ring` context manager.
         """
-        self.compute_synchrotron_radiation_parameters(beam=beam, ring=ring)
+        self.compute_synchrotron_radiation_parameters(beam=beam)
         print(
             f"Synchrotron radiation parameters for the beam energy "
             f"#{beam.reference.total_energy}"
