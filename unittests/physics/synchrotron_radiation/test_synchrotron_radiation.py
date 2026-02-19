@@ -166,6 +166,24 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             90.65874532 * 1e3,
             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
         )
+        with self.assertWarnsRegex(
+            expected_warning=UserWarning,
+            expected_regex="Radiation integrals input ignored. "
+            "Using the ring's.",
+        ):
+            SRM._set_synchrotron_radiation_integrals(
+                ring=ring,
+                radiation_integrals=self.synchrotron_radiation_integrals,
+            )
+        with self.assertWarnsRegex(
+            expected_warning=UserWarning,
+            expected_regex="Bending radius input ignored. "
+            "Using the ring's radiation integrals.",
+        ):
+            SRM._set_synchrotron_radiation_integrals(
+                ring=ring, bending_radius=10
+            )
+
         SRM._set_synchrotron_radiation_integrals(ring=ring)
         np.testing.assert_array_equal(
             SRM._synchrotron_radiation_integrals,

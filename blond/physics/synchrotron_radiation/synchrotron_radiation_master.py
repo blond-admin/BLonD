@@ -98,7 +98,9 @@ class SynchrotronRadiationMaster(Schedulable):
 
     def __init__(
         self,
-        track_before_element_type: list[DriftBaseClass | RFStationBaseClass]
+        track_before_element_type: list[
+            type[DriftBaseClass | RFStationBaseClass]
+        ]
         | None = None,
         disable_quantum_excitation: bool = False,
     ):
@@ -270,6 +272,21 @@ class SynchrotronRadiationMaster(Schedulable):
             self._synchrotron_radiation_integrals = (
                 ring.synchrotron_radiation_integrals.copy()
             )
+            if radiation_integrals:
+                warnings.warn(
+                    category=UserWarning,
+                    message="Radiation integrals input ignored. "
+                    "Using the ring's.",
+                    stacklevel=2,
+                )
+            if bending_radius:
+                warnings.warn(
+                    category=UserWarning,
+                    message="Bending radius input ignored. "
+                    "Using the ring's radiation integrals.",
+                    stacklevel=2,
+                )
+
         else:
             if radiation_integrals is None:
                 if bending_radius:
