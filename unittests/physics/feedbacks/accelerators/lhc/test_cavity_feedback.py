@@ -82,7 +82,7 @@ class TestLHCOpenDrive(unittest.TestCase):
             ring_circumference=ring.circumference,
         )
         rf._omega_rf = omega  # TODO FIXME REMOVE
-        self.f_c = float(omega) / (2 * np.pi)
+        self.f_c = float(omega[self.rf.main_harmonic_idx]) / (2 * np.pi)
 
     def test_setup(self):
         pass  # see if setUp() works
