@@ -372,7 +372,7 @@ class IQCavityFeedback(LocalFeedback):
         # Present RF angular frequency
         self.omega_rf = float(omega_rf)
         t_rev = float(  # TODO REMWORK/REMOVE
-            2 * np.pi * harmonic / self.omega_rf
+            2 * np.pi * harmonic / self._parent_rf_station.omega_rf_design
         )
         t_rf = float(2 * np.pi / self.omega_rf)
 
