@@ -402,7 +402,9 @@ class SynchrotronRadiationMaster(Schedulable):
         return shares_of_synchrotron_radiation_integrals
 
     def _generate_synchrotron_radiation_trackers(
-        self, ring: Ring, element_list: list[type[T]]
+        self,
+        ring: Ring,
+        element_list: list[type[RFStationBaseClass | DriftBaseClass]],
     ) -> None:
         """
         Function to create and insert the SR trackers in the ring.
