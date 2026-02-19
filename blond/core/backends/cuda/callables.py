@@ -113,9 +113,15 @@ def reload_cuda_backend(  # NOQA: D102
             dE: CupyArray,
             flags: CupyArray,
         ) -> None:
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
-            assert flags.device != "cpu"
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
+            assert flags.device != "cpu", (
+                f"Requires Cupy array, but got {type(flags)}."
+            )
 
             assert dt.dtype == backend.float
             assert dE.dtype == backend.float
@@ -151,8 +157,12 @@ def reload_cuda_backend(  # NOQA: D102
             charge: float,
             acceleration_kick: float,
         ) -> None:
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
 
             assert dt.dtype == floattype
             assert dE.dtype == floattype
@@ -186,11 +196,21 @@ def reload_cuda_backend(  # NOQA: D102
             n_rf: int,
             acceleration_kick: float,
         ) -> None:
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
-            assert phi_rf.device != "cpu"
-            assert voltage.device != "cpu"
-            assert omega_rf.device != "cpu"
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
+            assert phi_rf.device != "cpu", (
+                f"Requires Cupy array, but got {type(phi_rf)}."
+            )
+            assert voltage.device != "cpu", (
+                f"Requires Cupy array, but got {type(voltage)}."
+            )
+            assert omega_rf.device != "cpu", (
+                f"Requires Cupy array, but got {type(omega_rf)}."
+            )
 
             assert dt.dtype == floattype
             assert dE.dtype == floattype
@@ -229,8 +249,12 @@ def reload_cuda_backend(  # NOQA: D102
             beta: float,
             energy: float,
         ) -> None:
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
 
             assert dt.dtype == floattype
             assert dE.dtype == floattype
@@ -271,8 +295,12 @@ def reload_cuda_backend(  # NOQA: D102
             energy: float,
         ) -> None:
             raise NotImplementedError()
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
 
         @staticmethod
         def drift_exact(
@@ -286,8 +314,12 @@ def reload_cuda_backend(  # NOQA: D102
             energy: float,
         ) -> None:
             raise NotImplementedError()
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
 
         @staticmethod
         def kick_induced_voltage(
@@ -298,10 +330,18 @@ def reload_cuda_backend(  # NOQA: D102
             charge: float,
             acceleration_kick: float,
         ) -> None:
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
-            assert voltage.device != "cpu"
-            assert bin_centers.device != "cpu"
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
+            assert voltage.device != "cpu", (
+                f"Requires Cupy array, but got {type(voltage)}."
+            )
+            assert bin_centers.device != "cpu", (
+                f"Requires Cupy array, but got {type(bin_centers)}."
+            )
 
             assert dt.dtype == floattype
             assert dE.dtype == floattype
@@ -356,8 +396,12 @@ def reload_cuda_backend(  # NOQA: D102
             start: float,
             stop: float,
         ) -> None:
-            assert array_read.device != "cpu"
-            assert array_write.device != "cpu"
+            assert array_read.device != "cpu", (
+                f"Requires Cupy array, but got {type(array_read)}."
+            )
+            assert array_write.device != "cpu", (
+                f"Requires Cupy array, but got {type(array_write)}."
+            )
 
             assert array_read.dtype == floattype
             assert array_write.dtype == floattype
@@ -410,8 +454,12 @@ def reload_cuda_backend(  # NOQA: D102
             phi_rf: float,
             bin_size: float,
         ) -> float:
-            assert hist_x.device != "cpu"
-            assert hist_y.device != "cpu"
+            assert hist_x.device != "cpu", (
+                f"Requires Cupy array, but got {type(hist_x)}."
+            )
+            assert hist_y.device != "cpu", (
+                f"Requires Cupy array, but got {type(hist_y)}."
+            )
 
             assert hist_x.dtype == floattype
             assert hist_y.dtype == floattype
@@ -450,10 +498,18 @@ def reload_cuda_backend(  # NOQA: D102
             dE: CupyArray,
             ids: CupyArray,
         ):
-            assert flags.device != "cpu"
-            assert dt.device != "cpu"
-            assert dE.device != "cpu"
-            assert ids.device != "cpu"
+            assert flags.device != "cpu", (
+                f"Requires Cupy array, but got {type(flags)}."
+            )
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
+            assert ids.device != "cpu", (
+                f"Requires Cupy array, but got {type(ids)}."
+            )
 
             # TODO write a kernel that works with gpu kernels
             #  to have a smaller memory footprint.
