@@ -10,7 +10,7 @@ from blond.acc_math.analytic.longitudinal_beam_dynamics import (
     get_small_amplitude_angular_synchrotron_frequency,
     get_small_amplitude_angular_synchrotron_tune,
 )
-from blond.generals.function_helpers import UnevenArraySizes
+from blond.generals.exceptions import UnevenArraySizes
 
 
 class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
