@@ -130,6 +130,11 @@ class RFStationBaseClass(
         Optional wakefield to interact with beam.
     cavity_feedback
         Optional cavity feedback to change cavity parameters.
+        For multi-harmonic cavities this needs to be a list with
+        the same length as `n_rf`. Any number of elements in this list can be None.
+        For a single-harmonic cavity either a list of length
+        one or a LocalFeedback object can be provided.
+        See :meth:`attach_cavity_feedback`.
     beam_feedback
         Optional beam feedback.
     name
@@ -503,7 +508,10 @@ class RFStationBaseClass(
         Parameters
         ----------
         cavity_feedback
-            Cavity feedback to be attached to the RF station.
+            For multi-harmonic cavities this needs to be a list with
+            the same length as `n_rf`. Any number of elements in this list can be None.
+            For a single-harmonic cavity either a list of length
+            one or a LocalFeedback object can be provided.
         harmonic_index
             Harmonic index at which to place the provided feedback.
             This needs to be provided for multiharmonic cavities,
