@@ -265,7 +265,9 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             calculated_share_SR_int[0],
             self.synchrotron_radiation_integrals * 10,
         )
+
         drift.radiation_integrals = self.synchrotron_radiation_integrals / 100
+
         calculated_share_SR_int = (
             SRM._get_share_of_synchrotron_radiation_integrals_drifts(
                 ring=ring, drift_list=[drift]
@@ -290,8 +292,23 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         np.testing.assert_array_equal(
             calculated_share_SR_int,
             [
-                self.synchrotron_radiation_integrals / 100,
+                self.synchrotron_radiation_integrals * 10,
                 self.synchrotron_radiation_integrals * 10 / 4,
+            ],
+        )
+        drift2.radiation_integrals = self.synchrotron_radiation_integrals / 5
+
+        calculated_share_SR_int = (
+            SRM._get_share_of_synchrotron_radiation_integrals_drifts(
+                ring=ring, drift_list=[drift, drift2]
+            )
+        )
+
+        np.testing.assert_array_equal(
+            calculated_share_SR_int,
+            [
+                self.synchrotron_radiation_integrals / 100,
+                self.synchrotron_radiation_integrals / 5,
             ],
         )
 

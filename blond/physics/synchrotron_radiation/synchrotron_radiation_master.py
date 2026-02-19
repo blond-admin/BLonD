@@ -334,8 +334,12 @@ class SynchrotronRadiationMaster(Schedulable):
             Share of synchrotron radiation integrals.
         """
         shares_of_synchrotron_radiation_integrals = []
+
+        use_radiation_integrals_from_drifts = all(
+            hasattr(drift, "radiation_integrals") for drift in drift_list
+        )
         for drift in drift_list:
-            if hasattr(drift, "radiation_integrals"):
+            if use_radiation_integrals_from_drifts:
                 shares_of_synchrotron_radiation_integrals.append(
                     drift.radiation_integrals
                 )
