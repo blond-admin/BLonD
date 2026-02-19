@@ -872,7 +872,7 @@ for k, v in ALL_BACKENDS.items():
         v()
     # Skip on any exception, we only care that it's not available,
     # we don't care why.
-    except Exception:
+    except Exception:  # pragma: no cover
         pass
     else:
         AVAILABLE_BACKENDS[k] = v

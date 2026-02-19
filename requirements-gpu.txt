@@ -1,1 +1,1 @@
-cupy-cuda12x
+cupy-cuda12x<=13.6.0 # see https://github.com/cupy/cupy/issues/9704
