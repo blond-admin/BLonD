@@ -230,7 +230,6 @@ class testRFParamClass(unittest.TestCase):
             msg="RFSectionParameters: omega_rf array does not contain float",
         )
 
-    @unittest.skip("phi_modulation currently not supported.")
     def test_phi_modulation(self):
         timebase = numpy.linspace(0, 1, 10000)
         frequency = 2e2
