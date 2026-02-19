@@ -126,6 +126,10 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         hist_x: NumpyArray | CupyArray,
         hist_y: NumpyArray | CupyArray,
     ):
+        assert not np.any(np.isnan(hist_x))
+        assert not np.any(np.isnan(hist_y))
+        assert np.any(hist_y > 0)
+
         self._hist_x = hist_x
         self._hist_y = hist_y
         self.recenter = False
@@ -203,6 +207,9 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             left=0,
             right=0,
         )
+
+        assert np.any(hist_y_interp > 0)
+
         return hist_x_interp, hist_y_interp
 
     def _calculate_correction(self, hamilton_2D, time_grid):
@@ -237,9 +244,13 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         n_bins_smoothing = int(self.smoothness * len(histogram_desired))
 
         for sel in potential_well_helper.get_principal_bucket_slices():
+            selected_desired_histogram = histogram_desired[sel]
+            is_empty_bucket = np.all(selected_desired_histogram == 0)
+            if is_empty_bucket:
+                continue
             self._solve_for_density_single_bucket(
                 hamilton_2D=hamilton_2D[sel, :],
-                histogram_desired=histogram_desired[sel],
+                histogram_desired=selected_desired_histogram,
                 density_write=density[sel, :],
                 n_bins_smoothing=n_bins_smoothing,
             )
