@@ -592,33 +592,6 @@ class TestSPSCavityFeedback(unittest.TestCase):
             + "is different from expected values!",
         )
 
-    @unittest.skip
-    def setUp(self):
-        # TODO: implement test for `__init__`
-        self.sps_cavity_feedback = SPSCavityFeedback(
-            RFStation=None,
-            Profile=None,
-            G_ff=None,
-            G_llrf=None,
-            G_tx=None,
-            a_comb=None,
-            turns=None,
-            post_LS2=None,
-            V_part=None,
-            df=None,
-            commissioning=None,
-            n_h=None,
-        )
-
-    @unittest.skip
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
-
-    @unittest.skip
-    def test_track_init(self):
-        # TODO: implement test for `track_init`
-        self.sps_cavity_feedback.track_init(debug=None)
-
 
 class TestSPSOneTurnFeedback(unittest.TestCase):
     def setUp(self):
