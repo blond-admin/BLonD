@@ -100,9 +100,11 @@ class TestRFBeamCurrent(unittest.TestCase):
                 particle_type=proton,
             )
         )
-        self.omega_rf = float(self.rf.calc_omega(
-            self.beam.reference.beta, self.ring.circumference
-        )[self.rf.main_harmonic_idx])
+        self.omega_rf = float(
+            self.rf.calc_omega(
+                self.beam.reference.beta, self.ring.circumference
+            )[self.rf.main_harmonic_idx]
+        )
         self.beam.setup_beam(dt=np.zeros(N_m), dE=np.zeros(N_m))
 
     @pytest.mark.backend_mutation
@@ -118,8 +120,9 @@ class TestRFBeamCurrent(unittest.TestCase):
             -((t - 2.5e-9) ** 2) / (2 * 0.5e-9) ** 2
         )
 
-        t_rev = float((2 * np.pi * self.rf.get_main_harmonic()) /
-                      self.omega_rf)
+        t_rev = float(
+            (2 * np.pi * self.rf.get_main_harmonic()) / self.omega_rf
+        )
 
         rf_current = rf_beam_current(
             self.beam,
