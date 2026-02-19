@@ -6,6 +6,7 @@ from scipy.constants import c
 from blond import backend, electron
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import *
 from blond.core.beam.particle_types import ParticleType
+from blond.generals.function_helpers import UnevenArraySizes
 
 
 class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
@@ -225,7 +226,7 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
         )
 
     def test_calculate_damping_times_in_seconds(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(UnevenArraySizes):
             calculate_damping_times_in_seconds(
                 energy=self.beam_energy,
                 synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,

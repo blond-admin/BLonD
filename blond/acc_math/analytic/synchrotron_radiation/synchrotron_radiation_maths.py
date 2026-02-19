@@ -21,6 +21,7 @@ import numpy as np
 from scipy.constants import c
 
 from blond.core.beam.particle_types import ParticleType
+from blond.generals.function_helpers import raise_on_uneven_array_sizes
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -362,10 +363,8 @@ def calculate_damping_times_in_seconds(
     ... particle_type = beam.particle_type,
     ... revolution_frequency = beam.reference.velocity /ring.circumference)
     """
-    if isinstance(revolution_frequency, np.ndarray) and isinstance(
-        energy, np.ndarray
-    ):
-        assert len(revolution_frequency) == len(energy)
+    args = (energy, revolution_frequency)
+    raise_on_uneven_array_sizes(args)
 
     damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
         energy=energy,
