@@ -98,7 +98,8 @@ class SynchrotronRadiationMaster(Schedulable):
 
     def __init__(
         self,
-        track_before_element_type: list[type[T]] | None = None,
+        track_before_element_type: list[DriftBaseClass | RFStationBaseClass]
+        | None = None,
         disable_quantum_excitation: bool = False,
     ):
         super().__init__()
@@ -229,10 +230,6 @@ class SynchrotronRadiationMaster(Schedulable):
         ring
             `Ring` context manager.
         """
-        synchrotron_radiation_shift_from_wigglers = np.zeros(
-            len(self._synchrotron_radiation_integrals)
-        )
-
         (
             self._energy_loss_per_turn,
             self._longitudinal_damping_time,
@@ -240,8 +237,7 @@ class SynchrotronRadiationMaster(Schedulable):
         ) = gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=beam.particle_type,
             energy=beam.reference.total_energy,
-            synchrotron_radiation_integrals=self._synchrotron_radiation_integrals
-            + synchrotron_radiation_shift_from_wigglers,
+            synchrotron_radiation_integrals=self._synchrotron_radiation_integrals,
         )
 
     def _set_synchrotron_radiation_integrals(
