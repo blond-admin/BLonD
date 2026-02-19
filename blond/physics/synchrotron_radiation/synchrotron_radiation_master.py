@@ -21,6 +21,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
+from numpy.typing import NDArray as NumpyArray
 
 from blond import Ring
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
@@ -272,7 +273,7 @@ class SynchrotronRadiationMaster(Schedulable):
             self._synchrotron_radiation_integrals = (
                 ring.synchrotron_radiation_integrals.copy()
             )
-            if radiation_integrals:
+            if radiation_integrals is not None:
                 warnings.warn(
                     category=UserWarning,
                     message="Radiation integrals input ignored. "
@@ -303,7 +304,7 @@ class SynchrotronRadiationMaster(Schedulable):
                         "first five synchrotron radiation "
                         "integrals."
                     )
-            elif type(radiation_integrals) in {np.ndarray, list}:
+            elif isinstance(radiation_integrals, list | np.ndarray):
                 try:
                     integrals = np.array(radiation_integrals)
                 except ValueError as ve:
