@@ -221,7 +221,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         Parameters
         ----------
         momentum_compaction_factor
-            Gamma of transition crossing.
+            Momentum compaction factor.
         orbit_length
             Length of drift, in [m].
             Length / Velocity => Time to pass the element.

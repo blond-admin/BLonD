@@ -42,7 +42,7 @@ def main():
     phi_rf = 0  # Phase modulation/offset
     momentum_compaction_factor_ = momentum_compaction_factor(
         transition_gamma=55.759505
-    )  # Transition gamma
+    )
 
     energy_cycle = ConstantMagneticCycle(
         value=p_s,
