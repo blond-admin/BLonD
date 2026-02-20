@@ -212,7 +212,7 @@ class TestSpecials(unittest.TestCase):
             "cpp",
             "numba",
         ]
-        if cupy_available:
+        if True:
             self.special_modes.append("cuda")
         set_num_threads(8)
 
@@ -809,6 +809,11 @@ class TestSpecials(unittest.TestCase):
                 array_write = backend.ones(
                     bins_per_profile * n_profiles, dtype=backend.float
                 )
+                filling_pattern = backend.array([1, 0, 1, 0, 1, 0], dtype=bool)
+                bucket_index_to_memory_index = backend.array(
+                    [0, 0, 3, 3, 6, 6],
+                    dtype=np.int32,
+                )
                 for _ in range(2):
                     backend.specials.sparse_histogram_strided(
                         x=backend.linspace(-10, 10, 21, dtype=backend.float),
@@ -818,10 +823,8 @@ class TestSpecials(unittest.TestCase):
                         cut_width=4,
                         bins_per_profile=bins_per_profile,
                         n_profiles=n_profiles,
-                        filling_pattern=np.ones(n_profiles, bool),
-                        bucket_index_to_memory_index=(
-                            bins_per_profile * np.arange(n_profiles)
-                        ).astype(np.int32),
+                        filling_pattern=filling_pattern,
+                        bucket_index_to_memory_index=bucket_index_to_memory_index,
                     )
                 result = array_write
 

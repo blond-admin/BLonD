@@ -102,7 +102,6 @@ extern "C" void sparse_histogram_strided(
         // ---------------------------------
         // Reduction step
         // ---------------------------------
-#pragma omp for schedule(static) reduction(+:output[:compact_size])
         for (int i = 0; i < compact_size; ++i)
         {
             output[i] += local_output[i];
