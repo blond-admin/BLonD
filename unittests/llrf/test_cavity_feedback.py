@@ -983,7 +983,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
         )
         # Set up RF parameters
         self.rf = RFStation(self.ring, [4620], [4.5e6], [0.0], n_rf=1)
-        self.rf.omega_rf[0, 0] = 200.222e6 * 2 * np.pi
+
         # Define beam and fill it
         self.beam = Beam(self.ring, int(1e5), 1.0e11)
         bigaussian(
@@ -1028,12 +1028,12 @@ class TestSPSTransmitterGain(unittest.TestCase):
             n_cavities=no_cavities,
             V_part=V_part,
             G_ff=0,
-            G_llrf=5,
+            G_llrf=10,
             G_tx=G_tx,
             a_comb=15 / 16,
             commissioning=commissioning,
         )
-        for i in range(100):
+        for i in range(1000):
             OTFB.track_no_beam()
 
         V = (
@@ -1047,31 +1047,39 @@ class TestSPSTransmitterGain(unittest.TestCase):
 
     def test_preLS24sec(self):
         OTFB, V, I = self.init_otfb(
-            self.rf, self.profile, self.commissioning, 4, 2, 4 / 9, 1.03573985
+            self.rf, self.profile, self.commissioning,
+            4, 2, 4 / 9,
+            1.04978045 # old: 1.03573985
         )
         self.assertAlmostEqual(V, 2.00000000, places=7)
-        self.assertAlmostEqual(I, 0.78244888, places=7)
+        self.assertAlmostEqual(I, 0.79305585, places=7) # Old: 0.78244888
 
     def test_preLS25sec(self):
         OTFB, V, I = self.init_otfb(
-            self.rf, self.profile, self.commissioning, 5, 2, 5 / 9, 1.01547845
+            self.rf, self.profile, self.commissioning,
+            5, 2, 5 / 9,
+            1.0279351 # old: 1.01547845
         )
         self.assertAlmostEqual(V, 2.50000000, places=7)
-        self.assertAlmostEqual(I, 0.76359084, places=7)
+        self.assertAlmostEqual(I, 0.77295764, places=7) # old: 0.76359084
 
     def test_postLS23sec(self):
         OTFB, V, I = self.init_otfb(
-            self.rf, self.profile, self.commissioning, 3, 4, 6 / 10, 1.01724955
+            self.rf, self.profile, self.commissioning,
+            3, 4, 6 / 10,
+            1.01294445 # old: 1.01724955
         )
         self.assertAlmostEqual(V, 2.70000000, places=7)
-        self.assertAlmostEqual(I, 0.69703574, places=7)
+        self.assertAlmostEqual(I, 0.69408581, places=7) # old: 0.69703574
 
     def test_postLS24sec(self):
         OTFB, V, I = self.init_otfb(
-            self.rf, self.profile, self.commissioning, 4, 2, 4 / 10, 1.03573985
+            self.rf, self.profile, self.commissioning,
+            4, 2, 4 / 10,
+            1.04978045 # old: 1.03573985
         )
         self.assertAlmostEqual(V, 1.80000000, places=7)
-        self.assertAlmostEqual(I, 0.70420400, places=7)
+        self.assertAlmostEqual(I, 0.71375026, places=7) # old: 0.70420400
 
 
 class TestLHCOpenDrive(unittest.TestCase):
