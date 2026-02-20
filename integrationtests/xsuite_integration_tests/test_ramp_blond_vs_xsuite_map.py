@@ -6,7 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Run test to check xsuite interface works properly for LHC rmap."""
+"""Run test to check xsuite interface works for LHC rmap."""
 
 import numpy as np
 from matplotlib import pyplot as plt

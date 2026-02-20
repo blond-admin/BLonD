@@ -66,7 +66,7 @@ def run_simulation(n_turns: int, init_distribution: dict):
         circumference=C,
         total_energy=None,
         is_below_transition=None,
-        beam_reference_beta=None,
+        beam_reference_beta=line.particle_ref.beta0,
     )
 
     particles = line.build_particles(
