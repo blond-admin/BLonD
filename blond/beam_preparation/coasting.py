@@ -17,12 +17,14 @@ S. Albright
 
 from __future__ import annotations
 
+import numbers
 import warnings
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond.beam_preparation import base
 from blond.core import helpers as core_help
-from blond.core.backends.backend import backend
 from blond.generals.cupy import no_cupy_import
 from blond.generals.distributed import helpers as mpi_help
 
@@ -87,10 +89,10 @@ class Coasting(base.BeamPreparationRoutine):
 
         self.energy_bins = energy_bins
 
-        # Automatically cast energy profile to the correct array type
-        # to allow for any ArrayLike to work with any backend.
-        energy_profile = backend.cast_arr_float_if_needed(energy_profile)
-        profile_sum = backend.sum(energy_profile)
+        # Automatically cast energy profile to numpy array, delay moving
+        # to CPU until calling setup_beam.
+        energy_profile = np.array(no_cupy_import.copy_to_cpu(energy_profile))
+        profile_sum = np.sum(energy_profile)
 
         if profile_sum != 1:
             warnings.warn(
@@ -110,10 +112,13 @@ class Coasting(base.BeamPreparationRoutine):
 
         self.start_time = start_time
         self.stop_time = stop_time
-        self.energy_offset = backend.cast_arr_float_if_needed(energy_offset)
 
-        if self.energy_offset.shape == ():
-            self.energy_offset = float(self.energy_offset)
+        if isinstance(energy_offset, numbers.Number):
+            self.energy_offset = energy_offset
+        else:
+            self.energy_offset = np.array(
+                no_cupy_import.copy_to_cpu(energy_offset)
+            )
 
         self._seed = seed
 
@@ -131,16 +136,14 @@ class Coasting(base.BeamPreparationRoutine):
         super().prepare_beam(simulation, beam)
 
         rng = mpi_help.mpi_aware_random_generator_cpu(
-            seed=(self._seed + 1) if self._seed is not None else None,
+            seed=self._seed if self._seed is not None else None,
             n_forward_per_rank=self._n_macroparticles_local,
         )
 
-        dE = backend.cast_arr_float_if_needed(
-            rng.choice(
-                self.energy_bins,
-                self._n_macroparticles_local,
-                p=no_cupy_import.copy_to_cpu(self.energy_profile),
-            )
+        dE = rng.choice(
+            self.energy_bins,
+            self._n_macroparticles_local,
+            p=self.energy_profile,
         )
 
         # Generated distribution is discrete at values defined in
@@ -154,7 +157,7 @@ class Coasting(base.BeamPreparationRoutine):
             right=bin_width,
             size=self._n_macroparticles_local,
         )
-        dE += backend.cast_arr_float_if_needed(e_shift)
+        dE += e_shift
 
         # Set stop time to t_rev if not defined
         if self.stop_time is None:
@@ -164,18 +167,14 @@ class Coasting(base.BeamPreparationRoutine):
                 circ, particle
             )
 
-        dt = backend.cast_arr_float_if_needed(
-            rng.uniform(
-                low=self.start_time,
-                high=self.stop_time,
-                size=self._n_macroparticles_local,
-            )
+        dt = rng.uniform(
+            low=self.start_time,
+            high=self.stop_time,
+            size=self._n_macroparticles_local,
         )
 
-        if isinstance(self.energy_offset, backend.ndarray):
-            dE += backend.interp(
-                dt, self.energy_offset[0], self.energy_offset[1]
-            )
+        if isinstance(self.energy_offset, np.ndarray):
+            dE += np.interp(dt, self.energy_offset[0], self.energy_offset[1])
         else:
             dE += self.energy_offset
 
