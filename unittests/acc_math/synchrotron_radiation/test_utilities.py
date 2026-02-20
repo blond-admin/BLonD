@@ -14,7 +14,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         # FCC-ee high-energy booster at injection energy
         self.particle_type = electron
         self.beam_energy = 20e9
-        self.synchrotron_radiation_integrals = np.array(
+        self.radiation_integrals = np.array(
             [
                 0.646747216157,
                 0.000593654931851,
@@ -35,7 +35,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         energy_loss, tau_z, sigmaE = (
             gather_longitudinal_synchrotron_radiation_parameters(
                 energy=self.beam_energy,
-                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                radiation_integrals=self.radiation_integrals,
                 particle_type=self.particle_type,
             )
         )

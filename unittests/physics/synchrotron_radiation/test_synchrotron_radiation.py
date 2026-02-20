@@ -34,7 +34,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         )
         self.SR_ring = Ring(
             10.0,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.synchrotron_radiation_integrals,
         )
         self.ring = copy.deepcopy(self.SR_ring)
 
@@ -130,60 +130,45 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 ring=ring, radiation_integrals="not an array"
             )
 
-    def test_set_synchrotron_radiation_integrals(self):
+    def test_set_radiation_integrals(self):
         SRM = SynchrotronRadiationMaster()
         ## ring has synchrotron radiation integrals
 
         ring = Ring(circumference=90.65874532 * 1e3)
-        ring._synchrotron_radiation_integrals = (
-            self.synchrotron_radiation_integrals
-        )
+        ring._radiation_integrals = self.synchrotron_radiation_integrals
         ring._momentum_compaction_factor = 0
-        SRM._set_synchrotron_radiation_integrals(
+        SRM._set_radiation_integrals(
             ring=ring,
             radiation_integrals=self.synchrotron_radiation_integrals / 10,
             bending_radius=14428.78745218723,
         )
-
         np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
-            ring.synchrotron_radiation_integrals,
+            ring.radiation_integrals,
+            self.synchrotron_radiation_integrals,
         )
-        SRM._set_synchrotron_radiation_integrals(
+
+        SRM._set_radiation_integrals(
             ring=ring, radiation_integrals=np.zeros(5)
         )
         np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
+            ring.radiation_integrals,
             self.synchrotron_radiation_integrals,
         )
-        SRM._set_synchrotron_radiation_integrals(
-            ring=ring, bending_radius=10000
-        )
+        SRM._set_radiation_integrals(ring=ring, bending_radius=10000)
         np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
+            ring.radiation_integrals,
             self.synchrotron_radiation_integrals,
         )
 
         ## ring does not have synchrotron radiation integrals
         ring = Ring(circumference=90.65874532 * 1e3)
         ring._momentum_compaction_factor = 0
-        SRM._set_synchrotron_radiation_integrals(
+        SRM._set_radiation_integrals(
             ring=ring, bending_radius=14428.78745218723
         )
+
         np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
-            np.array(
-                [
-                    0,
-                    0.0004354617689116441,
-                    3.018006678347967e-08,
-                    0,
-                    0,
-                ]
-            ),
-        )
-        np.testing.assert_array_equal(
-            ring._synchrotron_radiation_integrals,
+            ring._radiation_integrals,
             np.array(
                 [
                     0,
@@ -196,39 +181,35 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         )
         ring = Ring(circumference=90.65874532 * 1e3)
         ring._momentum_compaction_factor = 0
-        SRM._set_synchrotron_radiation_integrals(
+        SRM._set_radiation_integrals(
             ring=ring, radiation_integrals=self.synchrotron_radiation_integrals
         )
         np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
+            ring._radiation_integrals,
             self.synchrotron_radiation_integrals,
         )
         np.testing.assert_array_equal(
-            ring.synchrotron_radiation_integrals,
+            ring.radiation_integrals,
             self.synchrotron_radiation_integrals,
         )
         ring = Ring(circumference=90.65874532 * 1e3)
         ring._momentum_compaction_factor = 0
-        SRM._set_synchrotron_radiation_integrals(
+        SRM._set_radiation_integrals(
             ring=ring,
             radiation_integrals=self.synchrotron_radiation_integrals,
             bending_radius=0000,
         )
         np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
-            self.synchrotron_radiation_integrals,
-        )
-        np.testing.assert_array_equal(
-            ring._synchrotron_radiation_integrals,
+            ring._radiation_integrals,
             self.synchrotron_radiation_integrals,
         )
         ring = Ring(
             circumference=90.65874532 * 1e3,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.synchrotron_radiation_integrals,
         )
-        SRM._set_synchrotron_radiation_integrals(ring=ring)
+        SRM._set_radiation_integrals(ring=ring)
         np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
+            ring._radiation_integrals,
             self.synchrotron_radiation_integrals,
         )
 
@@ -237,7 +218,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             expected_regex="Radiation integrals input ignored. "
             "Using the ring's.",
         ):
-            SRM._set_synchrotron_radiation_integrals(
+            SRM._set_radiation_integrals(
                 ring=ring,
                 radiation_integrals=self.synchrotron_radiation_integrals,
             )
@@ -246,18 +227,16 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             expected_regex="Bending radius input ignored. "
             "Using the ring's radiation integrals.",
         ):
-            SRM._set_synchrotron_radiation_integrals(
-                ring=ring, bending_radius=10
-            )
+            SRM._set_radiation_integrals(ring=ring, bending_radius=10)
 
-    def test_user_warning_set_synchrotron_radiation_integrals(self):
+    def test_user_warning_set_radiation_integrals(self):
         SRM = SynchrotronRadiationMaster()
         with self.assertWarnsRegex(
             expected_warning=UserWarning,
             expected_regex="Radiation integrals input ignored. "
             "Using the ring's.",
         ):
-            SRM._user_warning_set_synchrotron_radiation_integrals(
+            SRM._user_warning_set_radiation_integrals(
                 radiation_integrals=self.synchrotron_radiation_integrals,
                 bending_radius=None,
             )
@@ -266,12 +245,12 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             expected_regex="Bending radius input ignored. "
             "Using the ring's radiation integrals.",
         ):
-            SRM._user_warning_set_synchrotron_radiation_integrals(
+            SRM._user_warning_set_radiation_integrals(
                 radiation_integrals=None,
                 bending_radius=10e3,
             )
         self.assertIsNone(
-            SRM._user_warning_set_synchrotron_radiation_integrals(
+            SRM._user_warning_set_radiation_integrals(
                 radiation_integrals=None,
                 bending_radius=None,
             )
@@ -280,7 +259,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
     def test_generate_synchrotron_radiation_subclasses_errors(self):
         ring = Ring(
             90.65874532 * 1e3,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.synchrotron_radiation_integrals,
         )
         momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
@@ -332,10 +311,10 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 ring=ring,
             )
 
-    def test_set_share_of_synchrotron_radiation_integrals_drifts(self):
+    def test_get_share_of_radiation_integrals_drifts(self):
         ring = Ring(
             90.65874532 * 1e3,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.synchrotron_radiation_integrals * 10,
         )
 
         drift = DriftSimple(
@@ -344,25 +323,18 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             section_index=0,
         )
         SRM = SynchrotronRadiationMaster()
-        SRM._synchrotron_radiation_integrals = (
-            self.synchrotron_radiation_integrals
-        ) * 10
-        calculated_share_SR_int = (
-            SRM._get_share_of_synchrotron_radiation_integrals_drifts(
-                ring=ring, drift_list=[drift]
-            )
+        calculated_share_SR_int = SRM._get_share_of_radiation_integrals_drifts(
+            ring=ring, drift_list=[drift]
         )
         np.testing.assert_array_equal(
             calculated_share_SR_int[0],
             self.synchrotron_radiation_integrals * 10,
         )
 
-        drift.radiation_integrals = self.synchrotron_radiation_integrals / 100
+        drift._radiation_integrals = self.synchrotron_radiation_integrals / 100
 
-        calculated_share_SR_int = (
-            SRM._get_share_of_synchrotron_radiation_integrals_drifts(
-                ring=ring, drift_list=[drift]
-            )
+        calculated_share_SR_int = SRM._get_share_of_radiation_integrals_drifts(
+            ring=ring, drift_list=[drift]
         )
         np.testing.assert_array_equal(
             calculated_share_SR_int[0],
@@ -374,10 +346,8 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             momentum_compaction_factor=1e-4,
             section_index=0,
         )
-        calculated_share_SR_int = (
-            SRM._get_share_of_synchrotron_radiation_integrals_drifts(
-                ring=ring, drift_list=[drift, drift2]
-            )
+        calculated_share_SR_int = SRM._get_share_of_radiation_integrals_drifts(
+            ring=ring, drift_list=[drift, drift2]
         )
 
         np.testing.assert_array_equal(
@@ -387,12 +357,10 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 self.synchrotron_radiation_integrals * 10 / 4,
             ],
         )
-        drift2.radiation_integrals = self.synchrotron_radiation_integrals / 5
+        drift2._radiation_integrals = self.synchrotron_radiation_integrals / 5
 
-        calculated_share_SR_int = (
-            SRM._get_share_of_synchrotron_radiation_integrals_drifts(
-                ring=ring, drift_list=[drift, drift2]
-            )
+        calculated_share_SR_int = SRM._get_share_of_radiation_integrals_drifts(
+            ring=ring, drift_list=[drift, drift2]
         )
 
         np.testing.assert_array_equal(
@@ -403,25 +371,20 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             ],
         )
 
-    def test_set_share_of_synchrotron_radiation_integrals_cavities(self):
+    def test_set_share_of_radiation_integrals_cavities(self):
         ring = Mock(Ring)
         ring.circumference = 90.65874532 * 1e3
-        ring.synchrotron_radiation_integrals = (
-            self.synchrotron_radiation_integrals
-        )
+        ring.radiation_integrals = self.synchrotron_radiation_integrals * 10
         cavity = SingleHarmonicRFStation()
         cavity.harmonic = 242400
         cavity.voltage = 50.1e6
         cavity.phi_rf = 0
 
         SRM = SynchrotronRadiationMaster()
-        SRM._synchrotron_radiation_integrals = (
-            self.synchrotron_radiation_integrals
-        ) * 10
 
         element_list = [cavity]
         calculated_share_SR_int = (
-            SRM._get_share_of_synchrotron_radiation_integrals_cavities(
+            SRM._get_share_of_radiation_integrals_cavities(
                 ring=ring, cavity_list=element_list
             )
         )
@@ -438,7 +401,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         element_list = [cavity, cavity2]
 
         calculated_share_SR_int = (
-            SRM._get_share_of_synchrotron_radiation_integrals_cavities(
+            SRM._get_share_of_radiation_integrals_cavities(
                 ring=ring, cavity_list=element_list
             )
         )
@@ -451,10 +414,26 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             self.synchrotron_radiation_integrals * 10 / 2,
         )
 
+    def yolo(
+        self,
+        i: int,
+        momentum_compaction_factor: float,
+        number_of_sections: int,
+        ring: Ring,
+    ):
+        drift = DriftSimple(
+            name=f"drift{i + 1}",
+            orbit_length=ring.circumference / number_of_sections,
+            momentum_compaction_factor=momentum_compaction_factor
+            / number_of_sections,
+            section_index=i,
+        )
+        ring.add_element(drift, section_index=i)
+
     def test_generate_synchrotron_radiation_subclasses_drift_trackers(self):
         ring = Ring(
             90.65874532 * 1e3,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.synchrotron_radiation_integrals,
         )
         momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
@@ -494,36 +473,20 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
 
             # verifies the synchrotron radiation integral share of each tracker
             np.testing.assert_array_almost_equal(
-                sr_drift.share_of_synchrotron_radiation_integrals,
+                sr_drift.share_of_radiation_integrals,
                 self.synchrotron_radiation_integrals / 5,
                 decimal=self.decimal,
             )
             np.testing.assert_array_almost_equal(
-                sr_drift.synchrotron_radiation_integrals_tracker,
+                sr_drift.radiation_integrals_tracker,
                 self.synchrotron_radiation_integrals / 5,
                 decimal=self.decimal,
             )
 
-    def yolo(
-        self,
-        i: int,
-        momentum_compaction_factor: float,
-        number_of_sections: int,
-        ring: Ring,
-    ):
-        drift = DriftSimple(
-            name=f"drift{i + 1}",
-            orbit_length=ring.circumference / number_of_sections,
-            momentum_compaction_factor=momentum_compaction_factor
-            / number_of_sections,
-            section_index=i,
-        )
-        ring.add_element(drift, section_index=i)
-
     def test_generate_synchrotron_radiation_subclasses_cavity_trackers(self):
         ring = Ring(
             90.65874532 * 1e3,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.synchrotron_radiation_integrals,
         )
         momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
@@ -570,12 +533,12 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
 
         # verifies the synchrotron radiation integral share of each tracker
         np.testing.assert_array_almost_equal(
-            sr_drifts.share_of_synchrotron_radiation_integrals,
+            sr_drifts.share_of_radiation_integrals,
             self.synchrotron_radiation_integrals,
             decimal=self.decimal,
         )
         np.testing.assert_array_almost_equal(
-            sr_drifts.synchrotron_radiation_integrals_tracker,
+            sr_drifts.radiation_integrals_tracker,
             self.synchrotron_radiation_integrals,
             decimal=self.decimal,
         )
@@ -583,7 +546,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
     def test_generate_synchrotron_radiation_subclasses_cavities_trackers(self):
         ring = Ring(
             90.65874532 * 1e3,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.synchrotron_radiation_integrals,
         )
         momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
 
@@ -635,14 +598,14 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             np.testing.assert_array_almost_equal(
                 ring_SRdrifts.elements.elements[
                     1 + 3 * i
-                ].share_of_synchrotron_radiation_integrals,
+                ].share_of_radiation_integrals,
                 self.synchrotron_radiation_integrals / number_of_sections,
                 decimal=self.decimal,
             )
             np.testing.assert_array_almost_equal(
                 ring_SRdrifts.elements.elements[
                     1 + 3 * i
-                ].synchrotron_radiation_integrals_tracker,
+                ].radiation_integrals_tracker,
                 self.synchrotron_radiation_integrals / number_of_sections,
                 decimal=self.decimal,
             )

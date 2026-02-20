@@ -144,19 +144,16 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             ]
         )
         self.SRB = SynchrotronRadiationBaseClass(
-            share_of_synchrotron_radiation_integrals=0.1
-            * self.radiation_integrals,
+            share_of_radiation_integrals=0.1 * self.radiation_integrals,
             disable_quantum_excitation=True,
         )
 
         self.SRD = _SynchrotronRadiationTracker(
-            share_of_synchrotron_radiation_integrals=0.1
-            * self.radiation_integrals,
+            share_of_radiation_integrals=0.1 * self.radiation_integrals,
             disable_quantum_excitation=True,
         )
         self.SRS = _SynchrotronRadiationTracker(
-            share_of_synchrotron_radiation_integrals=0.1
-            * self.radiation_integrals,
+            share_of_radiation_integrals=0.1 * self.radiation_integrals,
             disable_quantum_excitation=True,
         )
         # To test the tracking methods
@@ -180,7 +177,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             gather_longitudinal_synchrotron_radiation_parameters(
                 particle_type=self.beam.particle_type,
                 energy=self.beam.reference.total_energy,
-                synchrotron_radiation_integrals=self.radiation_integrals,
+                radiation_integrals=self.radiation_integrals,
             )
         )
 
@@ -188,7 +185,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     def test_inputs_SynchrotronRadiationBaseClass(self):
         np.testing.assert_array_equal(
-            self.SRB.share_of_synchrotron_radiation_integrals,
+            self.SRB.share_of_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
         self.assertIsNone(self.SRB._energy_lost_due_to_synchrotron_radiation)
@@ -197,7 +194,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     def test_inputs_SynchrotronRadiationDrift(self):
         np.testing.assert_array_equal(
-            self.SRD.share_of_synchrotron_radiation_integrals,
+            self.SRD.share_of_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
         self.assertIsNone(self.SRD._energy_lost_due_to_synchrotron_radiation)
@@ -206,7 +203,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     def test_inputs_SynchrotronRadiationSection(self):
         np.testing.assert_array_equal(
-            self.SRS.share_of_synchrotron_radiation_integrals,
+            self.SRS.share_of_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
         self.assertIsNone(self.SRS._energy_lost_due_to_synchrotron_radiation)

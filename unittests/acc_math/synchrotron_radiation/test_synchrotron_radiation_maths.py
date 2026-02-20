@@ -14,7 +14,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         # FCC-ee high-energy booster at injection energy
         self.particle_type = electron
         self.beam_energy = 20e9
-        self.synchrotron_radiation_integrals = np.array(
+        self.radiation_integrals = np.array(
             [
                 0.646747216157,
                 0.000593654931851,
@@ -30,13 +30,13 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
 
     def test_calculate_partition_numbers(self):
         jx, jy, jz = calculate_partition_numbers(
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals
+            radiation_integrals=self.radiation_integrals
         )
         jx_1 = calculate_horizontal_damping_partition_number(
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
         )
         jz_1 = calculate_longitudinal_damping_partition_number(
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
         )
         self.assertEqual(1.0, jy)
         self.assertEqual(jx, jx_1, msg="Expected value ~= 1")
@@ -45,17 +45,17 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
     def test_calculate_damping_times_in_turn(self):
         damping_times_in_turn = calculate_damping_times_in_turns(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
         )
         tau_x = calculate_horizontal_damping_time_in_turns(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
         )
         tau_z = calculate_longitudinal_damping_time_in_turns(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
         )
         self.assertEqual(
@@ -73,19 +73,19 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
     def test_calculate_damping_times_in_seconds(self):
         damping_times_in_second = calculate_damping_times_in_seconds(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
             revolution_frequency=self.revolution_frequency,
         )
         tau_x = calculate_horizontal_damping_time_in_seconds(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
             revolution_frequency=self.revolution_frequency,
         )
         tau_z = calculate_longitudinal_damping_time_in_seconds(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
             revolution_frequency=self.revolution_frequency,
         )
@@ -108,7 +108,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             1337317.6296824566,
             calculate_energy_loss_per_turn(
                 energy=self.beam_energy,
-                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                radiation_integrals=self.radiation_integrals,
                 particle_type=self.particle_type,
             ),
             places=self.decimals,
@@ -119,7 +119,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             1.6792612747193685e-11,
             calculate_natural_horizontal_emittance(
                 energy=self.beam_energy,
-                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                radiation_integrals=self.radiation_integrals,
                 particle_type=self.particle_type,
             ),
             places=self.decimals,
@@ -130,7 +130,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             0.00016759685785477585,
             calculate_natural_energy_spread(
                 energy=self.beam_energy,
-                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                radiation_integrals=self.radiation_integrals,
                 particle_type=self.particle_type,
             ),
             places=self.decimals,
@@ -141,7 +141,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             0.35776113525601044,
             calculate_natural_bunch_length(
                 energy=self.beam_energy,
-                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                radiation_integrals=self.radiation_integrals,
                 angular_synchrotron_frequency=self.angular_synchrotron_frequency,
                 momentum_compaction_factor=self.momentum_compaction_factor,
                 particle_type=self.particle_type,
@@ -155,7 +155,7 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
         # Example of the FCC-ee high-energy booster at injection
         self.particle_type = ParticleType(mass=1, charge=-1)
         self.beam_energy = np.array([1.0, 1.0, 1.0, 10, 1.0])
-        self.synchrotron_radiation_integrals = np.array(
+        self.radiation_integrals = np.array(
             [
                 1,
                 2 * np.pi / self.particle_type.sands_radiation_constant,
@@ -181,13 +181,13 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
 
     def test_calculate_partition_numbers(self):
         jx, jy, jz = calculate_partition_numbers(
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals
+            radiation_integrals=self.radiation_integrals
         )
         jx_1 = calculate_horizontal_damping_partition_number(
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
         )
         jz_1 = calculate_longitudinal_damping_partition_number(
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
         )
         self.assertEqual(1.0, jy)
         self.assertEqual(jx, jx_1, msg="Expected value = 1")
@@ -196,17 +196,17 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
     def test_calculate_damping_times_in_turn(self):
         damping_times_in_turn = calculate_damping_times_in_turns(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
         )
         tau_x = calculate_horizontal_damping_time_in_turns(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
         )
         tau_z = calculate_longitudinal_damping_time_in_turns(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
         )
         np.testing.assert_array_almost_equal(
@@ -229,25 +229,25 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
         with self.assertRaises(UnevenArraySizes):
             calculate_damping_times_in_seconds(
                 energy=self.beam_energy,
-                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                radiation_integrals=self.radiation_integrals,
                 particle_type=self.particle_type,
                 revolution_frequency=self.revolution_frequency[0:2],
             )
         damping_times_in_second = calculate_damping_times_in_seconds(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
             revolution_frequency=self.revolution_frequency,
         )
         tau_x = calculate_horizontal_damping_time_in_seconds(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
             revolution_frequency=self.revolution_frequency,
         )
         tau_z = calculate_longitudinal_damping_time_in_seconds(
             energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
             particle_type=self.particle_type,
             revolution_frequency=self.revolution_frequency,
         )
@@ -272,7 +272,7 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
             np.array([1.0, 1.0, 1.0, 10000, 1.0]),
             calculate_energy_loss_per_turn(
                 energy=self.beam_energy,
-                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                radiation_integrals=self.radiation_integrals,
                 particle_type=self.particle_type,
             ),
             decimal=self.decimals,
@@ -283,7 +283,7 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
             np.array([1.0, 1.0, 1.0, 100.0, 1.0]),
             calculate_natural_horizontal_emittance(
                 energy=self.beam_energy,
-                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                radiation_integrals=self.radiation_integrals,
                 particle_type=self.particle_type,
             ),
             decimal=self.decimals,
@@ -294,7 +294,7 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
             np.array([0.5, 0.5, 0.5, 5.0, 0.5]),
             calculate_natural_energy_spread(
                 energy=self.beam_energy,
-                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                radiation_integrals=self.radiation_integrals,
                 particle_type=self.particle_type,
             ),
             decimal=self.decimals,
@@ -305,7 +305,7 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
             np.array([0.5, 0.5, 0.5, 5.0, 0.5]),
             calculate_natural_bunch_length(
                 energy=self.beam_energy,
-                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                radiation_integrals=self.radiation_integrals,
                 angular_synchrotron_frequency=self.angular_synchrotron_frequency,
                 momentum_compaction_factor=self.momentum_compaction_factor,
                 particle_type=self.particle_type,

@@ -104,7 +104,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         automatically generated.
     section_index
         Section index to group elements into sections.
-    share_of_synchrotron_radiation_integrals
+    share_of_radiation_integrals
         Share of synchrotron radiation integrals.
     disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
@@ -116,7 +116,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self,
         name: str | None = None,
         section_index: int | None = None,
-        share_of_synchrotron_radiation_integrals: NumpyArray | None = None,
+        share_of_radiation_integrals: NumpyArray | None = None,
         disable_quantum_excitation: bool = False,
         seed: int | None = None,
     ):
@@ -124,9 +124,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
 
         self._simulation: Simulation | None = None
         self._turn_i: DynamicParameter | int = 0
-        self._share_of_synchrotron_radiation_integrals = (
-            share_of_synchrotron_radiation_integrals
-        )
+        self._share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
 
@@ -138,7 +136,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         # backend.default_rng
 
     @property
-    def share_of_synchrotron_radiation_integrals(self) -> NumpyArray | None:
+    def share_of_radiation_integrals(self) -> NumpyArray | None:
         """
         Synchrotron radiation integrals of the drift.
 
@@ -147,7 +145,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         synchrotron_radiation_integrals_drift
             Synchrotron radiation integrals of the drift.
         """
-        return self._share_of_synchrotron_radiation_integrals
+        return self._share_of_radiation_integrals
 
     def _calculate_kick(
         self,
@@ -178,7 +176,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ) = gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=beam.particle_type,
             energy=total_energy,
-            synchrotron_radiation_integrals=self._share_of_synchrotron_radiation_integrals,
+            radiation_integrals=self._share_of_radiation_integrals,
         )
         self._energy_lost_due_to_synchrotron_radiation = estimated_energy_lost
         self._damping_time = estimated_damping_time

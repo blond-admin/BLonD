@@ -92,7 +92,7 @@ def generate_fccee_booster_basic_simulation(
 
     ring = Ring(
         circumference=booster_circumference,
-        synchrotron_radiation_integrals=radiation_integrals,
+        radiation_integrals=radiation_integrals,
     )
     drift = DriftSimple(
         orbit_length=booster_circumference,

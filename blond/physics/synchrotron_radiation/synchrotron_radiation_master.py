@@ -389,7 +389,7 @@ class SynchrotronRadiationMaster(Schedulable):
         shares_of_radiation_integrals = []
 
         use_radiation_integrals_from_drifts = all(
-            hasattr(drift, "radiation_integrals") for drift in drift_list
+            drift.radiation_integrals is not None for drift in (drift_list)
         )
         for drift in drift_list:
             if use_radiation_integrals_from_drifts:
@@ -490,7 +490,7 @@ class SynchrotronRadiationMaster(Schedulable):
                     cavity_list=element_list,
                 )
             )
-            self._insert_synchrotron_radiation_trackers(
+            self._insert_radiation_trackers(
                 ring=ring,
                 element_list=element_list,
                 shares_of_radiation_integrals=shares_of_radiation_integrals,
@@ -641,13 +641,25 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
         return self._energy_lost_due_to_synchrotron_radiation
 
     @property
+    def share_of_radiation_integrals(self) -> NumpyArray | None:
+        """
+        Share of radiation integrals.
+
+        Returns
+        -------
+        share_of_radiation_integrals
+            Synchrotron radiation integrals of the tracker.
+        """
+        return self._share_of_radiation_integrals
+
+    @property
     def radiation_integrals_tracker(self) -> NumpyArray | None:
         """
         Synchrotron radiation integrals of the arc covered by the tracker.
 
         Returns
         -------
-        radiation_integrals_drift
-            Synchrotron radiation integrals of the drift.
+        radiation_integrals_tracker
+            Synchrotron radiation integrals of the tracker.
         """
         return self._share_of_radiation_integrals
