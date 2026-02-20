@@ -84,9 +84,10 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             ),
         )
 
-    def test_set_synchrotron_radiation_integrals(self):
-        ring = Ring(circumference=90.65874532 * 1e3)
+    def test_radiation_integrals_internal_setter(self):
         SRM = SynchrotronRadiationMaster()
+        ring = Ring(circumference=90.65874532 * 1e3)
+
         with self.assertRaisesRegex(
             expected_exception=ValueError,
             expected_regex="Synchrotron radiation damping "
@@ -95,8 +96,75 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             "first five synchrotron radiation "
             "integrals.",
         ):
-            SRM._set_synchrotron_radiation_integrals(ring=ring)
+            SRM._radiation_integrals_internal_setter(ring=ring)
 
+        with self.assertRaisesRegex(
+            expected_exception=ValueError,
+            expected_regex="Synchrotron radiation damping "
+            "and quantum excitation require"
+            " either the bending radius " + "for an isomagnetic ring, or the "
+            "first five synchrotron radiation "
+            "integrals.",
+        ):
+            SRM._radiation_integrals_internal_setter(
+                ring=ring, bending_radius="not a float"
+            )
+
+        with self.assertRaisesRegex(
+            expected_exception=ValueError,
+            expected_regex="Could not transform the input into an array",
+        ):
+            SRM._radiation_integrals_internal_setter(
+                ring=ring,
+                radiation_integrals=[
+                    [random() for k in range(5)],
+                    [random() for k in range(7)],
+                ],
+            )
+        with self.assertRaisesRegex(
+            expected_exception=TypeError,
+            expected_regex=f"Expected a list or numpy.ndarray as an input. Received"
+            f" {type('not an array')}.",
+        ):
+            SRM._radiation_integrals_internal_setter(
+                ring=ring, radiation_integrals="not an array"
+            )
+
+    def test_set_synchrotron_radiation_integrals(self):
+        SRM = SynchrotronRadiationMaster()
+        ## ring has synchrotron radiation integrals
+
+        ring = Ring(circumference=90.65874532 * 1e3)
+        ring._synchrotron_radiation_integrals = (
+            self.synchrotron_radiation_integrals
+        )
+        ring._momentum_compaction_factor = 0
+        SRM._set_synchrotron_radiation_integrals(
+            ring=ring,
+            radiation_integrals=self.synchrotron_radiation_integrals / 10,
+            bending_radius=14428.78745218723,
+        )
+
+        np.testing.assert_array_equal(
+            SRM._synchrotron_radiation_integrals,
+            ring.synchrotron_radiation_integrals,
+        )
+        SRM._set_synchrotron_radiation_integrals(
+            ring=ring, radiation_integrals=np.zeros(5)
+        )
+        np.testing.assert_array_equal(
+            SRM._synchrotron_radiation_integrals,
+            self.synchrotron_radiation_integrals,
+        )
+        SRM._set_synchrotron_radiation_integrals(
+            ring=ring, bending_radius=10000
+        )
+        np.testing.assert_array_equal(
+            SRM._synchrotron_radiation_integrals,
+            self.synchrotron_radiation_integrals,
+        )
+
+        ## ring does not have synchrotron radiation integrals
         ring = Ring(circumference=90.65874532 * 1e3)
         ring._momentum_compaction_factor = 0
         SRM._set_synchrotron_radiation_integrals(
@@ -114,37 +182,20 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 ]
             ),
         )
-        with self.assertRaisesRegex(
-            expected_exception=ValueError,
-            expected_regex="Synchrotron radiation damping "
-            "and quantum excitation require"
-            " either the bending radius " + "for an isomagnetic ring, or the "
-            "first five synchrotron radiation "
-            "integrals.",
-        ):
-            SRM._set_synchrotron_radiation_integrals(ring=ring)
-
-        with self.assertRaisesRegex(
-            expected_exception=ValueError,
-            expected_regex="Could not transform the input into an array",
-        ):
-            SRM._set_synchrotron_radiation_integrals(
-                ring=ring,
-                radiation_integrals=[
-                    [random() for k in range(5)],
-                    [random() for k in range(7)],
-                ],
-            )
-
-        with self.assertRaisesRegex(
-            expected_exception=TypeError,
-            expected_regex=f"Expected a list or numpy.ndarray as an input. Received"
-            f" {type('not an array')}.",
-        ):
-            SRM._set_synchrotron_radiation_integrals(
-                ring=ring, radiation_integrals="not an array"
-            )
-
+        np.testing.assert_array_equal(
+            ring._synchrotron_radiation_integrals,
+            np.array(
+                [
+                    0,
+                    0.0004354617689116441,
+                    3.018006678347967e-08,
+                    0,
+                    0,
+                ]
+            ),
+        )
+        ring = Ring(circumference=90.65874532 * 1e3)
+        ring._momentum_compaction_factor = 0
         SRM._set_synchrotron_radiation_integrals(
             ring=ring, radiation_integrals=self.synchrotron_radiation_integrals
         )
@@ -152,6 +203,12 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             SRM._synchrotron_radiation_integrals,
             self.synchrotron_radiation_integrals,
         )
+        np.testing.assert_array_equal(
+            ring.synchrotron_radiation_integrals,
+            self.synchrotron_radiation_integrals,
+        )
+        ring = Ring(circumference=90.65874532 * 1e3)
+        ring._momentum_compaction_factor = 0
         SRM._set_synchrotron_radiation_integrals(
             ring=ring,
             radiation_integrals=self.synchrotron_radiation_integrals,
@@ -161,26 +218,20 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             SRM._synchrotron_radiation_integrals,
             self.synchrotron_radiation_integrals,
         )
-
+        np.testing.assert_array_equal(
+            ring._synchrotron_radiation_integrals,
+            self.synchrotron_radiation_integrals,
+        )
+        ring = Ring(
+            circumference=90.65874532 * 1e3,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+        )
         SRM._set_synchrotron_radiation_integrals(ring=ring)
         np.testing.assert_array_equal(
             SRM._synchrotron_radiation_integrals,
             self.synchrotron_radiation_integrals,
         )
-        SRM._set_synchrotron_radiation_integrals(
-            ring=ring, radiation_integrals=np.zeros(5)
-        )
-        np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
-            self.synchrotron_radiation_integrals,
-        )
-        SRM._set_synchrotron_radiation_integrals(
-            ring=ring, bending_radius=10000
-        )
-        np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
-            self.synchrotron_radiation_integrals,
-        )
+
         with self.assertWarnsRegex(
             expected_warning=UserWarning,
             expected_regex="Radiation integrals input ignored. "
