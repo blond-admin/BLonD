@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
-from blond import Ring
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     calculate_isomagnetic_radiation_integrals,
     gather_longitudinal_synchrotron_radiation_parameters,
@@ -78,11 +77,12 @@ class SynchrotronRadiationMaster(Schedulable):
     >>> import numpy as np
     >>>
     >>> from blond.physics.drifts import DriftBaseClass
-    >>> from blond import Ring, SynchrotronRadiationMaster
+    >>> from blond import Ring,
+    >>> from blond.physics.synchrotron_radiation.synchrotron_radiation_master import SynchrotronRadiationMaster
     >>>
     >>> ring = Ring(
     ...     circumference=10,
-    ...     synchrotron_radiation_integrals=np.array(
+    ...     radiation_integrals=np.array(
     ...         [
     ...             0.646747216157,
     ...             0.0005936549319,
@@ -117,7 +117,6 @@ class SynchrotronRadiationMaster(Schedulable):
         self._simulation: Simulation | None = None
         self._disable_quantum_excitation = disable_quantum_excitation
 
-        self._synchrotron_radiation_integrals = None
         self._natural_energy_spread: NumpyArray | None = None
         self._energy_loss_per_turn: NumpyArray | None = None
         self._longitudinal_damping_time: NumpyArray | None = None
@@ -139,18 +138,6 @@ class SynchrotronRadiationMaster(Schedulable):
             f"{self.number_of_generated_synchrotron_radiation_classes} "
             f"synchrotron radiation elements."
         )
-
-    @property
-    def synchrotron_radiation_integrals(self) -> NumpyArray | None:
-        """
-        Synchrotron radiation integrals.
-
-        Returns
-        -------
-        synchrotron_radiation_integrals
-            Synchrotron radiation integrals.
-        """
-        return self._synchrotron_radiation_integrals
 
     @property
     def energy_loss_per_turn(self) -> NumpyArray | None:
@@ -217,6 +204,7 @@ class SynchrotronRadiationMaster(Schedulable):
 
     def compute_synchrotron_radiation_parameters(
         self,
+        ring: Ring,
         beam: BeamBaseClass,
     ) -> None:
         """
@@ -224,6 +212,8 @@ class SynchrotronRadiationMaster(Schedulable):
 
         Parameters
         ----------
+        ring
+            `Ring` context manager.
         beam
             `Beam` object.
         """
@@ -234,10 +224,10 @@ class SynchrotronRadiationMaster(Schedulable):
         ) = gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=beam.particle_type,
             energy=beam.reference.total_energy,
-            synchrotron_radiation_integrals=self._synchrotron_radiation_integrals,
+            synchrotron_radiation_integrals=ring.radiation_integrals,
         )
 
-    def _user_warning_set_synchrotron_radiation_integrals(
+    def _user_warning_set_radiation_integrals(
         self,
         radiation_integrals: NumpyArray | None = None,
         bending_radius: float | None = None,
@@ -291,11 +281,16 @@ class SynchrotronRadiationMaster(Schedulable):
             False.
         bending_radius
             Averaged bending radius along the ring.
+
+        Returns
+        -------
+        integrals_to_use
+            Radiation integrals to use.
         """
-        minimum_number_of_expected_synchrotron_radiation_integrals = 5
+        minimum_number_of_expected_radiation_integrals = 5
         if radiation_integrals is None:
             if isinstance(bending_radius, float | int):
-                self._synchrotron_radiation_integrals = calculate_isomagnetic_radiation_integrals(
+                integrals_to_use = calculate_isomagnetic_radiation_integrals(
                     circumference=ring.circumference,
                     bending_radius=bending_radius,
                     momentum_compaction_factor=ring.momentum_compaction_factor,
@@ -317,9 +312,9 @@ class SynchrotronRadiationMaster(Schedulable):
                 ) from ve
             if (
                 len(integrals)
-                >= minimum_number_of_expected_synchrotron_radiation_integrals
+                >= minimum_number_of_expected_radiation_integrals
             ):
-                self._synchrotron_radiation_integrals = integrals
+                integrals_to_use = integrals
             else:
                 raise ValueError(
                     "The first five synchrotron radiation integrals are requires "
@@ -329,8 +324,9 @@ class SynchrotronRadiationMaster(Schedulable):
                 f"Expected a list or numpy.ndarray as an input. Received"
                 f" {type(radiation_integrals)}."
             )
+        return integrals_to_use
 
-    def _set_synchrotron_radiation_integrals(
+    def _set_radiation_integrals(
         self,
         ring: Ring,
         radiation_integrals: NumpyArray | None = None,
@@ -355,32 +351,28 @@ class SynchrotronRadiationMaster(Schedulable):
         bending_radius
             Averaged bending radius along the ring.
         """
-        if ring.synchrotron_radiation_integrals is not None:
-            self._synchrotron_radiation_integrals = (
-                ring.synchrotron_radiation_integrals.copy()
-            )
-            self._user_warning_set_synchrotron_radiation_integrals(
+        if ring.radiation_integrals is not None:
+            self._radiation_integrals = ring.radiation_integrals.copy()
+            self._user_warning_set_radiation_integrals(
                 radiation_integrals=radiation_integrals,
                 bending_radius=bending_radius,
             )
 
         else:
-            self._radiation_integrals_internal_setter(
+            integrals_to_use = self._radiation_integrals_internal_setter(
                 ring=ring,
                 radiation_integrals=radiation_integrals,
                 bending_radius=bending_radius,
             )
-            ring._synchrotron_radiation_integrals = (
-                self._synchrotron_radiation_integrals
-            )
+            ring._radiation_integrals = integrals_to_use
 
-    def _get_share_of_synchrotron_radiation_integrals_drifts(
+    def _get_share_of_radiation_integrals_drifts(
         self,
         ring: Ring,
         drift_list: list[type[DriftBaseClass]],
     ) -> list[NumpyArray]:
         """
-        Distribute the synchrotron radiation integrals for drift tracker.
+        Distribute the radiation integrals for drift tracker.
 
         Parameters
         ----------
@@ -391,28 +383,26 @@ class SynchrotronRadiationMaster(Schedulable):
 
         Returns
         -------
-        share_of_synchrotron_radiation_integrals
+        share_of_radiation_integrals
             Share of synchrotron radiation integrals.
         """
-        shares_of_synchrotron_radiation_integrals = []
+        shares_of_radiation_integrals = []
 
         use_radiation_integrals_from_drifts = all(
             hasattr(drift, "radiation_integrals") for drift in drift_list
         )
         for drift in drift_list:
             if use_radiation_integrals_from_drifts:
-                shares_of_synchrotron_radiation_integrals.append(
-                    drift.radiation_integrals
-                )
+                shares_of_radiation_integrals.append(drift.radiation_integrals)
             else:
-                shares_of_synchrotron_radiation_integrals.append(
+                shares_of_radiation_integrals.append(
                     drift.orbit_length
                     / ring.circumference
-                    * self._synchrotron_radiation_integrals
+                    * ring.radiation_integrals
                 )
-        return shares_of_synchrotron_radiation_integrals
+        return shares_of_radiation_integrals
 
-    def _get_share_of_synchrotron_radiation_integrals_cavities(
+    def _get_share_of_radiation_integrals_cavities(
         self,
         ring: Ring,
         cavity_list: list[type[RFStationBaseClass]],
@@ -429,11 +419,11 @@ class SynchrotronRadiationMaster(Schedulable):
 
         Returns
         -------
-        share_of_synchrotron_radiation_integrals
+        share_of_radiation_integrals
             Share of synchrotron radiation integrals.
         """
         cavities_section_indexes = [e.section_index for e in cavity_list]
-        shares_of_synchrotron_radiation_integrals = []
+        shares_of_radiation_integrals = []
         for i, cavity in enumerate(cavity_list):
             if len(cavity_list) == 1:
                 section_length_to_consider = ring.circumference
@@ -447,14 +437,14 @@ class SynchrotronRadiationMaster(Schedulable):
                         ]
                     ]
                 )
-            shares_of_synchrotron_radiation_integrals.append(
+            shares_of_radiation_integrals.append(
                 section_length_to_consider
                 / ring.circumference
-                * self._synchrotron_radiation_integrals
+                * ring.radiation_integrals
             )
-        return shares_of_synchrotron_radiation_integrals
+        return shares_of_radiation_integrals
 
-    def _generate_synchrotron_radiation_trackers(
+    def _generate_radiation_trackers(
         self,
         ring: Ring,
         element_list: list[type[RFStationBaseClass | DriftBaseClass]],
@@ -481,21 +471,21 @@ class SynchrotronRadiationMaster(Schedulable):
         if all(isinstance(e, DriftBaseClass) for e in element_list):
             # _SynchrotronRadiationDrift tracker placed before the
             # drift
-            shares_of_synchrotron_radiation_integrals = (
-                self._get_share_of_synchrotron_radiation_integrals_drifts(
+            shares_of_radiation_integrals = (
+                self._get_share_of_radiation_integrals_drifts(
                     ring=ring,
                     drift_list=element_list,
                 )
             )
-            self._insert_synchrotron_radiation_trackers(
+            self._insert_radiation_trackers(
                 ring=ring,
                 element_list=element_list,
-                shares_of_synchrotron_radiation_integrals=shares_of_synchrotron_radiation_integrals,
+                shares_of_radiation_integrals=shares_of_radiation_integrals,
                 after_element=False,  # tracker inserted before the drift
             )
         elif all(isinstance(e, RFStationBaseClass) for e in element_list):
-            shares_of_synchrotron_radiation_integrals = (
-                self._get_share_of_synchrotron_radiation_integrals_cavities(
+            shares_of_radiation_integrals = (
+                self._get_share_of_radiation_integrals_cavities(
                     ring=ring,
                     cavity_list=element_list,
                 )
@@ -503,7 +493,7 @@ class SynchrotronRadiationMaster(Schedulable):
             self._insert_synchrotron_radiation_trackers(
                 ring=ring,
                 element_list=element_list,
-                shares_of_synchrotron_radiation_integrals=shares_of_synchrotron_radiation_integrals,
+                shares_of_radiation_integrals=shares_of_radiation_integrals,
                 after_element=True,  # tracker inserted after the cavity
             )
         else:
@@ -513,11 +503,11 @@ class SynchrotronRadiationMaster(Schedulable):
                 f"allowed, but {element_list} was found."
             )
 
-    def _insert_synchrotron_radiation_trackers(
+    def _insert_radiation_trackers(
         self,
         ring: Ring,
         element_list: list[DriftBaseClass | RFStationBaseClass],
-        shares_of_synchrotron_radiation_integrals: list[NumpyArray],
+        shares_of_radiation_integrals: list[NumpyArray],
         after_element: bool,
     ):
         """
@@ -529,19 +519,17 @@ class SynchrotronRadiationMaster(Schedulable):
             `Ring` context manager.
         element_list
             `DriftBaseClass` of `RFStationBaseClass` element list.
-        shares_of_synchrotron_radiation_integrals
+        shares_of_radiation_integrals
             Share of synchrotron radiation integrals.
         after_element
             If enabled, the tracker will be places after the elements.
         """
         for i, element in enumerate(element_list):
             SRClass_child = _SynchrotronRadiationTracker(
-                section_index=element.section_index,
+                section_index=element._section_index,
                 name=f"SynchrotronRadiationTracker_"
                 f"{len(self.generated_children) + 1}",
-                share_of_synchrotron_radiation_integrals=shares_of_synchrotron_radiation_integrals[
-                    i
-                ],
+                share_of_radiation_integrals=shares_of_radiation_integrals[i],
                 disable_quantum_excitation=self._disable_quantum_excitation,
             )
             shift_location = int(after_element == True)
@@ -579,7 +567,7 @@ class SynchrotronRadiationMaster(Schedulable):
         bending_radius
             Averaged bending radius along the ring.
         """
-        self._set_synchrotron_radiation_integrals(
+        self._set_radiation_integrals(
             ring=ring,
             radiation_integrals=radiation_integrals,
             bending_radius=bending_radius,
@@ -604,7 +592,7 @@ class SynchrotronRadiationMaster(Schedulable):
                     f"{self.track_before_element_type}"
                 )
             else:
-                self._generate_synchrotron_radiation_trackers(
+                self._generate_radiation_trackers(
                     ring=ring, element_list=element_list
                 )
 
@@ -620,7 +608,7 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
         automatically generated.
     section_index
         Section index to group elements into sections.
-    share_of_synchrotron_radiation_integrals
+    share_of_radiation_integrals
         Share of synchrotron radiation integrals.
     disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
@@ -630,13 +618,13 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
         self,
         name: str | None = None,
         section_index: int = 0,
-        share_of_synchrotron_radiation_integrals: NumpyArray | None = None,
+        share_of_radiation_integrals: NumpyArray | None = None,
         disable_quantum_excitation: bool = False,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
-            share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
+            share_of_radiation_integrals=share_of_radiation_integrals,
             disable_quantum_excitation=disable_quantum_excitation,
         )
 
@@ -653,13 +641,13 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
         return self._energy_lost_due_to_synchrotron_radiation
 
     @property
-    def synchrotron_radiation_integrals_tracker(self) -> NumpyArray | None:
+    def radiation_integrals_tracker(self) -> NumpyArray | None:
         """
         Synchrotron radiation integrals of the arc covered by the tracker.
 
         Returns
         -------
-        synchrotron_radiation_integrals_drift
+        radiation_integrals_drift
             Synchrotron radiation integrals of the drift.
         """
-        return self._share_of_synchrotron_radiation_integrals
+        return self._share_of_radiation_integrals
