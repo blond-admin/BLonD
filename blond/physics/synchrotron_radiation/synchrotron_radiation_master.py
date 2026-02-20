@@ -388,9 +388,21 @@ class SynchrotronRadiationMaster(Schedulable):
         """
         shares_of_radiation_integrals = []
 
-        use_radiation_integrals_from_drifts = all(
-            drift.radiation_integrals is not None for drift in (drift_list)
+        drift_list_ = (
+            drift.radiation_integrals is not None for drift in drift_list
         )
+        drifts_with_radiation_integrals = any(drift_list_)
+
+        if drifts_with_radiation_integrals:
+            use_radiation_integrals_from_drifts = all(drift_list_)
+            if not use_radiation_integrals_from_drifts:
+                raise ValueError(
+                    "Either all drifts should have defined radiation "
+                    f"integrals or none should, but got {drift_list_}."
+                )
+        else:
+            use_radiation_integrals_from_drifts = False
+
         for drift in drift_list:
             if use_radiation_integrals_from_drifts:
                 shares_of_radiation_integrals.append(drift.radiation_integrals)

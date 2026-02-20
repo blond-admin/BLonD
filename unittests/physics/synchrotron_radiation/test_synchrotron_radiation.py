@@ -346,17 +346,14 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             momentum_compaction_factor=1e-4,
             section_index=0,
         )
-        calculated_share_SR_int = SRM._get_share_of_radiation_integrals_drifts(
-            ring=ring, drift_list=[drift, drift2]
-        )
+        with self.assertRaisesRegex(
+            expected_exception=ValueError,
+            expected_regex="Either all drifts should have defined radiation ",
+        ):
+            SRM._get_share_of_radiation_integrals_drifts(
+                ring=ring, drift_list=[drift, drift2]
+            )
 
-        np.testing.assert_array_equal(
-            calculated_share_SR_int,
-            [
-                self.synchrotron_radiation_integrals * 10,
-                self.synchrotron_radiation_integrals * 10 / 4,
-            ],
-        )
         drift2._radiation_integrals = self.synchrotron_radiation_integrals / 5
 
         calculated_share_SR_int = SRM._get_share_of_radiation_integrals_drifts(
