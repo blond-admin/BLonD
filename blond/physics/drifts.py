@@ -79,7 +79,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         Length / Velocity => Time to pass the element.
     section_index
         Section index to group elements into sections.
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     **kwargs
         Additional keyword arguments for MRO of fused elements.
@@ -89,7 +89,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         self,
         orbit_length: float,
         section_index: int = 0,
-        synchrotron_radiation_integrals: NumpyArray | None = None,
+        radiation_integrals: NumpyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
         super().__init__(
@@ -98,16 +98,16 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         )
 
         self.orbit_length = orbit_length
-        self._synchrotron_radiation_integrals = synchrotron_radiation_integrals
+        self._radiation_integrals = radiation_integrals
 
     @property
-    def synchrotron_radiation_integrals(self) -> NumpyArray | None:
+    def radiation_integrals(self) -> NumpyArray | None:
         """
-        Synchrotron radiation integrals of the ring.
+        Radiation integrals of the drift.
 
         Returns
         -------
-        synchrotron_radiation_integrals
+        radiation_integrals
             Synchrotron radiation integrals.
 
         References
@@ -120,7 +120,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         - A. Wolski, Introduction to Beam Dynamics in High-Energy Electron Storage
         Rings, Morgan & Claypool Publishers, 2018
         """
-        return self._synchrotron_radiation_integrals
+        return self._radiation_integrals
 
     @abc.abstractmethod  # pragma: no cover
     def eta_0(self, gamma: float) -> backend.float:
@@ -184,7 +184,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         Length of drift, in [m].
     section_index
         Section index to group elements into sections.
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     transition_gamma
         Gamma of transition crossing.
@@ -198,7 +198,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self,
         orbit_length: float,
         section_index: int = 0,
-        synchrotron_radiation_integrals: NumpyArray | None = None,
+        radiation_integrals: NumpyArray | None = None,
         transition_gamma: complex | float | None = None,
         momentum_compaction_factor: float | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
@@ -213,7 +213,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Length / Velocity => Time to pass the element.
         section_index
             Section index to group elements into sections.
-        synchrotron_radiation_integrals
+        radiation_integrals
             Synchrotron radiation integrals.
         transition_gamma
             Gamma of transition crossing.
@@ -233,7 +233,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         super().__init__(
             orbit_length=orbit_length,
             section_index=section_index,
-            synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+            radiation_integrals=radiation_integrals,
             **kwargs,  # for MRO of fused elements
         )
 

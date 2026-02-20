@@ -54,7 +54,7 @@ class Ring(Preparable):
     check_section_indices : bool, optional
         If True, validate section indices during initialization.
         Default is True.
-    synchrotron_radiation_integrals
+    radiation_integrals
             Synchrotron radiation integrals.
     """
 
@@ -62,7 +62,7 @@ class Ring(Preparable):
         self,
         circumference: float,
         check_section_indices: bool = True,
-        synchrotron_radiation_integrals: NumpyArray | None = None,
+        radiation_integrals: NumpyArray | None = None,
     ) -> None:
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
@@ -76,7 +76,7 @@ class Ring(Preparable):
             f"`circumference` must be bigger 0, but is {circumference}"
         )
         self._circumference = circumference
-        self._synchrotron_radiation_integrals = synchrotron_radiation_integrals
+        self._radiation_integrals = radiation_integrals
         self._momentum_compaction_factor = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -178,13 +178,13 @@ class Ring(Preparable):
         return self._momentum_compaction_factor
 
     @property
-    def synchrotron_radiation_integrals(self) -> NumpyArray | None:
+    def radiation_integrals(self) -> NumpyArray | None:
         """
         Synchrotron radiation integrals of the ring.
 
         Returns
         -------
-        synchrotron_radiation_integrals
+        radiation_integrals
             Synchrotron radiation integrals.
 
         References
@@ -197,7 +197,7 @@ class Ring(Preparable):
         - A. Wolski, Introduction to Beam Dynamics in High-Energy Electron Storage
         Rings, Morgan & Claypool Publishers, 2018
         """
-        return self._synchrotron_radiation_integrals
+        return self._radiation_integrals
 
     @cached_property
     def average_transition_gamma(self) -> complex:
