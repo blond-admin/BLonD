@@ -807,7 +807,7 @@ class TestSpecials(unittest.TestCase):
                 bins_per_profile = 3
                 n_profiles = 3
                 array_write = backend.ones(
-                    bins_per_profile * n_profiles * 2, dtype=backend.float
+                    bins_per_profile * n_profiles, dtype=backend.float
                 )
                 for _ in range(2):
                     backend.specials.sparse_histogram_strided(
@@ -819,8 +819,9 @@ class TestSpecials(unittest.TestCase):
                         bins_per_profile=bins_per_profile,
                         n_profiles=n_profiles,
                         filling_pattern=np.ones(n_profiles, bool),
-                        bucket_index_to_memory_index=bins_per_profile
-                        * np.arange(n_profiles, np.int32),
+                        bucket_index_to_memory_index=(
+                            bins_per_profile * np.arange(n_profiles)
+                        ).astype(np.int32),
                     )
                 result = array_write
 
