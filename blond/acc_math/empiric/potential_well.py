@@ -106,10 +106,7 @@ class PotentialWellHelper:
                         and within_threshold_region
                         and (next_falling or next_above)
                     ):
-                        not_out_of_bounds = (j + 1) <= len(y)
-                        second_anchor_index = (
-                            (j + 1) if not_out_of_bounds else j
-                        )
+                        second_anchor_index = j
                         buckets.append(
                             (
                                 x[min(max_idx, second_anchor_index)],

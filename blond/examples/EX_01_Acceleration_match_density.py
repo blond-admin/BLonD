@@ -80,7 +80,7 @@ def main():
     rf_station = SingleHarmonicRFStation()
     rf_station.harmonic = 35640
     rf_station.voltage = 6e6
-    rf_station.phi_rf = 0
+    rf_station.phi_rf_design = 0
 
     values = np.linspace(450e9, 455e9, int(1e3) + 1)
     energy_cycle = MagneticCyclePerTurn(
