@@ -818,7 +818,9 @@ class TestSpecials(unittest.TestCase):
                         cut_width=4,
                         bins_per_profile=bins_per_profile,
                         n_profiles=n_profiles,
-                        stride=bins_per_profile * 2,
+                        filling_pattern=np.ones(n_profiles, bool),
+                        bucket_index_to_memory_index=bins_per_profile
+                        * np.arange(n_profiles, np.int32),
                     )
                 result = array_write
 
