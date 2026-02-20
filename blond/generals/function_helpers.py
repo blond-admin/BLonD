@@ -42,7 +42,7 @@ def raise_on_uneven_array_sizes(
     >>>     raise_on_uneven_array_sizes(args)
     """
     lengths = []
-    for a in args[0]:
+    for a in args:
         if isinstance(a, Sequence | numpyarray):
             lengths.append(len(a))
     if len(set(lengths)) > 1:
