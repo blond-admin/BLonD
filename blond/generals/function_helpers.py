@@ -38,7 +38,7 @@ def raise_on_uneven_array_sizes(
     Examples
     --------
     >>> def function(*args):
-    >>>     args = tuple(locals().values())
+    >>>     args = locals().values()
     >>>     raise_on_uneven_array_sizes(args)
     """
     lengths = []

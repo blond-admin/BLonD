@@ -355,8 +355,7 @@ def calculate_damping_times_in_seconds(
     ... particle_type = beam.particle_type,
     ... revolution_frequency = beam.reference.velocity /ring.circumference)
     """
-    args = (energy, revolution_frequency)
-    raise_on_uneven_array_sizes(args)
+    raise_on_uneven_array_sizes(energy, revolution_frequency)
 
     damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
         energy=energy,
