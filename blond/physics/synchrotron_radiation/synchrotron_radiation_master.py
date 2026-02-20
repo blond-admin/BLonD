@@ -237,6 +237,39 @@ class SynchrotronRadiationMaster(Schedulable):
             synchrotron_radiation_integrals=self._synchrotron_radiation_integrals,
         )
 
+    def _user_warning_set_synchrotron_radiation_integrals(
+        self,
+        radiation_integrals: NumpyArray | None = None,
+        bending_radius: float | None = None,
+    ) -> None:
+        """
+        Internal method for user warnings.
+
+        Parameters
+        ----------
+        radiation_integrals
+            Synchrotron radiation integrals. If None, the ring will be
+            considered isomagnetic.
+            In the case of an isomagnetic ring, the synchrotron radiation
+            integrals will be computed from the ring bending radius. Default:
+            False.
+        bending_radius
+            Averaged bending radius along the ring.
+        """
+        if radiation_integrals is not None:
+            warnings.warn(
+                category=UserWarning,
+                message="Radiation integrals input ignored. Using the ring's.",
+                stacklevel=2,
+            )
+        if bending_radius:
+            warnings.warn(
+                category=UserWarning,
+                message="Bending radius input ignored. "
+                "Using the ring's radiation integrals.",
+                stacklevel=2,
+            )
+
     def _set_synchrotron_radiation_integrals(
         self,
         ring: Ring,
@@ -267,20 +300,10 @@ class SynchrotronRadiationMaster(Schedulable):
             self._synchrotron_radiation_integrals = (
                 ring.synchrotron_radiation_integrals.copy()
             )
-            if radiation_integrals is not None:
-                warnings.warn(
-                    category=UserWarning,
-                    message="Radiation integrals input ignored. "
-                    "Using the ring's.",
-                    stacklevel=2,
-                )
-            if bending_radius:
-                warnings.warn(
-                    category=UserWarning,
-                    message="Bending radius input ignored. "
-                    "Using the ring's radiation integrals.",
-                    stacklevel=2,
-                )
+            self._user_warning_set_synchrotron_radiation_integrals(
+                radiation_integrals=radiation_integrals,
+                bending_radius=bending_radius,
+            )
 
         else:
             if radiation_integrals is None:

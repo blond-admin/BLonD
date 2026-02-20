@@ -162,9 +162,24 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             self.synchrotron_radiation_integrals,
         )
 
-        ring = Ring(
-            90.65874532 * 1e3,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+        SRM._set_synchrotron_radiation_integrals(ring=ring)
+        np.testing.assert_array_equal(
+            SRM._synchrotron_radiation_integrals,
+            self.synchrotron_radiation_integrals,
+        )
+        SRM._set_synchrotron_radiation_integrals(
+            ring=ring, radiation_integrals=np.zeros(5)
+        )
+        np.testing.assert_array_equal(
+            SRM._synchrotron_radiation_integrals,
+            self.synchrotron_radiation_integrals,
+        )
+        SRM._set_synchrotron_radiation_integrals(
+            ring=ring, bending_radius=10000
+        )
+        np.testing.assert_array_equal(
+            SRM._synchrotron_radiation_integrals,
+            self.synchrotron_radiation_integrals,
         )
         with self.assertWarnsRegex(
             expected_warning=UserWarning,
@@ -184,24 +199,31 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 ring=ring, bending_radius=10
             )
 
-        SRM._set_synchrotron_radiation_integrals(ring=ring)
-        np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
-            self.synchrotron_radiation_integrals,
-        )
-        SRM._set_synchrotron_radiation_integrals(
-            ring=ring, radiation_integrals=np.zeros(5)
-        )
-        np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
-            self.synchrotron_radiation_integrals,
-        )
-        SRM._set_synchrotron_radiation_integrals(
-            ring=ring, bending_radius=10000
-        )
-        np.testing.assert_array_equal(
-            SRM._synchrotron_radiation_integrals,
-            self.synchrotron_radiation_integrals,
+    def test_user_warning_set_synchrotron_radiation_integrals(self):
+        SRM = SynchrotronRadiationMaster()
+        with self.assertWarnsRegex(
+            expected_warning=UserWarning,
+            expected_regex="Radiation integrals input ignored. "
+            "Using the ring's.",
+        ):
+            SRM._user_warning_set_synchrotron_radiation_integrals(
+                radiation_integrals=self.synchrotron_radiation_integrals,
+                bending_radius=None,
+            )
+        with self.assertWarnsRegex(
+            expected_warning=UserWarning,
+            expected_regex="Bending radius input ignored. "
+            "Using the ring's radiation integrals.",
+        ):
+            SRM._user_warning_set_synchrotron_radiation_integrals(
+                radiation_integrals=None,
+                bending_radius=10e3,
+            )
+        self.assertIsNone(
+            SRM._user_warning_set_synchrotron_radiation_integrals(
+                radiation_integrals=None,
+                bending_radius=None,
+            )
         )
 
     def test_generate_synchrotron_radiation_subclasses_errors(self):
