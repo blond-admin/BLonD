@@ -21,7 +21,6 @@ import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray as NumpyArray
 
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     calculate_isomagnetic_radiation_integrals,
@@ -29,8 +28,6 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 )
 from blond.core.base import Schedulable
 from blond.core.beam.base import BeamBaseClass
-from blond.physics.cavities import RFStationBaseClass
-from blond.physics.drifts import DriftBaseClass
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
 )
@@ -105,6 +102,10 @@ class SynchrotronRadiationMaster(Schedulable):
         | None = None,
         disable_quantum_excitation: bool = False,
     ):
+        from blond.physics.drifts import (
+            DriftBaseClass,  # prevent cyclic import
+        )
+
         super().__init__()
 
         if track_before_element_type is not None:
@@ -492,6 +493,10 @@ class SynchrotronRadiationMaster(Schedulable):
         element_list
             Element list to consider.
         """
+        from blond.physics.drifts import (
+            DriftBaseClass,  # prevent cyclic import
+        )
+
         if all(isinstance(e, DriftBaseClass) for e in element_list):
             # _SynchrotronRadiationDrift tracker placed before the
             # drift

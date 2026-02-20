@@ -55,7 +55,7 @@ class SynchrotronRadiationSimulation:
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
-        self.cavity.phi_rf = 0
+        self.cavity.phi_rf_design = 0
 
         self.n_turns = int(100000)
         self.energy_cycle = MagneticCyclePerTurn(
