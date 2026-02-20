@@ -59,7 +59,7 @@ class TestInductiveImpedances(unittest.TestCase):
             cavity = SingleHarmonicRFStation()
             cavity.harmonic = 1
             cavity.voltage = 8e3
-            cavity.phi_rf = np.pi
+            cavity.phi_rf_design = np.pi
             profile = StaticProfile(
                 0,
                 10,

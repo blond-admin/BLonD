@@ -1150,11 +1150,6 @@ class Simulation(Preparable):
             The callback can be defined as follows.
             The rate at with which this function is
             called can be set by `each_turn_i`.
-            >>> from blond import Beam, Simulation
-            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
-            >>>     ...
-            >>> my_callback.each_turn_i = 2
-            .
         verbose
             Will print infos if ``True``.
 
@@ -1233,6 +1228,12 @@ class Simulation(Preparable):
         ...     beams=(beam1,),
         ...     n_turns=500,      # Run 500 more turns
         ... )
+
+        Callback Example
+        >>> from blond import Beam, Simulation
+        >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
+        >>>     ...
+        >>> my_callback.each_turn_i = 2
         """
         beams = _single_beam_to_tuple(beams)
         logger.info(f"Running `run_simulation` with {locals()}")

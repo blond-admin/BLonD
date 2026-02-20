@@ -515,7 +515,9 @@ class BackendBaseClass(ABC):
                 # Maybe a bug in CuPy?
                 # Catch the exception then throw the correct warning.
                 arr = arr.astype(dtype)
-            except AttributeError as e:
+            # Can be removed some years after 2025.
+            except AttributeError as e:  # pragma: no cover
+                # Cupy bugfix needed for `cupy-cuda12x<14.0.1`
                 if (
                     str(e)
                     == "module 'numpy' has no attribute 'ComplexWarning'"
