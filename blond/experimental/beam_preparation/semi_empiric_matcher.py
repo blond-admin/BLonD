@@ -133,10 +133,7 @@ def get_hamilton_semi_analytic(
     beta: float,
     shape: tuple[int, int],
     energy_range: tuple[float, float] | None = None,
-) -> (
-    tuple[NumpyArray, NumpyArray, NumpyArray]
-    | tuple[CupyArray, CupyArray, CupyArray]
-):
+) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
     r"""
     Compute the 2D Hamiltonian :math:`H_{2D}(t, \Delta E)` based on an arbitrary potential well.
 
@@ -184,6 +181,8 @@ def get_hamilton_semi_analytic(
     assert len(ts) == len(potential_well), (
         f"{len(ts)=}, but {len(potential_well)=}"
     )
+    ts = copy_to_cpu(ts)
+    potential_well = copy_to_cpu(potential_well)
 
     E0 = reference_total_energy  # [eV]
 
@@ -192,7 +191,7 @@ def get_hamilton_semi_analytic(
 
     # Auto-estimate ΔE range if not provided
     if energy_range is None:
-        dE_max = backend.sqrt(
+        dE_max = np.sqrt(
             (potential_well.max() - potential_well.min())
             / (0.5 * abs(drift_term))
         )
@@ -205,17 +204,17 @@ def get_hamilton_semi_analytic(
     )
 
     # Uniformly sample energy differences ΔE
-    _dE_base = backend.linspace(
+    _dE_base = np.linspace(
         _energy_range[0], _energy_range[1], shape[1]
     )  # [eV]
 
     # Create 2D meshgrid: time_grid is time [s], deltaE_grid is ΔE [eV]
-    time_grid, deltaE_grid = backend.meshgrid(ts, _dE_base, indexing="ij")
+    time_grid, deltaE_grid = np.meshgrid(ts, _dE_base, indexing="ij")
     # Expand potential V(t) to 2D grid
     V = potential_well[:, None]  # [V]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
-    hamilton_2D = 0.5 * drift_term * backend.square(deltaE_grid) + V  # [eV]
+    hamilton_2D = 0.5 * drift_term * np.square(deltaE_grid) + V  # [eV]
 
     return deltaE_grid, time_grid, hamilton_2D
 
