@@ -49,7 +49,6 @@ def run_simulation(n_turns: int):
     t_s = np.linspace(0, t_rev * n_turns, n_turns)
 
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
-
     line.energy_program = xt.EnergyProgram(t_s=t_s, p0c=p0c_ramp)
 
     xsuite_cavity = xt.Cavity(voltage=V, frequency=400788731.3867354, lag=0)
