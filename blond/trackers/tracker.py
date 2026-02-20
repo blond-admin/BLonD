@@ -603,7 +603,7 @@ class RingAndRFTracker:
                                 dE=self.beam.dE,
                                 voltage=self.total_voltage,
                                 bin_centers=profile.bin_centers,
-                                charge=self.beam.Particle.charge,
+                                charge=self.beam.particle.charge,
                                 acceleration_kick=self.acceleration_kick[turn],
                             )
                     else:
