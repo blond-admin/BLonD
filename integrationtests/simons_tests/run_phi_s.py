@@ -107,8 +107,13 @@ def main():
                 circumference=ring.circumference,
                 particle_type=test_particle,
             )
-            val = rf_station.phi_s / (2 * np.pi) * T_rev / rf_station.harmonic
-            print(f"{rf_station.phi_s=}")
+            val = (
+                rf_station.calc_phi_s_main_harmonic(beam=beam)
+                / (2 * np.pi)
+                * T_rev
+                / rf_station.harmonic
+            )
+            print(f"{rf_station.calc_phi_s_main_harmonic(beam=beam)=}")
             print(f"{T_rev=}")
             print(f"{val=}")
             plt.axvline(

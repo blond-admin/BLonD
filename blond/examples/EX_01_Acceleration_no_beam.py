@@ -36,7 +36,7 @@ def main():
     rf_station = SingleHarmonicRFStation()
     rf_station.harmonic = 35640
     rf_station.voltage = 6e6
-    rf_station.phi_rf = 0
+    rf_station.phi_rf_design = 0
 
     energy_cycle = MagneticCyclePerTurn(
         value_init=450e9,

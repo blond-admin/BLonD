@@ -283,8 +283,9 @@ class Blond3:
         )
         cavity1 = SingleHarmonicRFStation()
         cavity1.voltage = 0
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
         cavity1.harmonic = 1
+
         drift = DriftSimple(orbit_length=circumference)
         drift.momentum_compaction_factor = momentum_compaction_factor(
             transition_gamma=1
