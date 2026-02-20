@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 def _selective_calculate_partition_numbers(
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     x: bool = False,
     y: bool = False,
     z: bool = False,
@@ -38,7 +38,7 @@ def _selective_calculate_partition_numbers(
 
     Parameters
     ----------
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     x
         Enables calculation in the horizontal plane.
@@ -54,28 +54,20 @@ def _selective_calculate_partition_numbers(
     """
     result = {}
     if x:
-        result["x"] = (
-            1
-            - synchrotron_radiation_integrals[3]
-            / synchrotron_radiation_integrals[1]
-        )
+        result["x"] = 1 - radiation_integrals[3] / radiation_integrals[1]
 
     if y:
         result["y"] = 1
 
     if z:
-        result["z"] = (
-            2
-            + synchrotron_radiation_integrals[3]
-            / synchrotron_radiation_integrals[1]
-        )
+        result["z"] = 2 + radiation_integrals[3] / radiation_integrals[1]
 
     return result
 
 
 def _selective_calculate_damping_times_in_turns(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     particle_type: ParticleType,
     x: bool = False,
     y: bool = False,
@@ -88,7 +80,7 @@ def _selective_calculate_damping_times_in_turns(
     ----------
     energy
         Energy of the reference particle, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     particle_type
         ParticleType class object.
@@ -108,12 +100,12 @@ def _selective_calculate_damping_times_in_turns(
     result = {}
 
     partitions = _selective_calculate_partition_numbers(
-        synchrotron_radiation_integrals, x=x, y=y, z=z
+        radiation_integrals, x=x, y=y, z=z
     )
 
     energy_loss_per_turn = calculate_energy_loss_per_turn(
         energy,
-        synchrotron_radiation_integrals,
+        radiation_integrals,
         particle_type,
     )
 
@@ -133,14 +125,14 @@ def _selective_calculate_damping_times_in_turns(
 
 
 def calculate_partition_numbers(
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
 ) -> NumpyArray:
     """
     Compute the damping partition numbers.
 
     Parameters
     ----------
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
 
     Returns
@@ -149,7 +141,7 @@ def calculate_partition_numbers(
         Damping partition numbers in the [horizontal, vertical, longitudinal] order.
     """
     partitions = _selective_calculate_partition_numbers(
-        synchrotron_radiation_integrals, x=True, y=True, z=True
+        radiation_integrals, x=True, y=True, z=True
     )
 
     jx = partitions["x"]
@@ -161,14 +153,14 @@ def calculate_partition_numbers(
 
 
 def calculate_horizontal_damping_partition_number(
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
 ) -> float:
     """
     Compute the horizontal damping partition number.
 
     Parameters
     ----------
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
 
     Returns
@@ -177,7 +169,7 @@ def calculate_horizontal_damping_partition_number(
         Horizontal damping partition number.
     """
     partitions = _selective_calculate_partition_numbers(
-        synchrotron_radiation_integrals, x=True
+        radiation_integrals, x=True
     )
 
     horizontal_damping_partition_number = partitions["x"]
@@ -186,14 +178,14 @@ def calculate_horizontal_damping_partition_number(
 
 
 def calculate_longitudinal_damping_partition_number(
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
 ) -> float:
     """
     Compute the longitudinal damping partition number.
 
     Parameters
     ----------
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
 
     Returns
@@ -202,7 +194,7 @@ def calculate_longitudinal_damping_partition_number(
         Longitudinal damping partition number.
     """
     partitions = _selective_calculate_partition_numbers(
-        synchrotron_radiation_integrals, z=True
+        radiation_integrals, z=True
     )
 
     longitudinal_damping_partition_number = partitions["z"]
@@ -212,7 +204,7 @@ def calculate_longitudinal_damping_partition_number(
 
 def calculate_damping_times_in_turns(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     particle_type: ParticleType,
 ) -> NumpyArray:
     """
@@ -222,7 +214,7 @@ def calculate_damping_times_in_turns(
     ----------
     energy
         Energy of the reference particle, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     particle_type
         ParticleType class object.
@@ -234,7 +226,7 @@ def calculate_damping_times_in_turns(
     """
     damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
         energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        radiation_integrals=radiation_integrals,
         particle_type=particle_type,
         x=True,
         y=True,
@@ -253,7 +245,7 @@ def calculate_damping_times_in_turns(
 
 def calculate_horizontal_damping_time_in_turns(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
@@ -263,7 +255,7 @@ def calculate_horizontal_damping_time_in_turns(
     ----------
     energy
         Energy of the reference particle, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     particle_type
         ParticleType class object.
@@ -275,7 +267,7 @@ def calculate_horizontal_damping_time_in_turns(
     """
     damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
         energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        radiation_integrals=radiation_integrals,
         particle_type=particle_type,
         x=True,
     )
@@ -285,7 +277,7 @@ def calculate_horizontal_damping_time_in_turns(
 
 def calculate_longitudinal_damping_time_in_turns(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
@@ -295,7 +287,7 @@ def calculate_longitudinal_damping_time_in_turns(
     ----------
     energy
         Energy of the reference particle, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     particle_type
         ParticleType class object.
@@ -307,7 +299,7 @@ def calculate_longitudinal_damping_time_in_turns(
     """
     damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
         energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        radiation_integrals=radiation_integrals,
         particle_type=particle_type,
         z=True,
     )
@@ -317,7 +309,7 @@ def calculate_longitudinal_damping_time_in_turns(
 
 def calculate_damping_times_in_seconds(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     particle_type: ParticleType,
     revolution_frequency: float | NumpyArray,
 ) -> NumpyArray:
@@ -328,7 +320,7 @@ def calculate_damping_times_in_seconds(
     ----------
     energy
         Energy of the reference particle, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     particle_type
         ParticleType class object.
@@ -346,7 +338,7 @@ def calculate_damping_times_in_seconds(
     >>> from blond import Ring, Beam, electron
     >>> ring = Ring(
     ...     circumference=10,
-    ...     synchrotron_radiation_integrals=np.array(
+    ...     radiation_integrals=np.array(
     ...         [
     ...             0.646747216157,
     ...             0.0005936549319,
@@ -359,7 +351,7 @@ def calculate_damping_times_in_seconds(
     >>> beam = Beam(particle_type=electron)
     >>> [tau_x, tau_y, tau_z] = calculate_damping_times_in_seconds(
     ... energy=beam.reference.total_energy,
-    ... synchrotron_radiation_integrals = ring.synchrotron_radiation_integrals,
+    ... radiation_integrals = ring.radiation_integrals,
     ... particle_type = beam.particle_type,
     ... revolution_frequency = beam.reference.velocity /ring.circumference)
     """
@@ -368,7 +360,7 @@ def calculate_damping_times_in_seconds(
 
     damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
         energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        radiation_integrals=radiation_integrals,
         particle_type=particle_type,
         x=True,
         y=True,
@@ -397,7 +389,7 @@ def calculate_damping_times_in_seconds(
 
 def calculate_horizontal_damping_time_in_seconds(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     particle_type: ParticleType,
     revolution_frequency: float | NumpyArray,
 ) -> float | NumpyArray:
@@ -408,7 +400,7 @@ def calculate_horizontal_damping_time_in_seconds(
     ----------
     energy
         Energy of the reference particle, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     particle_type
         ParticleType class object.
@@ -422,7 +414,7 @@ def calculate_horizontal_damping_time_in_seconds(
     """
     damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
         energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        radiation_integrals=radiation_integrals,
         particle_type=particle_type,
         x=True,
     )
@@ -435,7 +427,7 @@ def calculate_horizontal_damping_time_in_seconds(
 
 def calculate_longitudinal_damping_time_in_seconds(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     particle_type: ParticleType,
     revolution_frequency: float | NumpyArray,
 ) -> float | NumpyArray:
@@ -446,7 +438,7 @@ def calculate_longitudinal_damping_time_in_seconds(
     ----------
     energy
         Energy of the reference particle, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     particle_type
         ParticleType class object.
@@ -460,7 +452,7 @@ def calculate_longitudinal_damping_time_in_seconds(
     """
     damping_times_turn_dict = _selective_calculate_damping_times_in_turns(
         energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        radiation_integrals=radiation_integrals,
         particle_type=particle_type,
         z=True,
     )
@@ -473,7 +465,7 @@ def calculate_longitudinal_damping_time_in_seconds(
 
 def calculate_energy_loss_per_turn(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
@@ -483,7 +475,7 @@ def calculate_energy_loss_per_turn(
     ----------
     energy
         Total energy, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     particle_type
         ParticleType class object.
@@ -496,7 +488,7 @@ def calculate_energy_loss_per_turn(
     energy_loss_per_turn = (
         particle_type.sands_radiation_constant
         * energy**4
-        * synchrotron_radiation_integrals[1]
+        * radiation_integrals[1]
         / (2 * np.pi)
     )
     return energy_loss_per_turn
@@ -504,7 +496,7 @@ def calculate_energy_loss_per_turn(
 
 def calculate_natural_horizontal_emittance(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
@@ -514,7 +506,7 @@ def calculate_natural_horizontal_emittance(
     ----------
     energy
         Total energy, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     particle_type
         ParticleType class object.
@@ -525,21 +517,21 @@ def calculate_natural_horizontal_emittance(
         Natural horizontal emittance, in [m rad].
     """
     jx = calculate_horizontal_damping_partition_number(
-        synchrotron_radiation_integrals,
+        radiation_integrals,
     )
     natural_horizontal_emittance = (
         particle_type.quantum_radiation_constant
         * (energy / particle_type.mass) ** 2.0
-        * synchrotron_radiation_integrals[4]
+        * radiation_integrals[4]
         / jx
-        / synchrotron_radiation_integrals[1]
+        / radiation_integrals[1]
     )
     return natural_horizontal_emittance
 
 
 def calculate_natural_energy_spread(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
@@ -549,7 +541,7 @@ def calculate_natural_energy_spread(
     ----------
     energy
         Total energy, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     particle_type
         ParticleType class object.
@@ -560,20 +552,20 @@ def calculate_natural_energy_spread(
         Natural energy spread, [dimensionless].
     """
     jz = calculate_longitudinal_damping_partition_number(
-        synchrotron_radiation_integrals,
+        radiation_integrals,
     )
     natural_energy_spread = np.sqrt(
         particle_type.quantum_radiation_constant
         * (energy / particle_type.mass) ** 2.0
-        * synchrotron_radiation_integrals[2]
-        / (jz * synchrotron_radiation_integrals[1])
+        * radiation_integrals[2]
+        / (jz * radiation_integrals[1])
     )
     return natural_energy_spread
 
 
 def calculate_natural_bunch_length(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     angular_synchrotron_frequency: (float | NumpyArray),
     momentum_compaction_factor: float | NumpyArray,
     particle_type: ParticleType,
@@ -585,7 +577,7 @@ def calculate_natural_bunch_length(
     ----------
     energy
         Total energy, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     angular_synchrotron_frequency
         Angular synchrotron frequency, in  [rad].
@@ -602,7 +594,7 @@ def calculate_natural_bunch_length(
     natural_energy_spread = calculate_natural_energy_spread(
         particle_type=particle_type,
         energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        radiation_integrals=radiation_integrals,
     )
     natural_bunch_length = (
         momentum_compaction_factor

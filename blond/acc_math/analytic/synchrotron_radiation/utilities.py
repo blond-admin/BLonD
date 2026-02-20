@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 def gather_longitudinal_synchrotron_radiation_parameters(
     energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
+    radiation_integrals: NumpyArray,
     particle_type: ParticleType = electron,
 ) -> tuple[
     float | NumpyArray,
@@ -48,7 +48,7 @@ def gather_longitudinal_synchrotron_radiation_parameters(
     ----------
     energy
         Total energy, in [eV].
-    synchrotron_radiation_integrals
+    radiation_integrals
         Synchrotron radiation integrals.
     particle_type
         ParticleType class object.
@@ -65,17 +65,17 @@ def gather_longitudinal_synchrotron_radiation_parameters(
     energy_lost_from_synchrotron_radiation = calculate_energy_loss_per_turn(
         particle_type=particle_type,
         energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        radiation_integrals=radiation_integrals,
     )
     longitudinal_damping_time = calculate_longitudinal_damping_time_in_turns(
         energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        radiation_integrals=radiation_integrals,
         particle_type=particle_type,
     )
     natural_energy_spread = calculate_natural_energy_spread(
         particle_type=particle_type,
         energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
+        radiation_integrals=radiation_integrals,
     )
     return (
         energy_lost_from_synchrotron_radiation,

@@ -615,8 +615,8 @@ class TestRing(unittest.TestCase):
         beam._ids = DistributedArray(np.array([4]))
         sim.finalize((beam,), n_turns=1)
 
-    def test_synchrotron_radiation_integrals(self):
-        self.assertIsNone(self.ring.synchrotron_radiation_integrals)
+    def test_radiation_integrals(self):
+        self.assertIsNone(self.ring._radiation_integrals)
 
         radiation_integrals = np.array(
             [
@@ -627,12 +627,10 @@ class TestRing(unittest.TestCase):
                 1.71368060083e-11,
             ]
         )
-        SR_ring = Ring(
-            10.0, synchrotron_radiation_integrals=radiation_integrals
-        )
+        SR_ring = Ring(10.0, radiation_integrals=radiation_integrals)
 
         np.testing.assert_equal(
-            SR_ring.synchrotron_radiation_integrals, radiation_integrals
+            SR_ring.radiation_integrals, radiation_integrals
         )
 
 
