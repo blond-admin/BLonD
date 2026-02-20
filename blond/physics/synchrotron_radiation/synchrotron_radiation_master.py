@@ -377,7 +377,7 @@ class SynchrotronRadiationMaster(Schedulable):
     def _get_share_of_synchrotron_radiation_integrals_drifts(
         self,
         ring: Ring,
-        drift_list: list[DriftBaseClass],
+        drift_list: list[type[DriftBaseClass]],
     ) -> list[NumpyArray]:
         """
         Distribute the synchrotron radiation integrals for drift tracker.
@@ -415,7 +415,7 @@ class SynchrotronRadiationMaster(Schedulable):
     def _get_share_of_synchrotron_radiation_integrals_cavities(
         self,
         ring: Ring,
-        cavity_list: list[RFStationBaseClass],
+        cavity_list: list[type[RFStationBaseClass]],
     ) -> list[NumpyArray]:
         """
         Distribute the synchrotron radiation integrals for cavity trackers.
