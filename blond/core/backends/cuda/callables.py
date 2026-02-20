@@ -75,6 +75,8 @@ def reload_cuda_backend(  # NOQA: D102
             raise FileNotFoundError(
                 f"The compiled CUDA backend was not found at {path=}.\n"
                 f"Has the backend been compiled?"
+                f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
+                # make PyCharm automatically link the correct file
             )
         gpu_module = cp.RawModule(
             path=path,
@@ -116,9 +118,20 @@ def reload_cuda_backend(  # NOQA: D102
             dE: CupyArray,
             flags: CupyArray,
         ) -> None:
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
+            assert flags.device != "cpu", (
+                f"Requires Cupy array, but got {type(flags)}."
+            )
+
             assert dt.dtype == backend.float
             assert dE.dtype == backend.float
-            assert dE.dtype == backend.float
+            assert flags.dtype == np.int32
+
             assert isinstance(e_max, backend.float)
             assert isinstance(e_min, backend.float)
             assert isinstance(t_min, backend.float)
@@ -141,16 +154,24 @@ def reload_cuda_backend(  # NOQA: D102
 
         @staticmethod
         def kick_single_harmonic(
-            dt: CupyArray | CupyArray,
-            dE: CupyArray | CupyArray,
+            dt: CupyArray,
+            dE: CupyArray,
             voltage: float,
             omega_rf: float,
             phi_rf: float,
             charge: float,
             acceleration_kick: float,
         ) -> None:
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
+
             assert dt.dtype == floattype
             assert dE.dtype == floattype
+
             assert dt.flags.c_contiguous
             assert dE.flags.c_contiguous
 
@@ -171,8 +192,8 @@ def reload_cuda_backend(  # NOQA: D102
 
         @staticmethod
         def kick_multi_harmonic(
-            dt: CupyArray | CupyArray,
-            dE: CupyArray | CupyArray,
+            dt: CupyArray,
+            dE: CupyArray,
             voltage: CupyArray,
             omega_rf: CupyArray,
             phi_rf: CupyArray,
@@ -180,6 +201,22 @@ def reload_cuda_backend(  # NOQA: D102
             n_rf: int,
             acceleration_kick: float,
         ) -> None:
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
+            assert phi_rf.device != "cpu", (
+                f"Requires Cupy array, but got {type(phi_rf)}."
+            )
+            assert voltage.device != "cpu", (
+                f"Requires Cupy array, but got {type(voltage)}."
+            )
+            assert omega_rf.device != "cpu", (
+                f"Requires Cupy array, but got {type(omega_rf)}."
+            )
+
             assert dt.dtype == floattype
             assert dE.dtype == floattype
             assert phi_rf.dtype == floattype
@@ -217,8 +254,16 @@ def reload_cuda_backend(  # NOQA: D102
             beta: float,
             energy: float,
         ) -> None:
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
+
             assert dt.dtype == floattype
             assert dE.dtype == floattype
+
             assert dt.flags.c_contiguous
             assert dE.flags.c_contiguous
 
@@ -255,6 +300,12 @@ def reload_cuda_backend(  # NOQA: D102
             energy: float,
         ) -> None:
             raise NotImplementedError()
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
 
         @staticmethod
         def drift_exact(
@@ -268,6 +319,12 @@ def reload_cuda_backend(  # NOQA: D102
             energy: float,
         ) -> None:
             raise NotImplementedError()
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
 
         @staticmethod
         def kick_induced_voltage(
@@ -278,6 +335,19 @@ def reload_cuda_backend(  # NOQA: D102
             charge: float,
             acceleration_kick: float,
         ) -> None:
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
+            assert voltage.device != "cpu", (
+                f"Requires Cupy array, but got {type(voltage)}."
+            )
+            assert bin_centers.device != "cpu", (
+                f"Requires Cupy array, but got {type(bin_centers)}."
+            )
+
             assert dt.dtype == floattype
             assert dE.dtype == floattype
             assert voltage.dtype == floattype
@@ -331,6 +401,13 @@ def reload_cuda_backend(  # NOQA: D102
             start: float,
             stop: float,
         ) -> None:
+            assert array_read.device != "cpu", (
+                f"Requires Cupy array, but got {type(array_read)}."
+            )
+            assert array_write.device != "cpu", (
+                f"Requires Cupy array, but got {type(array_write)}."
+            )
+
             assert array_read.dtype == floattype
             assert array_write.dtype == floattype
             assert array_read.flags.c_contiguous
@@ -382,6 +459,13 @@ def reload_cuda_backend(  # NOQA: D102
             phi_rf: float,
             bin_size: float,
         ) -> float:
+            assert hist_x.device != "cpu", (
+                f"Requires Cupy array, but got {type(hist_x)}."
+            )
+            assert hist_y.device != "cpu", (
+                f"Requires Cupy array, but got {type(hist_y)}."
+            )
+
             assert hist_x.dtype == floattype
             assert hist_y.dtype == floattype
             assert hist_x.flags.c_contiguous
@@ -419,6 +503,19 @@ def reload_cuda_backend(  # NOQA: D102
             dE: CupyArray,
             ids: CupyArray,
         ):
+            assert flags.device != "cpu", (
+                f"Requires Cupy array, but got {type(flags)}."
+            )
+            assert dt.device != "cpu", (
+                f"Requires Cupy array, but got {type(dt)}."
+            )
+            assert dE.device != "cpu", (
+                f"Requires Cupy array, but got {type(dE)}."
+            )
+            assert ids.device != "cpu", (
+                f"Requires Cupy array, but got {type(ids)}."
+            )
+
             # TODO write a kernel that works with gpu kernels
             #  to have a smaller memory footprint.
             flag = np.int32(flag)

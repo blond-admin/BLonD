@@ -130,7 +130,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
     except (OSError, FileNotFoundError) as exc:
         raise OSError(
             "`load_libblond` failed. Has the backend been compiled?\n"
-            f"{__file__.replace('callables.py', 'compile.py')}:1"
+            f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
+            # make PyCharm automatically link the correct file
         ) from exc
 
     def _getPointer(x: NumpyArray) -> ct.c_void_p:

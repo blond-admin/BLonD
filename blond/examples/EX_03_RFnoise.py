@@ -44,7 +44,7 @@ def main():
     rf_station_1 = SingleHarmonicRFStation()
     rf_station_1.voltage = 6e6
     rf_station_1.schedule(
-        attribute="phi_rf",
+        attribute="phi_rf_design",
         value=VariNoise().get_noise(n_turns=200),
     )
     rf_station_1.harmonic = 35640
