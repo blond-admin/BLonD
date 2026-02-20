@@ -164,6 +164,18 @@ class SynchrotronRadiationMaster(Schedulable):
         return self._longitudinal_damping_time
 
     @property
+    def natural_energy_spread(self) -> NumpyArray | None:
+        """
+        Natural energy spread.
+
+        Returns
+        -------
+        natural_energy_spread
+            Natural energy spread.
+        """
+        return self._natural_energy_spread
+
+    @property
     def number_of_generated_synchrotron_radiation_classes(self) -> int:
         """
         Number of generated synchrotron radiation classes.
@@ -224,7 +236,7 @@ class SynchrotronRadiationMaster(Schedulable):
         ) = gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=beam.particle_type,
             energy=beam.reference.total_energy,
-            synchrotron_radiation_integrals=ring.radiation_integrals,
+            radiation_integrals=ring.radiation_integrals,
         )
 
     def _user_warning_set_radiation_integrals(

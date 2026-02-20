@@ -10,8 +10,11 @@ from blond import (
     Ring,
     Simulation,
     StaticProfile,
-    electron,
+    positron,
     proton,
+)
+from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
+    calculate_energy_loss_per_turn,
 )
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
@@ -30,6 +33,7 @@ from blond.physics.cavities import (
 )
 from blond.physics.drifts import DriftSimple, _assert_purely_real_or_imaginary
 from blond.physics.impedances.base import WakeField
+from unittests.handle_results.test_observables_as_elements import beam
 
 
 class TestRFStationBaseClass(unittest.TestCase):
@@ -531,12 +535,30 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             MagneticCyclePerTurn(
                 value_init=20e9,
                 values_after_turn=np.linspace(20e9, 20e9, 1),
-                reference_particle=electron,
+                reference_particle=positron,
                 in_unit="total energy",
             ),
         )
         shc.on_init_simulation(simulation=simulation)
         self.assertTrue(shc._use_synchrotron_radiation)
+
+        positron_beam = Mock(BeamBaseClass)
+        positron_beam.reference = Mock(ReferenceCoordinates)
+
+        positron_beam.particle_type = positron
+        positron_beam.reference.total_energy = 20e9
+        positron_beam.reference.time = 0
+        positron_beam.reference.gamma = 40000
+
+        phi_s_calculated = shc.calc_phi_s_single_harmonic(beam=positron_beam)
+        energy_loss_per_turn = calculate_energy_loss_per_turn(
+            energy=20e9,
+            radiation_integrals=radiation_integrals,
+            particle_type=positron,
+        )
+        expected_energy_change = +energy_loss_per_turn
+        expected_phi_s = np.pi - np.arcsin(expected_energy_change / 51e6)
+        self.assertEqual(phi_s_calculated, expected_phi_s)
 
 
 if __name__ == "__main__":
