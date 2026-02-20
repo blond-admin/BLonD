@@ -304,12 +304,18 @@ class TestBunchStatistics(unittest.TestCase):
             particle_type=electron,
         )
         common_array_size = 128
-        self.beam.reference_time = 0.8
-        self.beam.reference_beta = 0.9
-        self.beam.reference_total_energy = 11
-        self.beam._dt = np.ones(common_array_size, dtype=float)
-        self.beam._dE = np.ones(common_array_size, dtype=float)
-        self.beam._flags = np.ones(common_array_size, dtype=int)
+        self.beam.reference._time = 0.8
+        self.beam.reference._beta = 0.9
+        self.beam.reference._total_energy = 11
+        self.beam._dt = DistributedArray(
+            np.ones(common_array_size, dtype=float)
+        )
+        self.beam._dE = DistributedArray(
+            np.ones(common_array_size, dtype=float)
+        )
+        self.beam._flags = DistributedArray(
+            np.ones(common_array_size, dtype=int)
+        )
         self.beam.setup_beam(
             dE=np.ones(common_array_size, dtype=float),
             dt=np.ones(common_array_size, dtype=float),
@@ -401,7 +407,7 @@ class TestRFStationPhaseObservation(unittest.TestCase):
         rf_station.n_rf = 12
         rf_station.phi_rf = 1
         rf_station.delta_phi_rf = 1
-        rf_station._omega_rf = 1
+        rf_station.omega_rf = 1
         rf_station.delta_omega_rf = 1
         rf_station.voltage = 1
         self.rf_station_phase_observation = RFStationPhaseObservation(

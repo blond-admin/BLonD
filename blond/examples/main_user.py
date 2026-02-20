@@ -52,9 +52,9 @@ class Main:
 
         profile1 = StaticProfile(cut_left=0, cut_right=1, n_bins=128)
         rf_station = MultiHarmonicRFStation(
-            voltage=backend.array([6e6, 2e6]),
-            phi_rf=backend.array([0, 0]),
-            harmonic=backend.array([4620, 4 * 4620]),
+            voltage=np.array([6e6, 2e6]),
+            phi_rf=np.array([0, 0]),
+            harmonic=np.array([4620, 4 * 4620]),
             n_harmonics=2,
             main_harmonic_idx=0,
         )
