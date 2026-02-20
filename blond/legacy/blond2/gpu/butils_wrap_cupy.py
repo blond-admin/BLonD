@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Tuple, Union
 import cupy as cp
 import numpy as np
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
     from cupy._core.fusion import _FusionVarArray, _FusionVarScalar
