@@ -85,6 +85,23 @@ def mpi_aware_random_generator_cpu(
     As the Cupy random generators behave differently than the Numpy random
     generators, this routine returns only the CPU generators for consistency.
     The GPU interaction must be handled explicitly outside this function.
+
+    Examples
+    --------
+    >>> from blond.core.helpers import int_from_float_with_warning
+    >>> from blond.generals.distributed.helpers import (
+    ...     mpi_local_size,
+    ...     mpi_aware_random_generator_cpu,
+    ... )
+    ...
+    >>> n_macroparticles = 10
+    >>> local_size = mpi_local_size(
+    ...     int_from_float_with_warning(n_macroparticles, warning_stacklevel=1),
+    ...     warning_hint="n_macroparticles",
+    ... )
+    >>> random_array = mpi_aware_random_generator_cpu(
+    ...     seed=None, n_forward_per_rank=local_size
+    ... ).standard_normal(size=local_size)
     """
     # Generate coordinates. For reproducibility,
     # a separate random number stream is used for dt and dE

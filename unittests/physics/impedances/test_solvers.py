@@ -182,7 +182,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         cavity = SingleHarmonicRFStation()
         cavity.harmonic = 1
         cavity.voltage = 0
-        cavity.phi_rf = 0
+        cavity.phi_rf_design = 0
         rng = np.random.default_rng()
         dt = backend.array(rng.standard_normal(1000), dtype=backend.float)
 
@@ -463,7 +463,8 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         cavity = SingleHarmonicRFStation()
         cavity.harmonic = 1
         cavity.voltage = 0
-        cavity.phi_rf = 0
+        cavity.phi_rf_design = 0
+
         rng = np.random.default_rng()
         dt = rng.standard_normal(1000)
 
