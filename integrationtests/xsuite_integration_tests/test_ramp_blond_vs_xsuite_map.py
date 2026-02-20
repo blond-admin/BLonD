@@ -1,0 +1,84 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""Run test to check xsuite interface works properly for LHC rmap."""
+
+import numpy as np
+from matplotlib import pyplot as plt
+
+from .ramp_blond_xsuite_lhc_map import run_simulation as run_blond
+from .ramp_xsuite_lhc_map import run_simulation as run_xsuite
+
+
+def test_blond_interface_xsuite():
+    """Run xsuite + blond element simulation."""
+    n_turns = 10
+    PLOT = True
+
+    init_dist, zeta_xsuite, delta_xsuite = run_xsuite(n_turns=n_turns)
+    (
+        zeta_blond,
+        delta_blond,
+    ) = run_blond(n_turns=n_turns, init_distribution=init_dist)
+
+    assert zeta_blond.shape == zeta_xsuite.shape
+    assert delta_blond.shape == delta_xsuite.shape
+
+    if PLOT:
+        plt.scatter(
+            zeta_blond[:, 0], delta_blond[:, 0], label="xsuite + BLonD"
+        )
+        plt.scatter(zeta_xsuite[:, 0], delta_xsuite[:, 0], label="xsuite")
+        plt.title("After 0 turns")
+        plt.xlabel("$\zeta$ [m]")
+        plt.ylabel(r"$delta$")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+        plt.scatter(
+            zeta_blond[:, -1], delta_blond[:, -1], label="xsuite + BLonD"
+        )
+        plt.scatter(zeta_xsuite[:, -1], delta_xsuite[:, -1], label="xsuite")
+        plt.title("After 100 turns")
+        plt.xlabel("$\zeta$ [m]")
+        plt.ylabel(r"$p_{\tau}$")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+        dz = []
+        dp = []
+        for i in range(n_turns):
+            dz.append(
+                zeta_blond[0, i] - zeta_xsuite[0, i]
+            )  # shape (n_particles, n_turns)
+            dp.append(delta_blond[0, i] - delta_xsuite[0, i])
+
+        plt.plot(dz, label=r" $|\Delta\zeta|$")
+        plt.plot(dp, label=r" $|\delta|$")
+        plt.xlabel("Turn")
+        plt.ylabel("difference")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+    np.testing.assert_allclose(
+        zeta_blond,
+        zeta_xsuite,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+
+    np.testing.assert_allclose(
+        delta_blond,
+        delta_xsuite,
+        rtol=1e-12,
+        atol=1e-12,
+    )

@@ -12,15 +12,13 @@ Functions and classes to interface BLonD with xsuite.
 :Authors: **Birk Emil Karlsen-Baeck**, **Thom Arnoldus van Rijswijk**, **Helga Timko**, **Elleanor Lamb**
 """
 
-import warnings
-
 import numpy as np
 import xpart as xp
 from numpy.typing import NDArray
-from scipy.constants import c as c_light
+from scipy.constants import c
 from xtrack import Line, Particles, ZetaShift
 
-from blond import Beam, SingleHarmonicRFStation
+from blond import Beam, MagneticCycleByTime, SingleHarmonicRFStation
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.core.beam.particle_types import ParticleType
 
@@ -59,7 +57,7 @@ def xsuite_to_blond_transform(
         Energy deviation with respect to the reference energy [eV].
     """
     dE = ptau * beta0 * energy0
-    dt = -zeta / (beta0 * c_light) + phi_s / omega_rf
+    dt = -zeta / (beta0 * c) + phi_s / omega_rf
     return dt, dE
 
 
@@ -97,7 +95,7 @@ def blond_to_xsuite_transform(
         Relative momentum deviation in Xsuite.
     """
     ptau = de / (beta0 * energy0)
-    zeta = -(dt - phi_s / omega_rf) * beta0 * c_light
+    zeta = -(dt - phi_s / omega_rf) * beta0 * c
     return zeta, ptau
 
 
@@ -144,6 +142,8 @@ class BLonD3Cavity:
         Xsuite line containing the reference particle and machine length.
     initial_intensity : float or int or None, optional
         Initial beam intensity. If None, intensity handling is disabled.
+    momentum_compaction_factor : float, optional
+        Momentum compaction factor. Default is None. Must be provided if there is an energy ramp.
     """
 
     def __init__(
@@ -152,29 +152,52 @@ class BLonD3Cavity:
         particles: Particles,
         line: Line,
         initial_intensity: float | int | None = None,
+        momentum_compaction_factor: float | None = None,
     ):
-        if self.line.energy_program is not None:
-            warnings.warn(
-                "energy_program is set for this line. The energy cycle must be flat.",
-                UserWarning,
-                stacklevel=2,
-            )
         self.line = line
 
         self.dt_shift = None
         self.trackable = cavity
         self.orbit_shift = ZetaShift(dzeta=0)
 
+        particle_type = particle_xsuite_to_blond(self.line.particle_ref)
+
+        # get the momentum program from BLonD
+        if self.line.energy_program is not None:
+            time = self.line.energy_program.t_s
+
+            # must have momentum compaction factor defined
+            if momentum_compaction_factor is None:
+                raise ValueError(
+                    "momentum_compaction_factor must be provided when line has an energy_program."
+                )
+
+            self.momentum_compaction_factor = momentum_compaction_factor
+
+            t_s = self.line.energy_program.t_s
+            values = self.line.energy_program.get_p0c_at_t_s(t_s)
+
+            self.trackable._magnetic_cycle = MagneticCycleByTime(
+                reference_particle=particle_type,
+                base_time=time,
+                base_values=values,
+                in_unit="momentum",
+            )
+
+        else:
+            twiss = self.line.twiss4d()
+            self.momentum_compaction_factor = twiss[
+                "momentum_compaction_factor"
+            ]
+
         omega_rf = (
             2
             * np.pi
-            * c_light
+            * c
             * cavity.harmonic
             * float(line.particle_ref.beta0)
             / float(line.get_length())
         )
-
-        particle_type = particle_xsuite_to_blond(self.line.particle_ref)
 
         dt, dE = xsuite_to_blond_transform(
             zeta=particles.zeta,
@@ -203,9 +226,10 @@ class BLonD3Cavity:
         )
 
         # above or below transition for mocked ring
-        twiss = self.line.twiss4d()
-        momentum_compaction = twiss["momentum_compaction_factor"]
-        eta = momentum_compaction - (1 / (self.beam.reference.gamma**2))
+
+        eta = self.momentum_compaction_factor - (
+            1 / (self.beam.reference.gamma**2)
+        )
         self.trackable._ring.is_below_transition.return_value = bool(eta < 0)
 
     def track(self, particles: Particles):
@@ -226,9 +250,12 @@ class BLonD3Cavity:
         # update time shift
         self.get_time_shift()
 
+        print("Tracking insided BLonD Cavity")
+
         # above or below transition for mocked ring
-        twiss = self.line.twiss4d()
-        momentum_compaction = twiss["momentum_compaction_factor"]
+        # twiss = self.line.twiss4d()
+        # momentum_compaction = twiss["momentum_compaction_factor"]
+        momentum_compaction = 0.00034849575112269696
         eta = momentum_compaction - (1 / (self.beam.reference.gamma**2))
         self.trackable._ring.is_below_transition.return_value = bool(eta < 0)
 
@@ -304,8 +331,7 @@ class BLonD3Cavity:
         flags = beam.write_partial_flags()
 
         dt[:n_active] = (
-            -particles.zeta[active_mask]
-            / (particles.beta0[active_mask] * c_light)
+            -particles.zeta[active_mask] / (particles.beta0[active_mask] * c)
             + self.dt_shift
         )
 
@@ -354,5 +380,5 @@ class BLonD3Cavity:
         particles.zeta[self._previous_active_mask] = (
             -(dt.ravel() - self.dt_shift)
             * particles.beta0[self._previous_active_mask]
-            * c_light
+            * c
         )

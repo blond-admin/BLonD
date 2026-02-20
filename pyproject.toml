@@ -72,6 +72,7 @@ exclude = [
     "unittests/*",
     "blond/examples/*",
 ]
+
 # Enable broad set of useful lint rules
 select = [
     "E",    # pycodestyle errors
