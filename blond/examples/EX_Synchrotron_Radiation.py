@@ -37,7 +37,7 @@ logging.basicConfig(level=logging.INFO)
 
 class SynchrotronRadiationSimulation:
     def __init__(self):
-        self.synchrotron_radiation_integrals = np.array(
+        self.radiation_integrals = np.array(
             [
                 0.646747216157,
                 0.0005936549319,
@@ -48,7 +48,7 @@ class SynchrotronRadiationSimulation:
         )
         self.circumference = 90.65874532 * 1e3
         self.momentum_compaction_factor = (
-            self.synchrotron_radiation_integrals[0] / self.circumference
+            self.radiation_integrals[0] / self.circumference
         )
         self.reference_energy = 20e9
 
@@ -69,7 +69,7 @@ class SynchrotronRadiationSimulation:
 
         self.ring = Ring(
             self.circumference,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            radiation_integrals=self.radiation_integrals,
         )
         self.ring.add_element(self.cavity)
 
@@ -155,7 +155,7 @@ def main():
         gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=params.beam.particle_type,
             energy=params.beam.reference.total_energy,
-            synchrotron_radiation_integrals=params.synchrotron_radiation_integrals,
+            radiation_integrals=params.radiation_integrals,
         )
     )
     fig, ax = plt.subplots(nrows=2, figsize=(8, 6), constrained_layout=True)

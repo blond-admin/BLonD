@@ -519,7 +519,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
 
         SR_ring = Ring(
             90.65874532 * 1e3,
-            synchrotron_radiation_integrals=radiation_integrals,
+            radiation_integrals=radiation_integrals,
         )
         drift1 = DriftSimple(
             orbit_length=90.65874532 * 1e3,

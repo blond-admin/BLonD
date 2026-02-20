@@ -206,7 +206,7 @@ class RFStationBaseClass(
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
-        if self._ring.synchrotron_radiation_integrals is not None:
+        if self._ring.radiation_integrals is not None:
             self._use_synchrotron_radiation = True
 
     def on_run_simulation(

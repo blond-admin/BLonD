@@ -42,7 +42,7 @@ class TestFCCColliderBasicSimulation(unittest.TestCase):
     def test_simulation_Z(self):
         self.assertEqual(self.simZ.ring.circumference, 90.65874532 * 1e3)
         np.testing.assert_array_equal(
-            self.simZ.ring.synchrotron_radiation_integrals,
+            self.simZ.ring.radiation_integrals,
             self.radiation_integrals,
         )
         self.assertEqual(self.simZ.magnetic_cycle.reference_particle, positron)
@@ -56,7 +56,7 @@ class TestFCCColliderBasicSimulation(unittest.TestCase):
     def test_simulation_W(self):
         self.assertEqual(self.simW.ring.circumference, 90.65874532 * 1e3)
         np.testing.assert_array_equal(
-            self.simW.ring.synchrotron_radiation_integrals,
+            self.simW.ring.radiation_integrals,
             self.radiation_integrals,
         )
         self.assertEqual(self.simW.magnetic_cycle.reference_particle, positron)
@@ -70,7 +70,7 @@ class TestFCCColliderBasicSimulation(unittest.TestCase):
     def test_simulation_ZH(self):
         self.assertEqual(self.simZH.ring.circumference, 90.65874532 * 1e3)
         np.testing.assert_array_equal(
-            self.simW.ring.synchrotron_radiation_integrals,
+            self.simW.ring.radiation_integrals,
             self.radiation_integrals,
         )
         self.assertEqual(
@@ -86,7 +86,7 @@ class TestFCCColliderBasicSimulation(unittest.TestCase):
     def test_simulation_ttbar(self):
         self.assertEqual(self.simttbar.ring.circumference, 90.65874532 * 1e3)
         np.testing.assert_array_equal(
-            self.simW.ring.synchrotron_radiation_integrals,
+            self.simW.ring.radiation_integrals,
             self.radiation_integrals,
         )
         self.assertEqual(
