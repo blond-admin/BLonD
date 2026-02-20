@@ -176,6 +176,11 @@ test_py_314:
     # - .publish
   tags:
     - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+    # ALSO run in merge requests targeting blonder
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "blonder"'
 
 test_minimum:
   image: gitlab-registry.cern.ch/blond/blond/python310
