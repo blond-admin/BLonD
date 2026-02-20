@@ -9,7 +9,10 @@ from blond import (
     Ring,
     SingleHarmonicRFStation,
     backend,
+    positron,
 )
+from blond.core.beam.base import BeamBaseClass
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
 )
@@ -606,3 +609,49 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 self.synchrotron_radiation_integrals / number_of_sections,
                 decimal=self.decimal,
             )
+
+    def test_compute_synchrotron_radiation_parameters(self):
+        radiation_integrals = np.array(
+            [
+                0.646747216157,
+                0.000593654931851,
+                5.6814536525e-08,
+                5.92870407301e-09,
+                1.698280783e-11,
+            ]
+        )
+        ring = Ring(
+            circumference=90.65874532 * 1e3,
+            radiation_integrals=radiation_integrals,
+        )
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+
+        beam.reference.total_energy = 20e9
+        beam.particle_type = positron
+
+        SRM = SynchrotronRadiationMaster()
+
+        SRM.compute_synchrotron_radiation_parameters(ring=ring, beam=beam)
+
+        self.assertAlmostEqual(
+            SRM._energy_loss_per_turn,
+            1337317.6296824566,
+            places=self.decimal,
+        )
+        self.assertAlmostEqual(
+            SRM._longitudinal_damping_time,
+            14955.235531740671,
+            places=self.decimal,
+        )
+        self.assertAlmostEqual(
+            SRM._natural_energy_spread,
+            0.00016759685785477585,
+            places=self.decimal,
+        )
+
+        self.assertEqual(SRM._natural_energy_spread, SRM.natural_energy_spread)
+        self.assertEqual(
+            SRM._longitudinal_damping_time, SRM.longitudinal_damping_time
+        )
+        self.assertEqual(SRM._energy_loss_per_turn, SRM.energy_loss_per_turn)
