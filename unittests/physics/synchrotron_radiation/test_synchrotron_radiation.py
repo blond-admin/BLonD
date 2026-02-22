@@ -268,7 +268,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
-        self.cavity.phi_rf = 0
+        self.cavity.phi_rf_design = 0
 
         ring.add_element(self.cavity)
 
@@ -378,7 +378,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         cavity = SingleHarmonicRFStation()
         cavity.harmonic = 242400
         cavity.voltage = 50.1e6
-        cavity.phi_rf = 0
+        cavity.phi_rf_design = 0
 
         SRM = SynchrotronRadiationMaster()
 
@@ -439,7 +439,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
-        self.cavity.phi_rf = 0
+        self.cavity.phi_rf_design = 0
         ring.add_element(self.cavity)
 
         number_of_sections = 5
@@ -492,7 +492,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
-        self.cavity.phi_rf = 0
+        self.cavity.phi_rf_design = 0
         ring.add_element(self.cavity)
 
         number_of_sections = 5
@@ -555,7 +555,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             rf_station = SingleHarmonicRFStation(section_index=i)
             rf_station.harmonic = 242400
             rf_station.voltage = 50.1e6
-            rf_station.phi_rf = 0
+            rf_station.phi_rf_design = 0
             ring.add_element(rf_station)
             drift = DriftSimple(
                 name=f"drift{i + 1}",

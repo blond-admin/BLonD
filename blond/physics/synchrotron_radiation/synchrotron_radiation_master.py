@@ -493,6 +493,9 @@ class SynchrotronRadiationMaster(Schedulable):
         element_list
             Element list to consider.
         """
+        from blond.physics.cavities import (
+            RFStationBaseClass,  # prevent cyclic import
+        )
         from blond.physics.drifts import (
             DriftBaseClass,  # prevent cyclic import
         )
