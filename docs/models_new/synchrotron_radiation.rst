@@ -9,15 +9,14 @@ Overview
 --------
 
 The :class:`SynchrotronRadiationMaster` class provides a framework for including
-**synchrotron radiation damping** and **quantum excitation** effects in
-longitudinal beam dynamics simulations in synchrotrons.
+**synchrotron radiation damping** and **quantum excitation** effects whilst
+simulating longitudinal beam dynamics in synchrotrons.
 
-Bending forces applied on relativistic charged particles yields to the
-spontaneous emission of photons, called **synchrotron radiation**. This
-emission causes:
+Bending forces applied on relativistic charged particles triggers the emission
+ of photons, called **synchrotron radiation**. This emission causes:
 
 1. **Energy loss per turn** -- particles radially lose energy,
-2. **Radiation damping** -- oscillation amplitudes decrease exponentially
+2. **Radiation damping** -- oscillation amplitudes decrease exponentially.
 
 Additionally, discrete photon emission can happen randomly during the charged
 particle trajectory. This **quantum excitation** provokes stochastic energy
@@ -65,11 +64,11 @@ The properties of the electron beam in synchrotrons are summarized in the
 
 .. math::
 
-   I_1 &= \oint \frac{D_x}{\rho} \, ds \\
-   I_2 &= \oint \frac{1}{\rho^2} \, ds \\
-   I_3 &= \oint \frac{1}{|\rho|^3} \, ds \\
-   I_4 &= \oint \frac{D_x}{\rho} \left(\frac{1}{rho^2} + 2 * K\right) \, ds \\
-   I_5 &= \oint \frac{\mathcal{H}}{|\rho|^3} \, ds \\
+   I_1 &= \oint \frac{D_x}{\rho} \, ds, related to the momentum compaction factor, \\
+   I_2 &= \oint \frac{1}{\rho^2} \, ds, related to the energy loss per turn, \\
+   I_3 &= \oint \frac{1}{|\rho|^3} \, ds, related to the natural energy spread, \\
+   I_4 &= \oint \frac{D_x}{\rho} \left(\frac{1}{rho^2} + 2 * K\right) \, ds, required for the damping times, \\
+   I_5 &= \oint \frac{\mathcal{H}}{|\rho|^3} \, ds, required for the natural horizontal emittance \\
 
 where:
 
@@ -77,18 +76,18 @@ where:
 - :math:`D_x` is the horizontal dispersion function [m],
 - :math:`K` is the focusing strength [m\ :sup:`-2`],
 - :math:`\mathcal{H} = \beta_x D_x'^2 + 2\alpha_x D_x D_x' + \gamma_x D_x^2`
-  is the H-function [m].
+  is the :math:`\mathcal{H}'-function [m].
 
 For an **isomagnetic ring** (uniform bending radius :math:`\rho_0`), the
 integrals simplify to:
 
 .. math::
 
-   I_1 &= \alpha_c \cdot C, related to the momentum compaction factor, \\
-   I_2 &= \frac{2\pi}{\rho_0}, related to the energy loss per turn, \\
-   I_3 &= \frac{2\pi}{\rho_0^2}, related to the natural energy spread, \\
-   I_4 &= \frac{\alpha_c \cdot C}{\rho_0^2}, required for the damping times, \\
-   I_5 &= 0, for lack of information on :math: <\mathcal{H}>, required for the natural horizontal emittance \\
+   I_1 &= \alpha_c \cdot C, \\
+   I_2 &= \frac{2\pi}{\rho_0}, \
+   I_3 &= \frac{2\pi}{\rho_0^2}, \\
+   I_4 &= \frac{\alpha_c \cdot C}{\rho_0^2},\\
+   I_5 &= 0, for lack of information on :math: <\mathcal{H}>,\\
 
 where :math:`\alpha_c` is the momentum compaction factor and :math:`C` is the
 circumference.
@@ -100,7 +99,7 @@ For highly relativistic charged particles, synchrotron radiation is emitted
 along its direction of motion, which recoil induces small perturbation of
 the betatron and synchrotron motion. This effect damps the beam
 amplitudes, with typical damping times.
-The radiation loss around the synchronous partilcle can be derived as :math: 'U
+The radiation loss around the synchronous particle can be derived as :math: 'U
  = U_0 + \frac{dU}{dE}_{E = E_0)} \cdot
 \Delta E', where :math: 'E_0' and 'U_0' are the energy and energy lost of the
 synchronous particle.
@@ -131,7 +130,8 @@ with the **longitudinal damping time**  in seconds is:
 Practically, the synchrotron radiation damping times of all planes are
 proportional to the
 inverse of :math: 'U_0 / (2 T_0 E)'. The proportionality
-coefficient are the **damping partition numbers**:
+coefficient are the **damping partition numbers**, which represent how damping
+is distributed amongst the planes:
 .. math::
 
    j_x &= 1 - \frac{I_4}{I_2} \\
@@ -139,8 +139,7 @@ coefficient are the **damping partition numbers**:
    j_z &= 2 + \frac{I_4}{I_2}'
 
 assuming no vertical dispersion in the synchrotron. The Robinson damping
-theorem requires :math:`j_x + j_y + j_z = 4`.
-
+theorem requires :math:`j_x + j_y + j_z = 4`/
 
 Quantum Excitation and Natural Energy Spread
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -171,9 +170,10 @@ The effective energy kick provided by the synchrotron radiation tracker is:
 .. math::
 
    \Delta E \rightarrow \Delta E \\
-   - U_0 \\
-   - \frac{2}{\tau_z} \Delta E \\
-   + \sqrt{\frac{2 \sigma_E \E_0}{\tau_z}} \cdot \mathcal{N}(0,1)
+   - U_0 (energy loss per turn)\\
+   - \frac{2}{\tau_z} \Delta E (radiation damping)\\
+   + \sqrt{\frac{2 \sigma_E \E_0}{\tau_z}} \cdot \mathcal{N}(0,1) (quantum
+   excitation), \\
 
 where :math:`\mathcal{N}(0,1)` represents a standard normal random distribution.
 ---
@@ -187,8 +187,8 @@ The synchrotron radiation framework consists of:
 
 - :class: 'SynchrotronRadiationBaseClass': abstract class holding basic
 properties for tracking with synchrotron radiation, computes the energy kick
-given to the
-  beam and updates the beam energy accordingly during the simulation.
+given to the beam and updates the beam energy accordingly during the
+simulation.
 
 **Master Class**
 
@@ -209,9 +209,8 @@ method performs the following steps:
 
    The radiation integrals are obtained from one of:
 
-   - The ``Ring`` object (if pre-defined)
-   - User-provided array via ``radiation_integrals`` parameter
-   - Computed for an isomagnetic ring using ``bending_radius``
+   - The ``Ring`` object (if pre-defined),
+   - Computed for an isomagnetic ring using ``bending_radius``.
 
 For consistency, the radiation integrals obtained outside the ring will be set
 as a property of the ring.
@@ -227,6 +226,8 @@ as a property of the ring.
 
    For each element, the share of radiation integrals is computed
    proportionally to :
+   - if all drifts hold this property, use the provided radiation integrals
+   of each drift,
    - its orbit length relative to the circumference for drift elements,
    - the section length between each RF cavities relative to the
    circumference,
@@ -286,7 +287,7 @@ Example
     cavity = SingleHarmonicRFStation()
     cavity.harmonic = 242400
     cavity.voltage = 50.1e6
-    cavity.phi_rf = 0
+    cavity.phi_rf_design = 0
     ring.add_element(cavity)
 
    # Add drift spaces
