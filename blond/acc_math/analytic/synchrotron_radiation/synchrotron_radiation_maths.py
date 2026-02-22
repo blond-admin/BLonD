@@ -579,7 +579,7 @@ def calculate_natural_bunch_length(
     radiation_integrals
         Synchrotron radiation integrals.
     angular_synchrotron_frequency
-        Angular synchrotron frequency, in  [rad].
+        Angular synchrotron frequency, in  [rad/s].
     momentum_compaction_factor
         Momentum compaction factor, [dimensionless].
     particle_type
