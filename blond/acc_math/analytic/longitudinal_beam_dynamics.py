@@ -51,8 +51,8 @@ def get_small_amplitude_angular_synchrotron_tune(
 
     Returns
     -------
-    angular_synchrotron_tune
-        Angular synchrotron tune.
+    small_amplitude_angular_synchrotron_tune
+        Small amplitude angular synchrotron tune, [dimensionless].
     """
     raise_on_uneven_array_sizes(
         energy,
@@ -62,7 +62,7 @@ def get_small_amplitude_angular_synchrotron_tune(
         phase_slip_factor,
     )
 
-    angular_synchrotron_tune = np.sqrt(
+    small_amplitude_angular_synchrotron_tune = np.sqrt(
         (
             harmonic_number
             * e
@@ -71,7 +71,7 @@ def get_small_amplitude_angular_synchrotron_tune(
         )
         / (2 * np.pi * energy)
     )
-    return angular_synchrotron_tune
+    return small_amplitude_angular_synchrotron_tune
 
 
 def get_small_amplitude_angular_synchrotron_frequency(
@@ -102,8 +102,8 @@ def get_small_amplitude_angular_synchrotron_frequency(
 
     Returns
     -------
-    angular_synchrotron_frequency
-            Angular synchrotron frequency, in [rad].
+    small_amplitude_angular_synchrotron_frequency
+            Small amplitude angular synchrotron frequency, in [rad/s].
     """
     raise_on_uneven_array_sizes(
         energy,
@@ -124,13 +124,13 @@ def get_small_amplitude_angular_synchrotron_frequency(
         )
     )
 
-    angular_synchrotron_frequency = (
+    small_amplitude_angular_synchrotron_frequency = (
         2
         * np.pi
         * revolution_frequency
         * small_amplitude_angular_synchrotron_tune
     )
-    return angular_synchrotron_frequency
+    return small_amplitude_angular_synchrotron_frequency
 
 
 def get_angular_synchrotron_tune(
@@ -158,8 +158,8 @@ def get_angular_synchrotron_tune(
 
     Returns
     -------
-    angular_synchrotron_frequency
-            Angular synchrotron frequency, in [rad].
+    angular_synchrotron_tune
+            Angular synchrotron tune, [dimensionless].
     """
     raise_on_uneven_array_sizes(
         energy,
@@ -178,14 +178,14 @@ def get_angular_synchrotron_tune(
             phase_slip_factor=phase_slip_factor,
         )
     )
-    angular_synchrotron_frequency = (
+    angular_synchrotron_tune = (
         1
         / (2 * np.pi)
         * np.arccos(
             1 - 2 * (np.pi * small_amplitude_angular_synchrotron_tune) ** 2
         )
     )
-    return angular_synchrotron_frequency
+    return angular_synchrotron_tune
 
 
 def get_angular_synchrotron_frequency(
@@ -217,7 +217,7 @@ def get_angular_synchrotron_frequency(
     Returns
     -------
     angular_synchrotron_frequency
-            Angular synchrotron frequency, in [rad].
+            Angular synchrotron frequency, in [rad/s].
     """
     raise_on_uneven_array_sizes(
         energy,
