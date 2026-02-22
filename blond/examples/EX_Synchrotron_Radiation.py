@@ -165,7 +165,7 @@ def main():
     ax[0].plot(bunch_statistics.bunch_position * 1e9, label="Bunch position")
     ax[0].plot(
         synchronous_phase
-        / params.cavity._omega_rf
+        / params.cavity.omega_rf_design
         * 1e9
         * np.ones(len(bunch_statistics.bunch_position)),
         label="Synchronous position",
