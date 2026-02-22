@@ -36,7 +36,10 @@ logging.basicConfig(level=logging.INFO)
 
 
 class SynchrotronRadiationSimulation:
-    def __init__(self):
+    def __init__(
+        self,
+        n_turns: int,
+    ):
         self.radiation_integrals = np.array(
             [
                 0.646747216157,
@@ -57,7 +60,7 @@ class SynchrotronRadiationSimulation:
         self.cavity.voltage = 50.1e6
         self.cavity.phi_rf_design = 0
 
-        self.n_turns = int(100000)
+        self.n_turns = n_turns
         self.energy_cycle = MagneticCyclePerTurn(
             value_init=self.reference_energy,
             values_after_turn=np.linspace(
@@ -103,8 +106,8 @@ class SynchrotronRadiationSimulation:
         self.energy_spread = 1e-3
 
 
-def main():
-    params = SynchrotronRadiationSimulation()
+def main(n_turns: int = 100):
+    params = SynchrotronRadiationSimulation(n_turns=n_turns)
     simulation = Simulation(
         ring=params.ring, magnetic_cycle=params.energy_cycle
     )

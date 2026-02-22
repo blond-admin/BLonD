@@ -20,7 +20,7 @@ class TestEX_Synchrotron_Radiation(unittest.TestCase):
             EX_Synchrotron_Radiation,  # NOQA will run the
         )
 
-        EX_Synchrotron_Radiation.main()
+        EX_Synchrotron_Radiation.main(n_turns=100)
 
         # full script. just checking if it crashes
 
@@ -32,7 +32,7 @@ class TestEX_Synchrotron_Radiation(unittest.TestCase):
             EX_Synchrotron_Radiation,  # NOQA will run the
         )
 
-        EX_Synchrotron_Radiation.main()
+        EX_Synchrotron_Radiation.main(n_turns=100)
 
         # full script. just checking if it crashes
 
@@ -49,7 +49,7 @@ class TestEX_Synchrotron_Radiation(unittest.TestCase):
             EX_Synchrotron_Radiation,  # NOQA will run the
         )
 
-        EX_Synchrotron_Radiation.main()
+        EX_Synchrotron_Radiation.main(n_turns=100)
         backend.zeros(100)
 
         # full script. just checking if it crashes
@@ -67,7 +67,7 @@ class TestEX_Synchrotron_Radiation(unittest.TestCase):
             EX_Synchrotron_Radiation,  # NOQA will run the
         )
 
-        EX_Synchrotron_Radiation.main()
+        EX_Synchrotron_Radiation.main(n_turns=100)
         backend.zeros(100)
 
         # full script. just checking if it crashes
