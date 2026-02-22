@@ -56,13 +56,16 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
     beam_delta_energy_array
         Beam energy array.
     energy_lost
-        Energy lost through the considered synchrotron segment.
+        Energy lost through the considered synchrotron segment, in [eV per
+        turn].
     longitudinal_damping_time
-        Longitudinal damping time of the considered synchrotron segment.
+        Longitudinal damping time of the considered synchrotron segment,
+        in [turn].
     natural_energy_spread
-        Natural energy spread of the considered synchrotron segment.
+        Natural energy spread of the considered synchrotron segment,
+        [dimensionless].
     total_energy
-        Beam total reference energy.
+        Beam total reference energy, in [eV].
     random_generator
         Random generator.
     disable_quantum_excitation

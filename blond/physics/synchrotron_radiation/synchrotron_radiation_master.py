@@ -143,24 +143,24 @@ class SynchrotronRadiationMaster(Schedulable):
     @property
     def energy_loss_per_turn(self) -> NumpyArray | None:
         """
-        Energy loss per turn, eV per turn.
+        Energy loss per turn, in [eV per turn].
 
         Returns
         -------
         energy_loss_per_turn
-            Energy loss per turn.
+            Energy loss per turn, in [eV per turn].
         """
         return self._energy_loss_per_turn
 
     @property
     def longitudinal_damping_time(self) -> NumpyArray | None:
         """
-        Damping times, in turns.
+        Longitudinal damping time.
 
         Returns
         -------
         longitudinal_damping_time
-            Damping times in turn.
+            Damping times, in [turn].
         """
         return self._longitudinal_damping_time
 
@@ -172,7 +172,7 @@ class SynchrotronRadiationMaster(Schedulable):
         Returns
         -------
         natural_energy_spread
-            Natural energy spread.
+            Natural energy spread, [dimensionless].
         """
         return self._natural_energy_spread
 
@@ -190,6 +190,7 @@ class SynchrotronRadiationMaster(Schedulable):
 
     def print_synchrotron_radiation_parameters(
         self,
+        ring: Ring,
         beam: BeamBaseClass,
     ) -> None:
         """
@@ -200,10 +201,12 @@ class SynchrotronRadiationMaster(Schedulable):
 
         Parameters
         ----------
+        ring
+            `Ring` context manager.
         beam
             `Beam` object.
         """
-        self.compute_synchrotron_radiation_parameters(beam=beam)
+        self.compute_synchrotron_radiation_parameters(ring=ring, beam=beam)
         print(
             f"Synchrotron radiation parameters for the beam energy "
             f"#{beam.reference.total_energy}"
@@ -257,7 +260,7 @@ class SynchrotronRadiationMaster(Schedulable):
             integrals will be computed from the ring bending radius. Default:
             False.
         bending_radius
-            Averaged bending radius along the ring.
+            Averaged bending radius along the ring, in [m].
         """
         if radiation_integrals is not None:
             warnings.warn(
@@ -293,7 +296,7 @@ class SynchrotronRadiationMaster(Schedulable):
             integrals will be computed from the ring bending radius. Default:
             False.
         bending_radius
-            Averaged bending radius along the ring.
+            Averaged bending radius along the ring, in [m].
 
         Returns
         -------
@@ -362,7 +365,7 @@ class SynchrotronRadiationMaster(Schedulable):
             integrals will be computed from the ring bending radius. Default:
             False.
         bending_radius
-            Averaged bending radius along the ring.
+            Averaged bending radius along the ring, in [m].
         """
         if ring.radiation_integrals is not None:
             self._radiation_integrals = ring.radiation_integrals.copy()
@@ -597,7 +600,7 @@ class SynchrotronRadiationMaster(Schedulable):
             integrals will be computed from the ring bending radius. Default:
             None.
         bending_radius
-            Averaged bending radius along the ring.
+            Averaged bending radius along the ring, in [m].
         """
         self._set_radiation_integrals(
             ring=ring,
@@ -668,7 +671,8 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
         Returns
         -------
         energy_lost_due_to_synchrotron_radiation_drift
-            Energy lost due to synchrotron radiation along the drift.
+            Energy lost due to synchrotron radiation along the drift,
+            in [eV per turn].
         """
         return self._energy_lost_due_to_synchrotron_radiation
 
