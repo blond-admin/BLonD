@@ -596,7 +596,7 @@ def calculate_natural_bunch_length(
         radiation_integrals=radiation_integrals,
     )
     natural_bunch_length = (
-        momentum_compaction_factor
+        abs(momentum_compaction_factor)
         * c
         / angular_synchrotron_frequency
         * natural_energy_spread
