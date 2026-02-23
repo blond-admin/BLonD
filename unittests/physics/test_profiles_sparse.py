@@ -17,8 +17,8 @@ class TestEquidistantMultiProfile(unittest.TestCase):
             bins_per_profile=4,
             offset=0,
         )
-        start = self.multiprofile_equidistant.profiles[0].hist_x[0]
-        stop = self.multiprofile_equidistant.profiles[-1].hist_x[-1]
+        start = float(self.multiprofile_equidistant.profiles[0].hist_x[0])
+        stop = float(self.multiprofile_equidistant.profiles[-1].hist_x[-1])
 
         base = np.linspace(
             start,
