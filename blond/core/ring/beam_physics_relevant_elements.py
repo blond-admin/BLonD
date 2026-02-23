@@ -499,12 +499,19 @@ class BeamPhysicsRelevantElements(Preparable):
         _seen = set()
         ordered_elements = []
 
+        for element in elements_in_section:
+            assert any(isinstance(element, n) for n in natural_order), (
+                f"Element of type `{type(element).__name__}` can not be"
+                f" automatically ordered!\n"
+                f"Build your execution order using `ring.add_elements(...)`."
+            )
+
         for cls in natural_order:
             for e in elements_in_section:
                 if e not in _seen and isinstance(e, cls):
                     ordered_elements.append(e)
                     _seen.add(e)
-
+        assert len(ordered_elements) == len(elements_in_section)
         self.elements = list(
             elements_before_section + ordered_elements + elements_after_section
         )
@@ -584,7 +591,7 @@ def pretty_string(v: NumpyArray | Any) -> Any:
     formatted_string
         Formatted string representation of the input value.
     """
-    if isinstance(v, np.ndarray):
-        return f"array(min={v.min()}, max={v.max()}, shape={v.shape})"
-    else:
+    try:  # handles NumPy and CuPy without import
+        return f"{type(v)}(min={v.min()}, max={v.max()}, shape={v.shape})"
+    except AttributeError:
         return v
