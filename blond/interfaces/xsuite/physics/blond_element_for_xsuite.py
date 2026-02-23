@@ -18,7 +18,7 @@ from numpy.typing import NDArray
 from scipy.constants import c
 from xtrack import Line, Particles, ZetaShift
 
-from blond import Beam, MagneticCycleByTime, SingleHarmonicRFStation
+from blond import Beam, SingleHarmonicRFStation
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.core.beam.particle_types import ParticleType
 
@@ -162,9 +162,15 @@ class BLonD3Cavity:
 
         particle_type = particle_xsuite_to_blond(self.line.particle_ref)
 
+        energy_value = float(self.line.particle_ref.energy0)
+
+        mag_cycle = self.trackable._magnetic_cycle
+
+        mag_cycle.get_target_total_energy.return_value = energy_value
+
         # get the momentum program from BLonD
         if self.line.energy_program is not None:
-            time = self.line.energy_program.t_s
+            # time = self.line.energy_program.t_s
 
             # must have momentum compaction factor defined
             if momentum_compaction_factor is None:
@@ -174,15 +180,15 @@ class BLonD3Cavity:
 
             self.momentum_compaction_factor = momentum_compaction_factor
 
-            t_s = self.line.energy_program.t_s
-            values = self.line.energy_program.get_p0c_at_t_s(t_s)
-
-            self.trackable._magnetic_cycle = MagneticCycleByTime(
-                reference_particle=particle_type,
-                base_time=time,
-                base_values=values,
-                in_unit="momentum",
-            )
+            # t_s = self.line.energy_program.t_s
+            # values = self.line.energy_program.get_p0c_at_t_s(t_s)
+            #
+            # self.trackable._magnetic_cycle = MagneticCycleByTime(
+            #     reference_particle=particle_type,
+            #     base_time=time,
+            #     base_values=values,
+            #     in_unit="momentum",
+            # )
 
         else:
             twiss = self.line.twiss4d()
@@ -286,11 +292,11 @@ class BLonD3Cavity:
 
         Sets the self.dt_shift attribute.
         """
-        omega_rf = self.trackable.calc_main_harmonic_omega_rf(
+        omega_rf = self.trackable.calc_main_harmonic_omega_rf_design(
             beam_beta=self.beam.reference.beta,
             ring_circumference=self.line.get_length(),
         )
-        phi_s = self.trackable.calc_phi_s_single_harmonic(beam=self.beam)
+        phi_s = self.trackable.calc_phi_s_main_harmonic(beam=self.beam)
         self.dt_shift = (phi_s - self.trackable.phi_rf) / omega_rf
 
     def calc_phi_s(self):
