@@ -40,7 +40,7 @@ def metric_fitter(
     ),
     density_function: callable([NumpyArray | CupyArray, float]),
     max_metric_diff: float,
-    iterations_max: int = 100,
+    max_iterations: int = 100,
 ) -> NumpyArray | CupyArray:
     """fits a density distribution with one free parameter to a metric of interest,
     then returns the resulting density
@@ -66,7 +66,7 @@ def metric_fitter(
     max_metric_diff
         The allowed difference between the desired metric
         and the metric of the generated bunch
-    iterations_max
+    max_iterations
         maximum number of iterations to search
         before the search loop gets interrupted.
 
@@ -87,9 +87,16 @@ def metric_fitter(
         minimization_function,
         free_parameter_guess,
         method="Nelder-Mead",
-        tol=max_metric_diff,
-        # maxiter=iterations_max,
+        options={"maxiter": max_iterations, "fatol": max_metric_diff},
     )
+
+    # If the optimization was not successful, let the user know why.
+    if not optimize_result.success:
+        warnings.warn(optimize_result.message, RuntimeWarning)
+        if np.abs(optimize_result.fun - desired_metric) > max_metric_diff:
+            warnings.warn(
+                "Specified metric accuracy was not reached", RuntimeWarning
+            )
 
     ideal_free_parameter = optimize_result.x[
         0
@@ -118,7 +125,8 @@ def generalized_bucket_filler(
             NumpyArray | CupyArray,
         ]
     ) = rms_emittance,
-    free_parameter_guess: float = None,
+    max_iterations: int = 100,
+    free_parameter_guess: float | None = None,
 ) -> NumpyArray | CupyArray:
     """Generalized method for generating density distributions for a hamiltonian.
     Notes
@@ -158,6 +166,8 @@ def generalized_bucket_filler(
         time and energy as 2d arrays
     free_parameter_guess
         The initial guess for the free parameter
+    max_iterations
+        The maximum number of iterations allowed for fitting the metric.
 
 
     Returns
@@ -171,7 +181,7 @@ def generalized_bucket_filler(
     if (
         free_parameter_guess is None
     ):  # typically the free parameter is in units of eV so setting it to max of hamiltonian makes sense in most cases
-        free_parameter_guess = np.max(_hamilton) / 10000
+        free_parameter_guess = np.max(_hamilton)
 
     n_slices_per_bucket = int(time_grid.shape[1] / n_buckets)
     min_hamilton = np.min(_hamilton)
@@ -205,6 +215,7 @@ def generalized_bucket_filler(
                 metric_function,
                 density_function,
                 max_metric_diff,
+                max_iterations,
             )
             sliced_density *= intensity_frac_list[bucket]
 
