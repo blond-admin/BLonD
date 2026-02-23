@@ -308,7 +308,7 @@ class BLonD3Cavity:
         phi_s
             Phi_s value.
         """
-        phi_s = self.trackable.calc_phi_s_single_harmonic(beam=self.beam)
+        phi_s = self.trackable.calc_phi_s_main_harmonic(beam=self.beam)
         return phi_s
 
     def xsuite_to_blond_transform_particles(

@@ -76,10 +76,11 @@ def run_simulation(init_dist, n_turns):
         section_index=0,
         voltage=V,
         harmonic=35640,
-        phi_rf=0,  # todo, this is a shift between xsuite and blond
+        phi_rf=0,
         circumference=C,
         total_energy=None,  # todo dynamically set the energy
         is_below_transition=None,
+        beam_reference_beta=line.particle_ref.beta0,
     )
 
     cavity = BLonD3Cavity(
@@ -90,9 +91,6 @@ def run_simulation(init_dist, n_turns):
     )
 
     phi_s = cavity.calc_phi_s()
-    # omega_rf = cavity1.calc_main_harmonic_omega_rf(
-    #     beam_beta=cavity.beam.reference.beta, ring_circumference=C
-    # )
 
     # --- Insert cavity  --- #
     line.insert_element(
