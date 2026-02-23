@@ -339,7 +339,8 @@ class SynchrotronRadiationMaster(Schedulable):
                 integrals_to_use = integrals
             else:
                 raise ValueError(
-                    "The first five synchrotron radiation integrals are requires "
+                    "The first five synchrotron radiation integrals are "
+                    "required."
                 )
         else:
             raise TypeError(

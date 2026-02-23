@@ -133,6 +133,15 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 ring=ring, radiation_integrals="not an array"
             )
 
+        with self.assertRaisesRegex(
+            expected_exception=ValueError,
+            expected_regex="The first five synchrotron radiation integrals are "
+            "required.",
+        ):
+            SRM._radiation_integrals_internal_setter(
+                ring=ring, radiation_integrals=[1, 2, 3, 4]
+            )
+
     def test_set_radiation_integrals(self):
         SRM = SynchrotronRadiationMaster()
         ## ring has synchrotron radiation integrals
