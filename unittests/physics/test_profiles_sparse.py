@@ -1,3 +1,4 @@
+import copy
 import unittest
 from copy import deepcopy
 
@@ -70,6 +71,39 @@ class TestEquidistantMultiProfile(unittest.TestCase):
             )
         if DEV_DRAW:
             plt.show()
+
+    def test_track_after_deepcopy(self):
+        DEV_DRAW = False
+        for fun in (copy.copy, copy.deepcopy):
+            _multiprofile_equidistant = EquidistantMultiProfile.headless(
+                t_rev=5 * 10.0,
+                filling_pattern=np.ones(5, bool),
+                bins_per_profile=4,
+                offset=0,
+            )
+
+            equidistant_profile = fun(_multiprofile_equidistant)
+            independent_profiles = deepcopy(equidistant_profile.profiles)
+
+            equidistant_profile.track(self.beam)
+
+            for profile_expected in independent_profiles:
+                profile_expected.track(self.beam)
+                if DEV_DRAW:
+                    profile_expected.plot()
+            if DEV_DRAW:
+                equidistant_profile.plot(linestyle="--")
+            for i, profile_expected in enumerate(independent_profiles):
+                profile_actual = equidistant_profile.profiles[i]
+                np.testing.assert_allclose(
+                    copy_to_cpu(profile_actual.hist_x),
+                    copy_to_cpu(profile_expected.hist_x),
+                )
+
+                np.testing.assert_allclose(
+                    copy_to_cpu(profile_actual.hist_y),
+                    copy_to_cpu(profile_expected.hist_y),
+                )
 
 
 if __name__ == "__main__":

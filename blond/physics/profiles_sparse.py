@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import copy
 from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -374,7 +375,7 @@ class EquidistantMultiProfile(MultiProfile):
 
         self._bind_profiles()
 
-    def _bind_profiles(self):  # TODO
+    def _bind_profiles(self):
         """Bind the memory of all ``self.profiles`` to the contigous memory."""
         for i, _profile in enumerate(self.profiles):
             sel = self._get_slice_single_profile(i)
@@ -429,3 +430,41 @@ class EquidistantMultiProfile(MultiProfile):
             filling_pattern=self._filling_pattern,
             bucket_index_to_memory_index=self._bucket_index_to_memory_index,
         )
+
+    def __deepcopy__(self, memo):
+        """
+        Create a deep copy of the instance.
+
+        This implementation overrides the default ``copy.deepcopy`` behavior
+        in order to re-bind profile memories after the object has been copied.
+        All attributes stored in ``self.__dict__`` are recursively deep-copied.
+        After copying, ``_bind_profiles()`` is called to re-attach profile
+        memories to the continuous memory structure.
+
+        Parameters
+        ----------
+        memo : dict
+            Dictionary of objects already copied during the current
+            deep copy pass. This is used internally by ``copy.deepcopy``
+            to avoid infinite recursion and duplicate copies.
+
+        Returns
+        -------
+        object
+            A fully deep-copied instance of the same class, with profile
+            memories properly rebound.
+        """
+        # Overwrite original python implementation
+        # to call `_bind_profiles` after `deepcopy`
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        for k, v in self.__dict__.items():
+            setattr(result, k, copy.deepcopy(v, memo))
+
+        # re-attach all profile memories to the
+        # continuous memory
+        result._bind_profiles()
+
+        return result
