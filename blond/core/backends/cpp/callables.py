@@ -462,17 +462,19 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert bucket_index_to_memory_index.flags.c_contiguous
 
             _LIBBLOND.sparse_histogram_strided(
-                _getPointer(x),
-                _getPointer(out),
-                c_real(first_left_cut, floattype),
-                c_real(left_cut_distance, floattype),
-                c_real(cut_width, floattype),
-                ct.c_int(bins_per_profile),
-                ct.c_int(n_active_profiles),
-                ct.c_int(len(filling_pattern)),
-                ct.c_int(len(x)),  # n_macroparticles
-                _getPointer(filling_pattern),
-                _getPointer(bucket_index_to_memory_index),
+                _getPointer(x),  # input
+                _getPointer(out),  # output
+                c_real(first_left_cut, floattype),  # first_left_cut
+                c_real(left_cut_distance, floattype),  # left_cut_distance
+                c_real(cut_width, floattype),  # cut_width
+                ct.c_int(bins_per_profile),  # bins_per_profile
+                ct.c_int(n_active_profiles),  # n_profiles
+                ct.c_int(len(filling_pattern)),  # n_buckets
+                ct.c_int(len(x)),  # n_macroparticles # n_macroparticles
+                _getPointer(filling_pattern),  # filling_pattern
+                _getPointer(
+                    bucket_index_to_memory_index
+                ),  # bucket_index_to_memory_index
             )
 
     return CppSpecials
