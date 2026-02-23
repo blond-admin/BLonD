@@ -314,7 +314,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         # matching should still work
         # cav = sim.simulation.ring.elements.get_element(MultiHarmonicCavity)
         # cav.harmonic = 10*33000 * np.ones(len(cav.harmonic), backend.float)
-        # cav = sim.simulation.ring.elements.get_element(SingleHarmonicCavity)
+        # cav = sim.simulation.ring.elements.get_element(SingleHarmonicRFStation)
         # cav.harmonic = 10*33000
 
         matcher = SemiEmpiricMatcher(
