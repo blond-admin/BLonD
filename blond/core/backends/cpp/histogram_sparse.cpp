@@ -29,7 +29,7 @@ extern "C" void histogram_sparse(
   // -------------------------------------
   // Zero global output
   // -------------------------------------
-  // #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
   for (int i = 0; i < compact_size; ++i)
     output[i] = real_t(0);
 
@@ -39,22 +39,22 @@ extern "C" void histogram_sparse(
 #pragma omp parallel
   {
     // Thread-local persistent buffer
-    static thread_local real_t *local_output = nullptr;
+    static thread_local int *local_output = nullptr;
     static thread_local int local_size = 0;
 
     // Allocate only if size changed or first use
     if (local_size < compact_size) {
       free(local_output);
-      local_output = (real_t *)malloc(sizeof(real_t) * compact_size);
+      local_output = (int *)malloc(sizeof(int) * compact_size);
       local_size = compact_size;
     }
 
     // Clear only used portion
-    memset(local_output, 0, sizeof(real_t) * compact_size);
+    memset(local_output, 0, sizeof(int) * compact_size);
 // ---------------------------------
 // Particle loop
 // ---------------------------------
-#pragma omp for schedule(static)
+#pragma omp for schedule(static, 4096)
     for (int i = 0; i < n_macroparticles; ++i) {
       const real_t a = input[i];
 
@@ -66,10 +66,11 @@ extern "C" void histogram_sparse(
       }
       const real_t cut_left = cut_left0 + bucket_i * left_cut_distance;
       const real_t cut_right = cut_left + cut_width;
+      const int _bucket_index_to_memory_index = bucket_index_to_memory_index[bucket_i];
 
       // Check if the value is within the cut range
       if (a == cut_right) {
-        local_output[bucket_index_to_memory_index[bucket_i] + bins_per_profile -
+        local_output[_bucket_index_to_memory_index + bins_per_profile -
                      1] += 1;
         continue;
       }
@@ -79,7 +80,7 @@ extern "C" void histogram_sparse(
       // Calculate the bin index
       const int bin = (int)((a - cut_left) * inv_bin_width);
       if ((unsigned)bin < (unsigned)bins_per_profile) {
-        local_output[bucket_index_to_memory_index[bucket_i] + bin] += 1;
+        local_output[_bucket_index_to_memory_index + bin] += 1;
       }
     }
 
@@ -89,7 +90,7 @@ extern "C" void histogram_sparse(
 #pragma omp critical
     {
       for (int i = 0; i < compact_size; ++i) {
-        output[i] += local_output[i];
+        output[i] += (real_t)local_output[i];
       }
     }
   }
