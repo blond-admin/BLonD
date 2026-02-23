@@ -36,10 +36,7 @@ class TestEquidistantMultiProfile(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     def test_track(self):
-        DEV_DRAW = False  # TODO false
-        backend.set_specials(
-            "cpp"  # TODO remove
-        )
+        DEV_DRAW = False
 
         independent_profiles = deepcopy(self.multiprofile_equidistant.profiles)
 
