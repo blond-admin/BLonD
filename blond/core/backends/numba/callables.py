@@ -591,7 +591,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             x
                 An array, e.g., the particle dt values.
             out
-                Output histogram (n_filled_buckets * stride).
+                Output histogram (n_filled_buckets * bins_per_profile).
             first_left_cut
                 Start of the first histogram.
             left_cut_distance

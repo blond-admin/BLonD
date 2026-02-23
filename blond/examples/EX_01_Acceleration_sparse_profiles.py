@@ -99,22 +99,22 @@ def main():
     assert (
         np.sum(profile_sparse._continuous_memory_hist_y)
         == beam1.n_macroparticles_partial()
-    ), f"{
+    ), f"""{
         (
             np.sum(profile_sparse._continuous_memory_hist_y),
             beam1.n_macroparticles_partial(),
         )
-    }"
+    }"""
 
     assert (
         np.sum(profile_sparse.profiles[0].hist_y)
         == beam1.n_macroparticles_partial()
-    ), f"{
+    ), f"""{
         (
             np.sum(profile_sparse.profiles[0].hist_y),
             beam1.n_macroparticles_partial(),
         )
-    }"
+    }"""
     assert np.allclose(
         profile_normal.hist_y, profile_sparse.profiles[0].hist_y
     ), f"{profile_normal.hist_y, profile_sparse.profiles[0].hist_y}"

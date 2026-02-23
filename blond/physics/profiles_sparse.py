@@ -418,7 +418,6 @@ class EquidistantMultiProfile(MultiProfile):
             0
         ].n_bins <= len(self._continuous_memory_hist_y)
         beam._dt.histogram_sparse(
-            x=beam._dt.array_local,
             out=self._continuous_memory_hist_y,
             first_left_cut=self._first_left_cut,
             left_cut_distance=self._left_cut_distance,

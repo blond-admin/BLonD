@@ -58,7 +58,6 @@ class DistributedArray:
             self._is_distributed = self._size > 1
 
         self._histogram_local_cache = {}
-        self._histogram_sparse_local_cache = {}
 
     @property
     def is_distributed(self):
@@ -287,7 +286,6 @@ class DistributedArray:
 
     def histogram_sparse(
         self,
-        x: NumpyArray,
         out: NumpyArray,
         first_left_cut: float,
         left_cut_distance: float,
@@ -302,10 +300,8 @@ class DistributedArray:
 
         Parameters
         ----------
-        x
-            An array, e.g., the particle dt values.
         out
-            Output histogram (n_filled_buckets * stride).
+            Output histogram (n_filled_buckets * bins_per_profile).
         first_left_cut
             Start of the first histogram.
         left_cut_distance
@@ -331,19 +327,11 @@ class DistributedArray:
             The histogram counts across all distributed array chunks.
         """
         # Compute or retrieve local histogram
-        array_size = n_active_profiles * bins_per_profile
-        if out is None:
-            if array_size not in self._histogram_sparse_local_cache:
-                self._histogram_sparse_local_cache[array_size] = backend.zeros(
-                    array_size, backend.float
-                )
-            array_write_local = self._histogram_sparse_local_cache[array_size]
-        else:
-            assert out.dtype == backend.float
-            array_write_local = out
+        assert out.dtype == backend.float
+        array_write_local = out
 
         backend.specials.sparse_histogram_strided(
-            x=x,
+            x=self.array_local,
             out=array_write_local,
             first_left_cut=first_left_cut,
             left_cut_distance=left_cut_distance,
