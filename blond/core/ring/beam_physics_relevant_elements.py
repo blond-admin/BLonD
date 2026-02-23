@@ -83,6 +83,7 @@ class BeamPhysicsRelevantElements(Preparable):
     def _check_section_indexing(self) -> None:
         """Verify that indices have been set correctly."""
         from blond.physics.cavities import RFStationBaseClass
+        from blond.physics.drifts import DriftBaseClass
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
@@ -100,6 +101,25 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"but got "
                 f"{[(cav.name, cav.section_index) for cav in rf_stations]}"
             )
+        unique_section_indices = np.unique(elem_section_indices)
+        if len(unique_section_indices) > 1:
+            for section_index in np.sort(unique_section_indices):
+                rf_stations = self.get_elements(
+                    RFStationBaseClass,
+                    section_i=section_index,  # type: ignore
+                    recursive=False,
+                )
+                drifts = self.get_elements(
+                    DriftBaseClass, section_i=section_index, recursive=False
+                )
+                if len(rf_stations) == 0:
+                    raise RuntimeError(
+                        f"Missing RF station in section {section_index}"
+                    )
+                if len(drifts) == 0:
+                    raise RuntimeError(
+                        f"Missing drift in section {section_index}"
+                    )
 
     def on_run_simulation(
         self,
@@ -459,7 +479,7 @@ class BeamPhysicsRelevantElements(Preparable):
             RFStationBaseClass,
             DriftBaseClass,
         )
-        assert self.count(RFStationBaseClass, section_i=section_index) <= 1, (
+        assert self.count(RFStationBaseClass, section_i=section_index) == 1, (
             f"Only one RF station per section allowed, but got "
             f"{self.count(RFStationBaseClass, section_i=section_index)}"
         )

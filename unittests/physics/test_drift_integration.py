@@ -160,7 +160,6 @@ class TestDriftIntegration(unittest.TestCase):
         drift1.track(beam=beam)
 
     def test_momentum_compaction_splitting(self):
-        backend.set_specials("python")
         circumference = 1
         beam1 = ProbeBeam(
             dE=np.linspace(-10, 10, 5),
@@ -186,6 +185,12 @@ class TestDriftIntegration(unittest.TestCase):
                 orbit_length=circumference * 3 / 4,
                 momentum_compaction_factor=4,  # intentionally different
                 section_index=1,
+            )
+            rf = SingleHarmonicRFStation(
+                voltage=0, phi_rf=0, harmonic=1, section_index=0
+            )
+            rf2 = SingleHarmonicRFStation(
+                voltage=0, phi_rf=0, harmonic=1, section_index=1
             )
 
             sim = Simulation.from_locals(locals())
@@ -214,6 +219,8 @@ class TestDriftIntegration(unittest.TestCase):
                 momentum_compaction_factor=global_momentum_compaction_factor,
                 section_index=0,
             )
+
+            rf = SingleHarmonicRFStation(voltage=0, phi_rf=0, harmonic=1)
 
             sim = Simulation.from_locals(locals())
             sim.ring.assert_circumference()
