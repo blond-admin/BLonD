@@ -29,7 +29,7 @@ from blond import (
 def main():
     n_turns = 17
     # calculate parameters
-    transition_gamma = 1 / np.sqrt(10.395e-4)
+    momentum_compaction_factor = 10.395e-4
     n_sections = 1
     voltage_per_section = 865 * 30e6 / n_sections
     time_per_turn = 953.338 * 2 * np.pi / c
@@ -65,19 +65,19 @@ def main():
             [
                 rf_station,
                 DriftSimple(
-                    transition_gamma=transition_gamma,
+                    momentum_compaction_factor=momentum_compaction_factor,
                     orbit_length=ring.circumference / n_sections / 3,
                     section_index=rf_station_i,
                 ),
                 ReferenceEnergyChange(section_index=rf_station_i),
                 DriftSimple(
-                    transition_gamma=transition_gamma,
+                    momentum_compaction_factor=momentum_compaction_factor,
                     orbit_length=ring.circumference / n_sections / 3,
                     section_index=rf_station_i,
                 ),
                 ReferenceEnergyChange(section_index=rf_station_i),
                 DriftSimple(
-                    transition_gamma=transition_gamma,
+                    momentum_compaction_factor=momentum_compaction_factor,
                     orbit_length=ring.circumference / n_sections / 3,
                     section_index=rf_station_i,
                 ),
