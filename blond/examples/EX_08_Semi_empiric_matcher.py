@@ -98,7 +98,6 @@ def bucket_fill_by_emittance_gaussian(
         density_function=gaussian_density,
         metric_function=rms_emittance,
         free_parameter_guess=None,
-        max_iterations=100,
     )
 
     return _density
@@ -112,7 +111,7 @@ def main():
     CIRCUMFERENCE = 2 * np.pi * 100
     VOLTAGE = 200e3
     HARMONIC = 8
-    INTENSITY = 1e13
+    INTENSITY = 4e13
 
     # Simulation specific parameters
     N_MACROS = 1e5

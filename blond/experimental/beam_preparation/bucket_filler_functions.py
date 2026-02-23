@@ -26,22 +26,22 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def metric_fitter(
-    hamilton: NumpyArray,
-    dt_grid: NumpyArray,
-    dE_grid: NumpyArray,
+    hamilton: NumpyArray | CupyArray,
+    dt_grid: NumpyArray | CupyArray,
+    dE_grid: NumpyArray | CupyArray,
     desired_metric: float,
     free_parameter_guess: float,
     metric_function: callable(
         [
-            NumpyArray,
-            NumpyArray,
-            NumpyArray,
+            NumpyArray | CupyArray,
+            NumpyArray | CupyArray,
+            NumpyArray | CupyArray,
         ]
     ),
-    density_function: callable([NumpyArray, float]),
+    density_function: callable([NumpyArray | CupyArray, float]),
     max_metric_diff: float,
-    max_iterations: int = 100,
-) -> NumpyArray:
+    iterations_max: int = 100,
+) -> NumpyArray | CupyArray:
     """fits a density distribution with one free parameter to a metric of interest,
     then returns the resulting density
 
@@ -66,7 +66,7 @@ def metric_fitter(
     max_metric_diff
         The allowed difference between the desired metric
         and the metric of the generated bunch
-    max_iterations
+    iterations_max
         maximum number of iterations to search
         before the search loop gets interrupted.
 
@@ -87,16 +87,9 @@ def metric_fitter(
         minimization_function,
         free_parameter_guess,
         method="Nelder-Mead",
-        options={"maxiter": max_iterations, "fatol": max_metric_diff},
+        tol=max_metric_diff,
+        # maxiter=iterations_max,
     )
-
-    # If the optimization was not successful, let the user know why.
-    if not optimize_result.success:
-        warnings.warn(optimize_result.message, RuntimeWarning)
-        if np.abs(optimize_result.fun - desired_metric) > max_metric_diff:
-            warnings.warn(
-                "Specified metric accuracy was not reached", RuntimeWarning
-            )
 
     ideal_free_parameter = optimize_result.x[
         0
@@ -108,24 +101,25 @@ def metric_fitter(
 
 
 def generalized_bucket_filler(
-    time_grid: NumpyArray,
-    deltaE_grid: NumpyArray,
-    hamilton_2D: NumpyArray,
+    time_grid: NumpyArray | CupyArray,
+    deltaE_grid: NumpyArray | CupyArray,
+    hamilton_2D: NumpyArray | CupyArray,
     metric_list: list[float],
     intensity_frac_list: list[float],
     n_buckets: int,
     max_metric_diff: float,
-    density_function: callable([NumpyArray, float]) = gaussian_density,
+    density_function: callable(
+        [NumpyArray | CupyArray, float]
+    ) = gaussian_density,
     metric_function: callable(
         [
-            NumpyArray,
-            NumpyArray,
-            NumpyArray,
+            NumpyArray | CupyArray,
+            NumpyArray | CupyArray,
+            NumpyArray | CupyArray,
         ]
     ) = rms_emittance,
-    max_iterations: int = 100,
-    free_parameter_guess: float | None = None,
-) -> NumpyArray:
+    free_parameter_guess: float = None,
+) -> NumpyArray | CupyArray:
     """Generalized method for generating density distributions for a hamiltonian.
     Notes
     -----
@@ -164,8 +158,6 @@ def generalized_bucket_filler(
         time and energy as 2d arrays
     free_parameter_guess
         The initial guess for the free parameter
-    max_iterations
-        The maximum number of iterations allowed for fitting the metric.
 
 
     Returns
@@ -179,7 +171,7 @@ def generalized_bucket_filler(
     if (
         free_parameter_guess is None
     ):  # typically the free parameter is in units of eV so setting it to max of hamiltonian makes sense in most cases
-        free_parameter_guess = np.max(_hamilton)
+        free_parameter_guess = np.max(_hamilton) / 10000
 
     n_slices_per_bucket = int(time_grid.shape[1] / n_buckets)
     min_hamilton = np.min(_hamilton)
@@ -213,7 +205,6 @@ def generalized_bucket_filler(
                 metric_function,
                 density_function,
                 max_metric_diff,
-                max_iterations,
             )
             sliced_density *= intensity_frac_list[bucket]
 
@@ -225,15 +216,13 @@ def generalized_bucket_filler(
 
 
 def hamilton_to_density_by_max(
-    time_grid: NumpyArray,
-    deltaE_grid: NumpyArray,
-    hamilton_2D: NumpyArray,
+    time_grid: NumpyArray | CupyArray,
+    deltaE_grid: NumpyArray | CupyArray,
+    hamilton_2D: NumpyArray | CupyArray,
     density_modifier: float,
     hamilton_max: float,
-) -> NumpyArray:
-    """
-
-    Converts a 2D Hamilton 2D array into a density distribution.
+) -> NumpyArray | CupyArray:
+    """Converts a 2D Hamilton 2D array into a density distribution.
 
     This function normalizes the input Hamilton by a specified maximum value,
     inverts it to represent particle density (i.e., lower energy = higher density),
@@ -247,17 +236,21 @@ def hamilton_to_density_by_max(
 
     Parameters
     ----------
-    deltaE_grid
-        The time coordinates corresponding to `hamilton_2D`, in [eV].
-    time_grid
-        The time coordinates corresponding to `hamilton_2D`, in [s].
-    hamilton_2D
+    time_grid : NumpyArray or CupyArray
+        A 2D array representing the time axis of the phase space
+
+    deltaE_grid : NumpyArray or CupyArray
+        A 2D array representing the energy axis of the phase space
+
+    hamilton_2D : NumpyArray or CupyArray
         A 2D array representing the spatial Hamilton field.
-    density_modifier
+
+    density_modifier : float
         Exponent applied to the normalized and inverted Hamilton values
         to shape the final density distribution.
         Higher values exaggerate differences in density.
-    hamilton_max
+
+    hamilton_max : float
         The maximum reference value for normalizing the Hamilton.
         Values above this threshold are truncated.
 
@@ -267,39 +260,12 @@ def hamilton_to_density_by_max(
         A 2D array of the same shape as `hamilton_2D`, representing the
         computed density distribution. Values are scaled between 0 and 1.
 
-    Examples
-    --------
-    Defining a custom function to convert between hamilton and particle
-    density.
-    >>> import numpy as np
-    >>>
-    >>> def custom_density_function(
-    ...         time_grid, deltaE_grid, hamilton_2D, # required arguments
-    ...         custom_param, hamilton_max # your custom arguments
-    ...    ):
-    ...    '''Example custom density mapping with exponential falloff.'''
-    ...    normalized_H = hamilton_2D / hamilton_max
-    ...    normalized_H[normalized_H > 1] = 1
-    ...    density = np.exp(-custom_param * normalized_H)
-    ...    return density / density.max()  # Normalize to [0, 1]
-    >>>
-    >>> matcher = SemiEmpiricMatcher(
-    ...    time_limit=(-2e-9, 2e-9),
-    ...    n_macroparticles=100_000,
-    ...    hamilton_to_density_function=custom_density_function,
-    ...    hamilton_to_density_kwargs=dict(
-    ...        custom_param=5.0,
-    ...        hamilton_max=1.0
-    ...    ),
-    ...    internal_grid_shape=(1023, 1023),
-    ...    tolerance=1e-6,
-    ...    verbose=True,
-    ... )
-    >>> matcher.prepare_beam(...)
 
     """
+
     _density = hamilton_2D.copy()  # So the changes stay in this scope
 
+    _density -= _density.min()
     _density /= hamilton_max
     # Now 1 representing the limit between particles/no-particles.
     # Smaller 1 means there should be particles.
