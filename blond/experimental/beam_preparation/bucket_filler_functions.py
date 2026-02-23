@@ -232,6 +232,7 @@ def hamilton_to_density_by_max(
     hamilton_max: float,
 ) -> NumpyArray:
     """
+
     Converts a 2D Hamilton 2D array into a density distribution.
 
     This function normalizes the input Hamilton by a specified maximum value,
@@ -297,10 +298,8 @@ def hamilton_to_density_by_max(
     >>> matcher.prepare_beam(...)
 
     """
-
     _density = hamilton_2D.copy()  # So the changes stay in this scope
 
-    _density -= _density.min()
     _density /= hamilton_max
     # Now 1 representing the limit between particles/no-particles.
     # Smaller 1 means there should be particles.
