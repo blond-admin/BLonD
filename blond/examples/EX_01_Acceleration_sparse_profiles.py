@@ -98,21 +98,20 @@ def main():
     plt.legend()
     assert (
         np.sum(profile_sparse._continuous_memory_hist_y)
-        == beam1.n_macroparticles_partial()
+        == beam1._dt.global_size
     ), f"""{
         (
             np.sum(profile_sparse._continuous_memory_hist_y),
-            beam1.n_macroparticles_partial(),
+            beam1._dt.global_size,
         )
     }"""
 
     assert (
-        np.sum(profile_sparse.profiles[0].hist_y)
-        == beam1.n_macroparticles_partial()
+        np.sum(profile_sparse.profiles[0].hist_y) == beam1._dt.global_size
     ), f"""{
         (
             np.sum(profile_sparse.profiles[0].hist_y),
-            beam1.n_macroparticles_partial(),
+            beam1._dt.global_size,
         )
     }"""
     assert np.allclose(
