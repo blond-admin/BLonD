@@ -140,14 +140,10 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     #                -mfma4 -fopenmp -fopenmp-vectorizer-verbose=1 '-ffast-math'
 
     cflags = [
-        # Enable maximum compiler optimizations (inline functions, loop unrolling, vectorization)
         "-O3",
-        # Use C++20 standard for modern language features and better compile-time optimizations
-        "-std=c++20",
-        # Build a shared library (for dynamic linking)
+        "-std=c++11",
         "-shared",
-        # Optimize code for the current CPU architecture, enabling all supported instructions
-        "-march=native",
+        "-funroll-loops",  # Aggressive loop unrolling
     ]
     # Some additional warning reporting related flags
     cflags += [
