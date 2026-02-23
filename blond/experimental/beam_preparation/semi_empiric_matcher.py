@@ -336,6 +336,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         beam
             Simulation beam object
         """
+
         super().prepare_beam(
             simulation=simulation,
             beam=beam,
@@ -400,6 +401,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     n_turns=1,
                     show_progressbar=False,
                 )
+
                 # reset to original value before simulation
                 beam.reference.time = beam_reference_time
                 beam.reference.total_energy = beam_reference_total_energy
@@ -408,7 +410,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
                 # Prevent the profiles from updating.
                 sim_tmp.intensity_effect_manager.set_profiles(active=False)
-
                 # This is intended as override, so that the line density
                 # inside `_match_beam` experiences the forces from the
                 # previously run with the full beam
@@ -420,6 +421,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     self._plot_current_state(beam, i_intensity, scalar, ts)
                     plt.draw()
                     plt.pause(0.1)
+                    assert sim_tmp.turn_i.value == 0
 
                 error_calculable = (
                     self._last_potential_well is not None
@@ -477,6 +479,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
+        assert simulation.turn_i.value == 0
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
                 dt=np.linspace(
