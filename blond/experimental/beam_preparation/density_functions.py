@@ -18,9 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-def gaussian_density(
-    hamilton: NumpyArray | CupyArray, sigma: float
-) -> NumpyArray | CupyArray:
+def gaussian_density(hamilton: NumpyArray, sigma: float) -> NumpyArray:
     """Turns a hamiltonian into a gaussian density distribution
      with some standard deviation sigma
 
@@ -43,8 +41,8 @@ def gaussian_density(
 
 
 def binomial_density(
-    hamilton: NumpyArray | CupyArray, bunch_length: float, exponent: float
-) -> NumpyArray | CupyArray:
+    hamilton: NumpyArray, bunch_length: float, exponent: float
+) -> NumpyArray:
     """Turns a hamiltonian into a binomial density distribution
     with some bunch length and form factor
 
