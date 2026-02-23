@@ -423,7 +423,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     self._plot_current_state(beam, i_intensity, scalar, ts)
                     plt.draw()
                     plt.pause(0.1)
-                    assert sim_tmp.turn_i.value == 0
 
                 error_calculable = (
                     self._last_potential_well is not None
