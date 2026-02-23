@@ -38,7 +38,7 @@ from .distributions import (
     x0_from_bunch_length,
 )
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
     from numpy.typing import NDArray as NumpyArray

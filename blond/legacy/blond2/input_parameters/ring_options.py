@@ -24,7 +24,7 @@ import numpy as np
 from scipy.constants import c
 from scipy.interpolate import Akima1DInterpolator, splev, splrep
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal, Optional
 
     from numpy.typing import ArrayLike

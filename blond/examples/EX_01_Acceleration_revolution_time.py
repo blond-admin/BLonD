@@ -34,7 +34,7 @@ def main() -> None:
     rf_station = SingleHarmonicRFStation()
     rf_station.harmonic = 35640
     rf_station.voltage = 6e6
-    rf_station.phi_rf = 0
+    rf_station.phi_rf_design = 0
 
     N_TURNS = int(1e3)
 
