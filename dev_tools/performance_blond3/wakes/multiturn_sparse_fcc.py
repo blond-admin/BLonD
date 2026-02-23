@@ -15,6 +15,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    StaticProfile,
     WakeField,
     backend,
     electron,
@@ -49,13 +50,11 @@ rf_station = SingleHarmonicRFStation(
     voltage=50.1e6,
     phi_rf=0.0,
 )
-t_rf = (
-    magnetic_cycle.get_t_rev_init(
-        ring.circumference,
-        particle_type=electron,
-    )
-    / rf_station.harmonic
+t_rev_init = magnetic_cycle.get_t_rev_init(
+    ring.circumference,
+    particle_type=electron,
 )
+t_rf = t_rev_init / rf_station.harmonic
 
 n_profiles = 1118
 bins_per_profile = 2**10
@@ -71,6 +70,15 @@ profile = EquidistantMultiProfile(
     filling_pattern=filling_pattern,
     offset=-t_rf / 2,
 )
+
+profile2 = StaticProfile(
+    cut_left=0,
+    cut_right=t_rev_init,
+    n_bins=np.sum(filling_pattern)
+    * bins_per_profile,  # wrong, but interesting
+    # for performance comparison
+)
+
 
 R_over_Q = 315.2
 Q_factor = Q_loaded = 1e7
@@ -90,6 +98,7 @@ wakefield = WakeField(
 )
 ring.add_elements(
     (
+        profile2,
         wakefield,
         drift,
         rf_station,
@@ -143,5 +152,5 @@ my_callback.each_turn_i = 10
 sim.run_simulation(
     beams=beam,
     n_turns=3000,
-    # callbacks=my_callback,
+    callbacks=my_callback,
 )
