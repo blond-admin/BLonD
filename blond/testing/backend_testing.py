@@ -140,7 +140,9 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
                     backend.backend.change_backend(
                         backend.ALL_BACKENDS[init_backend]
                     )
-                    raise RuntimeError(f"Failed with backend {failed_on}") from exc
+                    raise RuntimeError(
+                        f"Failed with backend {failed_on}"
+                    ) from exc
                 self.tearDown()
             backend.backend.change_backend(backend.ALL_BACKENDS[init_backend])
 
