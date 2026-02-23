@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import math
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -370,6 +371,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         if simulation.intensity_effect_manager.has_wakefields():
             simulation.intensity_effect_manager.set_wakefields(active=True)
             for i_intensity in range(self.maxiter_intensity_effects):
+                sim_tmp = deepcopy(simulation)  # prevent side effects
                 # Change the strength of intensity effects to allow
                 # convergence to a stable solution (if there is any?)
                 if (
@@ -386,13 +388,15 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
                 # run simulation with beam to collect the actual profiles
                 # that cause the wake-fields
-                simulation.intensity_effect_manager.set_profiles(active=True)
+                sim_tmp.intensity_effect_manager.set_profiles(active=True)
 
                 # this might get changed by the simulation
                 beam_reference_time = beam.reference.time
                 beam_reference_total_energy = beam.reference.total_energy
+                turn_i = sim_tmp.turn_i.value
+                section_i = sim_tmp.section_i.value
 
-                simulation.run_simulation(
+                sim_tmp.run_simulation(
                     beams=(beam,),
                     n_turns=1,
                     show_progressbar=False,
@@ -400,13 +404,16 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 # reset to original value before simulation
                 beam.reference.time = beam_reference_time
                 beam.reference.total_energy = beam_reference_total_energy
+                sim_tmp.turn_i.value = turn_i
+                sim_tmp.section_i.value = section_i
 
                 # Prevent the profiles from updating.
-                simulation.intensity_effect_manager.set_profiles(active=False)
+                sim_tmp.intensity_effect_manager.set_profiles(active=False)
+
                 # This is intended as override, so that the line density
                 # inside `_match_beam` experiences the forces from the
                 # previously run with the full beam
-                self._match_beam(beam, simulation, ts)
+                self._match_beam(beam, sim_tmp, ts)
 
                 if self.animate:
                     plt.figure("SemiEmpiricMatcher")
