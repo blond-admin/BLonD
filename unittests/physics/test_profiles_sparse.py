@@ -6,6 +6,7 @@ import numpy as np
 
 from blond import Beam, backend, uranium_29
 from blond.core.beam.beams import ProbeBeam
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 
@@ -51,11 +52,13 @@ class TestEquidistantMultiProfile(unittest.TestCase):
         for i, profile_expected in enumerate(independent_profiles):
             profile_actual = self.multiprofile_equidistant.profiles[i]
             np.testing.assert_allclose(
-                profile_actual.hist_x, profile_expected.hist_x
+                copy_to_cpu(profile_actual.hist_x),
+                copy_to_cpu(profile_expected.hist_x),
             )
 
             np.testing.assert_allclose(
-                profile_actual.hist_y, profile_expected.hist_y
+                copy_to_cpu(profile_actual.hist_y),
+                copy_to_cpu(profile_expected.hist_y),
             )
         if DEV_DRAW:
             plt.show()
