@@ -119,7 +119,8 @@ def _gen_array_bucket_index_to_memory_index(
     # e.g. [8, 8, 8, 16] with `bins_per_profile = 8`
     # used  ^  x  x   ^
     bucket_index_to_memory_index = (
-        backend.cumulative_sum(filling_pattern, dtype=np.int32) - 1
+        backend.cumulative_sum(backend.array(filling_pattern), dtype=np.int32)
+        - 1
         # minus one so that first
         # bucket is at index 0
     ) * np.int32(bins_per_profile)
@@ -181,7 +182,7 @@ class EquidistantMultiProfile(MultiProfile):
         self._offset = offset
 
         self._left_cut_distance: float | None = None
-
+        self._first_left_cut: float | None = None
         self.profiles: tuple[StaticProfile, ...] | None = None
 
         self._continuous_memory_hist_x = None
@@ -315,7 +316,7 @@ class EquidistantMultiProfile(MultiProfile):
             np.linspace(0, t_rev, n_slots + 1, endpoint=True)[:-1]
             + self._offset
         )
-
+        self._first_left_cut = starts[0]
         self._left_cut_distance = (
             starts[1] - starts[0]
         )  # intentionally neglecting `_filling_pattern`
@@ -417,7 +418,7 @@ class EquidistantMultiProfile(MultiProfile):
         backend.specials.sparse_histogram_strided(
             x=beam._dt.array_local,
             out=self._continuous_memory_hist_y,
-            first_left_cut=self.profiles[0].cut_left,
+            first_left_cut=self._first_left_cut,
             left_cut_distance=self._left_cut_distance,
             bins_per_profile=self.profiles[
                 0

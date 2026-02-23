@@ -52,6 +52,7 @@ __all__ = [
     "DriftObservation",
     "SimulationObservation",
     "make_multibunch_beam",
+    "EquidistantMultiProfile",
 ]
 
 
@@ -115,3 +116,4 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+from blond.physics.profiles_sparse import EquidistantMultiProfile

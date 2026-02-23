@@ -221,7 +221,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     def get_t_rev_init(
         self,
         circumference: float,
-        particle_type: ParticleType,
+        particle_type: ParticleType | None = None,
     ) -> float:
         r"""
         Compute the initial revolution period of a reference particle, in [s].
@@ -232,6 +232,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
             Reference circumference of the synchrotron, in [m].
         particle_type : ParticleType
             Object containing particle properties (e.g., mass, charge).
+            If None, use the standard particle type.
 
         Returns
         -------
@@ -258,6 +259,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
             \gamma = \frac{E_{\mathrm{tot}}}{mc^2}, \quad
             \beta = \sqrt{1 - \frac{1}{\gamma^2}}
         """
+        if particle_type is None:
+            particle_type = self.reference_particle
         reference_total_energy = self.get_total_energy_init(
             particle_type=particle_type,
         )

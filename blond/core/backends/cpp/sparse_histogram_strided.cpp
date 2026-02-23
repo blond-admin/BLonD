@@ -89,10 +89,10 @@ extern "C" void sparse_histogram_strided(
             if (local > cut_width)
                 continue;
 
-            if (local == cut_width)
-                local_output[index] += real_t(1);
+            if (local == cut_width){
+                local_output[bucket_index_to_memory_index[bucket_i] + bins_per_profile - 1] += real_t(1);
                 continue;
-
+             }
             const int bin = (int)(local * inv_bin_width);
             if ((unsigned)bin >= (unsigned)bins_per_profile)
                 continue;
@@ -106,7 +106,6 @@ extern "C" void sparse_histogram_strided(
         // ---------------------------------
         // Reduction step
         // ---------------------------------
-#pragma omp for schedule(static) reduction(+:output[:compact_size])
         for (int i = 0; i < compact_size; ++i)
         {
             output[i] += local_output[i];
