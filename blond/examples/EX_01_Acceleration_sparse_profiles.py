@@ -98,7 +98,7 @@ def main():
     plt.legend()
     assert np.allclose(
         profile_normal.hist_y, profile_sparse.profiles[0].hist_y
-    )
+    ), f"{profile_normal.hist_y, profile_sparse.profiles[0].hist_y}"
 
 
 if __name__ == "__main__":  # pragma: no cover
