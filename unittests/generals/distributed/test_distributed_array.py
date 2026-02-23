@@ -103,12 +103,12 @@ class TestDistributedArray(unittest.TestCase):
 
         if mpi_active:
             particles_x = []
-            # mark all left and right edges
+            # mark all left and right edges, left edge should result 2, right 1
             for left_edge in (-12, -12 + 2 * 8, -12 + 4 * 8):
-                for _ in range(2):
+                for _ in range(2):  # so hist_y counts two
                     particles_x.append(left_edge)
             for right_edge in (-12 + 4, -12 + 2 * 8 + 4, -12 + 4 * 8 + 4):
-                for _ in range(1):
+                for _ in range(1):  # so hist_y counts one
                     particles_x.append(right_edge)
             da = DistributedArray(np.array(particles_x, float))
             mpi_barrier()
