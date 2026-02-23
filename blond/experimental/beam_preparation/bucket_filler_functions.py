@@ -26,22 +26,22 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def metric_fitter(
-    hamilton: NumpyArray | CupyArray,
-    dt_grid: NumpyArray | CupyArray,
-    dE_grid: NumpyArray | CupyArray,
+    hamilton: NumpyArray,
+    dt_grid: NumpyArray,
+    dE_grid: NumpyArray,
     desired_metric: float,
     free_parameter_guess: float,
     metric_function: callable(
         [
-            NumpyArray | CupyArray,
-            NumpyArray | CupyArray,
-            NumpyArray | CupyArray,
+            NumpyArray,
+            NumpyArray,
+            NumpyArray,
         ]
     ),
-    density_function: callable([NumpyArray | CupyArray, float]),
+    density_function: callable([NumpyArray, float]),
     max_metric_diff: float,
     max_iterations: int = 100,
-) -> NumpyArray | CupyArray:
+) -> NumpyArray:
     """fits a density distribution with one free parameter to a metric of interest,
     then returns the resulting density
 
@@ -108,26 +108,24 @@ def metric_fitter(
 
 
 def generalized_bucket_filler(
-    time_grid: NumpyArray | CupyArray,
-    deltaE_grid: NumpyArray | CupyArray,
-    hamilton_2D: NumpyArray | CupyArray,
+    time_grid: NumpyArray,
+    deltaE_grid: NumpyArray,
+    hamilton_2D: NumpyArray,
     metric_list: list[float],
     intensity_frac_list: list[float],
     n_buckets: int,
     max_metric_diff: float,
-    density_function: callable(
-        [NumpyArray | CupyArray, float]
-    ) = gaussian_density,
+    density_function: callable([NumpyArray, float]) = gaussian_density,
     metric_function: callable(
         [
-            NumpyArray | CupyArray,
-            NumpyArray | CupyArray,
-            NumpyArray | CupyArray,
+            NumpyArray,
+            NumpyArray,
+            NumpyArray,
         ]
     ) = rms_emittance,
     max_iterations: int = 100,
     free_parameter_guess: float | None = None,
-) -> NumpyArray | CupyArray:
+) -> NumpyArray:
     """Generalized method for generating density distributions for a hamiltonian.
     Notes
     -----
@@ -227,12 +225,12 @@ def generalized_bucket_filler(
 
 
 def hamilton_to_density_by_max(
-    time_grid: NumpyArray | CupyArray,
-    deltaE_grid: NumpyArray | CupyArray,
-    hamilton_2D: NumpyArray | CupyArray,
+    time_grid: NumpyArray,
+    deltaE_grid: NumpyArray,
+    hamilton_2D: NumpyArray,
     density_modifier: float,
     hamilton_max: float,
-) -> NumpyArray | CupyArray:
+) -> NumpyArray:
     """
     Converts a 2D Hamilton 2D array into a density distribution.
 
