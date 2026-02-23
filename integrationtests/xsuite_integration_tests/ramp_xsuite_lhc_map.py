@@ -45,7 +45,7 @@ def run_simulation(n_turns: int):
     line = xt.Line(elements=[matrix], element_names={"matrix"})
 
     t_rev = 26658.8832 / c
-    p0c_ramp = np.linspace(450e9, 451e9, n_turns)
+    p0c_ramp = np.linspace(450e9, 460e9, n_turns)
     t_s = np.linspace(0, t_rev * n_turns, n_turns)
 
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)

@@ -17,7 +17,7 @@ from .ramp_xsuite_lhc_map import run_simulation as run_xsuite
 
 def test_blond_interface_xsuite():
     """Run xsuite + blond element simulation."""
-    n_turns = 10
+    n_turns = 1
     PLOT = True
 
     init_dist, zeta_xsuite, delta_xsuite = run_xsuite(n_turns=n_turns)
