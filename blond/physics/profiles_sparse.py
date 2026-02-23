@@ -414,7 +414,9 @@ class EquidistantMultiProfile(MultiProfile):
         if len(beam._dt.array_local) == 0:
             # No particles to track
             return
-
+        assert self._bucket_index_to_memory_index[-1] + self.profiles[
+            0
+        ].n_bins <= len(self._continuous_memory_hist_y)
         backend.specials.sparse_histogram_strided(
             x=beam._dt.array_local,
             out=self._continuous_memory_hist_y,

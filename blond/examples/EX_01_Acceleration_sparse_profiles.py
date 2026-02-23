@@ -78,8 +78,12 @@ def main():
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
     sim.print_one_turn_execution_order()
 
-    assert profile_normal.cut_left == profile_sparse.profiles[0].cut_left
-    assert profile_normal.cut_right == profile_sparse.profiles[0].cut_right
+    assert np.isclose(
+        profile_normal.cut_left, profile_sparse.profiles[0].cut_left
+    )
+    assert np.isclose(
+        profile_normal.cut_right, profile_sparse.profiles[0].cut_right
+    )
 
     sim.run_simulation(
         beams=(beam1,),
