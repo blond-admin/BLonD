@@ -412,7 +412,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             return n_new
 
         @staticmethod
-        def sparse_histogram_strided(
+        def histogram_sparse(
             x: NumpyArray,
             out: NumpyArray,
             first_left_cut: float,
@@ -461,7 +461,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert filling_pattern.flags.c_contiguous
             assert bucket_index_to_memory_index.flags.c_contiguous
 
-            _LIBBLOND.sparse_histogram_strided(
+            _LIBBLOND.histogram_sparse(
                 _getPointer(x),  # input
                 _getPointer(out),  # output
                 c_real(first_left_cut, floattype),  # first_left_cut

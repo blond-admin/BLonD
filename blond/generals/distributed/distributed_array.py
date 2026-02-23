@@ -330,7 +330,7 @@ class DistributedArray:
         assert out.dtype == backend.float
         array_write_local = out
 
-        backend.specials.sparse_histogram_strided(
+        backend.specials.histogram_sparse(
             x=self.array_local,
             out=array_write_local,
             first_left_cut=first_left_cut,

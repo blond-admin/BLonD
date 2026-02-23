@@ -94,7 +94,7 @@ class TestDistributedArray(unittest.TestCase):
                 self.distributed_array.global_size, 2 * 64
             )  # assumes `mpirun -n 2`
 
-    def test_sparse_histogram_strided_left_edged(self) -> None:
+    def test_histogram_sparse_left_edged(self) -> None:
         from blond.generals.distributed.distributed_array import (
             DistributedArray,
         )

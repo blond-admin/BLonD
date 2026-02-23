@@ -468,7 +468,7 @@ class PythonSpecials(Specials):
         return n_new
 
     @staticmethod
-    def sparse_histogram_strided(
+    def histogram_sparse(
         x: NumpyArray,
         out: NumpyArray,
         first_left_cut: float,

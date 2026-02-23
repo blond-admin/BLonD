@@ -13,7 +13,7 @@
 #include "blond_common.h"
 #include "openmp.h"
 
-extern "C" void sparse_histogram_strided(
+extern "C" void histogram_sparse(
     const real_t *__restrict__ input, real_t *__restrict__ output,
     const real_t first_left_cut, const real_t left_cut_distance,
     const real_t cut_width, const int bins_per_profile,

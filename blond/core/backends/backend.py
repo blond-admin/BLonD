@@ -210,7 +210,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def sparse_histogram_strided(
+    def histogram_sparse(
         x: NumpyArray,
         out: NumpyArray,
         first_left_cut: float,

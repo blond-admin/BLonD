@@ -796,7 +796,7 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @pytest.mark.backend_mutation
-    def test_sparse_histogram_strided(self) -> None:
+    def test_histogram_sparse(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -815,7 +815,7 @@ class TestSpecials(unittest.TestCase):
                     dtype=np.int32,
                 )
                 for _ in range(2):
-                    backend.specials.sparse_histogram_strided(
+                    backend.specials.histogram_sparse(
                         x=backend.linspace(-10, 10, 21, dtype=backend.float),
                         out=array_write,
                         first_left_cut=-12,
@@ -841,7 +841,7 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @pytest.mark.backend_mutation
-    def test_sparse_histogram_strided_left_edged(self) -> None:
+    def test_histogram_sparse_left_edged(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -869,7 +869,7 @@ class TestSpecials(unittest.TestCase):
                         particles_x.append(right_edge)
                 particles_x = backend.array(particles_x, backend.float)
                 for _ in range(2):
-                    backend.specials.sparse_histogram_strided(
+                    backend.specials.histogram_sparse(
                         x=particles_x,
                         out=array_write,
                         first_left_cut=-12,

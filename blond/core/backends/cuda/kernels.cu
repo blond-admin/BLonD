@@ -329,7 +329,7 @@ __global__ void loss_box(
 
 
 extern "C"
-__global__ void sparse_histogram_strided(
+__global__ void histogram_sparse(
     const real_t *__restrict__ input,
     real_t *__restrict__ output,
     const real_t first_left_cut,

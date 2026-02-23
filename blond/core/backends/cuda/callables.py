@@ -93,9 +93,7 @@ def reload_cuda_backend(  # NOQA: D102
     _gm_linear_interp_kick_help = gpu_module.get_function("lik_only_gm_copy")
     _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
     _loss_box = gpu_module.get_function("loss_box")
-    _sparse_histogram_strided = gpu_module.get_function(
-        "sparse_histogram_strided"
-    )
+    _histogram_sparse = gpu_module.get_function("histogram_sparse")
 
     default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
     default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -536,7 +534,7 @@ def reload_cuda_backend(  # NOQA: D102
             return n_new
 
         @staticmethod
-        def sparse_histogram_strided(
+        def histogram_sparse(
             x: CupyArray,
             out: CupyArray,
             first_left_cut: float,
@@ -571,7 +569,7 @@ def reload_cuda_backend(  # NOQA: D102
             assert bucket_index_to_memory_index.flags.c_contiguous
 
             out[:] = 0
-            _sparse_histogram_strided(
+            _histogram_sparse(
                 args=(
                     x,  # input
                     out,  # output
