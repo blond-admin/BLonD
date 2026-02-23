@@ -137,7 +137,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         os.makedirs(target, exist_ok=True)
         libname = os.path.join(target, default_libname)
     # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
-    #                -mfma4 -fopenmp -fopenmp-vectorizer-verbose=1 '-ffast-math'
+    #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
 
     cflags = [
         "-O3",
