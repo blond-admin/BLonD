@@ -137,13 +137,17 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         os.makedirs(target, exist_ok=True)
         libname = os.path.join(target, default_libname)
     # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
-    #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
+    #                -mfma4 -fopenmp -fopenmp-vectorizer-verbose=1 '-ffast-math'
 
     cflags = [
+        # Enable maximum compiler optimizations (inline functions, loop unrolling, vectorization)
         "-O3",
-        "-std=c++11",
+        # Use C++20 standard for modern language features and better compile-time optimizations
+        "-std=c++20",
+        # Build a shared library (for dynamic linking)
         "-shared",
-        "-funroll-loops",  # Aggressive loop unrolling
+        # Optimize code for the current CPU architecture, enabling all supported instructions
+        "-march=native",
     ]
     # Some additional warning reporting related flags
     cflags += [
