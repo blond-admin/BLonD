@@ -301,7 +301,7 @@ class DistributedArray:
         Parameters
         ----------
         out
-            Output histogram (n_filled_buckets * bins_per_profile).
+            Output histogram ``(n_filled_buckets * bins_per_profile)``.
         first_left_cut
             Start of the first histogram.
         left_cut_distance
