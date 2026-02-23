@@ -51,7 +51,7 @@ def main():
     t_rev_init = energy_cycle.get_t_rev_init(ring.circumference)
 
     beam1 = Beam.simple_gaussian(
-        n_macroparticles=int(1e3),
+        n_macroparticles=int(1e5),
         dt_scale=0.4e-9 / 4,
         dE_scale=1e9 / 4,
         dt_offset=0.75 * t_rev_init,
@@ -96,6 +96,10 @@ def main():
     profile_normal.plot(label="profile_normal")
     profile_sparse.plot(linestyle="--", label="profile_sparse")
     plt.legend()
+    assert (
+        np.sum(profile_sparse.profiles[0].hist_y)
+        == beam1.n_macroparticles_partial()
+    )
     assert np.allclose(
         profile_normal.hist_y, profile_sparse.profiles[0].hist_y
     ), f"{profile_normal.hist_y, profile_sparse.profiles[0].hist_y}"

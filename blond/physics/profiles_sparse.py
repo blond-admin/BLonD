@@ -417,7 +417,7 @@ class EquidistantMultiProfile(MultiProfile):
         assert self._bucket_index_to_memory_index[-1] + self.profiles[
             0
         ].n_bins <= len(self._continuous_memory_hist_y)
-        backend.specials.sparse_histogram_strided(
+        beam._dt.histogram_sparse(
             x=beam._dt.array_local,
             out=self._continuous_memory_hist_y,
             first_left_cut=self._first_left_cut,
