@@ -80,10 +80,10 @@ def main():
 
     assert np.isclose(
         profile_normal.cut_left, profile_sparse.profiles[0].cut_left
-    )
+    ), f"{(profile_normal.cut_left, profile_sparse.profiles[0].cut_left)}"
     assert np.isclose(
         profile_normal.cut_right, profile_sparse.profiles[0].cut_right
-    )
+    ), f"{(profile_normal.cut_right, profile_sparse.profiles[0].cut_right)}"
 
     sim.run_simulation(
         beams=(beam1,),
