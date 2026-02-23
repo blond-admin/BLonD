@@ -86,7 +86,11 @@ extern "C" void sparse_histogram_strided(
             const real_t local =
                 shifted - bucket_i * left_cut_distance;
 
-            if (local >= cut_width)
+            if (local > cut_width)
+                continue;
+
+            if (local == cut_width)
+                local_output[index] += real_t(1);
                 continue;
 
             const int bin = (int)(local * inv_bin_width);
@@ -102,6 +106,7 @@ extern "C" void sparse_histogram_strided(
         // ---------------------------------
         // Reduction step
         // ---------------------------------
+#pragma omp for schedule(static) reduction(+:output[:compact_size])
         for (int i = 0; i < compact_size; ++i)
         {
             output[i] += local_output[i];

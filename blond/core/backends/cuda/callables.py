@@ -543,7 +543,7 @@ def reload_cuda_backend(  # NOQA: D102
             left_cut_distance: float,
             cut_width: float,
             bins_per_profile: int,
-            n_profiles: int,
+            n_active_profiles: int,
             filling_pattern: CupyArray,
             bucket_index_to_memory_index: CupyArray,
         ) -> None:

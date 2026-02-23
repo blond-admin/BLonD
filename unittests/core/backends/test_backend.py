@@ -822,10 +822,65 @@ class TestSpecials(unittest.TestCase):
                         left_cut_distance=8,
                         cut_width=4,
                         bins_per_profile=bins_per_profile,
-                        n_profiles=n_profiles,
+                        n_active_profiles=n_profiles,
                         filling_pattern=filling_pattern,
                         bucket_index_to_memory_index=bucket_index_to_memory_index,
                     )
+                result = array_write
+
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_sparse_histogram_strided_left_edged(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                bins_per_profile = 4
+                n_profiles = 3
+                array_write = backend.ones(
+                    bins_per_profile * n_profiles, dtype=backend.float
+                )
+                filling_pattern = backend.array([1, 0, 1, 0, 1, 0], dtype=bool)
+                bucket_index_to_memory_index = backend.array(
+                    [0, 0, 4, 4, 8, 8],
+                    dtype=np.int32,
+                )
+                particles_x = []
+                # mark all left and right edges
+                for left_edge in (-12, -12 + 2 * 8, -12 + 4 * 8):
+                    for _ in range(2):
+                        particles_x.append(left_edge)
+                for right_edge in (-12 + 4, -12 + 2 * 8 + 4, -12 + 4 * 8 + 4):
+                    for _ in range(1):
+                        particles_x.append(right_edge)
+                particles_x = backend.array(particles_x, backend.float)
+                for _ in range(2):
+                    backend.specials.sparse_histogram_strided(
+                        x=particles_x,
+                        out=array_write,
+                        first_left_cut=-12,
+                        left_cut_distance=8,
+                        cut_width=4,
+                        bins_per_profile=bins_per_profile,
+                        n_active_profiles=n_profiles,
+                        filling_pattern=filling_pattern,
+                        bucket_index_to_memory_index=bucket_index_to_memory_index,
+                    )
+                print(backend.specials_mode, array_write)
                 result = array_write
 
                 if special == "cuda":

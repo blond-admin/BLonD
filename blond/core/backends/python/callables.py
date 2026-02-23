@@ -475,7 +475,7 @@ class PythonSpecials(Specials):
         left_cut_distance: float,
         cut_width: float,
         bins_per_profile: int,
-        n_profiles: int,
+        n_active_profiles: int,
         filling_pattern: NumpyArray,
         bucket_index_to_memory_index: NumpyArray,
     ) -> None:
@@ -496,7 +496,7 @@ class PythonSpecials(Specials):
             Distance between left and right edge of the histogram.
         bins_per_profile
             Number of bins per bucket.
-        n_profiles
+        n_active_profiles
             Number of non-empty buckets.
         filling_pattern
             Filling pattern as a boolean array

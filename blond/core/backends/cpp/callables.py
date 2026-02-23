@@ -419,7 +419,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             left_cut_distance: float,
             cut_width: float,
             bins_per_profile: int,
-            n_profiles: int,
+            n_active_profiles: int,
             filling_pattern: NumpyArray,
             bucket_index_to_memory_index: NumpyArray,
         ) -> None:
@@ -440,7 +440,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 Distance between left and right edge of the histogram.
             bins_per_profile
                 Number of bins per bucket.
-            n_profiles
+            n_active_profiles
                 Number of non-empty buckets.
             filling_pattern
                 Filling pattern as a boolean array
@@ -468,7 +468,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(left_cut_distance, floattype),
                 c_real(cut_width, floattype),
                 ct.c_int(bins_per_profile),
-                ct.c_int(n_profiles),
+                ct.c_int(n_active_profiles),
                 ct.c_int(len(filling_pattern)),
                 ct.c_int(len(x)),  # n_macroparticles
                 _getPointer(filling_pattern),
