@@ -296,7 +296,7 @@ class BackendBaseClass(ABC):
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
         self.sqrt: Callable = None  # type: ignore
-        self.interp: Callable = None # type: ignore
+        self.interp: Callable = None  # type: ignore
         self.meshgrid: Callable = None  # type: ignore
         self.square: Callable = None  # type: ignore
         self.mean: Callable = None  # type: ignore
