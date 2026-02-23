@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import math
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -336,6 +337,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         beam
             Simulation beam object
         """
+
         super().prepare_beam(
             simulation=simulation,
             beam=beam,
@@ -370,6 +372,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
         if simulation.intensity_effect_manager.has_wakefields():
             simulation.intensity_effect_manager.set_wakefields(active=True)
             for i_intensity in range(self.maxiter_intensity_effects):
+                sim_tmp = deepcopy(simulation)
+
                 # Change the strength of intensity effects to allow
                 # convergence to a stable solution (if there is any?)
                 if (
@@ -386,27 +390,32 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
                 # run simulation with beam to collect the actual profiles
                 # that cause the wake-fields
-                simulation.intensity_effect_manager.set_profiles(active=True)
+                sim_tmp.intensity_effect_manager.set_profiles(active=True)
 
                 # this might get changed by the simulation
                 beam_reference_time = beam.reference.time
                 beam_reference_total_energy = beam.reference.total_energy
+                turn_i_org = int(simulation.turn_i.value)
+                section_i_org = int(simulation.section_i.value)
 
-                simulation.run_simulation(
+                sim_tmp.run_simulation(
                     beams=(beam,),
                     n_turns=1,
                     show_progressbar=False,
                 )
+
                 # reset to original value before simulation
                 beam.reference.time = beam_reference_time
                 beam.reference.total_energy = beam_reference_total_energy
+                sim_tmp.turn_i.value = turn_i_org
+                sim_tmp.section_i.value = section_i_org
 
                 # Prevent the profiles from updating.
-                simulation.intensity_effect_manager.set_profiles(active=False)
+                sim_tmp.intensity_effect_manager.set_profiles(active=False)
                 # This is intended as override, so that the line density
                 # inside `_match_beam` experiences the forces from the
                 # previously run with the full beam
-                self._match_beam(beam, simulation, ts)
+                self._match_beam(beam, sim_tmp, ts)
 
                 if self.animate:
                     plt.figure("SemiEmpiricMatcher")
@@ -414,6 +423,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     self._plot_current_state(beam, i_intensity, scalar, ts)
                     plt.draw()
                     plt.pause(0.1)
+                    assert sim_tmp.turn_i.value == 0
 
                 error_calculable = (
                     self._last_potential_well is not None
@@ -471,6 +481,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
+        assert simulation.turn_i.value == 0
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
                 dt=np.linspace(
