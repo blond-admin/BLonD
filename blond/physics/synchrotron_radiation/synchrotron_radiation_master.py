@@ -131,7 +131,8 @@ class SynchrotronRadiationMaster(Schedulable):
         Returns
         -------
         message
-            Prints the characteristics of the initialised wiggler class.
+            Prints the characteristics of the initialised
+            SynchrotronRadiationMaster class.
         """
         return (
             f"Synchrotron radiation master class set up for the"
@@ -192,7 +193,7 @@ class SynchrotronRadiationMaster(Schedulable):
         self,
         ring: Ring,
         beam: BeamBaseClass,
-    ) -> None:
+    ) -> str:
         """
         Print the synchrotron radiation parameter of a given turn.
 
@@ -205,18 +206,23 @@ class SynchrotronRadiationMaster(Schedulable):
             `Ring` context manager.
         beam
             `Beam` object.
+
+        Returns
+        -------
+        message
+            Prints the characteristics of radiation damping for the given
+            beam and ring.
         """
         self.compute_synchrotron_radiation_parameters(ring=ring, beam=beam)
-        print(
+
+        return (
             f"Synchrotron radiation parameters for the beam energy "
-            f"#{beam.reference.total_energy}"
+            f"{beam.reference.total_energy}"
+            + f"Energy lost: {self.energy_loss_per_turn} eV per turn,"
+            + f"Longitudinal damping time:"
+            f" {self.longitudinal_damping_time} turns,"
+            + f"Natural energy spread: {self._natural_energy_spread}"
         )
-        print("Energy lost:", self.energy_loss_per_turn)
-        print(
-            "Longitudinal damping time:",
-            self.longitudinal_damping_time,
-        )
-        print("Natural energy spread:", self._natural_energy_spread)
 
     def compute_synchrotron_radiation_parameters(
         self,
