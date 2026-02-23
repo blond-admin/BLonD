@@ -547,6 +547,19 @@ def reload_cuda_backend(  # NOQA: D102
             filling_pattern: CupyArray,
             bucket_index_to_memory_index: CupyArray,
         ) -> None:
+            assert x.device != "cpu", (
+                f"Requires Cupy array, but got {type(x)}."
+            )
+            assert out.device != "cpu", (
+                f"Requires Cupy array, but got {type(out)}."
+            )
+            assert filling_pattern.device != "cpu", (
+                f"Requires Cupy array, but got {type(filling_pattern)}."
+            )
+            assert bucket_index_to_memory_index.device != "cpu", (
+                f"Requires Cupy array, but got {type(bucket_index_to_memory_index)}."
+            )
+
             assert x.dtype == floattype
             assert out.dtype == floattype
             assert filling_pattern.dtype == np.bool

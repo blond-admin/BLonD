@@ -11,6 +11,8 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     MagneticCyclePerTurn,
+    Numpy32Bit,
+    Numpy64Bit,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -39,6 +41,7 @@ Q_factor = resonator_data[:, 1]
 
 class MyTestCase(unittest.TestCase):
     def test_compare_both_profiles(self):
+        backend.change_backend(Numpy64Bit)
         DEV_DRAW = False
 
         profile, profile_wanted = self._exec_full_sim_with_profiles()
