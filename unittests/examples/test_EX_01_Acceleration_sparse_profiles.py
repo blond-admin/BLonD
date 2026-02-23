@@ -44,7 +44,6 @@ class TestEX_01_Acceleration_sparse_profiles(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     @pytest.mark.mpi
-    @unittest.skip
     def test_executable_cuda32(self):
         try:
             import cupy  # type: ignore
@@ -66,7 +65,6 @@ class TestEX_01_Acceleration_sparse_profiles(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     @pytest.mark.mpi
-    @unittest.skip
     def test_executable_cuda64(self):
         try:
             import cupy  # type: ignore
