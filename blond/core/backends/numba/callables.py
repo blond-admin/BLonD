@@ -570,7 +570,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             sig_sparse_histogram_strided,
             parallel=True,
             fastmath=True,
-            cache=True,
+            cache=False,
         )
         def sparse_histogram_strided(
             x: NumpyArray,

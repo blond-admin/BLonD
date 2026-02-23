@@ -10,15 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <malloc.h>
-#define ALIGNED_ALLOC(size, align) _aligned_malloc(size, align)
-#define ALIGNED_FREE(ptr) _aligned_free(ptr)
-#else
-#define ALIGNED_ALLOC(size, align) aligned_alloc(align, size)
-#define ALIGNED_FREE(ptr) free(ptr)
-#endif
-
 #include "blond_common.h"
 #include "openmp.h"
 
@@ -53,8 +44,8 @@ extern "C" void sparse_histogram_strided(
 
     // Allocate only if size changed or first use
     if (local_size < compact_size) {
-      ALIGNED_FREE(local_output);
-      local_output = (real_t *)ALIGNED_ALLOC(sizeof(real_t) * compact_size, 64);
+      free(local_output);
+      local_output = (real_t *)malloc(sizeof(real_t) * compact_size);
       local_size = compact_size;
     }
 
