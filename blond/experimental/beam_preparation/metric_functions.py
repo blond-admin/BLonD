@@ -19,9 +19,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def rms_emittance(
-    density: NumpyArray | CupyArray,
-    dt_grid: NumpyArray | CupyArray,
-    dE_grid: NumpyArray | CupyArray,
+    density: NumpyArray,
+    dt_grid: NumpyArray,
+    dE_grid: NumpyArray,
     multiply_by_pi: bool = False,
 ):
     """Calculates the RMS emittance of a single bunch,
@@ -65,9 +65,9 @@ def rms_emittance(
 
 
 def q_percent_emittance(
-    density: NumpyArray | CupyArray,
-    dt_grid: NumpyArray | CupyArray,
-    dE_grid: NumpyArray | CupyArray,
+    density: NumpyArray,
+    dt_grid: NumpyArray,
+    dE_grid: NumpyArray,
     q: float = 0.9,
 ) -> float:
     """Calculates the phase space area occupied
