@@ -57,6 +57,9 @@ def main():
         context = xo.ContextCpu()
 
     line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
+
+    part_ref = line.particle_ref
+
     line.build_tracker(_context=context)
 
     momentum = np.linspace(p_s, p_f, N_TURNS)
@@ -83,6 +86,7 @@ def main():
         circumference=C,
         total_energy=None,  #
         is_below_transition=None,
+        beam_reference_beta=float(line.particle_ref.beta0[0]),  # this
     )
 
     cavity = BLonD3Cavity(
