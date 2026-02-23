@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import copy
 from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -136,6 +137,8 @@ class EquidistantMultiProfile(MultiProfile):
     filling_pattern
         Filling pattern as a boolean array
         where ``True`` means filled bucket.
+        For example ``filling_pattern = [1, 0, 0, 1]``,
+        meaning that only the first and last profile are in active use.
     bins_per_profile
         Number of bins per profile.
     offset
@@ -318,6 +321,7 @@ class EquidistantMultiProfile(MultiProfile):
         self._left_cut_distance = (
             starts[1] - starts[0]
         )  # intentionally neglecting `_filling_pattern`
+        # to get equidistant distance.
 
         profile_width = t_rev / n_slots
         assert np.isclose(
@@ -426,3 +430,41 @@ class EquidistantMultiProfile(MultiProfile):
             filling_pattern=self._filling_pattern,
             bucket_index_to_memory_index=self._bucket_index_to_memory_index,
         )
+
+    def __deepcopy__(self, memo):
+        """
+        Create a deep copy of the instance.
+
+        This implementation overrides the default ``copy.deepcopy`` behavior
+        in order to re-bind profile memories after the object has been copied.
+        All attributes stored in ``self.__dict__`` are recursively deep-copied.
+        After copying, ``_bind_profiles()`` is called to re-attach profile
+        memories to the continuous memory structure.
+
+        Parameters
+        ----------
+        memo : dict
+            Dictionary of objects already copied during the current
+            deep copy pass. This is used internally by ``copy.deepcopy``
+            to avoid infinite recursion and duplicate copies.
+
+        Returns
+        -------
+        object
+            A fully deep-copied instance of the same class, with profile
+            memories properly rebound.
+        """
+        # Overwrite original python implementation
+        # to call `_bind_profiles` after `deepcopy`
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        for k, v in self.__dict__.items():
+            setattr(result, k, copy.deepcopy(v, memo))
+
+        # re-attach all profile memories to the
+        # continuous memory
+        result._bind_profiles()
+
+        return result
