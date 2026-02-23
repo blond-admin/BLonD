@@ -8,6 +8,7 @@ from blond import Beam, backend, uranium_29
 from blond.core.beam.beams import ProbeBeam
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+from build.lib.build.lib.blond.core.beam.beams import EmptyBeam
 
 
 class TestEquidistantMultiProfile(unittest.TestCase):
@@ -35,6 +36,14 @@ class TestEquidistantMultiProfile(unittest.TestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_track_empty(self):
+        beam = EmptyBeam(
+            particle_type=uranium_29,
+            reference_time=0,
+            reference_total_energy=1e3,
+        )
+        self.multiprofile_equidistant.track(beam)
 
     def test_track(self):
         DEV_DRAW = False

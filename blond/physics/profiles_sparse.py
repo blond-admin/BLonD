@@ -84,7 +84,7 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
         **kwargs
             Additional keyword arguments.
         """
-        pass
+        pass  # pragma: no cover
 
 
 def _gen_array_bucket_index_to_memory_index(
