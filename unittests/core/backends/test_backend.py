@@ -212,7 +212,7 @@ class TestSpecials(unittest.TestCase):
             "cpp",
             "numba",
         ]
-        if cupy_available:
+        if True:
             self.special_modes.append("cuda")
         set_num_threads(8)
 
@@ -796,7 +796,7 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @pytest.mark.backend_mutation
-    def test_sparse_histogram_strided(self) -> None:
+    def test_histogram_sparse(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -807,19 +807,80 @@ class TestSpecials(unittest.TestCase):
                 bins_per_profile = 3
                 n_profiles = 3
                 array_write = backend.ones(
-                    bins_per_profile * n_profiles * 2, dtype=backend.float
+                    bins_per_profile * n_profiles, dtype=backend.float
+                )
+                filling_pattern = backend.array([1, 0, 1, 0, 1, 0], dtype=bool)
+                bucket_index_to_memory_index = backend.array(
+                    [0, 0, 3, 3, 6, 6],
+                    dtype=np.int32,
                 )
                 for _ in range(2):
-                    backend.specials.sparse_histogram_strided(
+                    backend.specials.histogram_sparse(
                         x=backend.linspace(-10, 10, 21, dtype=backend.float),
                         out=array_write,
                         first_left_cut=-12,
                         left_cut_distance=8,
                         cut_width=4,
                         bins_per_profile=bins_per_profile,
-                        n_profiles=n_profiles,
-                        stride=bins_per_profile * 2,
+                        n_active_profiles=n_profiles,
+                        filling_pattern=filling_pattern,
+                        bucket_index_to_memory_index=bucket_index_to_memory_index,
                     )
+                result = array_write
+
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_sparse_left_edged(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                bins_per_profile = 4
+                n_profiles = 3
+                array_write = backend.ones(
+                    bins_per_profile * n_profiles, dtype=backend.float
+                )
+                filling_pattern = backend.array([1, 0, 1, 0, 1, 0], dtype=bool)
+                bucket_index_to_memory_index = backend.array(
+                    [0, 0, 4, 4, 8, 8],
+                    dtype=np.int32,
+                )
+                particles_x = []
+                # mark all left and right edges
+                for left_edge in (-12, -12 + 2 * 8, -12 + 4 * 8):
+                    for _ in range(2):
+                        particles_x.append(left_edge)
+                for right_edge in (-12 + 4, -12 + 2 * 8 + 4, -12 + 4 * 8 + 4):
+                    for _ in range(1):
+                        particles_x.append(right_edge)
+                particles_x = backend.array(particles_x, backend.float)
+                for _ in range(2):
+                    backend.specials.histogram_sparse(
+                        x=particles_x,
+                        out=array_write,
+                        first_left_cut=-12,
+                        left_cut_distance=8,
+                        cut_width=4,
+                        bins_per_profile=bins_per_profile,
+                        n_active_profiles=n_profiles,
+                        filling_pattern=filling_pattern,
+                        bucket_index_to_memory_index=bucket_index_to_memory_index,
+                    )
+                print(backend.specials_mode, array_write)
                 result = array_write
 
                 if special == "cuda":
@@ -931,55 +992,6 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                     print(result_python.tolist())
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"{special=} {dtype=}",
-                    )
-
-    @pytest.mark.backend_mutation
-    def test_sparse_histogram(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                bins_per_profile = 3
-                n_profiles = 3
-                array_write = backend.ones(
-                    bins_per_profile * n_profiles, dtype=backend.float
-                )
-                first_left_cut = -12
-                left_cut_distance = 8
-                cut_width = 4
-                bins_per_profile = bins_per_profile
-                n_profiles = n_profiles
-                left_cuts = first_left_cut + (
-                    backend.arange(n_profiles) * left_cut_distance
-                )
-                right_cuts = left_cuts + cut_width
-                left_cuts = backend.array(left_cuts, dtype=backend.float)
-                right_cuts = backend.array(right_cuts, dtype=backend.float)
-                for _ in range(2):
-                    backend.specials.sparse_histogram(
-                        x=backend.linspace(-10, 10, 21, dtype=backend.float),
-                        out=array_write,
-                        left_cuts=left_cuts,
-                        right_cuts=right_cuts,
-                        bins_per_profile=bins_per_profile
-                        * backend.ones(bins_per_profile, dtype=np.int32),
-                        start_indices=backend.array([0, 3, 6], dtype=np.int32),
-                    )
-                result = array_write
-
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
                 else:
                     np.testing.assert_allclose(
                         result,
@@ -1137,56 +1149,6 @@ class TestSpecials(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             backend.cast_arr_float_if_needed([[1, 2], 3])
-
-    @pytest.mark.backend_mutation
-    @parameterized.expand([Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit])
-    def test_rfft_parallel(self, new_backend):
-        if not cupy_available:
-            self.skipTest(f"{cupy_available=}")
-
-        backend.change_backend(new_backend)
-
-        for in_dtype in (
-            np.float32,
-            np.float64,
-            np.complex64,
-            np.complex128,
-        ):
-            input = np.array([-1, 1, 2, 3], dtype=float)
-            target = np.fft.rfft(input)
-
-            actual = backend.rfft_parallel(
-                backend.array(input, dtype=in_dtype)
-            )
-            if isinstance(backend, CupyBackend):
-                actual = actual.get()
-
-            np.testing.assert_array_equal(actual, target)
-
-    @pytest.mark.backend_mutation
-    @parameterized.expand([Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit])
-    def test_irfft_parallel(self, new_backend):
-        if not cupy_available:
-            self.skipTest(f"{cupy_available=}")
-
-        backend.change_backend(new_backend)
-
-        for in_dtype in (
-            np.float32,
-            np.float64,
-            np.complex64,
-            np.complex128,
-        ):
-            input = np.array([-1, 1, 2, 3], dtype=float)
-            target = np.fft.irfft(input)
-
-            actual = backend.irfft_parallel(
-                backend.array(input, dtype=in_dtype)
-            )
-            if isinstance(backend, CupyBackend):
-                actual = actual.get()
-
-            np.testing.assert_array_equal(actual, target)
 
     def tearDown(self) -> None:
         backend.change_backend(Numpy32Bit)

@@ -264,7 +264,7 @@ class Simulation(Preparable):
         end_turn = start_turn_i + int_from_float_with_warning(
             n_turns, warning_stacklevel=2
         )
-
+        # deepcopy to prevent side effects
         deepcopy(self).run_simulation(
             beams=beams,
             n_turns=end_turn,
@@ -1062,9 +1062,17 @@ class Simulation(Preparable):
         self,
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
-        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
     ):
+        """
+        Print some nice-to-know attributes when running the simulation.
+
+        Parameters
+        ----------
+        beams
+            The beam to simulate.
+        n_turns
+            Number of turns to simulate.
+        """
         for i, beam in enumerate(beams):
             size_bytes = sum(
                 (
@@ -1076,14 +1084,14 @@ class Simulation(Preparable):
             )
 
             print(
-                f"\nBeam {i} has {si_format(beam._dt.global_size)} macroparticles, "
-                f"{si_format(size_bytes)}B",
+                f"\nBeam {i} has {si_format(beam._dt.global_size)} "
+                f"macroparticles",
                 end="",
             )
             if beam._dt.is_distributed:
                 print(f" ({beam._dt.local_size:.2e} on this node)")
             else:
-                print()
+                print(f" {si_format(size_bytes)}B")
         print(f"{n_turns=}")
         print(f"n_elements={self.ring.elements.n_elements}")
 
@@ -1094,6 +1102,7 @@ class Simulation(Preparable):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+        verbose: bool = True,
     ) -> None:
         """
         Execute the main beam dynamics simulation loop.
@@ -1135,11 +1144,8 @@ class Simulation(Preparable):
             The callback can be defined as follows.
             The rate at with which this function is
             called can be set by `each_turn_i`.
-            >>> from blond import Beam, Simulation
-            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
-            >>>     ...
-            >>> my_callback.each_turn_i = 2
-            .
+        verbose
+            Will print infos if ``True``.
 
         Raises
         ------
@@ -1216,6 +1222,12 @@ class Simulation(Preparable):
         ...     beams=(beam1,),
         ...     n_turns=500,      # Run 500 more turns
         ... )
+
+        Callback Example
+        >>> from blond import Beam, Simulation
+        >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
+        >>>     ...
+        >>> my_callback.each_turn_i = 2
         """
         beams = _single_beam_to_tuple(beams)
         logger.info(f"Running `run_simulation` with {locals()}")
@@ -1229,12 +1241,11 @@ class Simulation(Preparable):
             n_turns=n_turns,
             observe=observe,
         )
-        self._plot_input_info(
-            beams=beams,
-            n_turns=n_turns,
-            observe=observe,
-            callbacks=callbacks,
-        )
+        if verbose:
+            self._plot_input_info(
+                beams=beams,
+                n_turns=n_turns,
+            )
 
         self.mainloop(
             beams=beams,

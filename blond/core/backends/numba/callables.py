@@ -190,7 +190,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         sig_stop,
     )
 
-    sig_sparse_histogram_strided = (
+    sig_histogram_sparse = (
         sig_array_read,  # x: NumpyArray,
         sig_array_write,  # out: NumpyArray,
         nb_f,  # first_left_cut: float,
@@ -567,19 +567,19 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         @staticmethod
         @enforce_precision(floattype)
         @njit(
-            sig_sparse_histogram_strided,
+            sig_histogram_sparse,
             parallel=True,
             fastmath=True,
-            cache=True,
+            cache=False,
         )
-        def sparse_histogram_strided(
+        def histogram_sparse(
             x: NumpyArray,
             out: NumpyArray,
             first_left_cut: float,
             left_cut_distance: float,
             cut_width: float,
             bins_per_profile: int,
-            n_profiles: int,
+            n_active_profiles: int,
             filling_pattern: NumpyArray,
             bucket_index_to_memory_index: NumpyArray,
         ) -> None:
@@ -589,9 +589,9 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             Parameters
             ----------
             x
-                An array, e.g., the particle dt values.
+                An array, e.g., the particle ``dt`` values.
             out
-                Output histogram (n_filled_buckets * stride).
+                Output histogram ``(n_filled_buckets * bins_per_profile)``.
             first_left_cut
                 Start of the first histogram.
             left_cut_distance
@@ -600,7 +600,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 Distance between left and right edge of the histogram.
             bins_per_profile
                 Number of bins per bucket.
-            n_profiles
+            n_active_profiles
                 Number of non-empty buckets.
             filling_pattern
                 Filling pattern as a boolean array

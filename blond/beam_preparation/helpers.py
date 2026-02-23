@@ -37,9 +37,27 @@ def make_multibunch_beam(
     -------
     full_beam
         Beam with many ``dt``-shifted copies of the input beam.
+
+    Examples
+    --------
+    >>> from blond import make_multibunch_beam, Beam, proton
+    >>>
+    >>> beam = Beam(
+    ...     intensity=1, particle_type=proton
+    ... )
+    >>> beam.setup_beam(dt=[1, 2, 3], dE=[1e3, 2e3, 3e3])
+    >>> beam = make_multibunch_beam(
+    ...     beam=beam,
+    ...     n_times=3,
+    ...     t_distance=222,
+    ...     common_offset=111,
+    ... )
     """
     from blond import Beam, backend
 
+    assert beam.is_set_up(), (
+        "Please set up beam correctly, e.g. using ``beam.setup_beam(...)``."
+    )
     full_beam = Beam(
         intensity=n_times * beam.intensity,
         particle_type=beam.particle_type,

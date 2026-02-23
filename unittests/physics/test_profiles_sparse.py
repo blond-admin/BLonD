@@ -1,25 +1,26 @@
+import copy
 import unittest
 from copy import deepcopy
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond import Beam, backend, uranium_29
+from blond import Beam, EmptyBeam, backend, uranium_29
 from blond.core.beam.beams import ProbeBeam
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 
-class MyTestCase(unittest.TestCase):
+class TestEquidistantMultiProfile(unittest.TestCase):
     def setUp(self):
         self.multiprofile_equidistant = EquidistantMultiProfile.headless(
             t_rev=5 * 10.0,
-            n_profiles=5,
-            width_per_profile=10.0,
+            filling_pattern=np.ones(5, bool),
             bins_per_profile=4,
             offset=0,
         )
-        start = self.multiprofile_equidistant.profiles[0].hist_x[0]
-        stop = self.multiprofile_equidistant.profiles[-1].hist_x[-1]
+        start = float(self.multiprofile_equidistant.profiles[0].hist_x[0])
+        stop = float(self.multiprofile_equidistant.profiles[-1].hist_x[-1])
 
         base = np.linspace(
             start,
@@ -36,11 +37,16 @@ class MyTestCase(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
-    def test_track(self):
-        DEV_DRAW = False  # TODO false
-        backend.set_specials(
-            "cpp"  # TODO remove
+    def test_track_empty(self):
+        beam = EmptyBeam(
+            particle_type=uranium_29,
+            reference_time=0,
+            reference_total_energy=1e3,
         )
+        self.multiprofile_equidistant.track(beam)
+
+    def test_track(self):
+        DEV_DRAW = False
 
         independent_profiles = deepcopy(self.multiprofile_equidistant.profiles)
 
@@ -55,14 +61,49 @@ class MyTestCase(unittest.TestCase):
         for i, profile_expected in enumerate(independent_profiles):
             profile_actual = self.multiprofile_equidistant.profiles[i]
             np.testing.assert_allclose(
-                profile_actual.hist_x, profile_expected.hist_x
+                copy_to_cpu(profile_actual.hist_x),
+                copy_to_cpu(profile_expected.hist_x),
             )
 
             np.testing.assert_allclose(
-                profile_actual.hist_y, profile_expected.hist_y
+                copy_to_cpu(profile_actual.hist_y),
+                copy_to_cpu(profile_expected.hist_y),
             )
         if DEV_DRAW:
             plt.show()
+
+    def test_track_after_deepcopy(self):
+        DEV_DRAW = False
+        for fun in (copy.copy, copy.deepcopy):
+            _multiprofile_equidistant = EquidistantMultiProfile.headless(
+                t_rev=5 * 10.0,
+                filling_pattern=np.ones(5, bool),
+                bins_per_profile=4,
+                offset=0,
+            )
+
+            equidistant_profile = fun(_multiprofile_equidistant)
+            independent_profiles = deepcopy(equidistant_profile.profiles)
+
+            equidistant_profile.track(self.beam)
+
+            for profile_expected in independent_profiles:
+                profile_expected.track(self.beam)
+                if DEV_DRAW:
+                    profile_expected.plot()
+            if DEV_DRAW:
+                equidistant_profile.plot(linestyle="--")
+            for i, profile_expected in enumerate(independent_profiles):
+                profile_actual = equidistant_profile.profiles[i]
+                np.testing.assert_allclose(
+                    copy_to_cpu(profile_actual.hist_x),
+                    copy_to_cpu(profile_expected.hist_x),
+                )
+
+                np.testing.assert_allclose(
+                    copy_to_cpu(profile_actual.hist_y),
+                    copy_to_cpu(profile_expected.hist_y),
+                )
 
 
 if __name__ == "__main__":

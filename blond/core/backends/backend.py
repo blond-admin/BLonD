@@ -210,14 +210,14 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def sparse_histogram_strided(
+    def histogram_sparse(
         x: NumpyArray,
         out: NumpyArray,
         first_left_cut: float,
         left_cut_distance: float,
         cut_width: float,
         bins_per_profile: int,
-        n_profiles: int,
+        n_active_profiles: int,
         filling_pattern: NumpyArray,
         bucket_index_to_memory_index: NumpyArray,
     ) -> None:
@@ -227,9 +227,9 @@ class Specials(ABC):
         Parameters
         ----------
         x
-            An array, e.g., the particle dt values.
+            An array, e.g., the particle ``dt`` values.
         out
-            Output histogram (n_filled_buckets * stride).
+            Output histogram ``(n_filled_buckets * bins_per_profile)``.
         first_left_cut
             Start of the first histogram.
         left_cut_distance
@@ -238,7 +238,7 @@ class Specials(ABC):
             Distance between left and right edge of the histogram.
         bins_per_profile
             Number of bins per bucket.
-        n_profiles
+        n_active_profiles
             Number of non-empty buckets.
         filling_pattern
             Filling pattern as a boolean array
@@ -556,7 +556,9 @@ class BackendBaseClass(ABC):
                 # Maybe a bug in CuPy?
                 # Catch the exception then throw the correct warning.
                 arr = arr.astype(dtype)
-            except AttributeError as e:
+            # Can be removed some years after 2025.
+            except AttributeError as e:  # pragma: no cover
+                # Cupy bugfix needed for `cupy-cuda12x<14.0.1`
                 if (
                     str(e)
                     == "module 'numpy' has no attribute 'ComplexWarning'"
@@ -644,48 +646,6 @@ class BackendBaseClass(ABC):
         """
         return self._cast_arr_and_dtype(arr, self.complex)
 
-    @abstractmethod
-    def rfft_parallel(self, a, n, out):
-        """
-        Calculate the real-to-complex fourier transform.
-
-        Parameters
-        ----------
-        a
-            Input array to be transformed.
-        n
-           Consider `n` entries in a, potentially by zero-padding.
-        out
-            Write the result on this array.
-
-        Returns
-        -------
-        a_rfft
-            The Fourier transform of `a`.
-        """
-        pass
-
-    @abstractmethod
-    def irfft_parallel(self, a, n, out):
-        """
-        Calculate the real-to-complex inverse Fourier transform.
-
-        Parameters
-        ----------
-        a
-            Input array to be transformed.
-        n
-           Consider `n` entries in a, potentially by zero-padding.
-        out
-            Write the result on this array.
-
-        Returns
-        -------
-        a_rfft
-            The inverse Fourier transform of `a`.
-        """
-        pass
-
 
 class NumpyBackend(BackendBaseClass):
     """
@@ -737,7 +697,10 @@ class NumpyBackend(BackendBaseClass):
         self.max = np.max
         self.dot = np.dot
         self.percentile = np.percentile
-        self.cumulative_sum = np.cumulative_sum
+        try:  # pragma: no cover
+            self.cumulative_sum = np.cumulative_sum
+        except AttributeError:  # pragma: no cover
+            self.cumulative_sum = np.cumsum
         self.array_split = np.array_split
         self.sign = np.sign
         self.sin = np.sin
@@ -796,60 +759,6 @@ class NumpyBackend(BackendBaseClass):
             raise ValueError(mode)
         if self.verbose and onchange:
             print(f"Set special to `{mode}`")
-
-    def rfft_parallel(
-        self,
-        a: NumpyArray,
-        n: int | None = None,
-        out: NumpyArray | None = None,
-    ):
-        """
-        Calculate the real-to-complex fourier transform.
-
-        Parameters
-        ----------
-        a
-            Input array to be transformed.
-        n
-           Consider `n` entries in a, potentially by zero-padding.
-        out
-            Write the result on this array.
-
-        Returns
-        -------
-        a_rfft
-            The Fourier transform of `a`.
-        """
-        import mkl_fft
-
-        return mkl_fft.rfft(a, n=n, out=out)
-
-    def irfft_parallel(
-        self,
-        a: NumpyArray,
-        n: int | None = None,
-        out: NumpyArray | None = None,
-    ):
-        """
-        Calculate the real-to-complex inverse Fourier transform.
-
-        Parameters
-        ----------
-        a
-            Input array to be transformed.
-        n
-           Consider `n` entries in a, potentially by zero-padding.
-        out
-            Write the result on this array.
-
-        Returns
-        -------
-        a_rfft
-            The inverse Fourier transform of `a`.
-        """
-        import mkl_fft
-
-        return mkl_fft.irfft(a, n=n, out=out)
 
 
 @_register_backend
@@ -936,7 +845,7 @@ class CupyBackend(BackendBaseClass):
         self.max = cp.max
         self.dot = cp.dot
         self.percentile = cp.percentile
-        self.cumulative_sum = cp.cumulative_sum
+        self.cumulative_sum = cp.cumsum
         self.array_split = cp.array_split
         self.sign = cp.sign
         self.sin = cp.sin

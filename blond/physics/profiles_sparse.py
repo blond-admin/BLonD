@@ -84,7 +84,47 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
         **kwargs
             Additional keyword arguments.
         """
-        pass
+        pass  # pragma: no cover
+
+
+def _gen_array_bucket_index_to_memory_index(
+    filling_pattern: NumpyArray, bins_per_profile: int
+):
+    """
+    Generate the indexing to convert between positional index and memory index.
+
+    Create a linear mapping from the bunch index
+    to the sparse profile memory.
+    e.g. ``[8, 8, 8, 16]`` with ``bins_per_profile = 8``,
+    with the ``filling_pattern = [1, 0, 0, 1]``.
+
+    Parameters
+    ----------
+    filling_pattern
+        Filling pattern as a boolean array
+        where ``True`` means filled bucket.
+        For example ``filling_pattern = [1, 0, 0, 1]``,
+        meaning that only the first and last profile are in active use.
+    bins_per_profile
+        Number of bins per profile.
+
+    Returns
+    -------
+    bucket_index_to_memory_index
+        Mapping the linear bucket index ``idx = (pos - start) / step`` to
+        the memory position, skipping sparse profiles.
+    """
+    # create a linear mapping from the bunch index
+    # to the sparse profile memory.
+    # e.g. [8, 8, 8, 16] with `bins_per_profile = 8`
+    # used  ^  x  x   ^
+    bucket_index_to_memory_index = (
+        backend.cumulative_sum(backend.array(filling_pattern), dtype=np.int32)
+        - 1
+        # minus one so that first
+        # bucket is at index 0
+    ) * np.int32(bins_per_profile)
+    return bucket_index_to_memory_index
 
 
 class EquidistantMultiProfile(MultiProfile):
@@ -131,15 +171,16 @@ class EquidistantMultiProfile(MultiProfile):
         # e.g. [8, 8, 8, 16] with `bins_per_profile = 8`
         # used  ^  x  x   ^
         self._bucket_index_to_memory_index = (
-            backend.cumulative_sum(filling_pattern, dtype=np.int32) - 1
-            # minus one so that first
-            # bucket is at index 0
-        ) * np.int32(bins_per_profile)
+            _gen_array_bucket_index_to_memory_index(
+                filling_pattern=filling_pattern,
+                bins_per_profile=bins_per_profile,
+            )
+        )
 
         self._offset = offset
 
         self._left_cut_distance: float | None = None
-
+        self._first_left_cut: float | None = None
         self.profiles: tuple[StaticProfile, ...] | None = None
 
         self._continuous_memory_hist_x = None
@@ -267,19 +308,21 @@ class EquidistantMultiProfile(MultiProfile):
         n_slots = len(self._filling_pattern)
 
         # Turn     |-----------|
-        # Slots    |---|---|---| # ``n_slots + 1``
+        # Starts   |---|---|---| # ``n_slots + 1``
         # Used     ^   ^   ^   x
         starts = (
             np.linspace(0, t_rev, n_slots + 1, endpoint=True)[:-1]
             + self._offset
         )
-
+        self._first_left_cut = starts[0]
         self._left_cut_distance = (
             starts[1] - starts[0]
         )  # intentionally neglecting `_filling_pattern`
 
         profile_width = t_rev / n_slots
-        assert np.isclose(starts[1] - starts[0], profile_width)
+        assert np.isclose(
+            starts[1] - starts[0], profile_width
+        )  # just to be sure
 
         profiles = []
         for i in range(len(self._filling_pattern)):
@@ -328,7 +371,7 @@ class EquidistantMultiProfile(MultiProfile):
 
         self._bind_profiles()
 
-    def _bind_profiles(self):  # TODO
+    def _bind_profiles(self):
         """Bind the memory of all ``self.profiles`` to the contigous memory."""
         for i, _profile in enumerate(self.profiles):
             sel = self._get_slice_single_profile(i)
@@ -368,15 +411,18 @@ class EquidistantMultiProfile(MultiProfile):
         if len(beam._dt.array_local) == 0:
             # No particles to track
             return
-
-        backend.specials.sparse_histogram_strided(
-            x=beam._dt.array_local,
+        assert self._bucket_index_to_memory_index[-1] + self.profiles[
+            0
+        ].n_bins <= len(self._continuous_memory_hist_y)
+        beam._dt.histogram_sparse(
             out=self._continuous_memory_hist_y,
-            first_left_cut=self.profiles[0].cut_left,
+            first_left_cut=self._first_left_cut,
             left_cut_distance=self._left_cut_distance,
-            bins_per_profile=self.profiles[0].n_bins,
+            bins_per_profile=self.profiles[
+                0
+            ].n_bins,  # assume all are the same
             cut_width=(self.profiles[0].cut_right - self.profiles[0].cut_left),
-            n_profiles=len(self.profiles),
+            n_active_profiles=len(self.profiles),
             filling_pattern=self._filling_pattern,
             bucket_index_to_memory_index=self._bucket_index_to_memory_index,
         )

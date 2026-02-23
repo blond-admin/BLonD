@@ -130,7 +130,7 @@ class Blond3:
         )
         cavity1 = SingleHarmonicRFStation()
         cavity1.voltage = 0.9e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
         cavity1.harmonic = 4620
         drift = DriftSimple(orbit_length=ring.circumference)
         drift.transition_gamma = 1 / (1 / np.sqrt(0.00192)) ** 2

@@ -11,6 +11,8 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     MagneticCyclePerTurn,
+    Numpy32Bit,
+    Numpy64Bit,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -38,7 +40,42 @@ Q_factor = resonator_data[:, 1]
 
 
 class MyTestCase(unittest.TestCase):
-    def compare(
+    def test_compare_both_profiles(self):
+        backend.change_backend(Numpy64Bit)
+        DEV_DRAW = False
+
+        profile, profile_wanted = self._exec_full_sim_with_profiles()
+        self._test_both_parameters_equal(profile, profile_wanted)
+
+        if DEV_DRAW:
+            plt.figure("compare")
+            ax1 = plt.subplot(3, 1, 1)
+            plt.xlim(4e-8, 6e-8)
+            plt.plot(
+                profile._continuous_memory_hist_x,
+                profile._continuous_memory_hist_y,
+                "o",
+            )
+
+        if DEV_DRAW:
+            plt.figure("compare")
+            ax1 = plt.subplot(3, 1, 1)
+            plt.plot(profile_wanted._hist_x, profile_wanted._hist_y, "x")
+            plt.xlim(4e-8, 6e-8)
+            plt.axvline(4.9940e-8)
+            plt.show()
+        self._test_both_results_equal(profile, profile_wanted)
+
+    def _test_both_results_equal(self, profile, profile_wanted):
+        # from plot, see `axvline`
+        start_idx = np.argmax(profile_wanted._hist_x > 4.9940e-8)
+        second_peak_wanted = profile_wanted._hist_y[
+            start_idx : start_idx + 2**8
+        ]
+        second_peak_actual = profile.profiles[1].hist_y
+        np.testing.assert_array_equal(second_peak_actual, second_peak_wanted)
+
+    def _test_both_parameters_equal(
         self, profile: EquidistantMultiProfile, profile_wanted: StaticProfile
     ):
         self.assertAlmostEqual(
@@ -49,90 +86,9 @@ class MyTestCase(unittest.TestCase):
             profile.profiles[-1].cut_right, profile_wanted.cut_right
         )
 
-    def test_something(self):
-        for induces_voltage in (None,):  # TODO
-            profile, profile_wanted = self.multiturn(
-                induced_voltage=induces_voltage
-            )
-            self.compare(profile, profile_wanted)
-
-            DEV_DRAW = True
-            if DEV_DRAW:
-                plt.figure("compare")
-                ax1 = plt.subplot(3, 1, 1)
-                plt.xlim(4e-8, 6e-8)
-                plt.plot(
-                    profile._continuous_memory_hist_x,
-                    profile._continuous_memory_hist_y,
-                    "o",
-                )
-
-            DEV_DRAW = True
-            if DEV_DRAW:
-                plt.figure("compare")
-                ax1 = plt.subplot(3, 1, 1)
-                plt.plot(profile_wanted._hist_x, profile_wanted._hist_y, "x")
-                plt.xlim(4e-8, 6e-8)
-
-                plt.show()
-
-    def non_sparse_fake_multiturn(self, induced_voltage) -> WakeField:
-        FAKE_TUNRS = 1
-        wake_solver = TimeDomainFftSolver(allow_next_fast_len=False)
-        ring = Ring(
-            circumference=6911.56,
-        )
-        magnetic_cycle = MagneticCyclePerTurn(
-            reference_particle=proton,
-            values_after_turn=np.linspace(sync_momentum, sync_momentum, 2),
-            value_init=sync_momentum,
-            in_unit="momentum",
-        )
-        _bunch = Beam(
-            intensity=1e10,
-            particle_type=proton,
-        )
-        drift = DriftSimple(
-            transition_gamma=22.82177322938192,
-            orbit_length=1.0 * ring.circumference,
-        )
-        rf_station = SingleHarmonicRFStation(
-            harmonic=4620,
-            voltage=0.9e6,
-            phi_rf=0.0,
-        )
-
-        ring.add_elements((profile, rf_station, drift))
-        sim = Simulation(
-            ring=ring,
-            magnetic_cycle=magnetic_cycle,
-        )
-
-        sim.prepare_beam(
-            preparation_routine=BiGaussian(
-                sigma_dt=2e-9 / 4,
-                seed=1,
-                n_macroparticles=1e4,
-            ),
-            beam=_bunch,
-        )
-        omega = rf_station.calc_omega(
-            beam_beta=_bunch.reference.beta,
-            ring_circumference=ring.circumference,
-        )
-        t_rf = 1 / (omega / (2 * np.pi))
-        beam = make_multibunch_beam(
-            beam=_bunch,
-            n_times=int((rf_station.harmonic // 10) * FAKE_TUNRS),
-            t_distance=t_rf * 10,
-        )
-
-        sim.run_simulation(beams=beam, n_turns=1)
-
-        return profile
-
-    def multiturn(self, induced_voltage) -> WakeField:
-        backend.set_specials("cpp")  # TODO remove
+    def _exec_full_sim_with_profiles(
+        self,
+    ) -> (EquidistantMultiProfile, StaticProfile):
         ring = Ring(
             circumference=6911.56,
         )
