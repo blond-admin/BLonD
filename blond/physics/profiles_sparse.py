@@ -22,6 +22,8 @@ from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Self
+
     from numpy._typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -313,10 +315,7 @@ class EquidistantMultiProfile(MultiProfile):
         # Turn     |-----------|
         # Starts   |---|---|---| # ``n_slots + 1``
         # Used     ^   ^   ^   x
-        starts = (
-            np.linspace(0, t_rev, n_slots + 1, endpoint=True)[:-1]
-            + self._offset
-        )
+        starts = np.linspace(0, t_rev, n_slots, endpoint=False) + self._offset
         self._first_left_cut = starts[0]
         self._left_cut_distance = (
             starts[1] - starts[0]
@@ -354,8 +353,6 @@ class EquidistantMultiProfile(MultiProfile):
         """
         bins_per_profile = self._bins_per_profile
 
-        # Keep one profile space in between each profile
-        # to make convolution on `_continuous_memory_hist_y` possible.
         total = len(self.profiles) * bins_per_profile
 
         self._continuous_memory_hist_x = backend.zeros(
@@ -383,7 +380,7 @@ class EquidistantMultiProfile(MultiProfile):
             self.profiles[i]._hist_x = self._continuous_memory_hist_x[sel]
             self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
 
-    def _get_slice_single_profile(self, i: int):
+    def _get_slice_single_profile(self, i: int) -> slice:
         """
         Get slice indices to select the i-th active profile.
 
@@ -431,7 +428,7 @@ class EquidistantMultiProfile(MultiProfile):
             bucket_index_to_memory_index=self._bucket_index_to_memory_index,
         )
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: dict) -> Self:
         """
         Create a deep copy of the instance.
 

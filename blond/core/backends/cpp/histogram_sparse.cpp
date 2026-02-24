@@ -62,8 +62,11 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
             1;
         continue;
       }
-      if (a < cut_left || a >= cut_right)
+      if (a < cut_left) {
         continue;
+      } else if (a >= cut_right) {
+        continue;
+      }
 
       // Calculate the bin index
       const int bin = (int)((a - cut_left) * inv_bin_width);

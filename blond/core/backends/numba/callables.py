@@ -612,20 +612,27 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 ``bins_per_profile = 8``.
             """
             n_threads = numba.get_num_threads()  # this prevents caching
+            array_tmp = np.zeros((n_threads, len(out)))
+
             ive_profile_dist = 1 / left_cut_distance
             inv_bin_step = bins_per_profile / cut_width
-            array_tmp = np.zeros((n_threads, len(out)))
             n_buckets = len(filling_pattern)
+
             for i in prange(len(x)):
                 thread_i = numba.get_thread_id()
+
                 xi = x[i]
+
                 bucket_i = int((xi - first_left_cut) * ive_profile_dist)
+
                 if bucket_i < 0 or bucket_i >= n_buckets:
                     continue
                 if not filling_pattern[bucket_i]:
                     continue
+
                 start_loc = first_left_cut + bucket_i * left_cut_distance
                 stop_loc = start_loc + cut_width
+
                 if xi == stop_loc:
                     write_idx = (
                         bucket_index_to_memory_index[bucket_i]
@@ -634,6 +641,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                     )
                     array_tmp[thread_i, write_idx] += 1
                     continue
+
                 idx = int((xi - start_loc) * inv_bin_step)
                 if idx < 0 or idx >= bins_per_profile:
                     continue
@@ -642,6 +650,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                         bucket_index_to_memory_index[bucket_i] + idx
                     )
                     array_tmp[thread_i, write_idx] += 1
+
             out[:] = np.sum(array_tmp, axis=0)
 
     return NumbaSpecials
