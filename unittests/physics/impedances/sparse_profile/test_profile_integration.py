@@ -21,6 +21,7 @@ from blond import (
     WakeField,
     backend,
     make_multibunch_beam,
+    momentum_compaction_factor,
     proton,
 )
 from blond.physics.profiles_sparse import EquidistantMultiProfile
@@ -102,7 +103,9 @@ class MyTestCase(unittest.TestCase):
             particle_type=proton,
         )
         drift = DriftSimple(
-            transition_gamma=22.82177322938192,
+            momentum_compaction_factor=momentum_compaction_factor(
+                22.82177322938192
+            ),
             orbit_length=1.0 * ring.circumference,
         )
         rf_station = SingleHarmonicRFStation(

@@ -22,6 +22,7 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     backend,
+    momentum_compaction_factor,
     proton,
 )
 
@@ -47,7 +48,7 @@ def main():
     drift1 = DriftSimple(
         orbit_length=26658.883,
     )
-    drift1.transition_gamma = 55.759505
+    drift1.momentum_compaction_factor = momentum_compaction_factor(55.759505)
     t_rev_init = energy_cycle.get_t_rev_init(ring.circumference)
 
     beam1 = Beam.simple_gaussian(
