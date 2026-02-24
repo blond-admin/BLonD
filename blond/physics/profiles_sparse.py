@@ -62,7 +62,7 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
         simulation
             The `Simulation` context manager that owns this ring.
         """
-        pass
+        pass  # pragma: no cover
 
     def on_run_simulation(
         self,
