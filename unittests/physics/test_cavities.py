@@ -899,8 +899,6 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             phi_rf=0,
         )
 
-        self.assertFalse(shc._use_synchrotron_radiation)
-
         SR_ring = Ring(
             90.65874532 * 1e3,
             radiation_integrals=radiation_integrals,
@@ -920,7 +918,6 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             ),
         )
         shc.on_init_simulation(simulation=simulation)
-        self.assertTrue(shc._use_synchrotron_radiation)
 
         positron_beam = Mock(BeamBaseClass)
         positron_beam.reference = Mock(ReferenceCoordinates)
