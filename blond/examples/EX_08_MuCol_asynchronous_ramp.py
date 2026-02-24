@@ -29,7 +29,7 @@ from blond import (
 def main():
     n_turns = 17
     # calculate parameters
-    transition_gamma = 1 / np.sqrt(10.395e-4)
+    momentum_compaction_factor = 10.395e-4
     n_sections = 1
     voltage_per_section = 865 * 30e6 / n_sections
     time_per_turn = 953.338 * 2 * np.pi / c
@@ -58,26 +58,26 @@ def main():
             cut_left=0, cut_right=1, n_bins=256, section_index=rf_station_i
         )
         rf_station.voltage = voltage_per_section
-        rf_station.phi_rf = phi_s
+        rf_station.phi_rf_design = phi_s
         rf_station.harmonic = 25900
 
         one_turn_model.extend(
             [
                 rf_station,
                 DriftSimple(
-                    transition_gamma=transition_gamma,
+                    momentum_compaction_factor=momentum_compaction_factor,
                     orbit_length=ring.circumference / n_sections / 3,
                     section_index=rf_station_i,
                 ),
                 ReferenceEnergyChange(section_index=rf_station_i),
                 DriftSimple(
-                    transition_gamma=transition_gamma,
+                    momentum_compaction_factor=momentum_compaction_factor,
                     orbit_length=ring.circumference / n_sections / 3,
                     section_index=rf_station_i,
                 ),
                 ReferenceEnergyChange(section_index=rf_station_i),
                 DriftSimple(
-                    transition_gamma=transition_gamma,
+                    momentum_compaction_factor=momentum_compaction_factor,
                     orbit_length=ring.circumference / n_sections / 3,
                     section_index=rf_station_i,
                 ),
@@ -98,14 +98,6 @@ def main():
     )
 
     zmax = ring.circumference / (2 * 25900)  # maximum bunch length z
-
-    total_rf_station = SingleHarmonicRFStation(
-        section_index=rf_station_i,
-    )
-
-    total_rf_station.voltage = voltage_per_section
-    total_rf_station.phi_rf = phi_s
-    total_rf_station.harmonic = 25900
 
     sim.prepare_beam(
         beam=beam1,

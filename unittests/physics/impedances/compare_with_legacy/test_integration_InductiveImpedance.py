@@ -14,6 +14,7 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     proton,
 )
 from blond.core.backends.backend import Numpy64Bit, backend
@@ -92,11 +93,11 @@ class Blond3:
         circumference = 2 * np.pi * 25.0
         ring = Ring(circumference=circumference)
         drift = DriftSimple(orbit_length=circumference)
-        drift.transition_gamma = 4.4
+        drift.momentum_compaction_factor = momentum_compaction_factor(4.4)
         cavity = SingleHarmonicRFStation()
         cavity.harmonic = 1
         cavity.voltage = 8e3
-        cavity.phi_rf = np.pi
+        cavity.phi_rf_design = np.pi
         profile = StaticProfile(
             blond2.profile.cut_left,
             blond2.profile.cut_right,

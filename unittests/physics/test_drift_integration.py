@@ -1,5 +1,6 @@
 import logging
 import unittest
+from copy import deepcopy
 
 import numpy as np
 import pytest
@@ -13,12 +14,17 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    momentum_compaction_factor,
     proton,
     uranium_29,
 )
 from blond.core.backends.backend import Numpy32Bit, backend
 from blond.core.base import DynamicParameter
-from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.core.beam.beams import ProbeBeam
+from blond.cycles.magnetic_cycle import (
+    ConstantMagneticCycle,
+    MagneticCyclePerTurn,
+)
 from blond.testing.mocks import simulation_mock
 
 
@@ -37,11 +43,11 @@ class TestDriftIntegration(unittest.TestCase):
         cavity1 = SingleHarmonicRFStation(section_index=0)
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
         cavity2 = SingleHarmonicRFStation(section_index=1)
         cavity2.harmonic = 35640
         cavity2.voltage = 6e6
-        cavity2.phi_rf = 0
+        cavity2.phi_rf_design = 0
 
         N_TURNS = int(1e3)
         energy_cycle = MagneticCyclePerTurn(
@@ -64,9 +70,13 @@ class TestDriftIntegration(unittest.TestCase):
             orbit_length=circumference / 3,
             section_index=1,
         )
-        drift1.transition_gamma = 55.759505
-        drift2.transition_gamma = 55.759505
-        drift3.transition_gamma = 55.759505
+        momentum_compaction_factor_ = momentum_compaction_factor(
+            transition_gamma=55.759505
+        )
+        drift1.momentum_compaction_factor = momentum_compaction_factor_
+        drift2.momentum_compaction_factor = momentum_compaction_factor_
+        drift3.momentum_compaction_factor = momentum_compaction_factor_
+
         beam1 = Beam(intensity=1e9, particle_type=proton)
 
         sim = Simulation.from_locals(locals())
@@ -82,7 +92,7 @@ class TestDriftIntegration(unittest.TestCase):
         cavity1 = SingleHarmonicRFStation(section_index=0)
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
 
         N_TURNS = int(1e3)
         energy_cycle = ConstantMagneticCycle(
@@ -95,7 +105,8 @@ class TestDriftIntegration(unittest.TestCase):
             section_index=0,
         )
         beam = EmptyBeam(proton)
-        drift1.momentum_compaction_factor = 1 / 55.759505**2
+        momentum_compaction_factor_ = 1 / 55.759505**2
+        drift1.momentum_compaction_factor = momentum_compaction_factor_
         sim = Simulation.from_locals(locals())
         with self.assertRaisesRegex(AssertionError, "but should be"):
             sim.ring.assert_circumference()
@@ -110,8 +121,15 @@ class TestDriftIntegration(unittest.TestCase):
         sim.check_circumference = "ignore"
         sim.finalize(beams=beam, n_turns=N_TURNS)
 
+        self.assertAlmostEqual(
+            sim.ring.momentum_compaction_factor,
+            momentum_compaction_factor_,
+        )
+
     def test_add_observable(self):
-        drift1 = DriftSimple.headless(transition_gamma=12, orbit_length=12)
+        drift1 = DriftSimple.headless(
+            momentum_compaction_factor(transition_gamma=12), orbit_length=12
+        )
 
         beam = EmptyBeam(particle_type=uranium_29, reference_total_energy=12)
         observable_1 = BeamObservationOncePerTurn(each_turn_i=1)
@@ -122,7 +140,9 @@ class TestDriftIntegration(unittest.TestCase):
             )
 
     def test_track_with_observable(self):
-        drift1 = DriftSimple.headless(transition_gamma=12, orbit_length=12)
+        drift1 = DriftSimple.headless(
+            momentum_compaction_factor(transition_gamma=12), orbit_length=12
+        )
 
         beam = EmptyBeam(particle_type=uranium_29, reference_total_energy=12)
         observable_1 = BeamObservationOncePerTurn(each_turn_i=1)
@@ -138,3 +158,76 @@ class TestDriftIntegration(unittest.TestCase):
             )
 
         drift1.track(beam=beam)
+
+    def test_momentum_compaction_splitting(self):
+        circumference = 1
+        beam1 = ProbeBeam(
+            dE=np.linspace(-10, 10, 5),
+            intensity=1e9,
+            particle_type=proton,
+        )
+
+        def run_two_drifts():
+            ring = Ring(circumference=circumference)
+
+            energy_cycle = ConstantMagneticCycle(
+                value=450e9,
+                reference_particle=proton,
+            )
+
+            drift1 = DriftSimple(
+                orbit_length=circumference * 1 / 4,
+                momentum_compaction_factor=3,  # intentionally different
+                section_index=0,
+            )
+
+            drift2 = DriftSimple(
+                orbit_length=circumference * 3 / 4,
+                momentum_compaction_factor=4,  # intentionally different
+                section_index=1,
+            )
+            rf = SingleHarmonicRFStation(
+                voltage=0, phi_rf=0, harmonic=1, section_index=0
+            )
+            rf2 = SingleHarmonicRFStation(
+                voltage=0, phi_rf=0, harmonic=1, section_index=1
+            )
+
+            sim = Simulation.from_locals(locals())
+            sim.ring.assert_circumference()
+
+            sim.print_one_turn_execution_order()
+            p = deepcopy(beam1)
+            sim.run_simulation(beams=p, n_turns=5)
+
+            global_momentum_compaction_factor = (
+                sim.ring.momentum_compaction_factor
+            )  # this is tested
+
+            return p._dt.array_local, global_momentum_compaction_factor
+
+        def run_combined_drifts(global_momentum_compaction_factor):
+            ring = Ring(circumference=circumference)
+
+            energy_cycle = ConstantMagneticCycle(
+                value=450e9,
+                reference_particle=proton,
+            )
+
+            drift1 = DriftSimple(
+                orbit_length=circumference,
+                momentum_compaction_factor=global_momentum_compaction_factor,
+                section_index=0,
+            )
+
+            rf = SingleHarmonicRFStation(voltage=0, phi_rf=0, harmonic=1)
+
+            sim = Simulation.from_locals(locals())
+            sim.ring.assert_circumference()
+            p = deepcopy(beam1)
+            sim.run_simulation(beams=p, n_turns=5)
+            return p._dt.array_local
+
+        dt1, global_momentum_compaction_factor = run_two_drifts()
+        dt2 = run_combined_drifts(global_momentum_compaction_factor)
+        np.testing.assert_allclose(dt1, dt2)

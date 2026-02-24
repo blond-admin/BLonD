@@ -32,6 +32,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    momentum_compaction_factor,
     proton,
 )
 from blond.experimental import VariNoise
@@ -44,7 +45,7 @@ def main():
     rf_station_1 = SingleHarmonicRFStation()
     rf_station_1.voltage = 6e6
     rf_station_1.schedule(
-        attribute="phi_rf",
+        attribute="phi_rf_design",
         value=VariNoise().get_noise(n_turns=200),
     )
     rf_station_1.harmonic = 35640
@@ -61,7 +62,9 @@ def main():
     # losses = BoxLosses(t_min=0, t_max=2.5e-9) # TODO implement
     # losses2 = SeparatrixLosses()# TODO implement
     drift = DriftSimple(
-        transition_gamma=55.759505,
+        momentum_compaction_factor=momentum_compaction_factor(
+            transition_gamma=55.759505
+        ),
         orbit_length=ring.circumference,
     )
     sim = Simulation.from_locals(locals())

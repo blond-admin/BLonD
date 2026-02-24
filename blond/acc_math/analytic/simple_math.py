@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING, overload
 import numba as nb
 import numpy as np
 
+from blond.physics.drifts import _assert_purely_real_or_imaginary
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import TypeVar
 
@@ -176,3 +178,24 @@ def beta_by_momentum(
     Internal assumption is :math:`c_0=1`.
     """
     return np.sqrt(1 / (1 + (mass / momentum) ** 2))
+
+
+def momentum_compaction_factor(
+    transition_gamma: complex | NumpyArray,
+) -> float | NumpyArray:
+    """
+    Calculate the momentum compaction factor.
+
+    Parameters
+    ----------
+    transition_gamma
+        Relativistic gamma of beam transition crossing.
+
+    Returns
+    -------
+    momentum_compaction_factor
+        Momentum compaction factor.
+    """
+    _assert_purely_real_or_imaginary(transition_gamma)
+    momentum_compaction_factor_ = 1 / (transition_gamma * transition_gamma)
+    return momentum_compaction_factor_.real

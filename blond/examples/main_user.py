@@ -25,6 +25,7 @@ from blond import (
     StaticProfile,
     WakeField,
     backend,
+    momentum_compaction_factor,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCycleBase
@@ -52,15 +53,18 @@ class Main:
 
         profile1 = StaticProfile(cut_left=0, cut_right=1, n_bins=128)
         rf_station = MultiHarmonicRFStation(
-            voltage=backend.array([6e6, 2e6]),
-            phi_rf=backend.array([0, 0]),
-            harmonic=backend.array([4620, 4 * 4620]),
+            voltage=np.array([6e6, 2e6]),
+            phi_rf=np.array([0, 0]),
+            harmonic=np.array([4620, 4 * 4620]),
             n_harmonics=2,
             main_harmonic_idx=0,
         )
         one_turn_execution_order = (
             DriftSimple(
-                orbit_length=1.0 * my_ring.circumference, transition_gamma=21
+                orbit_length=1.0 * my_ring.circumference,
+                momentum_compaction_factor=momentum_compaction_factor(
+                    transition_gamma=21
+                ),
             ),
             rf_station,
             WakeField(

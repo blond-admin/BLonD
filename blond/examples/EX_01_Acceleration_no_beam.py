@@ -21,6 +21,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    momentum_compaction_factor,
     proton,
 )
 
@@ -35,7 +36,7 @@ def main():
     rf_station = SingleHarmonicRFStation()
     rf_station.harmonic = 35640
     rf_station.voltage = 6e6
-    rf_station.phi_rf = 0
+    rf_station.phi_rf_design = 0
 
     energy_cycle = MagneticCyclePerTurn(
         value_init=450e9,
@@ -46,7 +47,9 @@ def main():
     drift1 = DriftSimple(
         orbit_length=26658.883,
     )
-    drift1.transition_gamma = 55.759505
+    drift1.momentum_compaction_factor = momentum_compaction_factor(
+        transition_gamma=55.759505
+    )
     beam1 = EmptyBeam(
         intensity=1e9,
         particle_type=proton,
