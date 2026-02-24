@@ -375,11 +375,11 @@ class SynchrotronRadiationMaster(Schedulable):
             Averaged bending radius along the ring, in [m].
         """
         if ring.radiation_integrals is not None:
+            ring.assert_radiation_integrals()
             self._user_warning_set_radiation_integrals(
                 radiation_integrals=radiation_integrals,
                 bending_radius=bending_radius,
             )
-
         else:
             integrals_to_use = self._radiation_integrals_internal_setter(
                 ring=ring,

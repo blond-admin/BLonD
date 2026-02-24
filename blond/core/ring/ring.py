@@ -348,6 +348,59 @@ class Ring(Preparable):
         """
         return self.elements.get_sections_orbit_length()
 
+    def assert_radiation_integrals(
+        self,
+        rtol: float = 1e-5,
+    ):
+        """
+        Verify that the ring radiation integrals match drifts'.
+
+        This method checks that the sum of all drift radiation integrals equals the
+        ring's radiation integrals if all drifts hold radiation integrals.
+        Use this function to validate your ring configuration for synchrotron
+        radiation simulation.
+
+        This function is automatically called by the
+        SynchrotronRadiationMaster class when setting the radiation
+        integrals.
+
+        Parameters
+        ----------
+        rtol
+            The relative tolerance for the comparison.
+            Default is 1e-5.
+
+        Raises
+        ------
+        AssertionError
+            If the ring's radiation integrals differ from the sun of the
+            drifts' radiation integrals.
+        """
+        from blond.physics.drifts import DriftBaseClass
+
+        all_drifts = self.elements.get_elements(
+            DriftBaseClass, recursive=False
+        )
+
+        drift_list_ = (
+            drift.radiation_integrals is not None for drift in all_drifts
+        )
+        drifts_with_radiation_integrals = any(drift_list_)
+        if drifts_with_radiation_integrals:
+            use_radiation_integrals_from_drifts = all(drift_list_)
+            if use_radiation_integrals_from_drifts:
+                total_radiation_integrals_from_drifts = sum(
+                    drift.radiation_integrals for drift in all_drifts
+                )
+                assert np.allclose(
+                    self.radiation_integrals,
+                    total_radiation_integrals_from_drifts,
+                    rtol=rtol,
+                ), (
+                    "Ring radiation integrals do not match the "
+                    "contribution of the drifts."
+                )
+
     def assert_circumference(
         self,
         atol: float = 1e-6,

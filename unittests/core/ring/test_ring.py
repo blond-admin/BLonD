@@ -633,6 +633,27 @@ class TestRing(unittest.TestCase):
             SR_ring.radiation_integrals, radiation_integrals
         )
 
+    def test_assert_radiation_integrals(self):
+        radiation_integrals = np.array(
+            [
+                0.646747216157,
+                0.0005936549319,
+                5.6814536525e-08,
+                5.92870407301e-09,
+                1.71368060083e-11,
+            ]
+        )
+        SR_ring = Ring(10.0, radiation_integrals=radiation_integrals)
+        SR_ring.add_drifts(n_drifts_per_section=2, n_sections=1)
+        SR_ring.assert_radiation_integrals()
+
+        SR_ring.elements.elements[0]._radiation_integrals = radiation_integrals
+        SR_ring.assert_radiation_integrals()
+
+        SR_ring.elements.elements[1]._radiation_integrals = radiation_integrals
+        with self.assertRaises(AssertionError):
+            SR_ring.assert_radiation_integrals()
+
 
 if __name__ == "__main__":
     unittest.main()
