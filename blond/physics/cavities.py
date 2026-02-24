@@ -211,8 +211,6 @@ class RFStationBaseClass(
         # cavity feedbacks get updated.
         self._dphi_rf_next: NumpyArray | float | None = None
 
-        self._use_synchrotron_radiation: bool = False
-
         self.voltage: NumpyArray | float | None = None
         self.harmonic: NumpyArray | float | None = None
 
@@ -291,9 +289,6 @@ class RFStationBaseClass(
         super().on_init_simulation(simulation=simulation)
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
-
-        if self._ring.radiation_integrals is not None:
-            self._use_synchrotron_radiation = True
 
         if (self.voltage is None) and "voltage" not in self.schedules:
             raise ValueError(
@@ -643,7 +638,7 @@ class RFStationBaseClass(
             reference_time=float(beam.reference.time),
             particle_type=beam.particle_type,
         )
-        if self._use_synchrotron_radiation:
+        if self._ring.radiation_integrals is not None:
             energy_loss_per_turn = calculate_energy_loss_per_turn(
                 energy=target_total_energy,
                 radiation_integrals=self._ring.radiation_integrals,
