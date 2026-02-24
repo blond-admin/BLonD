@@ -10,6 +10,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    momentum_compaction_factor,
 )
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.beam.base import BeamBaseClass
@@ -507,39 +508,57 @@ class TestRing(unittest.TestCase):
         self.ring._circumference = 129
         from blond.testing.mocks import drift_simple_mock
 
-        drift_simple_mock.transition_gamma = 42
+        momentum_compaction_factor_ = momentum_compaction_factor(
+            transition_gamma=42
+        )
+        drift_simple_mock.momentum_compaction_factor = (
+            momentum_compaction_factor_
+        )
         drift_simple_mock.orbit_length = 12
         drift_simple_mock.section_index = 0
 
         self.ring.add_element(drift_simple_mock, deepcopy=True)
         self.ring.add_element(drift_simple_mock, deepcopy=True)
 
-        self.assertEqual(self.ring.average_transition_gamma, 42)
+        self.assertEqual(self.ring.transition_gamma, 42)
 
     def test_average_transition_gamma2(self):
         self.ring._circumference = 129
         from blond.testing.mocks import drift_simple_mock
 
-        drift_simple_mock.transition_gamma = 20
+        drift_simple_mock.momentum_compaction_factor = 20
         drift_simple_mock.orbit_length = 12
         drift_simple_mock.section_index = 0
 
         self.ring.add_element(drift_simple_mock, deepcopy=True)
 
-        drift_simple_mock.transition_gamma = 40
+        drift_simple_mock.momentum_compaction_factor = 40
         drift_simple_mock.orbit_length = 12
         drift_simple_mock.section_index = 0
 
         self.ring.add_element(drift_simple_mock, deepcopy=True)
 
-        self.assertEqual(self.ring.average_transition_gamma, 30)
+        self.assertEqual(self.ring.momentum_compaction_factor, 30)
 
     def test_is_below_transition(self):
         from blond.testing.mocks import beam_mock
 
         ring = Ring(circumference=123)
-        ring.add_element(DriftSimple(orbit_length=100, transition_gamma=123))
-        ring.add_element(DriftSimple(orbit_length=23, transition_gamma=123))
+        momentum_compaction_factor_ = momentum_compaction_factor(
+            transition_gamma=123
+        )
+        ring.add_element(
+            DriftSimple(
+                orbit_length=100,
+                momentum_compaction_factor=momentum_compaction_factor_,
+            )
+        )
+        ring.add_element(
+            DriftSimple(
+                orbit_length=23,
+                momentum_compaction_factor=momentum_compaction_factor_,
+            )
+        )
         beam_mock.reference.gamma = 122
         self.assertTrue(ring.is_below_transition(beam=beam_mock))
 
@@ -552,20 +571,30 @@ class TestRing(unittest.TestCase):
 
     def test_non_mandatory_element_checking_drifts(self):
         ring = Ring(circumference=300, check_section_indices=False)
+        momentum_compaction_factor_ = momentum_compaction_factor(
+            transition_gamma=123
+        )
+
         ring.add_element(
             DriftSimple(
-                orbit_length=100, transition_gamma=123, section_index=0
+                orbit_length=100,
+                momentum_compaction_factor=momentum_compaction_factor_,
+                section_index=0,
             )
         )
         ring.add_element(
             DriftSimple(
-                orbit_length=100, transition_gamma=123, section_index=0
+                orbit_length=100,
+                momentum_compaction_factor=momentum_compaction_factor_,
+                section_index=0,
             )
         )
         # two drifts should cause a problem in the same section
         ring.add_element(
             DriftSimple(
-                orbit_length=100, transition_gamma=123, section_index=1
+                orbit_length=100,
+                momentum_compaction_factor=momentum_compaction_factor_,
+                section_index=1,
             )
         )
 
@@ -582,6 +611,10 @@ class TestRing(unittest.TestCase):
 
     def test_non_mandatory_element_checking_kicks(self):
         ring = Ring(circumference=200, check_section_indices=False)
+        momentum_compaction_factor_ = momentum_compaction_factor(
+            transition_gamma=123
+        )
+
         ring.add_element(
             SingleHarmonicRFStation(
                 voltage=1, phi_rf=1, harmonic=1, section_index=0
@@ -595,12 +628,16 @@ class TestRing(unittest.TestCase):
         # two kicks should cause a problem in the same section
         ring.add_element(
             DriftSimple(
-                orbit_length=100, transition_gamma=123, section_index=0
+                orbit_length=100,
+                momentum_compaction_factor=momentum_compaction_factor_,
+                section_index=0,
             )
         )
         ring.add_element(
             DriftSimple(
-                orbit_length=100, transition_gamma=123, section_index=1
+                orbit_length=100,
+                momentum_compaction_factor=momentum_compaction_factor_,
+                section_index=1,
             )
         )
 

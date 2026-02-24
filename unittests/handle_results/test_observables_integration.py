@@ -11,6 +11,7 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     uranium_29,
 )
 from blond.handle_results.observables import (
@@ -49,7 +50,10 @@ class TestObservables(unittest.TestCase):
             profile=static_profile_01,
         )
         drift = DriftSimple(
-            orbit_length=ring.circumference, transition_gamma=1.2
+            orbit_length=ring.circumference,
+            momentum_compaction_factor=momentum_compaction_factor(
+                transition_gamma=1.2
+            ),
         )
         rf_station = SingleHarmonicRFStation(voltage=1e6, phi_rf=0, harmonic=1)
 

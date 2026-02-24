@@ -25,6 +25,7 @@ from blond import (
     StaticProfile,
     WakeField,
     backend,
+    momentum_compaction_factor,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCycleBase
@@ -60,7 +61,10 @@ class Main:
         )
         one_turn_execution_order = (
             DriftSimple(
-                orbit_length=1.0 * my_ring.circumference, transition_gamma=21
+                orbit_length=1.0 * my_ring.circumference,
+                momentum_compaction_factor=momentum_compaction_factor(
+                    transition_gamma=21
+                ),
             ),
             rf_station,
             WakeField(
