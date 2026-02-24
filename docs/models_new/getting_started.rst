@@ -57,7 +57,7 @@ Drift sections represent regions without RF stations:
     from blond import DriftSimple
 
     drift1 = DriftSimple(orbit_length=26658.883)
-    drift1.transition_gamma = 55.759505
+    drift1.momentum_compaction_factor = momentum_compaction_factor(transition_gamma=55.759505)
 
 Setting Up the Energy Cycle
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -574,7 +574,7 @@ Here is the complete example putting it all together:
     )
 
     drift1 = DriftSimple(orbit_length=26658.883)
-    drift1.transition_gamma = 55.759505
+    drift1.momentum_compaction_factor = momentum_compaction_factor(transition_gamma=55.759505)
 
     beam1 = Beam(intensity=1e9, particle_type=proton)
 
