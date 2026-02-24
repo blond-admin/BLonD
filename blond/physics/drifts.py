@@ -110,16 +110,6 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         -------
         radiation_integrals
             Synchrotron radiation integrals.
-
-        References
-        ----------
-        Further information on synchrotron radiation damping and quantum excitation
-        can be found in:
-        - H. Wiedemann, Synchrotron Radiation, Springer, 2003
-        - S.Y. Lee, Accelerator Physics, World Scientific, Third edition,
-        2014 #check date
-        - A. Wolski, Introduction to Beam Dynamics in High-Energy Electron Storage
-        Rings, Morgan & Claypool Publishers, 2018
         """
         return self._radiation_integrals
 
