@@ -126,7 +126,11 @@ beam = make_multibunch_beam(
 )
 
 sim.profiling(
-    beams=beam, n_turns=10, sortby=SortKey.CUMULATIVE, start_turn_i=2
+    beams=beam,
+    n_turns=10,
+    sortby=SortKey.CUMULATIVE,
+    start_turn_i=2,
+    print_n_lines=25,
 )
 
 
@@ -149,8 +153,8 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
 
 my_callback.each_turn_i = 10
 
-sim.run_simulation(
+"""sim.run_simulation(
     beams=beam,
     n_turns=3000,
     callbacks=my_callback,
-)
+)"""

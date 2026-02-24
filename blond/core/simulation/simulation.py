@@ -184,6 +184,7 @@ class Simulation(Preparable):
         n_turns: int | float,
         start_turn_i: int = 0,
         sortby: SortKey = SortKey.CUMULATIVE,
+        print_n_lines=None,
     ) -> None:
         """
         Profile the simulation to identify performance bottlenecks.
@@ -208,6 +209,8 @@ class Simulation(Preparable):
                 - SortKey.CUMULATIVE: Sort by cumulative time (default, most useful)
                 - SortKey.TIME: Sort by internal time
                 - SortKey.CALLS: Sort by call count
+        print_n_lines
+            Number of lines of the performance report to print.
 
         See Also
         --------
@@ -275,7 +278,7 @@ class Simulation(Preparable):
         pr.disable()
         s = io.StringIO()
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        ps.print_stats()
+        ps.print_stats(print_n_lines)
         print(s.getvalue())
 
     def plot_potential_well_empiric(
