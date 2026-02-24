@@ -56,6 +56,7 @@ class Ring(Preparable):
         Default is True.
     radiation_integrals
             Synchrotron radiation integrals.
+            Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
     """
 
     def __init__(

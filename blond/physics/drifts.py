@@ -81,6 +81,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         Section index to group elements into sections.
     radiation_integrals
         Synchrotron radiation integrals.
+        Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
     **kwargs
         Additional keyword arguments for MRO of fused elements.
     """
@@ -186,6 +187,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         Section index to group elements into sections.
     radiation_integrals
         Synchrotron radiation integrals.
+        Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
     transition_gamma
         Gamma of transition crossing.
     momentum_compaction_factor
