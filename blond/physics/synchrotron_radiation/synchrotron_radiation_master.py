@@ -375,7 +375,6 @@ class SynchrotronRadiationMaster(Schedulable):
             Averaged bending radius along the ring, in [m].
         """
         if ring.radiation_integrals is not None:
-            self._radiation_integrals = ring.radiation_integrals.copy()
             self._user_warning_set_radiation_integrals(
                 radiation_integrals=radiation_integrals,
                 bending_radius=bending_radius,
