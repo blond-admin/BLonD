@@ -148,7 +148,7 @@ class Specials(ABC):
         acceleration_kick: float,
     ) -> None:
         raise NotImplementedError(
-            "Abstract method `kick_induced_voltage` is not implemented."
+            "Abstract method `kick_interpolated` is not implemented."
         )
 
     @staticmethod

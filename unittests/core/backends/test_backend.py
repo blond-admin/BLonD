@@ -443,7 +443,7 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @pytest.mark.backend_mutation
-    def test_kick_induced_voltage(self) -> None:
+    def test_kick_interpolated(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:

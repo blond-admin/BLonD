@@ -6,8 +6,8 @@ from blond.core.backends.python.callables import PythonSpecials
 
 
 class TestPythonSpecials(unittest.TestCase):
-    def test_kick_induced_voltage(self):
-        kick_induced_voltage = PythonSpecials().kick_interpolated
+    def test_kick_interpolated(self):
+        kick_interpolated = PythonSpecials().kick_interpolated
 
         dt = np.linspace(-50, 50, 20)
         dE = np.zeros_like(dt)
@@ -15,7 +15,7 @@ class TestPythonSpecials(unittest.TestCase):
         voltage = bin_centers**2
         charge = 10.0
         acceleration_kick = 0
-        kick_induced_voltage(
+        kick_interpolated(
             dt=dt,
             dE=dE,
             voltage=voltage,
