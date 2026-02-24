@@ -27,9 +27,10 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     proton,
 )
 
@@ -50,7 +51,7 @@ def simulate_BLonD3():
         value=sync_momentum,
         reference_particle=proton,
     )
-    cavity1 = SingleHarmonicCavity()
+    cavity1 = SingleHarmonicRFStation()
     cavity1.harmonic = 1
     cavity1.voltage = 8e3
     cavity1.phi_rf = np.pi
@@ -58,7 +59,7 @@ def simulate_BLonD3():
     drift = DriftSimple(
         orbit_length=ring.circumference,
     )
-    drift.transition_gamma = 4.4
+    drift.momentum_compaction_factor = momentum_compaction_factor(4.4)
     beam1 = Beam(
         intensity=1e11,
         particle_type=proton,

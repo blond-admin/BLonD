@@ -52,10 +52,11 @@ __all__ = [
     "DriftObservation",
     "SimulationObservation",
     "make_multibunch_beam",
+    "momentum_compaction_factor",
     "EquidistantMultiProfile",
 ]
 
-
+from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
 from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.core.backends.backend import (

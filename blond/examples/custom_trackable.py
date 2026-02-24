@@ -16,6 +16,7 @@ from blond import (
     Simulation,
     UserDefinedElement,
     backend,
+    momentum_compaction_factor,
     proton,
 )
 from blond.core.beam.base import BeamBaseClass
@@ -34,7 +35,12 @@ def main():
     ring = Ring(circumference=42)
     ring.add_element(TimeRandomizer())
     ring.add_element(
-        DriftSimple(orbit_length=ring.circumference, transition_gamma=12)
+        DriftSimple(
+            orbit_length=ring.circumference,
+            momentum_compaction_factor=momentum_compaction_factor(
+                transition_gamma=12
+            ),
+        )
     )
     sim = Simulation(
         ring=ring,

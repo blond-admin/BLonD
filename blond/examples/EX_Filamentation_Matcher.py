@@ -20,6 +20,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    momentum_compaction_factor,
     proton,
 )
 from blond.experimental import FilamentationMatcher
@@ -36,7 +37,9 @@ def main():
     voltage1 = 2e6  # RF voltage, station 1 [eV]
     voltage2 = 4e6  # RF voltage, station 1 [eV]
     phi_rf = 0  # Phase modulation/offset
-    transition_gamma = 55.759505  # Transition gamma
+    momentum_compaction_factor_ = momentum_compaction_factor(
+        transition_gamma=55.759505
+    )
 
     energy_cycle = ConstantMagneticCycle(
         value=p_s,
@@ -56,7 +59,7 @@ def main():
 
     one_turn_execution_order = (
         DriftSimple(
-            transition_gamma=transition_gamma,
+            momentum_compaction_factor=momentum_compaction_factor_,
             orbit_length=0.3 * ring.circumference,
             section_index=0,
         ),
@@ -68,7 +71,7 @@ def main():
         ),
         observation,
         DriftSimple(
-            transition_gamma=transition_gamma,
+            momentum_compaction_factor=momentum_compaction_factor_,
             orbit_length=0.7 * ring.circumference,
             section_index=1,
         ),
