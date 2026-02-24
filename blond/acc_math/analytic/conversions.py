@@ -565,18 +565,26 @@ def magnetic_rigidity_to_momentum(
 def beta_to_gamma(
     beta: float | NumpyArray | CupyArray,
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert relativistic beta to gamma.
 
     Parameters
     ----------
     beta
-        Relativistic beta.
+        Relativistic beta :math:`\beta`.
 
     Returns
     -------
     gamma
-        Relativistic gamma.
+        Relativistic Lorentz factor :math:`\gamma`.
+
+    Notes
+    -----
+    The Lorentz factor is calculated as:
+
+    .. math::
+
+        \gamma = \frac{1}{\sqrt{1 - \beta^2}}
     """
     return 1 / np.sqrt(1 - beta * beta)
 
@@ -584,18 +592,26 @@ def beta_to_gamma(
 def gamma_to_beta(
     gamma: float | NumpyArray | CupyArray,
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert relativistic gamma to beta.
 
     Parameters
     ----------
     gamma
-        Relativistic gamma.
+        Relativistic Lorentz factor :math:`\gamma`.
 
     Returns
     -------
     beta
-        Relativistic beta.
+        Relativistic beta :math:`\beta`.
+
+    Notes
+    -----
+    The relativistic beta is calculated as:
+
+    .. math::
+
+        \beta = \sqrt{1 - \frac{1}{\gamma^2}}
     """
     return np.sqrt(1 - 1 / gamma**2)
 
@@ -603,20 +619,30 @@ def gamma_to_beta(
 def frev_to_beta(
     frev: float | NumpyArray | CupyArray, circumference: float
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert revolution frequency to relativistic beta.
 
     Parameters
     ----------
     frev
-        Revolution frequency in [Hz].
+        Revolution frequency :math:`f_{\text{rev}}` in [Hz].
     circumference
-        Accelerator circumference in [m].
+        Accelerator circumference :math:`C` in [m].
 
     Returns
     -------
-    gamma
-        Relativistic gamma.
+    beta
+        Relativistic beta :math:`\beta`.
+
+    Notes
+    -----
+    The relativistic beta is calculated as:
+
+    .. math::
+
+        \beta = \frac{C \cdot f_{\text{rev}}}{c}
+
+    where :math:`c` is the speed of light in vacuum.
     """
     return circumference * frev / c0
 
@@ -624,20 +650,30 @@ def frev_to_beta(
 def beta_to_frev(
     beta: float | NumpyArray | CupyArray, circumference: float
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert relativistic beta to revolution frequency.
 
     Parameters
     ----------
     beta
-        Relativistic beta.
+        Relativistic beta :math:`\beta`.
     circumference
-        Accelerator circumference in [m].
+        Accelerator circumference :math:`C` in [m].
 
     Returns
     -------
     frev
-        Revolution frequency in [Hz].
+        Revolution frequency :math:`f_{\text{rev}}` in [Hz].
+
+    Notes
+    -----
+    The revolution frequency is calculated as:
+
+    .. math::
+
+        f_{\text{rev}} = \frac{\beta \cdot c}{C}
+
+    where :math:`c` is the speed of light in vacuum.
     """
     return (beta * c0) / circumference
 
@@ -645,20 +681,30 @@ def beta_to_frev(
 def beta_to_trev(
     beta: float | NumpyArray | CupyArray, circumference: float
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert relativistic beta to revolution period.
 
     Parameters
     ----------
     beta
-        Relativistic beta.
+        Relativistic beta :math:`\beta`.
     circumference
-        Accelerator circumference in [m].
+        Accelerator circumference :math:`C` in [m].
 
     Returns
     -------
     trev
-        Revolution period in [s].
+        Revolution period :math:`T_{\text{rev}}` in [s].
+
+    Notes
+    -----
+    The revolution period is calculated as:
+
+    .. math::
+
+        T_{\text{rev}} = \frac{C}{\beta \cdot c}
+
+    where :math:`c` is the speed of light in vacuum.
     """
     return circumference / (beta * c0)
 
@@ -666,20 +712,28 @@ def beta_to_trev(
 def momentum_to_beta(
     momentum: float | NumpyArray | CupyArray, rest_mass: float
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert momentum to relativistic beta.
 
     Parameters
     ----------
     momentum
-        Momentum in [eV/c].
+        Momentum :math:`p` in [eV/c].
     rest_mass
-        Particle rest mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
-    trev
-        Revolution period in [s].
+    beta
+        Relativistic beta :math:`\beta`.
+
+    Notes
+    -----
+    The relativistic beta is calculated as:
+
+    .. math::
+
+        \beta = \frac{1}{\sqrt{1 + \frac{m_0^2}{p^2}}}
     """
     return 1 / np.sqrt(1 + rest_mass**2 / momentum**2)
 
@@ -687,20 +741,28 @@ def momentum_to_beta(
 def momentum_to_gamma(
     momentum: float | NumpyArray | CupyArray, rest_mass: float
 ) -> float | NumpyArray | CupyArray:
-    """
-    Convert momentum to relativistic beta.
+    r"""
+    Convert momentum to relativistic gamma.
 
     Parameters
     ----------
     momentum
-        Momentum in [eV/c].
+        Momentum :math:`p` in [eV/c].
     rest_mass
-        Particle rest mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     gamma
-        Relativistic gamma.
+        Relativistic Lorentz factor :math:`\gamma`.
+
+    Notes
+    -----
+    The Lorentz factor is calculated as:
+
+    .. math::
+
+        \gamma = \sqrt{\frac{p^2}{m_0^2} + 1}
     """
     return np.sqrt((momentum / rest_mass) ** 2 + 1)
 
@@ -710,22 +772,33 @@ def momentum_to_frev(
     circumference: float,
     rest_mass: float,
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert momentum to revolution frequency.
 
     Parameters
     ----------
     momentum
-        Momentum in [eV/c].
+        Momentum :math:`p` in [eV/c].
     circumference
-        Accelerator circumference in [m].
+        Accelerator circumference :math:`C` in [m].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     frev
-        Revolution frequency in [Hz].
+        Revolution frequency :math:`f_{\text{rev}}` in [Hz].
+
+    Notes
+    -----
+    The revolution frequency is calculated as:
+
+    .. math::
+
+        f_{\text{rev}} = \frac{\beta(p) \cdot c}{C}
+
+    where :math:`\beta(p) = 1 / \sqrt{1 + m_0^2 / p^2}` and :math:`c` is
+    the speed of light in vacuum.
     """
     beta = momentum_to_beta(momentum, rest_mass)
     return beta_to_frev(beta, circumference)
@@ -736,22 +809,33 @@ def momentum_to_trev(
     circumference: float,
     rest_mass: float,
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert momentum to revolution period.
 
     Parameters
     ----------
     momentum
-        Momentum in [eV/c].
+        Momentum :math:`p` in [eV/c].
     circumference
-        Accelerator circumference in [m].
+        Accelerator circumference :math:`C` in [m].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     trev
-        Revolution period in [s].
+        Revolution period :math:`T_{\text{rev}}` in [s].
+
+    Notes
+    -----
+    The revolution period is calculated as:
+
+    .. math::
+
+        T_{\text{rev}} = \frac{C}{\beta(p) \cdot c}
+
+    where :math:`\beta(p) = 1 / \sqrt{1 + m_0^2 / p^2}` and :math:`c` is
+    the speed of light in vacuum.
     """
     beta = momentum_to_beta(momentum, rest_mass)
     return beta_to_trev(beta, circumference)
@@ -760,20 +844,29 @@ def momentum_to_trev(
 def momentum_to_total_energy(
     momentum: float | NumpyArray | CupyArray, rest_mass: float
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert momentum to total energy.
 
     Parameters
     ----------
     momentum
-        Momentum in [eV/c].
+        Momentum :math:`p` in [eV/c].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     total_energy
-        Total energy in [eV].
+        Total energy :math:`E` in [eV].
+
+    Notes
+    -----
+    The total energy is calculated from the relativistic energy-momentum
+    relation:
+
+    .. math::
+
+        E = \sqrt{m_0^2 + p^2}
     """
     return np.sqrt(rest_mass**2 + momentum**2)
 
@@ -781,20 +874,28 @@ def momentum_to_total_energy(
 def momentum_to_kinetic_energy(
     momentum: float | NumpyArray | CupyArray, rest_mass: float
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert momentum to kinetic energy.
 
     Parameters
     ----------
     momentum
-        Momentum in [eV/c].
+        Momentum :math:`p` in [eV/c].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     kinetic_energy
-        Kinetic energy in [eV].
+        Kinetic energy :math:`E_k` in [eV].
+
+    Notes
+    -----
+    The kinetic energy is calculated as:
+
+    .. math::
+
+        E_k = \sqrt{m_0^2 + p^2} - m_0
     """
     return np.sqrt(rest_mass**2 + momentum**2) - rest_mass
 
@@ -804,22 +905,32 @@ def momentum_to_magnetic_field(
     bending_radius: float,
     charge: int,
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert momentum to magnetic field.
 
     Parameters
     ----------
     momentum
-        Momentum in [eV/c].
+        Momentum :math:`p` in [eV/c].
     bending_radius
-        Bending radius in [m].
+        Bending radius :math:`\rho` in [m].
     charge
-        Particle charge in [e].
+        Particle charge :math:`q` in [e].
 
     Returns
     -------
     magnetic_field
-        Magnetic field in [T].
+        Magnetic field :math:`B` in [T].
+
+    Notes
+    -----
+    The magnetic field is calculated as:
+
+    .. math::
+
+        B = \frac{p}{\rho \cdot q \cdot c}
+
+    where :math:`c` is the speed of light in vacuum.
     """
     return momentum / (bending_radius * charge * c0)
 
@@ -827,20 +938,29 @@ def momentum_to_magnetic_field(
 def total_energy_to_momentum(
     total_energy: float | NumpyArray | CupyArray, rest_mass: float
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert total energy to momentum.
 
     Parameters
     ----------
     total_energy
-        Total energy in [eV].
+        Total energy :math:`E` in [eV].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     momentum
-        Momentum in [eV/c].
+        Momentum :math:`p` in [eV/c].
+
+    Notes
+    -----
+    The momentum is calculated from the relativistic energy-momentum
+    relation:
+
+    .. math::
+
+        p = \sqrt{E^2 - m_0^2}
     """
     return np.sqrt(total_energy**2 - rest_mass**2)
 
@@ -848,20 +968,28 @@ def total_energy_to_momentum(
 def total_energy_to_kinetic_energy(
     total_energy: float | NumpyArray | CupyArray, rest_mass: float
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert total energy to kinetic energy.
 
     Parameters
     ----------
     total_energy
-        Total energy in [eV].
+        Total energy :math:`E` in [eV].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     kinetic_energy
-        Kinetic energy in [eV].
+        Kinetic energy :math:`E_k` in [eV].
+
+    Notes
+    -----
+    The kinetic energy is calculated as:
+
+    .. math::
+
+        E_k = E - m_0
     """
     return total_energy - rest_mass
 
@@ -872,24 +1000,34 @@ def total_energy_to_magnetic_field(
     charge: int,
     rest_mass: float,
 ) -> float | NumpyArray | CupyArray:
-    """
-    Convert momentum to magnetic field.
+    r"""
+    Convert total energy to magnetic field.
 
     Parameters
     ----------
     total_energy
-        Total energy in [eV].
+        Total energy :math:`E` in [eV].
     bending_radius
-        Bending radius in [m].
+        Bending radius :math:`\rho` in [m].
     charge
-        Particle charge in [e].
+        Particle charge :math:`q` in [e].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     magnetic_field
-        Magnetic field in [T].
+        Magnetic field :math:`B` in [T].
+
+    Notes
+    -----
+    The magnetic field is calculated as:
+
+    .. math::
+
+        B = \frac{\sqrt{E^2 - m_0^2}}{\rho \cdot q \cdot c}
+
+    where :math:`c` is the speed of light in vacuum.
     """
     return np.sqrt(total_energy**2 - rest_mass**2) / (
         bending_radius * charge * c0
@@ -899,20 +1037,28 @@ def total_energy_to_magnetic_field(
 def total_energy_to_beta(
     total_energy: float | NumpyArray | CupyArray, rest_mass: float
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert total energy to relativistic beta.
 
     Parameters
     ----------
     total_energy
-        Total energy in [eV].
+        Total energy :math:`E` in [eV].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     beta
-        Relativistic beta.
+        Relativistic beta :math:`\beta`.
+
+    Notes
+    -----
+    The relativistic beta is calculated as:
+
+    .. math::
+
+        \beta = \frac{1}{\sqrt{1 + \frac{m_0^2}{E^2 - m_0^2}}}
     """
     return 1 / np.sqrt(1 + rest_mass**2 / (total_energy**2 - rest_mass**2))
 
@@ -920,20 +1066,28 @@ def total_energy_to_beta(
 def total_energy_to_gamma(
     total_energy: float | NumpyArray | CupyArray, rest_mass: float
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert total energy to relativistic gamma.
 
     Parameters
     ----------
     total_energy
-        Total energy in [eV].
+        Total energy :math:`E` in [eV].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     gamma
-        Relativistic gamma.
+        Relativistic Lorentz factor :math:`\gamma`.
+
+    Notes
+    -----
+    The Lorentz factor is calculated as:
+
+    .. math::
+
+        \gamma = \sqrt{\frac{E^2 - m_0^2}{m_0^2} + 1} = \frac{E}{m_0}
     """
     return np.sqrt((total_energy**2 - rest_mass**2) / rest_mass**2 + 1)
 
@@ -941,20 +1095,28 @@ def total_energy_to_gamma(
 def kinetic_energy_to_momentum(
     kinetic_energy: float | NumpyArray | CupyArray, rest_mass: float
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert kinetic energy to momentum.
 
     Parameters
     ----------
     kinetic_energy
-        Kinetic energy in [eV].
+        Kinetic energy :math:`E_k` in [eV].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     momentum
-        Momentum in [eV/c].
+        Momentum :math:`p` in [eV/c].
+
+    Notes
+    -----
+    The momentum is calculated as:
+
+    .. math::
+
+        p = \sqrt{(m_0 + E_k)^2 - m_0^2}
     """
     return np.sqrt((rest_mass + kinetic_energy) ** 2 - rest_mass**2)
 
@@ -962,20 +1124,28 @@ def kinetic_energy_to_momentum(
 def kinetic_energy_to_total_energy(
     kinetic_energy: float | NumpyArray | CupyArray, rest_mass: float
 ) -> float | NumpyArray | CupyArray:
-    """
-    Convert kinetic energy to momentum.
+    r"""
+    Convert kinetic energy to total energy.
 
     Parameters
     ----------
     kinetic_energy
-        Kinetic energy in [eV].
+        Kinetic energy :math:`E_k` in [eV].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     total_energy
-        Total energy in [eV].
+        Total energy :math:`E` in [eV].
+
+    Notes
+    -----
+    The total energy is calculated as:
+
+    .. math::
+
+        E = E_k + m_0
     """
     return kinetic_energy + rest_mass
 
@@ -986,24 +1156,34 @@ def kinetic_energy_to_magnetic_field(
     charge: int,
     rest_mass: float,
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert kinetic energy to magnetic field.
 
     Parameters
     ----------
     kinetic_energy
-        Kinetic energy in [eV].
+        Kinetic energy :math:`E_k` in [eV].
     bending_radius
-        Bending radius in [m].
+        Bending radius :math:`\rho` in [m].
     charge
-        Particle change in [e].
+        Particle charge :math:`q` in [e].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     magnetic_field
-        Magnetic field in [T].
+        Magnetic field :math:`B` in [T].
+
+    Notes
+    -----
+    The magnetic field is calculated as:
+
+    .. math::
+
+        B = \frac{\sqrt{(m_0 + E_k)^2 - m_0^2}}{\rho \cdot q \cdot c}
+
+    where :math:`c` is the speed of light in vacuum.
     """
     return np.sqrt((rest_mass + kinetic_energy) ** 2 - rest_mass**2) / (
         bending_radius * charge * c0
@@ -1015,22 +1195,32 @@ def magnetic_field_to_momentum(
     bending_radius: float,
     charge: int,
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert magnetic field to momentum.
 
     Parameters
     ----------
     magnetic_field
-        Magnetic field in [T].
+        Magnetic field :math:`B` in [T].
     bending_radius
-        Bending radius in [m].
+        Bending radius :math:`\rho` in [m].
     charge
-        Particle change in [e].
+        Particle charge :math:`q` in [e].
 
     Returns
     -------
     momentum
-        Momentum in [eV/c].
+        Momentum :math:`p` in [eV/c].
+
+    Notes
+    -----
+    The momentum is calculated as:
+
+    .. math::
+
+        p = B \cdot \rho \cdot q \cdot c
+
+    where :math:`c` is the speed of light in vacuum.
     """
     return magnetic_field * bending_radius * charge * c0
 
@@ -1041,24 +1231,34 @@ def magnetic_field_to_total_energy(
     charge: int,
     rest_mass: float,
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert magnetic field to total energy.
 
     Parameters
     ----------
     magnetic_field
-        Magnetic field in [T].
+        Magnetic field :math:`B` in [T].
     bending_radius
-        Bending radius in [m].
+        Bending radius :math:`\rho` in [m].
     charge
-        Particle change in [e].
+        Particle charge :math:`q` in [e].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     total_energy
-        Total energy in [eV].
+        Total energy :math:`E` in [eV].
+
+    Notes
+    -----
+    The total energy is calculated as:
+
+    .. math::
+
+        E = \sqrt{(B \cdot \rho \cdot q \cdot c)^2 + m_0^2}
+
+    where :math:`c` is the speed of light in vacuum.
     """
     return np.sqrt(
         (magnetic_field * bending_radius * charge * c0) ** 2 + rest_mass**2
@@ -1071,24 +1271,34 @@ def magnetic_field_to_kinetic_energy(
     charge: int,
     rest_mass: float,
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert magnetic field to kinetic energy.
 
     Parameters
     ----------
     magnetic_field
-        Magnetic field in [T].
+        Magnetic field :math:`B` in [T].
     bending_radius
-        Bending radius in [m].
+        Bending radius :math:`\rho` in [m].
     charge
-        Particle change in [e].
+        Particle charge :math:`q` in [e].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     kinetic_energy
-        Kinetic energy in [eV].
+        Kinetic energy :math:`E_k` in [eV].
+
+    Notes
+    -----
+    The kinetic energy is calculated as:
+
+    .. math::
+
+        E_k = \sqrt{(B \cdot \rho \cdot q \cdot c)^2 + m_0^2} - m_0
+
+    where :math:`c` is the speed of light in vacuum.
     """
     return (
         np.sqrt(
@@ -1103,22 +1313,33 @@ def delta_P_to_delta_E(
     momentum: float | NumpyArray | CupyArray,
     rest_mass: float,
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert off-momentum value to off-energy value.
 
     Parameters
     ----------
     delta_P
-        Off-momentum value in [eV/c].
+        Off-momentum value :math:`\Delta p` in [eV/c].
     momentum
-        Momentum in [eV/c].
+        Momentum :math:`p` in [eV/c].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     delta_E
-        Off-energy in [eV].
+        Off-energy :math:`\Delta E` in [eV].
+
+    Notes
+    -----
+    The off-energy is calculated as:
+
+    .. math::
+
+        \Delta E = \sqrt{m_0^2 + (\Delta p + p)^2} - E
+
+    where :math:`E = \sqrt{m_0^2 + p^2}` is the total energy of the
+    reference particle.
     """
     energy = momentum_to_total_energy(momentum, rest_mass)
     return np.sqrt(rest_mass**2 + (delta_P + momentum) ** 2) - energy
@@ -1129,22 +1350,33 @@ def delta_E_to_delta_P(
     total_energy: float | NumpyArray | CupyArray,
     rest_mass: float,
 ) -> float | NumpyArray | CupyArray:
-    """
+    r"""
     Convert off-energy value to off-momentum value.
 
     Parameters
     ----------
     delta_E
-        Off-energy value in [eV/c].
+        Off-energy value :math:`\Delta E` in [eV].
     total_energy
-        Total energy in [eV].
+        Total energy :math:`E` in [eV].
     rest_mass
-        Particle mass in [eV/c^2].
+        Particle rest mass :math:`m_0` in [eV/c^2].
 
     Returns
     -------
     delta_P
-        Off-momentum in [eV/c].
+        Off-momentum :math:`\Delta p` in [eV/c].
+
+    Notes
+    -----
+    The off-momentum is calculated as:
+
+    .. math::
+
+        \Delta p = \sqrt{(E + \Delta E)^2 - m_0^2} - p
+
+    where :math:`p = \sqrt{E^2 - m_0^2}` is the momentum of the
+    reference particle.
     """
     momentum = total_energy_to_momentum(total_energy, rest_mass)
     return np.sqrt((total_energy + delta_E) ** 2 - rest_mass**2) - momentum
