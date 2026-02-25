@@ -16,6 +16,7 @@ from math import sqrt
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -57,7 +58,31 @@ class DistributedArray:
             self._size = self._comm.Get_size()
             self._is_distributed = self._size > 1
 
-        self._histogram_local_cache = {}
+        self._histogram_local_cache: dict[int, NumpyArray | CupyArray] = {}
+
+    def get_cpu_copy_of_local_array(self) -> NumpyArray:
+        """
+        Get a copy of the local array, guaranteed to be in the CPU-RAM.
+
+        Returns
+        -------
+        array_local_cpu
+             A copy of the local array, guaranteed to be in the CPU-RAM.
+        """
+        return copy_to_cpu(self.array_local)
+
+    def get_gpu_copy_of_local_array(self) -> CupyArray:
+        """
+        Get a copy of the local array, guaranteed to be in the GPU-RAM.
+
+        Returns
+        -------
+        array_local_gpu
+            A copy of the local array, guaranteed to be in the GPU-RAM.
+        """
+        import cupy as cp  # this will fail if cupy is not available
+
+        return cp.array(self.array_local, copy=True)
 
     @property
     def is_distributed(self):
