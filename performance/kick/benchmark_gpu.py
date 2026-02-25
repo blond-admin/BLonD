@@ -25,7 +25,7 @@ def main():
         butils_wrap_cupy.rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers)
         cuda.Device().synchronize()
         t1 = time.time()
-        print(t1 - t0, f"s ({n_rf=})" )  # will be used in `compare.py`
+        print(t1 - t0, f"s ({n_rf=})")  # will be used in `compare.py`
 
 
 if __name__ == "__main__":
