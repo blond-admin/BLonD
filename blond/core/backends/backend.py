@@ -292,6 +292,7 @@ class BackendBaseClass(ABC):
         self.ones: Callable = None  # type: ignore
         self.zeros_like: Callable = None  # type: ignore
         self.fft: ModuleType = None  # type: ignore
+        self.all: ModuleType = None  # type: ignore
         self.random: ModuleType = None  # type: ignore
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
@@ -641,6 +642,7 @@ class NumpyBackend(BackendBaseClass):
         self.ones = np.ones
         self.zeros_like = np.zeros_like
         self.fft = np.fft
+        self.all = np.all
         self.random = np.random
         self.isnan = np.isnan
         self.sum = np.sum
@@ -789,6 +791,7 @@ class CupyBackend(BackendBaseClass):
         self.ones = cp.ones
         self.zeros_like = cp.zeros_like
         self.fft = cp.fft
+        self.all = cp.all
         self.random = cp.random
         self.isnan = cp.isnan
         self.sum = cp.sum
