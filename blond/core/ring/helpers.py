@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import inspect
-from collections import defaultdict, deque
+from collections import defaultdict
 from functools import wraps
 from typing import TYPE_CHECKING
 
@@ -306,6 +306,10 @@ def _topological_sort(
     sorted_classes
         List of class names in topologically sorted order.
     """
+    # this import is here because of sphinx warning
+    # `list assignment index out of range [autodoc]`
+    from collections import deque
+
     # Initialize queue with classes that have no dependencies (in-degree 0)
     queue = deque([cls for cls in all_classes if in_degree[cls] == 0])
     sorted_classes = []  # List to store the sorted order
