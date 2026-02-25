@@ -24,6 +24,7 @@ Modules
    :maxdepth: 2
 
    models_new/getting_started
+   models_new/tab_examples
    modules/blond_main_objects
    index_math
    modules/blond

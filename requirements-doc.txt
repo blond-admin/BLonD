@@ -5,3 +5,6 @@ intersphinx_registry>0.2511
 myst-parser>4
 sphinx_autodoc_typehints>3
 pydata_sphinx_theme>0.16
+nbsphinx>=0.9
+nbconvert>=6
+ipython>5
