@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the BLonD 3 documentation!
+Welcome to the BLonD documentation!
 ===================================
 
 .. important:: The BlonD development team is actively working on a revision of the entire
