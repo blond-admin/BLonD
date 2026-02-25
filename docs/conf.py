@@ -52,7 +52,6 @@ extensions = [
     "sphinx.ext.inheritance_diagram",
     "sphinx_autodoc_typehints",
     "sphinx.ext.intersphinx",
-    "nbsphinx",
 ]
 
 autosummary_generate = True
