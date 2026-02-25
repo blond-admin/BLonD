@@ -51,10 +51,13 @@ __all__ = [
     "StaticProfile",
     "DriftObservation",
     "SimulationObservation",
+    "make_multibunch_beam",
+    "momentum_compaction_factor",
 ]
 
-
+from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
+from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.core.backends.backend import (
     Cupy32Bit,
     Cupy64Bit,

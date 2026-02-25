@@ -13,6 +13,7 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     proton,
 )
 from blond.physics.impedances.solvers import (
@@ -57,12 +58,12 @@ class TestResonatorImpedances(unittest.TestCase):
             )
             cavity1 = SingleHarmonicRFStation()
             cavity1.voltage = 0
-            cavity1.phi_rf = 0
+            cavity1.phi_rf_design = 0
             cavity1.harmonic = 1
             drift = DriftSimple(
                 orbit_length=ring.circumference,
             )
-            drift.transition_gamma = 1
+            drift.momentum_compaction_factor = momentum_compaction_factor(1)
             resonators = Resonators(
                 shunt_impedances=100 * np.ones(1),
                 center_frequencies=10 * np.ones(1),

@@ -59,7 +59,7 @@ def main():
                 orbit_length=ring.circumference,
                 momentum_compaction_factor=momentum_compaction_factor,
             )
-            print(f"{drift.transition_gamma=}")
+            print(f"{ring.transition_gamma=}")
             print(f"{drift.momentum_compaction_factor=}")
             print(f"{drift.eta_0(beam.reference.gamma)=}")
 
@@ -107,8 +107,13 @@ def main():
                 circumference=ring.circumference,
                 particle_type=test_particle,
             )
-            val = rf_station.phi_s / (2 * np.pi) * T_rev / rf_station.harmonic
-            print(f"{rf_station.phi_s=}")
+            val = (
+                rf_station.calc_phi_s_main_harmonic(beam=beam)
+                / (2 * np.pi)
+                * T_rev
+                / rf_station.harmonic
+            )
+            print(f"{rf_station.calc_phi_s_main_harmonic(beam=beam)=}")
             print(f"{T_rev=}")
             print(f"{val=}")
             plt.axvline(

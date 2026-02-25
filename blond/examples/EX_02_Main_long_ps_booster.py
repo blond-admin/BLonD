@@ -38,6 +38,7 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     proton,
 )
 from blond.handle_results.helpers import callers_relative_path
@@ -68,12 +69,14 @@ def main():
     rf_station_1 = SingleHarmonicRFStation()
     rf_station_1.harmonic = 1
     rf_station_1.voltage = 8e3
-    rf_station_1.phi_rf = np.pi
+    rf_station_1.phi_rf_design = np.pi
 
     drift = DriftSimple(
         orbit_length=ring.circumference,
     )
-    drift.transition_gamma = 4.4
+    drift.momentum_compaction_factor = momentum_compaction_factor(
+        transition_gamma=4.4
+    )
     beam1 = Beam(
         intensity=1e11,
         particle_type=proton,
