@@ -60,7 +60,7 @@ class DistributedArray:
 
         self._histogram_local_cache: dict[int, NumpyArray | CupyArray] = {}
 
-    def get_cpu_copy_of_local_array(self) -> NumpyArray:
+    def copy_to_cpu(self) -> NumpyArray:
         """
         Get a copy of the local array, guaranteed to be in the CPU-RAM.
 
@@ -69,9 +69,10 @@ class DistributedArray:
         array_local_cpu
              A copy of the local array, guaranteed to be in the CPU-RAM.
         """
+        # just a shortcut
         return copy_to_cpu(self.array_local)
 
-    def get_gpu_copy_of_local_array(self) -> CupyArray:
+    def copy_to_gpu(self) -> CupyArray:
         """
         Get a copy of the local array, guaranteed to be in the GPU-RAM.
 
@@ -80,6 +81,8 @@ class DistributedArray:
         array_local_gpu
             A copy of the local array, guaranteed to be in the GPU-RAM.
         """
+        # just a shortcut
+
         import cupy as cp  # this will fail if cupy is not available
 
         return cp.array(self.array_local, copy=True)
