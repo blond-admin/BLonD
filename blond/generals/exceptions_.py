@@ -16,6 +16,6 @@ class BLonDException(Exception):
 
 
 class UnevenArraySizes(BLonDException, ValueError):
-    """BLonD exception base class."""
+    """Exception to be raised when some array dimensions don't match."""
 
     pass
