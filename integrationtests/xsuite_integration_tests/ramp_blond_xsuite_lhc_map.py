@@ -21,11 +21,11 @@ from blond.interfaces.xsuite import BLonD3Cavity
 
 def run_simulation(n_turns: int, init_distribution: dict):
     """Xsuite and BLonD ramp."""
-    C = 26658.8832  # Machine circumference [m]
-    p_s = 450e9  # Synchronous momentum [eV/c]
+    circumference = 26658.8832
+    synchronous_momentum = 450e9
     alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
-    V = 5e6  # RF voltage [V]
-    h = 35640  # harmonic number
+    rf_voltage = 5e6
+    harmonic = 35640
 
     # Make First order matrix map (takes care of drift in Xsuite)
     matrix = xt.LineSegmentMap(
@@ -38,7 +38,7 @@ def run_simulation(n_turns: int, init_distribution: dict):
         frequency_rf=0,
         lag_rf=0,
         momentum_compaction_factor=alpha,
-        length=C,
+        length=circumference,
     )
 
     # Create line
@@ -48,7 +48,9 @@ def run_simulation(n_turns: int, init_distribution: dict):
     p0c_ramp = np.linspace(450e9, 460e9, n_turns)
     t_s = np.linspace(0, t_rev * n_turns, n_turns)
 
-    line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
+    line.particle_ref = xp.Particles(
+        p0c=synchronous_momentum, mass0=xp.PROTON_MASS_EV, q0=1.0
+    )
 
     tw = line.twiss(
         method="4d"
@@ -60,10 +62,10 @@ def run_simulation(n_turns: int, init_distribution: dict):
     # --- BLonD3Element  --- #
     cavity1 = SingleHarmonicRFStation.headless(
         section_index=1,
-        voltage=V,
-        harmonic=h,
+        voltage=rf_voltage,
+        harmonic=harmonic,
         phi_rf=0,
-        circumference=C,
+        circumference=circumference,
         total_energy=None,
         is_below_transition=None,
         beam_reference_beta=line.particle_ref.beta0,

@@ -180,7 +180,6 @@ class BLonD3Cavity:
 
             self.momentum_compaction_factor = momentum_compaction_factor
 
-
         else:
             twiss = self.line.twiss4d()
             self.momentum_compaction_factor = twiss[
@@ -217,12 +216,10 @@ class BLonD3Cavity:
         )
 
         self.beam = beam
-        # init the total energy first
+
         self.trackable._magnetic_cycle.get_target_total_energy.return_value = (
             float(self.line.particle_ref.energy0[0])
         )
-
-        # above or below transition for mocked ring
 
         eta = self.momentum_compaction_factor - (
             1 / (self.beam.reference.gamma**2)
@@ -245,13 +242,11 @@ class BLonD3Cavity:
         """
         # Convert xsuite -> blond
         # update time shift
-        self.get_time_shift()
+        self.set_time_shift()
 
-        # above or below transition for mocked ring
-        # twiss = self.line.twiss4d()
-        # momentum_compaction = twiss["momentum_compaction_factor"]
-        momentum_compaction = 0.00034849575112269696
-        eta = momentum_compaction - (1 / (self.beam.reference.gamma**2))
+        eta = self.momentum_compaction_factor - (
+            1 / (self.beam.reference.gamma**2)
+        )
         self.trackable._ring.is_below_transition.return_value = bool(eta < 0)
 
         self.xsuite_to_blond_transform_particles(particles, self.beam)
@@ -275,7 +270,7 @@ class BLonD3Cavity:
         # Convert blond -> xsuite
         self.blond_to_xsuite_transform_particles(particles, self.beam)
 
-    def get_time_shift(self):
+    def set_time_shift(self):
         """
         Calculate the time shift of the BLonD beam coordinates and Xsuite.
 
