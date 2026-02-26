@@ -5,6 +5,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.generals.distributed.helpers import mpi_barrier, mpi_is_distributed
 
 
@@ -36,6 +37,18 @@ class TestDistributedArray(unittest.TestCase):
             self.assertEqual(self.distributed_array.local_size, 128)
             self.assertFalse(self.distributed_array._is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
+
+    def test_copy_to_cpu(self):
+        array = self.distributed_array.copy_to_cpu()
+        assert array.device == "cpu"
+
+    def test_copy_to_gpu(self):
+        try:
+            import cupy  # type: ignore
+        except (ImportError, ModuleNotFoundError) as exc:  # pragma: no cover
+            self.skipTest(str(exc))
+        array = self.distributed_array.copy_to_gpu()
+        assert is_cupy_array(array)
 
     def _call_test(self, func, func_name):
         mpi_active = mpi_is_distributed()
