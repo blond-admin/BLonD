@@ -66,7 +66,7 @@ def generate_particle_coordinates(
         n_macroparticles_local,
         p=copy_to_cpu(density_grid.flatten() / np.sum(density_grid)),
     )
-    indexes = backend.array(
+    indexes = np.array(
         indexes
     )  # finally convert to the correct backend. See above why.
     time_step = time_grid[0, 1] - time_grid[0, 0]
@@ -76,21 +76,17 @@ def generate_particle_coordinates(
     # Randomize particles inside each grid cell (uniform distribution)
     # ``backend.random.triangular`` has rotational symmetry, but is
     # distributed within a square.
-    dt_local = (
+    dt_local = backend.array(
         time_grid.flatten()[indexes]
-        + backend.array(
-            random_generator_cpu.triangular(
-                left=-1, mode=0, right=1, size=n_macroparticles_local
-            )
+        + random_generator_cpu.triangular(
+            left=-1, mode=0, right=1, size=n_macroparticles_local
         )
         * time_step
     )
-    dE_local = (
+    dE_local = backend.array(
         deltaE_grid.flatten()[indexes]
-        + backend.array(
-            random_generator_cpu.triangular(
-                left=-1, mode=0, right=1, size=n_macroparticles_local
-            )
+        + random_generator_cpu.triangular(
+            left=-1, mode=0, right=1, size=n_macroparticles_local
         )
         * deltaE_step
     )

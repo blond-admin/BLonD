@@ -13,6 +13,7 @@ from blond import (
     Ring,
     Simulation,
     StaticProfile,
+    momentum_compaction_factor,
     proton,
 )
 from blond.core.backends.backend import Numpy64Bit, backend
@@ -76,7 +77,9 @@ class TestRFBeamCurrent(unittest.TestCase):
         )
         self.drift = DriftSimple(
             orbit_length=C,
-            transition_gamma=gamma_t,
+            momentum_compaction_factor=momentum_compaction_factor(
+                transition_gamma=gamma_t
+            ),
         )
         self.ring.add_elements((self.rf, self.drift))
 

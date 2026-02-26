@@ -127,7 +127,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             - The rf_station is not provided.
             - Initial beam energy is not set.
             - No `DriftSimple` elements are found in the ring.
-            - `transition_gamma` is not defined in the first drift element.
+            - `momentum_compaction_factor` is not defined in the first drift element.
         """
         # prevent crash if xpart not installed
         from xpart.longitudinal.rf_bucket import RFBucket
@@ -147,9 +147,9 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             )
         )
 
-        if drift.transition_gamma is None:
+        if drift.momentum_compaction_factor is None:
             raise ValueError(
-                "transition_gamma is not set in the first drift element."
+                "`momentum_compaction_factor` is not set in the first drift element."
             )
 
         alpha_c = drift.momentum_compaction_factor

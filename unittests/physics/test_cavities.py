@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
+import pytest
 from scipy.constants import speed_of_light as c0
 
 from blond import (
@@ -14,7 +15,7 @@ from blond import (
 from blond.acc_math.analytic.hamilton import (
     calc_synchrotron_tune_single_harmonic,
 )
-from blond.core.backends.backend import backend
+from blond.core.backends.backend import Cupy32Bit, backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
@@ -565,6 +566,30 @@ class TestCallables(unittest.TestCase):
         with self.assertRaises(ValueError):
             _assert_purely_real_or_imaginary(5 + 1j)  # Should  raise
 
+    def test_invalid_purely_real_or_imaginary_array(self):
+        _assert_purely_real_or_imaginary(np.array([1, 1j, 1]))
+        _assert_purely_real_or_imaginary(np.array([1, 1, 1]))
+        _assert_purely_real_or_imaginary(np.array([1j, 1j, 1j]))
+        with self.assertRaises(ValueError):
+            _assert_purely_real_or_imaginary(
+                np.array([1j, 1j + 1, 1j])
+            )  # Should  raise
+
+    @pytest.mark.cupy
+    def test_invalid_purely_real_or_imaginary_array(self):
+        try:
+            import cupy as cp  # type: ignore
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
+        _assert_purely_real_or_imaginary(cp.array([1, 1j, 1]))
+        _assert_purely_real_or_imaginary(cp.array([1, 1, 1]))
+        _assert_purely_real_or_imaginary(cp.array([1j, 1j, 1j]))
+        with self.assertRaises(ValueError):
+            _assert_purely_real_or_imaginary(
+                cp.array([1j, 1j + 1, 1j])
+            )  # Should  raise
+
 
 class TestMultiHarmonicCavity(unittest.TestCase):
     def setUp(self) -> None:
@@ -754,7 +779,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         self.multi_harmonic_cavity.info_string()  # just hope it executes.
 
 
-class TestSingleHarmonicCavity(unittest.TestCase):
+class TestSingleHarmonicRFStation(unittest.TestCase):
     def setUp(self) -> None:
         from blond.core.beam.base import BeamBaseClass
 
