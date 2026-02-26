@@ -17,11 +17,25 @@ from __future__ import annotations
 
 # Set up logging
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.linalg as npla
+from numpy import (
+    _NumberT,
+    bool,
+    complex128,
+    complexfloating,
+    dtype,
+    float64,
+    floating,
+    ndarray,
+    number,
+    signedinteger,
+    timedelta64,
+    unsignedinteger,
+)
 from scipy import signal as sgn
 from scipy.constants import e
 from scipy.special import comb
@@ -273,49 +287,53 @@ def rf_beam_current(
             )
 
         # Find which index in fine grid matches index in coarse grid
+
         if isinstance(profile, SparseBatch):
-            charges_coarse = np.zeros(n_points, dtype=complex)
-
+            charges_coarse = np.zeros(dtype=complex)
             for profile_per_bucket in profile.profiles_list:
-                ind_fine = np.round(
-                    (profile_per_bucket.bin_centers + dT - np.pi / omega_c)
-                    / T_s
+                charges_coarse_profile = charges_from_fine_to_coarse(
+                    T_s,
+                    charges_fine,
+                    dT,
+                    n_points,
+                    omega_c,
+                    profile_per_bucket,
                 )
-                ind_fine = np.array(ind_fine, dtype=int)
-                indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-
-                # Pick total current within one coarse grid
-
-                charges_coarse[ind_fine[0]] = np.sum(
-                    charges_fine[np.arange(indices[0])]
+                charges_coarse = np.concatenate(
+                    [charges_coarse, charges_coarse_profile]
                 )
-                for i in range(1, len(indices)):
-                    charges_coarse[i + ind_fine[0]] = np.sum(
-                        charges_fine[np.arange(indices[i - 1], indices[i])]
-                    )
-
         elif isinstance(profile, Profile):
-            ind_fine = np.round(
-                (profile.bin_centers + dT - np.pi / omega_c) / T_s
+            charges_coarse = charges_from_fine_to_coarse(
+                T_s, charges_fine, dT, n_points, omega_c, profile
             )
-            ind_fine = np.array(ind_fine, dtype=int)
-            indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-
-            # Pick total current within one coarse grid
-            charges_coarse = np.zeros(n_points, dtype=complex)
-            charges_coarse[ind_fine[0]] = np.sum(
-                charges_fine[np.arange(indices[0])]
-            )
-            for i in range(1, len(indices)):
-                charges_coarse[i + ind_fine[0]] = np.sum(
-                    charges_fine[np.arange(indices[i - 1], indices[i])]
-                )
         else:
             raise TypeError(f"Profile type {type(profile)} not supported.")
         return charges_fine, charges_coarse
 
     else:
         return charges_fine
+
+
+def charges_from_fine_to_coarse(
+    T_s: float,
+    charges_fine: ndarray,
+    dT: float,
+    n_points: int,
+    omega_c: float,
+    profile: Profile | SparseBatch,
+) -> ndarray[tuple[int], dtype[Any]]:
+    ind_fine = np.round((profile.bin_centers + dT - np.pi / omega_c) / T_s)
+    ind_fine = np.array(ind_fine, dtype=int)
+    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+
+    # Pick total current within one coarse grid
+    charges_coarse = np.zeros(n_points, dtype=complex)
+    charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
+    for i in range(1, len(indices)):
+        charges_coarse[i + ind_fine[0]] = np.sum(
+            charges_fine[np.arange(indices[i - 1], indices[i])]
+        )
+    return charges_coarse
 
 
 def comb_filter(y: NumpyArray, x: NumpyArray, a: float) -> NumpyArray:
