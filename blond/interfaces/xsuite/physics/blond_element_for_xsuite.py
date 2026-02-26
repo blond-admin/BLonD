@@ -180,15 +180,6 @@ class BLonD3Cavity:
 
             self.momentum_compaction_factor = momentum_compaction_factor
 
-            # t_s = self.line.energy_program.t_s
-            # values = self.line.energy_program.get_p0c_at_t_s(t_s)
-            #
-            # self.trackable._magnetic_cycle = MagneticCycleByTime(
-            #     reference_particle=particle_type,
-            #     base_time=time,
-            #     base_values=values,
-            #     in_unit="momentum",
-            # )
 
         else:
             twiss = self.line.twiss4d()
