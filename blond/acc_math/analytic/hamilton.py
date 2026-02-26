@@ -314,8 +314,6 @@ def calc_phi_s_single_harmonic(
     phi = np.arcsin(energy_gain / (voltage * charge))
 
     negative_charge = charge < 0  # for readability
-    print("negative_charge", negative_charge)
-    print("above_transition", above_transition)
 
     if above_transition != negative_charge:
         # Only if one of both conditions is met.
