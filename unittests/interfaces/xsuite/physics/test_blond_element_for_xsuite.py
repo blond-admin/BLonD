@@ -149,6 +149,7 @@ def test_reference_energy_matches_magnetic_cycle_target():
         circumference=C,
         total_energy=float(np.sqrt(p0c**2 + mass0**2)),
         is_below_transition=False,
+        beam_reference_beta=float(line.particle_ref.beta0[0]),
     )
 
     # --- Mock magnetic cycle ---

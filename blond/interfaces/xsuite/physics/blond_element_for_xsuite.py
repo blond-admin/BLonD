@@ -119,7 +119,7 @@ def particle_xsuite_to_blond(particle: xp.Particles):
         BLonD particle type with matching mass and charge.
     """
     particle_type_blond = ParticleType(
-        mass=float(particle.mass), charge=float(particle.q0)
+        mass=float(particle.mass.item()), charge=float(particle.q0.item())
     )
     return particle_type_blond
 
@@ -162,7 +162,7 @@ class BLonD3Cavity:
 
         particle_type = particle_xsuite_to_blond(self.line.particle_ref)
 
-        energy_value = float(self.line.particle_ref.energy0)
+        energy_value = float(self.line.particle_ref.energy0[0])
 
         mag_cycle = self.trackable._magnetic_cycle
 
@@ -180,16 +180,6 @@ class BLonD3Cavity:
 
             self.momentum_compaction_factor = momentum_compaction_factor
 
-            # t_s = self.line.energy_program.t_s
-            # values = self.line.energy_program.get_p0c_at_t_s(t_s)
-            #
-            # self.trackable._magnetic_cycle = MagneticCycleByTime(
-            #     reference_particle=particle_type,
-            #     base_time=time,
-            #     base_values=values,
-            #     in_unit="momentum",
-            # )
-
         else:
             twiss = self.line.twiss4d()
             self.momentum_compaction_factor = twiss[
@@ -201,15 +191,15 @@ class BLonD3Cavity:
             * np.pi
             * c
             * cavity.harmonic
-            * float(line.particle_ref.beta0)
+            * float(line.particle_ref.beta0[0])
             / float(line.get_length())
         )
 
         dt, dE = xsuite_to_blond_transform(
             zeta=particles.zeta,
             ptau=particles.ptau,
-            beta0=float(line.particle_ref.beta0),
-            energy0=float(line.particle_ref.energy0),
+            beta0=float(line.particle_ref.beta0[0]),
+            energy0=float(line.particle_ref.energy0[0]),
             omega_rf=float(omega_rf),
         )
 
@@ -222,16 +212,14 @@ class BLonD3Cavity:
             dt=dt,
             dE=dE,
             reference_time=0,
-            reference_total_energy=float(self.line.particle_ref.energy0),
+            reference_total_energy=float(self.line.particle_ref.energy0[0]),
         )
 
         self.beam = beam
-        # init the total energy first
-        self.trackable._magnetic_cycle.get_target_total_energy.return_value = (
-            float(self.line.particle_ref.energy0)
-        )
 
-        # above or below transition for mocked ring
+        self.trackable._magnetic_cycle.get_target_total_energy.return_value = (
+            float(self.line.particle_ref.energy0[0])
+        )
 
         eta = self.momentum_compaction_factor - (
             1 / (self.beam.reference.gamma**2)
@@ -254,15 +242,11 @@ class BLonD3Cavity:
         """
         # Convert xsuite -> blond
         # update time shift
-        self.get_time_shift()
+        self.set_time_shift()
 
-        print("Tracking insided BLonD Cavity")
-
-        # above or below transition for mocked ring
-        # twiss = self.line.twiss4d()
-        # momentum_compaction = twiss["momentum_compaction_factor"]
-        momentum_compaction = 0.00034849575112269696
-        eta = momentum_compaction - (1 / (self.beam.reference.gamma**2))
+        eta = self.momentum_compaction_factor - (
+            1 / (self.beam.reference.gamma**2)
+        )
         self.trackable._ring.is_below_transition.return_value = bool(eta < 0)
 
         self.xsuite_to_blond_transform_particles(particles, self.beam)
@@ -286,7 +270,7 @@ class BLonD3Cavity:
         # Convert blond -> xsuite
         self.blond_to_xsuite_transform_particles(particles, self.beam)
 
-    def get_time_shift(self):
+    def set_time_shift(self):
         """
         Calculate the time shift of the BLonD beam coordinates and Xsuite.
 
@@ -318,6 +302,7 @@ class BLonD3Cavity:
         Convert Xsuite particle coordinates to BLonD beam coordinates.
 
         Only active (alive) particles are converted. Lost particles are
+        flagged and removed from the BLonD beam representation.
         flagged and removed from the BLonD beam representation.
 
         Parameters
