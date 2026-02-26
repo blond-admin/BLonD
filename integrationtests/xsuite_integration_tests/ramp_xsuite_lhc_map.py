@@ -21,11 +21,11 @@ from scipy.constants import c
 
 def run_simulation(n_turns: int):
     """Xsuite only ramp."""
-    C = 26658.8832  # Machine circumference [m]
-    p_s = 450e9  # Synchronous momentum [eV/c]
+    circumference = 26658.8832
+    synchronous_momentum = 450e9
     alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
-    V = 5e6  # RF voltage [V]
-    h = 35640  # harmonic number
+    rf_voltage = 5e6
+    harmonic = 35640
 
     # Make First order matrix map (takes care of drift in Xsuite)
     matrix = xt.LineSegmentMap(
@@ -38,7 +38,7 @@ def run_simulation(n_turns: int):
         frequency_rf=0,
         lag_rf=0,
         momentum_compaction_factor=alpha,
-        length=C,
+        length=circumference,
     )
 
     # Create line
@@ -48,16 +48,20 @@ def run_simulation(n_turns: int):
     p0c_ramp = np.linspace(450e9, 460e9, n_turns)
     t_s = np.linspace(0, t_rev * n_turns, n_turns)
 
-    line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
+    line.particle_ref = xp.Particles(
+        p0c=synchronous_momentum, mass0=xp.PROTON_MASS_EV, q0=1.0
+    )
     line.energy_program = xt.EnergyProgram(t_s=t_s, p0c=p0c_ramp)
 
-    xsuite_cavity = xt.Cavity(voltage=V, frequency=400788731.3867354, lag=0)
+    xsuite_cavity = xt.Cavity(
+        voltage=rf_voltage, frequency=400788731.3867354, lag=0
+    )
     line.insert_element(index=0, element=xsuite_cavity, name="xsuite_cavity")
 
     # link rf cavity to the ramp
     t_rf = np.linspace(0, t_rev * n_turns, n_turns)
     f_rev = line.energy_program.get_frev_at_t_s(t_rf)
-    h_rf = h
+    h_rf = harmonic
     f_rf = h_rf * f_rev
 
     n_part = 20
