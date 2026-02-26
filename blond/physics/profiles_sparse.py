@@ -22,8 +22,6 @@ from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Self
-
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -428,7 +426,7 @@ class EquidistantMultiProfile(MultiProfile):
             bucket_index_to_memory_index=self._bucket_index_to_memory_index,
         )
 
-    def __deepcopy__(self, memo: dict) -> Self:
+    def __deepcopy__(self, memo: dict) -> EquidistantMultiProfile:
         """
         Create a deep copy of the instance.
 
