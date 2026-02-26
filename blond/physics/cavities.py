@@ -54,6 +54,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
+    from blond.experimental.physics.feedbacks.base import (
+        LocalFeedback as LocalFeedbackExp,
+    )
+    from blond.experimental.physics.feedbacks.beam_feedback import (
+        BeamFeedbackBase,
+    )
     from blond.physics.impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
@@ -495,6 +501,10 @@ class RFStationBaseClass(
         beam_feedback
             Beam feedback to be attached to the RF station.
         """
+        from blond.experimental.physics.feedbacks.beam_feedback import (
+            BeamFeedbackBase,
+        )
+
         if isinstance(beam_feedback, BeamFeedbackBase):
             self._beam_feedback = beam_feedback
         else:
@@ -522,6 +532,10 @@ class RFStationBaseClass(
             This needs to be provided for multiharmonic cavities,
             where a single LocalFeedback is provided.
         """
+        from blond.experimental.physics.feedbacks.base import (
+            LocalFeedback as LocalFeedbackExp,  # warning on BLonD startup; prevent Experimental
+        )
+
         if isinstance(cavity_feedback, LocalFeedback | LocalFeedbackExp):
             if harmonic_index is None:
                 if self._n_rf == 1:

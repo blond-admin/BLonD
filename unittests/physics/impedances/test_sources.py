@@ -815,7 +815,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         # pinned to an arbitrary value, physics is not checked or guaranteed
         # to work
-        SAVE_PINNED = True
+        SAVE_PINNED = False
         if SAVE_PINNED:
             np.savetxt(
                 callers_relative_path(
