@@ -595,15 +595,31 @@ class RingAndRFTracker:
 
                         # warpper bucket by bucket (profile by profile),
                     if isinstance(self.profile, _SparseProfileBaseClass):
+                        n_macroparticles_per_profile = int(
+                            self.profile.beam.n_macroparticles
+                            / len(self.profile.profiles_list)
+                        )
+                        number_of_bins = len(
+                            self.profile.profiles_list[0].n_macroparticles
+                        )
                         for i, profile in enumerate(
                             self.profile.profiles_list
                         ):
                             bm.linear_interp_kick(
-                                dt=self.beam.dt,
-                                dE=self.beam.dE,
-                                voltage=self.total_voltage,
+                                dt=self.beam.dt[
+                                    i * n_macroparticles_per_profile : (i + 1)
+                                    * n_macroparticles_per_profile
+                                ],
+                                dE=self.beam.dE[
+                                    i * n_macroparticles_per_profile : (i + 1)
+                                    * n_macroparticles_per_profile
+                                ],
+                                voltage=self.total_voltage[
+                                    i * number_of_bins : (i + 1)
+                                    * number_of_bins
+                                ],
                                 bin_centers=profile.bin_centers,
-                                charge=self.beam.particle.charge,
+                                charge=self.beam.Particle.charge,
                                 acceleration_kick=self.acceleration_kick[turn],
                             )
                     else:
