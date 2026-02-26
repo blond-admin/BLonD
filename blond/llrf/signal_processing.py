@@ -23,23 +23,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.linalg as npla
 from numpy import (
-    _NumberT,
     bool,
-    complex128,
-    complexfloating,
     dtype,
-    float64,
-    floating,
     ndarray,
-    number,
-    signedinteger,
-    timedelta64,
-    unsignedinteger,
 )
 from scipy import signal as sgn
 from scipy.constants import e
 from scipy.special import comb
-from ..beam.sparse_profiles import SparseBatch, SparseBucket
+from ..beam.sparse_profiles import SparseBatch
 from ..beam.profile import Profile
 from ..utils.legacy_support import handle_legacy_kwargs
 
