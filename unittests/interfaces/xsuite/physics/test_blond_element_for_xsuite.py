@@ -15,7 +15,7 @@ from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
 from legacy.unittests.trackers.test_drift import relative_tolerance
 
 
-def test_forward_backward_transform_consistency(n_particles):
+def test_forward_backward_transform_consistency():
     """
     Test that xsuite -> BLonD -> xsuite returns the original coordinates.
     """
