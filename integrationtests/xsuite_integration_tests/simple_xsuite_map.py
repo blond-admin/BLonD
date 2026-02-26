@@ -25,12 +25,10 @@ def run_simulation(n_turns):
     line.record_last_track.delta[:, -1]
     init_dist
     """
-    # Parameters #
-    # Accelerator parameters
-    C = 26658.8832  # Machine circumference [m]
-    p_s = 450e9  # Synchronous momentum [eV/c]
+    circumference = 26658.8832
+    synchronous_momentum = 450e9
     alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
-    V = 5e6  # RF voltage [V]
+    rf_voltage = 5e6
 
     # Bunch parameters
     # Simulation parameters
@@ -47,11 +45,11 @@ def run_simulation(n_turns):
         frequency_rf=0,
         lag_rf=0,
         momentum_compaction_factor=alpha,
-        length=C,
+        length=circumference,
     )
 
     xsuite_cavity = xt.Cavity(
-        voltage=V,
+        voltage=rf_voltage,
         frequency=400788731.3867354,
         lag=3.141592653589793 / np.pi * 180,
     )
@@ -59,7 +57,9 @@ def run_simulation(n_turns):
     line = xt.Line(elements=[matrix], element_names={"matrix"})
     line.insert_element(index=0, element=xsuite_cavity, name="xsuite_cavity")
 
-    line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
+    line.particle_ref = xp.Particles(
+        p0c=synchronous_momentum, mass0=xp.PROTON_MASS_EV, q0=1.0
+    )
 
     # --- Many particle  --- #
     n_part = 100

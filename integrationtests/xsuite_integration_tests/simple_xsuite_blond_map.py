@@ -27,15 +27,14 @@ def run_simulation(init_dist, n_turns):
     line.record_last_track.delta[:, -1]
     init_dist
     """
-    # Parameters #
-    # Accelerator parameters
-    C = 26658.8832  # Machine circumference [m]
-    p_s = 450e9  # Synchronous momentum [eV/c]
+    circumference = 26658.8832
+    synchronous_momentum = 450e9
     alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
-    V = 5e6  # RF voltage [V]
+    rf_voltage = 5e6
+    harmonic = 35640
 
     # Bunch parameters
-    N_p = 1.15e11  # Intensity # where is this used in xtrack?
+    intensity = 1.15e11  # Intensity # where is this used in xtrack?
 
     # Simulation parameters
     N_TURNS = n_turns
@@ -51,18 +50,20 @@ def run_simulation(init_dist, n_turns):
         frequency_rf=0,
         lag_rf=0,
         momentum_compaction_factor=alpha,
-        length=C,
+        length=circumference,
     )
 
     # Create line
     line = xt.Line(elements=[matrix], element_names={"matrix"})
-    line.particle_ref = xp.Particles(p0c=p_s, mass0=xp.PROTON_MASS_EV, q0=1.0)
+    line.particle_ref = xp.Particles(
+        p0c=synchronous_momentum, mass0=xp.PROTON_MASS_EV, q0=1.0
+    )
 
     # --- Many particle  --- #
     particles = xt.Particles(
         mass0=xt.PROTON_MASS_EV,
         q0=1,
-        p0c=p_s,
+        p0c=synchronous_momentum,
         x=init_dist["x"],
         px=init_dist["px"],
         y=init_dist["y"],
@@ -74,10 +75,10 @@ def run_simulation(init_dist, n_turns):
     # --- BLonD3Element  --- #
     cavity1 = SingleHarmonicRFStation.headless(
         section_index=0,
-        voltage=V,
-        harmonic=35640,
+        voltage=rf_voltage,
+        harmonic=harmonic,
         phi_rf=0,
-        circumference=C,
+        circumference=circumference,
         total_energy=None,  # todo dynamically set the energy
         is_below_transition=None,
         beam_reference_beta=line.particle_ref.beta0,
@@ -87,7 +88,7 @@ def run_simulation(init_dist, n_turns):
         cavity=cavity1,
         particles=particles,
         line=line,
-        initial_intensity=N_p,
+        initial_intensity=intensity,
     )
 
     phi_s = cavity.calc_phi_s()

@@ -12,7 +12,6 @@ from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
     particle_xsuite_to_blond,
     xsuite_to_blond_transform,
 )
-from legacy.unittests.trackers.test_drift import relative_tolerance
 
 
 def test_forward_backward_transform_consistency():
