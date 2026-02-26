@@ -83,9 +83,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
             isinstance(o, InductiveImpedance) for o in parent_wakefield.sources
         )
         impedances: tuple[InductiveImpedance, ...] = parent_wakefield.sources
-        self._Z_over_n = backend.float(
-            np.sum(np.array([o.Z_over_n for o in impedances]))
-        )
+        self._Z_over_n = float(sum(o.Z_over_n for o in impedances))
         self._turn_i = simulation.turn_i
         self._simulation = simulation
 
@@ -271,7 +269,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 real=True,
             )
 
-        self._freq_x = np.fft.rfftfreq(
+        self._freq_x = backend.fft.rfftfreq(
             self._n_time, d=self._parent_wakefield.profile.hist_step
         ).astype(backend.float)
         self._n_freq = len(self._freq_x)
@@ -308,7 +306,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
                     simulation=self._simulation,
                     beam=beam,  # FIXME
                 )
-                assert not np.any(np.isnan(freq_y)), f"{type(source).__name__}"
+                assert not backend.any(backend.isnan(freq_y)), (
+                    f"{type(source).__name__}"
+                )
 
                 self._freq_y += backend.array(freq_y, dtype=backend.complex)
                 # potentially on gpu
@@ -376,7 +376,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
             self._induced_voltage_buffer[key] = out
         else:
             # create array and safe it to buffer
-            self._induced_voltage_buffer[key] = _factor * np.fft.irfft(
+            self._induced_voltage_buffer[key] = _factor * backend.fft.irfft(
                 self._freq_y
                 * self._parent_wakefield.profile.beam_spectrum(
                     n_fft=self._n_time
@@ -511,7 +511,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
                     beam=beam,
                     n_fft=n_fft,
                 )
-                assert not np.any(np.isnan(wake_imp_y_tmp)), (
+                assert not backend.any(backend.isnan(wake_imp_y_tmp)), (
                     f"{type(source).__name__}"
                 )
                 self._wake_imp_y += backend.array(
@@ -557,7 +557,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         n_fft = 2 * len(self._parent_wakefield.profile.hist_x)
         if self._allow_next_fast_len:
             n_fft = next_fast_len(n_fft)
-        induced_voltage = _factor * np.fft.irfft(
+        induced_voltage = _factor * backend.fft.irfft(
             self._wake_imp_y
             * self._parent_wakefield.profile.beam_spectrum(n_fft=n_fft)
         )
@@ -637,7 +637,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             return
         hist_step = self._parent_wakefield.profile.hist_step
         arr_len = len(self._parent_wakefield.profile.hist_x)
-        self._wake_function_time = np.linspace(
+        self._wake_function_time = backend.linspace(
             -(arr_len - 1) * hist_step,
             arr_len * hist_step,
             int(2 * arr_len - 1),
@@ -645,12 +645,12 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         )  # necessary for boundary effects
         if zero_pinning:
             self._wake_function_time[
-                np.abs(self._wake_function_time)
+                backend.abs(self._wake_function_time)
                 <= self._parent_wakefield.profile.hist_step
                 * np.finfo(float).eps
                 * len(self._wake_function_time)
             ] = 0.0
-        self._wake_function_vals = np.zeros_like(self._wake_function_time)
+        self._wake_function_vals = backend.zeros_like(self._wake_function_time)
         for source in self._parent_wakefield.sources:
             self._wake_function_vals += source.get_wake(
                 self._wake_function_time
@@ -682,7 +682,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             * self._parent_wakefield.profile.hist_y_to_density_factor
         )
 
-        return _charge_per_macroparticle * np.convolve(
+        return _charge_per_macroparticle * backend.convolve(
             self._wake_function_vals,
             self._parent_wakefield.profile.hist_y,
             mode="valid",
@@ -754,7 +754,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             time_axis, envelope = source.calculate_envelope()
 
             storage_time = time_axis[
-                np.abs(envelope - self._decay_fraction_threshold).argmin()
+                backend.abs(envelope - self._decay_fraction_threshold).argmin()
             ]
             self._maximum_storage_time = max(
                 self._maximum_storage_time, storage_time
@@ -872,7 +872,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 hist_step = self._parent_wakefield.profile.hist_step
                 arr_len = len(self._parent_wakefield.profile.hist_x)
                 self._wake_function_time.appendleft(
-                    np.linspace(
+                    backend.linspace(
                         -(arr_len - 1) * hist_step,
                         arr_len * hist_step,
                         int(2 * arr_len - 1),
@@ -880,7 +880,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                     )
                 )  # necessary for boundary effects
                 if zero_pinning:
-                    near_floating_point_precision_mask = np.abs(
+                    near_floating_point_precision_mask = backend.abs(
                         self._wake_function_time[prof_ind]
                     ) <= hist_step * np.finfo(float).eps * len(
                         self._wake_function_time[prof_ind]
@@ -889,10 +889,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                         near_floating_point_precision_mask
                     ] = 0.0
                 self._wake_function_vals.appendleft(
-                    np.zeros_like(self._wake_function_time[prof_ind])
+                    backend.zeros_like(self._wake_function_time[prof_ind])
                 )
             else:
-                self._wake_function_vals[prof_ind] = np.zeros_like(
+                self._wake_function_vals[prof_ind] = backend.zeros_like(
                     self._wake_function_vals[prof_ind]
                 )
             # now that everything is initialized, same operation for all arrays
@@ -927,23 +927,23 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._remove_fully_decayed_wake_profiles()
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles
-            past_hist_step = (
-                self._past_profile_times[-1][1]
-                - self._past_profile_times[-1][0]
+            past_hist_step = float(self._past_profile_times[-1][1]) - float(
+                self._past_profile_times[-1][0]
             )
             # TODO: big time jumps lead to problematic casting --> do we care about this?
-            new_hist_step = (
+            new_hist_step = float(
                 self._parent_wakefield.profile.hist_x[1]
-                - self._parent_wakefield.profile.hist_x[0]
-            )
+            ) - float(self._parent_wakefield.profile.hist_x[0])
+
             assert np.isclose(new_hist_step, past_hist_step, atol=0), (
                 "Profile bin size needs to be constant: hist_step might be too small with casting to delta_t precision."
+                f"{new_hist_step=} {past_hist_step=}"
             )
         self._past_profile_times.appendleft(
-            np.copy(self._parent_wakefield.profile.hist_x)
+            backend.copy(self._parent_wakefield.profile.hist_x)
         )
         self._past_profiles.appendleft(
-            np.copy(self._parent_wakefield.profile.hist_y)
+            backend.copy(self._parent_wakefield.profile.hist_y)
         )
         self._past_profiles_counter_rotation_flag.appendleft(
             beam.is_counter_rotating
@@ -981,13 +981,13 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             _charge_per_macroparticle
         )
 
-        wake_sum = np.zeros_like(self._past_profiles[0])
+        wake_sum = backend.zeros_like(self._past_profiles[0])
         for prof_ind in range(
             len(self._past_profiles)
         ):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue --> deque not usable with numba
             wake_sum += self._past_charge_per_macroparticle[
                 prof_ind
-            ] * np.convolve(
+            ] * backend.convolve(
                 self._wake_function_vals[prof_ind],
                 self._past_profiles[prof_ind],
                 mode="valid",
@@ -1074,7 +1074,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         total_bins = (
             self._n_wakes_full_turn * self._parent_wakefield.profile.n_bins
         )
-        time_axis = np.linspace(0, t_max, total_bins + 1)
+        time_axis = backend.linspace(0, t_max, total_bins + 1)
 
         wake_kernel = None  # This needs to be derived
         for source in self._parent_wakefield.sources:
