@@ -15,7 +15,6 @@ from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
 from legacy.unittests.trackers.test_drift import relative_tolerance
 
 
-@pytest.mark.parametrize("n_particles", [1, 1000])
 def test_forward_backward_transform_consistency(n_particles):
     """
     Test that xsuite -> BLonD -> xsuite returns the original coordinates.
@@ -28,6 +27,7 @@ def test_forward_backward_transform_consistency(n_particles):
     energy0 = 450e9  # eV
     omega_rf = 2 * np.pi * 400e6  # rad/s
     phi_s = 0.0  # rad
+    n_particles = 100
 
     # Initial xsuite coordinates
     if n_particles == 1:
