@@ -18,9 +18,9 @@ resources = (
     "/home/slauber/PycharmProjects/deleteme/blonder/legacy"
     "/__EXAMPLES/input_files"
 )
-ind_volt_freq_active = True
+ind_volt_freq_active = False
 steps_active = True
-dir_space_charge_active = True
+dir_space_charge_active = False
 
 
 class _CompareBlond23:
@@ -39,7 +39,7 @@ class _CompareBlond23:
         self.circumference = 2 * np.pi * self.radius  # [m]
 
         # Tracking details
-        self.n_turns = 2
+        self.n_turns = 200
         self.n_turns_between_two_plots = 1
 
         # Derived parameters
@@ -307,9 +307,8 @@ class _CompareBlond23:
 
         profile.track(beam=beam)
 
-        # simulatuion.profiling(beams=deepcopy(beam), n_turns=10)
         t0 = time.time()
-        simulatuion.run_simulation(beams=beam, n_turns=2)
+        simulatuion.run_simulation(beams=beam, n_turns=self.n_turns)
         t1 = time.time()
         print("Runtime BLonD3", t1 - t0, "s")
         total_voltage = 0
