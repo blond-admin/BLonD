@@ -61,6 +61,7 @@ from .signal_processing import (  # noqa
     feedforward_filter_TWC4,
     feedforward_filter_TWC5,
 )
+from ..beam.sparse_profiles import _SparseProfileBaseClass
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
 
@@ -94,7 +95,7 @@ class CavityFeedback:
     def __init__(
         self,
         rf_station: RFStation,
-        profile: Profile,
+        profile: Profile | _SparseProfileBaseClass,
         n_cavities: int,
         n_s: int,
         n_h: int,
@@ -102,7 +103,7 @@ class CavityFeedback:
     ):
         # BLonD classes the feedback should get information from
         self.rf_station: RFStation = rf_station
-        self.profile: Profile = profile
+        self.profile: Profile | _SparseProfileBaseClass = profile
         self.counter = self.rf_station.counter[0]
 
         # Number of cavities the feedback is working on
@@ -487,7 +488,7 @@ class SPSOneTurnFeedback(CavityFeedback):
     def __init__(
         self,
         rf_station: RFStation,
-        profile: Profile,
+        profile: Profile | _SparseProfileBaseClass,
         n_sections: int,
         n_cavities: int = 4,
         V_part: float = 4 / 9,
@@ -1140,7 +1141,7 @@ class SPSCavityFeedback:
     def __init__(
         self,
         rf_station: RFStation,
-        profile: Profile,
+        profile: Profile | _SparseProfileBaseClass,
         G_ff: float | list = 1,
         G_llrf: float | list = 10,
         G_tx: list[float, list] = 0.5,
@@ -1436,7 +1437,7 @@ class LHCCavityLoop(CavityFeedback):
     def __init__(
         self,
         rf_station: RFStation,
-        profile: Profile,
+        profile: Profile | _SparseProfileBaseClass,
         n_cavities: int = 8,
         f_c: float = 400.789e6,
         G_gen: float = 1,
