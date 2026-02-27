@@ -16,6 +16,7 @@ import numpy as np
 from cupy.typing import NDArray as CupyArray
 from numpy._typing import NDArray as NumpyArray
 
+from blond import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.helpers import (
@@ -24,7 +25,7 @@ from blond.generals.distributed.helpers import (
 )
 
 if TYPE_CHECKING:
-    from blond import Beam, backend
+    from blond import Beam
 
 
 def make_multibunch_beam(
