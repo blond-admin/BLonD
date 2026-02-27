@@ -128,6 +128,11 @@ class BeamBaseClass(Preparable, ABC):
             warnings.warn(msg, stacklevel=1)
         self.reference.total_energy = total_energy_init
 
+    @abstractmethod  # pragma: no cover
+    def is_set_up(self) -> bool:
+        """``True`` if all required arrays are initialized."""
+        pass
+
     @property
     @abstractmethod  # pragma: no cover
     def ratio(self) -> float:
@@ -192,6 +197,25 @@ class BeamBaseClass(Preparable, ABC):
         """
         pass
 
+    @property
+    def weights(self) -> DistributedArray | None:
+        """
+        Per-macro-particle weights as a distributed array, or ``None``.
+
+        Returns ``None`` by default. :class:`WeightenedBeam` overrides this
+        to return the full :class:`~blond.generals.distributed.distributed_array.DistributedArray`,
+        which profiles and collective-effect elements use to build a weighted
+        histogram.  Callers that need the local portion should access
+        ``.array_local``; callers that need an MPI-wide sum should call
+        ``.sum()``.
+
+        Returns
+        -------
+        weights
+            Distributed weight array, or ``None`` for uniform-weight beams.
+        """
+        return None
+
     @property  # as readonly attributes
     def is_distributed(self) -> bool:
         """
@@ -234,27 +258,51 @@ class BeamBaseClass(Preparable, ABC):
         pass
 
     @property
-    @abstractmethod  # pragma: no cover  # as readonly attributes
+    @abstractmethod  # pragma: no cover
     def dt_min(self) -> float:
         """Minimum dt coordinate, in [s]."""
         pass
 
     @property
-    @abstractmethod  # pragma: no cover  # as readonly attributes
+    @abstractmethod  # pragma: no cover
     def dt_max(self) -> float:
         """Maximum dt coordinate, in [s]."""
         pass
 
     @property
-    @abstractmethod  # pragma: no cover  # as readonly attributes
+    @abstractmethod  # pragma: no cover
+    def dt_mean(self) -> float:
+        """Mean dt coordinate, in [s]."""
+        pass
+
+    @property
+    @abstractmethod  # pragma: no cover
+    def dt_std(self) -> float:
+        """Standard deviation of dt coordinates, in [s]."""
+        pass
+
+    @property
+    @abstractmethod  # pragma: no cover
     def dE_min(self) -> float:
         """Minimum dE coordinate, in [eV]."""
         pass
 
     @property
-    @abstractmethod  # pragma: no cover  # as readonly attributes
+    @abstractmethod  # pragma: no cover
     def dE_max(self) -> float:
         """Maximum dE coordinate, in [eV]."""
+        pass
+
+    @property
+    @abstractmethod  # pragma: no cover
+    def dE_mean(self) -> float:
+        """Mean dE coordinate, in [eV]."""
+        pass
+
+    @property
+    @abstractmethod  # pragma: no cover
+    def dE_std(self) -> float:
+        """Standard deviation of dE coordinates, in [eV]."""
         pass
 
     @property

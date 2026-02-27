@@ -125,16 +125,26 @@ class DistributedArray:
 
         return total_size
 
-    def min(self):
+    def min(self, weights: DistributedArray | None = None):
         """
         Compute the global minimum across all processes.
+
+        Parameters
+        ----------
+        weights
+            When provided, only elements with ``weight > 0`` are considered.
+            ``None`` (default) considers all elements.
 
         Returns
         -------
         float
-            The minimum value across all distributed array chunks.
+            The minimum value across all (active) distributed array chunks.
         """
-        local_min = float(backend.min(self.array_local))
+        if weights is None:
+            local_arr = self.array_local
+        else:
+            local_arr = self.array_local[weights.array_local > 0]
+        local_min = float(backend.min(local_arr))
 
         if self._is_distributed:
             global_min = self._comm.allreduce(local_min, op=MPI.MIN)
@@ -143,16 +153,26 @@ class DistributedArray:
 
         return global_min
 
-    def max(self):
+    def max(self, weights: DistributedArray | None = None):
         """
         Compute the global maximum across all processes.
+
+        Parameters
+        ----------
+        weights
+            When provided, only elements with ``weight > 0`` are considered.
+            ``None`` (default) considers all elements.
 
         Returns
         -------
         float
-            The maximum value across all distributed array chunks.
+            The maximum value across all (active) distributed array chunks.
         """
-        local_max = float(backend.max(self.array_local))
+        if weights is None:
+            local_arr = self.array_local
+        else:
+            local_arr = self.array_local[weights.array_local > 0]
+        local_max = float(backend.max(local_arr))
 
         if self._is_distributed:
             global_max = self._comm.allreduce(local_max, op=MPI.MAX)
@@ -161,68 +181,136 @@ class DistributedArray:
 
         return global_max
 
-    def mean(self):
+    def mean(self, weights: DistributedArray | None = None):
         """
         Compute the global mean across all processes.
 
+        Parameters
+        ----------
+        weights
+            Per-element weights as a :class:`DistributedArray`.  When provided, returns the
+            plain array local to this rank.  When provided, returns the
+            weighted mean ``sum(w * x) / sum(w)`` instead of the arithmetic
+            mean.  ``None`` (default) uses the unweighted mean.
+
         Returns
         -------
         float
-            The mean value across all distributed array chunks.
+            The (weighted) mean value across all distributed array chunks.
         """
-        local_sum = float(backend.sum(self.array_local))
-        local_count = self.array_local.size
+        if weights is None:
+            local_sum = float(backend.sum(self.array_local))
+            local_count = self.array_local.size
 
-        if self._is_distributed:
-            global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
-            global_count = self._comm.allreduce(local_count, op=MPI.SUM)
+            if self._is_distributed:
+                global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
+                global_count = self._comm.allreduce(local_count, op=MPI.SUM)
+            else:
+                global_sum = local_sum
+                global_count = local_count
+
+            return global_sum / global_count
         else:
-            global_sum = local_sum
-            global_count = local_count
+            weights_local = weights.array_local
+            local_wx_sum = float(backend.sum(self.array_local * weights_local))
+            local_w_sum = float(backend.sum(weights_local))
 
-        return global_sum / global_count
+            if self._is_distributed:
+                global_wx_sum = self._comm.allreduce(local_wx_sum, op=MPI.SUM)
+                global_w_sum = self._comm.allreduce(local_w_sum, op=MPI.SUM)
+            else:
+                global_wx_sum = local_wx_sum
+                global_w_sum = local_w_sum
 
-    def std(self):
+            return global_wx_sum / global_w_sum
+
+    def std(self, weights: DistributedArray | None = None):
         """
         Compute the global standard deviation across all processes.
 
+        Parameters
+        ----------
+        weights
+            Per-element weights as a :class:`DistributedArray`.  When provided, returns the
+            plain array local to this rank.  When provided, returns the
+            weighted standard deviation
+            ``sqrt(sum(w * x²) / sum(w) - (sum(w * x) / sum(w))²)``.
+            ``None`` (default) uses the unweighted standard deviation.
+
         Returns
         -------
         float
-            The standard deviation across all distributed array chunks.
+            The (weighted) standard deviation across all distributed array
+            chunks.
         """
-        # Compute local statistics
-        local_sum = float(backend.sum(self.array_local))
-        # self.array_local**2 with dot product for performacne
-        local_sum_sq = float(backend.dot(self.array_local, self.array_local))
-        local_count = self.array_local.size
+        if weights is None:
+            # Compute local statistics
+            local_sum = float(backend.sum(self.array_local))
+            # self.array_local**2 with dot product for performacne
+            local_sum_sq = float(
+                backend.dot(self.array_local, self.array_local)
+            )
+            local_count = self.array_local.size
 
-        if self._is_distributed:
-            # Gather global statistics
-            global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
-            global_sum_sq = self._comm.allreduce(local_sum_sq, op=MPI.SUM)
-            global_count = self._comm.allreduce(local_count, op=MPI.SUM)
+            if self._is_distributed:
+                # Gather global statistics
+                global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
+                global_sum_sq = self._comm.allreduce(local_sum_sq, op=MPI.SUM)
+                global_count = self._comm.allreduce(local_count, op=MPI.SUM)
+            else:
+                global_sum = local_sum
+                global_sum_sq = local_sum_sq
+                global_count = local_count
+
+            # Compute global variance and standard deviation
+            global_mean = global_sum / global_count
+            global_variance = (global_sum_sq / global_count) - (global_mean**2)
         else:
-            global_sum = local_sum
-            global_sum_sq = local_sum_sq
-            global_count = local_count
+            weights_local = weights.array_local
+            local_w_sum = float(backend.sum(weights_local))
+            local_wx_sum = float(backend.sum(self.array_local * weights_local))
+            local_wx2_sum = float(
+                backend.dot(self.array_local * weights_local, self.array_local)
+            )
 
-        # Compute global variance and standard deviation
-        global_mean = global_sum / global_count
-        global_variance = (global_sum_sq / global_count) - (global_mean**2)
+            if self._is_distributed:
+                global_w_sum = self._comm.allreduce(local_w_sum, op=MPI.SUM)
+                global_wx_sum = self._comm.allreduce(local_wx_sum, op=MPI.SUM)
+                global_wx2_sum = self._comm.allreduce(
+                    local_wx2_sum, op=MPI.SUM
+                )
+            else:
+                global_w_sum = local_w_sum
+                global_wx_sum = local_wx_sum
+                global_wx2_sum = local_wx2_sum
+
+            global_mean = global_wx_sum / global_w_sum
+            global_variance = (global_wx2_sum / global_w_sum) - global_mean**2
 
         return sqrt(global_variance)
 
-    def sum(self):
+    def sum(self, weights: DistributedArray | None = None):
         """
         Compute the global sum across all processes.
+
+        Parameters
+        ----------
+        weights
+            Per-element weights as a :class:`DistributedArray`.  When provided, returns the
+            plain array local to this rank.  When provided, returns the
+            weighted sum ``sum(w * x)`` instead of ``sum(x)``.
+            ``None`` (default) uses the unweighted sum.
 
         Returns
         -------
         float
-            The sum of all values across all distributed array chunks.
+            The (weighted) sum across all distributed array chunks.
         """
-        local_sum = float(backend.sum(self.array_local))
+        if weights is None:
+            local_sum = float(backend.sum(self.array_local))
+        else:
+            weights_local = weights.array_local
+            local_sum = float(backend.sum(self.array_local * weights_local))
 
         if self._is_distributed:
             global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
@@ -236,6 +324,7 @@ class DistributedArray:
         bins,
         range: tuple[float, float] | None = None,
         out: NumpyArray | CupyArray | None = None,
+        weights: DistributedArray | None = None,
     ):
         """
         Compute the global histogram across all processes.
@@ -249,6 +338,11 @@ class DistributedArray:
         out
             Array to write the results on.
             This is a performance option to prevent repeated array creating.
+        weights
+            Per-element weights.  May be a :class:`DistributedArray` (in which
+            case ``.array_local`` is used for the local kernel call) or a plain
+            numpy/cupy array already local to this rank.
+            ``None`` (default) uses the fast unweighted path.
 
         Returns
         -------
@@ -269,12 +363,22 @@ class DistributedArray:
         if range is None:
             range = (self.min(), self.max())
 
-        backend.specials.histogram(
-            array_read=self.array_local,
-            array_write=array_write_local,
-            start=range[0],
-            stop=range[1],
-        )
+        if weights is None:
+            backend.specials.histogram(
+                array_read=self.array_local,
+                array_write=array_write_local,
+                start=range[0],
+                stop=range[1],
+            )
+        else:
+            weights_local = weights.array_local
+            backend.specials.histogram_weighted(
+                array_read=self.array_local,
+                array_write=array_write_local,
+                weights=weights_local,
+                start=range[0],
+                stop=range[1],
+            )
 
         # Combine histograms from all processes
         if self._is_distributed:

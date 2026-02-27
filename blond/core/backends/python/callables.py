@@ -149,6 +149,37 @@ class PythonSpecials(Specials):
         )
 
     @staticmethod
+    def histogram_weighted(
+        array_read: NumpyArray,
+        array_write: NumpyArray,
+        weights: NumpyArray,
+        start: float,
+        stop: float,
+    ) -> None:
+        """
+        Calculate the weighted histogram of an array.
+
+        Parameters
+        ----------
+        array_read
+            Array of many entries that should be compressed to a histogram.
+        array_write
+            Memory of where to write the histogram.
+        weights
+            Per-element weights; same length as ``array_read``.
+        start
+            Start of the histogram bins.
+        stop
+            Stop of the histogram bins.
+        """
+        array_write[:], _ = np.histogram(
+            array_read,
+            range=(float(start), float(stop)),
+            bins=len(array_write),
+            weights=weights,
+        )
+
+    @staticmethod
     def loss_box(  # NOQA: D102
         e_max: float,
         e_min: float,

@@ -74,6 +74,69 @@ extern "C" void histogram(const real_t *__restrict__ input,
   free(histo);
 }
 
+extern "C" void histogram_weighted(const real_t *__restrict__ input,
+                                   real_t *__restrict__ output,
+                                   const real_t *__restrict__ weights,
+                                   const real_t cut_left,
+                                   const real_t cut_right,
+                                   const int n_slices,
+                                   const int n_macroparticles) {
+  // Number of iterations of the inner loop (same as histogram for cache
+  // efficiency)
+  const int STEP = 16;
+  const real_t inv_bin_width = n_slices / (cut_right - cut_left);
+
+  // Thread-private histograms are real_t (not int) because weights are real
+  real_t **histo =
+      (real_t **)malloc(omp_get_max_threads() * sizeof(real_t *));
+  histo[0] =
+      (real_t *)malloc(omp_get_max_threads() * n_slices * sizeof(real_t));
+  for (int i = 0; i < omp_get_max_threads(); i++)
+    histo[i] = (*histo + n_slices * i);
+
+#pragma omp parallel
+  {
+    const int id = omp_get_thread_num();
+    const int threads = omp_get_num_threads();
+    memset(histo[id], 0, n_slices * sizeof(real_t));
+    real_t fbin[STEP];
+
+#pragma omp for
+    for (int i = 0; i < n_macroparticles; i += STEP) {
+      const int loop_count =
+          n_macroparticles - i > STEP ? STEP : n_macroparticles - i;
+
+      // First calculate the bin indices
+      for (int j = 0; j < loop_count; j++) {
+        fbin[j] = floor((input[i + j] - cut_left) * inv_bin_width);
+
+        // Clamp to the last bin if val == cut_right
+        if (input[i + j] == cut_right) {
+          fbin[j] = n_slices - 1;
+        }
+      }
+      // Then accumulate weighted counts
+      for (int j = 0; j < loop_count; j++) {
+        const int bin = (int)fbin[j];
+        if (bin < 0 || bin >= n_slices)
+          continue;
+        histo[id][bin] += weights[i + j];
+      }
+    }
+
+// Reduce to a single histogram
+#pragma omp for
+    for (int i = 0; i < n_slices; i++) {
+      output[i] = 0.;
+      for (int t = 0; t < threads; t++)
+        output[i] += histo[t][i];
+    }
+  }
+
+  free(histo[0]);
+  free(histo);
+}
+
 extern "C" void smooth_histogram(const real_t *__restrict__ input,
                                  real_t *__restrict__ output,
                                  const real_t cut_left, const real_t cut_right,

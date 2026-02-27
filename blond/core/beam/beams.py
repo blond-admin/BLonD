@@ -318,6 +318,54 @@ class Beam(BeamBaseClass):
         return self._dE.max()
 
     @property
+    def dt_mean(self) -> float:
+        """
+        Mean time coordinate among all macro-particles in the beam in [s].
+
+        Returns
+        -------
+        dt_mean
+            Mean time position in [s], relative to the reference time.
+        """
+        return self._dt.mean()
+
+    @property
+    def dt_std(self) -> float:
+        """
+        Standard deviation of time coordinates among all macro-particles in [s].
+
+        Returns
+        -------
+        dt_std
+            Standard deviation of time positions in [s].
+        """
+        return self._dt.std()
+
+    @property
+    def dE_mean(self) -> float:
+        """
+        Mean energy coordinate among all macro-particles in the beam in [eV].
+
+        Returns
+        -------
+        dE_mean
+            Mean energy in [eV], relative to the reference energy.
+        """
+        return self._dE.mean()
+
+    @property
+    def dE_std(self) -> float:
+        """
+        Standard deviation of energy coordinates among all macro-particles in [eV].
+
+        Returns
+        -------
+        dE_std
+            Standard deviation of energy positions in [eV].
+        """
+        return self._dE.std()
+
+    @property
     def rms_emittance(self):
         """
         Calculate the Root-Mean-Square emittance of the beam.

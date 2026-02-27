@@ -900,6 +900,230 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"{special=} {dtype=}",
                     )
 
+    # ------------------------------------------------------------------
+    # histogram_weighted tests
+    # ------------------------------------------------------------------
+
+    @pytest.mark.backend_mutation
+    def test_histogram_weighted(self) -> None:
+        """Weighted histogram: result is consistent across all backends."""
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                array_read = backend.linspace(-10, 10, 21, dtype=backend.float)
+                weights = backend.linspace(0.5, 1.5, 21, dtype=backend.float)
+                array_write = backend.ones(21, dtype=backend.float)
+                for _ in range(2):
+                    backend.specials.histogram_weighted(
+                        array_read=array_read,
+                        array_write=array_write,
+                        weights=weights,
+                        start=backend.float(-8),
+                        stop=backend.float(8.0),
+                    )
+                result = array_write
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_weighted_long_profiles(self) -> None:
+        """Weighted histogram: edge effects at beginning and end of profile."""
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                spac = backend.linspace(0, 10, 50, dtype=backend.float)
+                weights = backend.linspace(0.5, 1.5, 50, dtype=backend.float)
+                array_write = backend.ones(3, dtype=backend.float)
+                for _ in range(2):
+                    backend.specials.histogram_weighted(
+                        array_read=spac,
+                        array_write=array_write,
+                        weights=weights,
+                        start=backend.float(2),
+                        stop=backend.float(4),
+                    )
+                result = array_write
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_weighted_short_profile(self) -> None:
+        """Weighted histogram: particles span a smaller range than the bins."""
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                array_read = backend.linspace(-5, 5, 51, dtype=backend.float)
+                weights = backend.linspace(0.5, 1.5, 51, dtype=backend.float)
+                array_write = backend.ones(21, dtype=backend.float)
+                for _ in range(2):
+                    backend.specials.histogram_weighted(
+                        array_read=array_read,
+                        array_write=array_write,
+                        weights=weights,
+                        start=backend.float(-10),
+                        stop=backend.float(10),
+                    )
+                result = array_write
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_weighted_race_conditions(self) -> None:
+        """Weighted histogram: correct result under parallel execution."""
+        backend.random.seed(42)
+        array_read_np = (backend.random.random_sample(size=1024) - 0.5) * 20
+        weights_np = backend.random.random_sample(size=1024) + 0.5
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                set_num_threads(8)
+                array_write = backend.ones(21, dtype=backend.float)
+                backend.specials.histogram_weighted(
+                    array_read=backend.array(
+                        array_read_np, dtype=backend.float
+                    ),
+                    array_write=array_write,
+                    weights=backend.array(weights_np, dtype=backend.float),
+                    start=backend.float(-12),
+                    stop=backend.float(8.0),
+                )
+                result = array_write
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_weighted_uniform_weights_equals_unweighted(
+        self,
+    ) -> None:
+        """With all weights == 1, weighted and unweighted histograms must agree."""
+        for dtype in (np.float32, np.float64):
+            for special in self.special_modes:
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                array_read = backend.linspace(-5, 5, 51, dtype=backend.float)
+                weights = backend.ones(51, dtype=backend.float)
+                array_write_unweighted = backend.zeros(21, dtype=backend.float)
+                array_write_weighted = backend.zeros(21, dtype=backend.float)
+                backend.specials.histogram(
+                    array_read=array_read,
+                    array_write=array_write_unweighted,
+                    start=backend.float(-10),
+                    stop=backend.float(10),
+                )
+                backend.specials.histogram_weighted(
+                    array_read=array_read,
+                    array_write=array_write_weighted,
+                    weights=weights,
+                    start=backend.float(-10),
+                    stop=backend.float(10),
+                )
+                if special == "cuda":
+                    array_write_unweighted = array_write_unweighted.get()
+                    array_write_weighted = array_write_weighted.get()
+                np.testing.assert_allclose(
+                    array_write_weighted,
+                    array_write_unweighted,
+                    rtol=self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_weighted_correctness(self) -> None:
+        """Weighted histogram values match numpy's reference implementation."""
+        np.random.seed(42)
+        array_read_np = np.random.uniform(-5, 5, 200)
+        weights_np = np.random.uniform(0.5, 1.5, 200)
+        # Reference computed at float64 precision
+        expected_f64, _ = np.histogram(
+            array_read_np,
+            bins=20,
+            range=(-6.0, 6.0),
+            weights=weights_np,
+        )
+        for dtype in (np.float32, np.float64):
+            for special in self.special_modes:
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                array_write = backend.zeros(20, dtype=backend.float)
+                backend.specials.histogram_weighted(
+                    array_read=backend.array(
+                        array_read_np, dtype=backend.float
+                    ),
+                    array_write=array_write,
+                    weights=backend.array(weights_np, dtype=backend.float),
+                    start=backend.float(-6.0),
+                    stop=backend.float(6.0),
+                )
+                result = array_write
+                if special == "cuda":
+                    result = result.get()
+                np.testing.assert_allclose(
+                    result,
+                    expected_f64,
+                    # float32 accumulates rounding error; 1e-5 matches the
+                    # tolerance used for other float32 backend comparisons
+                    rtol=1e-5 if dtype == np.float32 else 1e-10,
+                    err_msg=f"{special=} {dtype=}",
+                )
+
     @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
     def test_cast_float_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.float)
