@@ -14,8 +14,7 @@ from typing import TYPE_CHECKING, overload
 
 import numba as nb
 import numpy as np
-
-from blond.physics.drifts import _assert_purely_real_or_imaginary
+from numpy._typing import NDArray as NumpyArray
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import TypeVar
@@ -199,3 +198,37 @@ def momentum_compaction_factor(
     _assert_purely_real_or_imaginary(transition_gamma)
     momentum_compaction_factor_ = 1 / (transition_gamma * transition_gamma)
     return momentum_compaction_factor_.real
+
+
+def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
+    """
+    Assert that a complex number is purely real or purely imaginary.
+
+    A complex number is considered *purely real* if its imaginary part is zero,
+    and *purely imaginary* if its real part is zero. This function raises an
+    `AssertionError` if the number has both nonzero real and imaginary parts.
+
+    Parameters
+    ----------
+    val : complex
+        Complex number to be validated.
+
+    Raises
+    ------
+    AssertionError
+        If `val` has both real and imaginary parts nonzero.
+
+    Examples
+    --------
+    >>> _assert_purely_real_or_imaginary(5 + 0j)   # purely real
+    >>> _assert_purely_real_or_imaginary(0 + 3j)   # purely imaginary
+    >>> _assert_purely_real_or_imaginary(0j)       # zero (both parts 0) is fine
+    >>> _assert_purely_real_or_imaginary(2 + 4j)
+    Traceback (most recent call last):
+        ...
+    AssertionError: Expected number with only real or only imaginary part, not (2+4j)
+    """
+    if np.any((val.real != 0) & (val.imag != 0)):
+        raise ValueError(
+            f"Expected purely real or purely imaginary number, not {val}."
+        )

@@ -127,12 +127,26 @@ def reload_cpp_backend(  # NOQA: PLR0915
             _LIBBLOND = load_libblond(precision="double")
         else:
             raise TypeError(floattype)
-    except (OSError, FileNotFoundError) as exc:
-        raise OSError(
-            "`load_libblond` failed. Has the backend been compiled?\n"
-            f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
-            # make PyCharm automatically link the correct file
-        ) from exc
+    except (OSError, FileNotFoundError):
+        from blond.core.backends.cpp.compile import compile_cpp_library
+
+        print(
+            "C++ backend was not found.. Trying to compile parallel backend."
+        )
+        compile_cpp_library(parallel=True)
+        try:
+            if floattype == np.float32:
+                _LIBBLOND = load_libblond(precision="single")
+            elif floattype == np.float64:
+                _LIBBLOND = load_libblond(precision="double")
+            else:
+                raise TypeError(floattype)
+        except (OSError, FileNotFoundError) as exc:
+            raise OSError(
+                "`load_libblond` failed. Has the backend been compiled?\n"
+                f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
+                # make PyCharm automatically link the correct file
+            ) from exc
 
     def _getPointer(x: NumpyArray) -> ct.c_void_p:
         return x.ctypes.data_as(ct.c_void_p)

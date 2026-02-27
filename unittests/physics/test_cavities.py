@@ -15,6 +15,9 @@ from blond import (
 from blond.acc_math.analytic.hamilton import (
     calc_synchrotron_tune_single_harmonic,
 )
+from blond.acc_math.analytic.simple_math import (
+    _assert_purely_real_or_imaginary,
+)
 from blond.core.backends.backend import Cupy32Bit, backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
@@ -32,7 +35,6 @@ from blond.physics.cavities import (
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,
 )
-from blond.physics.drifts import _assert_purely_real_or_imaginary
 from blond.physics.impedances.base import WakeField
 
 
