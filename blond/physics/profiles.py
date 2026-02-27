@@ -162,7 +162,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         # This is intentionally ignored, we want to get an exception.
         return len(self._hist_x)  # type: ignore
 
-    @property
+    @cached_property
     def gradient_hist_y(self) -> NumpyArray | CupyArray:
         """
         Derivative of the histogram.
@@ -450,8 +450,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Delete the stored values of functions with @cached_property."""
         self._invalidate_cache(
             props=(
-                "gauss_fit_params",
-                "beam_spectrum",
+                "gradient_hist_y",
                 "hist_step",
                 "cut_left",
                 "cut_right",
