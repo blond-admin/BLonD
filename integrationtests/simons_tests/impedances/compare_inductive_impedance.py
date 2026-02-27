@@ -13,6 +13,7 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c, e, m_p
+from tqdm import tqdm
 
 resources = (
     "/home/slauber/PycharmProjects/deleteme/blonder/legacy"
@@ -39,7 +40,7 @@ class _CompareBlond23:
         self.circumference = 2 * np.pi * self.radius  # [m]
 
         # Tracking details
-        self.n_turns = 200
+        self.n_turns = 2000
         self.n_turns_between_two_plots = 1
 
         # Derived parameters
@@ -193,13 +194,11 @@ class _CompareBlond23:
 
         map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam]
         t0 = time.time()
-        for i in range(1, self.n_turns + 1):
-            print(i)
-
+        for _ in tqdm(range(1, self.n_turns + 1), desc="Blond 2"):
             for m in map_:
                 m.track()
         t1 = time.time()
-        print("Runtime BLonD2", t1 - t0, "s")
+        print("\n\nRuntime BLonD2", t1 - t0, "s\n\n")
         return (
             total_induced_voltage.induced_voltage,
             slice_beam.n_macroparticles,
@@ -303,14 +302,13 @@ class _CompareBlond23:
         )
 
         simulatuion = Simulation(ring=ring, magnetic_cycle=cycle)
-        simulatuion.print_one_turn_execution_order()
 
         profile.track(beam=beam)
 
         t0 = time.time()
         simulatuion.run_simulation(beams=beam, n_turns=self.n_turns)
         t1 = time.time()
-        print("Runtime BLonD3", t1 - t0, "s")
+        print("\n\nRuntime BLonD3", t1 - t0, "s\n\n")
         total_voltage = 0
         if ind_volt_freq_active:
             total_voltage += ind_volt_freq.induced_voltage
@@ -321,12 +319,13 @@ class _CompareBlond23:
         return total_voltage, profile.hist_y
 
     def execute(self):
-        induced_voltage_blond2, hist_y_blond2, dt_init, dE_init = (
-            self._exec_blond2()
-        )
-        induced_voltage_blond3, hist_y_blond3 = self._exec_blond3(
-            dt_init, dE_init
-        )
+        for _ in range(3):
+            induced_voltage_blond2, hist_y_blond2, dt_init, dE_init = (
+                self._exec_blond2()
+            )
+            induced_voltage_blond3, hist_y_blond3 = self._exec_blond3(
+                dt_init, dE_init
+            )
         plt.subplot(2, 1, 1)
         plt.plot(hist_y_blond2, label="blond2")
         plt.plot(hist_y_blond3, "--", label="blond3")
