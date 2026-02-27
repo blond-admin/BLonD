@@ -40,7 +40,7 @@ class _CompareBlond23:
         self.circumference = 2 * np.pi * self.radius  # [m]
 
         # Tracking details
-        self.n_turns = 2000
+        self.n_turns = 12
         self.n_turns_between_two_plots = 1
 
         # Derived parameters
