@@ -45,6 +45,7 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+from blond.testing.helpers import pinned_values_helper
 
 
 class TestTimeDomainFftSolver(unittest.TestCase):
@@ -273,9 +274,66 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     def test_calc_induced_voltage(self):
-        self.inductive_impedance_solver.calc_induced_voltage(
+        induced_voltage = self.inductive_impedance_solver.calc_induced_voltage(
             self.inductive_impedance_solver._beam
-        )  # TODO Pin Physics case here!
+        )
+        induced_voltage_pinned = [
+            -3.0599319720892126e-07,
+            -3.1848271546234667e-07,
+            -3.30972233715772e-07,
+            -3.434617519691973e-07,
+            -3.559512702226227e-07,
+            -3.6844078847604806e-07,
+            -3.809303067294734e-07,
+            -3.9341982498289876e-07,
+            -4.059093432363241e-07,
+            -4.1839886148974946e-07,
+            -4.3088837974317486e-07,
+            -4.4337789799660026e-07,
+            -4.558674162500256e-07,
+            -4.683569345034509e-07,
+            -4.808464527568763e-07,
+            -4.933359710103016e-07,
+            -5.05825489263727e-07,
+            -5.183150075171524e-07,
+            -5.308045257705777e-07,
+            -5.432940440240031e-07,
+            -5.557835622774285e-07,
+            -5.682730805308539e-07,
+            -5.807625987842791e-07,
+            -5.932521170377046e-07,
+            -6.057416352911298e-07,
+            -6.182311535445552e-07,
+            -6.307206717979806e-07,
+            -6.43210190051406e-07,
+            -6.556997083048313e-07,
+            -6.681892265582567e-07,
+            -6.806787448116819e-07,
+            -6.931682630651075e-07,
+            -7.056577813185327e-07,
+            -7.181472995719582e-07,
+            -7.306368178253834e-07,
+            -7.431263360788087e-07,
+            -7.556158543322342e-07,
+            -7.681053725856594e-07,
+            -7.805948908390849e-07,
+            -7.930844090925101e-07,
+            -8.055739273459356e-07,
+            -8.180634455993608e-07,
+            -8.305529638527863e-07,
+            -8.430424821062115e-07,
+            -8.55532000359637e-07,
+            -8.680215186130623e-07,
+            -8.805110368664877e-07,
+            -8.930005551199131e-07,
+            -9.054900733733384e-07,
+            -9.179795916267638e-07,
+        ]
+        np.testing.assert_allclose(
+            induced_voltage,
+            induced_voltage_pinned,
+            rtol=1e-6 if backend.float == np.float32 else 1e-12,
+        )
 
     def test_on_wakefield_init_simulation(self):
         simulation = Mock(Simulation)

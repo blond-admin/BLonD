@@ -162,7 +162,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         # This is intentionally ignored, we want to get an exception.
         return len(self._hist_x)  # type: ignore
 
-    @cached_property
+    @property
     def gradient_hist_y(self) -> NumpyArray | CupyArray:
         """
         Derivative of the histogram.

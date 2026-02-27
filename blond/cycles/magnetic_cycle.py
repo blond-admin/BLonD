@@ -193,7 +193,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
     def get_total_energy_init(
         self,
-        particle_type: ParticleType,
+        particle_type: ParticleType | None = None,
     ) -> float:
         """
         Compute the initial the total energy [eV] for the initial turn.
@@ -208,6 +208,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         reference_total_energy
             The total energy, in [eV].
         """
+        if particle_type is None:
+            particle_type = self.reference_particle
         total_energy_init = calc_total_energy(
             mass=particle_type.mass,
             momentum=magnetic_rigidity_to_momentum(
