@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -40,10 +41,17 @@ logger = logging.getLogger(__name__)
 
 
 class Preparable(ABC):
-    """Internal Mix-in for a class to make it preparable by the `Simulation` object."""
+    """
+    Internal Mix-in for a class to make it preparable by the `Simulation` object.
 
-    def __init__(self) -> None:
-        super().__init__()
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
+    """
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
     @abstractmethod  # pragma: no cover
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -86,6 +94,11 @@ class MainLoopRelevant(Preparable):
     """
     Base class for objects that are relevant for the simulation main loop.
 
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
+
     Attributes
     ----------
     each_turn_i
@@ -93,8 +106,8 @@ class MainLoopRelevant(Preparable):
         callable each n-th turn.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.each_turn_i = 1
         self.active = True
 
@@ -122,6 +135,13 @@ class Schedulable:
     """
     Base class for objects with schedule parameters.
 
+    Parameters
+    ----------
+    intended_for_scheduling
+        Parameter names that are actually intended for scheduling.
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
+
     Attributes
     ----------
     schedules
@@ -129,8 +149,9 @@ class Schedulable:
         via `apply_schedules`
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, intended_for_scheduling: list, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.intended_for_scheduling = intended_for_scheduling
         self.schedules: dict[str, SchedulerBaseClass] = {}
         self.schedule_active = False
 
@@ -177,6 +198,13 @@ class Schedulable:
         - Once a schedule is applied, the `schedule_active` flag is set to True.
         - For convenience, non-explicit types are automatically converted using `get_scheduler`.
         """
+        if attribute not in self.intended_for_scheduling:
+            warnings.warn(
+                f"'{attribute}' is not intended to be scheduled. "
+                f"This can result in bugs. Use at your own risk.",
+                UserWarning,
+                stacklevel=2,
+            )
         assert hasattr(self, attribute), (
             f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
@@ -440,7 +468,7 @@ class BeamPhysicsRelevant(SimulationElementBase):
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
-        super().__init__(section_index, name)
+        super().__init__(section_index, name, **kwargs)
 
 
 class BeamObservationElement(SimulationElementBase):

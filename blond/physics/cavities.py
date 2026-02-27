@@ -54,7 +54,7 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
-class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+class RFManipulationBaseClass(BeamPhysicsRelevant, ABC):
     """
     Base class to implement beam-rf any interactions in synchrotrons.
 
@@ -115,9 +115,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             )
 
 
-class RFStationBaseClass(
-    RFManipulationBaseClass, AltersReference, Schedulable, ABC
-):
+class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     """
     Base class to implement beam-rf interactions in synchrotrons.
 
@@ -818,7 +816,7 @@ class RFStationBaseClass(
         return content
 
 
-class SingleHarmonicRFStation(RFStationBaseClass):
+class SingleHarmonicRFStation(RFStationBaseClass, Schedulable):
     r"""
     RF station with only one RF wave for beam interaction.
 
@@ -892,6 +890,11 @@ class SingleHarmonicRFStation(RFStationBaseClass):
             cavity_feedback=cavity_feedback,
             beam_feedback=beam_feedback,
             name=name,
+            intended_for_scheduling=[
+                "voltage",
+                "phi_rf_design",
+                "harmonic",
+            ],
             **kwargs,  # for MRO of fused elements
         )
         self.voltage: float | None = voltage
@@ -1122,7 +1125,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         return single_harmonic_rf_station
 
 
-class MultiHarmonicRFStation(RFStationBaseClass):
+class MultiHarmonicRFStation(RFStationBaseClass, Schedulable):
     r"""
     RF station with several RF wave for beam interaction.
 
@@ -1158,6 +1161,8 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         Optional beam feedback.
     name
         User given name of the element.
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
 
     Attributes
     ----------
@@ -1191,6 +1196,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
+        **kwargs,  # for MRO of fused elements
     ):
         assert main_harmonic_idx < n_harmonics, (
             f"{n_harmonics=}, but {main_harmonic_idx=}."
@@ -1203,6 +1209,12 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             cavity_feedback=cavity_feedback,
             beam_feedback=beam_feedback,
             name=name,
+            intended_for_scheduling=[
+                "voltage",
+                "phi_rf_design",
+                "harmonic",
+            ],
+            **kwargs,  # for MRO of fused elements
         )
 
         self.main_harmonic_idx = main_harmonic_idx
