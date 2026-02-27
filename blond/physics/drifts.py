@@ -69,7 +69,7 @@ def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
         )
 
 
-class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
+class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
     """
     Base class of a drift.
 
@@ -149,7 +149,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         pass
 
 
-class DriftSimple(DriftBaseClass, HasPropertyCache):
+class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     """
     Base class to implement beam drifts in synchrotrons.
 
@@ -198,6 +198,9 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         super().__init__(
             orbit_length=orbit_length,
             section_index=section_index,
+            intended_for_scheduling=[
+                "momentum_compaction_factor",
+            ],
             **kwargs,  # for MRO of fused elements
         )
 
