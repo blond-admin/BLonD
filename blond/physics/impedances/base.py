@@ -394,7 +394,7 @@ class WakeField(ImpedanceBaseClass):
     def __init__(
         self,
         sources: tuple[WakeFieldSource, ...],
-        solver: WakeFieldSolver | None,
+        solver: WakeFieldSolver,
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
     ):
