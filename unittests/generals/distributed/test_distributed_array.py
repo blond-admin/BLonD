@@ -38,16 +38,16 @@ class TestDistributedArray(unittest.TestCase):
             self.assertFalse(self.distributed_array._is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
 
-    def test_copy_to_cpu(self):
-        array = self.distributed_array.copy_to_cpu()
+    def test_copy_to_numpy(self):
+        array = self.distributed_array.copy_to_numpy()
         assert array.device == "cpu"
 
-    def test_copy_to_gpu(self):
+    def test_copy_to_cupy(self):
         try:
             import cupy  # type: ignore
         except (ImportError, ModuleNotFoundError) as exc:  # pragma: no cover
             self.skipTest(str(exc))
-        array = self.distributed_array.copy_to_gpu()
+        array = self.distributed_array.copy_to_cupy()
         assert is_cupy_array(array)
 
     def _call_test(self, func, func_name):

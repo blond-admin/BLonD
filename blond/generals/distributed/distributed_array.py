@@ -16,7 +16,7 @@ from math import sqrt
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy.no_cupy_import import copy_to_numpy
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -60,7 +60,7 @@ class DistributedArray:
 
         self._histogram_local_cache: dict[int, NumpyArray | CupyArray] = {}
 
-    def copy_to_cpu(self) -> NumpyArray:
+    def copy_to_numpy(self) -> NumpyArray:
         """
         Get a copy of the local array, guaranteed to be in the CPU-RAM.
 
@@ -70,9 +70,9 @@ class DistributedArray:
              A copy of the local array, guaranteed to be in the CPU-RAM.
         """
         # just a shortcut
-        return copy_to_cpu(self.array_local)
+        return copy_to_numpy(self.array_local)
 
-    def copy_to_gpu(self) -> CupyArray:
+    def copy_to_cupy(self) -> CupyArray:
         """
         Get a copy of the local array, guaranteed to be in the GPU-RAM.
 
