@@ -106,10 +106,10 @@ def test_reference_energy_matches_magnetic_cycle_target():
     cycle target total energy after tracking.
     """
 
-    C = 26658.8832  # circumference [m]
-    p0c = 450e9  # eV
+    circumference = 26658.8832  # circumference [m]
+    synchronous_momentum = 450e9  # eV
     alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
-    h = 35640
+    harmonic = 35640
     matrix = xt.LineSegmentMap(
         longitudinal_mode="nonlinear",
         qx=1.1,
@@ -120,18 +120,18 @@ def test_reference_energy_matches_magnetic_cycle_target():
         frequency_rf=0,
         lag_rf=0,
         momentum_compaction_factor=alpha,
-        length=C,
+        length=circumference,
     )
 
     line = xt.Line(elements=[matrix], element_names={"matrix"})
     line.particle_ref = xp.Particles(
-        p0c=p0c,
+        p0c=synchronous_momentum,
         mass0=xp.PROTON_MASS_EV,
         q0=1.0,
     )
 
     particles = xp.Particles(
-        p0c=p0c,
+        p0c=synchronous_momentum,
         mass0=xp.PROTON_MASS_EV,
         q0=1.0,
         zeta=[0.0],
@@ -143,16 +143,16 @@ def test_reference_energy_matches_magnetic_cycle_target():
     cavity = SingleHarmonicRFStation.headless(
         section_index=0,
         voltage=5e6,
-        harmonic=h,
+        harmonic=harmonic,
         phi_rf=0.0,
-        circumference=C,
-        total_energy=float(np.sqrt(p0c**2 + mass0**2)),
+        circumference=circumference,
+        total_energy=float(np.sqrt(synchronous_momentum**2 + mass0**2)),
         is_below_transition=False,
         beam_reference_beta=float(line.particle_ref.beta0[0]),
     )
 
     # --- Mock magnetic cycle ---
-    E0_expected = float(np.sqrt(p0c**2 + mass0**2))
+    E0_expected = float(np.sqrt(synchronous_momentum**2 + mass0**2))
 
     magnetic_cycle = Mock()
     magnetic_cycle.get_target_total_energy.return_value = E0_expected
@@ -167,7 +167,7 @@ def test_reference_energy_matches_magnetic_cycle_target():
 
     blond_cavity.track(particles)
 
-    assert blond_cavity.beam.reference.total_energy == pytest.approx(
+    assert blond_cavity._beam.reference.total_energy == pytest.approx(
         E0_expected,
         rel=1e-12,
     )
