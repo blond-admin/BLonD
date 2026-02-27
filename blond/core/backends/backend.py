@@ -292,7 +292,7 @@ class BackendBaseClass(ABC):
         self.ones: Callable = None  # type: ignore
         self.zeros_like: Callable = None  # type: ignore
         self.fft: ModuleType = None  # type: ignore
-        self.all: ModuleType = None  # type: ignore
+        self.all: Callable = None  # type: ignore
         self.random: ModuleType = None  # type: ignore
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
