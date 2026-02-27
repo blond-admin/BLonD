@@ -34,9 +34,6 @@ class TestEquidistantMultiProfile(unittest.TestCase):
             particle_type=uranium_29,
         )
 
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
-
     def test_track_empty(self):
         beam = EmptyBeam(
             particle_type=uranium_29,
