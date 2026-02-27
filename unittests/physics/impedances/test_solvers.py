@@ -45,7 +45,6 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
-from blond.testing.helpers import pinned_values_helper
 
 
 class TestTimeDomainFftSolver(unittest.TestCase):
