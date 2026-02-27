@@ -247,7 +247,7 @@ def rf_beam_current(Profile: Profile | _SparseProfileBaseClass, omega_c: float, 
 
             for profile in Profile.profiles_list:
                 ind_fine = np.round(
-                    (profile.bin_centers + dT - np.pi / omega_c) / T_s)
+                    (profile.bin_centers - dT - np.pi / omega_c) / T_s)
                 ind_fine = np.array(ind_fine, dtype=int)
                 indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
                 # Pick total current within one coarse grid
@@ -341,7 +341,8 @@ def rf_beam_current(Profile: Profile | _SparseProfileBaseClass, omega_c: float, 
             #             np.sum(charges_fine[np.arange(indices[i - 1],indices[i])]))
             # else:
         else:
-            ind_fine = np.round((Profile.bin_centers + dT - np.pi / omega_c)/T_s)
+            ind_fine = np.round((Profile.bin_centers - dT - np.pi /
+                                 omega_c)/T_s)
             ind_fine = np.array(ind_fine, dtype=int)
             indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 

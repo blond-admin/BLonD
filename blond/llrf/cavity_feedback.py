@@ -25,6 +25,7 @@ import numpy.random as rnd
 import scipy.signal
 from scipy.interpolate import interp1d
 
+from blond.beam.sparse_profiles import _SparseProfileBaseClass
 from blond.llrf.impulse_response import (
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
@@ -1954,7 +1955,7 @@ class FCCBoosterCavityLoop(CavityFeedback):
     def __init__(
         self,
         RFStation: RFStation,
-        Profile: Profile,
+        Profile: Profile | _SparseProfileBaseClass ,
         n_cavities: int = 112,
         f_c: float = 801573985.3775489,
         G_gen: float = 1,
@@ -1967,7 +1968,6 @@ class FCCBoosterCavityLoop(CavityFeedback):
         RFFB: LHCCavityLoopCommissioning = None,
         n_h: int = 0,
         n_s: int = 20,
-        correct_phase : bool = True,
     ):
         super().__init__(
             RFStation=RFStation, Profile=Profile, n_cavities=n_cavities,
@@ -1979,7 +1979,6 @@ class FCCBoosterCavityLoop(CavityFeedback):
 
         self.logger = logging.getLogger(__class__.__name__)
 
-        self.correct_phase = correct_phase
         # Options for commissioning the feedback
         if RFFB is None:
             RFFB = LHCCavityLoopCommissioning()
@@ -2034,10 +2033,8 @@ class FCCBoosterCavityLoop(CavityFeedback):
         self.logger.debug("Relative detuning is %.4e", self.detuning)
 
         # Arrays
-        if self.correct_phase:
-            self.dtype_array = complex
-        else:
-            self.dtype_array = float
+        self.dtype_array = complex
+
         self.V_EXC = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
         self.V_FB_IN = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
         self.V_AC_IN = np.zeros(2 * self.n_coarse, dtype=self.dtype_array)
@@ -2105,27 +2102,17 @@ class FCCBoosterCavityLoop(CavityFeedback):
             self.cavity_response_fine_matrix()
 
             # Apply the tuner correction
-            self.tuner()
+            # self.tuner()
 
     def cavity_response(self, samples):
         r"""ACS cavity reponse model"""
 
-        if self.correct_phase:
-            self.V_ANT_COARSE[self.ind] = (
-                self.I_GEN_COARSE[self.ind - 1] * self.R_over_Q * samples
-                + self.V_ANT_COARSE[self.ind - 1]
-                * (1 - 0.5 * samples / self.Q_L + 1j * self.detuning * samples)
-                - self.I_BEAM_COARSE[self.ind - 1] * 0.5 * self.R_over_Q * samples
-            )
-        else :
-            self.V_ANT_COARSE[self.ind] = np.real((
-                    self.I_GEN_COARSE[self.ind - 1] * self.R_over_Q * samples
-                    + self.V_ANT_COARSE[self.ind - 1]
-                    * (
-                                1 - 0.5 * samples / self.Q_L + 1j * self.detuning * samples)
-                    - self.I_BEAM_COARSE[
-                        self.ind - 1] * 0.5 * self.R_over_Q * samples
-            ))
+        self.V_ANT_COARSE[self.ind] = (
+            self.I_GEN_COARSE[self.ind - 1] * self.R_over_Q * samples
+            + self.V_ANT_COARSE[self.ind - 1]
+            * (1 - 0.5 * samples / self.Q_L + 1j * self.detuning * samples)
+            - self.I_BEAM_COARSE[self.ind - 1] * 0.5 * self.R_over_Q * samples
+        )
 
     def cavity_response_fine_matrix(self):
         r"""ACS cavity response model in matrix form on the fine-grid"""
