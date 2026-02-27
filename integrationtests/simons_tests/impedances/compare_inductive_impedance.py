@@ -8,6 +8,8 @@
 
 """Comparison of 'EX_02_Main_long_ps_booster.py'."""
 
+import time
+
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c, e, m_p
@@ -108,6 +110,9 @@ class _CompareBlond23:
         )
         from blond.legacy.blond2.input_parameters.ring import Ring
         from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
+        from blond.legacy.blond2.utils import bmath as bm
+
+        bm.use_cpp()
 
         ring = Ring(
             self.circumference,
@@ -187,12 +192,14 @@ class _CompareBlond23:
         )
 
         map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam]
-
+        t0 = time.time()
         for i in range(1, self.n_turns + 1):
             print(i)
 
             for m in map_:
                 m.track()
+        t1 = time.time()
+        print("Runtime BLonD2", t1 - t0, "s")
         return (
             total_induced_voltage.induced_voltage,
             slice_beam.n_macroparticles,
@@ -214,8 +221,11 @@ class _CompareBlond23:
             SingleHarmonicRFStation,
             StaticProfile,
             WakeField,
+            backend,
             proton,
         )
+
+        backend.set_specials("cpp")
 
         ring = Ring(circumference=self.circumference)
         beam = Beam(intensity=self.n_particles, particle_type=proton)
@@ -276,9 +286,13 @@ class _CompareBlond23:
             solver=InductiveImpedanceSolver(),
             profile=profile,
         )
+
+        ind_volt_freq.track_profile = False
+        steps.track_profile = False
+        dir_space_charge.track_profile = False
+
         ring.add_elements(
             (
-                profile,
                 ind_volt_freq if ind_volt_freq_active else None,
                 steps if steps_active else None,
                 dir_space_charge if dir_space_charge_active else None,
@@ -287,8 +301,17 @@ class _CompareBlond23:
                 profile,
             )
         )
+
         simulatuion = Simulation(ring=ring, magnetic_cycle=cycle)
+        simulatuion.print_one_turn_execution_order()
+
+        profile.track(beam=beam)
+
+        # simulatuion.profiling(beams=deepcopy(beam), n_turns=10)
+        t0 = time.time()
         simulatuion.run_simulation(beams=beam, n_turns=2)
+        t1 = time.time()
+        print("Runtime BLonD3", t1 - t0, "s")
         total_voltage = 0
         if ind_volt_freq_active:
             total_voltage += ind_volt_freq.induced_voltage
