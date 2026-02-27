@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 
 from blond import Beam, make_multibunch_beam, uranium_29
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 
 class TestCallables(unittest.TestCase):
@@ -31,7 +32,7 @@ class TestCallables(unittest.TestCase):
         )
 
         np.testing.assert_allclose(
-            beam._dt.array_local,
+            copy_to_cpu(beam._dt.array_local),
             [
                 112.0,  # dt[0] + common_offset
                 334.0,  # dt[0] + common_offset + t_distance
@@ -45,7 +46,7 @@ class TestCallables(unittest.TestCase):
             ],
         )
         np.testing.assert_allclose(
-            beam._dE.array_local,
+            copy_to_cpu(beam._dE.array_local),
             [
                 1000.0,  # dE[0]
                 1000.0,  # dE[0]
