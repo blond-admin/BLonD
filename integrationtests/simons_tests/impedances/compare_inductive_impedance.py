@@ -16,9 +16,9 @@ resources = (
     "/home/slauber/PycharmProjects/deleteme/blonder/legacy"
     "/__EXAMPLES/input_files"
 )
-ind_volt_freq_active = False
+ind_volt_freq_active = True
 steps_active = True
-dir_space_charge_active = False
+dir_space_charge_active = True
 
 
 class _CompareBlond23:
@@ -27,14 +27,14 @@ class _CompareBlond23:
 
         # Beam parameters
         self.n_particles = 1e11
-        self.n_macroparticles = 5e5
+        self.n_macroparticles = int(5e5)
         self.sigma_dt = 180e-9 / 4  # [s]
         self.kin_beam_energy = 1.4e9  # [eV]
 
         # Machine and RF parameters
         self.radius = 25
         self.gamma_transition = 4.4  # [1]
-        self.C = 2 * np.pi * self.radius  # [m]
+        self.circumference = 2 * np.pi * self.radius  # [m]
 
         # Tracking details
         self.n_turns = 2
@@ -50,8 +50,8 @@ class _CompareBlond23:
 
         # Cavities parameters
         self.n_rf_systems = 1
-        self.harmonic_numbers = 1
-        self.voltage_program = 8e3  # [V]
+        self.harmonic_number = 1
+        self.voltage = 8e3  # [V]
         self.phi_offset = np.pi
 
         # ejection kicker
@@ -110,7 +110,7 @@ class _CompareBlond23:
         from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
 
         ring = Ring(
-            self.C,
+            self.circumference,
             self.momentum_compaction,
             self.sync_momentum,
             Proton(),
@@ -119,8 +119,8 @@ class _CompareBlond23:
 
         RF_sct_par = RFStation(
             ring,
-            [self.harmonic_numbers],
-            [self.voltage_program],
+            [self.harmonic_number],
+            [self.voltage],
             [self.phi_offset],
             self.n_rf_systems,
         )
@@ -217,7 +217,7 @@ class _CompareBlond23:
             proton,
         )
 
-        ring = Ring(circumference=self.C)
+        ring = Ring(circumference=self.circumference)
         beam = Beam(intensity=self.n_particles, particle_type=proton)
         cycle = ConstantMagneticCycle(
             reference_particle=beam.reference.particle_type,
@@ -230,9 +230,9 @@ class _CompareBlond23:
             reference_total_energy=cycle.get_total_energy_init(),
         )
         rf_station = SingleHarmonicRFStation(
-            voltage=self.voltage_program,
+            voltage=self.voltage,
             phi_rf=self.phi_offset,
-            harmonic=self.harmonic_numbers,
+            harmonic=self.harmonic_number,
         )
         drift = DriftSimple(
             orbit_length=ring.circumference,
@@ -317,5 +317,5 @@ class _CompareBlond23:
 
 
 if __name__ == "__main__":
-    cb23 = _CompareBlond23()
-    cb23.execute()
+    comparison_of_inductive_impedance = _CompareBlond23()
+    comparison_of_inductive_impedance.execute()
