@@ -347,12 +347,16 @@ class Simulation(Preparable):
         >>> plt.legend()
         >>> plt.show()
         """
-        potential_well, _, _ = self.get_potential_well_empiric(
+        potential_well, factor, _ = self.get_potential_well_empiric(
             dt=dt,
             particle_type=particle_type,
             subtract_min=subtract_min,
         )
-        plt.plot(copy_to_cpu(dt), copy_to_cpu(potential_well), **kwargs_plot)
+        plt.plot(
+            copy_to_cpu(dt),
+            copy_to_cpu(factor * potential_well),
+            **kwargs_plot,
+        )
         plt.xlabel("Time (s)")
         plt.ylabel("Amplitude (arb. unit)")
 

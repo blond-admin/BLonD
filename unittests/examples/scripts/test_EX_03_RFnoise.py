@@ -11,28 +11,24 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_observable_as_element(unittest.TestCase):
+class TestEX_03_RFnoise(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
-        from blond.examples import (
-            EX_observable_as_element,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_03_RFnoise
 
         # full script. just checking if it crashes
-        EX_observable_as_element.main()
+        EX_03_RFnoise.main()
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples import (
-            EX_observable_as_element,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_03_RFnoise
 
         # full script. just checking if it crashes
-        EX_observable_as_element.main()
+        EX_03_RFnoise.main()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda32(self):
@@ -43,13 +39,11 @@ class TestEX_observable_as_element(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy32Bit)
         backend.set_specials("cuda")
-        from blond.examples import (
-            EX_observable_as_element,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_03_RFnoise
 
         # full script. just checking if it crashes
 
-        EX_observable_as_element.main()
+        EX_03_RFnoise.main()
         backend.zeros(100)
 
     @pytest.mark.backend_mutation
@@ -61,10 +55,8 @@ class TestEX_observable_as_element(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples import (
-            EX_observable_as_element,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_03_RFnoise
 
         # full script. just checking if it crashes
-        EX_observable_as_element.main()
+        EX_03_RFnoise.main()
         backend.zeros(100)

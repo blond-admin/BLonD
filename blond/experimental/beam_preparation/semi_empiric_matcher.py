@@ -17,8 +17,8 @@ import numpy as np
 
 from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
+from blond.beam_preparation.helpers import populate_beam
 from blond.core.helpers import int_from_float_with_warning
-from blond.experimental.beam_preparation.helpers import populate_beam
 from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
 
 # Oversampling factor for potential well calculation
@@ -255,7 +255,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         For the default function, the following keys may be used:
 
         - ``density_modifier`` : float
-          Exponent that shapes the density distribution according to :math:`H^{\text{density_modifier}}`.
+          Exponent that shapes the density distribution according to :math:`H^{\mathrm{density\_modifier}}`.
         - ``hamilton_max`` : float
           Maximum value of the Hamiltonian, in arbitrary units.
           Tip: Set `animate=True` to see the internal state of the Hamilton values.
