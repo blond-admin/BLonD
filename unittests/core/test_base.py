@@ -261,7 +261,8 @@ class TestFunctions(unittest.TestCase):
 
 class TestSchedulable(unittest.TestCase):
     def setUp(self):
-        self.schedulable = Schedulable(intended_for_scheduling=["voltage"])
+        self.schedulable = Schedulable()
+        self.schedulable._add_intended_schedule("voltage")
         with self.assertRaisesRegex(AssertionError, "doesnt exist"):
             self.schedulable.schedule_from_file(
                 attribute="voltage",
@@ -282,7 +283,7 @@ class TestSchedulable(unittest.TestCase):
         pass
 
     def test_schedule(self):
-        schedulable = Schedulable(intended_for_scheduling=[])
+        schedulable = Schedulable()
         schedulable.voltage = None
         with self.assertRaises(TypeError):
             schedulable.schedule("voltage", 1)
