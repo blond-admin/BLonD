@@ -89,6 +89,7 @@ workflow:
       --cov-append
       --cov
       --cov-config=.coveragerc
+    # EXTENDED FROM HERE
     - pip uninstall -y cupy-cuda12x
     - python3 -m pytest
       -v unittests/
