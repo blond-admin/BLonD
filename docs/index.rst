@@ -18,7 +18,7 @@ download the code.
 .. _gitlab: https://gitlab.cern.ch/blond/BLonD
 
 Modules
-=======
+========
 
 .. toctree::
    :maxdepth: 2
