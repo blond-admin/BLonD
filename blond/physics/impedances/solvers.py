@@ -26,6 +26,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
@@ -387,6 +388,24 @@ class PeriodicFreqSolver(WakeFieldSolver):
         return self._induced_voltage_buffer[key][
             : self._parent_wakefield.profile.n_bins
         ]
+
+    def _plot_debug_internal_state(self):
+        plt.subplot(2, 1, 1)
+        plt.plot(self._freq_x, self._freq_y)
+        plt.plot(
+            self._freq_x,
+            self._parent_wakefield.profile.beam_spectrum(n_fft=self._n_time),
+        )
+        plt.subplot(2, 1, 2)
+
+        key = len(self._freq_y)  # todo
+
+        plt.plot(self._induced_voltage_buffer[key])
+        plt.plot(
+            self._induced_voltage_buffer[key][
+                : self._parent_wakefield.profile.n_bins
+            ]
+        )
 
 
 class TimeDomainFftSolver(WakeFieldSolver):
