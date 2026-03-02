@@ -22,6 +22,9 @@ from scipy.constants import speed_of_light as c0
 from blond.acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
 )
+from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
+    calculate_energy_loss_per_turn,
+)
 from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
@@ -643,9 +646,21 @@ class RFStationBaseClass(
             reference_time=float(beam.reference.time),
             particle_type=beam.particle_type,
         )
-        reference_energy_change = (
-            target_total_energy - beam.reference.total_energy
-        )
+        if self._ring.radiation_integrals is not None:
+            energy_loss_per_turn = calculate_energy_loss_per_turn(
+                energy=target_total_energy,
+                radiation_integrals=self._ring.radiation_integrals,
+                particle_type=beam.particle_type,
+            )
+            reference_energy_change = (
+                target_total_energy
+                - beam.reference.total_energy
+                + energy_loss_per_turn
+            )
+        else:
+            reference_energy_change = (
+                target_total_energy - beam.reference.total_energy
+            )
 
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,

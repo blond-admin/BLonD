@@ -283,7 +283,7 @@ class BeamPhysicsRelevantElements(Preparable):
         else:
             raise AssertionError(
                 f"The element must be inserted within ["
-                f"0:{len(self.elements)}] indexes. "
+                f"0:{len(self.elements)}] indexes."
             )
 
     def insert(self, element: SimulationElementBase, insert_at: int) -> None:

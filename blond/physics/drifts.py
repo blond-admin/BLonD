@@ -80,6 +80,9 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         Length / Velocity => Time to pass the element.
     section_index
         Section index to group elements into sections.
+    radiation_integrals
+        Synchrotron radiation integrals.
+        Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
     **kwargs
         Additional keyword arguments for MRO of fused elements.
     """
@@ -88,6 +91,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         self,
         orbit_length: float,
         section_index: int = 0,
+        radiation_integrals: NumpyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
         super().__init__(
@@ -96,6 +100,19 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         )
 
         self.orbit_length = orbit_length
+        self._radiation_integrals = radiation_integrals
+
+    @property
+    def radiation_integrals(self) -> NumpyArray | None:
+        """
+        Radiation integrals of the drift.
+
+        Returns
+        -------
+        radiation_integrals
+            Synchrotron radiation integrals.
+        """
+        return self._radiation_integrals
 
     @abc.abstractmethod  # pragma: no cover
     def eta_0(self, gamma: float) -> backend.float:
@@ -159,6 +176,11 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         Length of drift, in [m].
     section_index
         Section index to group elements into sections.
+    radiation_integrals
+        Synchrotron radiation integrals.
+        Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
+    transition_gamma
+        Gamma of transition crossing.
     momentum_compaction_factor
         Momentum compaction factor.
     **kwargs
@@ -169,6 +191,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self,
         orbit_length: float,
         section_index: int = 0,
+        radiation_integrals: NumpyArray | None = None,
+        transition_gamma: complex | float | None = None,
         momentum_compaction_factor: float | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
@@ -182,6 +206,10 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Length / Velocity => Time to pass the element.
         section_index
             Section index to group elements into sections.
+        radiation_integrals
+            Synchrotron radiation integrals.
+        transition_gamma
+            Gamma of transition crossing.
         momentum_compaction_factor
             Momentum compaction factor.
         **kwargs
@@ -198,6 +226,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         super().__init__(
             orbit_length=orbit_length,
             section_index=section_index,
+            radiation_integrals=radiation_integrals,
             **kwargs,  # for MRO of fused elements
         )
 
