@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -46,3 +47,19 @@ def pinned_values_helper(variable: NumpyArray, variable_name: str) -> None:
     rtol=1e-6 if backend.float == np.float32 else 1e-12,
 )"""
     )
+
+
+def pytest_active():
+    """
+    Return ``True``, if pytest is active.
+
+    Returns
+    -------
+    pytest_is_active
+        `True``, if pytest is active.
+    """
+    testing = os.environ.get("PYTEST_CURRENT_TEST", None) is not None
+    if testing is None:
+        return False
+    else:
+        return bool(testing)

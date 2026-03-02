@@ -11,30 +11,31 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_08_MuCol_asynchronous_ramp(unittest.TestCase):
+class TestEX_01_Acceleration(unittest.TestCase):
     @pytest.mark.backend_mutation
+    @pytest.mark.mpi
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
-        from blond.examples import (
-            EX_08_MuCol_asynchronous_ramp,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_01_Acceleration
+
+        EX_01_Acceleration.main()
 
         # full script. just checking if it crashes
-        EX_08_MuCol_asynchronous_ramp.main()
 
     @pytest.mark.backend_mutation
+    @pytest.mark.mpi
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples import (
-            EX_08_MuCol_asynchronous_ramp,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_01_Acceleration
+
+        EX_01_Acceleration.main()
 
         # full script. just checking if it crashes
-        EX_08_MuCol_asynchronous_ramp.main()
 
     @pytest.mark.backend_mutation
+    @pytest.mark.mpi
     def test_executable_cuda32(self):
         try:
             import cupy  # type: ignore
@@ -43,16 +44,15 @@ class TestEX_08_MuCol_asynchronous_ramp(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy32Bit)
         backend.set_specials("cuda")
-        from blond.examples import (
-            EX_08_MuCol_asynchronous_ramp,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_01_Acceleration
+
+        EX_01_Acceleration.main()
+        backend.zeros(100)
 
         # full script. just checking if it crashes
 
-        EX_08_MuCol_asynchronous_ramp.main()
-        backend.zeros(100)
-
     @pytest.mark.backend_mutation
+    @pytest.mark.mpi
     def test_executable_cuda64(self):
         try:
             import cupy  # type: ignore
@@ -61,10 +61,9 @@ class TestEX_08_MuCol_asynchronous_ramp(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples import (
-            EX_08_MuCol_asynchronous_ramp,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_01_Acceleration
+
+        EX_01_Acceleration.main()
+        backend.zeros(100)
 
         # full script. just checking if it crashes
-        EX_08_MuCol_asynchronous_ramp.main()
-        backend.zeros(100)

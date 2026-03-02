@@ -239,7 +239,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         For the default function, the following keys may be used:
 
         - ``density_modifier`` : float
-          Exponent that shapes the density distribution according to :math:`H^{\text{density_modifier}}`.
+          Exponent that shapes the density distribution according to :math:`H^{\mathrm{density\_modifier}}`.
         - ``hamilton_max`` : float
           Maximum value of the Hamiltonian, in arbitrary units.
           Tip: Set `animate=True` to see the internal state of the Hamilton values.
