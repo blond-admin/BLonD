@@ -10,9 +10,9 @@
 
 from __future__ import annotations
 
+import cmath
 import copy
 import warnings
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -155,39 +155,99 @@ class Ring(Preparable):
         """
         return self._circumference
 
-    @cached_property
-    def average_transition_gamma(self) -> complex:
-        """
-        Calculate the orbit-length weighted average transition gamma.
-
-        The transition gamma is the Lorentz factor at which particles cross from
-        below to above transition energy. This property computes a weighted average
-        based on the drift sections in the ring.
+    @property
+    def momentum_compaction_factor(self) -> float:
+        r"""
+        Calculate the orbit-length weighted average momentum compaction factor.
 
         Returns
         -------
-        average_transition_gamma
-            The weighted average transition gamma (dimensionless).
+        momentum_compaction_factor
+            The weighted average momentum compaction factor (dimensionless).
 
         Notes
         -----
         Currently only considers DriftSimple elements. The weighting is based on
         the orbit length of each drift section. This value is cached after first
         calculation.
+
+        The following derivation is only relevant for a *multi-drift simulation
+        setup*.
+
+        The global momentum compaction factor is defined as
+
+        .. math::
+
+            \\alpha_0 = \\frac{1}{C} \\int_C \\frac{D(s)}{\\rho} \\, ds
+
+        where :math:`C` is the total circumference, :math:`D(s)` is the dispersion
+        function, and :math:`\\rho` is the bending radius.
+
+        For two sections of length :math:`A` and :math:`B` such that
+        :math:`C = A + B`, this becomes
+
+        .. math::
+
+            \\alpha_0 = \\frac{1}{C}
+            \\left(
+                \\int_A \\frac{D(s)}{\\rho} \\, ds
+                +
+                \\int_B \\frac{D(s)}{\\rho} \\, ds
+            \\right)
+
+        Introducing the section-averaged momentum compaction factors
+
+        .. math::
+
+            \\alpha_A = \\frac{1}{A} \\int_A \\frac{D(s)}{\\rho} \\, ds
+
+        .. math::
+
+            \\alpha_B = \\frac{1}{B} \\int_B \\frac{D(s)}{\\rho} \\, ds
+
+        the total momentum compaction factor can be written as
+
+        .. math::
+
+            \\alpha_0 =
+            \\frac{1}{C}
+            \\left(
+                A \\, \\alpha_A
+                +
+                B \\, \\alpha_B
+            \\right)
+
+        i.e. the orbit-length weighted average of the individual drift-section
+        momentum compaction factors.
         """
         from blond import DriftSimple  # prevent cyclic import
 
-        gammas = [
-            e.transition_gamma
-            for e in self.elements.get_elements(DriftSimple, recursive=False)
-        ]
-        weights = [
-            e.orbit_length
-            for e in self.elements.get_elements(DriftSimple, recursive=False)
-        ]
+        drifts = self.elements.get_elements(DriftSimple, recursive=False)
+        momentum_compaction_factors = np.array(
+            [e.momentum_compaction_factor for e in drifts]
+        )
+        weights = np.array([e.orbit_length for e in drifts])
         # todo not only simple drift
-        transition_gamma_average = complex(np.average(gammas, weights=weights))
-        return transition_gamma_average
+        momentum_compaction_factor = float(
+            np.average(
+                momentum_compaction_factors,
+                weights=weights,
+            )
+        )
+        return momentum_compaction_factor
+
+    @property
+    def transition_gamma(self) -> complex:
+        """
+        The overall transition gamma, taking into account all drifts.
+
+        Returns
+        -------
+        transition_gamma
+            The overall transition gamma, taking into account all drifts.
+        """
+        momentum_compaction_factor = self.momentum_compaction_factor
+        return 1 / cmath.sqrt(momentum_compaction_factor)
 
     def calc_average_eta_0(self, gamma: float) -> float:
         """
@@ -247,7 +307,7 @@ class Ring(Preparable):
 
         See Also
         --------
-        average_transition_gamma : This method is internally used.
+        momentum_compaction_factor : This method is internally used.
         """
         return bool(self.calc_average_eta_0(gamma=beam.reference.gamma) < 0)
 
@@ -382,7 +442,7 @@ class Ring(Preparable):
             The drift class to instantiate. If None, uses `DriftSimple`.
         **kwargs_drift
             Additional keyword arguments passed to the drift constructor
-            (e.g., `transition_gamma`, `bending_radius`).
+            (e.g., `momentum_compaction_factor`, `bending_radius`).
 
         Examples
         --------
@@ -496,11 +556,12 @@ class Ring(Preparable):
         >>> ring.add_elements(rf_stations)
         """
         for element in elements:
-            self.add_element(
-                element=element,
-                deepcopy=deepcopy,
-                section_index=section_index,
-            )
+            if element is not None:
+                self.add_element(
+                    element=element,
+                    deepcopy=deepcopy,
+                    section_index=section_index,
+                )
 
         if reorder:
             self.elements.reorder()

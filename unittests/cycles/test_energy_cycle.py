@@ -182,6 +182,10 @@ class TestConstantEnergyCycle(unittest.TestCase):
                 particle_type=proton,
             ),
         )
+        self.assertEqual(
+            2000e6,
+            self.constant_magnetic_cycle.get_total_energy_init(),
+        )
 
     def test_headless(self):
         cec = ConstantMagneticCycle.headless(

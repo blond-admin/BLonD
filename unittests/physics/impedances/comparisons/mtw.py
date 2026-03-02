@@ -11,6 +11,7 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     mu_plus,
 )
 from blond.core.backends.backend import Numpy64Bit, backend
@@ -153,7 +154,9 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
                 section_index=0,
             ),
             DriftSimple(
-                transition_gamma=-gamma_transition,
+                momentum_compaction_factor=momentum_compaction_factor(
+                    -gamma_transition
+                ),
                 orbit_length=circumference,
                 section_index=0,
             ),

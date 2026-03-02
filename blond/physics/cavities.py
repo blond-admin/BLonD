@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -45,6 +46,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
+    from blond.experimental.physics.feedbacks.base import (
+        LocalFeedback as LocalFeedbackExp,
+    )
+    from blond.experimental.physics.feedbacks.beam_feedback import (
+        BeamFeedbackBase,
+    )
     from blond.physics.impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
@@ -104,7 +111,6 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Beam class to interact with this element.
         """
         super()._track(beam=beam)
-        assert self._turn_i is not None
         if self.schedule_active:
             self.apply_schedules(
                 turn_i=self._turn_i.value,
@@ -127,7 +133,11 @@ class RFStationBaseClass(
     local_wakefield
         Optional wakefield to interact with beam.
     cavity_feedback
-        Optional cavity feedback to change cavity parameters.
+        For multi-harmonic cavities this needs to be a list with
+        the same length as `n_rf`. Any number of elements in this list can be None.
+        For a single-harmonic cavity either a list of length
+        one or a LocalFeedback object can be provided.
+        See :meth:`attach_cavity_feedback`.
     beam_feedback
         Optional beam feedback.
     name
@@ -138,17 +148,17 @@ class RFStationBaseClass(
     Attributes
     ----------
     omega_rf_design
-        # TODO
+        Design angular frequency relating to the harmonic numbers, in [rad/s].
     delta_omega_rf
-        # TODO
+        Correction term to omega_rf_design, used by feedbacks, in [rad/s].
     phi_rf_design
-        # TODO
+        Design angular phase, in [rad].
     delta_phi_rf
-        # TODO
+        Correction term for phi_rf_design, used by feedbacks, in [rad].
     voltage
-        # TODO
+        Voltage/s, in [V].
     harmonic
-        # TODO
+        Harmonic number, relating the rf frequency/ies to the revolution frequency.
     """
 
     skip_find_instances_attributes = ["omega_rf_design"]
@@ -159,14 +169,13 @@ class RFStationBaseClass(
         section_index: int,
         local_wakefield: WakeField | None,
         cavity_feedback: LocalFeedback
-        | list[LocalFeedback | None]
+        | LocalFeedbackExp
+        | list[LocalFeedback | LocalFeedbackExp | None]
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
-        # prevent cyclic import
-
         super().__init__(
             section_index=section_index,
             name=name,
@@ -174,9 +183,9 @@ class RFStationBaseClass(
         )
         self._n_rf = n_rf
 
-        self.cavity_feedback_list: list[LocalFeedback | None] = [
-            None,
-        ] * self._n_rf
+        self.cavity_feedback_list: list[
+            LocalFeedback | LocalFeedbackExp | None
+        ] = [None for _ in range(self._n_rf)]
 
         if cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
@@ -214,7 +223,7 @@ class RFStationBaseClass(
 
         Returns
         -------
-        cavity_feedback_attached
+        any_feedback_not_none
             If one array element is not None in self._cavity_feedback, return True.
         """
         return any(
@@ -232,7 +241,7 @@ class RFStationBaseClass(
         Returns
         -------
         omega_rf
-            Actual angular rf frequency.
+            Angular rf frequency, potentially with feedback corrections.
 
         Notes
         -----
@@ -256,7 +265,7 @@ class RFStationBaseClass(
         Returns
         -------
         phi_rf
-            Actual angular rf phase.
+            Angular rf phase, potentially with feedback corrections.
 
         Notes
         -----
@@ -428,6 +437,11 @@ class RFStationBaseClass(
         This function is intended for small `ts` arrays
         and not executed in parallel.
         """
+        if harmonic_index is None and not isinstance(self.phi_rf, float):
+            raise ValueError(
+                "If no harmonic_index is provided, phi_rf needs to be a float."
+            )
+
         phi_rf = (
             self.phi_rf[harmonic_index]
             if harmonic_index is not None
@@ -451,7 +465,7 @@ class RFStationBaseClass(
         return gap_voltage
 
     def calc_main_harmonic_t_rf(
-        self, beam_beta: float, closed_orbit_length: float
+        self, beam_beta: float, ring_circumference: float
     ) -> float:
         """
         Calculate the t_rf of the main harmonic, in [s].
@@ -460,7 +474,7 @@ class RFStationBaseClass(
         ----------
         beam_beta
             Relativistic beta of the beam.
-        closed_orbit_length
+        ring_circumference
             Ring circumference, in [m].
 
         Returns
@@ -469,7 +483,7 @@ class RFStationBaseClass(
             The t_rf of the main harmonic, in [s].
         """
         return (2 * np.pi) / self.calc_main_harmonic_omega_rf_design(
-            beam_beta, closed_orbit_length
+            beam_beta, ring_circumference
         )
 
     def attach_beam_feedback(self, beam_feedback: BeamFeedbackBase):
@@ -481,6 +495,10 @@ class RFStationBaseClass(
         beam_feedback
             Beam feedback to be attached to the RF station.
         """
+        from blond.experimental.physics.feedbacks.beam_feedback import (
+            BeamFeedbackBase,
+        )
+
         if isinstance(beam_feedback, BeamFeedbackBase):
             self._beam_feedback = beam_feedback
         else:
@@ -488,7 +506,9 @@ class RFStationBaseClass(
 
     def attach_cavity_feedback(  # noqa: PLR0912
         self,
-        cavity_feedback: LocalFeedback | list[LocalFeedback | None],
+        cavity_feedback: LocalFeedback
+        | LocalFeedbackExp
+        | list[LocalFeedbackExp | LocalFeedback | None],
         harmonic_index: int | None = None,
     ):
         """
@@ -497,22 +517,29 @@ class RFStationBaseClass(
         Parameters
         ----------
         cavity_feedback
-            Cavity feedback to be attached to the RF station.
+            For multi-harmonic cavities this needs to be a list with
+            the same length as `n_rf`. Any number of elements in this list can be None.
+            For a single-harmonic cavity either a list of length
+            one or a LocalFeedback object can be provided.
         harmonic_index
             Harmonic index at which to place the provided feedback.
             This needs to be provided for multiharmonic cavities,
             where a single LocalFeedback is provided.
         """
-        if isinstance(cavity_feedback, LocalFeedback):
+        from blond.experimental.physics.feedbacks.base import (
+            LocalFeedback as LocalFeedbackExp,  # warning on BLonD startup; prevent Experimental
+        )
+
+        if isinstance(cavity_feedback, LocalFeedback | LocalFeedbackExp):
             if harmonic_index is None:
                 if self._n_rf == 1:
                     harmonic_index = 0
                 else:
                     raise ValueError(
-                        "If a single feedback is provided, the harmonic_index needs to be provided as well"
+                        "If a single feedback is provided, the harmonic_index needs to be provided as well."
                     )
 
-            if harmonic_index > self._n_rf:
+            if harmonic_index > self._n_rf - 1:
                 raise ValueError(
                     "Harmonic index must be less than the number of RF stations."
                 )
@@ -523,7 +550,7 @@ class RFStationBaseClass(
         elif isinstance(cavity_feedback, list):
             if len(cavity_feedback) != self._n_rf:
                 raise ValueError(
-                    f"Provided list has incorrect length, must be {self._n_rf=} but was {len(cavity_feedback)=}"
+                    f"Provided list has incorrect length, must be {self._n_rf=} but was {len(cavity_feedback)=}."
                 )
 
             if harmonic_index is not None:
@@ -534,7 +561,7 @@ class RFStationBaseClass(
                 )
 
             for feedback in cavity_feedback:
-                if isinstance(feedback, LocalFeedback):
+                if isinstance(feedback, LocalFeedback | LocalFeedbackExp):
                     feedback.set_parent_rf_station(rf_station=self)  # type: ignore
                 elif feedback is None:
                     pass
@@ -546,11 +573,11 @@ class RFStationBaseClass(
                     UserWarning,
                     stacklevel=1,
                 )
-            self.cavity_feedback_list = cavity_feedback
+            self.cavity_feedback_list = list(cavity_feedback)
         else:
             raise TypeError(f"Invalid input type {type(cavity_feedback)=}")
 
-    def calc_synchrotron_tune_main_harmonic(  # TODO move into feedback or make it
+    def calc_synchrotron_tune_main_harmonic(
         self,
         beam: BeamBaseClass,
         phi_s: float | None = None,
@@ -577,7 +604,6 @@ class RFStationBaseClass(
             Synchrotron tune.
         """
         if eta_0 is None:
-            assert self._ring is not None
             eta_0 = self._ring.calc_average_eta_0(beam.reference.gamma)
 
         if phi_s is None:
@@ -587,11 +613,9 @@ class RFStationBaseClass(
             calc_synchrotron_tune_single_harmonic,
         )
 
-        assert self.voltage is not None
-
         Q_s0 = calc_synchrotron_tune_single_harmonic(
             charge=beam.particle_type.charge,
-            voltage=float(self.voltage),
+            voltage=self.get_main_harmonic_voltage(),
             beta=beam.reference.beta,
             energy=beam.reference.total_energy,
             phi_s=phi_s,
@@ -615,9 +639,6 @@ class RFStationBaseClass(
         phi_s_main_harmonic
             Synchronous phase for the current RF parameters, in [rad].
         """
-        assert self._magnetic_cycle is not None
-        assert self._turn_i is not None
-        assert self._ring is not None
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
@@ -631,8 +652,6 @@ class RFStationBaseClass(
             target_total_energy - beam.reference.total_energy
         )
 
-        assert self.voltage is not None
-        assert self.phi_rf is not None
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
             voltage=float(self.get_main_harmonic_voltage()),
@@ -678,7 +697,7 @@ class RFStationBaseClass(
         """
         self.omega_rf_design = self.calc_omega_rf_design(
             beam_beta=beam.reference.beta,
-            closed_orbit_length=self._ring.circumference,
+            ring_circumference=self._ring.circumference,
         )
 
     def _track(self, beam: BeamBaseClass) -> None:
@@ -696,10 +715,7 @@ class RFStationBaseClass(
         self._update_beam_based_attributes(beam=beam)
 
         # Correction from cavity loop
-        if (
-            not isinstance(beam, ProbeBeam)
-            and self.cavity_feedback_list is not None
-        ):
+        if not isinstance(beam, ProbeBeam) and self.any_feedback_not_none:
             for feedback in self.cavity_feedback_list:
                 if feedback is not None:
                     feedback.track(beam=beam)
@@ -717,9 +733,6 @@ class RFStationBaseClass(
         Update the RF phase of all systems for the next turn
         Accumulated phase offset due to beam phase loop or frequency offset.
         """
-        assert self.harmonic is not None
-        assert self.omega_rf is not None
-
         phi_increment = (
             2.0 * np.pi * self.harmonic * self.delta_omega_rf / self.omega_rf
         )
@@ -761,7 +774,7 @@ class RFStationBaseClass(
     def calc_omega_rf_design(
         self,
         beam_beta: float,
-        closed_orbit_length: float,
+        ring_circumference: float,
     ) -> float | NumpyArray:
         """
         Calculate angular frequency of RF station, in [rad/s].
@@ -770,7 +783,7 @@ class RFStationBaseClass(
         ----------
         beam_beta
             Beam reference fraction of speed of light (v/c0).
-        closed_orbit_length
+        ring_circumference
             Reference synchrotron circumference, in [m].
 
         Returns
@@ -778,9 +791,7 @@ class RFStationBaseClass(
         omega
             Angular frequency (2 PI f) of RF station, in [rad/s].
         """
-        return self.harmonic * float(
-            TWOPI_C0 * beam_beta / closed_orbit_length
-        )
+        return self.harmonic * float(TWOPI_C0 * beam_beta / ring_circumference)
 
     def info_string(self, prefix="") -> str:
         """
@@ -797,7 +808,7 @@ class RFStationBaseClass(
             Information string.
         """
         content = ""
-        if self.cavity_feedback_list is not None:
+        if self.any_feedback_not_none:
             for feedback in self.cavity_feedback_list:
                 if feedback is not None:
                     content += (
@@ -895,6 +906,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         self.delta_phi_rf: float | None = 0.0
         self.delta_omega_rf: float | None = 0.0
         self._dphi_rf_next: float | None = 0.0
+        self._dphi_rf_next: float = 0.0
 
     def get_main_harmonic(self) -> float:
         """
@@ -919,7 +931,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         if self.any_feedback_not_none:
             warnings.warn(
                 "`get_main_harmonic_voltage` returns unperturbed "
-                "voltage, even though feedbacks are active.",
+                "voltage, even though local feedbacks are active.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -983,7 +995,7 @@ class SingleHarmonicRFStation(RFStationBaseClass):
         """
         # Apply phase shift that was caused in last turn
         # to this turn before beam and cavity feedbacks get updated.
-        self.delta_phi_rf = np.copy(self._dphi_rf_next)
+        self.delta_phi_rf = deepcopy(self._dphi_rf_next)
 
         super()._track(beam=beam)
 
@@ -1229,9 +1241,9 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             f"but needs to be smaller than {n_harmonics}"
         )
 
-        self.delta_phi_rf: NumpyArray | None = np.zeros(n_harmonics)
-        self.delta_omega_rf: NumpyArray | None = np.zeros(n_harmonics)
-        self._dphi_rf_next: NumpyArray | None = np.zeros(n_harmonics)
+        self.delta_phi_rf: NumpyArray = np.zeros(n_harmonics)
+        self.delta_omega_rf: NumpyArray = np.zeros(n_harmonics)
+        self._dphi_rf_next: NumpyArray = np.zeros(n_harmonics)
 
     def get_main_harmonic(self) -> float:
         """
@@ -1256,7 +1268,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         if self.any_feedback_not_none:
             warnings.warn(
                 "`get_main_harmonic_voltage` returns unperturbed "
-                "voltage, even though feedbacks are active.",
+                "voltage, even though local feedbacks are active.",
                 UserWarning,
                 stacklevel=2,
             )

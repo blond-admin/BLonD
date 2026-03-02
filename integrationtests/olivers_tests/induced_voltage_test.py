@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
+from blond import momentum_compaction_factor
 from blond.handle_results.observables import (
     StaticProfileObservation,
     WakeFieldObservation,
@@ -85,12 +86,15 @@ def main():  # noqa
     rf_station1.harmonic = HARMONIC
     rf_station1.voltage = VOLTAGE
     rf_station1.schedule(
-        "phi_rf",
+        "phi_rf_design",
         phi_rf[:-1].copy(),
     )
 
     drift1 = DriftSimple(orbit_length=CIRCUMFERENCE)
-    drift1.schedule("transition_gamma", transition_gamma[1:].copy())
+    drift1.schedule(
+        "momentum_compaction_factor",
+        momentum_compaction_factor(transition_gamma[1:].copy()),
+    )
 
     beam1 = Beam(intensity=INTENSITY, particle_type=proton)
 
@@ -107,7 +111,7 @@ def main():  # noqa
         (
             rf_station1,
             drift1,
-            profile,
+            # profile,
             wakefield,
         ),
         reorder=False,
@@ -145,32 +149,29 @@ def main():  # noqa
             label=f"BLonD3 {simulation.turn_i.value=}",
         )
 
-    try:
-        sim.load_results(
-            n_turns=N_TURNS,
-            observe=[
-                rf_station_obs,
-                bunch_observation,
-                static_profile_observation,
-                wakefield_observation,
-            ],
-        )
-    except FileNotFoundError:
-        t0 = time.time()
+    """sim.profiling(
+        beams=(beam1,),
+        turn_i_init=0,
+        profile_start_turn_i=0,
+        profile_n_turns=N_TURNS,
+        sortby=SortKey.TIME,
+    )"""
 
-        sim.run_simulation(
-            beams=(beam1,),
-            n_turns=SIM_TURNS,
-            observe=[
-                rf_station_obs,
-                bunch_observation,
-                static_profile_observation,
-                wakefield_observation,
-            ],
-            callbacks=my_callback,
-        )
-        t1 = time.time()
-        print(f"{t1 - t0}s")
+    t0 = time.time()
+
+    sim.run_simulation(
+        beams=(beam1,),
+        n_turns=SIM_TURNS,
+        observe=(
+            rf_station_obs,
+            bunch_observation,
+            static_profile_observation,
+            wakefield_observation,
+        ),
+        callbacks=my_callback,
+    )
+    t1 = time.time()
+    print(f"{t1 - t0}s")
 
     ################################## BLOND 2 Implementation ##############################################################
 

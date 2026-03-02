@@ -30,9 +30,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Simulation
     from blond.core.beam.base import BeamBaseClass
-    from blond.physics.cavities import MultiHarmonicRFStation
 
 # TODO rewrite all docstrings
 
@@ -116,7 +114,6 @@ class IQCavityFeedback(LocalFeedback):
         n_periods_coarse: int | float,
         harmonic_index: int,
         use_lowpass_filter: bool = False,
-        section_index: int = 0,
         name: str | None = None,
     ):
         """
@@ -139,7 +136,6 @@ class IQCavityFeedback(LocalFeedback):
         name
             # TODO might be removed
         """
-        assert isinstance(profile, StaticProfile)
         super().__init__(
             profile=profile,
             name=name,

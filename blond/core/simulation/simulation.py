@@ -42,6 +42,8 @@ from blond.core.helpers import (
 )
 from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.formatting_ import si_format
 from blond.generals.warnings_ import PerformanceWarning
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -241,6 +243,8 @@ class Simulation(Preparable):
         import io
         import pstats
 
+        print("Starting performance profiling..")
+
         pr = cProfile.Profile()
 
         # trigger profiling later than turn 0
@@ -261,8 +265,8 @@ class Simulation(Preparable):
         end_turn = start_turn_i + int_from_float_with_warning(
             n_turns, warning_stacklevel=2
         )
-
-        self.run_simulation(
+        # deepcopy to prevent side effects
+        deepcopy(self).run_simulation(
             beams=beams,
             n_turns=end_turn,
             show_progressbar=False,
@@ -343,12 +347,16 @@ class Simulation(Preparable):
         >>> plt.legend()
         >>> plt.show()
         """
-        potential_well, _, _ = self.get_potential_well_empiric(
+        potential_well, factor, _ = self.get_potential_well_empiric(
             dt=dt,
             particle_type=particle_type,
             subtract_min=subtract_min,
         )
-        plt.plot(dt, potential_well, **kwargs_plot)
+        plt.plot(
+            copy_to_cpu(dt),
+            copy_to_cpu(factor * potential_well),
+            **kwargs_plot,
+        )
         plt.xlabel("Time (s)")
         plt.ylabel("Amplitude (arb. unit)")
 
@@ -1055,6 +1063,43 @@ class Simulation(Preparable):
             callbacks=callbacks,
         )
 
+    def _plot_input_info(
+        self,
+        beams: tuple[BeamBaseClass, ...],
+        n_turns: int | None = None,
+    ):
+        """
+        Print some nice-to-know attributes when running the simulation.
+
+        Parameters
+        ----------
+        beams
+            The beam to simulate.
+        n_turns
+            Number of turns to simulate.
+        """
+        for i, beam in enumerate(beams):
+            size_bytes = sum(
+                (
+                    beam._dt.array_local.nbytes,
+                    beam._dE.array_local.nbytes,
+                    beam._ids.array_local.nbytes,
+                    beam._flags.array_local.nbytes,
+                )
+            )
+
+            print(
+                f"\nBeam {i} has {si_format(beam._dt.global_size)} "
+                f"macroparticles",
+                end="",
+            )
+            if beam._dt.is_distributed:
+                print(f" ({beam._dt.local_size:.2e} on this node)")
+            else:
+                print(f" {si_format(size_bytes)}B")
+        print(f"{n_turns=}")
+        print(f"n_elements={self.ring.elements.n_elements}")
+
     def run_simulation(
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
@@ -1062,6 +1107,7 @@ class Simulation(Preparable):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+        verbose: bool = True,
     ) -> None:
         """
         Execute the main beam dynamics simulation loop.
@@ -1103,11 +1149,8 @@ class Simulation(Preparable):
             The callback can be defined as follows.
             The rate at with which this function is
             called can be set by `each_turn_i`.
-            >>> from blond import Beam, Simulation
-            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
-            >>>     ...
-            >>> my_callback.each_turn_i = 2
-            .
+        verbose
+            Will print infos if ``True``.
 
         Raises
         ------
@@ -1184,6 +1227,12 @@ class Simulation(Preparable):
         ...     beams=(beam1,),
         ...     n_turns=500,      # Run 500 more turns
         ... )
+
+        Callback Example
+        >>> from blond import Beam, Simulation
+        >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
+        >>>     ...
+        >>> my_callback.each_turn_i = 2
         """
         beams = _single_beam_to_tuple(beams)
         logger.info(f"Running `run_simulation` with {locals()}")
@@ -1197,6 +1246,12 @@ class Simulation(Preparable):
             n_turns=n_turns,
             observe=observe,
         )
+        if verbose:
+            self._plot_input_info(
+                beams=beams,
+                n_turns=n_turns,
+            )
+
         self.mainloop(
             beams=beams,
             n_turns=_n_turns,
