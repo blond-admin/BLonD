@@ -2076,7 +2076,7 @@ class FCCBoosterCavityLoop(CavityFeedback):
             self.I_BEAM_FINE *= -1j * np.exp(
                 1j * (self.rfstation.phi_s[self.rfstation.counter[0]])
             )
-            self.I_BEAM_COARSE *= -1j * np.exp(
+            self.I_BEAM_COARSE[-self.n_coarse:] *= -1j * np.exp(
                 1j * (self.rfstation.phi_s[self.rfstation.counter[0]])
             )
 
@@ -2090,28 +2090,34 @@ class FCCBoosterCavityLoop(CavityFeedback):
             self.I_GEN_FINE = np.interp(
                 np.concatenate(
                     (
-                        np.array([self.profile.bin_centers[0] - self.profile.bin_size]),
+                        np.array(
+                            [
+                                self.profile.bin_centers[0]
+                                - self.profile.bin_size
+                            ]
+                        ),
                         self.profile.bin_centers,
                     )
                 ),
                 self.rf_centers,
-                self.I_GEN_COARSE[-self.n_coarse :],
+                self.I_GEN_COARSE[-self.n_coarse:],
             )
 
             # Compute the fine-grid antenna voltage through solving a sparse matrix equation
             self.cavity_response_fine_matrix()
 
             # Apply the tuner correction
-            # self.tuner()
+            self.tuner()
 
-    def cavity_response(self, samples):
+    def cavity_response(self, samples: float):
         r"""ACS cavity reponse model"""
 
         self.V_ANT_COARSE[self.ind] = (
-            self.I_GEN_COARSE[self.ind - 1] * self.R_over_Q * samples
-            + self.V_ANT_COARSE[self.ind - 1]
-            * (1 - 0.5 * samples / self.Q_L + 1j * self.detuning * samples)
-            - self.I_BEAM_COARSE[self.ind - 1] * 0.5 * self.R_over_Q * samples
+                self.I_GEN_COARSE[self.ind - 1] * self.R_over_Q * samples
+                + self.V_ANT_COARSE[self.ind - 1]
+                * (1 - 0.5 * samples / self.Q_L + 1j * self.detuning * samples)
+                - self.I_BEAM_COARSE[
+                    self.ind - 1] * 0.5 * self.R_over_Q * samples
         )
 
     def cavity_response_fine_matrix(self):
@@ -2149,8 +2155,8 @@ class FCCBoosterCavityLoop(CavityFeedback):
             detuning=self.detuning,
         )
 
-        self.V_ANT_FINE[-self.profile.n_slices :] = (
-            self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices :]
+        self.V_ANT_FINE[-self.profile.n_slices:] = (
+                self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices:]
         )
 
     def generator_current(self):
