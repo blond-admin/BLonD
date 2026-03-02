@@ -6,8 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Utilities for testing of BLonD."""
-
-__all__ = ["pytest_active"]
-
-from blond.testing.helpers import pytest_active
+"""Overview of BLonD input files as a starting point for new simulations.."""
