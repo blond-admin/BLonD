@@ -271,7 +271,8 @@ class PeriodicFreqSolver(WakeFieldSolver):
             )
 
         self._freq_x = np.fft.rfftfreq(
-            self._n_time, d=self._parent_wakefield.profile.hist_step
+            int(self._n_time),
+            d=float(self._parent_wakefield.profile.hist_step),
         ).astype(backend.float)
         self._n_freq = len(self._freq_x)
 

@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond import backend
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -21,8 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def is_linspace_like(
     arr: NumpyArray | CupyArray,
-    rtol: float = 1e-9,
-    atol: float = 1e-12,
+    rtol: float | None = None,
 ) -> bool:
     """
     Test whether the given 1D array is a `linspace` or not.
@@ -33,8 +34,6 @@ def is_linspace_like(
         The array to be investigated.
     rtol
         Relative tolerance.
-    atol
-        Absolute tolerance.
 
     Returns
     -------
@@ -47,6 +46,13 @@ def is_linspace_like(
 
     # Compute differences
     diffs = backend.diff(arr)
+    if rtol is None:
+        if backend.float == np.float64:
+            _rtol = 1e-10
+        elif backend.float == np.float32:
+            _rtol = 1e-6
+        else:
+            raise ValueError(f"{backend.float=}")
 
     # Check if all differences are equal (within floating tolerance)
-    return bool(backend.allclose(diffs, diffs[0], rtol=rtol, atol=atol))
+    return bool(backend.allclose(diffs, diffs[0], rtol=_rtol))

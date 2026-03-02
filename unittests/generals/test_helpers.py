@@ -1,9 +1,10 @@
 import unittest
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from blond.generals.arrays_ import is_linspace_like
+from blond.generals.array_helpers import is_linspace_like
 
 
 class TestCallables(unittest.TestCase):
@@ -25,6 +26,23 @@ class TestCallables(unittest.TestCase):
         not_linspace = cp.linspace(-1e12, 1e12, 10)
         not_linspace[3] = 1.1e12
         self.assertFalse(is_linspace_like(not_linspace))
+
+    def test_bug_fftfeq_f64(self):
+        array = np.fft.rfftfreq(1182720, d=1.950553260576804e-11).astype(
+            np.float64
+        )
+        self.assertTrue(is_linspace_like(array))
+
+    def test_bug_fftfeq_f32(self):
+        array = np.fft.rfftfreq(1_182_720, d=1.950553260576804e-11).astype(
+            np.float32
+        )
+        DEV_DRAW = True  # TODO set false
+        if DEV_DRAW:
+            plt.plot(np.abs(np.diff(array)))
+            plt.show()
+
+        self.assertTrue(is_linspace_like(array))
 
 
 if __name__ == "__main__":
