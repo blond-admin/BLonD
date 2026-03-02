@@ -256,7 +256,7 @@ class BackendBaseClass(ABC):
     float: type[np.float32 | np.float64]
     complex: type[np.complex128 | np.complex64]
 
-    def __init__(
+    def __init__(  # noqa: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -296,6 +296,8 @@ class BackendBaseClass(ABC):
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
         self.sqrt: Callable = None  # type: ignore
+        self.diff: Callable = None  # type: ignore
+        self.allclose: Callable = None  # type: ignore
         self.interp: Callable = None  # type: ignore
         self.meshgrid: Callable = None  # type: ignore
         self.square: Callable = None  # type: ignore
@@ -618,7 +620,7 @@ class NumpyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -644,6 +646,8 @@ class NumpyBackend(BackendBaseClass):
         self.random = np.random
         self.isnan = np.isnan
         self.sum = np.sum
+        self.diff = np.diff
+        self.allclose = np.allclose
         self.sqrt = np.sqrt
         self.interp = np.interp
         self.meshgrid = np.meshgrid
@@ -758,7 +762,7 @@ class CupyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -792,6 +796,8 @@ class CupyBackend(BackendBaseClass):
         self.random = cp.random
         self.isnan = cp.isnan
         self.sum = cp.sum
+        self.diff = cp.diff
+        self.allclose = cp.allclose
         self.sqrt = cp.sqrt
         self.interp = cp.interp
         self.meshgrid = cp.meshgrid

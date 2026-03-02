@@ -32,6 +32,7 @@ import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
+from blond.generals.arrays_ import is_linspace_like
 from blond.generals.warnings_ import NotTestedWarning
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -165,6 +166,9 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         np.gradient(x) in time domain
         ifft(derivative_kernel * fft(x)) in frequency domain
         """
+        assert is_linspace_like(freq_x), (
+            "`freq_x` must be like ``np.linspace(...)``."
+        )
         T = simulation.ring.circumference / beam.reference.velocity
         z_over_n = self.Z_over_n
         derivative_kernel = self._get_derivative_impedance(freq_x)
@@ -600,6 +604,10 @@ class Resonators(
         impedance
             Complex impedance array.
         """
+        assert is_linspace_like(freq_x), (
+            "`freq_x` must be like ``np.linspace(...)``."
+        )
+
         # Recalculate only if `freq_x` is changed
 
         hash_ = get_hash(freq_x + counter_rotation)
@@ -704,6 +712,10 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         impedance
             Complex impedance array.
         """
+        assert is_linspace_like(freq_x), (
+            "`freq_x` must be like ``np.linspace(...)``."
+        )
+
         # Recalculate only if `freq_x` is changed
         hash_ = get_hash(freq_x)
         if hash_ == self._cache_impedance_hash:
@@ -1000,6 +1012,10 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         impedance
             Complex impedance array.
         """
+        assert is_linspace_like(freq_x), (
+            "`freq_x` must be like ``np.linspace(...)``."
+        )
+
         impedance = np.zeros(len(freq_x), dtype=backend.complex, order="C")
 
         for i in range(0, len(self.R_S)):
