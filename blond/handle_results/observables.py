@@ -271,7 +271,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         Path to the target folder used for
         saving or loading files.
     warn
-        If ``True``, emits a warning about the perofmance impact.
+        If ``True``, emits a warning about the performance impact.
 
     Examples
     --------
