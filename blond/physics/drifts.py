@@ -201,11 +201,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         super().__init__(
             orbit_length=orbit_length,
             section_index=section_index,
-            intended_for_scheduling=[
-                "momentum_compaction_factor",
-            ],
             **kwargs,  # for MRO of fused elements
         )
+        self._add_intended_schedule("momentum_compaction_factor")
 
         self._simulation: Simulation | None = None
 

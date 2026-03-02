@@ -139,8 +139,6 @@ class Schedulable:
 
     Parameters
     ----------
-    intended_for_scheduling
-        Parameter names that are actually intended for scheduling.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -152,11 +150,26 @@ class Schedulable:
         via `apply_schedules`
     """
 
-    def __init__(self, intended_for_scheduling: list, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.intended_for_scheduling = intended_for_scheduling
+        self.intended_for_scheduling = []
         self.schedules: dict[str, SchedulerBaseClass] = {}
         self.schedule_active = False
+
+    def _add_intended_schedule(self, *names: tuple[str]) -> None:
+        """
+        Add a variable name to the intended schedules.
+
+        When scheduling anything different as an intended variable,
+        this class will issue a `UserWarning`.
+
+        Parameters
+        ----------
+        *names
+            Names of a variable.
+        """
+        for name in names:
+            self.intended_for_scheduling.append(str(name))
 
     def schedule(
         self,

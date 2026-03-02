@@ -116,7 +116,9 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, ABC):
             )
 
 
-class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
+class RFStationBaseClass(
+    RFManipulationBaseClass, Schedulable, AltersReference, ABC
+):
     """
     Base class to implement beam-rf interactions in synchrotrons.
 
@@ -176,6 +178,13 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
+
+        self._add_intended_schedule(
+            "voltage",
+            "phi_rf_design",
+            "harmonic",
+        )
+
         self._n_rf = n_rf
 
         self.cavity_feedback_list: list[
@@ -818,7 +827,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         return content
 
 
-class SingleHarmonicRFStation(RFStationBaseClass, Schedulable):
+class SingleHarmonicRFStation(
+    RFStationBaseClass,
+):
     r"""
     RF station with only one RF wave for beam interaction.
 
@@ -893,13 +904,9 @@ class SingleHarmonicRFStation(RFStationBaseClass, Schedulable):
             cavity_feedback=cavity_feedback,
             beam_feedback=beam_feedback,
             name=name,
-            intended_for_scheduling=[
-                "voltage",
-                "phi_rf_design",
-                "harmonic",
-            ],
             **kwargs,  # for MRO of fused elements
         )
+
         self.voltage: float | None = voltage
         self.phi_rf_design: float | None = phi_rf
         self.harmonic: float | None = harmonic
@@ -1128,7 +1135,7 @@ class SingleHarmonicRFStation(RFStationBaseClass, Schedulable):
         return single_harmonic_rf_station
 
 
-class MultiHarmonicRFStation(RFStationBaseClass, Schedulable):
+class MultiHarmonicRFStation(RFStationBaseClass):
     r"""
     RF station with several RF wave for beam interaction.
 
@@ -1213,11 +1220,6 @@ class MultiHarmonicRFStation(RFStationBaseClass, Schedulable):
             cavity_feedback=cavity_feedback,
             beam_feedback=beam_feedback,
             name=name,
-            intended_for_scheduling=[
-                "voltage",
-                "phi_rf_design",
-                "harmonic",
-            ],
             **kwargs,  # for MRO of fused elements
         )
 
