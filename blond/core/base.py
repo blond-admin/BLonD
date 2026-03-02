@@ -156,7 +156,7 @@ class Schedulable:
         self.schedules: dict[str, SchedulerBaseClass] = {}
         self.schedule_active = False
 
-    def _add_intended_schedule(self, *names: tuple[str]) -> None:
+    def _add_intended_schedule(self, *names: str) -> None:
         """
         Add a variable name to the intended schedules.
 
