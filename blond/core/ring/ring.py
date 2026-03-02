@@ -556,11 +556,12 @@ class Ring(Preparable):
         >>> ring.add_elements(rf_stations)
         """
         for element in elements:
-            self.add_element(
-                element=element,
-                deepcopy=deepcopy,
-                section_index=section_index,
-            )
+            if element is not None:
+                self.add_element(
+                    element=element,
+                    deepcopy=deepcopy,
+                    section_index=section_index,
+                )
 
         if reorder:
             self.elements.reorder()
