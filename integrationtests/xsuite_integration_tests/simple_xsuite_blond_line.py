@@ -34,7 +34,6 @@ def run_simulation(n_turns: int, init_distribution: dict):
         "./resources/line_no_spacecharge_and_particle.json", stacklevel=1
     )
     line = xt.load(sps_line_folder)
-    length = line.get_length()
 
     line.set_particle_ref("proton", p0c=26e9)
 
@@ -63,6 +62,7 @@ def run_simulation(n_turns: int, init_distribution: dict):
         circumference=line.get_length(),
         total_energy=None,  # todo dynamically set the energy
         is_below_transition=None,
+        beam_reference_beta=line.particle_ref.beta0,
     )
 
     cavity = BLonD3Cavity(
@@ -71,12 +71,6 @@ def run_simulation(n_turns: int, init_distribution: dict):
         line=line,
         initial_intensity=bunch_intensity,
     )
-
-    phi_s = cavity.calc_phi_s()
-    omega_rf = cavity1.calc_main_harmonic_omega_rf(
-        beam_beta=cavity.beam.reference.beta, ring_circumference=length
-    )
-    print("phi_s", "omega_rf", phi_s, omega_rf)
 
     tab = line.get_table()
     tab_cav = tab.rows[tab.element_type == "Cavity"]
