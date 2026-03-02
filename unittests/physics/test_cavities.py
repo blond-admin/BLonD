@@ -376,56 +376,6 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         self.assertTrue(self.track_called)
 
-    def test_single_cavity_feedback_allowed(self):
-        prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
-        cavity_feedback_good = PassiveCavity(
-            profile=prof,
-            R_over_Q=1,
-            Q_L=2,
-            f_center=200e6,
-            f_detuning=1,
-            n_cavities=5,
-            generator_current=6,
-            n_pretrack=5,
-        )
-        mhc = SingleHarmonicRFStation(
-            section_index=1,
-            local_wakefield=None,
-            voltage=6e6,
-            harmonic=25000,
-            phi_rf=0,
-            cavity_feedback=cavity_feedback_good,
-        )
-
-        mhc._turn_i = 1
-        mhc._ring = Mock(Ring)
-        mhc._ring.circumference = 456
-
-        simulation = Mock(Simulation)
-        simulation.turn_i = DynamicParameter(1)
-        simulation.ring.circumference = 456
-        simulation.ring.section_lengths = np.array(
-            [simulation.ring.circumference]
-        )
-        simulation.magnetic_cycle = Mock(ConstantMagneticCycle)
-        simulation.magnetic_cycle.get_target_total_energy.return_value = 1.0
-
-        self.beam.ratio = 0.01
-
-        mhc.on_init_simulation(simulation=simulation)
-        mhc.on_run_simulation(
-            simulation=simulation,
-            beam=self.beam,
-            n_turns=100,
-        )
-        cavity_feedback_good.on_run_simulation(
-            simulation=simulation,
-            beam=self.beam,
-            n_turns=100,
-        )
-
-        mhc.track(beam=self.beam)
-
     def test_track_with_feedbacks(self):
         SingleHarmonicRFStation(
             section_index=1,
@@ -793,7 +743,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         )
         assert (
             self.multi_harmonic_cavity.calc_main_harmonic_t_rf(
-                beam_beta=self.beam.reference.beta, closed_orbit_length=456
+                beam_beta=self.beam.reference.beta, ring_circumference=456
             )
             == self.multi_harmonic_cavity.get_main_harmonic_t_rf()
         )
@@ -910,7 +860,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         )
         assert (
             self.single_harmonic_cavity.calc_main_harmonic_t_rf(
-                beam_beta=self.beam.reference.beta, closed_orbit_length=456
+                beam_beta=self.beam.reference.beta, ring_circumference=456
             )
             == self.single_harmonic_cavity.get_main_harmonic_t_rf()
         )

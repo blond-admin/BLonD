@@ -23,13 +23,16 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from blond import Simulation
+import numpy as np
+
+from blond import Simulation, backend
 from blond.physics.feedbacks.base import (
     GlobalFeedback,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
+    from blond.physics.cavities import RFStationBaseClass
     from blond.physics.profiles import ProfileBaseClass
 
 

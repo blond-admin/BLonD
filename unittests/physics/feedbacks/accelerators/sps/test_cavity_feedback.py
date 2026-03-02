@@ -18,7 +18,11 @@ from blond import (
     StaticProfile,
     proton,
 )
-from blond.acc_math.analytic.simple_math import calc_beta, calc_gamma
+from blond.acc_math.analytic.simple_math import (
+    calc_beta,
+    calc_gamma,
+    momentum_compaction_factor,
+)
 from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
@@ -141,7 +145,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             n_drifts_per_section=1,
             n_sections=1,
             driftclass=DriftSimple,
-            transition_gamma=18.0,
+            momentum_compaction_factor=momentum_compaction_factor(18.0),
         )
         magnetic_cycle = ConstantMagneticCycle(
             reference_particle=proton,
@@ -175,7 +179,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         omega_rf = float(
             rf.calc_omega_rf_design(
                 beam_beta=self.beam.reference.beta,
-                closed_orbit_length=ring.circumference,
+                ring_circumference=ring.circumference,
             )
         )
         t_rf = (2 * np.pi) / omega_rf
@@ -813,7 +817,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             n_drifts_per_section=1,
             n_sections=1,
             driftclass=DriftSimple,
-            transition_gamma=gamma_t,
+            momentum_compaction_factor=momentum_compaction_factor(gamma_t),
         )
         sim = Simulation(ring=self.ring, magnetic_cycle=self.magnetic_cycle)
 
@@ -1131,7 +1135,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
         self.rf = cavity
         drift = DriftSimple(
             orbit_length=2 * np.pi * 1100.009,
-            transition_gamma=18.0,
+            momentum_compaction_factor=momentum_compaction_factor(18.0),
         )
 
         self.ring.add_element(cavity)

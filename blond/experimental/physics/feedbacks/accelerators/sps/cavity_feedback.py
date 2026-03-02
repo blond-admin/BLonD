@@ -462,8 +462,8 @@ class SPSOneTurnFeedback(IQCavityFeedback):
             self.V_FF_CORR = np.zeros(2 * self.n_coarse_ff, dtype=complex)
 
         # Update global cavity loop variables before tracking
-        self.update_rf_variables(omega_rf=omega_rf, harmonic=harmonic)
-        self.update_fb_variables()
+        # self.update_rf_variables(omega_rf=omega_rf, harmonic=harmonic)
+        # self.update_fb_variables()
         self.logger.info("Class initialized")
 
         self.V_ANT_START: NumpyArray | None = None

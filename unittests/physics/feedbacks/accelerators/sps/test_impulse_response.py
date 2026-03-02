@@ -28,6 +28,7 @@ from blond import (
     Simulation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     proton,
 )
 from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
@@ -196,7 +197,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         drift = DriftSimple(
             orbit_length=C,
-            transition_gamma=gamma_t,
+            momentum_compaction_factor=momentum_compaction_factor(gamma_t),
         )
         t_rf = t_rev / rf.harmonic[0]
 
@@ -282,7 +283,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
         omega = rf.calc_main_harmonic_omega_rf_design(
             beam_beta=beam.reference.beta,
-            closed_orbit_length=ring.circumference,
+            ring_circumference=ring.circumference,
         )
         OTFB_4.set_hardware_commissioning(omega_rf=omega, harmonic=4620)
         rf.attach_cavity_feedback(OTFB_4)
@@ -330,7 +331,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         ring.add_element(
             DriftSimple(
                 orbit_length=2 * np.pi * 1100.009,
-                transition_gamma=18,
+                momentum_compaction_factor=momentum_compaction_factor(18),
             )
         )
 
@@ -414,7 +415,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         omega = rf.calc_main_harmonic_omega_rf_design(
             beam_beta=beam2.reference.beta,
-            closed_orbit_length=ring.circumference,
+            ring_circumference=ring.circumference,
         )
         OTFB.set_hardware_commissioning(omega_rf=omega, harmonic=4620)
         rf.attach_cavity_feedback(OTFB)
