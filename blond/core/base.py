@@ -47,7 +47,8 @@ class Preparable(ABC):
     Parameters
     ----------
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(self, **kwargs) -> None:
@@ -97,7 +98,8 @@ class MainLoopRelevant(Preparable):
     Parameters
     ----------
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
 
     Attributes
     ----------
@@ -140,7 +142,8 @@ class Schedulable:
     intended_for_scheduling
         Parameter names that are actually intended for scheduling.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
 
     Attributes
     ----------

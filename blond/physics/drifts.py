@@ -81,7 +81,8 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
     section_index
         Section index to group elements into sections.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
@@ -162,7 +163,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     momentum_compaction_factor
         Momentum compaction factor.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
@@ -185,7 +187,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         momentum_compaction_factor
             Momentum compaction factor.
         **kwargs
-            Additional keyword arguments for MRO of fused elements.
+            Additional keyword arguments for method
+            resolution order of inheriting elements.
 
         Examples
         --------
