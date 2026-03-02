@@ -8,6 +8,8 @@
 
 """Helper functions to work with Numpy/Cupy arrays."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from blond import backend
