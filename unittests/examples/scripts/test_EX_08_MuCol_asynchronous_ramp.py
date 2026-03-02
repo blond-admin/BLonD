@@ -11,24 +11,24 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_03_RFnoise(unittest.TestCase):
+class TestEX_08_MuCol_asynchronous_ramp(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
-        from blond.examples import EX_03_RFnoise  # NOQA will run the
+        from blond.examples.scripts import EX_08_MuCol_asynchronous_ramp
 
         # full script. just checking if it crashes
-        EX_03_RFnoise.main()
+        EX_08_MuCol_asynchronous_ramp.main()
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples import EX_03_RFnoise  # NOQA will run the
+        from blond.examples.scripts import EX_08_MuCol_asynchronous_ramp
 
         # full script. just checking if it crashes
-        EX_03_RFnoise.main()
+        EX_08_MuCol_asynchronous_ramp.main()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda32(self):
@@ -39,11 +39,11 @@ class TestEX_03_RFnoise(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy32Bit)
         backend.set_specials("cuda")
-        from blond.examples import EX_03_RFnoise  # NOQA will run the
+        from blond.examples.scripts import EX_08_MuCol_asynchronous_ramp
 
         # full script. just checking if it crashes
 
-        EX_03_RFnoise.main()
+        EX_08_MuCol_asynchronous_ramp.main()
         backend.zeros(100)
 
     @pytest.mark.backend_mutation
@@ -55,8 +55,8 @@ class TestEX_03_RFnoise(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples import EX_03_RFnoise  # NOQA will run the
+        from blond.examples.scripts import EX_08_MuCol_asynchronous_ramp
 
         # full script. just checking if it crashes
-        EX_03_RFnoise.main()
+        EX_08_MuCol_asynchronous_ramp.main()
         backend.zeros(100)

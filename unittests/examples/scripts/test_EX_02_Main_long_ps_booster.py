@@ -11,24 +11,24 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_05_Wake_impedance(unittest.TestCase):
+class TestEX_02_Main_long_ps_booster(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
-        from blond.examples import EX_05_Wake_impedance  # NOQA will run the
+        from blond.examples.scripts import EX_02_Main_long_ps_booster
 
         # full script. just checking if it crashes
-        EX_05_Wake_impedance.main()
+        EX_02_Main_long_ps_booster.main()
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples import EX_05_Wake_impedance  # NOQA will run the
+        from blond.examples.scripts import EX_02_Main_long_ps_booster
 
         # full script. just checking if it crashes
-        EX_05_Wake_impedance.main()
+        EX_02_Main_long_ps_booster.main()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda32(self):
@@ -39,11 +39,11 @@ class TestEX_05_Wake_impedance(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy32Bit)
         backend.set_specials("cuda")
-        from blond.examples import EX_05_Wake_impedance  # NOQA will run the
+        from blond.examples.scripts import EX_02_Main_long_ps_booster
 
         # full script. just checking if it crashes
 
-        EX_05_Wake_impedance.main()
+        EX_02_Main_long_ps_booster.main()
         backend.zeros(100)
 
     @pytest.mark.backend_mutation
@@ -55,8 +55,8 @@ class TestEX_05_Wake_impedance(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples import EX_05_Wake_impedance  # NOQA will run the
+        from blond.examples.scripts import EX_02_Main_long_ps_booster
 
         # full script. just checking if it crashes
-        EX_05_Wake_impedance.main()
+        EX_02_Main_long_ps_booster.main()
         backend.zeros(100)
