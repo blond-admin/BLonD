@@ -42,6 +42,7 @@ from blond.core.helpers import (
 )
 from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
 from blond.generals.warnings_ import PerformanceWarning
 
@@ -346,12 +347,16 @@ class Simulation(Preparable):
         >>> plt.legend()
         >>> plt.show()
         """
-        potential_well, _, _ = self.get_potential_well_empiric(
+        potential_well, factor, _ = self.get_potential_well_empiric(
             dt=dt,
             particle_type=particle_type,
             subtract_min=subtract_min,
         )
-        plt.plot(dt, potential_well, **kwargs_plot)
+        plt.plot(
+            copy_to_cpu(dt),
+            copy_to_cpu(factor * potential_well),
+            **kwargs_plot,
+        )
         plt.xlabel("Time (s)")
         plt.ylabel("Amplitude (arb. unit)")
 

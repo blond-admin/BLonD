@@ -158,7 +158,7 @@ test_py_311:
     - if: '$CI_COMMIT_BRANCH == "blonder"'
 
     # ALSO run in merge requests targeting blonder
-    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "blonder"'
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 test_py_312:
   image: gitlab-registry.cern.ch/blond/blond/python312
@@ -175,7 +175,7 @@ test_py_312:
     - if: '$CI_COMMIT_BRANCH == "blonder"'
 
     # ALSO run in merge requests targeting blonder
-    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "blonder"'
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 test_py_313:
   image: gitlab-registry.cern.ch/blond/blond/python313
@@ -192,8 +192,23 @@ test_py_313:
     - if: '$CI_COMMIT_BRANCH == "blonder"'
 
     # ALSO run in merge requests targeting blonder
-    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "blonder"'
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
+test_py_314:
+  image: gitlab-registry.cern.ch/blond/blond/python314
+  stage: test
+  interruptible: true
+  extends:
+    - .before
+    - .main
+    # - .publish
+  tags:
+    - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+    # ALSO run in merge requests targeting blonder
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 test_minimum:
   image: gitlab-registry.cern.ch/blond/blond/python310
@@ -230,7 +245,7 @@ test_minimum:
     - if: '$CI_COMMIT_BRANCH == "blonder"'
 
     # ALSO run in merge requests targeting blonder
-    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "blonder"'
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 release_sdist_310:
   image: gitlab-registry.cern.ch/blond/blond/python310

@@ -73,7 +73,7 @@ class TestImpedanceTableFreq(unittest.TestCase):
         freq_table_short = ImpedanceTableFreq.from_file(
             Path(
                 callers_relative_path(
-                    "../../../blond/examples/resources/EX_02_Finemet.txt",
+                    "../../../blond/examples/scripts/resources/EX_02_Finemet.txt",
                     stacklevel=1,
                 )
             ),
@@ -745,7 +745,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         # pinned to an arbitrary value, physics is not checked or guaranteed
         # to work
-        SAVE_PINNED = True
+        SAVE_PINNED = False
         if SAVE_PINNED:
             np.savetxt(
                 callers_relative_path(

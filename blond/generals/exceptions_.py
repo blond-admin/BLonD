@@ -6,8 +6,16 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Utilities for testing of BLonD."""
+"""Custom exception definitions for BLonD3."""
 
-__all__ = ["pytest_active"]
 
-from blond.testing.helpers import pytest_active
+class BLonDException(Exception):
+    """BLonD exception base class."""
+
+    pass
+
+
+class UnevenArraySizes(BLonDException, ValueError):
+    """Exception to be raised when some array dimensions don't match."""
+
+    pass

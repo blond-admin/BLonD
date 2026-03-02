@@ -450,8 +450,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Delete the stored values of functions with @cached_property."""
         self._invalidate_cache(
             props=(
-                "gauss_fit_params",
-                "beam_spectrum",
+                "gradient_hist_y",
                 "hist_step",
                 "cut_left",
                 "cut_right",
