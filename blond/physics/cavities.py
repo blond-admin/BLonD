@@ -69,7 +69,8 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, ABC):
     name
         User given name of the element.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
@@ -138,7 +139,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     name
         User given name of the element.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
 
     Attributes
     ----------
@@ -848,7 +850,8 @@ class SingleHarmonicRFStation(RFStationBaseClass, Schedulable):
     name
         User given name of the element.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
 
     Attributes
     ----------
@@ -1162,7 +1165,8 @@ class MultiHarmonicRFStation(RFStationBaseClass, Schedulable):
     name
         User given name of the element.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
 
     Attributes
     ----------
