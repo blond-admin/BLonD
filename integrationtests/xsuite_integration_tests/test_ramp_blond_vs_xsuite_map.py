@@ -17,7 +17,7 @@ from .ramp_xsuite_lhc_map import run_simulation as run_xsuite
 
 def test_blond_interface_xsuite():
     """Run xsuite + blond element simulation."""
-    n_turns = 1
+    n_turns = 20
     PLOT = True
 
     init_dist, zeta_xsuite, delta_xsuite = run_xsuite(n_turns=n_turns)
@@ -45,7 +45,7 @@ def test_blond_interface_xsuite():
             zeta_blond[:, -1], delta_blond[:, -1], label="xsuite + BLonD"
         )
         plt.scatter(zeta_xsuite[:, -1], delta_xsuite[:, -1], label="xsuite")
-        plt.title("After 100 turns")
+        plt.title(f"After {n_turns} turns")
         plt.xlabel("$\zeta$ [m]")
         plt.ylabel(r"$p_{\tau}$")
         plt.legend()
