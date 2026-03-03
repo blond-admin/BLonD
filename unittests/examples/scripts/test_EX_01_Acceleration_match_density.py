@@ -15,7 +15,9 @@ from blond.core.backends.backend import (
 
 class TestEX_01_Acceleration_match_density(unittest.TestCase):
     def _execute(self):
-        from blond.examples import EX_01_Acceleration_match_density  # NOQA
+        from blond.examples.scripts import (
+            EX_01_Acceleration_match_density,  # NOQA
+        )
 
         EX_01_Acceleration_match_density.N_TURNS = 10
         EX_01_Acceleration_match_density.animate_fitting = False
