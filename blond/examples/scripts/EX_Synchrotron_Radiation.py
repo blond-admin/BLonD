@@ -109,7 +109,7 @@ class SynchrotronRadiationSimulation:
         self.energy_spread = 1e-3
 
 
-def main(n_turns: int = 50000):
+def main(n_turns: int = 100):
     params = SynchrotronRadiationSimulation(n_turns=n_turns)
     simulation = Simulation(
         ring=params.ring,
@@ -195,7 +195,7 @@ def main(n_turns: int = 50000):
     ax[1].set_xlabel("Turn number")
     ax[1].set_ylabel("Energy spread [%]")
     ax[1].legend()
-    os.makedirs("../results/EX_Synchrotron_Radiation/", exist_ok=True)
+    os.makedirs("results/EX_Synchrotron_Radiation/", exist_ok=True)
     plt.savefig("results/EX_Synchrotron_Radiation/energy_spread_evolution.png")
 
 
