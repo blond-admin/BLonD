@@ -222,7 +222,9 @@ class IQCavityFeedback(LocalFeedback):
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
-        self.rf_centers = np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf
+        self.rf_centers = (
+            np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf
+        )  # TODO: dT missing
 
         self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_BEAM_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
@@ -249,7 +251,9 @@ class IQCavityFeedback(LocalFeedback):
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
-        self.rf_centers = np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf
+        self.rf_centers = (
+            np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf
+        )  # TODO: dT missing
 
         self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_BEAM_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)

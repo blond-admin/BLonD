@@ -137,7 +137,7 @@ class CavityFeedback:
         self.rf_centers = (
             np.arange(self.n_coarse) * self.T_s
             + 0.5 * self.rf_station.t_rf[self.n_h, self.rf_station.counter[0]]
-        )
+        )  # TODO: dT missing
         self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_BEAM_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_BEAM_FINE = np.zeros(self.profile.n_slices, dtype=complex)
@@ -310,7 +310,7 @@ class CavityFeedback:
         )
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_s
-        ) * self.T_s + self.dT
+        ) * self.T_s + self.dT  # TODO: again different from
 
 
 class SPSCavityLoopCommissioning:
