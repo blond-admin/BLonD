@@ -13,7 +13,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+import scipy.integrate
 from scipy.constants import c, e
+
+# scipy >= 1.12 removed cumtrapz (renamed to cumulative_trapezoid).
+# Patch it back so xpart (which still uses the old name) can import it.
+if not hasattr(scipy.integrate, "cumtrapz"):
+    scipy.integrate.cumtrapz = scipy.integrate.cumulative_trapezoid
 
 from blond import SingleHarmonicRFStation
 from blond.beam_preparation.base import MatchingRoutine
@@ -127,9 +133,8 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             - The rf_station is not provided.
             - Initial beam energy is not set.
             - No `DriftSimple` elements are found in the ring.
-            - `transition_gamma` is not defined in the first drift element.
+            - `momentum_compaction_factor` is not defined in the first drift element.
         """
-        # prevent crash if xpart not installed
         from xpart.longitudinal.rf_bucket import RFBucket
         from xpart.longitudinal.rfbucket_matching import RFBucketMatcher
 
@@ -147,9 +152,9 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             )
         )
 
-        if drift.transition_gamma is None:
+        if drift.momentum_compaction_factor is None:
             raise ValueError(
-                "transition_gamma is not set in the first drift element."
+                "`momentum_compaction_factor` is not set in the first drift element."
             )
 
         alpha_c = drift.momentum_compaction_factor
