@@ -52,7 +52,21 @@ extensions = [
     "sphinx.ext.inheritance_diagram",
     "sphinx_autodoc_typehints",
     "sphinx.ext.intersphinx",
+    "nbsphinx",
 ]
+# From https://nbsphinx.readthedocs.io/en/0.8.9/custom-css.html#For-a-Single-Notebook
+# Hide the [1], [2], etc. displays at
+# the left side of the Jupyter-Notebook cells.
+nbsphinx_prolog = """
+.. raw:: html
+
+    <style>
+        .nbinput .prompt,
+        .nboutput .prompt {
+            display: none;
+        }
+    </style>
+"""
 
 autosummary_generate = True
 autosummary_imported_members = True
