@@ -85,7 +85,7 @@ class TestWakeFields(unittest.TestCase):
             PeriodicFreqSolver(),
             TimeDomainFftSolver(),
             # SingleTurnResonatorConvolutionSolver(), # not applicable with `InductiveImpedance`
-            # MultiPassResonatorSolver(), # not applicable with `InductiveImpedance`
+            # MultiPassResonatorSolver(), # nTravelingWaveCavitySolver not applicable with `InductiveImpedance`
             # ContinuousMultiTurnTimeDomainSolver(n_turns=2),
             # not applicable with `short profile`
         )
@@ -105,7 +105,6 @@ class TestWakeFields(unittest.TestCase):
     def test_source_TravelingWaveCavity(self):
         makers = ["s", "o", "1", "2", "3", "."]
         solvers = (
-            TravelingWaveCavitySolver(),
             PeriodicFreqSolver(),
             TimeDomainFftSolver(),
             # SingleTurnResonatorConvolutionSolver(), # not applicable with `TravelingWaveCavity`
@@ -115,14 +114,23 @@ class TestWakeFields(unittest.TestCase):
         )
 
         for i, solver in enumerate(solvers):
-            source = TravelingWaveCavity(1234)
+            source = TravelingWaveCavity(
+                R_S=0.876e6,
+                frequency_R=200.222e6,
+                a_factor=3.899,
+            )
             self.init_simulation(source=source, solver=solver)
             self.simulation.run_simulation(self.beam, n_turns=1)
+            plt.figure(0)
             plt.plot(
                 self.wake_field.induced_voltage,
                 makers[i],
                 label=type(solver).__name__,
             )
+            if isinstance(solver, PeriodicFreqSolver):
+                plt.figure(1)
+                solver._plot_debug_internal_state()
+
         plt.legend()
         plt.show()
 

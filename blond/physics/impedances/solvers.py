@@ -391,11 +391,15 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
     def _plot_debug_internal_state(self):
         plt.subplot(2, 1, 1)
-        plt.plot(self._freq_x, self._freq_y)
+        plt.ylabel("Impedance")
+        plt.xlabel("Frequency")
+        plt.plot(self._freq_x, self._freq_y, label="Machine")
         plt.plot(
             self._freq_x,
             self._parent_wakefield.profile.beam_spectrum(n_fft=self._n_time),
+            label="Beam",
         )
+        plt.legend()
         plt.subplot(2, 1, 2)
 
         key = len(self._freq_y)  # todo
@@ -406,6 +410,8 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 : self._parent_wakefield.profile.n_bins
             ]
         )
+        plt.ylabel("Votlage")
+        plt.xlabel("Time")
 
 
 class TimeDomainFftSolver(WakeFieldSolver):
