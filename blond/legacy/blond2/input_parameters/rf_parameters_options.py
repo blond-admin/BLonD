@@ -25,7 +25,7 @@ from scipy.interpolate import splev, splrep
 
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Callable, Literal, Optional, Sequence
 
     from numpy.typing import ArrayLike

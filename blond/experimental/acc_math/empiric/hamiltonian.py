@@ -12,7 +12,13 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.integrate import cumulative_trapezoid as cumtrapz
+
+# prevent `ImportError: cannot import name 'cumtrapz' from 'scipy.integrate'`
+try:
+    from scipy.integrate import cumtrapz
+except ImportError:
+    from scipy.integrate import cumulative_trapezoid as cumtrapz
+
 from scipy.signal import find_peaks
 
 if TYPE_CHECKING:  # pragma: no cover

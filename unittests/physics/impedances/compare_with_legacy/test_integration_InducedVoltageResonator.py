@@ -13,6 +13,7 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     proton,
 )
 from blond.core.backends.backend import Numpy64Bit, backend
@@ -130,10 +131,12 @@ class Blond3:
         )
         cavity1 = SingleHarmonicRFStation()
         cavity1.voltage = 0.9e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
         cavity1.harmonic = 4620
         drift = DriftSimple(orbit_length=ring.circumference)
-        drift.transition_gamma = 1 / (1 / np.sqrt(0.00192)) ** 2
+        drift.momentum_compaction_factor = momentum_compaction_factor(
+            1 / (1 / np.sqrt(0.00192)) ** 2
+        )
         # R_shunt, f_res, Q_factor = 5e5, 1e9, 10e10
         resonators = Resonators(
             shunt_impedances=R_shunt,
