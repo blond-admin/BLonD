@@ -23,7 +23,6 @@ Simon Lauber
 from __future__ import annotations
 
 import warnings
-from collections import deque
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -718,6 +717,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     """
 
     def __init__(self, decay_fraction_threshold: float = 0.001):
+        from collections import deque
+
         warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
 
@@ -1020,6 +1021,8 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     """
 
     def __init__(self, n_turns: int) -> None:
+        from collections import deque
+
         self._n_wakes_full_turn = n_turns
 
         self._parent_wakefield: WakeField | None = None

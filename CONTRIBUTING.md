@@ -21,6 +21,7 @@ Code that is not mature enough to be inside the standard codebase should be deve
 blond/                        BLonD beam dynamics software.
 ├── acc_math/                 Analytical equations.
 ├──── analytic/               Analytical equations for theoretic descriptions.
+├────── synchrotron_radiation/A collection of analytic equations required for synchrotron radiation.
 ├──── empiric/                Analytical equations for empirical observations.
 ├── beam_preparation/         Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
 ├── cycles/                   Module to manage and describe the ramp of the magnets and other cycles.
@@ -44,12 +45,14 @@ blond/                        BLonD beam dynamics software.
 ├──── impedances/             Module to handle the interaction of impedance sources with the beam.
 ├──── feedbacks/              Module to manage and describe the longitudinal feedbacks.
 ├── testing/                  Utilities for testing of BLonD.
+├──── synchrotron_radiation/  Implementations to simulate the effect of synchrotron radiation.
 ├── specifics/                Utility functions for specific accelerators.
 ├──── cern/                   Utility functions for CERN synchrotrons.
 ├────── lhc/                  Utility functions for the CERN Large Hadron Collider.
 ├────── ps/                   Utility functions for the CERN Proton Synchrotron.
 ├────── psb/                  Utility functions for the CERN Proton Synchrotron Booster.
 ├────── sps/                  Utility functions for the CERN Super Proton Synchrotron.
+├──── fccee/                  Accelerator specifics for the future circular collider.
 ├──── muon_collider/          Helper scripts for the muon collider.
 ├── interfaces/               Managing access to other (optional) beam physics software, like XSuite.
 ├──── xsuite/                 Glue code for XSuite.
