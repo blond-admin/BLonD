@@ -29,7 +29,7 @@ from blond.physics.profiles_sparse import EquidistantMultiProfile
 resonator_data = np.loadtxt(
     os.path.join(
         os.path.dirname(blond.__file__),
-        "examples/resources/EX_05_new_HQ_table.txt",
+        "examples/scripts/resources/EX_05_new_HQ_table.txt",
     ),
     comments="!",
 )
