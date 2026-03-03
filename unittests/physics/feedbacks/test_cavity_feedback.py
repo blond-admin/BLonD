@@ -31,9 +31,11 @@ class IQCavityFeedbackTest(unittest.TestCase):
 
         self.fdbk._parent_rf_station = Mock(spec=SingleHarmonicRFStation)
         self.fdbk._parent_rf_station.harmonic = 50
+        self.fdbk._parent_rf_station.get_main_harmonic.return_value = 50
         self.fdbk._parent_rf_station.omega_rf_design = 5e6
         self.fdbk._parent_rf_station.omega_rf = 5e6
         self.fdbk._parent_rf_station.phi_rf = 0
+        self.fdbk._parent_rf_station.phi_rf_design = 0
         self.fdbk.update_rf_variables()
 
     def test_discontinuity(self) -> None:
