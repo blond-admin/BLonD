@@ -641,8 +641,6 @@ def frev_to_beta(
     .. math::
 
         \beta = \frac{C \cdot f_{\text{rev}}}{c}
-
-    where :math:`c` is the speed of light in vacuum.
     """
     return circumference * frev / c0
 
@@ -672,8 +670,6 @@ def beta_to_frev(
     .. math::
 
         f_{\text{rev}} = \frac{\beta \cdot c}{C}
-
-    where :math:`c` is the speed of light in vacuum.
     """
     return (beta * c0) / circumference
 
@@ -703,8 +699,6 @@ def beta_to_trev(
     .. math::
 
         T_{\text{rev}} = \frac{C}{\beta \cdot c}
-
-    where :math:`c` is the speed of light in vacuum.
     """
     return circumference / (beta * c0)
 
@@ -796,9 +790,6 @@ def momentum_to_frev(
     .. math::
 
         f_{\text{rev}} = \frac{\beta(p) \cdot c}{C}
-
-    where :math:`\beta(p) = 1 / \sqrt{1 + m_0^2 / p^2}` and :math:`c` is
-    the speed of light in vacuum.
     """
     beta = momentum_to_beta(momentum, rest_mass)
     return beta_to_frev(beta, circumference)
@@ -833,9 +824,6 @@ def momentum_to_trev(
     .. math::
 
         T_{\text{rev}} = \frac{C}{\beta(p) \cdot c}
-
-    where :math:`\beta(p) = 1 / \sqrt{1 + m_0^2 / p^2}` and :math:`c` is
-    the speed of light in vacuum.
     """
     beta = momentum_to_beta(momentum, rest_mass)
     return beta_to_trev(beta, circumference)
@@ -929,8 +917,6 @@ def momentum_to_magnetic_field(
     .. math::
 
         B = \frac{p}{\rho \cdot q \cdot c}
-
-    where :math:`c` is the speed of light in vacuum.
     """
     return momentum / (bending_radius * charge * c0)
 
@@ -1026,8 +1012,6 @@ def total_energy_to_magnetic_field(
     .. math::
 
         B = \frac{\sqrt{E^2 - m_0^2}}{\rho \cdot q \cdot c}
-
-    where :math:`c` is the speed of light in vacuum.
     """
     return np.sqrt(total_energy**2 - rest_mass**2) / (
         bending_radius * charge * c0
@@ -1182,8 +1166,6 @@ def kinetic_energy_to_magnetic_field(
     .. math::
 
         B = \frac{\sqrt{(m_0 + E_k)^2 - m_0^2}}{\rho \cdot q \cdot c}
-
-    where :math:`c` is the speed of light in vacuum.
     """
     return np.sqrt((rest_mass + kinetic_energy) ** 2 - rest_mass**2) / (
         bending_radius * charge * c0
@@ -1219,8 +1201,6 @@ def magnetic_field_to_momentum(
     .. math::
 
         p = B \cdot \rho \cdot q \cdot c
-
-    where :math:`c` is the speed of light in vacuum.
     """
     return magnetic_field * bending_radius * charge * c0
 
@@ -1257,8 +1237,6 @@ def magnetic_field_to_total_energy(
     .. math::
 
         E = \sqrt{(B \cdot \rho \cdot q \cdot c)^2 + m_0^2}
-
-    where :math:`c` is the speed of light in vacuum.
     """
     return np.sqrt(
         (magnetic_field * bending_radius * charge * c0) ** 2 + rest_mass**2
@@ -1297,8 +1275,6 @@ def magnetic_field_to_kinetic_energy(
     .. math::
 
         E_k = \sqrt{(B \cdot \rho \cdot q \cdot c)^2 + m_0^2} - m_0
-
-    where :math:`c` is the speed of light in vacuum.
     """
     return (
         np.sqrt(
@@ -1337,9 +1313,6 @@ def delta_P_to_delta_E(
     .. math::
 
         \Delta E = \sqrt{m_0^2 + (\Delta p + p)^2} - E
-
-    where :math:`E = \sqrt{m_0^2 + p^2}` is the total energy of the
-    reference particle.
     """
     energy = momentum_to_total_energy(momentum, rest_mass)
     return np.sqrt(rest_mass**2 + (delta_P + momentum) ** 2) - energy
@@ -1374,9 +1347,6 @@ def delta_E_to_delta_P(
     .. math::
 
         \Delta p = \sqrt{(E + \Delta E)^2 - m_0^2} - p
-
-    where :math:`p = \sqrt{E^2 - m_0^2}` is the momentum of the
-    reference particle.
     """
     momentum = total_energy_to_momentum(total_energy, rest_mass)
     return np.sqrt((total_energy + delta_E) ** 2 - rest_mass**2) - momentum
