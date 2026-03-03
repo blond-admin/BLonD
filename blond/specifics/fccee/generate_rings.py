@@ -99,7 +99,6 @@ def generate_fccee_booster_basic_simulation(
         momentum_compaction_factor=momentum_compaction_factor,
     )
 
-    # TODO: calculate initial total RF voltage required in the collider
     cavity = SingleHarmonicRFStation(
         harmonic=242400, voltage=total_rf_voltage_injection, phi_rf=0
     )
