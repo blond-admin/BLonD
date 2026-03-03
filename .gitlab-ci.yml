@@ -93,6 +93,7 @@ workflow:
       --cov
       --cov-config=.coveragerc
     - pip uninstall -y cupy-cuda12x
+    - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
     - python3 -m pytest
       -v unittests/
       --import-mode=importlib

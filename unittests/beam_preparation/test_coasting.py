@@ -10,13 +10,6 @@ from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.testing.backend_testing import multi_backend_testcase
 
-try:
-    import cupy
-
-    cupy_available = True
-except (ModuleNotFoundError, ImportError):
-    cupy_available = False
-
 
 class TestCoasting(unittest.TestCase):
     def setUp(self):
@@ -66,7 +59,6 @@ class TestCoasting(unittest.TestCase):
             coasting.Coasting(0, [], [], start_time=1, stop_time=0)
 
     @multi_backend_testcase
-    @unittest.skipIf(cupy_available, "No Cupy")
     def test_prepare_beam_dflts(self):
         bins = np.linspace(-1, 1, 1000)
         dens = -(bins**2) + 1
