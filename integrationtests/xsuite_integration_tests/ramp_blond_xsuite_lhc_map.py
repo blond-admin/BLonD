@@ -34,7 +34,7 @@ def run_simulation(n_turns: int, init_distribution: dict):
         qy=1.2,
         betx=1.0,
         bety=1.0,
-        voltage_rf=0,  # why dont we just add it here???
+        voltage_rf=0,
         frequency_rf=0,
         lag_rf=0,
         momentum_compaction_factor=alpha,
@@ -45,7 +45,7 @@ def run_simulation(n_turns: int, init_distribution: dict):
     line = xt.Line(elements=[matrix], element_names={"matrix"})
 
     t_rev = 26658.8832 / c
-    p0c_ramp = np.linspace(450e9, 460e9, n_turns)
+    p0c_ramp = np.linspace(450e9, 450.1e9, n_turns)
     t_s = np.linspace(0, t_rev * n_turns, n_turns)
 
     line.particle_ref = xp.Particles(
@@ -57,7 +57,9 @@ def run_simulation(n_turns: int, init_distribution: dict):
     )  # there is an issue here, if there is an energy ramp we cannot twiss.
     alpha_0 = tw["momentum_compaction_factor"]
 
-    line.energy_program = xt.EnergyProgram(t_s=t_s, p0c=p0c_ramp)
+    line.energy_program = xt.EnergyProgram(
+        t_s=t_s, p0c=p0c_ramp
+    )  # make it more relativisitc?
 
     # --- BLonD3Element  --- #
     cavity1 = SingleHarmonicRFStation.headless(
@@ -87,6 +89,9 @@ def run_simulation(n_turns: int, init_distribution: dict):
         initial_intensity=1e6,
         momentum_compaction_factor=alpha_0,
     )
+
+    phi_s = cavity1.calc_phi_s_main_harmonic(beam=blond_cavity._beam)
+    print("phi_s", phi_s)
 
     line.insert_element(index=0, element=blond_cavity, name="xsuite_cavity")
 

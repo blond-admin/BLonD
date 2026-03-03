@@ -226,6 +226,10 @@ class BLonD3Cavity:
         )
         self._trackable._ring.is_below_transition.return_value = bool(eta < 0)
 
+        # self.set_time_shift() # initial setting of time shift # this was changd
+
+        self.orbit_shift = ZetaShift(dzeta=0.0)
+
     def track(self, particles: Particles):
         """
         Track particles through the wrapped BLonD element.
@@ -251,10 +255,7 @@ class BLonD3Cavity:
 
         self.xsuite_to_blond_transform_particles(particles, self._beam)
 
-        mask_alive = particles.state > 0
-
-        # All alive particles share the same p0c
-        p0c_after = particles.p0c[mask_alive][0]
+        p0c_after = self.line.particle_ref.p0c
 
         mass0 = particles.mass0
 
@@ -265,10 +266,14 @@ class BLonD3Cavity:
             E0_after
         )
 
+        self._beam.reference.total_energy = float(E0_after)
+
         self._trackable.track(self._beam)  # calls the BLonD track method
 
         # Convert blond -> xsuite
         self.blond_to_xsuite_transform_particles(particles, self._beam)
+
+        self._apply_orbit_shift(particles)
 
     def set_time_shift(self):
         """
@@ -281,6 +286,7 @@ class BLonD3Cavity:
             ring_circumference=self.line.get_length(),
         )
         phi_s = self._trackable.calc_phi_s_main_harmonic(beam=self._beam)
+
         self._dt_shift = (phi_s - self._trackable.phi_rf) / omega_rf
 
     def calc_phi_s(self):
@@ -295,6 +301,35 @@ class BLonD3Cavity:
         phi_s = self._trackable.calc_phi_s_main_harmonic(beam=self._beam)
         return phi_s
 
+    def _apply_orbit_shift(self, particles):
+        # Ring circumference
+        circumference = self.line.get_length()
+
+        # Harmonic number (use your main harmonic getter)
+        h = self._trackable.get_main_harmonic()
+
+        # Current beta from updated reference particle
+        beta = particles.beta0[particles.state > 0][0]
+
+        # Design RF frequency (harmonic condition)
+        omega_rf_design = 2 * np.pi * h * beta * c / circumference
+
+        # Actual RF frequency used in BLonD
+        omega_rf = self._trackable.calc_main_harmonic_omega_rf_design(
+            beam_beta=beta,
+            ring_circumference=circumference,
+        )
+
+        # Frequency mismatch
+        domega = omega_rf - omega_rf_design
+
+        # Compute dzeta
+        dzeta = circumference * domega / omega_rf_design
+
+        # Apply shift
+        self.orbit_shift = ZetaShift(dzeta=dzeta)
+        self.orbit_shift.track(particles)
+
     def xsuite_to_blond_transform_particles(
         self, particles: Particles, beam: BeamBaseClass
     ):
@@ -302,7 +337,6 @@ class BLonD3Cavity:
         Convert Xsuite particle coordinates to BLonD beam coordinates.
 
         Only active (alive) particles are converted. Lost particles are
-        flagged and removed from the BLonD beam representation.
         flagged and removed from the BLonD beam representation.
 
         Parameters
