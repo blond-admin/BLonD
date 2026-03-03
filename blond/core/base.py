@@ -152,7 +152,7 @@ class Schedulable:
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.intended_for_scheduling = []
+        self.intended_for_scheduling = set()
         self.schedules: dict[str, SchedulerBaseClass] = {}
         self.schedule_active = False
 
@@ -169,7 +169,7 @@ class Schedulable:
             Names of a variable.
         """
         for name in names:
-            self.intended_for_scheduling.append(str(name))
+            self.intended_for_scheduling.add(str(name))
 
     def schedule(
         self,
