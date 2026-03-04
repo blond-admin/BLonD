@@ -10,19 +10,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
+from blond.physics.cavities import RFManipulationBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Iterable
-
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
 
-class BarrierGenerator:
+class BarrierGenerator(RFManipulationBaseClass):
     """
     Define waveforms for a barrier bucket RF system.
 
@@ -35,43 +35,32 @@ class BarrierGenerator:
     Parameters
     ----------
     t_center
-        The center time of the barrier in seconds, either constant
-        or time varying.  If time varying, the format should be
-        [time, amplitude].
+        The center time of the barrier in seconds.
     t_width
-        The width the barrier in seconds, either constant
-        or time varying.  If time varying, the format should be
-        [time, amplitude].
+        The width the barrier in seconds.
     peak
-        The peak amplitude of the barrier in V, either constant
-        or time varying.  If time varying, the format should be
-        [time, amplitude].
+        The peak amplitude of the barrier in volts.
+    section_index
+        The section the barrier should be applied to.
     """
 
     def __init__(
         self,
-        t_center: float | ArrayLike,
-        t_width: float | ArrayLike,
-        peak: float | ArrayLike,
+        t_center: float | None = None,
+        t_width: float | None = None,
+        peak: float | None = None,
+        section_index: int = 0,
     ):
-        t_center = backend.cast_arr_float_if_needed(t_center)
-        if t_center.shape == ():
-            t_center = float(t_center)
+        super().__init__(section_index=section_index)
 
-        t_width = backend.cast_arr_float_if_needed(t_width)
-        if t_width.shape == ():
-            t_width = float(t_width)
+        self.t_center: float = t_center
+        self.t_width: float = t_width
+        self.peak: float = peak
 
-        peak = backend.cast_arr_float_if_needed(peak)
-        if peak.shape == ():
-            peak = float(peak)
+        self._add_intended_schedule("t_center", "t_width", "peak")
 
-        self._input_t_center = t_center
-        self._input_t_width = t_width
-        self._input_peak = peak
-
-    def waveform_at_time(
-        self, time: float, bin_centers: ArrayLike
+    def waveform_at_turn_or_time(
+        self, turn_i: int, reference_time: float, bin_centers: ArrayLike
     ) -> NumpyArray | CupyArray:
         """
         Create the barrier waveform at the specified time.
@@ -81,7 +70,9 @@ class BarrierGenerator:
 
         Parameters
         ----------
-        time
+        turn_i
+            The turn number at which to compute_the waveform.
+        reference_time
             The time in the ramp at which to compute the waveform.
         bin_centers
             The bin centers for the timespan to cover with the waveform.
@@ -91,17 +82,18 @@ class BarrierGenerator:
         waveform
             The array of the barrier waveform.
         """
-        cent = backend.interp_if_array(time, self._input_t_center)
-        width = backend.interp_if_array(time, self._input_t_width)
-        peak = backend.interp_if_array(time, self._input_peak)
+        self.apply_schedules(turn_i, reference_time)
 
-        return compute_sin_barrier(cent, width, peak, bin_centers)
+        return compute_sin_barrier(
+            self.t_center, self.t_width, self.peak, bin_centers
+        )
 
     def to_fourier_series(
         self,
-        times: Iterable[float],
         t_rev: Iterable[float],
         harmonics: Iterable[int],
+        turns: Iterable[int] | None = None,
+        times: Iterable[float] | None = None,
         m: int = 1,
     ) -> tuple[list[int], list[NumpyArray], list[NumpyArray]]:
         """
@@ -113,12 +105,14 @@ class BarrierGenerator:
 
         Parameters
         ----------
-        times
-            The times at which to construct the Fourier series.
         t_rev
             The revolution time at the times of interest.
         harmonics
             The RF harmonics used for the Fourier series.
+        turns
+            The turns at which to construct the Fourier series.
+        times
+            The times at which to construct the Fourier series.
         m
             The order of the sinc filter to be applied.  For details,
             see sinc_filtering function.  Defaults to 1.
@@ -135,9 +129,30 @@ class BarrierGenerator:
         ------
             ValueError: Raised if len(times) != len(t_rev)
         """
+        match (turns, times):
+            case None, None:
+                raise ValueError(
+                    "At least one of turns or times must be supplied"
+                )
+            case Iterable(), None:
+                turns = list(turns)
+                times = [None for _ in turns]
+            case None, Iterable():
+                times = list(times)
+                turns = [None for _ in times]
+            case Iterable(), Iterable():
+                times = list(times)
+                turns = list(turns)
+                if len(times) != len(turns):
+                    raise ValueError(
+                        "If specifying both turns and times, the same number "
+                        "of elements must be given for both."
+                    )
+
         max_h = backend.max(harmonics)
 
-        if len(times) != len(t_rev):
+        # Should not be possible to enter, kept for safety
+        if len(times) != len(t_rev):  # pragma: no cover
             raise ValueError(
                 "Input times and t_rev must have the same"
                 + " number of elements"
@@ -155,11 +170,13 @@ class BarrierGenerator:
             voltages.append(v)
             phases.append(p)
 
-        for i, (time, tr) in enumerate(zip(times, t_rev, strict=False)):
+        for i, (tn, tm, tr) in enumerate(
+            zip(turns, times, t_rev, strict=False)
+        ):
             bin_width = tr / (10 * max_h)
             n_bins = int(tr / bin_width)
             bin_cents = backend.linspace(0, tr, n_bins)
-            barrier = self.waveform_at_time(time, bin_cents)
+            barrier = self.waveform_at_turn_or_time(tn, tm, bin_cents)
 
             amps, phis = waveform_to_harmonics(barrier, harmonics)
             amps = sinc_filtering(amps, m)
@@ -175,6 +192,23 @@ class BarrierGenerator:
                 phases[j][1, i] = phis[j]
 
         return harmonics, voltages, phases
+
+    def on_run_simulation(self, simulation, beam, n_turns, **kwargs):
+        """
+        Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation `Beam` object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
 
 
 def compute_sin_barrier(

@@ -220,7 +220,9 @@ class TestBarrierBucketGenerator(unittest.TestCase):
 
         generator = bbuck.BarrierGenerator(cent, width, ampl)
         bin_cents = np.linspace(0, 1000e-9, 1000)
-        wave = generator.waveform_at_time(1, bin_cents)
+        wave = generator.waveform_at_turn_or_time(
+            turn_i=0, reference_time=1, bin_centers=bin_cents
+        )
 
         wave_pts = np.where(wave != 0)[0]
         self.assertAlmostEqual(
@@ -231,17 +233,20 @@ class TestBarrierBucketGenerator(unittest.TestCase):
     def test_variable_barrier(self):
         bin_cents = np.linspace(0, 1000e-9, 10000)
 
-        peak = [[0, 1], [1e3, 4e3]]
-        t_cent = [[0, 1], [200e-9, 800e-9]]
-        t_width = [[0, 1], [100e-9, 150e-9]]
+        peak = (np.array([0, 1]), np.array([1e3, 4e3]))
+        t_cent = (np.array([0, 1]), np.array([200e-9, 800e-9]))
+        t_width = (np.array([0, 1]), np.array([100e-9, 150e-9]))
 
-        generator = bbuck.BarrierGenerator(t_cent, t_width, peak)
+        generator = bbuck.BarrierGenerator()
+        generator.schedule("t_center", t_cent)
+        generator.schedule("t_width", t_width)
+        generator.schedule("peak", peak)
 
         for t in np.linspace(0, 1, 10):
             peak_exp = np.interp(t, peak[0], peak[1])
             cent_exp = np.interp(t, t_cent[0], t_cent[1])
             width_exp = np.interp(t, t_width[0], t_width[1])
-            wave = generator.waveform_at_time(t, bin_cents)
+            wave = generator.waveform_at_turn_or_time(0, t, bin_cents)
 
             self.assertAlmostEqual(np.max(wave), peak_exp, places=1)
             self.assertAlmostEqual(np.min(wave), -peak_exp, places=1)
@@ -269,7 +274,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
 
         # Unfiltered
         harms, amps, phases = generator.to_fourier_series(
-            times, t_rev, harmonics, m=0
+            t_rev, harmonics, None, times, m=0
         )
 
         for a, p in zip(amps, phases):
