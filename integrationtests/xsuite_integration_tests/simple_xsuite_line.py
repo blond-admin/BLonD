@@ -41,13 +41,16 @@ def run_simulation(n_turns):
 
     N_TURNS = n_turns
 
+    # --- Many particle  --- #
+    n_part = 100
+    rng = np.random.default_rng(seed=0)
     particles = line.build_particles(
-        x=[0],
-        px=[0],
-        y=[0],
-        py=[0],
-        zeta=[0.1e-3],
-        delta=[0.1e-3],
+        x=rng.uniform(-1e-3, 1e-3, n_part),
+        px=rng.uniform(-1e-5, 1e-5, n_part),
+        y=rng.uniform(-2e-3, 2e-3, n_part),
+        py=rng.uniform(-3e-5, 3e-5, n_part),
+        zeta=rng.uniform(-2e-2, 2e-2, n_part),
+        delta=rng.uniform(-1e-4, 1e-4, n_part),
     )
 
     init_dist = {

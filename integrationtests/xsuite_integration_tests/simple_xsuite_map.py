@@ -63,7 +63,7 @@ def run_simulation(n_turns):
 
     # --- Many particle  --- #
     n_part = 100
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed=0)
     particles = line.build_particles(
         x=rng.uniform(-1e-3, 1e-3, n_part),
         px=rng.uniform(-1e-5, 1e-5, n_part),

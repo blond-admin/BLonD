@@ -18,7 +18,7 @@ from .simple_xsuite_line import run_simulation as run_xsuite
 def test_blond_xsuite_interface():
     """Run xsuite + blond element simulation."""
     PLOT = True
-    n_turns = 100
+    n_turns = 1000
     zeta_xsuite, delta_xsuite, init_dist = run_xsuite(n_turns=n_turns)
     zeta_blond, delta_blond = run_blond(
         n_turns=n_turns, init_distribution=init_dist

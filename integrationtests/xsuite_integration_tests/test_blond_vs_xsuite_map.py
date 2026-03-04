@@ -17,7 +17,7 @@ from .simple_xsuite_map import run_simulation as run_xsuite
 
 def test_blond_interface_xsuite():
     """Run xsuite + blond element simulation."""
-    n_turns = 100
+    n_turns = 1000
     PLOT = True
 
     zeta_xsuite, delta_xsuite, init_dist = run_xsuite(n_turns=n_turns)
@@ -59,10 +59,10 @@ def test_blond_interface_xsuite():
             )  # shape (n_particles, n_turns)
             dp.append(delta_blond[0, i] - delta_xsuite[0, i])
 
-        plt.plot(dz, label=r" $|\Delta\zeta|$")
-        plt.plot(dp, label=r" $|\delta|$")
+        plt.plot(dz, marker="o", linestyle="-", label=r" $|\Delta\zeta|$")
+        plt.plot(dp, marker="o", linestyle="-", label=r" $|\delta |$")
         plt.xlabel("Turn")
-        plt.ylabel("difference")
+        plt.ylabel("Difference")
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
