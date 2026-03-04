@@ -67,7 +67,7 @@ def run_simulation(n_turns: int, init_distribution: dict):
         section_index=1,
         voltage=rf_voltage,
         harmonic=harmonic,
-        phi_rf=0,
+        phi_rf=-np.pi,
         circumference=circumference,
         total_energy=None,
         is_below_transition=None,

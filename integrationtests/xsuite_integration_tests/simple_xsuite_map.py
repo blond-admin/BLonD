@@ -51,7 +51,7 @@ def run_simulation(n_turns):
     xsuite_cavity = xt.Cavity(
         voltage=rf_voltage,
         frequency=400788731.3867354,
-        lag=3.141592653589793 / np.pi * 180,
+        lag=180,
     )
     # Create line
     line = xt.Line(elements=[matrix], element_names={"matrix"})

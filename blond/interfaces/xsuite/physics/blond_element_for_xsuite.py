@@ -287,7 +287,7 @@ class BLonD3Cavity:
         )
         phi_s = self._trackable.calc_phi_s_main_harmonic(beam=self._beam)
 
-        self._dt_shift = (phi_s - self._trackable.phi_rf) / omega_rf
+        self._dt_shift = phi_s / omega_rf  # differs to BLonD 2
 
     def calc_phi_s(self):
         """

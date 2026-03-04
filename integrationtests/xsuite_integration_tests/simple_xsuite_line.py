@@ -36,7 +36,7 @@ def run_simulation(n_turns):
     tab = line.get_table()
     tab_cav = tab.rows[tab.element_type == "Cavity"]
     for nn in tab_cav.name:
-        line[nn].lag = 3.141592653589793 / np.pi * 180
+        line[nn].lag = 180
         line[nn].frequency = 200266136.96284187
 
     N_TURNS = n_turns
