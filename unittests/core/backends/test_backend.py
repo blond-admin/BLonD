@@ -286,7 +286,6 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                # todo, fix
                 for _ in range(2):
                     backend.specials.drift_exact(
                         dt=self.dt,
