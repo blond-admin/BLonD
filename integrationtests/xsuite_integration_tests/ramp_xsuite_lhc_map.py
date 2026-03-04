@@ -54,8 +54,9 @@ def run_simulation(n_turns: int):
     line.energy_program = xt.EnergyProgram(t_s=t_s, p0c=p0c_ramp)
 
     xsuite_cavity = xt.Cavity(
-        voltage=rf_voltage, frequency=400788731.3867354, lag=0
+        voltage=rf_voltage, frequency=400788731.3867354, lag=180
     )
+
     line.insert_element(index=0, element=xsuite_cavity, name="xsuite_cavity")
 
     # link rf cavity to the ramp
@@ -64,7 +65,7 @@ def run_simulation(n_turns: int):
     h_rf = harmonic
     f_rf = h_rf * f_rev
 
-    n_part = 20
+    n_part = 400
     rng = np.random.default_rng()
 
     particles = line.build_particles(
@@ -72,8 +73,8 @@ def run_simulation(n_turns: int):
         px=rng.uniform(-1e-5, 1e-5, n_part),
         y=rng.uniform(-2e-3, 2e-3, n_part),
         py=rng.uniform(-3e-5, 3e-5, n_part),
-        zeta=rng.uniform(-1e-3, 1e-3, n_part),
-        delta=rng.uniform(-1e-4, 1e-4, n_part),
+        zeta=np.linspace(-1.5, 1.5, n_part),
+        delta=np.linspace(-1e-4, 1e-4, n_part) * 0,
     )
 
     # return initial distribution for the next simulation

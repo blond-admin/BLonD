@@ -62,6 +62,7 @@ def run_simulation(n_turns: int, init_distribution: dict):
     )  # make it more relativisitc?
 
     # --- BLonD3Element  --- #
+
     cavity1 = SingleHarmonicRFStation.headless(
         section_index=1,
         voltage=rf_voltage,
