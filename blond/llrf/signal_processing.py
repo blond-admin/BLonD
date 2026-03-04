@@ -269,9 +269,7 @@ def rf_beam_current(
             )
 
         # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.round(
-            (profile.bin_centers - dT - np.pi / omega_c) / T_s
-        )  # TODO: is this wrong?
+        ind_fine = np.round((profile.bin_centers - dT - np.pi / omega_c) / T_s)
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
