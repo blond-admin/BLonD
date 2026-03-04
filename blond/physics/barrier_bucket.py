@@ -21,6 +21,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
+    from blond.core.beam.base import BeamBaseClass
+
 
 class BarrierGenerator(RFManipulationBaseClass):
     """
@@ -40,6 +42,9 @@ class BarrierGenerator(RFManipulationBaseClass):
         The width the barrier in seconds.
     peak
         The peak amplitude of the barrier in volts.
+    n_bins
+        If tracking directly, specifies the number of bins that will
+        define the waveform before interpolation.
     section_index
         The section the barrier should be applied to.
     """
@@ -49,6 +54,7 @@ class BarrierGenerator(RFManipulationBaseClass):
         t_center: float | None = None,
         t_width: float | None = None,
         peak: float | None = None,
+        n_bins: int | None = None,
         section_index: int = 0,
     ):
         super().__init__(section_index=section_index)
@@ -56,6 +62,7 @@ class BarrierGenerator(RFManipulationBaseClass):
         self.t_center: float = t_center
         self.t_width: float = t_width
         self.peak: float = peak
+        self.n_bins = n_bins
 
         self._add_intended_schedule("t_center", "t_width", "peak")
 
@@ -192,6 +199,23 @@ class BarrierGenerator(RFManipulationBaseClass):
                 phases[j][1, i] = phis[j]
 
         return harmonics, voltages, phases
+
+    def _track(self, beam: BeamBaseClass) -> None:
+        """
+        Main simulation routine to be called in the mainloop.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        """
+        super()._track(beam=beam)
+
+        turn = self._turn_i.value
+        time = beam.reference.time
+
+
+        waveform = self.waveform_at_turn_or_time(turn, time)
 
     def on_run_simulation(self, simulation, beam, n_turns, **kwargs):
         """
