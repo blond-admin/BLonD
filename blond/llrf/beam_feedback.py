@@ -407,18 +407,15 @@ class BeamFeedback:
                 )
             )
             # voltage difference
-            self.dphi = (
-                self.dphi
-                + np.mean(
-                    self.cavity_feedback.gap_voltage_phase[
-                        np.abs(
-                            self.cavity_feedback.I_BEAM_COARSE[
-                                -self.cavity_feedback.n_coarse :
-                            ]
-                        )
-                        > self.current_thres  # TODO: this is likely not correct and should use the variable above instead
-                    ]
-                )
+            self.dphi = self.dphi + np.mean(
+                self.cavity_feedback.gap_voltage_phase[
+                    np.abs(
+                        self.cavity_feedback.I_BEAM_COARSE[
+                            -self.cavity_feedback.n_coarse :
+                        ]
+                    )
+                    > current_thres
+                ]
             )
 
         # Possibility to add RF phase noise through the PL
