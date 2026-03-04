@@ -294,15 +294,14 @@ class CavityFeedback:
         self.T_s_prev = self.T_s
         self.T_s = self.n_s * 2 * np.pi / self.omega_rf
 
-        # Update the coarse grid sampling
-        # self.n_coarse = round(
-        #     self.rf_station.t_rev[self.rf_station.counter[0]] / self.T_s
-        # )  # TODO: without this, the testcase fails, which is due to the fact that n_coarse fails
-
-        # TODO: old above, new below
+        # The number of samples is locked to the harmonic to ensure array compatibility
+        # The resulting shift between the actual and the design is handled through
+        # shifting by dT, which is in-turn dependant no the shift from phi_rf
+        # which is performed in the tracker. This will cause the time-array to slowly shift
+        # out of the current turn.
         self.n_coarse = round(
             self.rf_station.harmonic[self.n_h, self.counter] / self.n_s
-        )  # TODO: this is necessary for correctness?
+        )
 
         # Present coarse grid and save previous turn coarse grid
         self.rf_centers_prev = np.copy(self.rf_centers)
