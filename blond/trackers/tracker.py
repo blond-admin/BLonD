@@ -54,6 +54,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.profile import Profile
     from ..beam.beam import Beam
     from ..input_parameters.rf_parameters import RFStation
+
     from ..utils.types import DeviceType
 
     MainHarmonicOptionType = (
@@ -301,9 +302,7 @@ class RingAndRFTracker:
     periodicity : bool (optional)
         Option to switch periodic solver on/off; default is False (off)
     interpolation : bool (optional)
-        Option to use sliced and interpolated voltage for the kicker; default
-        is False
-
+        Option to use sliced and interpolated voltage for the kicker; default is False.
     """
 
     @handle_legacy_kwargs
@@ -540,6 +539,11 @@ class RingAndRFTracker:
 
         # Add phase modulation directly to the cavity RF phase
         if self.rf_params.phi_modulation is not None:
+            if self.beamFB is not None:
+                raise NotImplementedError(
+                    "Simulations with phi_modulation and beam "
+                    "FBs are not yet implemented."
+                )
             self.rf_params.phi_rf[:, turn] += self.rf_params.phi_modulation[0][
                 :, turn
             ]
@@ -547,31 +551,33 @@ class RingAndRFTracker:
                 1
             ][:, turn]
 
+        # Correction from cavity loop
+        if self.cavityFB is not None:
+            for feedback in self.cavityFB:
+                if feedback is not None:
+                    feedback.track()
+
         # Determine phase loop correction on RF phase and frequency
         if self.beamFB is not None and turn >= self.beamFB.delay:
             self.beamFB.track()
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
-        self.rf_params.dphi_rf += (
-            2.0
-            * np.pi
-            * self.rf_params.harmonic[:, turn + 1]
-            * (
-                self.rf_params.omega_rf[:, turn + 1]
-                - self.rf_params.omega_rf_d[:, turn + 1]
+        if self.rf_params.phi_modulation is None:
+            # phi_modulation already adjusts the phase internally
+            self.rf_params.dphi_rf += (
+                2.0
+                * np.pi
+                * self.rf_params.harmonic[:, turn]
+                * (
+                    self.rf_params.omega_rf[:, turn]
+                    - self.rf_params.omega_rf_d[:, turn]
+                )
+                / self.rf_params.omega_rf_d[:, turn]
             )
-            / self.rf_params.omega_rf_d[:, turn + 1]
-        )
 
-        # Total phase offset
-        self.rf_params.phi_rf[:, turn + 1] += self.rf_params.dphi_rf
-
-        # Correction from cavity loop
-        if self.cavityFB is not None:
-            for feedback in self.cavityFB:
-                if feedback is not None:
-                    feedback.track()
+            # Total phase offset
+            self.rf_params.phi_rf[:, turn + 1] += self.rf_params.dphi_rf
 
         if self.periodicity:
             if hasattr(self, "_device") and self._device == "GPU":
@@ -602,6 +608,15 @@ class RingAndRFTracker:
 
                 else:
                     self.kick(self.beam.dt, self.beam.dE, turn)
+                    if self.totalInducedVoltage is not None:
+                        bm.linear_interp_kick(
+                            dt=self.beam.dt,
+                            dE=self.beam.dE,
+                            voltage=self.totalInducedVoltage.induced_voltage,
+                            bin_centers=self.profile.bin_centers,
+                            charge=self.beam.particle.charge,
+                            acceleration_kick=0,
+                        )
 
             self.drift(self.beam.dt, self.beam.dE, turn + 1)
 
