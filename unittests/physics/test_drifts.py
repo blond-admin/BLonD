@@ -2,12 +2,15 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
+from scipy.constants import c
 from scipy.constants import speed_of_light as c0
 
 from blond import Simulation, momentum_compaction_factor
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.beams import ProbeBeam
+from blond.core.beam.particle_types import lead_82
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftBaseClass, DriftExact, DriftSimple
@@ -256,6 +259,38 @@ class TestDriftExact(unittest.TestCase):
             ),
         )
         self.drift_exact.track(beam=beam)
+
+    def test_track_vs_blond2(self):
+        def drift_blond2(dE, eta0, eta1, eta2, T):
+            # legacy blond2 formula, copied from `legacy` folder
+            res = T * (
+                1.0 / (1.0 - eta0 * dE - eta1 * dE * dE - eta2 * dE * dE * dE)
+                - 1.0
+            )
+            return res
+
+        beam = ProbeBeam(
+            dt=np.linspace(-10, 10, 41),
+            particle_type=lead_82,
+            reference_total_energy=1e9,
+        )
+        drift = DriftExact.headless(
+            orbit_length=10,
+            section_index=0,
+            momentum_compaction_factor=10,
+            higher_order_alpha=[20, 30],
+        )
+        gamma = beam.reference.gamma
+        blond2_expected = drift_blond2(
+            dE=beam.dE.array_local,
+            eta0=drift.eta_0(gamma),
+            eta1=drift.higher_order_alpha[0] - (1 / (gamma * gamma)),
+            eta2=drift.higher_order_alpha[1] - (1 / (gamma * gamma)),
+            T=drift.orbit_length / (beam.reference.beta * c),
+        )
+        drift.track(beam=beam)
+
+        np.testing.assert_allclose(blond2_expected, beam.dt.copy_as_numpy())
 
 
 class TestDriftSpecial(unittest.TestCase):
