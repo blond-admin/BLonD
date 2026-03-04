@@ -365,9 +365,7 @@ class BeamFeedback:
                 (self.time_offset - np.pi / omega_rf)
                 <= self.profile.bin_centers,
                 self.profile.bin_centers
-                <= (
-                    -1 / self.alpha + self.time_offset - 2 * np.pi / omega_rf
-                ),  # TODO : this comma is an addition, should it be there, or is it just formatting?
+                <= (-1 / self.alpha + self.time_offset - 2 * np.pi / omega_rf),
             )
         else:
             indexes = bm.ones(self.profile.n_slices, dtype=bool)
