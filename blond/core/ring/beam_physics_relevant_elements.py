@@ -101,7 +101,6 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"but got "
                 f"{[(cav.name, cav.section_index) for cav in rf_stations]}"
             )
-
         unique_section_indices = np.unique(elem_section_indices)
         if len(unique_section_indices) > 1:
             for section_index in np.sort(unique_section_indices):
@@ -284,7 +283,7 @@ class BeamPhysicsRelevantElements(Preparable):
         else:
             raise AssertionError(
                 f"The element must be inserted within ["
-                f"0:{len(self.elements)}] indexes. "
+                f"0:{len(self.elements)}] indexes."
             )
 
     def insert(self, element: SimulationElementBase, insert_at: int) -> None:
@@ -499,12 +498,19 @@ class BeamPhysicsRelevantElements(Preparable):
         _seen = set()
         ordered_elements = []
 
+        for element in elements_in_section:
+            assert any(isinstance(element, n) for n in natural_order), (
+                f"Element of type `{type(element).__name__}` can not be"
+                f" automatically ordered!\n"
+                f"Build your execution order using `ring.add_elements(...)`."
+            )
+
         for cls in natural_order:
             for e in elements_in_section:
                 if e not in _seen and isinstance(e, cls):
                     ordered_elements.append(e)
                     _seen.add(e)
-
+        assert len(ordered_elements) == len(elements_in_section)
         self.elements = list(
             elements_before_section + ordered_elements + elements_after_section
         )
@@ -584,7 +590,7 @@ def pretty_string(v: NumpyArray | Any) -> Any:
     formatted_string
         Formatted string representation of the input value.
     """
-    if isinstance(v, np.ndarray):
-        return f"array(min={v.min()}, max={v.max()}, shape={v.shape})"
-    else:
+    try:  # handles NumPy and CuPy without import
+        return f"{type(v)}(min={v.min()}, max={v.max()}, shape={v.shape})"
+    except AttributeError:
         return v

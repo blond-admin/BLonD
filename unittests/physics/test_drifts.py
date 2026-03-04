@@ -1,12 +1,11 @@
-import cmath
 import unittest
 from unittest.mock import Mock
 
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-from blond import Numpy32Bit, Simulation
-from blond.core.backends.backend import Numpy64Bit, backend
+from blond import Simulation, momentum_compaction_factor
+from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
@@ -49,24 +48,38 @@ class TestDriftBaseClass(unittest.TestCase):
     def test_orbit_length(self):
         self.assertEqual(123, self.drift_base_class.orbit_length)
 
+    def test_radiation_integrals(self):
+        self.assertIsNone(self.drift_base_class.radiation_integrals)
+
+        radiation_integrals = np.array(
+            [
+                0.646747216157,
+                0.0005936549319,
+                5.6814536525e-08,
+                5.92870407301e-09,
+                1.71368060083e-11,
+            ]
+        )
+        drift_base_class = DriftBaseClassHelper(
+            orbit_length=123,
+            section_index=0,
+            radiation_integrals=radiation_integrals,
+        )
+
+        np.testing.assert_equal(
+            drift_base_class.radiation_integrals,
+            radiation_integrals,
+        )
+
 
 class TestDriftSimple(unittest.TestCase):
     def setUp(self):
         self.gamma = 2.5
         self.drift_simple = DriftSimple.headless(
-            transition_gamma=20.0,  # highly relativistic
+            momentum_compaction_factor=20.0,  # highly relativistic
             orbit_length=0.25 * 25,
             section_index=0,
         )
-
-    def test_setters1(self):
-        drift_simple = DriftSimple(
-            transition_gamma=20.0,  # highly relativistic
-            orbit_length=0.25 * 25,
-            section_index=0,
-        )
-        drift_simple.transition_gamma = 1.0
-        drift_simple.transition_gamma = 1.0j
 
     def test_setters2(self):
         drift_simple = DriftSimple(
@@ -79,7 +92,9 @@ class TestDriftSimple(unittest.TestCase):
 
     def test_array_setup(self):
         self.drift_simple = DriftSimple.headless(
-            transition_gamma=np.array([20.0]),  # highly relativistic
+            momentum_compaction_factor=momentum_compaction_factor(
+                np.array([20.0])
+            ),  # highly relativistic
             orbit_length=0.25 * 25,
             section_index=0,
         )
@@ -109,22 +124,20 @@ class TestDriftSimple(unittest.TestCase):
             self.drift_simple.on_init_simulation(simulation=simulation)
 
     def test___init__(self):
-        np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
+        np.testing.assert_array_equal(
+            self.drift_simple.momentum_compaction_factor, 20.0
+        )
         self.assertEqual(self.drift_simple.orbit_length, 0.25 * 25)
 
     def test_transition_gamma(self):
-        np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
+        np.testing.assert_array_equal(
+            self.drift_simple.momentum_compaction_factor, 20.0
+        )
 
     def test_alpha_0(self):
         np.testing.assert_array_equal(
             self.drift_simple.alpha_0,
-            1 / self.drift_simple.transition_gamma**2,
-        )
-
-    def test_momentum_compaction_factor(self):
-        np.testing.assert_array_equal(
             self.drift_simple.momentum_compaction_factor,
-            1 / self.drift_simple.transition_gamma**2,
         )
 
     def test_eta_0(self):
@@ -162,6 +175,9 @@ class TestDriftSimple(unittest.TestCase):
         )  # delta t in s
         beam.write_partial_dt.return_value = beam.dt
         beam.read_partial_dE.return_value = beam.dE
+        self.drift_simple.momentum_compaction_factor = (
+            momentum_compaction_factor(transition_gamma=20.0)
+        )  # highly relativistic
 
         self.drift_simple.track(beam=beam)
         np.testing.assert_allclose(
@@ -194,40 +210,10 @@ class TestDriftSimple(unittest.TestCase):
             / (0.5 * c0),  # drifted by length of drift
         )
 
-    def test_setters_negative_compaction(self):
-        self.drift_simple.momentum_compaction_factor = -2.5
-        self.assertEqual(self.drift_simple.momentum_compaction_factor, -2.5)
-        self.assertEqual(
-            self.drift_simple.transition_gamma, 1 / cmath.sqrt(-2.5)
-        )
-
-    def test_setters_complex_transition(self):
-        self.drift_simple.transition_gamma = 1 / cmath.sqrt(-2.5)
-        self.assertEqual(self.drift_simple.momentum_compaction_factor, -2.5)
-        self.assertEqual(
-            self.drift_simple.transition_gamma, 1 / cmath.sqrt(-2.5)
-        )
-
-    def test_setters_real_transition(self):
-        self.drift_simple.transition_gamma = 1 / cmath.sqrt(2.5)
-        self.assertEqual(self.drift_simple.momentum_compaction_factor, 2.5)
-        self.assertEqual(
-            self.drift_simple.transition_gamma, 1 / cmath.sqrt(2.5)
-        )
-
     def test_init(self):
-        DriftSimple(orbit_length=1.0, section_index=0, transition_gamma=2.5j)
-
         DriftSimple(
             orbit_length=1.0, section_index=0, momentum_compaction_factor=2.5
         )
-        with self.assertRaises(ValueError):
-            DriftSimple(
-                orbit_length=1.0,
-                section_index=0,
-                momentum_compaction_factor=2.5,
-                transition_gamma=2.5j,
-            )
 
 
 class TestDriftExact(unittest.TestCase):

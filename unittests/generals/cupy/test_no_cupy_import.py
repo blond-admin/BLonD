@@ -41,6 +41,24 @@ class TestFunctions(unittest.TestCase):
         plt.close()
 
     @pytest.mark.cupy
+    def test_scatter(self):
+        try:
+            import cupy as cp  # type: ignore
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
+
+        from matplotlib import pyplot as plt
+
+        import blond.generals.cupy.no_cupy_import as no_cupy
+
+        y = cp.ones(12)
+
+        with no_cupy.AllowPlotting():
+            plt.scatter(y, y)
+        plt.close("all")
+
+    @pytest.mark.cupy
     def test_is_cupy_array(self):
         try:
             import cupy as cp  # type: ignore

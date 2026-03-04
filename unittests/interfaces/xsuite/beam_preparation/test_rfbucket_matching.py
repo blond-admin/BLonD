@@ -26,7 +26,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
         simulation = self.example.simulation
         cavity = simulation.ring.elements.get_element(SingleHarmonicRFStation)
         cavity.voltage = voltage
-        cavity.phi_rf = phase
+        cavity.phi_rf_design = phase
         zmax = simulation.ring.circumference / (2 * np.amin(cavity.harmonic))
         simulation.prepare_beam(
             beam=self.example.beam1,
@@ -39,7 +39,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
         )
 
         drift = self.example.simulation.ring.elements.get_element(DriftSimple)
-        drift._transition_gamma = None
+        drift.momentum_compaction_factor = None
 
         with self.assertRaises(ValueError):
             simulation.prepare_beam(

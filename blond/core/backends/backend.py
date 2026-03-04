@@ -278,6 +278,7 @@ class BackendBaseClass(ABC):
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
         self.sqrt: Callable = None  # type: ignore
+        self.interp: Callable = None  # type: ignore
         self.meshgrid: Callable = None  # type: ignore
         self.square: Callable = None  # type: ignore
         self.mean: Callable = None  # type: ignore
@@ -288,6 +289,7 @@ class BackendBaseClass(ABC):
         self.max: Callable = None  # type: ignore
         self.dot: Callable = None  # type: ignore
         self.percentile: Callable = None  # type: ignore
+        self.cumulative_sum: Callable = None  # type: ignore
         self.array_split: Callable = None  # type: ignore
         self.sign: Callable = None  # type: ignore
         self.sin: Callable = None  # type: ignore
@@ -299,8 +301,10 @@ class BackendBaseClass(ABC):
         self.copy: Callable = None  # type: ignore
         self.ones_like: Callable = None  # type: ignore
         self.add: Callable = None  # type: ignore
+        self.default_rng: object = None  # type: ignore
         self.concatenate: Callable = None  # type: ignore
         self.unique: Callable = None  # type: ignore
+        self.repeat: Callable = None  # type: ignore
         self.ndarray: type = None  # type: ignore
 
     def _finalize(self) -> None:
@@ -494,7 +498,9 @@ class BackendBaseClass(ABC):
                 # Maybe a bug in CuPy?
                 # Catch the exception then throw the correct warning.
                 arr = arr.astype(dtype)
-            except AttributeError as e:
+            # Can be removed some years after 2025.
+            except AttributeError as e:  # pragma: no cover
+                # Cupy bugfix needed for `cupy-cuda12x<14.0.1`
                 if (
                     str(e)
                     == "module 'numpy' has no attribute 'ComplexWarning'"
@@ -633,6 +639,10 @@ class NumpyBackend(BackendBaseClass):
         self.max = np.max
         self.dot = np.dot
         self.percentile = np.percentile
+        try:  # pragma: no cover
+            self.cumulative_sum = np.cumulative_sum
+        except AttributeError:  # pragma: no cover
+            self.cumulative_sum = np.cumsum
         self.array_split = np.array_split
         self.sign = np.sign
         self.sin = np.sin
@@ -644,8 +654,10 @@ class NumpyBackend(BackendBaseClass):
         self.copy = np.copy
         self.ones_like = np.ones_like
         self.add = np.add
+        self.default_rng = np.random.default_rng
         self.concatenate = np.concatenate
         self.unique = np.unique
+        self.repeat = np.repeat
         self.ndarray = np.ndarray
 
         self._finalize()
@@ -776,6 +788,7 @@ class CupyBackend(BackendBaseClass):
         self.max = cp.max
         self.dot = cp.dot
         self.percentile = cp.percentile
+        self.cumulative_sum = cp.cumsum
         self.array_split = cp.array_split
         self.sign = cp.sign
         self.sin = cp.sin
@@ -787,8 +800,10 @@ class CupyBackend(BackendBaseClass):
         self.copy = cp.copy
         self.ones_like = cp.ones_like
         self.add = cp.add
+        self.default_rng = cp.random.default_rng
         self.concatenate = cp.concatenate
         self.unique = cp.unique
+        self.repeat = cp.repeat
         self.ndarray = cp.ndarray
 
         from blond.core.backends.cuda.callables import CudaSpecials

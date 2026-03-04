@@ -8,6 +8,7 @@ import pytest
 from blond import Beam, Simulation, proton, uranium_29
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.core.beam.beams import ProbeBeam
+from blond.core.beam.particle_types import lead_82
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.generals.distributed.helpers import (
     MPI_RANK,
@@ -47,6 +48,30 @@ class TestBeam(unittest.TestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_basic_getters(self):
+        self.beam.dt  # NOQA
+        self.beam.dE  # NOQA
+        self.beam.flags  # NOQA
+        self.beam.ids  # NOQA
+
+        beam = Beam(intensity=123, particle_type=lead_82)
+        with self.assertRaisesRegex(
+            AttributeError, "not properly initialized"
+        ):
+            beam.dt  # NOQA
+        with self.assertRaisesRegex(
+            AttributeError, "not properly initialized"
+        ):
+            beam.dE  # NOQA
+        with self.assertRaisesRegex(
+            AttributeError, "not properly initialized"
+        ):
+            beam.ids  # NOQA
+        with self.assertRaisesRegex(
+            AttributeError, "not properly initialized"
+        ):
+            beam.flags  # NOQA
 
     def test_common_array_size(self) -> None:
         self.assertEqual(10, self.beam.common_array_size)
@@ -157,6 +182,28 @@ class TestBeam(unittest.TestCase):
             plt.gcf().clf()
         with self.assertRaises(ValueError):
             Beam.plot_hist(beam, axis=10)
+
+    def test_simple_gaussian(self):
+        beam = Beam.simple_gaussian(
+            n_macroparticles=10_000,
+            intensity=1e10,
+            particle_type=proton,
+            dt_scale=1e-9,
+            dE_scale=1e9,
+            dE_offset=0.5e9,
+            dt_offset=0.5e-9,
+        )
+        # places=1 because using random generator with low number of particles
+        self.assertAlmostEqual(
+            beam._dt.mean(), 5.194208272517843e-10, places=1
+        )
+        self.assertAlmostEqual(beam._dt.std(), 1.003710018454918e-09, places=1)
+        self.assertAlmostEqual(
+            beam._dE.mean() / 1e9, 510497638.7958076 / 1e9, places=1
+        )
+        self.assertAlmostEqual(
+            beam._dE.std() / 1e9, 996310643.973366 / 1e9, places=1
+        )
 
     def test_plot_hist_executes_kwargs(self) -> None:
         beam = Mock(Beam)

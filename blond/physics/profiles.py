@@ -28,6 +28,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from matplotlib.lines import Line2D
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -102,7 +103,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         assert self._hist_y is not None
         self.invalidate_cache()
 
-    def plot(self, **kwargs_plot: dict[str, Any]) -> None:
+    def plot(self, **kwargs_plot: dict[str, Any]) -> list[Line2D]:
         """
         Plot the current histogram.
 
@@ -110,11 +111,17 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         ----------
         **kwargs_plot
             Keyword arguments for `matplotlib.pyplot.plot`.
+
+        Returns
+        -------
+        artists
+            The plotting artists.
         """
         from blond import AllowPlotting
 
         with AllowPlotting():
-            plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
+            artists = plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
+        return artists
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray | CupyArray:
@@ -443,8 +450,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Delete the stored values of functions with @cached_property."""
         self._invalidate_cache(
             props=(
-                "gauss_fit_params",
-                "beam_spectrum",
+                "gradient_hist_y",
                 "hist_step",
                 "cut_left",
                 "cut_right",
