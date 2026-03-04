@@ -396,8 +396,8 @@ class RFStation:
                 if len(system) == 0:
                     raise ValueError("No matching harmonic in phi_modulation")
                 elif len(system) > 1:
-                    raise RuntimeError("""Phase modulation not yet 
-                                       implemented with multiple systems 
+                    raise RuntimeError("""Phase modulation not yet
+                                       implemented with multiple systems
                                        at the same harmonic.""")
                 else:
                     system = system[0]
