@@ -18,11 +18,16 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 import numpy as np
 from scipy.interpolate import interp1d
 
+from blond.core.backends.backend import backend
+from blond.generals.cupy import no_cupy_import
+
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
     from os import PathLike
     from typing import Any, TypeVar
 
+    from cupy.typing import NDArray as CupyArray
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
     from scipy.interpolate import (
         Akima1DInterpolator,
@@ -655,7 +660,7 @@ class ScheduledArray(SchedulerBaseClass):
         (indexing is done via self.values[turn_i]).
     """
 
-    def __init__(self, values: NumpyArray) -> None:
+    def __init__(self, values: NumpyArray | CupyArray) -> None:
         super().__init__()
         self.values = values
 
@@ -663,7 +668,7 @@ class ScheduledArray(SchedulerBaseClass):
         self,
         turn_i: int,
         reference_time: float,
-    ) -> NumpyArray:
+    ) -> NumpyArray | CupyArray:
         """
         Get the value of the schedule for the current turn.
 
@@ -679,7 +684,11 @@ class ScheduledArray(SchedulerBaseClass):
         value
             The scheduled value for the current turn.
         """
-        return self.values[turn_i]
+        value = self.values[turn_i]
+        if no_cupy_import.is_cupy_array(value):
+            value = value.get()
+
+        return value
 
 
 class ScheduledInterpolation(SchedulerBaseClass):
@@ -732,8 +741,8 @@ class ScheduledInterpolation(SchedulerBaseClass):
 
     def __init__(
         self,
-        times: NumpyArray,
-        values: NumpyArray,
+        times: NumpyArray | CupyArray,
+        values: NumpyArray | CupyArray,
         interpolator: type[
             Akima1DInterpolator
             | PchipInterpolator
@@ -769,7 +778,7 @@ class ScheduledInterpolation(SchedulerBaseClass):
 
 
 def get_scheduler(
-    value: NumpyArray | tuple[NumpyArray, NumpyArray],
+    value: ArrayLike,
 ) -> SchedulerBaseClass:
     """
     Auto-select the correct class of the schedulers.
@@ -785,12 +794,19 @@ def get_scheduler(
     scheduler
         The appropriate scheduler instance.
     """
-    if isinstance(value, np.ndarray):
-        return ScheduledArray(values=value)
-    elif isinstance(value, tuple):
-        return ScheduledInterpolation(times=value[0], values=value[1])
-    else:
-        raise TypeError(type(value))
+    value = backend._asarray_if_needed(value)
+    match value.shape:
+        case (_,):
+            schedule = ScheduledArray(values=value)
+        case _, _:
+            schedule = ScheduledInterpolation(times=value[0], values=value[1])
+        case _:
+            raise ValueError(
+                "Scheduler input must be either 1D for turn-based or 2D"
+                " for time-based"
+            )
+
+    return schedule
 
 
 class DynamicParameter:  # TODO add code generation for this method with type-hints

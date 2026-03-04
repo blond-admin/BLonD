@@ -21,6 +21,7 @@ from blond.core.base import (
 )
 from blond.core.beam.base import BeamBaseClass
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import multi_backend_testcase
 
 
 class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
@@ -253,7 +254,7 @@ class TestFunctions(unittest.TestCase):
         )
         self.assertEqual(type(sched1), ScheduledArray)
         self.assertEqual(type(sched2), ScheduledInterpolation)
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             get_scheduler(
                 "a string",
             )
@@ -284,10 +285,11 @@ class TestSchedulable(unittest.TestCase):
     def test___init__(self):
         pass
 
+    @multi_backend_testcase
     def test_schedule(self):
         schedulable = Schedulable()
         schedulable.voltage = None
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             schedulable.schedule("voltage", 1)
         schedulable.schedule("voltage", np.ones(10))
         schedulable.schedule(
