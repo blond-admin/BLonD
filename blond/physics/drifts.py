@@ -69,7 +69,7 @@ def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
         )
 
 
-class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
+class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
     """
     Base class of a drift.
 
@@ -80,14 +80,19 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         Length / Velocity => Time to pass the element.
     section_index
         Section index to group elements into sections.
+    radiation_integrals
+        Synchrotron radiation integrals.
+        Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
         self,
         orbit_length: float,
         section_index: int = 0,
+        radiation_integrals: NumpyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
         super().__init__(
@@ -96,6 +101,19 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         )
 
         self.orbit_length = orbit_length
+        self._radiation_integrals = radiation_integrals
+
+    @property
+    def radiation_integrals(self) -> NumpyArray | None:
+        """
+        Radiation integrals of the drift.
+
+        Returns
+        -------
+        radiation_integrals
+            Synchrotron radiation integrals.
+        """
+        return self._radiation_integrals
 
     @abc.abstractmethod  # pragma: no cover
     def eta_0(self, gamma: float) -> backend.float:
@@ -149,7 +167,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         pass
 
 
-class DriftSimple(DriftBaseClass, HasPropertyCache):
+class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     """
     Base class to implement beam drifts in synchrotrons.
 
@@ -159,16 +177,24 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         Length of drift, in [m].
     section_index
         Section index to group elements into sections.
+    radiation_integrals
+        Synchrotron radiation integrals.
+        Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
+    transition_gamma
+        Gamma of transition crossing.
     momentum_compaction_factor
         Momentum compaction factor.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
         self,
         orbit_length: float,
         section_index: int = 0,
+        radiation_integrals: NumpyArray | None = None,
+        transition_gamma: complex | float | None = None,
         momentum_compaction_factor: float | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
@@ -182,10 +208,15 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Length / Velocity => Time to pass the element.
         section_index
             Section index to group elements into sections.
+        radiation_integrals
+            Synchrotron radiation integrals.
+        transition_gamma
+            Gamma of transition crossing.
         momentum_compaction_factor
             Momentum compaction factor.
         **kwargs
-            Additional keyword arguments for MRO of fused elements.
+            Additional keyword arguments for method
+            resolution order of inheriting elements.
 
         Examples
         --------
@@ -198,8 +229,10 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         super().__init__(
             orbit_length=orbit_length,
             section_index=section_index,
+            radiation_integrals=radiation_integrals,
             **kwargs,  # for MRO of fused elements
         )
+        self._add_intended_schedule("momentum_compaction_factor")
 
         self._simulation: Simulation | None = None
 

@@ -72,12 +72,16 @@ def reload_cuda_backend(  # NOQA: D102
             f"kernels_sm_{_compute_capability}_double.cubin",
         )
         if not os.path.isfile(path):
-            raise FileNotFoundError(
-                f"The compiled CUDA backend was not found at {path=}.\n"
-                f"Has the backend been compiled?"
-                f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
-                # make PyCharm automatically link the correct file
-            )
+            from blond.core.backends.cuda.compile import compile_cuda_library
+
+            compile_cuda_library()
+            if not os.path.isfile(path):
+                raise FileNotFoundError(
+                    f"The compiled CUDA backend was not found at {path=}.\n"
+                    f"Has the backend been compiled?"
+                    f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
+                    # make PyCharm automatically link the correct file
+                )
         gpu_module = cp.RawModule(
             path=path,
         )

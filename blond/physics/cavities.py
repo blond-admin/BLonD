@@ -22,6 +22,9 @@ from scipy.constants import speed_of_light as c0
 from blond.acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
 )
+from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
+    calculate_energy_loss_per_turn,
+)
 from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
@@ -65,7 +68,7 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
-class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+class RFManipulationBaseClass(BeamPhysicsRelevant, ABC):
     """
     Base class to implement beam-rf any interactions in synchrotrons.
 
@@ -80,7 +83,8 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     name
         User given name of the element.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
@@ -127,7 +131,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
 
 class RFStationBaseClass(
-    RFManipulationBaseClass, AltersReference, Schedulable, ABC
+    RFManipulationBaseClass, Schedulable, AltersReference, ABC
 ):
     """
     Base class to implement beam-rf interactions in synchrotrons.
@@ -151,7 +155,8 @@ class RFStationBaseClass(
     name
         User given name of the element.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
 
     Attributes
     ----------
@@ -187,6 +192,13 @@ class RFStationBaseClass(
             name=name,
             **kwargs,  # for MRO of fused elements
         )
+
+        self._add_intended_schedule(
+            "voltage",
+            "phi_rf_design",
+            "harmonic",
+        )
+
         self._n_rf = n_rf
 
         self.cavity_feedback_list: list[
@@ -654,9 +666,21 @@ class RFStationBaseClass(
             reference_time=float(beam.reference.time),
             particle_type=beam.particle_type,
         )
-        reference_energy_change = (
-            target_total_energy - beam.reference.total_energy
-        )
+        if self._ring.radiation_integrals is not None:
+            energy_loss_per_turn = calculate_energy_loss_per_turn(
+                energy=target_total_energy,
+                radiation_integrals=self._ring.radiation_integrals,
+                particle_type=beam.particle_type,
+            )
+            reference_energy_change = (
+                target_total_energy
+                - beam.reference.total_energy
+                + energy_loss_per_turn
+            )
+        else:
+            reference_energy_change = (
+                target_total_energy - beam.reference.total_energy
+            )
 
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
@@ -870,7 +894,8 @@ class SingleHarmonicRFStation(
         This impacts the accuracy and range of the RF kick.
 
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
 
     Attributes
     ----------
@@ -917,6 +942,7 @@ class SingleHarmonicRFStation(
             delayed_kick=delayed_kick,
             **kwargs,  # for MRO of fused elements
         )
+
         self.voltage: float | None = voltage
         self.phi_rf_design: float | None = phi_rf
         self.harmonic: float | None = harmonic
@@ -1220,7 +1246,8 @@ class MultiHarmonicRFStation(
         This impacts the accuracy and range of the RF kick.
 
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
 
     Attributes
     ----------
