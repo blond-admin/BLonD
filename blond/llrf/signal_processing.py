@@ -448,9 +448,7 @@ def fir_filter(coeff: NumpyArray, signal: NumpyArray):
     """
 
     n_taps = len(coeff)
-    filtered_signal = np.zeros(
-        len(signal) - n_taps, dtype=complex
-    )  # TODO: why should this be complex?
+    filtered_signal = np.zeros(len(signal) - n_taps, dtype=signal.dtype)
     for i in range(n_taps, len(signal)):
         for k in range(n_taps):
             filtered_signal[i - n_taps] += coeff[k] * signal[i - k]
