@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.callables_numba import (
     _gen_density_numba,
     _gen_hist_numba,
@@ -44,7 +46,6 @@ def occupation_per_equipotential_to_density(
     --------
     occupation_per_equipotential_to_histogram: The equivalent to ``density.sum(axis=1)``.
     """
-    import numpy as np
 
     mid = potential_2D.shape[1] // 2
 
@@ -87,7 +88,6 @@ def occupation_per_equipotential_to_histogram(
     --------
     occupation_per_equipotential_to_density: Obtain the underlying density distribution.
     """
-    import numpy as np
 
     mid = potential_2D.shape[1] // 2
 

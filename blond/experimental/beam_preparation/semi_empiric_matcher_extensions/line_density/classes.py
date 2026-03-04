@@ -17,11 +17,13 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
 from tqdm import tqdm
 
+from blond import copy_to_cpu
 from blond.acc_math.empiric.potential_well import PotentialWellHelper
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.callables import (
     occupation_per_equipotential_to_density,
     occupation_per_equipotential_to_histogram,
 )
+from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -34,15 +36,15 @@ class SemiEmpiricMatcherAddon(ABC):
     @abstractmethod  # pragma: no cover
     def hamilton_to_density_function(
         self,
-        time_grid: NumpyArray | CupyArray,
-        deltaE_grid: NumpyArray | CupyArray,
-        hamilton_2D: NumpyArray | CupyArray,
-    ) -> NumpyArray | CupyArray:
+        time_grid: NumpyArray,
+        deltaE_grid: NumpyArray,
+        hamilton_2D: NumpyArray,
+    ) -> NumpyArray:
         """
         This function is an endpoint for the `SemiEmpiricMatcher`.
 
         Parameters
-        ----`------
+        ----------
         deltaE_grid
             The time coordinates corresponding to `hamilton_2D`, in [eV].
         time_grid
@@ -52,7 +54,7 @@ class SemiEmpiricMatcherAddon(ABC):
 
         Returns
         -------
-        density : NumpyArray or CupyArray
+        density
             A 2D array of the same shape as `hamilton_2D`, representing the
             computed density distribution. Values are scaled between 0 and 1.
         """
@@ -100,8 +102,9 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
 
     Examples
     --------
-    >>> from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    >>> from blond.experimental import (
     ...     SemiEmpiricMatcher,
+    ...     ProfileMatcherAddon,
     ... )
     >>> matcher_addon = ProfileMatcherAddon(hist_x=..., hist_y=...)
     >>> # Set attributes to change the behaviour
@@ -126,6 +129,10 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         hist_x: NumpyArray | CupyArray,
         hist_y: NumpyArray | CupyArray,
     ):
+        hist_x = copy_to_cpu(hist_x)
+        hist_y = copy_to_cpu(hist_y)
+
+        assert not is_cupy_array(hist_y)
         assert not np.any(np.isnan(hist_x))
         assert not np.any(np.isnan(hist_y))
         assert np.any(hist_y > 0)
@@ -145,15 +152,15 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
 
     def hamilton_to_density_function(
         self,
-        time_grid: NumpyArray | CupyArray,
-        deltaE_grid: NumpyArray | CupyArray,
-        hamilton_2D: NumpyArray | CupyArray,
-    ) -> NumpyArray | CupyArray:
+        time_grid: NumpyArray,
+        deltaE_grid: NumpyArray,
+        hamilton_2D: NumpyArray,
+    ) -> NumpyArray:
         """
         This function is an endpoint for the `SemiEmpiricMatcher`.
 
         Parameters
-        ----`------
+        ----------
         deltaE_grid
             The time coordinates corresponding to `hamilton_2D`, in [eV].
         time_grid
@@ -163,12 +170,14 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
 
         Returns
         -------
-        density : NumpyArray or CupyArray
+        density : NumpyArray
             A 2D array of the same shape as `hamilton_2D`, representing the
             computed density distribution. Values are scaled between 0 and 1.
         """
         if self.recenter:
-            correction = self._calculate_correction(hamilton_2D, time_grid)
+            correction = self._calculate_recentering_correction(
+                hamilton_2D, time_grid
+            )
         else:
             correction = 0.0
 
@@ -198,7 +207,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
 
         return density
 
-    def _interpolate_hist(self, correction, time_grid):
+    def _interpolate_hist(self, correction: float, time_grid: NumpyArray):
         hist_x_interp = time_grid[:, 0]
         hist_y_interp = np.interp(
             hist_x_interp,
@@ -212,7 +221,26 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
 
         return hist_x_interp, hist_y_interp
 
-    def _calculate_correction(self, hamilton_2D, time_grid):
+    def _calculate_recentering_correction(
+        self, hamilton_2D: NumpyArray, time_grid: NumpyArray
+    ) -> float:
+        """
+        Calculate the difference between potential well minimum and histogram maximum.
+
+        Parameters
+        ----------
+        hamilton_2D
+            A 2D array representing the spatial Hamilton field.
+        time_grid
+            The time coordinates corresponding to `hamilton_2D`, in [s].
+
+        Returns
+        -------
+        correction
+            The difference between potential well
+            minimum and histogram maximum.
+
+        """
         mid = time_grid.shape[1] // 2
 
         x = time_grid[:, mid]
@@ -222,10 +250,9 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         # index of the lowest local minimum
         lowest_min_index = min_indices[np.argmin(y[min_indices])]
         # x-coordinate of the lowest local minimum
-        x_lowest_min = x[lowest_min_index]
-        center_ham = x_lowest_min
+        center_ham = x[lowest_min_index]
         center_prof = np.average(self._hist_x, weights=self._hist_y)
-        correction = center_ham - center_prof
+        correction = float(center_ham - center_prof)
         return correction
 
     def _solve_for_density(
@@ -233,6 +260,22 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         hamilton_2D: NumpyArray,
         histogram_desired: NumpyArray,
     ) -> NumpyArray:
+        """
+        Derive the density function given a Hamiltonian and a beam profile.
+
+        Parameters
+        ----------
+        hamilton_2D
+            A 2D array representing the spatial Hamilton field.
+        histogram_desired
+            Histogram amplitude [arbitrary units].
+
+        Returns
+        -------
+        density
+            The density distribution according to the Hamiltonian,
+            that should approximate the desired histogram.
+        """
         density = np.zeros(hamilton_2D.shape, float)
 
         potential_well_helper = PotentialWellHelper(
@@ -314,7 +357,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
                 update_occupation_per_equipotential_to_density
             )
             occupation_per_equipotential[occupation_per_equipotential < 0] = (
-                0  # negative entries are unphysical
+                0  # negative occupations are unphysical
             )
 
             if self.smoothness > 0 and n_bins_smoothing > 0:
@@ -369,7 +412,28 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         previous_histogram_normalized: NumpyArray,
         occupation_per_equipotential_to_density: NumpyArray,
         occupation_per_equipotential_to_density_smooth: NumpyArray,
-    ):
+    ) -> None:
+        """
+        Draw the current state of fitting.
+
+        Parameters
+        ----------
+        histogram_desired_normalized
+            Desired histogram amplitude [arbitrary units].
+        histogram_normalized
+            Current histogram amplitude [arbitrary units].
+        i
+            Iteration step.
+        max_change
+            Convergence parameter.
+        previous_histogram_normalized
+            Histogram amplitude from the previous
+             iteration step [arbitrary units].
+        occupation_per_equipotential_to_density
+            The internal state that is optimized.
+        occupation_per_equipotential_to_density_smooth
+            The internal state that is optimized (smoothed).
+        """
         if self._animation_fignumber is None:
             fig = plt.figure()
             self._animation_fignumber = fig.number
@@ -407,7 +471,26 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         density,
         hist_x_interp,
         hist_y_interp,
-    ):
+    ) -> None:
+        """
+        Plot the final `density` together with all other constraining varibles.
+
+        Parameters
+        ----------
+        time_grid
+            The time coordinates corresponding to `hamilton_2D`, in [s].
+        deltaE_grid
+            The time coordinates corresponding to `hamilton_2D`, in [eV].
+        hamilton_2D
+            A 2D array representing the spatial Hamilton field.
+        density
+            A 2D array of the same shape as `hamilton_2D`, representing the
+            computed density distribution. Values are scaled between 0 and 1.
+        hist_x_interp
+            Time coordinates of the histogram [s].
+        hist_y_interp
+            Histogram amplitude [arbitrary units].
+        """
         if self._result_fignumber is None:
             fig = plt.figure()
             self._result_fignumber = fig.number
