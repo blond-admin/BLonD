@@ -1825,26 +1825,12 @@ class LHCCavityLoop(CavityFeedback):
     def update_set_point(self):
         r"""Updates the set point for the next turn based on the design RF
         voltage."""
-        # coeff = np.polyfit(
-        #     [0, self.n_coarse + 1],
-        #     [self.V_SET[-self.n_coarse], self.set_point_from_rfstation()[0]],
-        #     1,
-        # )
-        # poly = np.poly1d(coeff)
-        # v_set_prev = poly(np.linspace(0, self.n_coarse, self.n_coarse))
-        #
-        # self.V_SET = np.concatenate(
-        #     (v_set_prev, self.set_point_from_rfstation())
-        # )
-
         self.V_SET = np.concatenate(
-            (  # TODO: update of math, double check
+            (
                 self.V_SET[-self.n_coarse :],
                 self.set_point_modulated(
                     self.PHASE_MODULATION[-self.n_coarse :],
-                    self.AMPLITUDE_MODULATION[
-                        -self.n_coarse :
-                    ],  # TODO: this is not written anywhere?
+                    self.AMPLITUDE_MODULATION[-self.n_coarse :],
                 ),
             )
         )
