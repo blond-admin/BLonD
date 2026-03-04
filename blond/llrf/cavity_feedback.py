@@ -1358,13 +1358,6 @@ class SPSCavityFeedback:
         self.V_corr /= self.rf_station.voltage[
             self.OTFB_1.n_h, self.rf_station.counter[0]
         ]
-        # self.phi_corr = self.alpha_sum - np.angle(
-        #     np.interp(
-        #         self.OTFB_1.profile.bin_centers,
-        #         self.OTFB_1.rf_centers,
-        #         self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :],
-        #     )
-        # )
 
         self.phi_corr = self.alpha_sum - np.angle(
             np.mean(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :])
