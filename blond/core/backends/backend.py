@@ -304,6 +304,7 @@ class BackendBaseClass(ABC):
         self.float = float_
         self.complex = complex_
 
+        self.pi = self.float(np.pi)
         self.twopi = self.float(2 * np.pi)
         self.specials_mode = specials_mode
         self.specials: Specials = None  # type: ignore
@@ -344,6 +345,8 @@ class BackendBaseClass(ABC):
         self.sign: Callable = None  # type: ignore
         self.sin: Callable = None  # type: ignore
         self.cos: Callable = None  # type: ignore
+        self.arctan2: Callable = None  # type: ignore
+        self.sinc: Callable = None  # type: ignore
         self.exp: Callable = None  # type: ignore
         self.any: Callable = None  # type: ignore
         self.abs: Callable = None  # type: ignore
@@ -735,6 +738,8 @@ class NumpyBackend(BackendBaseClass):
         self.sign = np.sign
         self.sin = np.sin
         self.cos = np.cos
+        self.arctan2 = np.arctan2
+        self.sinc = np.sinc
         self.exp = np.exp
         self.any = np.any
         self.abs = np.abs
@@ -885,6 +890,8 @@ class CupyBackend(BackendBaseClass):
         self.sign = cp.sign
         self.sin = cp.sin
         self.cos = cp.cos
+        self.arctan2 = cp.arctan2
+        self.sinc = cp.sinc
         self.exp = cp.exp
         self.any = cp.any
         self.abs = cp.abs
