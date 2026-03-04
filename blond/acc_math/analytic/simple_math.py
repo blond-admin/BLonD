@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, overload
 
 import numba as nb
 import numpy as np
-from numpy._typing import NDArray as NumpyArray
+
+from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import TypeVar
@@ -228,7 +229,14 @@ def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
         ...
     AssertionError: Expected number with only real or only imaginary part, not (2+4j)
     """
-    if np.any((val.real != 0) & (val.imag != 0)):
+    if is_cupy_array(val):
+        from blond import backend
+
+        backend_ = backend  # handles `cp.ndarray` and `np.ndarray`
+    else:
+        backend_ = np  # handles `complex` and `np.ndarray`
+
+    if backend_.any((val.real != 0) & (val.imag != 0)):
         raise ValueError(
             f"Expected purely real or purely imaginary number, not {val}."
         )

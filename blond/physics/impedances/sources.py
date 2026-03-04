@@ -126,7 +126,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         self._cache_derivative: NumpyArray | CupyArray | None = None
         self._cache_derivative_hash: int | None = None
 
-        self._cache_wake_impedance = None
+        self._cache_wake_impedance: NumpyArray | CupyArray | None = None
         self._cache_wake_impedance_hash: int | None = None
 
     def get_impedance(
@@ -299,9 +299,9 @@ class Resonators(
             and isinstance(center_frequencies, float | int)
             and isinstance(quality_factors, float | int)
         ):
-            self._shunt_impedances = np.array([shunt_impedances])
-            self._center_frequencies = np.array([center_frequencies])
-            self._quality_factors = np.array([quality_factors])
+            self._shunt_impedances = backend.array([shunt_impedances])
+            self._center_frequencies = backend.array([center_frequencies])
+            self._quality_factors = backend.array([quality_factors])
             self._n_resonators = len(self._shunt_impedances)
         else:
             assert len(shunt_impedances) == len(center_frequencies), (
@@ -310,19 +310,21 @@ class Resonators(
             assert len(shunt_impedances) == len(quality_factors), (
                 f"{len(shunt_impedances)} != {len(quality_factors)}"
             )
-            self._shunt_impedances = np.array(shunt_impedances)
-            self._center_frequencies = np.array(center_frequencies)
-            self._quality_factors = np.array(quality_factors)
+            self._shunt_impedances = backend.array(shunt_impedances)
+            self._center_frequencies = backend.array(center_frequencies)
+            self._quality_factors = backend.array(quality_factors)
             self._n_resonators = len(shunt_impedances)
 
-        self._shunt_impedances_counter_rotating: NumpyArray | None = None
+        self._shunt_impedances_counter_rotating: (
+            NumpyArray | CupyArray | None
+        ) = None
 
         if shunt_impedances_counter_rotating is not None:
             if isinstance(shunt_impedances_counter_rotating, float | int):
                 shunt_impedances_counter_rotating = [
                     shunt_impedances_counter_rotating
                 ]
-            self._shunt_impedances_counter_rotating = np.array(
+            self._shunt_impedances_counter_rotating = backend.array(
                 shunt_impedances_counter_rotating
             )
 
@@ -337,32 +339,36 @@ class Resonators(
                 self._shunt_impedances_counter_rotating,
                 strict=False,
             ):
-                assert np.isclose(np.abs(imp), np.abs(imp_cr)), (
+                assert backend.isclose(
+                    backend.abs(imp), backend.abs(imp_cr)
+                ), (
                     "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
                 )
 
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
         self._alpha = self._omega / (2 * self._quality_factors)
-        self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
+        self._omega_bar = backend.sqrt(self._omega**2 - self._alpha**2)
 
         # Test if one or more quality factors is smaller than 0.5.
-        if np.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
+        if backend.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
             raise RuntimeError(
                 "All quality factors Q must be greater or equal 0.5"
             )
-        if np.sum(self._center_frequencies < 0) > 0:
+        if backend.sum(self._center_frequencies < 0) > 0:
             raise RuntimeError(
                 "All center frequencies must be greater or equal 0"
             )
 
-        self._cache_wake_impedance: NumpyArray | None = None
+        self._cache_wake_impedance: NumpyArray | CupyArray | None = None
         self._cache_wake_impedance_hash: int | None = None
 
-        self._cache_wake_impedance_counter_rotation: NumpyArray | None = None
+        self._cache_wake_impedance_counter_rotation: (
+            NumpyArray | CupyArray | None
+        ) = None
         self._cache_wake_impedance_counter_rotation_hash: int | None = None
 
-        self._cache_impedance: NumpyArray | None = None
+        self._cache_impedance: NumpyArray | CupyArray | None = None
         self._cache_impedance_hash: int | None = None
 
     def get_wake_impedance(
@@ -490,16 +496,14 @@ class Resonators(
         )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
 
         # protect against numerical noise, where a 0 might be expressed as -1.6155871338926322e-27
-        tol = 0.01 * backend.abs(
-            time[1] - time[0]
-        )  # half a timestep (physically meaningful)
+        tol = 0.01 * backend.abs(time[1] - time[0])
         bugfix = backend.abs(time) < tol
 
         heaviside_like[bugfix] = 1
 
         for res_ind in range(self._n_resonators):
             wake += (
-                (heaviside_like)
+                heaviside_like
                 * (
                     self._shunt_impedances[res_ind]
                     * self._alpha[res_ind]
@@ -539,9 +543,7 @@ class Resonators(
         heaviside_like = (
             backend.sign(time) + 1.0
         )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
-        tol = 0.01 * backend.abs(
-            time[1] - time[0]
-        )  # half a timestep (physically meaningful)
+        tol = 0.01 * backend.abs(time[1] - time[0])
         bugfix = backend.abs(time) < tol
         heaviside_like[bugfix] = 1
 
@@ -584,7 +586,9 @@ class Resonators(
         """
         if time_axis is None:
             time_axis = backend.linspace(
-                0, np.max(self._quality_factors / self._omega) * 20, 100000
+                0,
+                backend.max(self._quality_factors / self._omega) * 20,
+                100000,
             )
             # Should be sufficient, as the time between turns is
             # usually larger than the required time stepping in here, only gets called on init
@@ -788,7 +792,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         self._wake_x = backend.array(wake_x)
         self._wake_y = backend.array(wake_y)
 
-        self._cache_wake_impedance = None
+        self._cache_wake_impedance: NumpyArray | CupyArray | None = None
         self._cache_wake_impedance_hash: int | None = None
 
     @staticmethod
@@ -935,13 +939,13 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         super().__init__(is_dynamic=False)
 
         # Shunt impedance in :math:`\Omega`
-        self.R_S = np.array(R_S, dtype=float).flatten()
+        self.R_S = backend.array(R_S, dtype=float).flatten()
 
         # Resonant frequency in Hz
-        self.frequency_R = np.array(frequency_R, dtype=float).flatten()
+        self.frequency_R = backend.array(frequency_R, dtype=float).flatten()
 
         # Damping time a in s
-        self.a_factor = np.array(a_factor, dtype=float).flatten()
+        self.a_factor = backend.array(a_factor, dtype=float).flatten()
 
     def wake_calc(
         self, time: NumpyArray | CupyArray
