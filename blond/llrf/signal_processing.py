@@ -138,10 +138,10 @@ def modulator(
     if len(signal) < 2:
         # TypeError
         raise RuntimeError(
-            "ERROR in filters.py/demodulator: signal should" + " be an array!"
+            "ERROR in filters.py/demodulator: signal should be an array!"
         )
     delta_phi = (omega_i - omega_f) * (
-        T_sampling * np.arange(len(signal)) + dt
+        T_sampling * np.arange(len(signal)) + dt  # TODO might be -dt ?
     )
     # Precompute sine and cosine for speed up
     cs = np.cos(delta_phi + phi_0)
@@ -279,9 +279,9 @@ def rf_beam_current(
             charges_fine[np.arange(indices[0])]
         )
         for i in range(1, len(indices)):
-            charges_coarse[i + ind_fine[0]] = np.sum(
+            charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
                 charges_fine[np.arange(indices[i - 1], indices[i])]
-            )
+            )  # TODO: modulo might not be physical
 
         return charges_fine, charges_coarse
 

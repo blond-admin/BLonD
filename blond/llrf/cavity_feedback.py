@@ -212,19 +212,10 @@ class CavityFeedback:
         self.V_corr /= self.rf_station.voltage[
             self.n_h, self.rf_station.counter[0]
         ]
-        # self.phi_corr = self.alpha_sum - np.angle(
-        #     np.interp(
-        #         self.profile.bin_centers,
-        #         self.rf_centers,
-        #         self.V_SET[-self.n_coarse :],
-        #     )
-        # )
-
-        # TODO: new below, old above
 
         self.phi_corr = self.alpha_sum - np.mean(
             np.angle(self.V_SET[-self.n_coarse :])
-        )
+        )  # TODO: this  used to be an interpolation
 
         self.gap_voltage_phase = np.angle(
             self.V_ANT_COARSE[-self.n_coarse :] / self.V_SET[-self.n_coarse :]
@@ -1361,7 +1352,7 @@ class SPSCavityFeedback:
 
         self.phi_corr = self.alpha_sum - np.angle(
             np.mean(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :])
-        )
+        )  # TODO: this  used to be an interpolation
 
         cav_sum = (
             self.OTFB_1.V_ANT_COARSE[-self.OTFB_1.n_coarse :]
@@ -1433,7 +1424,7 @@ class SPSCavityFeedback:
                 self.OTFB_1.rf_centers,
                 self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :],
             )
-        )
+        )  # TODO: this is not an interpolation in all other occurences
 
 
 class LHCCavityLoop(CavityFeedback):
@@ -1833,7 +1824,7 @@ class LHCCavityLoop(CavityFeedback):
                     self.AMPLITUDE_MODULATION[-self.n_coarse :],
                 ),
             )
-        )
+        )  # TODO: this used to be a polyfit
 
     def full_detuning_phase_modulation(self):
         error_func = (
