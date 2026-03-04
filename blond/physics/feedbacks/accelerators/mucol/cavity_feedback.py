@@ -156,8 +156,8 @@ class PassiveCavity(IQCavityFeedback):
 
     def update_feedback_variables(self) -> None:
         """Method to update the variables specific to the turn."""
-        self.omega_center = self.omega_rf_actual - self.omega_detuning
-        omega_deviation = self.omega_center - self.omega_rf_actual
+        self.omega_center = self.omega_rf - self.omega_detuning
+        omega_deviation = self.omega_center - self.omega_rf
 
         self.relative_detuning = omega_deviation / self.omega_center
         # Dimensionless
@@ -327,9 +327,7 @@ class PassiveCavity(IQCavityFeedback):
                 bin_centers=time,
             )
         else:
-            samples_per_rf_coarse = (
-                self.omega_rf_actual * self.sampling_time_coarse
-            )
+            samples_per_rf_coarse = self.omega_rf * self.sampling_time_coarse
 
             self.antenna_voltage_coarse_grid = cavity_response_sparse_matrix(
                 I_beam=self.beam_current_coarse_grid,
@@ -463,9 +461,7 @@ class PassiveCavity(IQCavityFeedback):
                 )
             )
         else:
-            samples_per_rf_fine_grid = (
-                self.omega_rf_actual * self.profile.hist_step
-            )
+            samples_per_rf_fine_grid = self.omega_rf * self.profile.hist_step
 
             self.antenna_voltage_fine_grid = cavity_response_sparse_matrix(
                 I_beam=self.beam_current_fine_grid,

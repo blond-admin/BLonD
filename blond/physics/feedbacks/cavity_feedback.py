@@ -153,7 +153,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         """
         self.invalidate_cache()
 
-        self.n_samples_coarse = round(
+        self.n_samples_coarse = np.floor(
             self.t_rev / self.sampling_time_coarse
         )  # TODO: round or ceil?; should this be changed during simulation?
 
@@ -220,12 +220,12 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         if self.n_rf_periods_per_coarse_grid < 1:
             return (
                 np.arange(self.n_samples_coarse) * self.sampling_time_coarse
-                + 0.5 * self.t_rf_actual * self.n_rf_periods_per_coarse_grid
+                + 0.5 * self.t_rf * self.n_rf_periods_per_coarse_grid
             )
         else:
             return (
                 np.arange(self.n_samples_coarse) * self.sampling_time_coarse
-                + 0.5 * self.t_rf_actual
+                + 0.5 * self.t_rf
             )
 
     @abstractmethod  # pragma: no cover
@@ -328,7 +328,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
                 "points": self.n_samples_coarse,
             },
             external_reference=True,
-            dT=self.residual_phase_from_last_turn,
+            dT=self.residual_time_shift_from_last_turn,
         )
 
         # Convert RF beam currents to be in units of Amperes
@@ -386,7 +386,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             return self._parent_rf_station.omega_rf_design[self.harmonic_index]
 
     @property
-    def omega_rf_actual(self) -> float:
+    def omega_rf(self) -> float:
         """
         Actual RF frequency of the parent cavity at harmonic_index.
 
@@ -401,7 +401,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             return self._parent_rf_station.omega_rf[self.harmonic_index]
 
     @property
-    def phi_rf_actual(self) -> float:
+    def phi_rf(self) -> float:
         """
         Actual RF phase of the parent cavity at harmonic_index.
 
@@ -424,7 +424,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
     )
 
     @cached_property
-    def t_rf_actual(self) -> float:
+    def t_rf(self) -> float:
         """
         Actual RF period of the parent cavity at harmonic_index.
 
@@ -433,7 +433,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         t_rf_actual
             Actual RF period of the parent cavity at harmonic_index.
         """
-        return 1 / (self.omega_rf_actual / (2 * np.pi))
+        return 1 / (self.omega_rf / (2 * np.pi))
 
     @cached_property
     def omega_carrier(self) -> float:
@@ -445,7 +445,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         omega_carrier
             Feedback carrier frequency.
         """
-        return self.omega_rf_actual / self.n_rf_periods_per_coarse_grid
+        return self.omega_rf / self.n_rf_periods_per_coarse_grid
 
     @cached_property
     def t_rev(self) -> float:
@@ -469,15 +469,10 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         sampling_time_coarse
             Sampling time based on the number of periods per coarse grid and the design frequency.
         """
-        return (
-            self.n_rf_periods_per_coarse_grid
-            * 2
-            * np.pi
-            / self.omega_rf_actual
-        )
+        return self.n_rf_periods_per_coarse_grid * 2 * np.pi / self.omega_rf
 
     @cached_property
-    def residual_phase_from_last_turn(
+    def residual_time_shift_from_last_turn(
         self,
     ) -> float:  # TODO: this is the time and not the phase or?
         """
@@ -489,7 +484,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             Residual phase from the last turn to current turn.
         """
         return (
-            -self.phi_rf_actual / self.omega_rf_actual
+            -self.phi_rf / self.omega_rf
         )  # TODO: this should be negative or positive?
 
     @cached_property
