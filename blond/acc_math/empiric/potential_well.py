@@ -33,19 +33,19 @@ class PotentialWellHelper:
 
     Parameters
     ----------
-    time_axis : array_like
+    time_axis
         1D array representing the time coordinate.
-    voltage_axis : array_like
+    voltage_axis
         1D array representing the voltage values corresponding to
         `time_axis`.
 
     Attributes
     ----------
-    time_axis : numpy.ndarray
+    time_axis
         Time axis as a NumPy array.
-    voltage_axis : numpy.ndarray
+    voltage_axis
         Voltage axis as a NumPy array.
-    bucket_list : numpy.ndarray
+    bucket_list
         Array of shape (N, 2) containing `(start_time, stop_time)` for
         each detected bucket.
     """
