@@ -19,7 +19,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Union
 
-from ..beam.sparse_profiles import _SparseProfileBaseClass
+from ..beam.sparse_profiles import SparseProfileBaseClass
 
 try:
     import cupy as cp
@@ -594,7 +594,7 @@ class RingAndRFTracker:
                         self.total_voltage = self.rf_voltage
 
                         # warpper bucket by bucket (profile by profile),
-                    if isinstance(self.profile, _SparseProfileBaseClass):
+                    if isinstance(self.profile, SparseProfileBaseClass):
                         n_macroparticles_per_profile = int(
                             self.profile.beam.n_macroparticles
                             / len(self.profile.profiles_list)

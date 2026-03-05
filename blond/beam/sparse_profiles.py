@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     TrackerTypes = Literal["C", "onebyone"]
 
 
-class _SparseProfileBaseClass:
+class SparseProfileBaseClass:
     "Base class for sparse profiles object."
 
     def __init__(
@@ -108,7 +108,7 @@ class _SparseProfileBaseClass:
         >>> _filling_pattern = np.zeros(rf_params.harmonic[0])
         >>> _filling_pattern[::bunch_spacing] = 1
         >>> _profile_length_in_buckets = 1
-        >>> sparse_profile = _SparseProfileBaseClass(rf_station=rf_params,
+        >>> sparse_profile = SparseProfileBaseClass(rf_station=rf_params,
         >>>                                beam = beam,
         >>>                                number_of_slices_per_profile = 1e4,
         >>>                                _filling_pattern = _filling_pattern,
@@ -414,7 +414,7 @@ class _SparseProfileBaseClass:
         )
 
 
-class SparseBucket(_SparseProfileBaseClass):
+class SparseBucket(SparseProfileBaseClass):
     """
     This class instantiates a Profile object for each filled bucket according
     to the provided filling pattern or bunch list.
@@ -516,7 +516,7 @@ class SparseBucket(_SparseProfileBaseClass):
         )
 
 
-class SparseBatch(_SparseProfileBaseClass):
+class SparseBatch(SparseProfileBaseClass):
     """
     This class instantiates a Profile object for each batch according
     to the provided batch list.
