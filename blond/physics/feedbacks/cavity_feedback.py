@@ -563,41 +563,25 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             return 0.0
         return (2 * np.pi - phi) / f2
 
-    def calculate_rf_centers_for_current_turn(self, beam: Simulation) -> None:
-        # if self.turn_i.value != 0:
-        phi_end_of_last_turn = (
-            self.omega_rf_previous * self.t_rev_previous - self.phi_rf_previous
-        )
-        # phi_offset_current_turn_start = (
-        #     self.omega_rf_previous * self.t_rev_previous
-        #     - self.omega_rf * self.t_rev_previous
-        # ) - self.phi_rf_previous #  + 2.0 * np.pi * self._parent_rf_station.harmonic * self._parent_rf_station.delta_omega_rf / self.omega_rf
-        # self._parent_rf_station.phase_correction_frequency_offset
-        phi_offset_current_turn_start = self.phi_rf
-        # phi_offset_current_turn_start = phi_end_of_last_turn
-        # print(self._parent_rf_station.phi_rf)
-        # print(phi_offset_current_turn_start)
-
-        time_to_next_rising_edge_zero = (
+    def calculate_rf_centers_for_current_turn(self) -> None:
+        time_to_next_falling_edge_zero = (
             self.get_time_to_next_rising_edge_zero(
-                phi_offset_current_turn_start,
+                self.phi_rf,
                 self._parent_rf_station.omega_rf,
             )
         ) + np.pi / self._parent_rf_station.omega_rf
+
         first_element_center = (
-            time_to_next_rising_edge_zero + self.residual_time_last_turn
+            time_to_next_falling_edge_zero + self.residual_time_last_turn
         ) / 2
-        # self._parent_rf_station.delta_phi_rf = -self.omega_rf_previous * self.t_rev_previous#  + self._parent_rf_station.phi_rf
-        # else:
-        #     time_to_next_rising_edge_zero = 0
+
         step_width_rf_centers = self.t_rf * self.n_rf_periods_per_coarse_grid
         self.rf_centers_current_turn = (
             np.arange(
-                time_to_next_rising_edge_zero,
+                time_to_next_falling_edge_zero,
                 self.get_t_rev(),
                 step=step_width_rf_centers,
             )
-            # + 0.5 * self.t_rf
         )
         last_turn_time_location = (
             -self.residual_time_last_turn + first_element_center
@@ -635,7 +619,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         pass
 
     def _track(self, beam: Beam) -> None:
-        self.calculate_rf_centers_for_current_turn(beam)
+        self.calculate_rf_centers_for_current_turn()
         self.relative_voltage_correction = np.ones_like(self.profile.hist_x)
         self.phase_correction = np.zeros_like(self.profile.hist_x)
 
