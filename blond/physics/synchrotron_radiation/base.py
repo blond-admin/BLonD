@@ -19,10 +19,8 @@ from abc import ABC
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.random import Generator
 from numpy.typing import NDArray as NumpyArray
 
-from blond import backend
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
@@ -35,13 +33,12 @@ if TYPE_CHECKING:
     from blond.core.simulation.simulation import Simulation
 
 
-def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
-    beam_delta_energy_array: NumpyArray,
+def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+    beam_dE: NumpyArray,
     energy_lost: float,
     longitudinal_damping_time: float,
-    natural_energy_spread: float | None = None,
-    total_energy: float | None = None,
-    random_generator: Generator | None = None,
+    natural_energy_spread: float,
+    total_energy: float,
     disable_quantum_excitation: bool = False,
 ) -> float | NumpyArray:
     """
@@ -53,7 +50,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
 
     Parameters
     ----------
-    beam_delta_energy_array
+    beam_dE
         Beam energy array.
     energy_lost
         Energy lost through the considered synchrotron segment, in [eV per
@@ -66,8 +63,6 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
         [dimensionless].
     total_energy
         Beam total reference energy, in [eV].
-    random_generator
-        Random generator.
     disable_quantum_excitation
         Expert user only. Disables the quantum excitation kick.
 
@@ -77,23 +72,18 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
         Energy kick induced by synchrotron radiation and quantum excitation.
     """
     if disable_quantum_excitation:
-        energy_kick = (
-            -energy_lost
-            - 2.0 / longitudinal_damping_time * beam_delta_energy_array
-        )
+        energy_kick = -energy_lost - 2.0 / longitudinal_damping_time * beam_dE
     else:
         energy_kick = (
             -energy_lost
-            - 2.0 / longitudinal_damping_time * beam_delta_energy_array
+            - 2.0 / longitudinal_damping_time * beam_dE
             + 2.0
             * natural_energy_spread
             / np.sqrt(longitudinal_damping_time)
             * total_energy
-            * random_generator.standard_normal(
-                size=len(beam_delta_energy_array)
-            )
+            * np.random.standard_normal(size=len(beam_dE))
         )
-    return energy_kick
+    beam_dE += energy_kick
 
 
 class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
@@ -135,7 +125,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._damping_time: float | None = None
         self._natural_energy_spread: float | None = None
 
-        self.rng = backend.default_rng(seed=seed)
         # backend.default_rng
 
     @property
@@ -150,7 +139,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         """
         return self._share_of_radiation_integrals
 
-    def _calculate_kick(
+    def _apply_kick(
         self,
         beam: BeamBaseClass,
     ) -> NumpyArray:
@@ -186,11 +175,9 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._natural_energy_spread = estimated_natural_energy_spread
 
         beam_dE = beam.read_partial_dE()
-        random_generator = self.rng
-        return calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
+        apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
             energy_lost=estimated_energy_lost,
-            beam_delta_energy_array=beam_dE,
-            random_generator=random_generator,
+            beam_dE=beam_dE,
             natural_energy_spread=estimated_natural_energy_spread,
             longitudinal_damping_time=estimated_damping_time,
             total_energy=total_energy,
@@ -214,9 +201,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             BeamBaseClass object.
         """
         # TODO write C++ routine
-        energy_change = self._calculate_kick(beam=beam)
-        dE = beam.write_partial_dE()
-        dE[:] += energy_change
+        self._apply_kick(beam=beam)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """

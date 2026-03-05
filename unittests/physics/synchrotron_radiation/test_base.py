@@ -20,7 +20,7 @@ from blond.core.beam.particle_types import ParticleType
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
-    calculation_synchrotron_radiation_and_quantum_excitation_energy_kick,
+    apply_synchrotron_radiation_and_quantum_excitation_energy_kick,
 )
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationTracker,
@@ -212,7 +212,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     def test_calculate_kick_SynchrotronRadiationBaseClass(self):
         np.random.seed(seed=self.seed)
-        _ = self.SRB._calculate_kick(
+        _ = self.SRB._apply_kick(
             beam=self.beam,
         )
 
@@ -235,7 +235,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     def test_calculate_kick_SynchrotronRadiationDrift(self):
         np.random.seed(seed=self.seed)
-        _ = self.SRD._calculate_kick(
+        _ = self.SRD._apply_kick(
             beam=self.beam,
         )
         # Same outputs for the _SynchrotronRadiationDrift class
@@ -258,7 +258,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
     def test_calculate_kick_SynchrotronRadiationSection(self):
         # Same outputs for the _SynchrotronRadiationSection class
         np.random.seed(seed=self.seed)
-        _ = self.SRS._calculate_kick(
+        _ = self.SRS._apply_kick(
             beam=self.beam,
         )
         self.assertAlmostEqual(
@@ -279,18 +279,14 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     def test_all_energy_kicks_are_equal(self):
         np.random.seed(seed=self.seed)
-        energy_kick_from_SynchrotronRadiationBaseClass = (
-            self.SRB._calculate_kick(
-                beam=self.beam,
-            )
-        )
-        energy_kick_from_SynchrotronRadiationDrift = self.SRD._calculate_kick(
+        energy_kick_from_SynchrotronRadiationBaseClass = self.SRB._apply_kick(
             beam=self.beam,
         )
-        energy_kick_from_SynchrotronRadiationSection = (
-            self.SRS._calculate_kick(
-                beam=self.beam,
-            )
+        energy_kick_from_SynchrotronRadiationDrift = self.SRD._apply_kick(
+            beam=self.beam,
+        )
+        energy_kick_from_SynchrotronRadiationSection = self.SRS._apply_kick(
+            beam=self.beam,
         )
         np.testing.assert_array_equal(
             energy_kick_from_SynchrotronRadiationBaseClass,
@@ -309,7 +305,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     def test_update_beam_energy(self):
         previous_energy = self.beam.read_partial_dE().copy()
-        energy_kick = self.SRB._calculate_kick(
+        energy_kick = self.SRB._apply_kick(
             beam=self.beam,
         )
         self.SRB._update_beam_energy(beam=self.beam)
@@ -318,7 +314,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             energy_after_one_kick, previous_energy + energy_kick
         )
 
-        second_energy_kick = self.SRB._calculate_kick(
+        second_energy_kick = self.SRB._apply_kick(
             beam=self.beam,
         )
         self.SRB.track(beam=self.beam)
@@ -334,14 +330,16 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     def test_energy_kick_with_quantum_excitation(self):
         rng = np.random.default_rng(seed=self.seed)
-        energy_kick = calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
-            beam_delta_energy_array=20e9 * np.ones(1000),
-            energy_lost=13e6,
-            longitudinal_damping_time=14955,
-            natural_energy_spread=1e-3,
-            total_energy=20e9,
-            random_generator=rng,
-            disable_quantum_excitation=False,
+        energy_kick = (
+            apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=20e9 * np.ones(1000),
+                energy_lost=13e6,
+                longitudinal_damping_time=14955,
+                natural_energy_spread=1e-3,
+                total_energy=20e9,
+                random_generator=rng,
+                disable_quantum_excitation=False,
+            )
         )
 
         expected_energy_kick = (
