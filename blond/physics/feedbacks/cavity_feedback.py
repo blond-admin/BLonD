@@ -615,7 +615,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
     def _track(self, beam: Beam) -> None:
         self.calculate_rf_centers_for_current_turn(beam)
-        pass
+        self.relative_voltage_correction = np.ones_like(self.profile.hist_x)
+        self.phase_correction = np.zeros_like(self.profile.hist_x)
 
     def get_rf_waveform_for_current_turn(
         self, time_axis: NumpyArray
