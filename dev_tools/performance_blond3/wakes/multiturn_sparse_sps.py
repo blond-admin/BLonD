@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from pstats import SortKey
 from typing import TYPE_CHECKING
 
 import matplotlib
@@ -259,9 +258,9 @@ beam = make_multibunch_beam(
     t_distance=t_rf * 10,
 )
 
-sim.profiling(
+"""sim.profiling(
     beams=beam, n_turns=100, sortby=SortKey.CUMULATIVE, start_turn_i=2
-)
+)"""
 
 
 ax = plt.subplot(2, 1, 1)
@@ -303,7 +302,7 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
              solver_._voltage)
     artists.extend(artists2)"""
 
-    PLOT_ATTENUATION = False
+    PLOT_ATTENUATION = True
     if PLOT_ATTENUATION:
         plt.figure(8091)
         plt.title(simulation.turn_i.value)
@@ -350,11 +349,11 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
     # input("continue?")
 
 
-sim.profiling(beam, 50, 5)
+"""sim.profiling(beam, 50, 5)"""
 
 my_callback.each_turn_i = 10
 sim.run_simulation(
     beams=beam,
     n_turns=3000,
-    # callbacks=(my_callback,),
+    callbacks=(my_callback,),
 )

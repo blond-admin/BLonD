@@ -98,6 +98,13 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         from blond.testing.simulation import SimulationTwoRFStationsWithWake
 
         sim = SimulationTwoRFStationsWithWake()
+        wakefield = sim.simulation.ring.elements.get_element(WakeField)
+
+        wakefield.track_profile = False
+        sim.simulation.print_one_turn_execution_order()
+        wakefield.track_profile = True
+        sim.simulation.print_one_turn_execution_order()
+
         self._test_matching(sim)
         DEV_PLOT = False
         DEV_PLOT2 = False
@@ -314,7 +321,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         # matching should still work
         # cav = sim.simulation.ring.elements.get_element(MultiHarmonicCavity)
         # cav.harmonic = 10*33000 * np.ones(len(cav.harmonic), backend.float)
-        # cav = sim.simulation.ring.elements.get_element(SingleHarmonicCavity)
+        # cav = sim.simulation.ring.elements.get_element(SingleHarmonicRFStation)
         # cav.harmonic = 10*33000
 
         matcher = SemiEmpiricMatcher(

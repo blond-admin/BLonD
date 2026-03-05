@@ -3,6 +3,6 @@ numpy>=2
 scipy>=1.15
 matplotlib>=3.9
 numba>=0.60 # simple computing backend that compiles everywhere out of the box
-tqdm # nice loading bar
+tqdm>4 # nice loading bar
 mpi4py>=4 # distributed computing
 scikit-rf > 1 # pole fitting of impedances

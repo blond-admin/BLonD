@@ -99,7 +99,6 @@ def main():
     :undoc-members:
     :show-inheritance:
     :noindex:
-
 """
 
             category = ASSIGNED_CATEGORIES[name]

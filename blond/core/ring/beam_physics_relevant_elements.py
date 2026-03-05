@@ -101,7 +101,6 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"but got "
                 f"{[(cav.name, cav.section_index) for cav in rf_stations]}"
             )
-
         unique_section_indices = np.unique(elem_section_indices)
         if len(unique_section_indices) > 1:
             for section_index in np.sort(unique_section_indices):
@@ -284,7 +283,7 @@ class BeamPhysicsRelevantElements(Preparable):
         else:
             raise AssertionError(
                 f"The element must be inserted within ["
-                f"0:{len(self.elements)}] indexes. "
+                f"0:{len(self.elements)}] indexes."
             )
 
     def insert(self, element: SimulationElementBase, insert_at: int) -> None:
