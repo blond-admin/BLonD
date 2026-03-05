@@ -358,3 +358,239 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             expected_energy_kick,
             rtol=1,
         )
+
+
+class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
+    unittest.TestCase
+):
+    def setUp(self) -> None:
+        self.radiation_integrals = np.array(
+            [
+                0.646747216157,
+                0.0005936549319,
+                5.6814536525e-08,
+                5.92870407301e-09,
+                1.71368060083e-11,
+            ]
+        )
+        self.SRB = SynchrotronRadiationBaseClass(
+            share_of_radiation_integrals=0.1 * self.radiation_integrals,
+            disable_quantum_excitation=True,
+        )
+        self.SRB.schedule(
+            attribute="share_of_radiation_integrals",
+            value=np.array(
+                [self.radiation_integrals * 1 / (k + 1) for k in range(100)]
+            ),
+        )
+
+        self.SRD = _SynchrotronRadiationTracker(
+            share_of_radiation_integrals=0.1 * self.radiation_integrals,
+            disable_quantum_excitation=True,
+        )
+        self.SRS = _SynchrotronRadiationTracker(
+            share_of_radiation_integrals=0.1 * self.radiation_integrals,
+            disable_quantum_excitation=True,
+        )
+        # To test the tracking methods
+        self.SRB._simulation = Mock(SimulationElementBase)
+        self.SRB._simulation.turn_i = 0
+        self.SRD._simulation = Mock(SimulationElementBase)
+        self.SRD._simulation.turn_i = 0
+        self.SRS._simulation = Mock(SimulationElementBase)
+        self.SRS._simulation.turn_i = 0
+
+        self.beam = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=electron,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        self.decimal = 6 if backend.float == np.float32 else 12
+
+        self.U0, self.tau_z, self.sigma0 = (
+            gather_longitudinal_synchrotron_radiation_parameters(
+                particle_type=self.beam.particle_type,
+                energy=self.beam.reference.total_energy,
+                radiation_integrals=self.radiation_integrals,
+            )
+        )
+
+        self.seed = 500
+
+    def test_inputs_SynchrotronRadiationBaseClass(self):
+        np.testing.assert_array_equal(
+            self.SRB.share_of_radiation_integrals,
+            0.1 * self.radiation_integrals,
+        )
+        self.assertIsNone(self.SRB._energy_lost_due_to_synchrotron_radiation)
+        self.assertIsNone(self.SRB._damping_time)
+        self.assertIsNone(self.SRB._natural_energy_spread)
+
+    def test_inputs_SynchrotronRadiationDrift(self):
+        np.testing.assert_array_equal(
+            self.SRD.share_of_radiation_integrals,
+            0.1 * self.radiation_integrals,
+        )
+        self.assertIsNone(self.SRD._energy_lost_due_to_synchrotron_radiation)
+        self.assertIsNone(self.SRD._damping_time)
+        self.assertIsNone(self.SRD._natural_energy_spread)
+
+    def test_inputs_SynchrotronRadiationSection(self):
+        np.testing.assert_array_equal(
+            self.SRS.share_of_radiation_integrals,
+            0.1 * self.radiation_integrals,
+        )
+        self.assertIsNone(self.SRS._energy_lost_due_to_synchrotron_radiation)
+        self.assertIsNone(self.SRS._damping_time)
+        self.assertIsNone(self.SRS._natural_energy_spread)
+
+    def test_calculate_kick_SynchrotronRadiationBaseClass(self):
+        np.random.seed(seed=self.seed)
+        _ = self.SRB._calculate_kick(
+            beam=self.beam,
+        )
+
+        # SynchrotronRadiationBaseClass
+        self.assertAlmostEqual(
+            self.SRB._energy_lost_due_to_synchrotron_radiation,
+            np.float64(133731.76297928384),
+            places=self.decimal,
+        )
+        self.assertAlmostEqual(
+            self.SRB._damping_time,
+            np.float64(149552.35530506275),
+            places=self.decimal,
+        )
+        self.assertAlmostEqual(
+            self.SRB._natural_energy_spread,
+            np.float64(0.0001675968578478592),
+            places=self.decimal,
+        )
+
+    def test_calculate_kick_SynchrotronRadiationDrift(self):
+        np.random.seed(seed=self.seed)
+        _ = self.SRD._calculate_kick(
+            beam=self.beam,
+        )
+        # Same outputs for the _SynchrotronRadiationDrift class
+        self.assertAlmostEqual(
+            self.SRD._energy_lost_due_to_synchrotron_radiation,
+            np.float64(133731.76297928384),
+            places=self.decimal,
+        )
+        self.assertAlmostEqual(
+            self.SRD._damping_time,
+            np.float64(149552.35530506275),
+            places=self.decimal,
+        )
+        self.assertAlmostEqual(
+            self.SRD._natural_energy_spread,
+            np.float64(0.0001675968578478592),
+            places=self.decimal,
+        )
+
+    def test_calculate_kick_SynchrotronRadiationSection(self):
+        # Same outputs for the _SynchrotronRadiationSection class
+        np.random.seed(seed=self.seed)
+        _ = self.SRS._calculate_kick(
+            beam=self.beam,
+        )
+        self.assertAlmostEqual(
+            self.SRS._energy_lost_due_to_synchrotron_radiation,
+            np.float64(133731.76297928384),
+            places=self.decimal,
+        )
+        self.assertAlmostEqual(
+            self.SRS._damping_time,
+            np.float64(149552.35530506275),
+            places=self.decimal,
+        )
+        self.assertAlmostEqual(
+            self.SRS._natural_energy_spread,
+            np.float64(0.0001675968578478592),
+            places=self.decimal,
+        )
+
+    def test_all_energy_kicks_are_equal(self):
+        np.random.seed(seed=self.seed)
+        energy_kick_from_SynchrotronRadiationBaseClass = (
+            self.SRB._calculate_kick(
+                beam=self.beam,
+            )
+        )
+        energy_kick_from_SynchrotronRadiationDrift = self.SRD._calculate_kick(
+            beam=self.beam,
+        )
+        energy_kick_from_SynchrotronRadiationSection = (
+            self.SRS._calculate_kick(
+                beam=self.beam,
+            )
+        )
+        np.testing.assert_array_equal(
+            energy_kick_from_SynchrotronRadiationBaseClass,
+            energy_kick_from_SynchrotronRadiationDrift,
+        )
+
+        np.testing.assert_array_equal(
+            energy_kick_from_SynchrotronRadiationBaseClass,
+            energy_kick_from_SynchrotronRadiationSection,
+        )
+
+        np.testing.assert_array_equal(
+            energy_kick_from_SynchrotronRadiationDrift,
+            energy_kick_from_SynchrotronRadiationSection,
+        )
+
+    def test_update_beam_energy(self):
+        previous_energy = self.beam.read_partial_dE().copy()
+        energy_kick = self.SRB._calculate_kick(
+            beam=self.beam,
+        )
+        self.SRB._update_beam_energy(beam=self.beam)
+        energy_after_one_kick = self.beam.read_partial_dE().copy()
+        np.testing.assert_array_equal(
+            energy_after_one_kick, previous_energy + energy_kick
+        )
+
+        second_energy_kick = self.SRB._calculate_kick(
+            beam=self.beam,
+        )
+        self.SRB.track(beam=self.beam)
+        energy_after_two_kicks = self.beam.read_partial_dE().copy()
+
+        np.testing.assert_array_equal(
+            energy_after_two_kicks, energy_after_one_kick + second_energy_kick
+        )
+        np.testing.assert_array_equal(
+            energy_after_two_kicks,
+            previous_energy + energy_kick + second_energy_kick,
+        )
+
+    def test_energy_kick_with_quantum_excitation(self):
+        rng = np.random.default_rng(seed=self.seed)
+        energy_kick = calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
+            beam_delta_energy_array=20e9 * np.ones(1000),
+            energy_lost=13e6,
+            longitudinal_damping_time=14955,
+            natural_energy_spread=1e-3,
+            total_energy=20e9,
+            random_generator=rng,
+            disable_quantum_excitation=False,
+        )
+
+        expected_energy_kick = (
+            -13e6
+            - 2.0 / 14955 * 20e9 * np.ones(1000)
+            + 2.0
+            * 1e-3
+            / np.sqrt(14955)
+            * 20e9
+            * rng.standard_normal(size=1000)
+        )
+        np.testing.assert_allclose(
+            energy_kick,
+            expected_energy_kick,
+            rtol=1,
+        )

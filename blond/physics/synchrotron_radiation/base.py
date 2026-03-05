@@ -26,7 +26,7 @@ from blond import backend
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -96,7 +96,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
     return energy_kick
 
 
-class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
+class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     """
     Base class for radiating ring elements.
 
@@ -124,6 +124,10 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         seed: int | None = None,
     ):
         super().__init__(name=name, section_index=section_index)
+
+        self._add_intended_schedule(
+            "share_of_radiation_integrals",
+        )
 
         self._simulation: Simulation | None = None
         self._turn_i: DynamicParameter | int = 0
@@ -257,4 +261,9 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         beam
             Beam class to interact with this element.
         """
+        if self.schedule_active:
+            self.apply_schedules(
+                turn_i=self._turn_i.value,
+                reference_time=float(beam.reference.time),
+            )
         self._update_beam_energy(beam)
