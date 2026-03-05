@@ -116,7 +116,7 @@ class IQCavityFeedbackTimingClassTest(unittest.TestCase):
             profile=self.profile,
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
-        # self.rf_station.phi_rf_design = -3.
+        # self.rf_station.phi_rf_design = 3.
 
         cnst_cycle = ConstantMagneticCycle(
             reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
@@ -153,7 +153,7 @@ class IQCavityFeedbackTimingClassTest(unittest.TestCase):
                     0.13 * self.rf_station.omega_rf
                 )
 
-        n_turns_to_simulate = 4
+        n_turns_to_simulate = 10
 
         sim.run_simulation(
             self.beam, n_turns=n_turns_to_simulate, callbacks=(callback,)

@@ -602,7 +602,15 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         last_turn_time_location = (
             -self.residual_time_last_turn + first_element_center
         )
-        if self.turn_i.value != 0 and last_turn_time_location > 0:
+        too_close_for_comfort = (
+            self.rf_centers_current_turn[0] - last_turn_time_location
+            < self.t_rf * 3 / 4
+        )
+        if (
+            self.turn_i.value != 0
+            and last_turn_time_location > 0
+            and not too_close_for_comfort
+        ):
             # prepend element, which was not considered in last turn
             self.rf_centers_current_turn = np.append(
                 np.array(last_turn_time_location),
