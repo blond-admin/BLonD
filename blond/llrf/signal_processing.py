@@ -23,7 +23,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.linalg as npla
 from numpy import (
-    bool,
     dtype,
     ndarray,
 )
