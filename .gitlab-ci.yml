@@ -72,6 +72,57 @@ workflow:
     - echo "XML_COVERAGE=$COV"
   coverage: '/XML_COVERAGE=(\d+\.\d+)/'
 
+
+.main_only_cupy:
+  variables:
+    BLOND_BACKEND_MODE: "cuda"     # Set the basic backend to numba. It is most verbose about wrong types
+    BLOND_FORCE_TEST_ALL_BACKENDS: "False"     # Force backend scanning unittests to use all available backends
+    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
+  script:
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    - pip list
+    - cd ${project_root}
+    - python3 -m pytest
+      -m "cupy and not backend_mutation"
+      -v unittests/
+
+
+
+.main_also_no_cupy:
+  variables:
+    BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
+    BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
+    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
+  script:
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    - pip list
+    - cd ${project_root}
+    # Run only MPI unittests. Only the main thread should report.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib; fi'
+    # Run all unittests + the examples
+    - pip uninstall -y mpi4py
+    - python3 -m pytest
+      -v unittests/
+      --import-mode=importlib
+      --cov-append
+      --cov
+      --cov-config=.coveragerc
+    - pip uninstall -y cupy-cuda12x
+    - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
+    - python3 -m pytest
+      -v unittests/
+      --import-mode=importlib
+      --cov-append
+      --cov
+      --cov-config=.coveragerc
+      --cov-report html:coverage-html
+      --cov-report xml:coverage.xml
+      --junitxml=junit-report.xml
+    - COV=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
+    - echo "XML_COVERAGE=$COV"
+  coverage: '/XML_COVERAGE=(\d+\.\d+)/'
+
+
 .publish:
   artifacts:
     expire_in: 30 days
@@ -109,7 +160,7 @@ test_py_310:
   interruptible: true
   extends:
     - .before
-    - .main
+    - .main_also_no_cupy
 #    - .after
     - .publish
   tags:
@@ -181,6 +232,16 @@ test_py_314:
     - if: '$CI_COMMIT_BRANCH == "blonder"'
     # ALSO run in merge requests targeting blonder
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+test_py_314_only_cupy:
+  image: gitlab-registry.cern.ch/blond/blond/python314
+  stage: test
+  interruptible: true
+  extends:
+    - .before
+    - .main_only_cupy
+  tags:
+    - k8s-gpu
 
 test_minimum:
   image: gitlab-registry.cern.ch/blond/blond/python310
