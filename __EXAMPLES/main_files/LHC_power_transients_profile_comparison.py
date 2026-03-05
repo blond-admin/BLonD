@@ -4,8 +4,6 @@ import os, sys
 from blond.beam.sparse_profiles import SparseBucket, SparseBatch
 from blond.llrf.signal_processing import rf_beam_current
 
-sys.path.insert(0, "/Users/timko/PycharmProjects/BLonD_bkarlsen")
-
 # Import numpy and matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
