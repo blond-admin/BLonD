@@ -54,7 +54,7 @@ def run_simulation(n_turns: int):
     line.energy_program = xt.EnergyProgram(t_s=t_s, p0c=p0c_ramp)
 
     xsuite_cavity = xt.Cavity(
-        voltage=rf_voltage, frequency=400788731.3867354, lag=0
+        voltage=rf_voltage, frequency=400788731.3867354, lag=180
     )
 
     line.insert_element(index=0, element=xsuite_cavity, name="xsuite_cavity")

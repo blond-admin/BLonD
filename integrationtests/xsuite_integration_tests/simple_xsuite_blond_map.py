@@ -79,7 +79,7 @@ def run_simulation(init_dist, n_turns):
         harmonic=harmonic,
         phi_rf=0,
         circumference=circumference,
-        total_energy=None,  # todo dynamically set the energy
+        total_energy=None,
         is_below_transition=None,
         beam_reference_beta=line.particle_ref.beta0,
     )
