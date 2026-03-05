@@ -8,14 +8,11 @@
 
 """Run test to check xsuite interface works for LHC rmap."""
 
-import mplhep
 import numpy as np
 from matplotlib import pyplot as plt
 
 from .ramp_blond_xsuite_lhc_map import run_simulation as run_blond
 from .ramp_xsuite_lhc_map import run_simulation as run_xsuite
-
-mplhep.style.use("CMS")
 
 
 def test_blond_interface_xsuite():
