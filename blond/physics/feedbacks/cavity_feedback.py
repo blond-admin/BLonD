@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import warnings
 from abc import abstractmethod
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -203,7 +202,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         else:
             return self._parent_rf_station.voltage[self.harmonic_index]
 
-    @cached_property
+    @property
     def time_coarse_grid(self) -> NumpyArray:
         """
         Time points of the coarse grid.
@@ -423,7 +422,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         "voltage_setpoint",
     )
 
-    @cached_property
+    @property
     def t_rf(self) -> float:
         """
         Actual RF period of the parent cavity at harmonic_index.
@@ -435,7 +434,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         """
         return 1 / (self.omega_rf / (2 * np.pi))
 
-    @cached_property
+    @property
     def omega_carrier(self) -> float:
         """
         Feedback carrier frequency.
@@ -447,7 +446,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         """
         return self.omega_rf / self.n_rf_periods_per_coarse_grid
 
-    @cached_property
+    @property
     def t_rev(self) -> float:
         """
         Revolution time based on the harmonic and the design frequency.
@@ -459,7 +458,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         """
         return float((2 * np.pi * self.harmonic) / self.omega_rf_design)
 
-    @cached_property
+    @property
     def sampling_time_coarse(self) -> float:
         """
         Sampling time on the coarse grid.
@@ -471,7 +470,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         """
         return self.n_rf_periods_per_coarse_grid * 2 * np.pi / self.omega_rf
 
-    @cached_property
+    @property
     def residual_time_shift_from_last_turn(
         self,
     ) -> float:  # TODO: this is the time and not the phase or?
@@ -487,7 +486,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             -self.phi_rf / self.omega_rf
         )  # TODO: this should be negative or positive?
 
-    @cached_property
+    @property
     def voltage_setpoint(self) -> NumpyArray:
         """
         Voltage setpoint on the fine grid [V].
@@ -503,7 +502,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         )
 
     def invalidate_cache(self) -> None:
-        """Delete the stored values of functions with @cached_property."""
+        """Delete the stored values of functions with @property."""
         self._invalidate_cache(IQCavityFeedback.cached_props)
 
 
@@ -524,12 +523,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self.rf_centers_current_turn = np.zeros(5)
         self.residual_time_last_turn = 0
+        self.residual_time_last_turn_previous = 0  # TODO: for debugging only
 
         self.t_rev_previous = 0
         self.omega_rf_previous = 0
+        self.phi_rf_previous = 0
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
+        self.phi_rf_previous = self.phi_rf
 
     def on_run_simulation(
         self,
@@ -538,7 +539,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         n_turns: int,
         **kwargs,
     ) -> None:
-        self.turn_i = simulation.turn_i.value
+        self.turn_i = simulation.turn_i
 
     @property
     def n_coarse(self):
@@ -560,25 +561,35 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         phi_modulated = np.mod(phi, 2 * np.pi)
         if np.isclose(phi_modulated, 0.0):
             return 0.0
-        return (2 * np.pi - phi_modulated) / (2 * np.pi * f2)
+        return (2 * np.pi - phi) / f2
 
     def calculate_rf_centers_for_current_turn(self, beam: Simulation) -> None:
-        if self.turn_i != 0:
-            phi_offset_current_turn_start = (
-                self.omega_rf_previous * self.t_rev_previous
-                - self.omega_rf * self.t_rev_previous
+        # if self.turn_i.value != 0:
+        phi_end_of_last_turn = (
+            self.omega_rf_previous * self.t_rev_previous - self.phi_rf_previous
+        )
+        # phi_offset_current_turn_start = (
+        #     self.omega_rf_previous * self.t_rev_previous
+        #     - self.omega_rf * self.t_rev_previous
+        # ) - self.phi_rf_previous #  + 2.0 * np.pi * self._parent_rf_station.harmonic * self._parent_rf_station.delta_omega_rf / self.omega_rf
+        # self._parent_rf_station.phase_correction_frequency_offset
+        phi_offset_current_turn_start = self.phi_rf
+        # phi_offset_current_turn_start = phi_end_of_last_turn
+        # print(self._parent_rf_station.phi_rf)
+        # print(phi_offset_current_turn_start)
+
+        time_to_next_rising_edge_zero = (
+            self.get_time_to_next_rising_edge_zero(
+                phi_offset_current_turn_start,
+                self._parent_rf_station.omega_rf,
             )
-            time_to_next_rising_edge_zero = (
-                self.get_time_to_next_rising_edge_zero(
-                    phi_offset_current_turn_start,
-                    self._parent_rf_station.omega_rf,
-                )
-            )
-            first_element_center = (
-                time_to_next_rising_edge_zero + self.residual_time_last_turn
-            ) / 2
-        else:
-            time_to_next_rising_edge_zero = 0
+        ) + np.pi / self._parent_rf_station.omega_rf
+        first_element_center = (
+            time_to_next_rising_edge_zero + self.residual_time_last_turn
+        ) / 2
+        # self._parent_rf_station.delta_phi_rf = -self.omega_rf_previous * self.t_rev_previous#  + self._parent_rf_station.phi_rf
+        # else:
+        #     time_to_next_rising_edge_zero = 0
         step_width_rf_centers = self.t_rf * self.n_rf_periods_per_coarse_grid
         self.rf_centers_current_turn = (
             np.arange(
@@ -586,19 +597,20 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 self.get_t_rev(),
                 step=step_width_rf_centers,
             )
-            + 0.5 * self.t_rf
+            # + 0.5 * self.t_rf
         )
-
-        if self.turn_i != 0:
+        last_turn_time_location = (
+            -self.residual_time_last_turn + first_element_center
+        )
+        if self.turn_i.value != 0 and last_turn_time_location > 0:
             # prepend element, which was not considered in last turn
-            self.rf_centers_current_turn = np.concatenate(
-                (
-                    -self.residual_time_last_turn + first_element_center,
-                    self.rf_centers_current_turn,
-                )
+            self.rf_centers_current_turn = np.append(
+                np.array(last_turn_time_location),
+                self.rf_centers_current_turn,
             )
 
         # reset with current turn
+        self.residual_time_last_turn_previous = self.residual_time_last_turn
         self.residual_time_last_turn = (
             self.get_t_rev() - self.rf_centers_current_turn[-1]
         )
@@ -606,6 +618,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         # save for next
         self.t_rev_previous = self.get_t_rev()
         self.omega_rf_previous = self.omega_rf
+        self.phi_rf_previous = self.phi_rf
 
     def circuit_track(self, no_beam: bool = False) -> None:
         pass

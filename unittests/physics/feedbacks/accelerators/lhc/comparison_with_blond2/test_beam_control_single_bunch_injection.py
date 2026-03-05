@@ -132,7 +132,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
                 cls.phi_rf_blond3[i] = cavity.phi_rf[0]
                 cls.pl_error_blond3[i] = beam_control.dphi * 180 / np.pi
                 cls.delta_phi_rf_blond3[i] = (
-                    cavity._dphi_rf_next[0] * 180 / np.pi
+                    cavity.phase_correction_frequency_offset[0] * 180 / np.pi
                 )
 
         def setup_blond2():

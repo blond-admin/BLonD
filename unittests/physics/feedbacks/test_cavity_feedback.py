@@ -148,8 +148,10 @@ class IQCavityFeedbackTimingClassTest(unittest.TestCase):
                 )
             )
             rf_centers_array.append(cav_fdbk_timing.rf_centers_current_turn)
-            # if simulation.turn_i.value == 0:
-            #     self.rf_station.delta_omega_rf = 0.13 * self.rf_station.omega_rf
+            if simulation.turn_i.value == 0:
+                self.rf_station.delta_omega_rf = (
+                    0.13 * self.rf_station.omega_rf
+                )
 
         n_turns_to_simulate = 4
 
