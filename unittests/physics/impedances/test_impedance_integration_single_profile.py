@@ -13,9 +13,11 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    backend,
     momentum_compaction_factor,
     proton,
 )
+from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
     InductiveImpedanceSolver,
     MultiPassResonatorSolver,
@@ -28,6 +30,24 @@ from blond.physics.impedances.sources import (
     Resonators,
     TravelingWaveCavity,
 )
+from blond.testing.helpers import pinned_values_helper
+
+DEV_DRAW = False
+
+
+def plot_diff_if_failed(actual, expected):
+    try:
+        rtol = 1e-4
+        np.testing.assert_allclose(
+            actual,
+            expected,
+            atol=np.max(np.abs(expected)) * rtol,
+        )
+    except Exception as exc:
+        plt.plot(expected, "o")
+        plt.plot(actual, "x")
+        plt.show()
+        raise exc
 
 
 class TestWakeFields(unittest.TestCase):
@@ -89,18 +109,32 @@ class TestWakeFields(unittest.TestCase):
             # ContinuousMultiTurnTimeDomainSolver(n_turns=2),
             # not applicable with `short profile`
         )
+        induced_voltage_pinned = np.loadtxt(
+            callers_relative_path(
+                "resources/test_impedance_integration_single_profile"
+                "/test_source_InductiveImpedance.csv",
+                stacklevel=1,
+            ),
+            delimiter=",",
+        )
 
         for i, solver in enumerate(solvers):
             source = InductiveImpedance(1234)
             self.init_simulation(source=source, solver=solver)
             self.simulation.run_simulation(self.beam, n_turns=1)
-            plt.plot(
+            if DEV_DRAW:
+                plt.plot(
+                    self.wake_field.induced_voltage,
+                    makers[i],
+                    label=type(solver).__name__,
+                )
+            plot_diff_if_failed(
                 self.wake_field.induced_voltage,
-                makers[i],
-                label=type(solver).__name__,
+                induced_voltage_pinned,
             )
-        plt.legend()
-        plt.show()
+        if DEV_DRAW:
+            plt.legend()
+            plt.show()
 
     def test_source_TravelingWaveCavity(self):
         makers = ["s", "o", "1", "2", "3", "."]
@@ -112,7 +146,14 @@ class TestWakeFields(unittest.TestCase):
             # ContinuousMultiTurnTimeDomainSolver(n_turns=2),
             # not applicable with `short profile`
         )
-
+        induced_voltage_pinned = np.loadtxt(
+            callers_relative_path(
+                "resources/test_impedance_integration_single_profile"
+                "/test_source_TravelingWaveCavity.csv",
+                stacklevel=1,
+            ),
+            delimiter=",",
+        )
         for i, solver in enumerate(solvers):
             source = TravelingWaveCavity(
                 R_S=400,
@@ -121,47 +162,23 @@ class TestWakeFields(unittest.TestCase):
             )
             self.init_simulation(source=source, solver=solver)
             self.simulation.run_simulation(self.beam, n_turns=1)
-            plt.figure(0)
-            plt.plot(
+            if DEV_DRAW:
+                plt.figure(0)
+                plt.plot(
+                    self.wake_field.induced_voltage,
+                    makers[i],
+                    label=type(solver).__name__,
+                )
+                if isinstance(solver, PeriodicFreqSolver):
+                    plt.figure(1)
+                    solver._plot_debug_internal_state()
+            plot_diff_if_failed(
                 self.wake_field.induced_voltage,
-                makers[i],
-                label=type(solver).__name__,
+                induced_voltage_pinned,
             )
-            if isinstance(solver, PeriodicFreqSolver):
-                plt.figure(1)
-                solver._plot_debug_internal_state()
-
-        plt.legend()
-        plt.show()
-
-    def test_debug_source_Resonators(self):
-        makers = ["s", "o", "1", "2", "3", "."]
-        i = 0
-        solver = PeriodicFreqSolver(t_periodicity=26658.883 / c)
-        source = Resonators(
-            shunt_impedances=2.0e6,  # ~ (R/Q)*Q_L for LHC cavity
-            center_frequencies=400.79e6,  # LHC RF frequency
-            quality_factors=4.5e3,  # Loaded Q
-        )
-        self.init_simulation(source=source, solver=solver)
-        self.simulation.run_simulation(self.beam, n_turns=1)
-        plt.figure()
-        solver._plot_debug_internal_state()
-        plt.figure()
-        plt.subplot(2, 1, 1)
-        plt.plot(
-            self.profile.hist_x,
-            self.profile.hist_y,
-        )
-        plt.subplot(2, 1, 2)
-        plt.plot(
-            self.profile.hist_x,
-            self.wake_field.induced_voltage,
-            makers[i],
-            label=type(solver).__name__,
-        )
-        plt.legend()
-        plt.show()
+        if DEV_DRAW:
+            plt.legend()
+            plt.show()
 
     def test_source_Resonators(self):
         makers = ["s", "o", "1", "2", "3", "."]
@@ -175,7 +192,14 @@ class TestWakeFields(unittest.TestCase):
             # ContinuousMultiTurnTimeDomainSolver(n_turns=2),
             # not applicable with `short profile`
         )
-
+        induced_voltage_pinned = np.loadtxt(
+            callers_relative_path(
+                "resources/test_impedance_integration_single_profile"
+                "/test_source_Resonators.csv",
+                stacklevel=1,
+            ),
+            delimiter=",",
+        )
         for i, solver in enumerate(solvers):
             source = Resonators(
                 shunt_impedances=2.0e6,  # ~ (R/Q)*Q_L for LHC cavity
@@ -184,17 +208,23 @@ class TestWakeFields(unittest.TestCase):
             )
             self.init_simulation(source=source, solver=solver)
             self.simulation.run_simulation(self.beam, n_turns=1)
-            plt.subplot(2, 1, 1)
-            plt.plot(
-                self.profile.hist_x,
-                self.profile.hist_y,
-            )
-            plt.subplot(2, 1, 2)
-            plt.plot(
-                self.profile.hist_x,
+            if DEV_DRAW:
+                plt.subplot(2, 1, 1)
+                plt.plot(
+                    self.profile.hist_x,
+                    self.profile.hist_y,
+                )
+                plt.subplot(2, 1, 2)
+                plt.plot(
+                    self.profile.hist_x,
+                    self.wake_field.induced_voltage,
+                    makers[i],
+                    label=type(solver).__name__,
+                )
+            plot_diff_if_failed(
                 self.wake_field.induced_voltage,
-                makers[i],
-                label=type(solver).__name__,
+                induced_voltage_pinned,
             )
-        plt.legend()
-        plt.show()
+        if DEV_DRAW:
+            plt.legend()
+            plt.show()
