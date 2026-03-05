@@ -109,7 +109,7 @@ class SynchrotronRadiationSimulation:
         self.energy_spread = 1e-3
 
 
-def main(n_turns: int = 50000):
+def main(n_turns: int = 100):
     params = SynchrotronRadiationSimulation(n_turns=n_turns)
     simulation = Simulation(
         ring=params.ring,

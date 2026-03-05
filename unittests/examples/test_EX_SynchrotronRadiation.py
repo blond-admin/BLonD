@@ -16,9 +16,7 @@ class TestEX_Synchrotron_Radiation(unittest.TestCase):
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
-        from blond.examples import (
-            EX_Synchrotron_Radiation,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_Synchrotron_Radiation
 
         EX_Synchrotron_Radiation.main(n_turns=100)
 
@@ -28,9 +26,7 @@ class TestEX_Synchrotron_Radiation(unittest.TestCase):
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples import (
-            EX_Synchrotron_Radiation,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_Synchrotron_Radiation
 
         EX_Synchrotron_Radiation.main(n_turns=100)
 
@@ -45,9 +41,7 @@ class TestEX_Synchrotron_Radiation(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy32Bit)
         backend.set_specials("cuda")
-        from blond.examples import (
-            EX_Synchrotron_Radiation,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_Synchrotron_Radiation
 
         EX_Synchrotron_Radiation.main(n_turns=100)
         backend.zeros(100)
@@ -63,9 +57,7 @@ class TestEX_Synchrotron_Radiation(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples import (
-            EX_Synchrotron_Radiation,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_Synchrotron_Radiation
 
         EX_Synchrotron_Radiation.main(n_turns=100)
         backend.zeros(100)
