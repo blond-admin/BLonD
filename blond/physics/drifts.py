@@ -69,7 +69,7 @@ def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
         )
 
 
-class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
+class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
     """
     Base class of a drift.
 
@@ -84,7 +84,8 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         Synchrotron radiation integrals.
         Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
@@ -166,7 +167,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         pass
 
 
-class DriftSimple(DriftBaseClass, HasPropertyCache):
+class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     """
     Base class to implement beam drifts in synchrotrons.
 
@@ -184,7 +185,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
     momentum_compaction_factor
         Momentum compaction factor.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
@@ -213,7 +215,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         momentum_compaction_factor
             Momentum compaction factor.
         **kwargs
-            Additional keyword arguments for MRO of fused elements.
+            Additional keyword arguments for method
+            resolution order of inheriting elements.
 
         Examples
         --------
@@ -229,6 +232,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             radiation_integrals=radiation_integrals,
             **kwargs,  # for MRO of fused elements
         )
+        self._add_intended_schedule("momentum_compaction_factor")
 
         self._simulation: Simulation | None = None
 
