@@ -91,7 +91,7 @@ class IQCavityFeedbackTimingClassTest(unittest.TestCase):
         self.profile = StaticProfile.from_cutoff(0, 1e-9, 5e9)
         # self.profile = Mock(spec=StaticProfile)
         self.rf_station = SingleHarmonicRFStation(
-            phi_rf=0, harmonic=3, voltage=5e6
+            phi_rf=0.0, harmonic=3, voltage=5e6
         )
         circumference = 5
         drift = DriftSimple(circumference, momentum_compaction_factor=0)
@@ -116,6 +116,7 @@ class IQCavityFeedbackTimingClassTest(unittest.TestCase):
             profile=self.profile,
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
+        # self.rf_station.phi_rf_design = -3.
 
         cnst_cycle = ConstantMagneticCycle(
             reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
@@ -125,14 +126,14 @@ class IQCavityFeedbackTimingClassTest(unittest.TestCase):
 
         voltage_array = []
         time_array = []
+        rf_centers_array = []
 
-        vals_per_turn = 500
-        n_turns_to_simulate = 5
+        vals_per_turn = 5000
 
-        def callback(sim, beam):
+        def callback(simulation: Simulation, beam: Beam):
             time_array.append(
                 np.linspace(
-                    0,
+                    0,  # cav_fdbk_timing.residual_time_last_turn_previous,
                     2
                     * np.pi
                     / self.rf_station.omega_rf_design
@@ -146,30 +147,42 @@ class IQCavityFeedbackTimingClassTest(unittest.TestCase):
                     time_array[-1]
                 )
             )
+            rf_centers_array.append(cav_fdbk_timing.rf_centers_current_turn)
+            # if simulation.turn_i.value == 0:
+            #     self.rf_station.delta_omega_rf = 0.13 * self.rf_station.omega_rf
+
+        n_turns_to_simulate = 4
 
         sim.run_simulation(
-            self.beam, n_turns=n_turns_to_simulate, callbacks=[callback]
+            self.beam, n_turns=n_turns_to_simulate, callbacks=(callback,)
         )
 
         time_array = np.array(time_array)
+        voltage_array = np.array(voltage_array)
         for time_index in range(1, len(time_array)):
+            rf_centers_array[time_index] += time_array[time_index - 1][-1]
             time_array[time_index] += time_array[time_index - 1][-1]
-        time_array = time_array.flatten()
-        voltage_array = np.array(voltage_array).flatten()
 
+        total_time_array = time_array.flatten()
         import matplotlib.pyplot as plt
 
-        plt.plot(time_array, voltage_array)
+        for trn_ind in range(0, n_turns_to_simulate):
+            plt.plot(time_array[trn_ind], voltage_array[trn_ind], marker="o")
+            for _ in range(len(rf_centers_array[trn_ind])):
+                plt.axvline(
+                    x=rf_centers_array[trn_ind][_], marker="x", color="green"
+                )
+            if trn_ind != 0:
+                plt.axvline(
+                    x=total_time_array[int(trn_ind * vals_per_turn)],
+                    color="red",
+                    ls="--",
+                )
 
-        for trn_ind in range(1, n_turns_to_simulate):
-            plt.axvline(
-                x=time_array[int(trn_ind * vals_per_turn)],
-                color="red",
-                ls="--",
-            )
+        # plt.xlim(total_time_array[450], total_time_array[550])
 
         plt.show()
 
-        assert all(np.diff(voltage_array) < 0.04)
+        assert all(np.diff(voltage_array.flatten()) < 0.04)
 
         pass

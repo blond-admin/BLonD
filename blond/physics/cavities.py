@@ -219,11 +219,13 @@ class RFStationBaseClass(
         self.phi_rf_design: NumpyArray | float | None = None
         self.delta_phi_rf: NumpyArray | float | None = None
 
-        # `_dphi_rf_next` is used to apply
+        # `phase_correction_frequency_offset` is used to apply
         # the phase shift that was caused in
         # last turn to this turn before beam and
         # cavity feedbacks get updated.
-        self._dphi_rf_next: NumpyArray | float | None = None
+        self.phase_correction_frequency_offset: NumpyArray | float | None = (
+            None
+        )
 
         self.voltage: NumpyArray | float | None = None
         self.harmonic: NumpyArray | float | None = None
@@ -758,10 +760,14 @@ class RFStationBaseClass(
         Accumulated phase offset due to beam phase loop or frequency offset.
         """
         phi_increment = (
-            2.0 * np.pi * self.harmonic * self.delta_omega_rf / self.omega_rf
+            2.0
+            * np.pi
+            * self.harmonic
+            * self.delta_omega_rf
+            / self.omega_rf_design
         )
 
-        self._dphi_rf_next += phi_increment
+        self.phase_correction_frequency_offset = phi_increment
 
     def track_reference(
         self,
@@ -933,8 +939,7 @@ class SingleHarmonicRFStation(
 
         self.delta_phi_rf: float | None = 0.0
         self.delta_omega_rf: float | None = 0.0
-        self._dphi_rf_next: float | None = 0.0
-        self._dphi_rf_next: float = 0.0
+        self.phase_correction_frequency_offset: float | None = 0.0
 
     def get_main_harmonic(self) -> float:
         """
@@ -1023,7 +1028,7 @@ class SingleHarmonicRFStation(
         """
         # Apply phase shift that was caused in last turn
         # to this turn before beam and cavity feedbacks get updated.
-        self.delta_phi_rf = deepcopy(self._dphi_rf_next)
+        self.delta_phi_rf += deepcopy(self.phase_correction_frequency_offset)
 
         super()._track(beam=beam)
 
@@ -1276,7 +1281,9 @@ class MultiHarmonicRFStation(RFStationBaseClass):
 
         self.delta_phi_rf: NumpyArray = np.zeros(n_harmonics)
         self.delta_omega_rf: NumpyArray = np.zeros(n_harmonics)
-        self._dphi_rf_next: NumpyArray = np.zeros(n_harmonics)
+        self.phase_correction_frequency_offset: NumpyArray = np.zeros(
+            n_harmonics
+        )
 
     def get_main_harmonic(self) -> float:
         """
@@ -1395,7 +1402,9 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         """
         # Apply phase shift that was caused in last turn
         # to this turn before beam and cavity feedbacks get updated.
-        self.delta_phi_rf = np.copy(self._dphi_rf_next)
+        self.delta_phi_rf = np.copy(
+            self.phase_correction_frequency_offset
+        )  # TODO: possible problem here, check with SHC
 
         super()._track(beam=beam)
 
