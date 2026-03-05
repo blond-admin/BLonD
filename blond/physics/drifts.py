@@ -144,8 +144,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     radiation_integrals
         Synchrotron radiation integrals.
         Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
-    transition_gamma
-        Gamma of transition crossing.
     momentum_compaction_factor
         Momentum compaction factor.
     **kwargs
@@ -158,7 +156,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         orbit_length: float,
         section_index: int = 0,
         radiation_integrals: NumpyArray | None = None,
-        transition_gamma: complex | float | None = None,
         momentum_compaction_factor: float | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
@@ -174,8 +171,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
             Section index to group elements into sections.
         radiation_integrals
             Synchrotron radiation integrals.
-        transition_gamma
-            Gamma of transition crossing.
         momentum_compaction_factor
             Momentum compaction factor.
         **kwargs
@@ -362,3 +357,134 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         """Delete the stored values of functions with @cached_property."""
         # super()._invalidate_cache(DriftSimple.cached_props)
         pass
+
+
+class DriftExact(DriftSimple):
+    """
+    Drift element using the exact drift formulation.
+
+    This replaces the simple drift with the exact solver based on:
+      - exact delta from dE
+      - full alpha(delta) expansion
+      - exact (1 + dE/E) / (1 + delta) factor
+
+    Parameters
+    ----------
+    orbit_length : float
+        Length of drift, in [m].
+        Length / Velocity => Time to pass the element.
+    section_index : int
+        Section index to group elements into sections.
+    momentum_compaction_factor : float
+        Momentum compaction factor.
+    higher_order_alpha : NumpyArray
+        Higher-order alpha array up to desired order.
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
+    """
+
+    def __init__(
+        self,
+        orbit_length: float,
+        section_index: int = 0,
+        momentum_compaction_factor: float | None = None,
+        higher_order_alpha: NumpyArray | None = None,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        super().__init__(
+            orbit_length=orbit_length,
+            section_index=section_index,
+            momentum_compaction_factor=momentum_compaction_factor,
+            **kwargs,
+        )
+
+        self.higher_order_alpha = higher_order_alpha
+
+    @staticmethod
+    def headless(
+        orbit_length: float,
+        section_index: int = 0,
+        momentum_compaction_factor: float | None = None,
+        higher_order_alpha: NumpyArray | None = None,
+    ) -> DriftExact:
+        """
+        `DriftExact` element using the exact drift formulation.
+
+        This replaces the simple drift with the exact solver based on:
+          - exact delta from dE
+          - full alpha(delta) expansion
+          - exact (1 + dE/E) / (1 + delta) factor
+
+        Parameters
+        ----------
+        orbit_length : float
+            Length of drift, in [m].
+            Length / Velocity => Time to pass the element.
+        section_index : int
+            Section index to group elements into sections.
+        momentum_compaction_factor : float
+            Momentum compaction factor.
+        higher_order_alpha : NumpyArray
+            Higher-order alpha array up to desired order.
+
+        Returns
+        -------
+        drift_exact
+            ``DriftExact`` object.
+        """
+        from blond import Beam, Simulation
+
+        drift = DriftExact(
+            orbit_length=orbit_length,
+            section_index=section_index,
+            momentum_compaction_factor=momentum_compaction_factor,
+            higher_order_alpha=higher_order_alpha,
+        )
+        mock_simulation = Mock(Simulation)
+        mock_beam = Mock(Beam)
+
+        drift.on_init_simulation(
+            simulation=mock_simulation,
+        )
+        drift.on_run_simulation(
+            simulation=mock_simulation,
+            beam=mock_beam,
+            n_turns=1,
+        )
+
+        return drift
+
+    def _track(self, beam: BeamBaseClass) -> None:
+        """
+        Main simulation routine (exact drift).
+
+        Parameters
+        ----------
+        beam : BeamBaseClass
+            Beam.
+        """
+        # Apply schedules if active
+        if self.schedule_active:
+            self.apply_schedules(
+                turn_i=self._simulation.turn_i.value,
+                reference_time=beam.reference.time,
+            )
+
+        # Advance reference
+        dt = self.track_reference(beam.reference)
+
+        higher_alpha = backend.array(
+            self.higher_order_alpha, dtype=backend.float
+        )
+
+        # Track macroparticles
+        if beam.common_array_size > 0:
+            backend.specials.drift_exact(
+                dt=beam.write_partial_dt(),
+                dE=beam.read_partial_dE(),
+                T=dt,
+                alpha_0=self.alpha_0,
+                higher_alpha=higher_alpha,
+                beta=beam.reference.beta,
+                energy=beam.reference.total_energy,
+            )
