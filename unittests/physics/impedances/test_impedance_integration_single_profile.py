@@ -115,9 +115,9 @@ class TestWakeFields(unittest.TestCase):
 
         for i, solver in enumerate(solvers):
             source = TravelingWaveCavity(
-                R_S=0.876e6,
+                R_S=400,
                 frequency_R=200.222e6,
-                a_factor=3.899,
+                a_factor=62e-9 * 2 * np.pi,
             )
             self.init_simulation(source=source, solver=solver)
             self.simulation.run_simulation(self.beam, n_turns=1)
