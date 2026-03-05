@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds `CudaSpecials` and helper functions."""
+"""A collection of analytic equations required for synchrotron radiation."""

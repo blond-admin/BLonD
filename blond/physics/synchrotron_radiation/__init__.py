@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds `CudaSpecials` and helper functions."""
+"""Implementations to simulate the effect of synchrotron radiation."""
