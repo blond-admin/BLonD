@@ -39,13 +39,13 @@ class TestCallablesWithMPI(unittest.TestCase):
         da = distributed_arange(12, dtype=np.int32)
         if da._rank == 0:
             np.testing.assert_allclose(
-                da.array_local,
+                da.copy_as_numpy(),
                 np.arange(0, 12),
                 err_msg=f"{da._rank=} {da._size=}",
             )
         elif da._rank == 1:
             np.testing.assert_allclose(
-                da.array_local,
+                da.copy_as_numpy(),
                 np.arange(12, 12 + 12),
                 err_msg=f"{da._rank=} {da._size=}",
             )
