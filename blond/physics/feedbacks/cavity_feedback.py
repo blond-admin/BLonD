@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Simulation
+    from blond import Beam, Simulation
     from blond.core.beam.base import BeamBaseClass
 
 # TODO rewrite all docstrings
@@ -505,3 +505,122 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
     def invalidate_cache(self) -> None:
         """Delete the stored values of functions with @cached_property."""
         self._invalidate_cache(IQCavityFeedback.cached_props)
+
+
+class IQCavityFeedbackTimingClass(IQCavityFeedback):
+    def __init__(
+        self,
+        profile,
+        parent_rf_station: SingleHarmonicRFStation | None = None,
+    ):
+        super().__init__(
+            profile=profile,
+            n_cavities=1,
+            harmonic_index=1,
+            n_rf_periods_per_coarse_grid=1,
+        )
+
+        # self.set_parent_rf_station(parent_rf_station)
+
+        self.rf_centers_current_turn = np.zeros(5)
+        self.residual_time_last_turn = 0
+
+        self.t_rev_previous = 0
+        self.omega_rf_previous = 0
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs,
+    ) -> None:
+        self.turn_i = simulation.turn_i.value
+
+    @property
+    def n_coarse(self):
+        return len(self.rf_centers_current_turn)
+
+    def get_t_rev(self):
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
+            return (
+                2
+                * np.pi
+                / self._parent_rf_station.omega_rf_design
+                * self._parent_rf_station.harmonic
+            )
+        else:
+            raise RuntimeError("wudup MHC")
+
+    @staticmethod
+    def get_time_to_next_rising_edge_zero(phi, f2):
+        phi_modulated = np.mod(phi, 2 * np.pi)
+        if np.isclose(phi_modulated, 0.0):
+            return 0.0
+        return (2 * np.pi - phi_modulated) / (2 * np.pi * f2)
+
+    def calculate_rf_centers_for_current_turn(self, beam: Simulation) -> None:
+        if self.turn_i != 0:
+            phi_offset_current_turn_start = (
+                self.omega_rf_previous * self.t_rev_previous
+                - self.omega_rf * self.t_rev_previous
+            )
+            time_to_next_rising_edge_zero = (
+                self.get_time_to_next_rising_edge_zero(
+                    phi_offset_current_turn_start,
+                    self._parent_rf_station.omega_rf,
+                )
+            )
+            first_element_center = (
+                time_to_next_rising_edge_zero + self.residual_time_last_turn
+            ) / 2
+        else:
+            time_to_next_rising_edge_zero = 0
+        step_width_rf_centers = self.t_rf * self.n_rf_periods_per_coarse_grid
+        self.rf_centers_current_turn = (
+            np.arange(
+                time_to_next_rising_edge_zero,
+                self.get_t_rev(),
+                step=step_width_rf_centers,
+            )
+            + 0.5 * self.t_rf
+        )
+
+        if self.turn_i != 0:
+            # prepend element, which was not considered in last turn
+            self.rf_centers_current_turn = np.concatenate(
+                (
+                    -self.residual_time_last_turn + first_element_center,
+                    self.rf_centers_current_turn,
+                )
+            )
+
+        # reset with current turn
+        self.residual_time_last_turn = (
+            self.get_t_rev() - self.rf_centers_current_turn[-1]
+        )
+
+        # save for next
+        self.t_rev_previous = self.get_t_rev()
+        self.omega_rf_previous = self.omega_rf
+
+    def circuit_track(self, no_beam: bool = False) -> None:
+        pass
+
+    def update_feedback_variables(self) -> None:
+        pass
+
+    def _track(self, beam: Beam) -> None:
+        self.calculate_rf_centers_for_current_turn(beam)
+        pass
+
+    def get_rf_waveform_for_current_turn(
+        self, time_axis: NumpyArray
+    ) -> NumpyArray:
+        return np.sin(
+            self._parent_rf_station.omega_rf * time_axis
+            + self._parent_rf_station.phi_rf
+        )
