@@ -556,7 +556,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         phi_modulated = np.mod(phi, 2 * np.pi)
         if np.isclose(phi_modulated, 0.0):
             return 0.0
-        return (2 * np.pi - phi) / f2
+        return (2 * np.pi - phi_modulated) / f2
 
     def calculate_rf_centers_for_current_turn(self) -> None:
         time_to_next_falling_edge_zero = (
@@ -571,25 +571,24 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         ) / 2
 
         step_width_rf_centers = self.t_rf * self.n_rf_periods_per_coarse_grid
-        self.rf_centers_current_turn = (
-            np.arange(
-                time_to_next_falling_edge_zero,
-                self.get_t_rev(),
-                step=step_width_rf_centers,
-            )
+        self.rf_centers_current_turn = np.arange(
+            time_to_next_falling_edge_zero,
+            self.get_t_rev(),
+            step=step_width_rf_centers,
         )
+
+        if len(self.rf_centers_current_turn) == 0:
+            warnings.warn(
+                f"no rf centers in turn {self.turn_i.value} at {self.section_index}",
+                stacklevel=2,
+            )
+            return
+
         last_turn_time_location = (
             -self.residual_time_last_turn + first_element_center
         )
-        too_close_for_comfort = (
-            self.rf_centers_current_turn[0] - last_turn_time_location
-            < self.t_rf * 3 / 4
-        )
-        if (
-            self.turn_i.value != 0
-            and last_turn_time_location > 0
-            and not too_close_for_comfort
-        ):
+
+        if self.turn_i.value != 0 and last_turn_time_location >= 0:
             # prepend element, which was not considered in last turn
             self.rf_centers_current_turn = np.append(
                 np.array(last_turn_time_location),

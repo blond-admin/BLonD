@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -35,8 +36,9 @@ class TestIQCavityFeedbackTimingClass:
     def setup_simulation(self):
         # single section
         self.profile = StaticProfile.from_cutoff(0, 1e-9, 5e9)
+        self.harmonic = 3
         self.rf_station = SingleHarmonicRFStation(
-            phi_rf=0.0, harmonic=3, voltage=5e6
+            phi_rf=0.0, harmonic=self.harmonic, voltage=5e6
         )
         circumference = 5
         drift = DriftSimple(circumference, momentum_compaction_factor=0)
@@ -68,7 +70,7 @@ class TestIQCavityFeedbackTimingClass:
     @pytest.mark.parametrize(
         "phase_shift,delta_omega_factor", test_data_discontinuity
     )
-    def test_for_discontinuity_single_section_no_acceleration(
+    def test_for_discontinuity__single_section_no_acceleration(
         self, phase_shift: float, delta_omega_factor: float
     ) -> None:
         self.setup_simulation()
@@ -89,6 +91,7 @@ class TestIQCavityFeedbackTimingClass:
         rf_centers_array = []
 
         vals_per_turn = 5000
+        self.t_rf_init = 0
 
         def callback(simulation: Simulation, beam: Beam):
             time_array.append(
@@ -109,6 +112,7 @@ class TestIQCavityFeedbackTimingClass:
             )
             rf_centers_array.append(cav_fdbk_timing.rf_centers_current_turn)
             if simulation.turn_i.value == 0:
+                self.t_rf_init = 2 * np.pi / self.rf_station.omega_rf_design
                 self.rf_station.delta_omega_rf = (
                     delta_omega_factor * self.rf_station.omega_rf
                 )
@@ -126,7 +130,6 @@ class TestIQCavityFeedbackTimingClass:
             time_array[time_index] += time_array[time_index - 1][-1]
 
         total_time_array = time_array.flatten()
-        import matplotlib.pyplot as plt
 
         if DEBUG_PLOTTING:
             for trn_ind in range(0, n_turns_to_simulate):
@@ -148,10 +151,26 @@ class TestIQCavityFeedbackTimingClass:
 
             plt.show()
 
+        # discontinutity testing
         for ind in range(1, len(voltage_array) - 1):
             np.testing.assert_allclose(
                 voltage_array[ind - 1][-1] + 3, voltage_array[ind][0] + 3
             )  # +3 to be robust against zero-relative problems
-        assert all(np.diff(voltage_array.flatten()) < 0.04)
+
+        # distance testing
+        t_rf_end = 2 * np.pi / self.rf_station.omega_rf
+        for ind in range(3, len(voltage_array) - 1):
+            # between two turns
+            assert np.isclose(
+                rf_centers_array[ind][0] - rf_centers_array[ind - 1][-1],
+                t_rf_end,
+            )
+            np.testing.assert_allclose(
+                np.diff(rf_centers_array[ind][1:]), t_rf_end
+            )
+
+        np.testing.assert_allclose(
+            np.diff(rf_centers_array[0]), self.t_rf_init
+        )
 
         pass
