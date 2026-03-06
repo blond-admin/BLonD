@@ -189,6 +189,58 @@ class EquidistantMultiProfile(MultiProfile):
         self._continuous_memory_hist_x = None
         self._continuous_memory_hist_y = None
 
+    @staticmethod
+    def init_from_padded_filling_pattern(
+        harmonic: int,
+        filling_pattern: NumpyArray,
+        bins_per_profile: int,
+        offset: float = 0.0,
+        section_index: int = 0,
+        name: str | None = None,
+    ) -> EquidistantMultiProfile:
+        """
+        Initialization method for `EquidistantMultiProfile` with a zero-padded filling pattern.
+
+        Parameters
+        ----------
+        harmonic
+            The harmonic that is used to zero-pad the `filling_pattern`.
+        filling_pattern
+            Filling pattern as a boolean array
+            where ``True`` means filled bucket.
+            For example ``filling_pattern = [1, 0, 0, 1]``,
+            meaning that only the first and last profile are in active use.
+        bins_per_profile
+            Number of bins per profile.
+        offset
+            Offset all profiles by this number.
+        section_index
+            Identifier grouping elements that belong to the same section of the ring.
+            Defaults to 0.
+        name
+            Human-readable name for the element. If not provided, a unique name is
+            automatically generated.
+
+        Returns
+        -------
+        profile
+            The `EquidistantMultiProfile`.
+        """
+        filling_pattern_padded = np.concatenate(
+            (
+                filling_pattern,
+                np.zeros(harmonic - len(filling_pattern)),
+            )
+        )
+        profile = EquidistantMultiProfile(
+            filling_pattern=filling_pattern_padded,
+            bins_per_profile=bins_per_profile,
+            offset=offset,
+            section_index=section_index,
+            name=name,
+        )
+        return profile
+
     @property
     def hist_x(self):
         """
