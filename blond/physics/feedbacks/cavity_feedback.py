@@ -523,14 +523,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self.rf_centers_current_turn = np.zeros(5)
         self.residual_time_last_turn = 0
-        self.residual_time_last_turn_previous = 0  # TODO: for debugging only
-
-        self.t_rev_previous = 0
-        self.omega_rf_previous = 0
-        self.phi_rf_previous = 0
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        self.phi_rf_previous = self.phi_rf
+        pass
 
     def on_run_simulation(
         self,
@@ -602,15 +597,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
 
         # reset with current turn
-        self.residual_time_last_turn_previous = self.residual_time_last_turn
         self.residual_time_last_turn = (
             self.get_t_rev() - self.rf_centers_current_turn[-1]
         )
-
-        # save for next
-        self.t_rev_previous = self.get_t_rev()
-        self.omega_rf_previous = self.omega_rf
-        self.phi_rf_previous = self.phi_rf
 
     def circuit_track(self, no_beam: bool = False) -> None:
         pass
