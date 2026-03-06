@@ -97,9 +97,9 @@ class TestPotentialWellHelper(unittest.TestCase):
         expected_mask = np.ones(len(xs), dtype=bool)
 
         with patch.object(
-            PotentialWellHelper,
-            "get_in_bucket_mask",
-            return_value=expected_mask,
+                PotentialWellHelper,
+                "get_in_bucket_mask",
+                return_value=expected_mask,
         ):
             mask = pwh.get_in_bucket_mask()
             slices = pwh.get_principal_bucket_slices()
@@ -120,6 +120,25 @@ class TestPotentialWellHelper(unittest.TestCase):
             pwh.plot()
             plt.show()
         np.testing.assert_allclose(pwh.bucket_list, pinned)
+
+    def test_analyze_bug(self):
+        DEV_DEBUG = True
+        pinned_ = [[4.00e-08, 1.12e-07]] # TODO pinn values for testing.
+
+        for i in range(3):
+            data = np.load(
+                callers_relative_path(
+                    f"resources/test_potential_complex_case{i}.npz",
+                    stacklevel=1)
+            )
+            xs = data["time_array"]
+            ys = data["voltage_array"]
+
+            pwh = PotentialWellHelper(xs, ys)
+            if DEV_DEBUG:
+                pwh.plot()
+                plt.show()
+            # np.testing.assert_allclose(pwh.bucket_list, pinned)
 
     def test_plot_executes(self):
         xs = np.linspace(-10, 20, 1000)
