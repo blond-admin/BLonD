@@ -1046,7 +1046,9 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
             Zminus = self.R_S[i] * (
                 (backend.sinc(arg2_minus * 0.5 / np.pi)) ** 2
                 - 2j
-                * (arg2_minus - backend.sin(arg2_minus)) * 1 / arg2_minus**2
+                * (arg2_minus - backend.sin(arg2_minus))
+                * 1
+                / arg2_minus**2
             )
             impedance += Zminus + Zplus
         return impedance
