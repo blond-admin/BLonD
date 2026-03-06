@@ -365,7 +365,7 @@ class BackendBaseClass(ABC):
         """
         return self._is_gpu
 
-    def apply_environment_variables(self) -> None:  # NOQA PLR0912
+    def apply_environment_variables(self) -> None:  # NOQA PLR0915
         """
         Load the environment variables and set up the backend accordingly.
 
@@ -604,7 +604,7 @@ class NumpyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(  # noqa: PLR0912
+    def __init__(  # noqa: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
