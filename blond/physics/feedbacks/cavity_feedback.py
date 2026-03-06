@@ -19,7 +19,10 @@ import numpy as np
 from blond.core.base import HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
-from blond.physics.cavities import SingleHarmonicRFStation
+from blond.physics.cavities import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
+)
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.feedbacks.helpers import (
     cartesian_to_polar,
@@ -507,24 +510,41 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
 
 class IQCavityFeedbackTimingClass(IQCavityFeedback):
+    """
+    Dummy.
+
+    Parameters
+    ----------
+    profile
+        Static profile the feedback should act on.
+    n_rf_periods_per_coarse_grid
+        Number of rf periods, which should be displayed by one coarse gridpoint. Default is 1.
+    """
+
     def __init__(
         self,
         profile,
-        parent_rf_station: SingleHarmonicRFStation | None = None,
+        n_rf_periods_per_coarse_grid: int = 1,
     ):
         super().__init__(
             profile=profile,
             n_cavities=1,
             harmonic_index=1,
-            n_rf_periods_per_coarse_grid=1,
+            n_rf_periods_per_coarse_grid=n_rf_periods_per_coarse_grid,
         )
-
-        # self.set_parent_rf_station(parent_rf_station)
 
         self.rf_centers_current_turn = np.zeros(5)
         self.residual_time_last_turn = 0
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Dummy.
+
+        Parameters
+        ----------
+        simulation
+            Simulation object to initialise on.
+        """
         pass
 
     def on_run_simulation(
@@ -534,13 +554,47 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         n_turns: int,
         **kwargs,
     ) -> None:
+        """
+        Initialisation function at the start of the simulation.
+
+        All array elements are defined based on the parameters of
+        the parent rf station, which at this point in time is
+        already fully initialised.
+
+        Parameters
+        ----------
+        simulation
+            Simulation object to initialise on.
+        beam
+            Beam object to initialise on.
+        n_turns
+            Number of turns in the simulation.
+        **kwargs
+            Unused in this function.
+        """
         self.turn_i = simulation.turn_i
 
     @property
-    def n_coarse(self):
+    def n_points_coarse_grid(self):
+        """
+        Number of points on the coarse grid in this turn.
+
+        Returns
+        -------
+        n_points_coarse_grid
+            Number of points on the coarse grid in this turn.
+        """
         return len(self.rf_centers_current_turn)
 
     def get_t_rev(self):
+        """
+        Get revolution time from parent cavity.
+
+        Returns
+        -------
+        t_rev
+            Revolution time from the parent cavity.
+        """
         if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
             return (
                 2
@@ -548,23 +602,37 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 / self._parent_rf_station.omega_rf_design
                 * self._parent_rf_station.harmonic
             )
+        elif isinstance(self._parent_rf_station, MultiHarmonicRFStation):
+            return (
+                2
+                * np.pi
+                / self.omega_rf_design
+                * self._parent_rf_station.harmonic
+            )
         else:
-            raise RuntimeError("wudup MHC")
+            raise RuntimeError(
+                f"Unknown cavity type {type(self._parent_rf_station)}"
+            )
 
     @staticmethod
-    def get_time_to_next_rising_edge_zero(phi, f2):
+    def _get_time_to_next_rising_edge_zero(
+        phi: float, frequency: float
+    ) -> float:
         phi_modulated = np.mod(phi, 2 * np.pi)
-        if np.isclose(phi_modulated, 0.0):
-            return 0.0
-        return (2 * np.pi - phi_modulated) / f2
+        return (np.pi - phi_modulated) / frequency
 
     def calculate_rf_centers_for_current_turn(self) -> None:
+        """Calculate the centers of the rf buckets in the current turn."""
         time_to_next_falling_edge_zero = (
-            self.get_time_to_next_rising_edge_zero(
+            self._get_time_to_next_rising_edge_zero(
                 self.phi_rf,
                 self._parent_rf_station.omega_rf,
             )
-        ) + np.pi / self._parent_rf_station.omega_rf
+        )
+        if time_to_next_falling_edge_zero < 0:
+            time_to_next_falling_edge_zero += (
+                self.t_rf * self.n_rf_periods_per_coarse_grid
+            )
 
         first_element_center = (
             time_to_next_falling_edge_zero + self.residual_time_last_turn
@@ -572,10 +640,15 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         step_width_rf_centers = self.t_rf * self.n_rf_periods_per_coarse_grid
         self.rf_centers_current_turn = np.arange(
-            time_to_next_falling_edge_zero,
+            time_to_next_falling_edge_zero
+            if self.residual_time_last_turn == 0
+            else -self.residual_time_last_turn,
             self.get_t_rev(),
             step=step_width_rf_centers,
         )
+
+        if self.residual_time_last_turn != 0:
+            self.rf_centers_current_turn = self.rf_centers_current_turn[1:]
 
         if len(self.rf_centers_current_turn) == 0:
             warnings.warn(
@@ -588,8 +661,22 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             -self.residual_time_last_turn + first_element_center
         )
 
-        if self.turn_i.value != 0 and last_turn_time_location >= 0:
-            # prepend element, which was not considered in last turn
+        element_too_close = (
+            self.rf_centers_current_turn[0] - last_turn_time_location
+            < 0.9 * self.t_rf * self.n_rf_periods_per_coarse_grid
+        )
+
+        if (
+            self.turn_i.value != 0
+            and last_turn_time_location > 0
+            and not element_too_close
+        ):
+            # # prepend element, which was not considered in last turn
+            # print(f"prepending element at {self.turn_i.value}")
+            # print(f"{last_turn_time_location}")
+            # print(f"{first_element_center}")
+            # print(f"{self.residual_time_last_turn}")
+
             self.rf_centers_current_turn = np.append(
                 np.array(last_turn_time_location),
                 self.rf_centers_current_turn,
@@ -601,20 +688,29 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         )
 
     def circuit_track(self, no_beam: bool = False) -> None:
+        """
+        Dummy.
+
+        Parameters
+        ----------
+        no_beam
+            Dummy.
+        """
         pass
 
     def update_feedback_variables(self) -> None:
+        """Dummy."""
         pass
 
     def _track(self, beam: Beam) -> None:
+        """
+        Dummy.
+
+        Parameters
+        ----------
+        beam
+            Beam to be tracked.
+        """
         self.calculate_rf_centers_for_current_turn()
         self.relative_voltage_correction = np.ones_like(self.profile.hist_x)
         self.phase_correction = np.zeros_like(self.profile.hist_x)
-
-    def get_rf_waveform_for_current_turn(
-        self, time_axis: NumpyArray
-    ) -> NumpyArray:
-        return np.sin(
-            self._parent_rf_station.omega_rf * time_axis
-            + self._parent_rf_station.phi_rf
-        )

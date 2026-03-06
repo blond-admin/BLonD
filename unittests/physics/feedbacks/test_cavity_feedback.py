@@ -56,26 +56,35 @@ class TestIQCavityFeedbackTimingClass:
         self.beam._flags = DistributedArray(np.zeros(5))
 
     test_data_discontinuity = [
-        (0, 0),
-        (0, 0.13),
-        (0, -0.13),
-        (-1, 0),
-        (-1, 0.13),
-        (-1, -0.13),
-        (1, 0),
-        (1, 0.13),
-        (1, -0.13),
+        (0, 0, 1),
+        (0, 0.13, 1),
+        (0, -0.13, 1),
+        (-1, 0, 1),
+        (-1, 0.13, 1),
+        (-1, -0.13, 1),
+        (1, 0, 1),
+        (1, 0.13, 1),
+        (1, -0.13, 1),
+        (0, 0, 2),
+        (0, 0.13, 2),
+        (0, -0.13, 2),
+        (-1, 0, 2),
+        (-1, 0.13, 2),
+        (-1, -0.13, 2),
+        (1, 0, 2),
+        (1, 0.13, 2),
+        (1, -0.13, 2),
     ]
 
     @pytest.mark.parametrize(
-        "phase_shift,delta_omega_factor", test_data_discontinuity
+        "phase_shift,delta_omega_factor,n_rf_points", test_data_discontinuity
     )
-    def test_for_discontinuity__single_section_no_acceleration(
-        self, phase_shift: float, delta_omega_factor: float
+    def test_for_discontinuity_distances_single_section_no_acceleration(
+        self, phase_shift: float, delta_omega_factor: float, n_rf_points: int
     ) -> None:
         self.setup_simulation()
         cav_fdbk_timing = IQCavityFeedbackTimingClass(
-            profile=self.profile,
+            profile=self.profile, n_rf_periods_per_coarse_grid=n_rf_points
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
         self.rf_station.phi_rf_design = phase_shift
@@ -106,8 +115,9 @@ class TestIQCavityFeedbackTimingClass:
             )
 
             voltage_array.append(
-                cav_fdbk_timing.get_rf_waveform_for_current_turn(
-                    time_array[-1]
+                np.sin(
+                    cav_fdbk_timing._parent_rf_station.omega_rf * time_array
+                    + cav_fdbk_timing._parent_rf_station.phi_rf
                 )
             )
             rf_centers_array.append(cav_fdbk_timing.rf_centers_current_turn)
@@ -140,7 +150,7 @@ class TestIQCavityFeedbackTimingClass:
                     plt.axvline(
                         x=rf_centers_array[trn_ind][_],
                         marker="x",
-                        color="green",
+                        color="green" if trn_ind == 0 else "black",
                     )
                 if trn_ind != 0:
                     plt.axvline(
@@ -149,7 +159,7 @@ class TestIQCavityFeedbackTimingClass:
                         ls="--",
                     )
 
-            plt.show()
+            plt.show(block=True)
 
         # discontinutity testing
         for ind in range(1, len(voltage_array) - 1):
@@ -158,19 +168,29 @@ class TestIQCavityFeedbackTimingClass:
             )  # +3 to be robust against zero-relative problems
 
         # distance testing
-        t_rf_end = 2 * np.pi / self.rf_station.omega_rf
+        timestep_end = (
+            2
+            * np.pi
+            / self.rf_station.omega_rf
+            * cav_fdbk_timing.n_rf_periods_per_coarse_grid
+        )
         for ind in range(3, len(voltage_array) - 1):
             # between two turns
             assert np.isclose(
                 rf_centers_array[ind][0] - rf_centers_array[ind - 1][-1],
-                t_rf_end,
+                timestep_end,
+                atol=timestep_end * 1e-7,
+            ), (
+                f"{rf_centers_array[ind][0] - rf_centers_array[ind - 1][-1]} , {timestep_end}"
             )
+
             np.testing.assert_allclose(
-                np.diff(rf_centers_array[ind][1:]), t_rf_end
+                np.diff(rf_centers_array[ind][1:]), timestep_end
             )
 
         np.testing.assert_allclose(
-            np.diff(rf_centers_array[0]), self.t_rf_init
+            np.diff(rf_centers_array[0]),
+            self.t_rf_init * cav_fdbk_timing.n_rf_periods_per_coarse_grid,
         )
 
         pass
