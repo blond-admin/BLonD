@@ -50,7 +50,7 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Literal
+    from typing import Any, Literal, TypeVar
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -73,19 +73,21 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
     CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]
+    T = TypeVar("T")
+
 
 logger = logging.getLogger(__name__)
 
 
-def _single_beam_to_tuple(
-    maybe_beams: BeamBaseClass | tuple[BeamBaseClass, ...],
-) -> tuple[BeamBaseClass, ...]:
+def _single_item_to_tuple(
+    maybe_sequence: T | tuple[T, ...],
+) -> tuple[T, ...]:
     """
     Guarantee that the result is a tuple of beams.
 
     Parameters
     ----------
-    maybe_beams
+    maybe_sequence
         Single beam instance or multiple beams.
 
     Returns
@@ -93,7 +95,11 @@ def _single_beam_to_tuple(
     beams
         Tuple of at leat one beam.
     """
-    return maybe_beams if isinstance(maybe_beams, Sequence) else (maybe_beams,)
+    return (
+        maybe_sequence
+        if isinstance(maybe_sequence, Sequence)
+        else (maybe_sequence,)
+    )
 
 
 class Simulation(Preparable):
@@ -1059,7 +1065,7 @@ class Simulation(Preparable):
         >>>     ...
         >>> my_callback.each_turn_i = 2
         """
-        beams = _single_beam_to_tuple(beams)
+        beams = _single_item_to_tuple(beams)
         self.execution_model.mainloop(
             simulation=self,
             beams=beams,
@@ -1110,7 +1116,8 @@ class Simulation(Preparable):
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
+        observe: ObservablesOncePerTurnBase
+        | tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
         verbose: bool = True,
@@ -1240,7 +1247,9 @@ class Simulation(Preparable):
         >>>     ...
         >>> my_callback.each_turn_i = 2
         """
-        beams = _single_beam_to_tuple(beams)
+        beams = _single_item_to_tuple(beams)
+        observe = _single_item_to_tuple(observe)
+
         logger.info(f"Running `run_simulation` with {locals()}")
         n_turns = (
             int_from_float_with_warning(n_turns, warning_stacklevel=2)
@@ -1318,7 +1327,7 @@ class Simulation(Preparable):
           object to allow discovery by the initialization system.
         - Performance warnings are issued if using Python backend with many particles.
         """
-        beams = _single_beam_to_tuple(beams)
+        beams = _single_item_to_tuple(beams)
         if self.execution_model is None:
             self._autoselect_execution_model(beams)
 
