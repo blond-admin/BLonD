@@ -270,6 +270,7 @@ class BackendBaseClass(ABC):
         self.empty: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
         self.linspace: Callable = None  # type: ignore
+        self.sinc: Callable = None  # type: ignore
         self.histogram: Callable = None  # type: ignore
         self.zeros: Callable = None  # type: ignore
         self.ones: Callable = None  # type: ignore
@@ -622,6 +623,7 @@ class NumpyBackend(BackendBaseClass):
         self.empty = np.empty
         self.repeat = np.repeat
         self.linspace = np.linspace
+        self.sinc = np.sinc
         self.histogram = np.histogram
         self.zeros = np.zeros
         self.ones = np.ones
@@ -773,6 +775,7 @@ class CupyBackend(BackendBaseClass):
         self.empty = cp.empty
         self.repeat = cp.repeat
         self.linspace = cp.linspace
+        self.sinc = cp.sinc
         self.histogram = cp.histogram
         self.zeros = cp.zeros
         self.ones = cp.ones
