@@ -603,7 +603,7 @@ class NumpyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0912
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],

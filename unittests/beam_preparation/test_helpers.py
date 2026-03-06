@@ -32,7 +32,7 @@ class TestCallables(unittest.TestCase):
         )
 
         np.testing.assert_allclose(
-            copy_to_cpu(beam._dt.array_local),
+            beam._dt.copy_as_numpy(),
             [
                 112.0,  # dt[0] + common_offset
                 334.0,  # dt[0] + common_offset + t_distance
@@ -46,7 +46,7 @@ class TestCallables(unittest.TestCase):
             ],
         )
         np.testing.assert_allclose(
-            copy_to_cpu(beam._dE.array_local),
+            beam._dE.copy_as_numpy(),
             [
                 1000.0,  # dE[0]
                 1000.0,  # dE[0]
