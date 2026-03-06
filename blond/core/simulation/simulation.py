@@ -93,7 +93,7 @@ def _single_item_to_tuple(
     Returns
     -------
     beams
-        Tuple of at leat one beam.
+        Tuple of at least one beam.
     """
     return (
         maybe_sequence
