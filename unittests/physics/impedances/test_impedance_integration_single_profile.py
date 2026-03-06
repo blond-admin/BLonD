@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import pytest
 from matplotlib import pyplot as plt
 from scipy.constants import c
 
@@ -8,6 +9,7 @@ from blond import (
     Beam,
     DriftSimple,
     MagneticCyclePerTurn,
+    Numpy64Bit,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -98,7 +100,9 @@ class TestWakeFields(unittest.TestCase):
         simulation.print_one_turn_execution_order()
         self.simulation = simulation
 
+    @pytest.mark.backend_mutation
     def test_source_InductiveImpedance(self):
+        backend.change_backend(Numpy64Bit)
         makers = ["s", "o", "1", "2", "3", "."]
         solvers = (
             InductiveImpedanceSolver(),
@@ -136,7 +140,9 @@ class TestWakeFields(unittest.TestCase):
             plt.legend()
             plt.show()
 
+    @pytest.mark.backend_mutation
     def test_source_TravelingWaveCavity(self):
+        backend.change_backend(Numpy64Bit)
         makers = ["s", "o", "1", "2", "3", "."]
         solvers = (
             PeriodicFreqSolver(),
@@ -180,7 +186,9 @@ class TestWakeFields(unittest.TestCase):
             plt.legend()
             plt.show()
 
+    @pytest.mark.backend_mutation
     def test_source_Resonators(self):
+        backend.change_backend(Numpy64Bit)
         makers = ["s", "o", "1", "2", "3", "."]
         solvers = (
             # InductiveImpedanceSolver(),
