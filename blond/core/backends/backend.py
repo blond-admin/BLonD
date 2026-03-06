@@ -106,30 +106,12 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_legacy(  # NOQA: D102
-        dt: NumpyArray,
-        dE: NumpyArray,
-        T: float,
-        alpha_order: int,
-        eta_0: float,
-        eta_1: float,
-        eta_2: float,
-        beta: float,
-        energy: float,
-    ) -> None:
-        raise NotImplementedError(
-            "Abstract method `drift_legacy` is not implemented."
-        )
-
-    @staticmethod
-    @abstractmethod  # pragma: no cover
     def drift_exact(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
         alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
+        higher_alpha: NumpyArray,
         beta: float,
         energy: float,
     ) -> None:
@@ -256,7 +238,7 @@ class BackendBaseClass(ABC):
     float: type[np.float32 | np.float64]
     complex: type[np.complex128 | np.complex64]
 
-    def __init__(
+    def __init__(  # noqa: PLR0912
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -619,7 +601,7 @@ class NumpyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0912
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -760,7 +742,7 @@ class CupyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0912
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
