@@ -5,6 +5,8 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+from blond import backend, copy_to_cpu
+from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.generals.distributed.helpers import mpi_barrier, mpi_is_distributed
 
 
@@ -16,7 +18,9 @@ class TestDistributedArray(unittest.TestCase):
         )
 
         rng = np.random.default_rng(0)
-        self.array = rng.normal(loc=0, scale=1.0, size=128)
+        self.array = np.astype(
+            rng.normal(loc=0, scale=1.0, size=128), backend.float
+        )
         self.distributed_array = DistributedArray(self.array.copy())
 
     def test_local_size(self):
@@ -36,6 +40,18 @@ class TestDistributedArray(unittest.TestCase):
             self.assertEqual(self.distributed_array.local_size, 128)
             self.assertFalse(self.distributed_array._is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
+
+    def test_copy_as_numpy(self):
+        array = self.distributed_array.copy_as_numpy()
+        assert array.device == "cpu"
+
+    def test_copy_as_cupy(self):
+        try:
+            import cupy  # type: ignore
+        except (ImportError, ModuleNotFoundError) as exc:  # pragma: no cover
+            self.skipTest(str(exc))
+        array = self.distributed_array.copy_as_cupy()
+        assert is_cupy_array(array)
 
     def _call_test(self, func, func_name):
         mpi_active = mpi_is_distributed()
@@ -68,7 +84,7 @@ class TestDistributedArray(unittest.TestCase):
         if mpi_active:
             self.distributed_array.mpi_scatter()
         actual = self.distributed_array.histogram(bins=8)
-        np.testing.assert_allclose(expected, actual)
+        np.testing.assert_allclose(expected, copy_to_cpu(actual))
 
     def test_histogram_with_out(self):
         from blond import backend
@@ -80,7 +96,7 @@ class TestDistributedArray(unittest.TestCase):
             self.distributed_array.mpi_scatter()
         actual = np.zeros_like(expected, dtype=backend.float)
         self.distributed_array.histogram(bins=8, out=actual)
-        np.testing.assert_allclose(expected, actual)
+        np.testing.assert_allclose(expected, copy_to_cpu(actual))
 
     def test_barrier(self):
         mpi_active = mpi_is_distributed()

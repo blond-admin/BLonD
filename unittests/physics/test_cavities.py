@@ -7,13 +7,18 @@ from scipy.constants import speed_of_light as c0
 
 from blond import (
     ConstantMagneticCycle,
+    MagneticCyclePerTurn,
     Ring,
     Simulation,
     StaticProfile,
+    positron,
     proton,
 )
 from blond.acc_math.analytic.hamilton import (
     calc_synchrotron_tune_single_harmonic,
+)
+from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
+    calculate_energy_loss_per_turn,
 )
 from blond.core.backends.backend import Cupy32Bit, backend
 from blond.core.base import DynamicParameter
@@ -32,8 +37,9 @@ from blond.physics.cavities import (
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,
 )
-from blond.physics.drifts import _assert_purely_real_or_imaginary
+from blond.physics.drifts import DriftSimple, _assert_purely_real_or_imaginary
 from blond.physics.impedances.base import WakeField
+from unittests.handle_results.test_observables_as_elements import beam
 
 
 class TestRFStationBaseClass(unittest.TestCase):
@@ -55,6 +61,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             -1e-6, 1e-6, 10, dtype=backend.float
         )  # delta t
         # in s
+        self.beam.read_partial_dt.return_value = self.beam.dt
         self.beam.read_partial_dt.return_value = self.beam.dt
         self.beam.write_partial_dE.return_value = self.beam.dE
 
@@ -900,6 +907,61 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
             self.single_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
+
+    def test_calculate_synchronous_phase_with_synchrotron_radiation(self):
+        radiation_integrals = np.array(
+            [
+                0.646747216157,
+                0.0005936549319,
+                5.6814536525e-08,
+                5.92870407301e-09,
+                1.71368060083e-11,
+            ]
+        )
+        shc = SingleHarmonicRFStation(
+            section_index=0,
+            harmonic=242400,
+            voltage=51e6,
+            phi_rf=0,
+        )
+
+        SR_ring = Ring(
+            90.65874532 * 1e3,
+            radiation_integrals=radiation_integrals,
+        )
+        drift1 = DriftSimple(
+            orbit_length=90.65874532 * 1e3,
+        )
+        drift1.momentum_compaction_factor = 0.646747216157 / 90.65874532 / 1e3
+        SR_ring.add_elements([drift1, shc])
+        simulation = Simulation(
+            SR_ring,
+            MagneticCyclePerTurn(
+                value_init=20e9,
+                values_after_turn=np.linspace(20e9, 20e9, 1),
+                reference_particle=positron,
+                in_unit="total energy",
+            ),
+        )
+        shc.on_init_simulation(simulation=simulation)
+
+        positron_beam = Mock(BeamBaseClass)
+        positron_beam.reference = Mock(ReferenceCoordinates)
+
+        positron_beam.particle_type = positron
+        positron_beam.reference.total_energy = 20e9
+        positron_beam.reference.time = 0
+        positron_beam.reference.gamma = 40000
+
+        phi_s_calculated = shc.calc_phi_s_main_harmonic(beam=positron_beam)
+        energy_loss_per_turn = calculate_energy_loss_per_turn(
+            energy=20e9,
+            radiation_integrals=radiation_integrals,
+            particle_type=positron,
+        )
+        expected_energy_change = +energy_loss_per_turn
+        expected_phi_s = np.pi - np.arcsin(expected_energy_change / 51e6)
+        self.assertEqual(phi_s_calculated, expected_phi_s)
 
 
 if __name__ == "__main__":
