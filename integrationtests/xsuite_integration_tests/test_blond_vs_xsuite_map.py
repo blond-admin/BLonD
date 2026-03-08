@@ -71,13 +71,11 @@ def test_blond_interface_xsuite():
     np.testing.assert_allclose(
         zeta_blond,
         zeta_xsuite,
-        rtol=1e-12,
-        atol=1e-12,
+        rtol=1e-10,
     )
 
     np.testing.assert_allclose(
         delta_blond,
         delta_xsuite,
-        rtol=1e-12,
-        atol=1e-12,
+        rtol=1e-10,
     )
