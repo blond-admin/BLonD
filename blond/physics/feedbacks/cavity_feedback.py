@@ -634,10 +634,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 self.t_rf * self.n_rf_periods_per_coarse_grid
             )
 
-        first_element_center = (
-            time_to_next_falling_edge_zero + self.residual_time_last_turn
-        ) / 2
-
         step_width_rf_centers = self.t_rf * self.n_rf_periods_per_coarse_grid
         self.rf_centers_current_turn = np.arange(
             time_to_next_falling_edge_zero
@@ -647,6 +643,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             step=step_width_rf_centers,
         )
 
+        # This element was already done in the last turn
         if self.residual_time_last_turn != 0:
             self.rf_centers_current_turn = self.rf_centers_current_turn[1:]
 
@@ -656,31 +653,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 stacklevel=2,
             )
             return
-
-        last_turn_time_location = (
-            -self.residual_time_last_turn + first_element_center
-        )
-
-        element_too_close = (
-            self.rf_centers_current_turn[0] - last_turn_time_location
-            < 0.9 * self.t_rf * self.n_rf_periods_per_coarse_grid
-        )
-
-        if (
-            self.turn_i.value != 0
-            and last_turn_time_location > 0
-            and not element_too_close
-        ):
-            # # prepend element, which was not considered in last turn
-            # print(f"prepending element at {self.turn_i.value}")
-            # print(f"{last_turn_time_location}")
-            # print(f"{first_element_center}")
-            # print(f"{self.residual_time_last_turn}")
-
-            self.rf_centers_current_turn = np.append(
-                np.array(last_turn_time_location),
-                self.rf_centers_current_turn,
-            )
 
         # reset with current turn
         self.residual_time_last_turn = (

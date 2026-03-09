@@ -6,6 +6,7 @@ from blond import (
     Beam,
     ConstantMagneticCycle,
     DriftSimple,
+    MagneticCyclePerTurn,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -36,7 +37,6 @@ class TestIQCavityFeedbackTimingClass:
     def setup_simulation(self):
         # single section
         self.profile = StaticProfile.from_cutoff(0, 1e-9, 5e9)
-        self.harmonic = 3
         self.rf_station = SingleHarmonicRFStation(
             phi_rf=0.0, harmonic=self.harmonic, voltage=5e6
         )
@@ -76,12 +76,14 @@ class TestIQCavityFeedbackTimingClass:
         (1, -0.13, 2),
     ]
 
+    # @pytest.mark.skip
     @pytest.mark.parametrize(
         "phase_shift,delta_omega_factor,n_rf_points", test_data_discontinuity
     )
     def test_for_discontinuity_distances_single_section_no_acceleration(
         self, phase_shift: float, delta_omega_factor: float, n_rf_points: int
     ) -> None:
+        self.harmonic = 5
         self.setup_simulation()
         cav_fdbk_timing = IQCavityFeedbackTimingClass(
             profile=self.profile, n_rf_periods_per_coarse_grid=n_rf_points
@@ -116,7 +118,8 @@ class TestIQCavityFeedbackTimingClass:
 
             voltage_array.append(
                 np.sin(
-                    cav_fdbk_timing._parent_rf_station.omega_rf * time_array
+                    cav_fdbk_timing._parent_rf_station.omega_rf
+                    * time_array[-1]
                     + cav_fdbk_timing._parent_rf_station.phi_rf
                 )
             )
@@ -186,6 +189,135 @@ class TestIQCavityFeedbackTimingClass:
 
             np.testing.assert_allclose(
                 np.diff(rf_centers_array[ind][1:]), timestep_end
+            )
+
+        np.testing.assert_allclose(
+            np.diff(rf_centers_array[0]),
+            self.t_rf_init * cav_fdbk_timing.n_rf_periods_per_coarse_grid,
+        )
+
+    # @pytest.mark.skip
+    @pytest.mark.parametrize(
+        "phase_shift,delta_omega_factor,n_rf_points", test_data_discontinuity
+    )
+    def test_for_discontinuity_distances_single_section_acceleration(
+        self, phase_shift: float, delta_omega_factor: float, n_rf_points: int
+    ) -> None:
+        self.harmonic = 5
+        self.setup_simulation()
+        cav_fdbk_timing = IQCavityFeedbackTimingClass(
+            profile=self.profile, n_rf_periods_per_coarse_grid=n_rf_points
+        )
+        self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
+        self.rf_station.phi_rf_design = phase_shift
+
+        n_turns_to_simulate = 5
+        delta_E = 5e6
+        inj_energy = 5e6
+
+        cnst_cycle = MagneticCyclePerTurn(
+            reference_particle=mu_plus,
+            value_init=inj_energy,
+            values_after_turn=inj_energy
+            + np.arange(1, n_turns_to_simulate + 1) * delta_E,
+            in_unit="momentum",
+        )
+
+        sim = Simulation(self.ring, cnst_cycle)
+
+        voltage_array = []
+        time_array = []
+        rf_centers_array = []
+        omega_rf_save = []
+
+        vals_per_turn = 5000
+        self.t_rf_init = 0
+
+        def callback(simulation: Simulation, beam: Beam):
+            time_array.append(
+                np.linspace(
+                    0,
+                    2
+                    * np.pi
+                    / self.rf_station.omega_rf_design
+                    * self.rf_station.harmonic,
+                    num=vals_per_turn,
+                )
+            )
+
+            voltage_array.append(
+                np.sin(
+                    cav_fdbk_timing._parent_rf_station.omega_rf
+                    * time_array[-1]
+                    + cav_fdbk_timing._parent_rf_station.phi_rf
+                )
+            )
+            rf_centers_array.append(cav_fdbk_timing.rf_centers_current_turn)
+            omega_rf_save.append(cav_fdbk_timing.omega_rf)
+            print(cav_fdbk_timing._parent_rf_station.omega_rf_design)
+            if simulation.turn_i.value == 0:
+                self.t_rf_init = 2 * np.pi / self.rf_station.omega_rf_design
+                self.rf_station.delta_omega_rf = (
+                    delta_omega_factor * self.rf_station.omega_rf
+                )
+
+        sim.run_simulation(
+            self.beam, n_turns=n_turns_to_simulate, callbacks=(callback,)
+        )
+
+        time_array = np.array(time_array)
+        voltage_array = np.array(voltage_array)
+        for time_index in range(1, len(time_array)):
+            rf_centers_array[time_index] += time_array[time_index - 1][-1]
+            time_array[time_index] += time_array[time_index - 1][-1]
+
+        total_time_array = time_array.flatten()
+
+        if DEBUG_PLOTTING:
+            for trn_ind in range(0, n_turns_to_simulate):
+                plt.plot(
+                    time_array[trn_ind], voltage_array[trn_ind], marker="o"
+                )
+                for _ in range(len(rf_centers_array[trn_ind])):
+                    plt.axvline(
+                        x=rf_centers_array[trn_ind][_],
+                        marker="x",
+                        color="green" if trn_ind == 0 else "black",
+                    )
+                if trn_ind != 0:
+                    plt.axvline(
+                        x=total_time_array[int(trn_ind * vals_per_turn)],
+                        color="red",
+                        ls="--",
+                    )
+
+            plt.show(block=True)
+
+        # discontinutity testing
+        for ind in range(1, len(voltage_array) - 1):
+            np.testing.assert_allclose(
+                voltage_array[ind - 1][-1] + 3, voltage_array[ind][0] + 3
+            )  # +3 to be robust against zero-relative problems
+
+        # distance testing
+        for ind in range(3, len(voltage_array) - 1):
+            timestep = (
+                2
+                * np.pi
+                / omega_rf_save[ind]
+                * cav_fdbk_timing.n_rf_periods_per_coarse_grid
+            )
+            # between two turns
+            assert rf_centers_array[ind][0] - rf_centers_array[ind - 1][
+                -1
+            ] > timestep or np.isclose(
+                rf_centers_array[ind][0] - rf_centers_array[ind - 1][-1],
+                timestep,
+            ), (
+                f"{rf_centers_array[ind][0] - rf_centers_array[ind - 1][-1]} , {timestep}"
+            )
+            np.testing.assert_allclose(
+                np.diff(rf_centers_array[ind][1:]), timestep
             )
 
         np.testing.assert_allclose(
