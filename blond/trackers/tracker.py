@@ -593,7 +593,7 @@ class RingAndRFTracker:
                     else:
                         self.total_voltage = self.rf_voltage
 
-                        # warpper bucket by bucket (profile by profile),
+                        # wrapper bucket by bucket (profile by profile),
                     if isinstance(self.profile, SparseProfileBaseClass):
                         n_macroparticles_per_profile = int(
                             self.profile.beam.n_macroparticles
