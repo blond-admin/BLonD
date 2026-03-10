@@ -538,8 +538,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             n_rf_periods_per_coarse_grid=n_rf_periods_per_coarse_grid,
         )
 
-        self.rf_centers_current_turn = np.zeros(5)
-        self.residual_time_last_turn = 0
+        self.rf_centers_forward_direction = np.zeros(5)
+        self.residual_time_last_direction = 0
 
         self.ring: Ring | None = None
         self.turn_i: DynamicParameter | None = None
@@ -786,7 +786,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         n_points_coarse_grid
             Number of points on the coarse grid in this turn.
         """
-        return len(self.rf_centers_current_turn)
+        return len(self.rf_centers_forward_direction)
 
     def get_t_rev(self):
         """
@@ -826,7 +826,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         phi_modulated = np.mod(phi, 2 * np.pi)
         return (np.pi - phi_modulated) / frequency
 
-    def calculate_rf_centers_for_current_turn(
+    def calculate_rf_centers_for_forward_direction(
         self, beam: BeamBaseClass
     ) -> None:
         """
@@ -851,19 +851,21 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
 
         step_width_rf_centers = self.t_rf * self.n_rf_periods_per_coarse_grid
-        self.rf_centers_current_turn = np.arange(
+        self.rf_centers_forward_direction = np.arange(
             time_to_next_falling_edge_zero
-            if self.residual_time_last_turn == 0
-            else -self.residual_time_last_turn,
-            self.get_t_rev(),
+            if self.residual_time_last_direction == 0
+            else -self.residual_time_last_direction,
+            self.passed_time_forward,
             step=step_width_rf_centers,
         )
 
         # This element was already done in the last turn
-        if self.residual_time_last_turn != 0:
-            self.rf_centers_current_turn = self.rf_centers_current_turn[1:]
+        if self.residual_time_last_direction != 0:
+            self.rf_centers_forward_direction = (
+                self.rf_centers_forward_direction[1:]
+            )
 
-        if len(self.rf_centers_current_turn) == 0:
+        if len(self.rf_centers_forward_direction) == 0:
             warnings.warn(
                 f"no rf centers in turn {self.turn_i.value} at {self.section_index}",
                 stacklevel=2,
@@ -871,9 +873,21 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             return
 
         # reset with current turn
-        self.residual_time_last_turn = (
-            self.get_t_rev() - self.rf_centers_current_turn[-1]
+        self.residual_time_last_direction = (
+            self.get_t_rev() - self.rf_centers_forward_direction[-1]
         )
+
+    def calculate_rf_centers_for_reverse_direction(
+        self, beam: BeamBaseClass
+    ) -> None:
+        """
+        Dummy.
+
+        Parameters
+        ----------
+        beam
+            Beam object to receive the reference frame.
+        """
 
     def circuit_track(self, no_beam: bool = False) -> None:
         """
@@ -899,6 +913,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam to be tracked.
         """
-        self.calculate_rf_centers_for_current_turn(beam=beam)
+        self.calculate_rf_centers_for_reverse_direction(beam=beam)
+
+        self.calculate_rf_centers_for_forward_direction(beam=beam)
         self.relative_voltage_correction = np.ones_like(self.profile.hist_x)
         self.phase_correction = np.zeros_like(self.profile.hist_x)

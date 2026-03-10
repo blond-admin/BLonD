@@ -130,7 +130,9 @@ class TestIQCavityFeedbackTimingClass:
                     + cav_fdbk_timing._parent_rf_station.phi_rf
                 )
             )
-            rf_centers_array.append(cav_fdbk_timing.rf_centers_current_turn)
+            rf_centers_array.append(
+                cav_fdbk_timing.rf_centers_forward_direction
+            )
             if simulation.turn_i.value == 0:
                 self.t_rf_init = 2 * np.pi / self.rf_station.omega_rf_design
                 self.rf_station.delta_omega_rf = (
@@ -259,7 +261,9 @@ class TestIQCavityFeedbackTimingClass:
                     + cav_fdbk_timing._parent_rf_station.phi_rf
                 )
             )
-            rf_centers_array.append(cav_fdbk_timing.rf_centers_current_turn)
+            rf_centers_array.append(
+                cav_fdbk_timing.rf_centers_forward_direction
+            )
             omega_rf_save.append(cav_fdbk_timing.omega_rf)
             print(cav_fdbk_timing._parent_rf_station.omega_rf_design)
             if simulation.turn_i.value == 0:
@@ -338,7 +342,7 @@ class TestIQCavityFeedbackTimingClass:
     def test_get_slice_of_elements_this_section_cnst_cycle(
         self, n_sections: int
     ):
-        self.harmonic = 5
+        self.harmonic = 20
         self.setup_simulation()
 
         n_sections = 4
@@ -409,6 +413,7 @@ class TestIQCavityFeedbackTimingClass:
         def callback(simulation: Simulation, beam: Beam):
             time_passed_list = []
             omega_list = []
+            rf_centers_list = []
             for fdbk in timing_fdbk_list:
                 fdbk: IQCavityFeedbackTimingClass
                 if (
@@ -424,6 +429,7 @@ class TestIQCavityFeedbackTimingClass:
                     )
                 time_passed_list.append(fdbk.passed_time_forward)
                 omega_list.append(fdbk.omega_rf_design_forward)
+                rf_centers_list.append(fdbk.rf_centers_forward_direction)
 
                 assert (
                     fdbk.tracked_forward_until_element
@@ -443,6 +449,12 @@ class TestIQCavityFeedbackTimingClass:
             np.testing.assert_allclose(
                 omega_list, omega_list[0]
             )  # with no acceleration, this has to be true
+            [
+                np.testing.assert_allclose(
+                    rf_centers_list_entry, rf_centers_list[0]
+                )
+                for rf_centers_list_entry in rf_centers_list
+            ]  # with no acceleration, this has to be true
 
         sim.run_simulation(
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
