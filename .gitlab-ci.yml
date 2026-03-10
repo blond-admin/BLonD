@@ -83,7 +83,7 @@ workflow:
     - pip list
     - cd ${project_root}
     - python3 -m pytest
-      -m "cupy and not backend_mutation"
+      -m "not backend_mutation"
       -v unittests/
 
 
@@ -315,7 +315,7 @@ test_documentation_building:
   artifacts:
     paths:
       - ${project_root}/docs/_build/html
-    expire_in: 1 week
+    expire_in: 1 hour
     when: always
 
 
