@@ -126,7 +126,6 @@ class CavityFeedback:
         self.n_coarse = round(self.rf_station.t_rev[0] / self.T_s)
         self.omega_carrier = (
             self.rf_station.omega_rf[self.n_h, self.rf_station.counter[0]]
-            / self.n_s
         )
         self.omega_rf = self.rf_station.omega_rf[
             self.n_h, self.rf_station.counter[0]
@@ -287,18 +286,12 @@ class CavityFeedback:
 
         # Present carrier frequency: main RF frequency
         self.omega_carrier_prev = self.omega_carrier
-        self.omega_carrier = self.omega_rf / self.n_s
+        self.omega_carrier = self.omega_rf
 
         # Present sampling time
         self.T_s_prev = self.T_s
         self.T_s = self.n_s * 2 * np.pi / self.omega_rf
 
-        # Update the coarse grid sampling
-        # self.n_coarse = round(
-        #     self.rf_station.t_rev[self.rf_station.counter[0]] / self.T_s
-        # )
-
-        #TODO: old above, new below
         self.n_coarse = round(self.rf_station.harmonic[self.n_h, self.counter] / self.n_s)
 
         # Present coarse grid and save previous turn coarse grid

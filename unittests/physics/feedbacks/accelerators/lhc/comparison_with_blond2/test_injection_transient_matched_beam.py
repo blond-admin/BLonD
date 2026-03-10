@@ -168,7 +168,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
             )
 
             backend.change_backend(Numpy64Bit)
-            backend.set_specials("cpp")
+            backend.set_specials("numba")
 
             energy = np.sqrt(p_s**2 + proton.mass**2)
             rel_gamma = energy / proton.mass

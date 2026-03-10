@@ -243,8 +243,8 @@ class IQCavityFeedback(LocalFeedback):
         # TODO REMWORK/REMOVE
         t_rf = 2 * np.pi / omega_rf
 
-        self.n_coarse = round(t_rev / self.T_s)
-        self.omega_carrier = float(omega_rf) / self.n_periods_coarse
+        self.n_coarse = round(harmonic / self.n_periods_coarse)
+        self.omega_carrier = float(omega_rf)  # / self.n_periods_coarse
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(omega_rf)
@@ -372,15 +372,6 @@ class IQCavityFeedback(LocalFeedback):
         # Present RF angular frequency
         self.omega_rf = float(omega_rf)
 
-        t_rf = float(2 * np.pi / self.omega_rf)
-        _, omega_rf_design, _ = self.get_harmonic_and_omega_rf_phi_rf_design()
-        t_rev = (
-            2
-            * np.pi
-            / omega_rf_design
-            * self._parent_rf_station.get_main_harmonic()
-        )
-
         # Present carrier frequency: main RF frequency
         self.omega_carrier_prev = self.omega_carrier
         self.omega_carrier = self.omega_rf  # TODO: is this correct?
@@ -390,9 +381,7 @@ class IQCavityFeedback(LocalFeedback):
         self.T_s = self.n_periods_coarse * 2 * np.pi / self.omega_rf
 
         # Update the coarse grid sampling
-        self.n_coarse = round(
-            t_rev / self.T_s
-        )  # TODO: should be design and not actual
+        self.n_coarse = round(harmonic / self.n_periods_coarse)
 
         # Present coarse grid and save previous turn coarse grid
         self.rf_centers_prev = np.copy(self.rf_centers)
@@ -400,9 +389,12 @@ class IQCavityFeedback(LocalFeedback):
         # Residual part of last turn entering the current turn due to non-integer harmonic number
         self.dT = -phi_rf / self.omega_rf
 
+        # self.rf_centers = (
+        #     np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf + self.dT
+        # )
         self.rf_centers = (
-            np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf + self.dT
-        )
+            np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
+        ) * self.T_s + self.dT
 
     @abstractmethod  # pragma: no cover
     def circuit_track(self, no_beam: bool = False) -> None:

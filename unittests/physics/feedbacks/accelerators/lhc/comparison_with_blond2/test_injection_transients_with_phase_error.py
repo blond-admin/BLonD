@@ -85,7 +85,7 @@ class TestInjectionWithPhaseError(unittest.TestCase):
             )
 
             backend.change_backend(Numpy64Bit)
-            backend.set_specials("cpp")
+            backend.set_specials("numba")
 
             beam = Beam(
                 intensity,

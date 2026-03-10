@@ -767,7 +767,7 @@ class RFStationBaseClass(
             / self.omega_rf_design
         )
 
-        self.phase_correction_frequency_offset = phi_increment
+        self.phase_correction_frequency_offset += phi_increment
 
     def track_reference(
         self,
@@ -1028,7 +1028,9 @@ class SingleHarmonicRFStation(
         """
         # Apply phase shift that was caused in last turn
         # to this turn before beam and cavity feedbacks get updated.
-        self.delta_phi_rf += deepcopy(self.phase_correction_frequency_offset)
+        self.delta_phi_rf = deepcopy(self.phase_correction_frequency_offset)
+        # Looks different to B2, but is actually correct, since the accumulation
+        # is done in the property phi_rf
 
         super()._track(beam=beam)
 
@@ -1402,9 +1404,9 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         """
         # Apply phase shift that was caused in last turn
         # to this turn before beam and cavity feedbacks get updated.
-        self.delta_phi_rf = np.copy(
-            self.phase_correction_frequency_offset
-        )  # TODO: possible problem here, check with SHC
+        self.delta_phi_rf = deepcopy(self.phase_correction_frequency_offset)
+        # Looks different to B2, but is actually correct, since the accumulation
+        # is done in the property phi_rf
 
         super()._track(beam=beam)
 

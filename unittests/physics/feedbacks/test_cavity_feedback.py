@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -326,3 +328,59 @@ class TestIQCavityFeedbackTimingClass:
         )
 
         pass
+
+    def test_get_slice_of_elements_this_section_cnst_cycle(self):
+        self.harmonic = 5
+        self.setup_simulation()
+
+        n_sections = 4
+        circumference = 20
+        n_turns_to_simulate = 5
+
+        ring = Ring(circumference=circumference, check_section_indices=False)
+        n_rf_points = 1
+        element_list = []
+        timing_fdbk_list = []
+        for section in range(n_sections):
+            timing_fdbk_list.append(
+                IQCavityFeedbackTimingClass(
+                    profile=self.profile,
+                    n_rf_periods_per_coarse_grid=n_rf_points,
+                )
+            )
+            rf_station = SingleHarmonicRFStation(
+                phi_rf=0.0,
+                harmonic=self.harmonic,
+                voltage=5e6,
+                section_index=section,
+            )
+            rf_station.attach_cavity_feedback(timing_fdbk_list[-1])
+            element_list.append(rf_station)
+            element_list.append(
+                DriftSimple(
+                    momentum_compaction_factor=5,
+                    orbit_length=circumference / n_sections,
+                    section_index=section,
+                )
+            )
+        ring.add_elements(element_list)
+
+        cnst_cycle = ConstantMagneticCycle(
+            reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
+        )
+
+        sim = Simulation(
+            ring,
+            cnst_cycle,
+        )
+
+        from collections import Counter
+
+        def callback(simulation: Simulation, beam: Beam):
+            for fdbk in timing_fdbk_list:
+                assert fdbk._parent_rf_station in fdbk.current_slice_elements
+                assert len(fdbk.current_slice_elements) == 2
+
+        sim.run_simulation(
+            self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
+        )
