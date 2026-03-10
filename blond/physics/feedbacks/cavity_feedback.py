@@ -544,8 +544,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.ring: Ring | None = None
         self.turn_i: DynamicParameter | None = None
 
-        self.passed_time_forward: float | None = None
-
         self.reference_altering_elements: (
             tuple[AltersReference, ...] | None
         ) = None
@@ -555,8 +553,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.own_index_in_reference_list: int | None = None
         self.own_index_in_reference_list_reverse: int | None = None
 
-        self.omega_rf_design_forward: float | None = None
+        self.forward_tracking_omega_rf: float | None = None
+        self.forward_tracking_time: float | None = None
         self.tracked_forward_until_element: AltersReference | None = None
+
+        self.reverse_tracking_time_array: NumpyArray | None = None
+        self.reverse_tracking_omega_list: list[float] | None = None
 
         self.debug = debug
 
@@ -660,12 +662,15 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                         )  # This will be the next element
                     )
                     break
-        self.passed_time_forward = dummy_reference.time - start_time
-        self.omega_rf_design_forward = self._parent_rf_station.omega_rf_design
+        self.forward_tracking_time = dummy_reference.time - start_time
+        self.forward_tracking_omega_rf = (
+            self._parent_rf_station.omega_rf_design
+        )
         self.tracked_forward_until_element = self.reference_altering_elements[
             next_reference_altering_element_index
             % len(self.reference_altering_elements)
         ]
+        self.reference_state_until_tracked = dummy_reference
 
         if self.debug:
             if (
@@ -690,91 +695,75 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     self.own_index_in_reference_list : next_reference_altering_element_index
                 ]
 
-    def get_slice_of_elements_reverse_direction(self, beam: BeamBaseClass):
+    def get_slice_of_elements_reverse_direction(self):
         """
         Determine the slice of elements, which should be tracked in the forward direction.
 
-        Parameters
-        ----------
-        beam
-            Beam object to receive the reference frame.
+        Only gets called after the first turn
         """
-        next_reference_altering_element_index = -1
-
-        dummy_reference = deepcopy(beam.reference)
-        start_time = dummy_reference.time
-        omega_rf_traj: list[float] = []
+        start_index = self.reference_altering_elements.index(
+            self.tracked_forward_until_element
+        )
+        time_list = [self.reference_state_until_tracked.time]
+        omega_list = []
 
         found = False
-        for el_ind, element in enumerate(
-            self.reference_altering_elements[
-                self.own_index_in_reference_list :
-            ]
+        for element in enumerate(
+            self.reference_altering_elements[start_index:]
         ):  # iterate through remaining current turn
             element: AltersReference
-            element.track_reference(dummy_reference)
-            omega_rf_traj.append(
+            if element is self._parent_rf_station:
+                found = True  # TODO: is this possible to hit in the forward direction?
+                break
+            element.track_reference(
+                self.reference_state_until_tracked
+            )  # TODO: will this be properly done with the correct timing? --> will the interpolation cycle work with this?
+            if (
+                isinstance(element, SingleHarmonicRFStation) and not self.debug
+            ):  # does not alter time coordinate
+                continue
+            omega_list.append(
                 self._parent_rf_station.calc_omega_rf_design(
-                    dummy_reference.beta, self.ring.circumference
+                    self.reference_state_until_tracked.beta,
+                    self.ring.circumference,
                 )
             )
-            if isinstance(element, RFStationBaseClass) and el_ind != 0:
-                found = True
-                next_reference_altering_element_index = (
-                    el_ind
-                    + self.own_index_in_reference_list  # This will be the next element
-                )
-                break
+            time_list.append(
+                self.reference_state_until_tracked.time - time_list[0]
+            )
 
         if not found:
-            for el_ind, element in enumerate(
+            for element in enumerate(
                 self.reference_altering_elements[
                     : self.own_index_in_reference_list
                 ]
             ):  # iterate through initial next turn
                 element: AltersReference
-                element.track_reference(dummy_reference)
-                omega_rf_traj.append(
+                element.track_reference(
+                    self.reference_state_until_tracked
+                )  # TODO: will this be properly done with the correct timing? --> will the interpolation cycle work with this?
+                if (
+                    isinstance(element, SingleHarmonicRFStation)
+                    and not self.debug
+                ):  # does not alter time coordinate
+                    continue
+                omega_list.append(
                     self._parent_rf_station.calc_omega_rf_design(
-                        dummy_reference.beta, self.ring.circumference
+                        self.reference_state_until_tracked.beta,
+                        self.ring.circumference,
                     )
                 )
-                if isinstance(element, RFStationBaseClass):
-                    next_reference_altering_element_index = (
-                        el_ind
-                        + len(
-                            self.reference_altering_elements
-                        )  # This will be the next element
-                    )
-                    break
+                time_list.append(
+                    self.reference_state_until_tracked.time - time_list[0]
+                )
 
-        passed_time = dummy_reference.time - start_time
-        if (
-            next_reference_altering_element_index == -1
-            or next_reference_altering_element_index
-            >= len(self.reference_altering_elements)
-        ):
-            # either none were found or it is around two turns
-            current_slice_elements = self.reference_altering_elements[
-                self.own_index_in_reference_list :
-            ]
-            current_slice_elements += self.reference_altering_elements[
-                0 : next_reference_altering_element_index
-                - len(self.reference_altering_elements)
-            ]
-        else:  # element is in the same turn
-            current_slice_elements = self.reference_altering_elements[
-                self.own_index_in_reference_list : next_reference_altering_element_index
-            ]
-        self.passed_time_forward = passed_time
-        # return current_slice_elements
+        self.reverse_tracking_time_array = np.diff(time_list[1:])
+        self.reverse_tracking_omega_list = omega_list
 
-    #
-    # def get_omega_rf_turn_time_until_now(self, beam: BeamBaseClass):
-    #     # for element in self.reference_altering_elements_reverse:
-    #     dummy_reference = deepcopy(beam.reference)
-    #     for element in self.reference_altering_elements[self.next_reference_altering_element_index:]:
-    #         element.track_reference(dummy_reference)
+        if self.debug:
+            self.reference_state_after_reverse_tracking = (
+                self.reference_state_until_tracked
+            )
 
     @property
     def n_points_coarse_grid(self):
@@ -855,7 +844,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             time_to_next_falling_edge_zero
             if self.residual_time_last_direction == 0
             else -self.residual_time_last_direction,
-            self.passed_time_forward,
+            self.forward_tracking_time,
             step=step_width_rf_centers,
         )
 
@@ -888,6 +877,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam object to receive the reference frame.
         """
+        self.get_slice_of_elements_reverse_direction()
 
     def circuit_track(self, no_beam: bool = False) -> None:
         """
@@ -913,7 +903,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam to be tracked.
         """
-        self.calculate_rf_centers_for_reverse_direction(beam=beam)
+        if self.tracked_forward_until_element is not None:
+            self.calculate_rf_centers_for_reverse_direction(beam=beam)
 
         self.calculate_rf_centers_for_forward_direction(beam=beam)
         self.relative_voltage_correction = np.ones_like(self.profile.hist_x)

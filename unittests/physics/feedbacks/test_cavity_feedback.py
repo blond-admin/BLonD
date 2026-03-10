@@ -338,17 +338,7 @@ class TestIQCavityFeedbackTimingClass:
 
         pass
 
-    @pytest.mark.parametrize("n_sections", [1, 4, 20])
-    def test_get_slice_of_elements_this_section_cnst_cycle(
-        self, n_sections: int
-    ):
-        self.harmonic = 20
-        self.setup_simulation()
-
-        n_sections = 4
-        circumference = 20
-        n_turns_to_simulate = 5
-
+    def setup_simulation_multisection(self, n_sections, circumference):
         ring = Ring(circumference=circumference, check_section_indices=False)
         n_rf_points = 1
         element_list = []
@@ -401,6 +391,26 @@ class TestIQCavityFeedbackTimingClass:
             )
         ring.add_elements(element_list)
 
+        return ring, element_list, timing_fdbk_list
+
+    @pytest.mark.parametrize("n_sections", [1, 4, 20])
+    def test_get_slice_of_elements_this_section_cnst_cycle_fwrd(
+        self, n_sections: int
+    ):
+        self.harmonic = 20
+        self.setup_simulation()
+
+        n_sections = 4
+        circumference = 20
+
+        ring, element_list, timing_fdbk_list = (
+            self.setup_simulation_multisection(
+                circumference=circumference, n_sections=n_sections
+            )
+        )
+
+        n_turns_to_simulate = 5
+
         cnst_cycle = ConstantMagneticCycle(
             reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
         )
@@ -427,34 +437,133 @@ class TestIQCavityFeedbackTimingClass:
                     pytest.fail(
                         f"{len(fdbk.current_slice_elements_forward)} != 3 in turn {simulation.turn_i.value} section {fdbk.section_index}"
                     )
-                time_passed_list.append(fdbk.passed_time_forward)
-                omega_list.append(fdbk.omega_rf_design_forward)
+                time_passed_list.append(fdbk.forward_tracking_time)
+                omega_list.append(fdbk.forward_tracking_omega_rf)
                 rf_centers_list.append(fdbk.rf_centers_forward_direction)
 
                 assert (
                     fdbk.tracked_forward_until_element
                     not in fdbk.current_slice_elements_forward
-                )
+                )  # this element should be tracked afterwards, not now
                 assert (
                     fdbk.tracked_forward_until_element
                     is fdbk.reference_altering_elements[
                         (fdbk.own_index_in_reference_list + 3)
                         % len(fdbk.reference_altering_elements)
                     ]
-                )
+                )  # 3 elements between two cavities
 
             np.testing.assert_allclose(
                 time_passed_list, time_passed_list[0]
-            )  # with no acceleration, this has to be true
+            )  # with no acceleration, this has to be true (all time_passed are the same
             np.testing.assert_allclose(
                 omega_list, omega_list[0]
-            )  # with no acceleration, this has to be true
+            )  # with no acceleration, this has to be true (all omegas are the same)
             [
                 np.testing.assert_allclose(
                     rf_centers_list_entry, rf_centers_list[0]
                 )
                 for rf_centers_list_entry in rf_centers_list
-            ]  # with no acceleration, this has to be true
+            ]  # with no acceleration, this has to be true (all RF centers are the same)
+
+        sim.run_simulation(
+            self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
+        )
+
+    @pytest.mark.parametrize("n_sections", [1, 4, 20])
+    def test_get_slice_of_elements_this_section_cnst_cycle_reverse(
+        self, n_sections: int
+    ):
+        self.harmonic = 20
+        self.setup_simulation()
+
+        n_sections = 4
+        circumference = 20
+
+        ring, element_list, timing_fdbk_list = (
+            self.setup_simulation_multisection(
+                circumference=circumference, n_sections=n_sections
+            )
+        )
+
+        n_turns_to_simulate = 5
+
+        cnst_cycle = ConstantMagneticCycle(
+            reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
+        )
+
+        sim = Simulation(
+            ring,
+            cnst_cycle,
+        )
+
+        def check_allclose_turn_printing(
+            array: list, turn: int, array_name: str
+        ):
+            check_allclose = [
+                np.allclose(array_entry, array[0]) for array_entry in array
+            ]
+            newline = "\n"
+            if not all(check_allclose):
+                pytest.fail(
+                    f"problem in turn {turn} with {array_name}:\n\n{newline.join(str(ln) for ln in array)}\n--> {check_allclose}"
+                )
+
+        def callback(simulation: Simulation, beam: Beam):
+            if simulation.turn_i.value == 0:  # TODO: and not CR
+                return
+            time_passed_list = []
+            omega_list = []
+            rf_centers_list = []
+            for fdbk in timing_fdbk_list:
+                fdbk: IQCavityFeedbackTimingClass
+                # TODO: check that the time after the tracking matches the current time
+                # TODO: check rf centers --> add calculation of rf centers
+                # if (
+                #         fdbk._parent_rf_station
+                #         not in fdbk.current_slice_elements_forward
+                # ):
+                #     pytest.fail(
+                #         f"parent rf station not in current_slice element list in turn {simulation.turn_i.value} section {fdbk.section_index}"
+                #     )
+                # if len(fdbk.current_slice_elements_forward) != 3:
+                #     pytest.fail(
+                #         f"{len(fdbk.current_slice_elements_forward)} != 3 in turn {simulation.turn_i.value} section {fdbk.section_index}"
+                #     )
+                time_passed_list.append(fdbk.reverse_tracking_time_array)
+                msk = fdbk.reverse_tracking_time_array != 0
+                used_time_array = np.array(fdbk.reverse_tracking_time_array)[
+                    msk
+                ]
+                assert (
+                    len(used_time_array) == 6
+                )  # two drifts per section, 3 sections in between cavities
+                omega_list.append(fdbk.reverse_tracking_omega_list)
+                assert len(fdbk.reverse_tracking_omega_list) == len(
+                    fdbk.reverse_tracking_omega_list
+                )
+
+                # rf_centers_list.append(fdbk.rf_centers_reverse_direction)
+
+                # assert (
+                #         fdbk.tracked_forward_until_element
+                #         not in fdbk.current_slice_elements_forward
+                # )  # this element should be tracked afterwards, not now
+                # assert (
+                #         fdbk.tracked_forward_until_element
+                #         is fdbk.reference_altering_elements[
+                #             (fdbk.own_index_in_reference_list + 3)
+                #             % len(fdbk.reference_altering_elements)
+                #             ]
+                # )  # 3 elements between two cavities
+
+            check_allclose_turn_printing(
+                time_passed_list, simulation.turn_i.value, "time_passed"
+            )  # with no acceleration, this has to be true (all time_passed are the same
+            check_allclose_turn_printing(
+                omega_list, simulation.turn_i.value, "omega_list"
+            )  # with no acceleration, this has to be true (all omegas are the same)
+            # check_allclose_turn_printing(rf_centers_list, simulation.turn_i.value)  # with no acceleration, this has to be true (all RF centers are the same)
 
         sim.run_simulation(
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
