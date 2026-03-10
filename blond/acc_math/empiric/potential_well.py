@@ -72,7 +72,7 @@ class PotentialWellHelper:
         y = self.voltage_axis
         x = self.time_axis
 
-        epsilon = .1 / 100 * (np.max(y) - np.min(y))
+        epsilon = 0.1 / 100 * (np.max(y) - np.min(y))
 
         maxima_indices, _ = find_peaks(y)
         buckets = []
@@ -82,9 +82,9 @@ class PotentialWellHelper:
 
             threshold_y = float(y[max_idx])
             for direction, range_args in zip(
-                    (1, -1),
-                    ((max_idx + 1, len(y) - 1, +1), (max_idx + -1, 1, -1)),
-                    strict=False,
+                (1, -1),
+                ((max_idx + 1, len(y) - 1, +1), (max_idx + -1, 1, -1)),
+                strict=False,
             ):
                 inside_local_region = True
 
@@ -93,23 +93,17 @@ class PotentialWellHelper:
                     current_y = y[j]
                     next_y = y[j + direction]
                     if (current_y > (threshold_y + epsilon)) or (
-                            current_y < (threshold_y - epsilon)
+                        current_y < (threshold_y - epsilon)
                     ):
                         inside_local_region = False  # once false stays false
-                    above_threshold = (
-                            current_y >= (
-                            threshold_y - epsilon)
-                    )
+                    above_threshold = current_y >= (threshold_y - epsilon)
                     next_falling = next_y <= current_y
                     next_above = next_y > threshold_y
                     if (
-                            not inside_local_region
-                            and above_threshold
-                            and (next_falling)
-                    ) or (
-                            not inside_local_region
-                            and next_above
-                    ):
+                        not inside_local_region
+                        and above_threshold
+                        and (next_falling)
+                    ) or (not inside_local_region and next_above):
                         second_anchor_index = j
                         buckets.append(
                             (
@@ -132,8 +126,7 @@ class PotentialWellHelper:
         x = self.time_axis
         plt.plot(x, y)
         plt.ylim(*plt.ylim())
-        n = len(self.bucket_list)
-        for i, bucket in enumerate(self.bucket_list):  # type: ignore
+        for _i, bucket in enumerate(self.bucket_list):  # type: ignore
             x1 = bucket[0]
             x2 = bucket[1]
             y1 = y[np.argmin(np.abs(x - x1))]
