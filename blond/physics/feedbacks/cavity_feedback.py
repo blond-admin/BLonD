@@ -12,15 +12,17 @@ from __future__ import annotations
 
 import warnings
 from abc import abstractmethod
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import HasPropertyCache
+from blond.core.base import AltersReference, DynamicParameter, HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
+    RFStationBaseClass,
     SingleHarmonicRFStation,
 )
 from blond.physics.feedbacks.base import LocalFeedback
@@ -36,7 +38,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Beam, Simulation
+    from blond import Beam, Ring, Simulation
     from blond.core.beam.base import BeamBaseClass
 
 # TODO rewrite all docstrings
@@ -536,6 +538,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.rf_centers_current_turn = np.zeros(5)
         self.residual_time_last_turn = 0
 
+        self.ring: Ring | None = None
+        self.turn_i: DynamicParameter | None = None
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Dummy.
@@ -573,6 +578,94 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             Unused in this function.
         """
         self.turn_i = simulation.turn_i
+        self.ring = simulation.ring
+
+        self.reference_altering_elements = self.ring.elements.get_elements(
+            AltersReference
+        )
+        self.own_index_in_reference_list = (
+            self.reference_altering_elements.index(self._parent_rf_station)
+        )
+        self.reference_altering_elements_reverse = (
+            self.reference_altering_elements[::-1]
+        )
+        self.own_index_in_reference_list_reverse = (
+            self.reference_altering_elements_reverse.index(
+                self._parent_rf_station
+            )
+        )
+
+    def get_slice_of_elements_this_section(self, beam: BeamBaseClass):
+        """
+        Determine the slice of elements, which should be tracked in the forward direction.
+
+        Parameters
+        ----------
+        beam
+            Beam object to receive the reference frame.
+        """
+        self.next_reference_altering_element_index = -1
+        self.next_reference_altering_element = None
+
+        dummy_reference = deepcopy(beam.reference)
+        start_time = dummy_reference.time
+        # reference_energy_start = dummy_reference._total_energy
+        found = False
+        for el_ind, element in enumerate(
+            self.reference_altering_elements[
+                self.own_index_in_reference_list :
+            ]
+        ):
+            element: AltersReference
+            element.track_reference(dummy_reference)
+            if isinstance(element, RFStationBaseClass) and el_ind != 0:
+                found = True
+                self.next_reference_altering_element_index = (
+                    el_ind  # This will be the next element
+                )
+                self.next_reference_altering_element = element
+                break
+
+        if not found:
+            for el_ind, element in enumerate(
+                self.reference_altering_elements[
+                    : self.own_index_in_reference_list
+                ]
+            ):
+                element: AltersReference
+                element.track_reference(dummy_reference)
+                if isinstance(element, RFStationBaseClass):
+                    self.next_reference_altering_element_index = (
+                        el_ind  # This will be the next element
+                    )
+                    self.next_reference_altering_element = element
+                    break
+
+        passed_time = dummy_reference.time - start_time
+        if (
+            self.next_reference_altering_element_index == -1
+            or self.next_reference_altering_element_index
+            <= self.own_index_in_reference_list
+        ):
+            # either none were found or it is around two turns
+            self.current_slice_elements = self.reference_altering_elements[
+                self.own_index_in_reference_list :
+            ]
+            self.current_slice_elements += self.reference_altering_elements[
+                0 : self.next_reference_altering_element_index
+            ]
+        else:  # element is in the same turn
+            self.current_slice_elements = self.reference_altering_elements[
+                self.own_index_in_reference_list : self.next_reference_altering_element_index
+            ]
+        self.passed_time = passed_time
+
+    #
+    # def get_omega_rf_turn_time_until_now(self, beam: BeamBaseClass):
+    #     # for element in self.reference_altering_elements_reverse:
+    #     dummy_reference = deepcopy(beam.reference)
+    #     for element in self.reference_altering_elements[self.next_reference_altering_element_index:]:
+    #         element.track_reference(dummy_reference)
 
     @property
     def n_points_coarse_grid(self):
@@ -614,6 +707,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 f"Unknown cavity type {type(self._parent_rf_station)}"
             )
 
+    # def get_t_until_next_energy_change(self, beam: BeamBaseClass):
+    #     for
+
     @staticmethod
     def _get_time_to_next_rising_edge_zero(
         phi: float, frequency: float
@@ -621,8 +717,19 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         phi_modulated = np.mod(phi, 2 * np.pi)
         return (np.pi - phi_modulated) / frequency
 
-    def calculate_rf_centers_for_current_turn(self) -> None:
-        """Calculate the centers of the rf buckets in the current turn."""
+    def calculate_rf_centers_for_current_turn(
+        self, beam: BeamBaseClass
+    ) -> None:
+        """
+        Calculate the centers of the rf buckets in the current turn.
+
+        Parameters
+        ----------
+        beam
+            Beam object to receive the reference frame.
+        """
+        self.get_slice_of_elements_this_section(beam=beam)
+
         time_to_next_falling_edge_zero = (
             self._get_time_to_next_rising_edge_zero(
                 self.phi_rf,
@@ -683,6 +790,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam to be tracked.
         """
-        self.calculate_rf_centers_for_current_turn()
+        self.calculate_rf_centers_for_current_turn(beam=beam)
         self.relative_voltage_correction = np.ones_like(self.profile.hist_x)
         self.phase_correction = np.zeros_like(self.profile.hist_x)
