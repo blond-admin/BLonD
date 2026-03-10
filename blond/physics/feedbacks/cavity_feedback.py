@@ -697,9 +697,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
     def get_slice_of_elements_reverse_direction(self):
         """
-        Determine the slice of elements, which should be tracked in the forward direction.
+        Determine the slice of elements, which should be tracked in the reverse direction.
 
-        Only gets called after the first turn
+        Only gets called after the first turn.
         """
         start_index = self.reference_altering_elements.index(
             self.tracked_forward_until_element
