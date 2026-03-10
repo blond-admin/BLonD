@@ -334,7 +334,10 @@ class TestIQCavityFeedbackTimingClass:
 
         pass
 
-    def test_get_slice_of_elements_this_section_cnst_cycle(self):
+    @pytest.mark.parametrize("n_sections", [1, 4, 20])
+    def test_get_slice_of_elements_this_section_cnst_cycle(
+        self, n_sections: int
+    ):
         self.harmonic = 5
         self.setup_simulation()
 
@@ -358,6 +361,7 @@ class TestIQCavityFeedbackTimingClass:
                 IQCavityFeedbackTimingClass(
                     profile=self.profile,
                     n_rf_periods_per_coarse_grid=n_rf_points,
+                    debug=True,
                 )
             )
             rf_station = SingleHarmonicRFStation(
@@ -403,15 +407,42 @@ class TestIQCavityFeedbackTimingClass:
         )
 
         def callback(simulation: Simulation, beam: Beam):
+            time_passed_list = []
+            omega_list = []
             for fdbk in timing_fdbk_list:
-                if fdbk._parent_rf_station not in fdbk.current_slice_elements:
+                fdbk: IQCavityFeedbackTimingClass
+                if (
+                    fdbk._parent_rf_station
+                    not in fdbk.current_slice_elements_forward
+                ):
                     pytest.fail(
                         f"parent rf station not in current_slice element list in turn {simulation.turn_i.value} section {fdbk.section_index}"
                     )
-                if len(fdbk.current_slice_elements) != 3:
+                if len(fdbk.current_slice_elements_forward) != 3:
                     pytest.fail(
-                        f"{len(fdbk.current_slice_elements)} != 3 in turn {simulation.turn_i.value} section {fdbk.section_index}"
+                        f"{len(fdbk.current_slice_elements_forward)} != 3 in turn {simulation.turn_i.value} section {fdbk.section_index}"
                     )
+                time_passed_list.append(fdbk.passed_time_forward)
+                omega_list.append(fdbk.omega_rf_design_forward)
+
+                assert (
+                    fdbk.tracked_forward_until_element
+                    not in fdbk.current_slice_elements_forward
+                )
+                assert (
+                    fdbk.tracked_forward_until_element
+                    is fdbk.reference_altering_elements[
+                        (fdbk.own_index_in_reference_list + 3)
+                        % len(fdbk.reference_altering_elements)
+                    ]
+                )
+
+            np.testing.assert_allclose(
+                time_passed_list, time_passed_list[0]
+            )  # with no acceleration, this has to be true
+            np.testing.assert_allclose(
+                omega_list, omega_list[0]
+            )  # with no acceleration, this has to be true
 
         sim.run_simulation(
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate

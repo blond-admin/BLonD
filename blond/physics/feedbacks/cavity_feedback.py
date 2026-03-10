@@ -521,12 +521,15 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         Static profile the feedback should act on.
     n_rf_periods_per_coarse_grid
         Number of rf periods, which should be displayed by one coarse gridpoint. Default is 1.
+    debug
+        Save debugging parameters during runtime.
     """
 
     def __init__(
         self,
         profile,
         n_rf_periods_per_coarse_grid: int = 1,
+        debug: bool = False,
     ):
         super().__init__(
             profile=profile,
@@ -540,6 +543,22 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self.ring: Ring | None = None
         self.turn_i: DynamicParameter | None = None
+
+        self.passed_time_forward: float | None = None
+
+        self.reference_altering_elements: (
+            tuple[AltersReference, ...] | None
+        ) = None
+        self.reference_altering_elements_reverse: (
+            tuple[AltersReference, ...] | None
+        ) = None
+        self.own_index_in_reference_list: int | None = None
+        self.own_index_in_reference_list_reverse: int | None = None
+
+        self.omega_rf_design_forward: float | None = None
+        self.tracked_forward_until_element: AltersReference | None = None
+
+        self.debug = debug
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -595,7 +614,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
         )
 
-    def get_slice_of_elements_this_section(self, beam: BeamBaseClass):
+    def get_passed_time_forward_direction(self, beam: BeamBaseClass):
         """
         Determine the slice of elements, which should be tracked in the forward direction.
 
@@ -604,27 +623,25 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam object to receive the reference frame.
         """
-        self.next_reference_altering_element_index = -1
-        self.next_reference_altering_element = None
+        next_reference_altering_element_index = -1
 
         dummy_reference = deepcopy(beam.reference)
         start_time = dummy_reference.time
-        # reference_energy_start = dummy_reference._total_energy
+
         found = False
         for el_ind, element in enumerate(
             self.reference_altering_elements[
                 self.own_index_in_reference_list :
             ]
-        ):
+        ):  # iterate through remaining current turn
             element: AltersReference
             element.track_reference(dummy_reference)
             if isinstance(element, RFStationBaseClass) and el_ind != 0:
                 found = True
-                self.next_reference_altering_element_index = (
+                next_reference_altering_element_index = (
                     el_ind
                     + self.own_index_in_reference_list  # This will be the next element
                 )
-                self.next_reference_altering_element = element
                 break
 
         if not found:
@@ -632,38 +649,125 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 self.reference_altering_elements[
                     : self.own_index_in_reference_list
                 ]
-            ):
+            ):  # iterate through initial next turn
                 element: AltersReference
                 element.track_reference(dummy_reference)
                 if isinstance(element, RFStationBaseClass):
-                    self.next_reference_altering_element_index = (
+                    next_reference_altering_element_index = (
                         el_ind
                         + len(
                             self.reference_altering_elements
                         )  # This will be the next element
                     )
-                    self.next_reference_altering_element = element
+                    break
+        self.passed_time_forward = dummy_reference.time - start_time
+        self.omega_rf_design_forward = self._parent_rf_station.omega_rf_design
+        self.tracked_forward_until_element = self.reference_altering_elements[
+            next_reference_altering_element_index
+            % len(self.reference_altering_elements)
+        ]
+
+        if self.debug:
+            if (
+                next_reference_altering_element_index == -1
+                or next_reference_altering_element_index
+                >= len(self.reference_altering_elements)
+            ):
+                # either none were found or it is around two turns
+                self.current_slice_elements_forward = (
+                    self.reference_altering_elements[
+                        self.own_index_in_reference_list :
+                    ]
+                )
+                self.current_slice_elements_forward += (
+                    self.reference_altering_elements[
+                        0 : next_reference_altering_element_index
+                        - len(self.reference_altering_elements)
+                    ]
+                )
+            else:  # element is in the same turn
+                self.current_slice_elements_forward = self.reference_altering_elements[
+                    self.own_index_in_reference_list : next_reference_altering_element_index
+                ]
+
+    def get_slice_of_elements_reverse_direction(self, beam: BeamBaseClass):
+        """
+        Determine the slice of elements, which should be tracked in the forward direction.
+
+        Parameters
+        ----------
+        beam
+            Beam object to receive the reference frame.
+        """
+        next_reference_altering_element_index = -1
+
+        dummy_reference = deepcopy(beam.reference)
+        start_time = dummy_reference.time
+        omega_rf_traj: list[float] = []
+
+        found = False
+        for el_ind, element in enumerate(
+            self.reference_altering_elements[
+                self.own_index_in_reference_list :
+            ]
+        ):  # iterate through remaining current turn
+            element: AltersReference
+            element.track_reference(dummy_reference)
+            omega_rf_traj.append(
+                self._parent_rf_station.calc_omega_rf_design(
+                    dummy_reference.beta, self.ring.circumference
+                )
+            )
+            if isinstance(element, RFStationBaseClass) and el_ind != 0:
+                found = True
+                next_reference_altering_element_index = (
+                    el_ind
+                    + self.own_index_in_reference_list  # This will be the next element
+                )
+                break
+
+        if not found:
+            for el_ind, element in enumerate(
+                self.reference_altering_elements[
+                    : self.own_index_in_reference_list
+                ]
+            ):  # iterate through initial next turn
+                element: AltersReference
+                element.track_reference(dummy_reference)
+                omega_rf_traj.append(
+                    self._parent_rf_station.calc_omega_rf_design(
+                        dummy_reference.beta, self.ring.circumference
+                    )
+                )
+                if isinstance(element, RFStationBaseClass):
+                    next_reference_altering_element_index = (
+                        el_ind
+                        + len(
+                            self.reference_altering_elements
+                        )  # This will be the next element
+                    )
                     break
 
         passed_time = dummy_reference.time - start_time
         if (
-            self.next_reference_altering_element_index == -1
-            or self.next_reference_altering_element_index
+            next_reference_altering_element_index == -1
+            or next_reference_altering_element_index
             >= len(self.reference_altering_elements)
         ):
             # either none were found or it is around two turns
-            self.current_slice_elements = self.reference_altering_elements[
+            current_slice_elements = self.reference_altering_elements[
                 self.own_index_in_reference_list :
             ]
-            self.current_slice_elements += self.reference_altering_elements[
-                0 : self.next_reference_altering_element_index
+            current_slice_elements += self.reference_altering_elements[
+                0 : next_reference_altering_element_index
                 - len(self.reference_altering_elements)
             ]
         else:  # element is in the same turn
-            self.current_slice_elements = self.reference_altering_elements[
-                self.own_index_in_reference_list : self.next_reference_altering_element_index
+            current_slice_elements = self.reference_altering_elements[
+                self.own_index_in_reference_list : next_reference_altering_element_index
             ]
-        self.passed_time = passed_time
+        self.passed_time_forward = passed_time
+        # return current_slice_elements
 
     #
     # def get_omega_rf_turn_time_until_now(self, beam: BeamBaseClass):
@@ -733,7 +837,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam object to receive the reference frame.
         """
-        self.get_slice_of_elements_this_section(beam=beam)
+        self.get_passed_time_forward_direction(beam=beam)
 
         time_to_next_falling_edge_zero = (
             self._get_time_to_next_rising_edge_zero(
