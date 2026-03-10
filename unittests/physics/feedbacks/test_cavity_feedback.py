@@ -9,16 +9,21 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     MagneticCyclePerTurn,
+    Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
+    WakeField,
     mu_plus,
 )
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
     IQCavityFeedbackTimingClass,
+)
+from blond.physics.impedances.solvers import (
+    SingleTurnResonatorConvolutionSolver,
 )
 
 DEBUG_PLOTTING = False
@@ -342,6 +347,13 @@ class TestIQCavityFeedbackTimingClass:
         element_list = []
         timing_fdbk_list = []
         for section in range(n_sections):
+            element_list.append(
+                DriftSimple(
+                    momentum_compaction_factor=5,
+                    orbit_length=circumference / n_sections / 2,
+                    section_index=section,
+                )
+            )
             timing_fdbk_list.append(
                 IQCavityFeedbackTimingClass(
                     profile=self.profile,
@@ -359,8 +371,24 @@ class TestIQCavityFeedbackTimingClass:
             element_list.append(
                 DriftSimple(
                     momentum_compaction_factor=5,
-                    orbit_length=circumference / n_sections,
+                    orbit_length=circumference / n_sections / 2,
                     section_index=section,
+                )
+            )
+            element_list.append(
+                StaticProfile.from_cutoff(0, 1e-9, 5e9, section_index=section)
+            )
+            element_list.append(
+                WakeField(
+                    section_index=section,
+                    sources=(
+                        Resonators(
+                            center_frequencies=1.0,
+                            shunt_impedances=1.0,
+                            quality_factors=1.0,
+                        ),
+                    ),
+                    solver=SingleTurnResonatorConvolutionSolver(),
                 )
             )
         ring.add_elements(element_list)
@@ -374,12 +402,16 @@ class TestIQCavityFeedbackTimingClass:
             cnst_cycle,
         )
 
-        from collections import Counter
-
         def callback(simulation: Simulation, beam: Beam):
             for fdbk in timing_fdbk_list:
-                assert fdbk._parent_rf_station in fdbk.current_slice_elements
-                assert len(fdbk.current_slice_elements) == 2
+                if fdbk._parent_rf_station not in fdbk.current_slice_elements:
+                    pytest.fail(
+                        f"parent rf station not in current_slice element list in turn {simulation.turn_i.value} section {fdbk.section_index}"
+                    )
+                if len(fdbk.current_slice_elements) != 3:
+                    pytest.fail(
+                        f"{len(fdbk.current_slice_elements)} != 3 in turn {simulation.turn_i.value} section {fdbk.section_index}"
+                    )
 
         sim.run_simulation(
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate

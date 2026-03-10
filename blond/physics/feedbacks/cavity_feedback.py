@@ -621,7 +621,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             if isinstance(element, RFStationBaseClass) and el_ind != 0:
                 found = True
                 self.next_reference_altering_element_index = (
-                    el_ind  # This will be the next element
+                    el_ind
+                    + self.own_index_in_reference_list  # This will be the next element
                 )
                 self.next_reference_altering_element = element
                 break
@@ -636,7 +637,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 element.track_reference(dummy_reference)
                 if isinstance(element, RFStationBaseClass):
                     self.next_reference_altering_element_index = (
-                        el_ind  # This will be the next element
+                        el_ind
+                        + len(
+                            self.reference_altering_elements
+                        )  # This will be the next element
                     )
                     self.next_reference_altering_element = element
                     break
@@ -645,7 +649,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         if (
             self.next_reference_altering_element_index == -1
             or self.next_reference_altering_element_index
-            <= self.own_index_in_reference_list
+            >= len(self.reference_altering_elements)
         ):
             # either none were found or it is around two turns
             self.current_slice_elements = self.reference_altering_elements[
@@ -653,6 +657,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             ]
             self.current_slice_elements += self.reference_altering_elements[
                 0 : self.next_reference_altering_element_index
+                - len(self.reference_altering_elements)
             ]
         else:  # element is in the same turn
             self.current_slice_elements = self.reference_altering_elements[
