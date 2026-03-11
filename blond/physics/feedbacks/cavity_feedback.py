@@ -653,7 +653,13 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 ]
             ):  # iterate through initial next turn
                 element: AltersReference
+                if isinstance(element, RFStationBaseClass):
+                    # Since we are in the next turn, we need to increase this manually
+                    # and decrease it afterwards (only for cavities in case of scheduled acceleration)
+                    element._turn_i._value += 1
                 element.track_reference(dummy_reference)
+                if isinstance(element, RFStationBaseClass):
+                    element._turn_i._value -= 1
                 if isinstance(element, RFStationBaseClass):
                     next_reference_altering_element_index = (
                         el_ind
@@ -715,11 +721,15 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         found = False
         for element in self.reference_altering_elements[
             start_index:
-        ]:  # iterate through remaining current turn
-            element: AltersReference  # TODO: own element cannot be found in the forward direction, unless duplicate elements are in the pipeline
-            element.track_reference(
-                self.reference_state_until_tracked
-            )  # TODO: will this be properly done with the correct timing? --> will the interpolation cycle work with this?
+        ]:  # iterate through remaining last turn
+            element: AltersReference  # TODO: are duplicate elements allowed in pipeline?
+            if isinstance(element, RFStationBaseClass):
+                # Since we are in the previous turn, we need to decrease this manually
+                # and increase it afterwards (only for cavities in case of scheduled acceleration)
+                element._turn_i._value -= 1
+            element.track_reference(self.reference_state_until_tracked)
+            if isinstance(element, RFStationBaseClass):
+                element._turn_i._value += 1
             if (
                 isinstance(element, SingleHarmonicRFStation) and not self.debug
             ):  # does not alter time coordinate
@@ -745,8 +755,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         if not found:
             for element in self.reference_altering_elements[
                 : self.own_index_in_reference_list
-            ]:  # iterate through initial next turn
+            ]:  # iterate through initial current turn
                 element: AltersReference
+
                 element.track_reference(
                     self.reference_state_until_tracked
                 )  # TODO: will this be properly done with the correct timing? --> will the interpolation cycle work with this?

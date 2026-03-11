@@ -9,12 +9,14 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     MagneticCyclePerTurn,
+    Numpy64Bit,
     Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    backend,
     mu_plus,
 )
 from blond.generals.distributed.distributed_array import DistributedArray
@@ -83,13 +85,14 @@ class TestIQCavityFeedbackTimingClass:
         (1, -0.13, 2),
     ]
 
-    # @pytest.mark.skip
+    @pytest.mark.backend_mutation
     @pytest.mark.parametrize(
         "phase_shift,delta_omega_factor,n_rf_points", test_data_discontinuity
     )
     def test_for_discontinuity_distances_single_section_no_acceleration(
         self, phase_shift: float, delta_omega_factor: float, n_rf_points: int
     ) -> None:
+        backend.change_backend(Numpy64Bit)
         self.harmonic = 5
         self.setup_simulation()
         cav_fdbk_timing = IQCavityFeedbackTimingClass(
@@ -206,12 +209,14 @@ class TestIQCavityFeedbackTimingClass:
         )
 
     # @pytest.mark.skip
+    @pytest.mark.backend_mutation
     @pytest.mark.parametrize(
         "phase_shift,delta_omega_factor,n_rf_points", test_data_discontinuity
     )
     def test_for_discontinuity_distances_single_section_acceleration(
         self, phase_shift: float, delta_omega_factor: float, n_rf_points: int
     ) -> None:
+        backend.change_backend(Numpy64Bit)
         self.harmonic = 5
         self.setup_simulation()
         cav_fdbk_timing = IQCavityFeedbackTimingClass(
@@ -393,10 +398,12 @@ class TestIQCavityFeedbackTimingClass:
 
         return ring, element_list, timing_fdbk_list
 
+    @pytest.mark.backend_mutation
     @pytest.mark.parametrize("n_sections", [1, 4, 20])
     def test_get_slice_of_elements_this_section_cnst_cycle_fwrd(
         self, n_sections: int
     ):
+        backend.change_backend(Numpy64Bit)
         self.harmonic = 20
         self.setup_simulation()
 
@@ -470,10 +477,12 @@ class TestIQCavityFeedbackTimingClass:
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
         )
 
+    @pytest.mark.backend_mutation
     @pytest.mark.parametrize("n_sections", [1, 4, 20])
     def test_get_slice_of_elements_this_section_cnst_cycle_reverse(
         self, n_sections: int
     ):
+        backend.change_backend(Numpy64Bit)
         self.harmonic = 20
         self.setup_simulation()
 
