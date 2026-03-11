@@ -106,30 +106,12 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_legacy(  # NOQA: D102
-        dt: NumpyArray,
-        dE: NumpyArray,
-        T: float,
-        alpha_order: int,
-        eta_0: float,
-        eta_1: float,
-        eta_2: float,
-        beta: float,
-        energy: float,
-    ) -> None:
-        raise NotImplementedError(
-            "Abstract method `drift_legacy` is not implemented."
-        )
-
-    @staticmethod
-    @abstractmethod  # pragma: no cover
     def drift_exact(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
         alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
+        higher_alpha: NumpyArray,
         beta: float,
         energy: float,
     ) -> None:
@@ -256,7 +238,7 @@ class BackendBaseClass(ABC):
     float: type[np.float32 | np.float64]
     complex: type[np.complex128 | np.complex64]
 
-    def __init__(
+    def __init__(  # noqa: PLR0912
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -319,6 +301,7 @@ class BackendBaseClass(ABC):
         self.copy: Callable = None  # type: ignore
         self.ones_like: Callable = None  # type: ignore
         self.add: Callable = None  # type: ignore
+        self.default_rng: object = None  # type: ignore
         self.concatenate: Callable = None  # type: ignore
         self.unique: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
@@ -618,7 +601,7 @@ class NumpyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0912
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -671,6 +654,7 @@ class NumpyBackend(BackendBaseClass):
         self.copy = np.copy
         self.ones_like = np.ones_like
         self.add = np.add
+        self.default_rng = np.random.default_rng
         self.concatenate = np.concatenate
         self.unique = np.unique
         self.repeat = np.repeat
@@ -758,7 +742,7 @@ class CupyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0912
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -816,6 +800,7 @@ class CupyBackend(BackendBaseClass):
         self.copy = cp.copy
         self.ones_like = cp.ones_like
         self.add = cp.add
+        self.default_rng = cp.random.default_rng
         self.concatenate = cp.concatenate
         self.unique = cp.unique
         self.repeat = cp.repeat
