@@ -69,4 +69,4 @@ def _as_tuple(
     try:
         return tuple(s for s in maybe_sequence)
     except TypeError:
-        return tuple(maybe_sequence)
+        return (maybe_sequence,)
