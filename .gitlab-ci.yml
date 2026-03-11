@@ -56,7 +56,7 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=$CI_PIPELINE_ID --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=$CI_PIPELINE_ID; fi'
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
@@ -99,7 +99,7 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=$CI_PIPELINE_ID --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=$CI_PIPELINE_ID; fi'
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
