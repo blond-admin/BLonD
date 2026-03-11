@@ -179,10 +179,7 @@ class Schedulable:
     def schedule(
         self,
         attribute: str,
-        value: ScheduledArray
-        | ScheduledInterpolation
-        | NumpyArray
-        | tuple[NumpyArray, NumpyArray],
+        *args: tuple[SchedulerBaseClass | ArrayLike],
     ) -> None:
         """
         Schedule a parameter to change dynamically during the simulation.
@@ -229,12 +226,23 @@ class Schedulable:
         assert hasattr(self, attribute), (
             f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
-        if isinstance(value, SchedulerBaseClass):
-            # explicit declaration
-            self.schedules[attribute] = value
+
+        schedules = []
+
+        for value in args:
+            if isinstance(value, SchedulerBaseClass):
+                # explicit declaration
+                schedules.append(value)
+            else:
+                # should allow easier user input, but is less explicit
+                schedules.append(get_scheduler(value))
+
+        if len(schedules) > 1:
+            scheduler = MultiSchedule(schedules)
         else:
-            # should allow easier user input, but is less explicit
-            self.schedules[attribute] = get_scheduler(value)
+            scheduler = schedules[0]
+
+        self.schedules[attribute] = scheduler
         self.schedule_active = True
 
         self.apply_schedules(turn_i=0, reference_time=0)
@@ -647,6 +655,19 @@ class SchedulerBaseClass(ABC):
             Current time, in [s].
         """
         pass
+
+
+class MultiSchedule(SchedulerBaseClass):
+
+    def __init__(self, schedules: list[SchedulerBaseClass]):
+
+        super().__init__()
+        self._schedules = schedules
+
+    def get_scheduled(self, turn_i: int, reference_time: float) -> NumpyArray | CupyArray:
+
+        values = backend.array([s.get_scheduled(turn_i, reference_time) for s in self._schedules])
+        return values
 
 
 class ScheduledArray(SchedulerBaseClass):
