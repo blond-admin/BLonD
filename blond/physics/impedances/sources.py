@@ -491,15 +491,7 @@ class Resonators(
         """
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
 
-        heaviside_like = (
-            backend.sign(time) + 1.0
-        )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
-
-        # protect against numerical noise, where a 0 might be expressed as -1.6155871338926322e-27
-        tol = 0.01 * backend.abs(time[1] - time[0])
-        bugfix = backend.abs(time) < tol
-
-        heaviside_like[bugfix] = 1
+        heaviside_like = self.heaviside_eps_at_0(time)
 
         for res_ind in range(self._n_resonators):
             wake += (
@@ -517,6 +509,38 @@ class Resonators(
                 )
             )
         return wake
+
+    def heaviside_eps_at_0(self, time: NumpyArray, eps: float = 0.01):
+        """
+        Calculate the Heaviside function (this is essentially a bugfix).
+
+        ``cupy.linspace`` can produce slightly
+        different results than ``np.linspace``,
+        where 0 will be represented another small number like 1e-27.
+
+        For this reason, we take ``eps * abs(time[1] - time[0])`` to
+        identify a number close to 0 and tread is as 0 too.
+
+        Parameters
+        ----------
+        time
+            Axis along which to calculate the Heaviside function.
+        eps
+            Relative region around which a number will be assumed as 0.
+
+        Returns
+        -------
+        heaviside
+            The Heaviside function.
+        """
+        heaviside_like = (
+            backend.sign(time) + 1.0
+        )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
+        # protect against numerical noise, where a 0 might be expressed as -1.6155871338926322e-27
+        tol = eps * backend.abs(time[1] - time[0])
+        bugfix = backend.abs(time) < tol
+        heaviside_like[bugfix] = 1
+        return heaviside_like
 
     def get_wake_counter_rotation(
         self, time: NumpyArray | CupyArray
@@ -540,12 +564,8 @@ class Resonators(
             )
 
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
-        heaviside_like = (
-            backend.sign(time) + 1.0
-        )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
-        tol = 0.01 * backend.abs(time[1] - time[0])
-        bugfix = backend.abs(time) < tol
-        heaviside_like[bugfix] = 1
+
+        heaviside_like = self.heaviside_eps_at_0(time)
 
         for res_ind in range(self._n_resonators):
             wake += (
