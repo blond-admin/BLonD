@@ -19,6 +19,7 @@ import numpy as np
 
 from blond.core.base import AltersReference, DynamicParameter, HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
@@ -560,6 +561,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.reverse_tracking_time_array: NumpyArray | None = None
         self.reverse_tracking_omega_list: list[float] | None = None
 
+        self.reference_state_until_tracked: ReferenceCoordinates | None = None
+
         self.debug = debug
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -653,14 +656,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 ]
             ):  # iterate through initial next turn
                 element: AltersReference
-                if isinstance(element, RFStationBaseClass):
-                    # Since we are in the next turn, we need to increase this manually
-                    # and decrease it afterwards (only for cavities in case of scheduled acceleration)
-                    element._turn_i._value += 1
-                element.track_reference(dummy_reference)
-                if isinstance(element, RFStationBaseClass):
-                    element._turn_i._value -= 1
-                if isinstance(element, RFStationBaseClass):
+
+                if not isinstance(element, RFStationBaseClass):
+                    element.track_reference(dummy_reference)
+                else:
                     next_reference_altering_element_index = (
                         el_ind
                         + len(
@@ -787,9 +786,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.reverse_tracking_omega_list = omega_list
 
         if self.debug:
-            self.reference_state_after_reverse_tracking = (
-                self.reference_state_until_tracked
+            self.reference_time_after_reverse = (
+                self.reference_state_until_tracked.time
             )
+            self.current_beam_reference_time = beam.reference.time
+            self.reference_energy_after_reverse = (
+                self.reference_state_until_tracked.total_energy
+            )
+            self.current_beam_reference_energy = beam.reference.total_energy
 
     @property
     def n_points_coarse_grid(self):

@@ -530,19 +530,26 @@ class TestIQCavityFeedbackTimingClass:
             rf_centers_list = []
             for idx, fdbk in enumerate(timing_fdbk_list):
                 fdbk: IQCavityFeedbackTimingClass
-                # TODO: check that the time after the tracking matches the current time
                 # TODO: check rf centers --> add calculation of rf centers
-                # if (
-                #         fdbk._parent_rf_station
-                #         not in fdbk.current_slice_elements_forward
-                # ):
-                #     pytest.fail(
-                #         f"parent rf station not in current_slice element list in turn {simulation.turn_i.value} section {fdbk.section_index}"
-                #     )
-                # if len(fdbk.current_slice_elements_forward) != 3:
-                #     pytest.fail(
-                #         f"{len(fdbk.current_slice_elements_forward)} != 3 in turn {simulation.turn_i.value} section {fdbk.section_index}"
-                #     )
+                check_fail_printing(
+                    not np.isclose(
+                        fdbk.current_beam_reference_time,
+                        fdbk.reference_time_after_reverse,
+                        atol=0,
+                        rtol=1e-12,
+                    ),
+                    f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
+                )
+                check_fail_printing(
+                    not np.isclose(
+                        fdbk.current_beam_reference_energy,
+                        fdbk.reference_energy_after_reverse,
+                        atol=0,
+                        rtol=1e-12,
+                    ),
+                    f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
+                )
+
                 time_passed_list.append(fdbk.reverse_tracking_time_array)
                 msk = fdbk.reverse_tracking_time_array != 0
                 used_time_array = np.array(fdbk.reverse_tracking_time_array)[
