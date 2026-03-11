@@ -671,10 +671,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.forward_tracking_omega_rf = (
             self._parent_rf_station.omega_rf_design
         )
-        self.tracked_forward_until_element = self.reference_altering_elements[
-            next_reference_altering_element_index
-            % len(self.reference_altering_elements)
-        ]
+        self.tracked_forward_until_element = (
+            self.reference_altering_elements[
+                next_reference_altering_element_index
+                % len(self.reference_altering_elements)
+            ]
+            if next_reference_altering_element_index != -1
+            else self._parent_rf_station
+        )
         self.reference_state_until_tracked = dummy_reference
 
         if self.debug:
@@ -729,10 +733,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             element.track_reference(self.reference_state_until_tracked)
             if isinstance(element, RFStationBaseClass):
                 element._turn_i._value += 1
-            if (
-                isinstance(element, SingleHarmonicRFStation) and not self.debug
-            ):  # does not alter time coordinate
-                continue
+            # if (
+            #     isinstance(element, SingleHarmonicRFStation) and not self.debug
+            # ):  # does not alter time coordinate
+            #     continue  # TODO: does this work with breaking? --> rework
             omega_list.append(
                 self._parent_rf_station.calc_omega_rf_design(
                     self.reference_state_until_tracked.beta,
@@ -742,12 +746,18 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             time_list.append(
                 self.reference_state_until_tracked.time - time_list[0]
             )
-            if np.isclose(
+            isclose = np.isclose(
                 self.reference_state_until_tracked.time,
                 beam.reference.time,
                 rtol=1e-12,
                 atol=0,
-            ):  # counterrotation should break earlier
+            )
+            is_above = (
+                self.reference_state_until_tracked.time > beam.reference.time
+            )
+            if isclose or is_above:  # counterrotation should break earlier
+                if is_above:
+                    warnings.warn("inconsistency with references")
                 found = True
                 break
 
@@ -760,11 +770,11 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 element.track_reference(
                     self.reference_state_until_tracked
                 )  # TODO: will this be properly done with the correct timing? --> will the interpolation cycle work with this?
-                if (
-                    isinstance(element, SingleHarmonicRFStation)
-                    and not self.debug
-                ):  # does not alter time coordinate
-                    continue
+                # if (
+                #     isinstance(element, SingleHarmonicRFStation)
+                #     and not self.debug
+                # ):  # does not alter time coordinate
+                #     continue
                 omega_list.append(
                     self._parent_rf_station.calc_omega_rf_design(
                         self.reference_state_until_tracked.beta,
@@ -783,7 +793,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     break
 
         self.reverse_tracking_time_array = np.diff(time_list[1:])
-        self.reverse_tracking_omega_list = omega_list
+        self.reverse_tracking_omega_list = omega_list[1:]
+        # first entry references the 0 time-point, which is this cavity
 
         if self.debug:
             self.reference_time_after_reverse = (
