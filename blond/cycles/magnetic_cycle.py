@@ -665,6 +665,45 @@ class MagneticCyclePerTurn(MagneticCycleBase):
 
         return ret
 
+    @staticmethod
+    def init_from_linspace(
+        reference_particle: ParticleType,
+        values: NumpyArray,
+        in_unit: SynchronousDataTypes = "momentum",
+        bending_radius: float | None = None,
+    ) -> MagneticCyclePerTurn:
+        """
+        Magnetic cycle per turn.
+
+        Parameters
+        ----------
+        reference_particle
+            Type of particles, e.g. protons.
+        values
+             Values of the cycle in unit `in_unit`.
+             This must be ``n_turns + 1`` values long.
+        in_unit
+            - 'momentum' [eV/c], (no conversion is done)
+            - 'total energy' [eV],
+            - 'kinetic energy' [eV], or
+            - 'bending field' [T]
+        bending_radius
+            To 'bending field' associated bending radius, in [m].
+
+        Returns
+        -------
+        cycle
+            The initialized `MagneticCyclePerTurn`.
+        """
+        cycle = MagneticCyclePerTurn(
+            reference_particle=reference_particle,
+            value_init=float(values[0]),
+            values_after_turn=values[1:],
+            in_unit=in_unit,
+            bending_radius=bending_radius,
+        )
+        return cycle
+
 
 class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
     """
