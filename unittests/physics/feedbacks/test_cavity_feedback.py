@@ -509,13 +509,17 @@ class TestIQCavityFeedbackTimingClass:
                     f"problem in turn {turn} with {array_name}:\n\n{newline.join(str(ln) for ln in array)}\n--> {check_allclose}"
                 )
 
+        def check_fail_printing(bool, msg):
+            if bool:
+                pytest.fail(msg)
+
         def callback(simulation: Simulation, beam: Beam):
             if simulation.turn_i.value == 0:  # TODO: and not CR
                 return
             time_passed_list = []
             omega_list = []
             rf_centers_list = []
-            for fdbk in timing_fdbk_list:
+            for idx, fdbk in enumerate(timing_fdbk_list):
                 fdbk: IQCavityFeedbackTimingClass
                 # TODO: check that the time after the tracking matches the current time
                 # TODO: check rf centers --> add calculation of rf centers
@@ -535,12 +539,15 @@ class TestIQCavityFeedbackTimingClass:
                 used_time_array = np.array(fdbk.reverse_tracking_time_array)[
                     msk
                 ]
-                assert (
-                    len(used_time_array) == 6
+                check_fail_printing(
+                    len(used_time_array) != 6,
+                    f"time arr length err {len(used_time_array)} != 6 section {idx}, trn {simulation.turn_i.value}",
                 )  # two drifts per section, 3 sections in between cavities
                 omega_list.append(fdbk.reverse_tracking_omega_list)
-                assert len(fdbk.reverse_tracking_omega_list) == len(
-                    fdbk.reverse_tracking_omega_list
+                check_fail_printing(
+                    len(fdbk.reverse_tracking_omega_list)
+                    != len(fdbk.reverse_tracking_omega_list),
+                    f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_omega_list)}, section {idx}, trn {simulation.turn_i.value}",
                 )
 
                 # rf_centers_list.append(fdbk.rf_centers_reverse_direction)

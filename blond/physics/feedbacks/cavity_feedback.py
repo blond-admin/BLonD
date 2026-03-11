@@ -695,11 +695,16 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     self.own_index_in_reference_list : next_reference_altering_element_index
                 ]
 
-    def get_slice_of_elements_reverse_direction(self):
+    def get_slice_of_elements_reverse_direction(self, beam: BeamBaseClass):
         """
         Determine the slice of elements, which should be tracked in the reverse direction.
 
         Only gets called after the first turn.
+
+        Parameters
+        ----------
+        beam
+            Beam object to receive the reference frame.
         """
         start_index = self.reference_altering_elements.index(
             self.tracked_forward_until_element
@@ -708,13 +713,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         omega_list = []
 
         found = False
-        for element in enumerate(
-            self.reference_altering_elements[start_index:]
-        ):  # iterate through remaining current turn
-            element: AltersReference
-            if element is self._parent_rf_station:
-                found = True  # TODO: is this possible to hit in the forward direction?
-                break
+        for element in self.reference_altering_elements[
+            start_index:
+        ]:  # iterate through remaining current turn
+            element: AltersReference  # TODO: own element cannot be found in the forward direction, unless duplicate elements are in the pipeline
             element.track_reference(
                 self.reference_state_until_tracked
             )  # TODO: will this be properly done with the correct timing? --> will the interpolation cycle work with this?
@@ -731,13 +733,19 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             time_list.append(
                 self.reference_state_until_tracked.time - time_list[0]
             )
+            if np.isclose(
+                self.reference_state_until_tracked.time,
+                beam.reference.time,
+                rtol=1e-12,
+                atol=0,
+            ):  # counterrotation should break earlier
+                found = True
+                break
 
         if not found:
-            for element in enumerate(
-                self.reference_altering_elements[
-                    : self.own_index_in_reference_list
-                ]
-            ):  # iterate through initial next turn
+            for element in self.reference_altering_elements[
+                : self.own_index_in_reference_list
+            ]:  # iterate through initial next turn
                 element: AltersReference
                 element.track_reference(
                     self.reference_state_until_tracked
@@ -756,6 +764,13 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 time_list.append(
                     self.reference_state_until_tracked.time - time_list[0]
                 )
+                if np.isclose(
+                    self.reference_state_until_tracked.time,
+                    beam.reference.time,
+                    rtol=1e-12,
+                    atol=0,
+                ):  # counterrotation should break earlier
+                    break
 
         self.reverse_tracking_time_array = np.diff(time_list[1:])
         self.reverse_tracking_omega_list = omega_list
@@ -877,7 +892,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam object to receive the reference frame.
         """
-        self.get_slice_of_elements_reverse_direction()
+        self.get_slice_of_elements_reverse_direction(beam=beam)
 
     def circuit_track(self, no_beam: bool = False) -> None:
         """
