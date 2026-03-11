@@ -141,7 +141,7 @@ def main():
         orbit_length=CIRCUMFERENCE,
     )
 
-    drift.schedule("transition_gamma", GAMMA_T[1:].copy())
+    drift.schedule("momentum_compaction_factor", 1 / GAMMA_T[1:].copy() ** 2)
 
     beam = Beam(intensity=INTENSITY, particle_type=proton)
 

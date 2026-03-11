@@ -19,6 +19,9 @@ from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
 from blond.beam_preparation.helpers import populate_beam
 from blond.core.helpers import int_from_float_with_warning
+from blond.experimental.beam_preparation.bucket_filler_functions import (
+    hamilton_to_density_by_max,
+)
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 # Oversampling factor for potential well calculation
