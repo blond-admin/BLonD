@@ -133,9 +133,7 @@ class TestIQCavityFeedbackTimingClass:
                     + cav_fdbk_timing._parent_rf_station.phi_rf
                 )
             )
-            rf_centers_array.append(
-                cav_fdbk_timing.rf_centers_forward_direction
-            )
+            rf_centers_array.append(cav_fdbk_timing.rf_centers)
             if simulation.turn_i.value == 0:
                 self.t_rf_init = 2 * np.pi / self.rf_station.omega_rf_design
                 self.rf_station.delta_omega_rf = (
@@ -266,9 +264,7 @@ class TestIQCavityFeedbackTimingClass:
                     + cav_fdbk_timing._parent_rf_station.phi_rf
                 )
             )
-            rf_centers_array.append(
-                cav_fdbk_timing.rf_centers_forward_direction
-            )
+            rf_centers_array.append(cav_fdbk_timing.rf_centers)
             omega_rf_save.append(cav_fdbk_timing.omega_rf)
             print(cav_fdbk_timing._parent_rf_station.omega_rf_design)
             if simulation.turn_i.value == 0:
@@ -446,7 +442,7 @@ class TestIQCavityFeedbackTimingClass:
                     )
                 time_passed_list.append(fdbk.forward_tracking_time)
                 omega_list.append(fdbk.forward_tracking_omega_rf)
-                rf_centers_list.append(fdbk.rf_centers_forward_direction)
+                rf_centers_list.append(fdbk.rf_centers)
 
                 assert (
                     fdbk.tracked_forward_until_element
@@ -562,8 +558,8 @@ class TestIQCavityFeedbackTimingClass:
                 omega_list.append(fdbk.reverse_tracking_omega_list)
                 check_fail_printing(
                     len(fdbk.reverse_tracking_omega_list)
-                    != len(fdbk.reverse_tracking_omega_list),
-                    f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_omega_list)}, section {idx}, trn {simulation.turn_i.value}",
+                    != len(fdbk.reverse_tracking_time_array),
+                    f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
                 )
 
                 # rf_centers_list.append(fdbk.rf_centers_reverse_direction)
