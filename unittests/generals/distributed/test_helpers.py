@@ -110,4 +110,4 @@ class TestCallablesNoMPI(unittest.TestCase):
             from blond.generals.distributed.helpers import distributed_arange
 
             da = distributed_arange(12, dtype=np.int32)
-            np.testing.assert_allclose(da.array_local, np.arange(0, 12))
+            np.testing.assert_allclose(da.copy_as_numpy(), np.arange(0, 12))

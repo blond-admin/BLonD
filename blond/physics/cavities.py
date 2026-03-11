@@ -467,7 +467,7 @@ class RFStationBaseClass(
         gap_voltage = (
             voltage
             * voltage_correction_factors
-            * np.sin(omega_rf * ts + phi_rf + phase_offsets)
+            * backend.sin(omega_rf * ts + phi_rf + phase_offsets)
         )
         return gap_voltage
 

@@ -276,6 +276,7 @@ class BackendBaseClass(ABC):
         self.fft: ModuleType = None  # type: ignore
         self.all: ModuleType = None  # type: ignore
         self.random: ModuleType = None  # type: ignore
+        self.sinc: Callable = None  # type: ignore
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
         self.sqrt: Callable = None  # type: ignore
@@ -627,6 +628,7 @@ class NumpyBackend(BackendBaseClass):
         self.fft = np.fft
         self.all = np.all
         self.random = np.random
+        self.sinc = np.sinc
         self.isnan = np.isnan
         self.sum = np.sum
         self.sqrt = np.sqrt
@@ -777,6 +779,7 @@ class CupyBackend(BackendBaseClass):
         self.fft = cp.fft
         self.all = cp.all
         self.random = cp.random
+        self.sinc = cp.sinc
         self.isnan = cp.isnan
         self.sum = cp.sum
         self.sqrt = cp.sqrt
