@@ -61,7 +61,8 @@ class PotentialWellHelper:
     def __init__(self, time_axis: NumpyArray, voltage_axis: NumpyArray):
         self.time_axis = np.array(time_axis)
         self.voltage_axis = np.array(voltage_axis)
-        self.bucket_list = self._analyze_buckets()
+        bucket_list = self._analyze_buckets()
+        self.bucket_list = self._purge_duplicates_off_by_one(bucket_list)
 
     def _analyze_buckets(self) -> NumpyArray:
         """
@@ -346,3 +347,42 @@ class PotentialWellHelper:
             slices.append(slice(int(start), int(stop)))
 
         return slices
+
+    def _purge_duplicates_off_by_one(
+        self, bucket_list: list[tuple[float, float]]
+    ) -> list[tuple[float, float]]:
+        """
+        Purge duplicate buckets from bucket list.
+
+        This routine also considers off by one with respect to
+        `self.time_axis`, that naturally appears when dealing
+        with the epsilon region around the threshold.
+
+        Parameters
+        ----------
+        bucket_list
+            The bucket list with ``([t_start, t_stop], ...)``.
+
+        Returns
+        -------
+        bucket_list_clean
+            The cleaned bucket list with ``([t_start, t_stop], ...)``.
+        """
+        x = np.asarray(self.time_axis)
+        b = np.asarray(bucket_list)
+        N_BUCKETS_MIN = 2
+        if len(b) < N_BUCKETS_MIN:
+            return bucket_list
+
+        # nearest index in x for each border value
+        left_idx = np.abs(x[:, None] - b[:, 0]).argmin(axis=0)
+        right_idx = np.abs(x[:, None] - b[:, 1]).argmin(axis=0)
+
+        idx = np.column_stack((left_idx, right_idx))
+        canon = idx // 2
+        _, keep = np.unique(canon, axis=0, return_index=True)
+        filtered_idx = idx[np.sort(keep)]
+        filtered_borders = np.column_stack(
+            (x[filtered_idx[:, 0]], x[filtered_idx[:, 1]])
+        )
+        return filtered_borders
