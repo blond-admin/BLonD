@@ -15,6 +15,7 @@ import numpy as np
 from blond import (
     ConstantMagneticCycle,
     DriftSimple,
+    MultiHarmonicRFStation,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -34,7 +35,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.impedances.base import WakeFieldSolver, WakeFieldSource
 
 
-def single_section_simulation(
+def single_section_simulation(  # noqa: PLR0912
     circumference: float,
     cycle: float | NumpyArray,
     cycle_unit: SynchronousDataTypes,
@@ -43,6 +44,7 @@ def single_section_simulation(
     voltage: float | ScheduledBaseClass,
     phi_rf: float | ScheduledBaseClass,
     harmonic: float | ScheduledBaseClass,
+    n_hamonmics: int,
     sources: tuple[WakeFieldSource, ...] | None = None,
     solver: WakeFieldSolver | None = None,
     cutoff_frequency: float | None = None,
@@ -78,6 +80,8 @@ def single_section_simulation(
         RF station's design phase, in [rad].
     harmonic
         RF station's design harmonic [].
+    n_hamonmics
+        Number of harmonics.
     sources
         Impedance sources.
     solver
@@ -92,6 +96,7 @@ def single_section_simulation(
     simulation
         The `Simulation` object ready for beam matching and simulation.
     """
+    assert n_hamonmics > 0, f"{n_hamonmics=}"
     if isinstance(cycle, float):
         _cycle = ConstantMagneticCycle(
             reference_particle=particle_type,
@@ -114,34 +119,42 @@ def single_section_simulation(
     drift = DriftSimple(
         orbit_length=ring.closed_orbit_length,
     )
-    if isinstance(momentum_compaction_factor, float):
+    if not isinstance(momentum_compaction_factor, ScheduledBaseClass):
         drift.momentum_compaction_factor = momentum_compaction_factor
     else:
         drift.schedule(
             "momentum_compaction_factor", momentum_compaction_factor
         )
+    ring.add_element(drift)
 
-    rf_station = SingleHarmonicRFStation()
+    if n_hamonmics == 1:
+        rf_station = SingleHarmonicRFStation()
+    else:
+        rf_station = MultiHarmonicRFStation(
+            n_harmonics=n_hamonmics,
+            main_harmonic_idx=0,
+        )
 
-    if isinstance(voltage, float):
+    if not isinstance(voltage, ScheduledBaseClass):
         rf_station.voltage = voltage
     else:
         rf_station.schedule("voltage", voltage)
 
-    if isinstance(phi_rf, float):
+    if not isinstance(phi_rf, ScheduledBaseClass):
         rf_station.phi_rf = phi_rf
     else:
         rf_station.schedule("phi_rf", phi_rf)
 
-    if isinstance(harmonic, float):
+    if not isinstance(harmonic, ScheduledBaseClass):
         rf_station.harmonic = harmonic
     else:
         rf_station.schedule("harmonic", harmonic)
 
-    ring.add_element(drift)
     ring.add_element(rf_station)
+
     if sources is not None:
         assert solver is not None
+        assert cutoff_frequency is not None
         profile = StaticProfile.from_cutoff(
             cut_left=0,
             cut_right=_cycle.get_t_rev_init(
