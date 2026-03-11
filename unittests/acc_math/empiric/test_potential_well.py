@@ -269,7 +269,6 @@ class TestPotentialWellHelper(unittest.TestCase):
 
     def test_analyze_bug2(self):
         DEV_DEBUG = False
-        pinned_ = [[4.00e-08, 1.12e-07]]  # TODO pinn values for testing.
 
         for i in range(3):
             data = np.load(
