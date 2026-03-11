@@ -320,7 +320,7 @@ test_documentation_building:
   artifacts:
     paths:
       - ${project_root}/docs/_build/html
-    expire_in: 1 week
+    expire_in: 1 hour
     when: always
 
 
