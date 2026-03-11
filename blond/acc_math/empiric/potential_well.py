@@ -48,6 +48,14 @@ class PotentialWellHelper:
     bucket_list
         Array of shape (N, 2) containing `(start_time, stop_time)` for
         each detected bucket.
+
+    Examples
+    --------
+    >>> xs = np.linspace(0.4, 6 * np.pi - 0.3, 1000)
+    >>> ys = np.cos(xs)
+    >>> pwh = PotentialWellHelper(xs, ys)
+    >>> pwh.plot()
+    >>> plt.show()
     """
 
     def __init__(self, time_axis: NumpyArray, voltage_axis: NumpyArray):
@@ -72,10 +80,102 @@ class PotentialWellHelper:
         y = self.voltage_axis
         x = self.time_axis
 
-        epsilon = 0.1 / 100 * (np.max(y) - np.min(y))
-
         maxima_indices, _ = find_peaks(y)
+
+        if len(maxima_indices) == 0:
+            buckets = self._find_single_partial_bucket(x, y)
+        else:
+            buckets = self._find_n_complete_buckets(maxima_indices, x, y)
+            buckets = self._handle_border(maxima_indices, x, y, buckets)
+        return np.array(buckets)
+
+    def _find_single_partial_bucket(
+        self, x: NumpyArray, y: NumpyArray
+    ) -> list[tuple[float, float]]:
+        """
+        Identify a single partial bucket.
+
+        Partial buckets appear, when there is no maximum in the data
+        or when there is a single maximum, but no normal bucket can be detected
+        because all values are below the maximum.
+        This will happen for partial single buckets, two incomplete buckets,
+        or the leftmost and rightmost bucket in a multi-bucket dataset.
+
+        Parameters
+        ----------
+        x : NumpyArray
+            Array of x-coordinates corresponding to the `y` values.
+        y : NumpyArray
+            Array of y-coordinates representing the signal or data.
+
+        Returns
+        -------
+        list of tuple of float
+            A list containing at most one tuple `(x_start, x_end)` representing
+            the partial bucket. Returns an empty list if no partial bucket is detected.
+
+        Notes
+        -----
+        - The threshold is set to the smaller of the first or last y-value.
+        - Local minima are found using `find_peaks(-y)`; the bucket is created
+          only if exactly one minimum exists.
+        - The bucket spans the region where the signal is below the threshold
+          at the boundary.
+        """
         buckets = []
+        minima_indices, _ = find_peaks(-y)
+
+        thershold = min(float(y[0]), float(y[-1]))
+        mask = y <= thershold
+        if len(minima_indices) == 1:
+            start = int(np.argmax(mask))
+            stop = int(len(x) - np.argmax(mask[::-1])) - 1
+            buckets.append(
+                (
+                    x[min(start, stop)],
+                    x[max(start, stop)],
+                )
+            )
+        return buckets
+
+    def _find_n_complete_buckets(
+        self, maxima_indices: NumpyArray, x: NumpyArray, y: NumpyArray
+    ) -> list[tuple[float, float]]:
+        """
+        Identify buckets around local maxima in the `y` data.
+
+        For each local maximum specified by `maxima_indices`, this function
+        searches to the left and right of the maximum to find the extent
+        where the values remain close to the maximum within a small epsilon.
+        Each such contiguous region is returned as a tuple of `(x_start, x_end)`
+        coordinates corresponding to the boundaries of the region.
+
+        Parameters
+        ----------
+        maxima_indices : NumpyArray
+            Array of indices corresponding to local maxima in `y`.
+        x : NumpyArray
+            Array of x-coordinates corresponding to the `y` values.
+        y : NumpyArray
+            Array of y-coordinates representing the signal or data from which
+            maxima are identified.
+
+        Returns
+        -------
+        list of tuple of float
+            A list of tuples, where each tuple contains the start and end
+            `x` coordinates defining the region (bucket) around a local maximum.
+
+        Notes
+        -----
+        - An epsilon tolerance is used to define the region around the maximum,
+          calculated as `0.1%` of the total `y` range.
+        - Buckets are identified separately for each maximum and are inclusive
+          of the maximum's x-coordinate.
+        - The function assumes `x` and `y` are 1-dimensional arrays of the same length.
+        """
+        buckets = []
+        epsilon = 0.1 / 100 * (np.max(y) - np.min(y))
 
         for nth_maximum in range(len(maxima_indices)):  # type: ignore
             max_idx: int = maxima_indices[nth_maximum]  # type: ignore
@@ -112,8 +212,74 @@ class PotentialWellHelper:
                             )
                         )
                         break
+        return buckets
 
-        return np.array(buckets)
+    def _handle_border(
+        self,
+        maxima_indices: NumpyArray,
+        x: NumpyArray,
+        y: NumpyArray,
+        buckets: list[tuple[float, float]],
+    ) -> list[tuple[float, float]]:
+        """
+        Extend buckets to include partial regions at the borders of the data.
+
+        This function checks for potential regions (buckets) at the beginning
+        and end of the `x` and `y` arrays that are not captured by the
+        identified local maxima. It uses `_find_single_partial_bucket` to
+        detect these border regions and appends or prepends them to the
+        existing list of complete buckets.
+
+        Parameters
+        ----------
+        maxima_indices : NumpyArray
+            Array of indices corresponding to local maxima in `y`.
+        x : NumpyArray
+            Array of x-coordinates corresponding to the `y` values.
+        y : NumpyArray
+            Array of y-coordinates representing the signal or data from which
+            maxima are identified.
+        buckets : list of tuple of float
+            Existing list of buckets (start and end x-coordinates) around maxima.
+
+        Returns
+        -------
+        list of tuple of float
+            Updated list of buckets including potential partial regions at
+            the left and right borders of the data.
+
+        Notes
+        -----
+        - The left border region is checked from the start of `x` to the
+          first maximum.
+        - The right border region is checked from the last maximum to the
+          end of `x`.
+        """
+        # left
+        start = 0
+        stop = maxima_indices[0] + 1
+        sel = slice(start, stop)
+        bucket = self._find_single_partial_bucket(x[sel], y[sel])
+        if len(bucket) > 0:
+            # prepend
+            buckets = bucket + buckets
+
+        # right
+        start = maxima_indices[-1]
+        stop = len(x)
+        sel = slice(start, stop)
+        bucket = self._find_single_partial_bucket(x[sel], y[sel])
+        if len(bucket) > 0:
+            b = bucket[0]
+            bucket = [
+                (
+                    b[0],
+                    b[1],
+                )
+            ]
+            # append
+            buckets = buckets + bucket
+        return buckets
 
     def plot(self) -> None:
         """

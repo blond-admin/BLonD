@@ -9,6 +9,75 @@ from blond.handle_results.helpers import callers_relative_path
 
 
 class TestPotentialWellHelper(unittest.TestCase):
+    def test_single_not_bucket(self):
+        DEV_PLOT = False
+        xs = np.linspace(-0, 1, 1000)
+        if DEV_PLOT:
+            plt.subplot(3, 1, 1)
+        ys = np.sin(xs)
+        pwh = PotentialWellHelper(xs, ys)
+        if DEV_PLOT:
+            pwh.plot()
+        if DEV_PLOT:
+            plt.show()
+        self.assertEqual(len(pwh.bucket_list), 0)
+
+    def test_single_not_bucket2(self):
+        DEV_PLOT = False
+        xs = np.linspace(-0, 1, 1000)
+        if DEV_PLOT:
+            plt.subplot(3, 1, 1)
+        ys = np.cos(xs)
+        pwh = PotentialWellHelper(xs, ys)
+        if DEV_PLOT:
+            pwh.plot()
+        if DEV_PLOT:
+            plt.show()
+
+        self.assertEqual(len(pwh.bucket_list), 0)
+
+    def test_single_bucket(self):
+        DEV_PLOT = False
+        xs = np.linspace(0.4, 2 * np.pi - 0.3, 1000)
+        if DEV_PLOT:
+            plt.subplot(3, 1, 1)
+        ys = np.cos(xs)
+        pwh = PotentialWellHelper(xs, ys)
+        if DEV_PLOT:
+            pwh.plot()
+        if DEV_PLOT:
+            plt.show()
+
+        self.assertEqual(len(pwh.bucket_list), 1)
+
+    def test_double_bucket(self):
+        DEV_PLOT = False
+        xs = np.linspace(0.4, 4 * np.pi - 0.3, 1000)
+        if DEV_PLOT:
+            plt.subplot(3, 1, 1)
+        ys = np.cos(xs)
+        pwh = PotentialWellHelper(xs, ys)
+        if DEV_PLOT:
+            pwh.plot()
+        if DEV_PLOT:
+            plt.show()
+
+        self.assertEqual(len(pwh.bucket_list), 2)
+
+    def test_triple_bucket(self):
+        DEV_PLOT = True
+        xs = np.linspace(0.4, 6 * np.pi - 0.3, 1000)
+        if DEV_PLOT:
+            plt.subplot(3, 1, 1)
+        ys = np.cos(xs)
+        pwh = PotentialWellHelper(xs, ys)
+        if DEV_PLOT:
+            pwh.plot()
+        if DEV_PLOT:
+            plt.show()
+
+        self.assertEqual(len(pwh.bucket_list), 3)
+
     def test_analyze_buckets(self):
         DEV_PLOT = False
         xs = np.linspace(-10, 20, 1000)
@@ -97,9 +166,9 @@ class TestPotentialWellHelper(unittest.TestCase):
         expected_mask = np.ones(len(xs), dtype=bool)
 
         with patch.object(
-                PotentialWellHelper,
-                "get_in_bucket_mask",
-                return_value=expected_mask,
+            PotentialWellHelper,
+            "get_in_bucket_mask",
+            return_value=expected_mask,
         ):
             mask = pwh.get_in_bucket_mask()
             slices = pwh.get_principal_bucket_slices()
@@ -123,13 +192,14 @@ class TestPotentialWellHelper(unittest.TestCase):
 
     def test_analyze_bug(self):
         DEV_DEBUG = True
-        pinned_ = [[4.00e-08, 1.12e-07]] # TODO pinn values for testing.
+        pinned_ = [[4.00e-08, 1.12e-07]]  # TODO pinn values for testing.
 
         for i in range(3):
             data = np.load(
                 callers_relative_path(
                     f"resources/test_potential_complex_case{i}.npz",
-                    stacklevel=1)
+                    stacklevel=1,
+                )
             )
             xs = data["time_array"]
             ys = data["voltage_array"]
