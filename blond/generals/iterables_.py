@@ -8,6 +8,8 @@
 
 """Functions that help dealing with iterables."""
 
+from __future__ import annotations
+
 from collections.abc import Iterable
 from typing import TypeVar
 
@@ -46,3 +48,25 @@ def all_equal(iterable: Iterable[T]) -> bool:
     except StopIteration:
         return True  # Empty iterable → considered all equal
     return all(x == first for x in iterator)
+
+
+def _as_tuple(
+    maybe_sequence: T | Iterable[T],
+) -> tuple[T, ...]:
+    """
+    Guarantee that the result is a tuple of beams.
+
+    Parameters
+    ----------
+    maybe_sequence
+        Single beam instance or multiple beams.
+
+    Returns
+    -------
+    beams
+        Tuple of at least one beam.
+    """
+    try:
+        return tuple(s for s in maybe_sequence)
+    except TypeError:
+        return tuple(maybe_sequence)

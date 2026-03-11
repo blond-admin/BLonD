@@ -44,13 +44,14 @@ from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
+from blond.generals.iterables_ import _as_tuple
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Literal, TypeVar
+    from typing import Any, Literal
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -73,33 +74,9 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
     CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]
-    T = TypeVar("T")
 
 
 logger = logging.getLogger(__name__)
-
-
-def _single_item_to_tuple(
-    maybe_sequence: T | tuple[T, ...],
-) -> tuple[T, ...]:
-    """
-    Guarantee that the result is a tuple of beams.
-
-    Parameters
-    ----------
-    maybe_sequence
-        Single beam instance or multiple beams.
-
-    Returns
-    -------
-    beams
-        Tuple of at least one beam.
-    """
-    return (
-        maybe_sequence
-        if isinstance(maybe_sequence, Sequence)
-        else (maybe_sequence,)
-    )
 
 
 class Simulation(Preparable):
@@ -1065,7 +1042,11 @@ class Simulation(Preparable):
         >>>     ...
         >>> my_callback.each_turn_i = 2
         """
-        beams = _single_item_to_tuple(beams)
+        beams = _as_tuple(beams)
+        observe = _as_tuple(observe)
+        if callbacks is not None:
+            callbacks = _as_tuple(callbacks)
+
         self.execution_model.mainloop(
             simulation=self,
             beams=beams,
@@ -1247,8 +1228,10 @@ class Simulation(Preparable):
         >>>     ...
         >>> my_callback.each_turn_i = 2
         """
-        beams = _single_item_to_tuple(beams)
-        observe = _single_item_to_tuple(observe)
+        beams = _as_tuple(beams)
+        observe = _as_tuple(observe)
+        if callbacks is not None:
+            callbacks = _as_tuple(callbacks)
 
         logger.info(f"Running `run_simulation` with {locals()}")
         n_turns = (
@@ -1327,7 +1310,8 @@ class Simulation(Preparable):
           object to allow discovery by the initialization system.
         - Performance warnings are issued if using Python backend with many particles.
         """
-        beams = _single_item_to_tuple(beams)
+        beams = _as_tuple(beams)
+        observe = _as_tuple(observe)
         if self.execution_model is None:
             self._autoselect_execution_model(beams)
 
