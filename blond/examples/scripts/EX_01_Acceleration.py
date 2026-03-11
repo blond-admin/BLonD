@@ -42,9 +42,8 @@ def main():
 
     N_TURNS = int(1e3)
 
-    energy_cycle = MagneticCyclePerTurn(
-        value_init=450e9,
-        values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+    energy_cycle = MagneticCyclePerTurn.init_from_linspace(
+        values=np.linspace(450e9, 450e9, N_TURNS + 1),
         reference_particle=proton,
     )
 
