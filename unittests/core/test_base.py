@@ -15,6 +15,7 @@ from blond.core.base import (
     Schedulable,
     ScheduledArray,
     ScheduledInterpolation,
+    ScheduledConstant,
     UnsafeUserElement,
     UserDefinedElement,
     get_scheduler,
@@ -290,8 +291,6 @@ class TestSchedulable(unittest.TestCase):
     def test_schedule(self):
         schedulable = Schedulable()
         schedulable.voltage = None
-        with self.assertRaises(ValueError):
-            schedulable.schedule("voltage", 1)
         schedulable.schedule("voltage", np.ones(10))
         schedulable.schedule(
             "voltage",
@@ -328,8 +327,14 @@ class TestMultiSchedules(unittest.TestCase):
                                                      np.array([100, 200]))
 
     @multi_backend_testcase
-    def test_get_scheduler_array(self):
+    def test_get_scheduler_constant(self):
+        scheduler = get_scheduler(0)
+        self.assertIsInstance(scheduler, ScheduledConstant)
+        self.assertEqual(scheduler.get_scheduled(0, 0), 0)
+        self.assertEqual(scheduler.get_scheduled(1, 1), 0)
 
+    @multi_backend_testcase
+    def test_get_scheduler_array(self):
         for element in self.all_turn_based:
             scheduler = get_scheduler(element)
             self.assertIsInstance(scheduler, ScheduledArray)
@@ -364,21 +369,21 @@ class TestMultiSchedules(unittest.TestCase):
                 schedulable.apply_schedules(turn, time)
                 self.assertEqual(target, schedulable.test)
 
-
     @multi_backend_testcase
     def test_schedule_multi(self):
-
         schedulable = Schedulable()
         schedulable.test = 0
 
-        schedulable.schedule("test", *self.all_elements)
+        schedulable.schedule("test", *self.all_elements, 0)
 
         all_schedulers = []
-        for element in self.all_elements:
+        for element in self.all_elements + [0]:
             all_schedulers.append(get_scheduler(element))
 
         for turn, time in enumerate(np.linspace(0, 5, 10)):
-            target = np.array([s.get_scheduled(turn, time) for s in all_schedulers])
+            target = np.array(
+                [s.get_scheduled(turn, time) for s in all_schedulers]
+            )
 
             schedulable.apply_schedules(turn, time)
             value = schedulable.test

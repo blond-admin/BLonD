@@ -14,6 +14,7 @@ import logging
 import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
+import numbers
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -23,6 +24,7 @@ from blond.generals.cupy import no_cupy_import
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
+    from numbers import Number
     from os import PathLike
     from typing import Any, TypeVar
 
@@ -179,7 +181,7 @@ class Schedulable:
     def schedule(
         self,
         attribute: str,
-        *args: tuple[SchedulerBaseClass | ArrayLike],
+        *args: tuple[SchedulerBaseClass | ArrayLike | Number],
     ) -> None:
         """
         Schedule a parameter to change dynamically during the simulation.
@@ -800,8 +802,45 @@ class ScheduledInterpolation(SchedulerBaseClass):
         return self.interpolator(reference_time)
 
 
+class ScheduledConstant(SchedulerBaseClass):
+    """
+    Schedule value that does not change.
+
+    Parameters
+    ----------
+    value
+        Fixed value.
+    """
+
+    def __init__(self, value: Number) -> None:
+        super().__init__()
+        self.value = value
+
+    def get_scheduled(
+        self,
+        turn_i: int,
+        reference_time: float,
+    ) -> NumpyArray | CupyArray:
+        """
+        Get the value of the schedule for the current turn.
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index.
+        reference_time
+            Current time, in [s].
+
+        Returns
+        -------
+        value
+            The scheduled value for the current turn.
+        """
+        return self.value
+
+
 def get_scheduler(
-    value: ArrayLike,
+    value: ArrayLike | Number,
 ) -> SchedulerBaseClass:
     """
     Auto-select the correct class of the schedulers.
@@ -809,6 +848,7 @@ def get_scheduler(
     Parameters
     ----------
     value
+        Number - constant value
         Array - per turn
         (Array, Array) - time vs value, to be interpolated.
 
@@ -817,17 +857,21 @@ def get_scheduler(
     scheduler
         The appropriate scheduler instance.
     """
-    value = backend._asarray_if_needed(value)
-    match value.shape:
-        case (_,):
-            schedule = ScheduledArray(values=value)
-        case _, _:
-            schedule = ScheduledInterpolation(times=value[0], values=value[1])
-        case _:
-            raise ValueError(
-                "Scheduler input must be either 1D for turn-based or 2D"
-                " for time-based"
-            )
+    if isinstance(value, numbers.Number):
+        schedule = ScheduledConstant(value)
+
+    else:
+        value = backend._asarray_if_needed(value)
+        match value.shape:
+            case (_,):
+                schedule = ScheduledArray(values=value)
+            case _, _:
+                schedule = ScheduledInterpolation(times=value[0], values=value[1])
+            case _:
+                raise ValueError(
+                    "Scheduler input must be either 1D for turn-based or 2D"
+                    " for time-based"
+                )
 
     return schedule
 
