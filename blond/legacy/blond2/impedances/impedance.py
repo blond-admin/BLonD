@@ -1295,9 +1295,9 @@ class InducedVoltageResonator(_InducedVoltage):
         self._section_time_distance_array = np.zeros(self.rf_params.n_turns * n_stations)
         beta_arrays = []
         section_length_arrays = []
-        for _ in range(n_stations):
-            beta_arrays.append(rf_station_list[_].beta.tolist())
-            section_length_arrays.append(rf_station_list[_].section_length)
+        for station_ind in range(n_stations):
+            beta_arrays.append(rf_station_list[station_ind].beta.tolist())
+            section_length_arrays.append(rf_station_list[station_ind].section_length)
         beta_array = np.array([result for combination in zip(*beta_arrays) for result in combination])
 
         own_section_index = self.rf_params.section_index
@@ -1356,9 +1356,10 @@ class InducedVoltageResonator(_InducedVoltage):
         time_array
             Array to calculate the MTW array on, taking into account the beta change between stations.
         """
-        return np.array([_ + self._inter_turn_time for _ in np.concatenate((np.array([0]),
-                                                                            np.cumsum(self._section_time_distance_array[
-                                                                                          turn:max(turn + self._n_turns_calculation, self.rf_params.n_turns)])))]).flatten()
+        turn_times = self._section_time_distance_array[turn:max(turn + self._n_turns_calculation, self.rf_params.n_turns)]
+        turn_times = np.concatenate((np.array([0]), np.cumsum(turn_times)))
+        time_axis_for_mtw_per_turn = np.array([turn_time + self._inter_turn_time for turn_time in turn_times])
+        return time_axis_for_mtw_per_turn.flatten()
 
     def induced_voltage_1turn(self, beam_spectrum_dict: Dict[Any, Any] = {}):
         r"""

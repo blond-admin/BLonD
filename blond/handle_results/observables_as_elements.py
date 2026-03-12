@@ -507,11 +507,9 @@ class InducedVoltageObservationCR(
             Beam class to interact with this element.
         """
         try:
-            if all(
-                np.zeros_like(
-                    self._single_harmonic_cavity._local_wakefield.induced_voltage
-                )
-                == self._single_harmonic_cavity._local_wakefield.induced_voltage
+            if np.all(
+                self._single_harmonic_cavity._local_wakefield.induced_voltage
+                == 0
             ):
                 warnings.warn(
                     f"no induced voltage calculated yet {beam.is_counter_rotating} in turn {self._single_harmonic_cavity._turn_i.value} for {self._single_harmonic_cavity.name}",
@@ -532,7 +530,7 @@ class InducedVoltageObservationCR(
             ]
         ):
             logging.debug(f"data was equivalent {beam.is_counter_rotating}")
-            return
+            return  # return early on duplicate data
         self._induced_voltage.write(
             self._single_harmonic_cavity._local_wakefield.induced_voltage
         )

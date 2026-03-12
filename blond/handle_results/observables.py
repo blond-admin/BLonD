@@ -30,7 +30,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import WakeField
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import SingleHarmonicRFStation
+    from blond.physics.cavities import (
+        RFStationBaseClass,
+        SingleHarmonicRFStation,
+    )
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
@@ -649,7 +652,7 @@ class RFStationInducedVoltageObservation(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
-        rf_station: SingleHarmonicRFStation,
+        rf_station: RFStationBaseClass,
         folder: str = "",
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
@@ -677,16 +680,16 @@ class RFStationInducedVoltageObservation(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
+        if len(simulation._beams) != 1:
+            raise RuntimeError(
+                "counterrotation is not supported, please refer to blond.handle_results.observables_as_elements.InducedVoltageObservationCR"
+            )
+
         super().on_run_simulation(
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
         )
-
-        if len(simulation._beams) != 1:
-            raise RuntimeError(
-                "counterrotation is not supported, please refer to blond.handle_results.observables_as_elements.InducedVoltageObservationCR"
-            )
 
         n_entries = n_turns // self.each_turn_i + 1
         n_profile_entries = len(

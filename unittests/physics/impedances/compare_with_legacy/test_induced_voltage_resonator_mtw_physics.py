@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as sig
-from scipy.constants import e
+from scipy.constants import c, e
 
 from blond import Beam as beam_b3
 from blond import (
@@ -121,7 +121,7 @@ class InducdedVoltageResonator(unittest.TestCase):
         )
 
         rf_station_list = []
-        for _ in range(self.n_stations):
+        for station_ind in range(self.n_stations):
             rf_station_list.append(
                 RFStation(
                     ring,
@@ -129,7 +129,7 @@ class InducdedVoltageResonator(unittest.TestCase):
                     self.voltage_per_rf_station,
                     0,
                     n_rf=1,
-                    section_index=_ + 1,
+                    section_index=station_ind + 1,
                 )
             )  # amazing indexing
 
@@ -161,13 +161,13 @@ class InducdedVoltageResonator(unittest.TestCase):
         )  # low Q for fast decay in small machine, although phasing will dominate
 
         ind_volt_list = []
-        for _ in range(self.n_stations):
+        for station_ind in range(self.n_stations):
             ind_volt_list.append(
                 InducedVoltageResonator(
                     self.beam,
                     self.profile,
                     resonator,
-                    rf_station=rf_station_list[_],
+                    rf_station=rf_station_list[station_ind],
                     rf_station_list=rf_station_list,
                     mtw_mode="time",
                     time_decay_factor=1e-12,
@@ -189,9 +189,11 @@ class InducdedVoltageResonator(unittest.TestCase):
 
         beta_arrays = []
         section_length_arrays = []
-        for _ in range(self.n_stations):
-            beta_arrays.append(rf_station_list[_].beta.tolist())
-            section_length_arrays.append(rf_station_list[_].section_length)
+        for station_ind in range(self.n_stations):
+            beta_arrays.append(rf_station_list[station_ind].beta.tolist())
+            section_length_arrays.append(
+                rf_station_list[station_ind].section_length
+            )
         beta_array = np.array(
             [
                 result
@@ -207,7 +209,6 @@ class InducdedVoltageResonator(unittest.TestCase):
         section_length_array_extended = np.array(
             section_length_array_extended
         ).flatten()
-        from scipy.constants import c
 
         section_time = (
             1
