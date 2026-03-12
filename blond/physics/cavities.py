@@ -1149,6 +1149,41 @@ class SingleHarmonicRFStation(
         )
         return single_harmonic_rf_station
 
+    def symbolic_hamiltonian(self, q, p, beam: BeamBaseClass, ring: Ring):
+        """
+        Return the symbolic Hamiltonian of the RF kick.
+
+        Parameters
+        ----------
+        q
+            Canonical coordinate Δt.
+        p
+            Canonical momentum ΔE.
+        beam
+            Beam with reference attached.
+        ring
+            Ring object to access circumference.
+
+        Returns
+        -------
+        H
+            SymPy expression of RF Hamiltonian.
+        """
+        import sympy as sp
+
+        V = self.voltage
+        phi = self.phi_rf
+        charge = beam.reference.particle_type.charge
+
+        beta = beam.reference.beta
+        circumference = ring.circumference
+        harmonic = self.harmonic
+
+        # RF angular frequency
+        omega_rf = 2 * sp.pi * harmonic * beta * sp.Symbol("c") / circumference
+
+        return -(charge * V / omega_rf) * sp.cos(omega_rf * q + phi)
+
 
 class MultiHarmonicRFStation(RFStationBaseClass):
     r"""
