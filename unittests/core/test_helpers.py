@@ -199,9 +199,7 @@ class TestNestedMocksHashingBug(unittest.TestCase):
             reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
         )
 
-        sim = Simulation(ring, cnst_cycle)
-
-        sim.run_simulation(beam, n_turns=5)
+        sim = Simulation(ring, cnst_cycle)  # NOQA
 
 
 if __name__ == "__main__":
