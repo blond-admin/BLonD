@@ -516,12 +516,15 @@ class InducedVoltageObservationCR(
                     stacklevel=1,
                 )
                 return
-        except AttributeError:
-            warnings.warn(
-                f"not calculated yet {beam.is_counter_rotating} in turn {self._single_harmonic_cavity._turn_i.value} for {self._single_harmonic_cavity.name}",
-                stacklevel=1,
-            )
-            return
+        except AttributeError as orig_exception:
+            if "Use `calc_induced_voltage` first!" in orig_exception.args[0]:
+                warnings.warn(
+                    f"not calculated yet {beam.is_counter_rotating} in turn {self._single_harmonic_cavity._turn_i.value} for {self._single_harmonic_cavity.name}",
+                    stacklevel=1,
+                )
+                return
+            else:
+                raise orig_exception
 
         if all(
             self._single_harmonic_cavity._local_wakefield.induced_voltage
