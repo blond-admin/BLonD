@@ -124,7 +124,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
 
     def __init__(
         self,
-        section_index: int,
+        section_index: int = 0,
         name: str | None = None,
         share_of_radiation_integrals: NumpyArray | None = None,
         disable_quantum_excitation: bool = False,
