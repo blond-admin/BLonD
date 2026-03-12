@@ -8,11 +8,11 @@
 
 """Ramp Blond Xsuite LHC Map Integration Tests."""
 
-# pragma: no cover
-
 import numpy as np
 import xpart as xp
 import xtrack as xt
+
+# pragma: no cover
 from scipy.constants import c
 
 from blond import SingleHarmonicRFStation
@@ -71,7 +71,7 @@ def run_simulation(n_turns: int, init_distribution: dict):
         circumference=circumference,
         total_energy=None,
         is_below_transition=None,
-        beam_reference_beta=line.particle_ref.beta0,
+        beam_reference_beta=float(line.particle_ref.beta0[0]),
     )
 
     particles = line.build_particles(

@@ -228,6 +228,27 @@ class BLonD3Cavity:
         # expected to be mocked from `headless` cavity..
         self._cavity._ring.is_below_transition.return_value = bool(eta < 0)  # ty:ignore[unresolved-attribute]
 
+    def set_time_shift(self):
+        """
+        Calculate the time shift of the BLonD beam coordinates and Xsuite.
+
+        Sets the self.dt_shift attribute.
+        """
+        # This is a tricky part, because its glue-code between BLonD 3 and
+        # XSuite.
+        # It is verified by means of an integration test.
+
+        omega_rf = float(
+            self._cavity.calc_main_harmonic_omega_rf_design(
+                beam_beta=self._beam.reference.beta,
+                ring_circumference=self._line.get_length(),
+            )
+        )
+        phi_s = float(self._cavity.calc_phi_s_main_harmonic(beam=self._beam))
+
+        self._dt_shift = phi_s / omega_rf  # differs to BLonD 2
+
+    # For XSuite
     def track(self, particles: XSuiteParticles):
         """
         Track particles through the wrapped BLonD element.
@@ -242,6 +263,9 @@ class BLonD3Cavity:
         particles
             Xsuite particles to be tracked.
         """
+        reference_total_energy = float(self._line.particle_ref.energy0[0])
+        self._beam.reference.total_energy = float(reference_total_energy)
+
         # Convert xsuite -> blond
         # update time shift
         self.set_time_shift()
@@ -253,9 +277,9 @@ class BLonD3Cavity:
 
         self.xsuite_to_blond_transform_particles(particles, self._beam)
 
-        p0c_after = self._line.particle_ref.p0c
+        p0c_after = float(self._line.particle_ref.p0c[0])
 
-        mass0 = particles.mass0
+        mass0 = float(particles.mass0)
 
         E0_after = np.sqrt(p0c_after**2 + mass0**2)
 
@@ -272,20 +296,6 @@ class BLonD3Cavity:
         self.blond_to_xsuite_transform_particles(particles, self._beam)
 
         self._apply_orbit_shift(particles)
-
-    def set_time_shift(self):
-        """
-        Calculate the time shift of the BLonD beam coordinates and Xsuite.
-
-        Sets the self.dt_shift attribute.
-        """
-        omega_rf = self._cavity.calc_main_harmonic_omega_rf_design(
-            beam_beta=self._beam.reference.beta,
-            ring_circumference=self._line.get_length(),
-        )
-        phi_s = self._cavity.calc_phi_s_main_harmonic(beam=self._beam)
-
-        self._dt_shift = phi_s / omega_rf  # differs to BLonD 2
 
     def calc_phi_s(self):
         """
@@ -345,7 +355,7 @@ class BLonD3Cavity:
             BLonD beam object whose `dt` and `dE` arrays are updated.
         """
         active_mask = particles.state > 0
-        n_active = active_mask.sum()
+        n_active = int(active_mask.sum())
 
         # Energy deviation
         dt = beam.write_partial_dt()
@@ -373,6 +383,7 @@ class BLonD3Cavity:
 
         beam.purge_flagged_entries()
 
+    # TODO test backward forward consistent with losses..
     def blond_to_xsuite_transform_particles(
         self, particles: XSuiteParticles, beam: BeamBaseClass
     ):

@@ -1130,7 +1130,9 @@ class SingleHarmonicRFStation(
         )
 
         ring = Mock(Ring)
+        ring.radiation_integrals = None
         ring.circumference = circumference
+
         ring.is_below_transition.return_value = is_below_transition
 
         energy_cycle = Mock(ConstantMagneticCycle)
@@ -1489,6 +1491,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         )
 
         ring = Mock(Ring)
+        ring.radiation_integrals = None
         ring.circumference = circumference
 
         energy_cycle = Mock(ConstantMagneticCycle)

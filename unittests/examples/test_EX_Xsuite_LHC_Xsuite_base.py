@@ -16,9 +16,7 @@ class TestEX_Xsuite_LHC_Xsuite_base(unittest.TestCase):
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
-        from blond.examples import (
-            EX_Xsuite_LHC_Xsuite_base,  # NOQA will run the
-        )
+        from examples.scripts import EX_Xsuite_LHC_Xsuite_base
 
         # full script. just checking if it crashes
         EX_Xsuite_LHC_Xsuite_base.main()
@@ -27,9 +25,7 @@ class TestEX_Xsuite_LHC_Xsuite_base(unittest.TestCase):
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples import (
-            EX_Xsuite_LHC_Xsuite_base,  # NOQA will run the
-        )
+        from examples.scripts import EX_Xsuite_LHC_Xsuite_base
 
         # full script. just checking if it crashes
         EX_Xsuite_LHC_Xsuite_base.main()
@@ -43,9 +39,7 @@ class TestEX_Xsuite_LHC_Xsuite_base(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy32Bit)
         backend.set_specials("cuda")
-        from blond.examples import (
-            EX_Xsuite_LHC_Xsuite_base,  # NOQA will run the
-        )
+        from examples.scripts import EX_Xsuite_LHC_Xsuite_base
 
         # full script. just checking if it crashes
 
@@ -61,9 +55,7 @@ class TestEX_Xsuite_LHC_Xsuite_base(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples import (
-            EX_Xsuite_LHC_Xsuite_base,  # NOQA will run the
-        )
+        from examples.scripts import EX_Xsuite_LHC_Xsuite_base
 
         # full script. just checking if it crashes
         EX_Xsuite_LHC_Xsuite_base.main()
