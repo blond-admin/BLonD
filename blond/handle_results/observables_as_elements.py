@@ -14,6 +14,8 @@ Cannot be used with from_locals.
 
 from __future__ import annotations
 
+import logging
+import warnings
 from typing import Any
 
 import numpy as np
@@ -455,8 +457,7 @@ class InducedVoltageObservationCR(
             n_turns=n_turns,
         )
 
-        # count = sum([el == self for el in simulation.ring.elements.elements])
-        count = 2
+        count = 2  # 2 beams
 
         ind_volt_len = len(
             self._single_harmonic_cavity._local_wakefield._profile.hist_x
@@ -483,17 +484,17 @@ class InducedVoltageObservationCR(
 
     @property  # as readonly attributes
     def induced_voltage(self):
-        r"""
-        Induced voltage on the specified cavity object.
+        """
+        Induced voltage on the specified cavity object for both beams.
 
         Returns
         -------
-        rms_emittance
-            Root-Mean-Square emittance.
+        induced_voltage
+            Induced voltage arrays for both beams.
         """
         return self._induced_voltage.get_valid_entries()
 
-    def track(
+    def _track(
         self,
         beam: BeamBaseClass,
     ) -> None:
@@ -512,12 +513,16 @@ class InducedVoltageObservationCR(
                 )
                 == self._single_harmonic_cavity._local_wakefield.induced_voltage
             ):
-                print(
-                    f"no induced voltage calculated yet {beam.is_counter_rotating}"
+                warnings.warn(
+                    f"no induced voltage calculated yet {beam.is_counter_rotating} in turn {self._single_harmonic_cavity._turn_i.value} for {self._single_harmonic_cavity.name}",
+                    stacklevel=1,
                 )
                 return
         except AttributeError:
-            print(f"not calculated yet {beam.is_counter_rotating}")
+            warnings.warn(
+                f"not calculated yet {beam.is_counter_rotating} in turn {self._single_harmonic_cavity._turn_i.value} for {self._single_harmonic_cavity.name}",
+                stacklevel=1,
+            )
             return
 
         if all(
@@ -526,7 +531,7 @@ class InducedVoltageObservationCR(
                 self._induced_voltage._write_idx - 1
             ]
         ):
-            print(f"data was equivalent {beam.is_counter_rotating}")
+            logging.debug(f"data was equivalent {beam.is_counter_rotating}")
             return
         self._induced_voltage.write(
             self._single_harmonic_cavity._local_wakefield.induced_voltage

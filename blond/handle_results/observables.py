@@ -684,7 +684,9 @@ class RFStationInducedVoltageObservation(ObservablesOncePerTurnBase):
         )
 
         if len(simulation._beams) != 1:
-            raise RuntimeError("counterrotation is not supported")
+            raise RuntimeError(
+                "counterrotation is not supported, please refer to blond.handle_results.observables_as_elements.InducedVoltageObservationCR"
+            )
 
         n_entries = n_turns // self.each_turn_i + 1
         n_profile_entries = len(
