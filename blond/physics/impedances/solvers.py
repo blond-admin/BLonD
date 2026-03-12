@@ -710,6 +710,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     decay_fraction_threshold
         Until which fraction of the decay will the profile
         still be considered for multi-pass wake calculation.
+    allow_delta_t_zero
+        Debugging flag to allow two beams to calculate the induced
+        voltage at the same time. Should not be used in production.
+        Default is False.
 
     Attributes
     ----------
@@ -726,7 +730,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         time axes corresponding to _past_profiles.
     """
 
-    def __init__(self, decay_fraction_threshold: float = 0.001):
+    def __init__(
+        self,
+        decay_fraction_threshold: float = 0.001,
+        allow_delta_t_zero: bool = False,
+    ):
         from collections import deque
 
         warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
@@ -748,6 +756,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         self._wake_function_vals: deque[NumpyArray] = deque()
         self._wake_function_time: deque[NumpyArray] = deque()
+
+        self._allow_delta_t_zero = allow_delta_t_zero
 
     def _determine_storage_time(self):
         """
@@ -852,9 +862,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             Simulation time at the moment of calling, has to be > self._last_reference_time.
         """
         delta_t = current_time - self._last_reference_time
-        assert (
-            delta_t > 0
-        ), (  # TODO: is this stricly necessary? This would prevent itner-cavity interaction, which is probably not well modelled by this, but should be fine for benchmarking
+        assert (delta_t > 0) or self._allow_delta_t_zero, (
             f"delta t was not > 0({delta_t})"
         )  # TODO: performance = ?
         for prof_ind, profile_time in enumerate(self._past_profile_times):
