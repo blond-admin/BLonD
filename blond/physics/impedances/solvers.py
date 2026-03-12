@@ -639,12 +639,12 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         if self._parent_wakefield.profile.hist_y[0] != 0.0:
             warnings.warn(
                 "particle detected in leading edge bin, simulation might become unstable",
-                stacklevel=2,
+                stacklevel=1,
             )
         elif self._parent_wakefield.profile.hist_y[-1] != 0.0:
             warnings.warn(
                 "particle detected in trailing edge bin, simulation might become unstable",
-                stacklevel=2,
+                stacklevel=1,
             )
         self._wake_function_time = np.linspace(
             -(arr_len - 1) * hist_step,
@@ -852,9 +852,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             Simulation time at the moment of calling, has to be > self._last_reference_time.
         """
         delta_t = current_time - self._last_reference_time
-        # assert delta_t > 0, (  # TODO: is this stricly necessary? This would prevent itner-cavity interaction, which is probably not well modelled by this, but should be fine for benchmarking
-        #     f"delta t was not > 0({delta_t})"
-        # )  # TODO: performance = ?
+        assert (
+            delta_t > 0
+        ), (  # TODO: is this stricly necessary? This would prevent itner-cavity interaction, which is probably not well modelled by this, but should be fine for benchmarking
+            f"delta t was not > 0({delta_t})"
+        )  # TODO: performance = ?
         for prof_ind, profile_time in enumerate(self._past_profile_times):
             profile_time += delta_t  # NOQA # TODO test PLW2901 `for` loop variable `profile_time` overwritten by assignment target
             self._wake_function_time[prof_ind] += delta_t
