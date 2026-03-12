@@ -389,6 +389,37 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         """
         return self.momentum_compaction_factor
 
+    def symbolic_hamiltonian(self, q, p, beam: BeamBaseClass):
+        """
+        Return the symbolic Hamiltonian for this drift element.
+
+        Parameters
+        ----------
+        q
+            Canonical coordinate Δt.
+        p
+            Canonical momentum ΔE.
+        beam
+            Beam so that reference can be used.
+
+        Returns
+        -------
+        H
+            SymPy expression of the Hamiltonian.
+        """
+        gamma = beam.reference.gamma
+        beta = beam.reference.beta
+        energy = beam.reference.total_energy
+
+        eta0 = self.eta_0(gamma)
+
+        # time to cross element
+        T = self.orbit_length / beam.reference.velocity
+
+        coeff = T * eta0 / (2 * beta**2 * energy)
+
+        return coeff * p**2
+
     def invalidate_cache(self):
         """Delete the stored values of functions with @cached_property."""
         # super()._invalidate_cache(DriftSimple.cached_props)
