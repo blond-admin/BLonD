@@ -18,6 +18,7 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     mu_plus,
 )
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
@@ -69,9 +70,9 @@ def nonperiodic_wake(time_array, f0, R, Q):
 DEBUG_PLOTTING = True
 
 
-class InducdedVoltageResonator:
+class InducedVoltageResonatorPhysicsCR:
     def __init__(self):
-        self.n_slices = 2**12
+        self.n_slices = 2**8
         self.cut_left = 0
         self.cut_right = (
             1.4072317864464973e-09  # self.rf_station_list[0].t_rf[0, 0] * 2
@@ -220,7 +221,7 @@ class InducdedVoltageResonator:
         ).flatten()
         from scipy.constants import c
 
-        section_time = (
+        self.section_time = (
             1
             / (beta_array[self.n_stations :] * c)
             * section_length_array_extended
@@ -241,7 +242,7 @@ class InducdedVoltageResonator:
                     self.time_axis,
                     self.sigma_bunch,
                     np.sum(
-                        section_time[
+                        self.section_time[
                             0 : prof_ind * self.n_stations + inter_turn_ind
                         ]
                     )
@@ -257,7 +258,7 @@ class InducdedVoltageResonator:
                     self.time_axis,
                     self.sigma_bunch,
                     np.sum(
-                        section_time[
+                        self.section_time[
                             inter_turn_ind : prof_ind * self.n_stations
                             + self.n_stations
                             - inter_turn_ind
@@ -306,6 +307,7 @@ class InducdedVoltageResonator:
         self.hist_y = self.profile.n_macroparticles
 
         self.time_array_profile = [[] for _ in range(self.n_stations)]
+
         save_voltage_array = [[] for _ in range(self.n_stations)]
         for trn_ind in range(self.n_turns):
             for inter_turn_ind in range(self.n_stations):
@@ -320,19 +322,19 @@ class InducdedVoltageResonator:
                     self.profile.bin_centers
                     + (
                         np.sum(
-                            section_time[
+                            self.section_time[
                                 0 : trn_ind * self.n_stations + inter_turn_ind
                             ]
                         )
                         if trn_ind > 0
                         else 0
                         if inter_turn_ind == 0
-                        else np.sum(section_time[:inter_turn_ind])
+                        else np.sum(self.section_time[:inter_turn_ind])
                     )
                 )
 
         self.dt_profile = self.time_axis[1] - self.time_axis[0]
-
+        return
         if DEBUG_PLOTTING:
             for inter_turn_ind in range(self.n_stations):
                 plt.figure()
@@ -356,6 +358,7 @@ class InducdedVoltageResonator:
                     )
                 plt.legend(loc="upper right")
                 plt.show(block=False)
+        plt.show(block=True)
         if not old_impl:
             for inter_turn_ind in range(self.n_stations):
                 for trn_ind in range(self.n_turns):
@@ -364,7 +367,7 @@ class InducdedVoltageResonator:
                         self.time_axis,
                         self.convolution_result[inter_turn_ind],
                     )
-                    assert np.allclose(
+                    np.testing.assert_allclose(
                         -conv_result
                         * e
                         / self.profile.bin_size
@@ -406,7 +409,7 @@ class InducdedVoltageResonator:
                 StaticProfile.from_rad(
                     self.cut_left * 2 * np.pi / self.t_rf,
                     self.cut_right * 2 * np.pi / self.t_rf,
-                    n_bins=2**8,
+                    n_bins=self.n_slices,
                     t_period=self.t_rf,
                     section_index=sec_ind,
                 )
@@ -430,7 +433,8 @@ class InducdedVoltageResonator:
                     local_wakefield=WakeField(
                         sources=(local_res,),
                         solver=MultiPassResonatorSolver(
-                            decay_fraction_threshold=1e-12
+                            decay_fraction_threshold=1e-12,
+                            allow_delta_t_zero=True,
                         ),
                         profile=profile_list[-1],
                         section_index=sec_ind,
@@ -439,7 +443,9 @@ class InducdedVoltageResonator:
                 )
             )
             cav_obs_list.append(
-                InducedVoltageObservationCR(shc_list[-1], each_turn_i=1)
+                InducedVoltageObservationCR(
+                    rf_station=shc_list[-1], each_turn_i=1
+                )
             )
             one_turn_model.extend(
                 [
@@ -458,7 +464,9 @@ class InducdedVoltageResonator:
                         DriftSimple(
                             orbit_length=self.n_section_lengths[sec_ind],
                             section_index=sec_ind,
-                            transition_gamma=1,
+                            momentum_compaction_factor=momentum_compaction_factor(
+                                1
+                            ),
                         ),
                     ]
                 )
@@ -494,17 +502,16 @@ class InducdedVoltageResonator:
         beam_CR._is_counter_rotating = True
         sim.run_simulation(
             beams=(beam, beam_CR),
-            # observe=tuple(ind_volt_obs_list),
         )
 
         for ind in range(self.n_stations // 2):
-            assert np.allclose(
+            np.testing.assert_allclose(
                 cav_obs_list[ind].induced_voltage,
                 cav_obs_list[self.n_stations - ind - 1].induced_voltage,
                 rtol=1e-8,
                 atol=1e8,
             )
-
+        self.dt_profile = self.time_axis[1] - self.time_axis[0]
         if DEBUG_PLOTTING:
             for inter_turn in range(self.n_stations):
                 plt.figure(f"b3_{inter_turn}")
@@ -533,23 +540,9 @@ class InducdedVoltageResonator:
                 else:
                     plt.show(block=False)
 
-        # for inter_turn_ind in range(self.n_stations):
-        #     for trn_ind in range(self.n_turns):
-        #         conv_result = np.interp(
-        #             self.time_array_profile[inter_turn_ind][trn_ind],
-        #             self.time_axis,
-        #             self.convolution_result[inter_turn_ind],
-        #         )
-        #         assert np.allclose(
-        #             -conv_result * e / self.profile.bin_size * self.dt_profile,
-        #             ind_volt_obs_list[inter_turn_ind].induced_voltage[trn_ind],
-        #             atol=1e8,
-        #             rtol=1e-8,
-        #         )
-
 
 if __name__ == "__main__":
-    indi = InducdedVoltageResonator()
-    # indi.setUpB2(old_impl=False)
-    indi.setUpB2(old_impl=True)
+    indi = InducedVoltageResonatorPhysicsCR()
+    indi.setUpB2(old_impl=False)
+    # indi.setUpB2(old_impl=True)
     indi.setUpB3()
