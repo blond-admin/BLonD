@@ -19,7 +19,7 @@ from mpi4py import MPI
 
 from . import bmath as bm
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Callable, Dict, Optional
 
     from ..beam.beam import Beam

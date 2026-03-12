@@ -15,6 +15,8 @@ from blond.core.base import (
     Schedulable,
     ScheduledArray,
     ScheduledInterpolation,
+    UnsafeUserElement,
+    UserDefinedElement,
     get_scheduler,
 )
 from blond.core.beam.base import BeamBaseClass
@@ -25,7 +27,7 @@ class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
     def __init__(self, section_index: int = 0, name: str | None = None):
         super().__init__(section_index=section_index, name=name)
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -108,7 +110,7 @@ class BeamObservationElementTester(BeamObservationElement):
     def __init__(self, section_index: int = 0, name: str | None = None):
         super().__init__(section_index=section_index, name=name)
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -262,6 +264,7 @@ class TestFunctions(unittest.TestCase):
 class TestSchedulable(unittest.TestCase):
     def setUp(self):
         self.schedulable = Schedulable()
+        self.schedulable._add_intended_schedule("voltage")
         with self.assertRaisesRegex(AssertionError, "doesnt exist"):
             self.schedulable.schedule_from_file(
                 attribute="voltage",
@@ -289,13 +292,52 @@ class TestSchedulable(unittest.TestCase):
         schedulable.schedule("voltage", np.ones(10))
         schedulable.schedule(
             "voltage",
-            ScheduledInterpolation(np.linspace(1, 10, 20), np.ones(20)),
+            ScheduledInterpolation(np.linspace(0, 10, 20), np.ones(20)),
         )
         schedulable.schedule(
             "voltage",
             ScheduledArray(np.ones(10)),
         )
         schedulable.schedule("voltage", np.ones(10))
+
+
+class TestUnsafeUserElement(unittest.TestCase):
+    def test_init(self):
+        class InvalidElement:
+            def not_track(self): ...
+
+        class ValidElement:
+            def track(self): ...
+
+        element = InvalidElement()
+        with self.assertRaises(TypeError):
+            UnsafeUserElement(element)
+
+        element = ValidElement()
+        with self.assertWarns(Warning):
+            wrapper = UnsafeUserElement(element)
+
+        self.assertTrue(wrapper._element is element)
+        self.assertIsInstance(wrapper, UserDefinedElement)
+        self.assertNotIsInstance(element, UserDefinedElement)
+        self.assertEqual(wrapper.section_index, 0)
+        self.assertTrue(wrapper.active)
+
+    def test_track(self):
+        called_with = []
+
+        class Element:
+            def track(self, beam):
+                called_with.append(beam)
+
+        element = Element()
+        wrapper = UnsafeUserElement(element)
+
+        call_args = [1, 2, 3]
+        for arg in call_args:
+            wrapper.track(arg)
+
+        self.assertListEqual(called_with, call_args)
 
 
 if __name__ == "__main__":

@@ -52,7 +52,7 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
         super().__init__()
         self.purge_flagged_macroparticles = purge_flagged_macroparticles
 
-    def track(self, beam: BeamBaseClass) -> None:  # pragma: no cover
+    def _track(self, beam: BeamBaseClass) -> None:  # pragma: no cover
         """
         Main simulation routine to be called in the mainloop.
 
@@ -188,7 +188,7 @@ class BoxLosses(LossesBaseClass):
         """
         pass
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -199,10 +199,10 @@ class BoxLosses(LossesBaseClass):
         """
         if beam.common_array_size > 0:
             backend.specials.loss_box(
-                e_max=self.e_max,
-                e_min=self.e_min,
-                t_min=self.t_min,
-                t_max=self.t_max,
+                e_max=backend.float(self.e_max),
+                e_min=backend.float(self.e_min),
+                t_min=backend.float(self.t_min),
+                t_max=backend.float(self.t_max),
                 dt=beam.read_partial_dt(),
                 dE=beam.read_partial_dE(),
                 flags=beam.write_partial_flags(),

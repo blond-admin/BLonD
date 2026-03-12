@@ -11,15 +11,24 @@ import pytest
 
 from blond import (
     Beam,
+    Cupy32Bit,
     DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    WakeField,
+    backend,
+    momentum_compaction_factor,
     mu_plus,
     proton,
 )
+from blond.core.backends.backend import Numpy32Bit, NumpyBackend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.ring.beam_physics_relevant_elements import (
+    BeamPhysicsRelevantElements,
+)
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -40,21 +49,24 @@ class TestSimulation(unittest.TestCase):
         ring = Ring(circumference=26658.883)
 
         cavity1 = SingleHarmonicRFStation()
+
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
 
         N_TURNS = int(1e3)
         magnetic_cycle = MagneticCyclePerTurn(
             value_init=450e9,
-            values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+            values_after_turn=np.linspace(450e9, 460e9, N_TURNS),
             reference_particle=proton,
         )
 
         drift1 = DriftSimple(
             orbit_length=26658.883,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.momentum_compaction_factor = momentum_compaction_factor(
+            transition_gamma=55.759505
+        )
 
         beam1 = Beam(intensity=1e9, particle_type=proton)
         beam1.setup_beam(
@@ -64,6 +76,7 @@ class TestSimulation(unittest.TestCase):
             reference_total_energy=450e9,
         )
         self.simulation = Simulation.from_locals(locals())
+        self.simulation._beams = (beam1,)
         self.beam = beam1
 
     def test___init__(self):
@@ -111,7 +124,7 @@ class TestSimulation(unittest.TestCase):
             reference_particle=mu_plus,
         )
         harmonic = 25900
-        transition_gamma = 1 / np.sqrt(11.4e-4)
+        momentum_compaction_factor_ = 11.4e-4
         bunch_observation = BunchObservationMetaParams(
             each_turn_i=1, beam=beam
         )
@@ -124,7 +137,7 @@ class TestSimulation(unittest.TestCase):
             one_turn_model.extend(
                 [
                     DriftSimple(  # for symmetry's sake for the CR bunch, we need to inject in the middle of a drift
-                        transition_gamma=transition_gamma,
+                        momentum_compaction_factor=momentum_compaction_factor_,
                         orbit_length=circumference / n_cavities / 2,
                         section_index=cavity_i,
                     ),
@@ -137,7 +150,7 @@ class TestSimulation(unittest.TestCase):
                     ),
                     bunch_observation,
                     DriftSimple(
-                        transition_gamma=transition_gamma,
+                        momentum_compaction_factor=momentum_compaction_factor_,
                         orbit_length=circumference / n_cavities / 2,
                         section_index=cavity_i,
                     ),
@@ -174,8 +187,13 @@ class TestSimulation(unittest.TestCase):
 
         mock_func = create_autospec(my_callback, return_value=True)
         self.simulation.turn_i.value = 0
-        self.simulation.mainloop_single_beam(
-            beam=self.beam,
+        self.simulation.finalize(
+            beams=self.beam,
+            n_turns=10,
+            observe=(observe,),
+        )
+        self.simulation.mainloop(
+            beams=self.beam,
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
@@ -196,8 +214,11 @@ class TestSimulation(unittest.TestCase):
         mock_func1 = create_autospec(my_callback1, return_value=True)
         mock_func2 = create_autospec(my_callback2, return_value=True)
         self.simulation.turn_i.value = 0
-        self.simulation.mainloop_single_beam(
-            beam=self.beam,
+        self.simulation.finalize(
+            beams=self.beam, n_turns=10, observe=(observe,)
+        )
+        self.simulation.mainloop(
+            beams=self.beam,
             n_turns=10,
             observe=(observe,),
             show_progressbar=True,
@@ -295,13 +316,13 @@ class TestSimulation(unittest.TestCase):
 
         np.testing.assert_allclose(
             potential_well_pinned,
-            potential_well,
+            copy_to_cpu(potential_well),
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
     def test_plot_potential_well_empiric(self):
         self.simulation.plot_potential_well_empiric(
-            dt=np.linspace(0, 1e-9),
+            dt=backend.linspace(0, 1e-9),
             particle_type=proton,
         )
 
@@ -354,8 +375,8 @@ class TestSimulation(unittest.TestCase):
 
     def test_profiling(self):
         self.simulation.profiling(
-            profile_start_turn_i=10,
-            profile_n_turns=20,
+            start_turn_i=10,
+            n_turns=20,
             beams=(self.beam,),
         )
 
@@ -381,7 +402,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
-            SingleHarmonicRFStation
+            SingleHarmonicRFStation, recursive=False
         )
         particle_type = proton
 
@@ -394,7 +415,7 @@ class TestSimulation(unittest.TestCase):
             / cavity.harmonic,
             20000,
         )
-        phis = ts * cavity.calc_omega(
+        phis = ts * cavity.calc_omega_rf_design(
             beam_beta=self.beam.reference.beta,
             ring_circumference=self.simulation.ring.circumference,
         )
@@ -426,14 +447,16 @@ class TestSimulation(unittest.TestCase):
             plt.legend()
             plt.show()
         np.testing.assert_allclose(
-            potential_well_analytic / potential_well_analytic.max() + 1,
-            potential_well / potential_well.max() + 1,
+            copy_to_cpu(
+                potential_well_analytic / potential_well_analytic.max() + 1
+            ),
+            copy_to_cpu(potential_well / potential_well.max() + 1),
             rtol=1e-4,
         )
 
     def test_get_potential_well_empiric_charge(self):
         cavity = self.simulation.ring.elements.get_element(
-            SingleHarmonicRFStation
+            SingleHarmonicRFStation, recursive=False
         )
         from blond.core.beam.particle_types import ParticleType, c, e, m_p
 
@@ -446,7 +469,6 @@ class TestSimulation(unittest.TestCase):
             0,
             self.simulation.magnetic_cycle.get_t_rev_init(
                 circumference=self.simulation.ring.circumference,
-                particle_type=proton,
             )
             / cavity.harmonic,
             20000,
@@ -459,8 +481,8 @@ class TestSimulation(unittest.TestCase):
             )
             potential_wells[particle_type] = potential_well
         np.testing.assert_allclose(
-            potential_wells[proton] + 1e6,
-            potential_wells[noton] / 2 + 1e6,
+            copy_to_cpu(potential_wells[proton]) + 1e6,
+            copy_to_cpu(potential_wells[noton]) / 2 + 1e6,
             rtol=1e-5,
         )
 
@@ -470,7 +492,7 @@ class TestSimulation(unittest.TestCase):
         cavity1 = SingleHarmonicRFStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
 
         N_TURNS = int((20 * 60) * 11e3)
         energies = np.linspace(450e9, 7e12, N_TURNS)
@@ -485,7 +507,9 @@ class TestSimulation(unittest.TestCase):
         drift1 = DriftSimple(
             orbit_length=26658.883,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.momentum_compaction_factor = momentum_compaction_factor(
+            transition_gamma=55.759505
+        )
 
         beam1 = Beam(intensity=1e9, particle_type=proton)
         beam1.setup_beam(
@@ -497,7 +521,9 @@ class TestSimulation(unittest.TestCase):
         simulation = Simulation.from_locals(locals())
         beam = beam1
 
-        cavity = simulation.ring.elements.get_element(SingleHarmonicRFStation)
+        cavity = simulation.ring.elements.get_element(
+            SingleHarmonicRFStation, recursive=False
+        )
         particle_type = proton
 
         ts = np.linspace(
@@ -509,7 +535,7 @@ class TestSimulation(unittest.TestCase):
             / cavity.harmonic,
             20000,
         )
-        phis = ts * cavity.calc_omega(
+        phis = ts * cavity.calc_omega_rf_design(
             beam_beta=beam.reference.beta,
             ring_circumference=simulation.ring.circumference,
         )
@@ -520,7 +546,7 @@ class TestSimulation(unittest.TestCase):
         )
         DEV_PLOT = False
         simulation.turn_i.value = 0
-        phi_s = float(cavity.calc_phi_s_single_harmonic(beam=beam1))
+        phi_s = float(cavity.calc_phi_s_main_harmonic(beam=beam1))
 
         potential_well_analytic = (
             particle_type.charge
@@ -542,8 +568,10 @@ class TestSimulation(unittest.TestCase):
             plt.legend()
             plt.show()
         np.testing.assert_allclose(
-            potential_well_analytic / potential_well_analytic.max() + 1,
-            potential_well / potential_well.max() + 1,
+            copy_to_cpu(
+                potential_well_analytic / potential_well_analytic.max() + 1
+            ),
+            copy_to_cpu(potential_well / potential_well.max() + 1),
             rtol=1e-4,
         )
 
@@ -552,7 +580,7 @@ class TestSimulation(unittest.TestCase):
 
         sim = SimulationTwoRFStations()
         simulation = sim.simulation
-        de = np.linspace(-1e9, 1e9)
+        de = backend.linspace(-1e9, 1e9)
         beam = sim.beam1
         beam.reference.total_energy = 450e9
         drift_term = simulation.get_drift_term_empiric(
@@ -575,8 +603,8 @@ class TestSimulation(unittest.TestCase):
             plt.plot(drift_term_analytic, "--")
             plt.show()
         np.testing.assert_allclose(
-            drift_term_analytic + 1,
-            drift_term + 1,
+            copy_to_cpu(drift_term_analytic + 1),
+            copy_to_cpu(drift_term + 1),
             atol=0.15,
         )
 
@@ -593,9 +621,21 @@ class TestSimulation(unittest.TestCase):
     def test_finalize_warns(self) -> None:
         from blond import backend
 
+        if not isinstance(backend, NumpyBackend):
+            self.skipTest("Only on CPU")
+
         beam_mock.common_array_size = int(1e32)
         special_mode_org = backend.specials_mode
         backend.set_specials(mode="python")
+        self.simulation.ring._elements = BeamPhysicsRelevantElements(
+            check_section_indices=False
+        )
+        self.simulation.ring._elements.add_element(
+            DriftSimple(
+                momentum_compaction_factor=1,
+                orbit_length=self.simulation.ring.circumference,
+            )
+        )
         with self.assertWarns(PerformanceWarning):
             self.simulation.finalize(
                 beams=(beam_mock,),
@@ -627,6 +667,78 @@ class TestSimulation(unittest.TestCase):
             Simulation._sanitize_callbacks(
                 simulation_mock, (callback for i in range(2))
             )
+
+    @pytest.mark.backend_mutation
+    @pytest.mark.cupy
+    def test_compare_cpu_gpu(self):
+        try:
+            import cupy  # type: ignore
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
+        DEV_DEBUG = False
+        results = []
+        for i, backend_type in enumerate((Cupy32Bit, Numpy32Bit)):
+            backend.change_backend(backend_type)
+            from blond.testing.simulation import (
+                SimulationTwoRFStationsWithWake,
+            )
+
+            sim = SimulationTwoRFStationsWithWake()
+
+            hist_y_override = np.loadtxt(
+                callers_relative_path("hist_y_override.txt", stacklevel=1),
+            )
+            wakefield = sim.simulation.ring.elements.get_element(WakeField)
+            wakefield.profile._hist_y = backend.array(
+                hist_y_override, dtype=wakefield.profile._hist_y.dtype
+            )
+            wakefield.profile.hist_y_to_density_factor = 1e-05
+            sim.simulation.intensity_effect_manager.set_profiles(False)
+            potential, factor, tilt = (
+                sim.simulation.get_potential_well_empiric(
+                    dt=np.linspace(0, 3e-9),
+                    particle_type=sim.beam1.particle_type,
+                    intensity=sim.beam1.intensity,
+                )
+            )
+            if DEV_DEBUG:
+                plt.figure("debug+potential")
+                plt.plot(copy_to_cpu(potential), ("-", "--")[i])
+            results.append(copy_to_cpu(potential))
+        if DEV_DEBUG:
+            plt.show()
+        np.testing.assert_allclose(
+            results[0],
+            results[1],
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+        )
+
+    def test_current_t_rev(self):
+        buffer = np.zeros(2)
+        t_rev_effective = np.empty(10)
+        t_rev_sim = np.empty(10)
+        DEV_PLOT = False
+
+        def callback(sim: Simulation, beam: Beam):
+            buffer[0] = buffer[1]
+            buffer[1] = beam.reference.time
+            i = sim.turn_i.value
+            t_rev_effective[i] = buffer[1] - buffer[0]
+            t_rev_sim[i] = sim.current_t_rev
+            if DEV_PLOT:
+                plt.plot(i, buffer[1] - buffer[0], "o")
+                plt.plot(i, sim.current_t_rev, "x")
+            return
+
+        self.simulation.run_simulation(
+            self.beam,
+            n_turns=10,
+            callbacks=callback,
+        )
+        np.testing.assert_allclose(t_rev_effective, t_rev_sim)
+        if DEV_PLOT:
+            plt.show()
 
 
 if __name__ == "__main__":

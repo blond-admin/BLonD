@@ -45,8 +45,8 @@ pip install blond[gpu]
 ```
 
 ### Configuration
-Optional backends can be compiled after installation using the commands `blond-compile-cpp` `blond-compile-cuda`,
-or `blond-compile-fortran` for improved performance. The backend can be selected in Python using ```backend.set_specials(...)```.
+Optional backends can be compiled after installation using the commands `blond-compile-cpp --parallel` or `blond-compile-cuda`
+for improved performance. The backend can be selected in Python using ```backend.set_specials(...)```.
 
 ## Documentation
 See full documentation [here](https://blond-code.docs.cern.ch/).
@@ -59,7 +59,7 @@ import matplotlib.pyplot as plt
 
 from blond import (
     Ring,
-    SingleHarmonicRfStation,
+    SingleHarmonicRFStation,
     ConstantMagneticCycle,
     proton,
     Simulation,
@@ -72,8 +72,8 @@ from blond import (
 backend.set_specials("cpp")  # set any backend you want
 
 ring = Ring(26658.883)  # general definition of ring
-rf_station_1 = SingleHarmonicRfStation(harmonic=35640, voltage=6e6, phi_rf=0)
-drift1 = DriftSimple(orbit_length=26658.883, transition_gamma=55.759505)
+rf_station_1 = SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0)
+drift1 = DriftSimple(orbit_length=26658.883, momentum_compaction_factor=momentum_compaction_factor(transition_gamma=55.759505))
 ring.add_elements([rf_station_1, drift1])  # add elements that resemble one turn
 
 # Define the ramp

@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import inspect
-from collections import defaultdict, deque
+from collections import defaultdict
 from functools import wraps
 from typing import TYPE_CHECKING
 
@@ -92,7 +92,7 @@ def requires(dependencies: list[str]) -> Callable:
     return decorator
 
 
-def get_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
+def filter_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
     """
     Find all elements of a certain type.
 
@@ -307,6 +307,8 @@ def _topological_sort(
         List of class names in topologically sorted order.
     """
     # Initialize queue with classes that have no dependencies (in-degree 0)
+    from collections import deque
+
     queue = deque([cls for cls in all_classes if in_degree[cls] == 0])
     sorted_classes = []  # List to store the sorted order
 

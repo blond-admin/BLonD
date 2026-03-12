@@ -21,17 +21,17 @@ from __future__ import annotations
 import logging
 import warnings
 from collections.abc import Callable, Sequence
-from copy import deepcopy
+from copy import copy, deepcopy
 from pstats import SortKey
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
-from tqdm import tqdm  # type: ignore
 
 from blond.core.backends.backend import backend
 from blond.core.base import (
+    AltersReference,
     DynamicParameter,
     Preparable,
     SimulationElementBase,
@@ -40,20 +40,27 @@ from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
-from blond.core.ring.helpers import get_elements, get_required_order
+from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
-from blond.generals.warnings_ import NotTestedWarning, PerformanceWarning
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.formatting_ import si_format
+from blond.generals.warnings_ import PerformanceWarning
+from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
+    SynchrotronRadiationMaster,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
+    from typing import Any, Literal
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Beam, BiGaussian
+    from blond import BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
+    from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.ring.ring import Ring
+    from blond.core.simulation.execution_models.base import ExecutionModel
     from blond.experimental.beam_preparation.empiric_matcher import (
         EmpiricMatcher,
     )
@@ -65,7 +72,7 @@ if TYPE_CHECKING:  # pragma: no cover
         XsuiteRFBucketMatcher,
     )
 
-    CallbackTypeHint = Callable[["Simulation", Beam], None]
+    CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +127,11 @@ class Simulation(Preparable):
     section_i
         Counter tracking the current section (element) within a turn. Value is ``None``
         when not running.
+    check_circumference
+        Behaviour, if  the drifts don't sum up to the ring.circumference.
+        - "raise": Raise an exception.
+        - "warn": User warning is displayed.
+        - "ignore": The program ignors the mismatch.
     _ring
         The synchrotron ring (read-only property).
     _magnetic_cycle
@@ -156,23 +168,26 @@ class Simulation(Preparable):
 
         super().__init__()
         self._ring: Ring = ring
-
         self._magnetic_cycle: MagneticCycleBase = magnetic_cycle
 
-        self.turn_i = DynamicParameter(None)
-        self.section_i = DynamicParameter(None)
+        self.turn_i = DynamicParameter(0)
+        self.section_i = DynamicParameter(0)
         self.intensity_effect_manager = IntensityEffectManager(simulation=self)
 
-        self._exec_on_init_simulation()
+        self.check_circumference: Literal["raise", "warn", "ignore"] = "raise"
 
+        self._current_t_rev = None
         self._particle_performance_waning_threshold = int(1e3)
+        self.execution_model: ExecutionModel | None = None
+        self._exec_on_init_simulation()
 
     def profiling(
         self,
-        beams: tuple[BeamBaseClass],
-        profile_n_turns: int | float,
-        profile_start_turn_i: int = 0,
+        beams: BeamBaseClass | tuple[BeamBaseClass],
+        n_turns: int | float,
+        start_turn_i: int = 0,
         sortby: SortKey = SortKey.CUMULATIVE,
+        stats_lines: int | None = None,
     ) -> None:
         """
         Profile the simulation to identify performance bottlenecks.
@@ -188,15 +203,17 @@ class Simulation(Preparable):
         ----------
         beams
             Beams to simulate during profiling (typically just one).
-        profile_n_turns
+        n_turns
             Number of turns to profile after starting.
-        profile_start_turn_i
+        start_turn_i
             Turn number at which to begin profiling.
         sortby
             How to sort the profiling results. Options include:
-                - SortKey.CUMULATIVE: Sort by cumulative time (default, most useful)
-                - SortKey.TIME: Sort by internal time
-                - SortKey.CALLS: Sort by call count
+            - SortKey.CUMULATIVE: Sort by cumulative time (default, most useful)
+            - SortKey.TIME: Sort by internal time
+            - SortKey.CALLS: Sort by call count
+        stats_lines
+            Number of lines to print of the statistics.
 
         See Also
         --------
@@ -219,17 +236,19 @@ class Simulation(Preparable):
         >>> sim.profiling(
         ...     beams=(beam1,),
         ...
-        ...     profile_start_turn_i=10,  # Skip first 10 turns
-        ...     profile_n_turns=100,       # Profile next 100 turns
+        ...     start_turn_i=10,  # Skip first 10 turns
+        ...     n_turns=100,       # Profile next 100 turns
         ...     sortby=SortKey.CUMULATIVE,
         ... )
         # Prints detailed timing statistics
         """
-        assert profile_start_turn_i >= 0
+        assert start_turn_i >= 0
 
         import cProfile
         import io
         import pstats
+
+        print("Starting performance profiling..")
 
         pr = cProfile.Profile()
 
@@ -245,14 +264,14 @@ class Simulation(Preparable):
             beam
                 The `Beam` object.
             """
-            if simulation.turn_i.value == profile_start_turn_i:
+            if simulation.turn_i.value == start_turn_i:
                 pr.enable()
 
-        end_turn = profile_start_turn_i + int_from_float_with_warning(
-            profile_n_turns, warning_stacklevel=2
+        end_turn = start_turn_i + int_from_float_with_warning(
+            n_turns, warning_stacklevel=2
         )
-
-        self.run_simulation(
+        # deepcopy to prevent side effects
+        deepcopy(self).run_simulation(
             beams=beams,
             n_turns=end_turn,
             show_progressbar=False,
@@ -262,7 +281,10 @@ class Simulation(Preparable):
         pr.disable()
         s = io.StringIO()
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        ps.print_stats()
+        if stats_lines is None:
+            ps.print_stats()
+        else:
+            ps.print_stats(stats_lines)
         print(s.getvalue())
 
     def plot_potential_well_empiric(
@@ -295,7 +317,7 @@ class Simulation(Preparable):
             If False, normalizes so ``potential_well[0] = 0``.
         **kwargs_plot
             Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
-            for customizing the plot appearance (e.g., color='red', linewidth=2).
+            for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
 
         See Also
         --------
@@ -303,10 +325,10 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - This method creates the plot but does not call ``plt.show()``. You must
-          call that separately to display the plot.
-        - With multiple RF stations and drifts, the potential may show distortions
-          due to phase advances between stations.
+        - This method creates the plot but does not call ``plt.show()``.
+          You must call that separately to display the plot.
+        - With multiple RF stations and drifts, the potential may show
+          distortions due to phase advances between stations.
 
         Examples
         --------
@@ -333,14 +355,47 @@ class Simulation(Preparable):
         >>> plt.legend()
         >>> plt.show()
         """
-        potential_well, _, _ = self.get_potential_well_empiric(
+        potential_well, factor, _ = self.get_potential_well_empiric(
             dt=dt,
             particle_type=particle_type,
             subtract_min=subtract_min,
         )
-        plt.plot(dt, potential_well, **kwargs_plot)
+        plt.plot(
+            copy_to_cpu(dt),
+            copy_to_cpu(factor * potential_well),
+            **kwargs_plot,
+        )
         plt.xlabel("Time (s)")
         plt.ylabel("Amplitude (arb. unit)")
+
+    def get_t_rev_init(self):
+        r"""
+        Compute the initial revolution period of a reference particle, in [s].
+
+        Returns
+        -------
+        t_rev_init
+            Initial revolution period, in [s].
+        """
+        from blond.core.reference_clock.reference_clock import (
+            ReferenceCoordinates,
+        )
+
+        t_rev_before = self._current_t_rev  # prevent side effect
+        self._calculate_current_t_rev(
+            reference=(
+                ReferenceCoordinates(
+                    time=0.0,
+                    total_energy=self.magnetic_cycle.get_total_energy_init(
+                        particle_type=self.magnetic_cycle.reference_particle
+                    ),
+                    particle_type=self.magnetic_cycle.reference_particle,
+                )
+            )
+        )
+        ret = float(self.current_t_rev)
+        self._current_t_rev = t_rev_before
+        return ret
 
     def get_drift_term_empiric(
         self,
@@ -357,8 +412,8 @@ class Simulation(Preparable):
         causing them to arrive at different times.
 
         This is the complementary measurement to ``get_potential_well_empiric()``:
-            - ``get_potential_well_empiric``: starts with time offsets, measures energy changes
-            - ``get_drift_term_empiric``: starts with energy offsets, measures time changes
+        - ``get_potential_well_empiric``: starts with time offsets, measures energy changes
+        - ``get_drift_term_empiric``: starts with energy offsets, measures time changes
 
         Parameters
         ----------
@@ -383,9 +438,8 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - Higher energy particles typically travel a longer path
-          (above transition) or shorter path (below transition), causing
-          time shifts.
+        - Higher energy particles typically travel a longer path (above transition)
+          or shorter path (below transition), causing time shifts.
         - This is related to the slip factor (eta).
         - The method creates a temporary probe beam and tracks it for one turn.
 
@@ -421,12 +475,13 @@ class Simulation(Preparable):
         )
         t1 = probe_bunch.reference.time
         T = t1 - t0
-        potential_well = (
+        drift_term = (
             cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
             / T
         )
-        potential_well -= potential_well.min()
-        return potential_well
+        drift_term -= drift_term.min()
+
+        return drift_term
 
     def get_potential_well_empiric(
         self,
@@ -444,10 +499,10 @@ class Simulation(Preparable):
         measuring their energy changes.
 
         This is useful for:
-            - Visualizing stable and unstable regions for particles
-            - Understanding bucket shapes and separatrices
-            - Verifying RF configurations
-            - Analyzing beam matching
+        - Visualizing stable and unstable regions for particles
+        - Understanding bucket shapes and separatrices
+        - Verifying RF configurations
+        - Analyzing beam matching
 
         The method accounts for realistic effects like phase advances between multiple
         RF stations and drift sections.
@@ -535,8 +590,12 @@ class Simulation(Preparable):
         factor = float((dt[-1] - dt[0]) / t_rev)
 
         # Calculate tilt of phase space
-        change_t = probe_bunch._dt - bunch_before._dt
-        change_E = probe_bunch._dE - bunch_before._dE
+        change_t = (
+            probe_bunch.read_partial_dt() - bunch_before.read_partial_dt()
+        )
+        change_E = (
+            probe_bunch.read_partial_dE() - bunch_before.read_partial_dE()
+        )
         idx = np.argmax(change_t)
         tilt_dt_per_dE = change_t[idx] / change_E[idx]
 
@@ -698,10 +757,10 @@ class Simulation(Preparable):
         manually pass each component to the ``Simulation`` constructor.
 
         The method searches for:
-            - Exactly one ``Ring`` object (required)
-            - Exactly one ``MagneticCycleBase`` object (required)
-            - All``SimulationElementBase`` objects like RF stations, drifts, etc.
-            - Any number of ``Beam`` objects
+        - Exactly one ``Ring`` object (required)
+        - Exactly one ``MagneticCycleBase`` object (required)
+        - All``SimulationElementBase`` objects like RF stations, drifts, etc.
+        - Any number of ``Beam`` objects
 
         All found elements are automatically added to the ring in the correct execution order.
 
@@ -732,11 +791,11 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - The execution order of elements within the ring is automatically determined based
-          on their dependencies and types.
+        - The execution order of elements within the ring is automatically
+          determined based on their dependencies and types.
         - All RF stations and drifts must be defined before calling this method.
-        - The beam does not need to be prepared yet - use ``sim.prepare_beam()`` after
-          creating the simulation.
+        - The beam does not need to be prepared yet - use ``sim.prepare_beam()``
+          after creating the simulation.
 
         Examples
         --------
@@ -768,21 +827,26 @@ class Simulation(Preparable):
         logger.debug(msg=msg1)
         if verbose:
             print(msg1)
-        _rings = get_elements(locals_list, Ring)
+        _rings = filter_elements(locals_list, Ring)
         assert len(_rings) == 1, f"Found {len(_rings)} rings"
         ring = _rings[0]
 
-        beams = get_elements(locals_list, BeamBaseClass)  # type: ignore
+        beams = filter_elements(locals_list, BeamBaseClass)  # type: ignore
 
-        _magnetic_cycle = get_elements(locals_list, MagneticCycleBase)  # type: ignore
+        _magnetic_cycle = filter_elements(locals_list, MagneticCycleBase)  # type: ignore
         assert len(_magnetic_cycle) == 1, (
             f"Found {len(_magnetic_cycle)} energy cycles"
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(locals_list, SimulationElementBase)
+        elements = filter_elements(locals_list, SimulationElementBase)
         ring.add_elements(elements=elements, reorder=True)
 
+        SRM = filter_elements(locals_list, SynchrotronRadiationMaster)
+        if SRM:
+            SRM[0].prepare_ring_for_synchrotron_radiation_tracking(
+                ring=ring,
+            )
         logger.debug(f"{ring=}")
         logger.debug(f"{beams=}")
         logger.debug(f"{elements=}")
@@ -841,9 +905,9 @@ class Simulation(Preparable):
         understanding the simulation flow.
 
         The output includes:
-            - Element type (e.g., SingleHarmonicRFStation, DriftSimple)
-            - Element name or identifier
-            - Section index for each element
+        - Element type (e.g., SingleHarmonicRFStation, DriftSimple)
+        - Element name or identifier
+        - Section index for each element
 
         See Also
         --------
@@ -878,10 +942,10 @@ class Simulation(Preparable):
         distribution of particles.
 
         Common preparation routines include:
-            - ``BiGaussian``: Simple Gaussian distribution in time and energy
-            - ``EmpiricMatcher``: Grid-based distribution matching
-            - ``SemiEmpiricMatcher``: Hamiltonian-based matched distribution
-            - ``XsuiteRFBucketMatcher``: Interface to XSuite's RF bucket matching
+        - ``BiGaussian``: Simple Gaussian distribution in time and energy
+        - ``EmpiricMatcher``: Grid-based distribution matching
+        - ``SemiEmpiricMatcher``: Hamiltonian-based matched distribution
+        - ``XsuiteRFBucketMatcher``: Interface to XSuite's RF bucket matching
 
         Parameters
         ----------
@@ -905,12 +969,12 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - This method should be called after creating the ``Simulation`` but
-          before ``run_simulation()``.
-        - The beam preparation uses the current simulation state (RF programs, energy,
-          etc.) to calculate the appropriate phase space distribution.
-        - Different preparation routines produce different beam characteristics and may
-          be more or less matched to the RF bucket.
+        - This method should be called after creating the ``Simulation``
+          but before ``run_simulation()``.
+        - The beam preparation uses the current simulation state (RF programs, energy, etc.)
+          to calculate the appropriate phase space distribution.
+        - Different preparation routines produce different beam characteristics
+          and may be more or less matched to the RF bucket.
 
         Examples
         --------
@@ -954,6 +1018,100 @@ class Simulation(Preparable):
         self.turn_i.value = turn_i
         preparation_routine.prepare_beam(simulation=self, beam=beam)
 
+    def mainloop(
+        self,
+        beams: BeamBaseClass | tuple[BeamBaseClass, ...],
+        n_turns: int,
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
+        show_progressbar: bool = True,
+        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+    ) -> None:
+        """
+        Execute the beam dynamics simulation.
+
+        Parameters
+        ----------
+        beams
+            The beam to simulate.
+        n_turns
+            Number of turns to simulate.
+        observe
+            List of observables to protocol of whats happening inside
+            the simulation.
+        show_progressbar
+            If True, will show a progress bar indicating how many turns have
+            been completed and other metrics.
+        callbacks
+            Optional user-defined functions `[callback_1, callback_2, ...]`.
+            called at the end of each turn.
+            Useful for custom data collection or live plotting. Default is None.
+
+            The callback can be defined as follows.
+            The rate at with which this function is
+            called can be set by `each_turn_i`.
+
+            An example is shown below.
+
+        Notes
+        -----
+        This method assumes that ``Simulation.finalize(...)`` was executed
+        before.
+
+        Examples
+        --------
+        Callback definition
+        >>> from blond import Beam, Simulation
+        >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
+        >>>     ...
+        >>> my_callback.each_turn_i = 2
+        """
+        beams = _single_beam_to_tuple(beams)
+        self.execution_model.mainloop(
+            simulation=self,
+            beams=beams,
+            n_turns=n_turns,
+            observe=observe,
+            show_progressbar=show_progressbar,
+            callbacks=callbacks,
+        )
+
+    def _plot_input_info(
+        self,
+        beams: tuple[BeamBaseClass, ...],
+        n_turns: int | None = None,
+    ):
+        """
+        Print some nice-to-know attributes when running the simulation.
+
+        Parameters
+        ----------
+        beams
+            The beam to simulate.
+        n_turns
+            Number of turns to simulate.
+        """
+        for i, beam in enumerate(beams):
+            size_bytes = sum(
+                (
+                    beam._dt.array_local.nbytes,
+                    beam._dE.array_local.nbytes,
+                    beam._ids.array_local.nbytes,
+                    beam._flags.array_local.nbytes,
+                )
+            )
+
+            print(
+                f"\nBeam {i} has {si_format(beam._dt.global_size)} "
+                f"macroparticles",
+                end="",
+            )
+            if beam._dt.is_distributed:
+                print(f" ({beam._dt.local_size:.2e} on this node)")
+            else:
+                print(f" {si_format(size_bytes)}B")
+        print(f"{n_turns=}")
+        print(f"n_elements={self.ring.elements.n_elements}")
+
     def run_simulation(
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
@@ -961,6 +1119,7 @@ class Simulation(Preparable):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+        verbose: bool = True,
     ) -> None:
         """
         Execute the main beam dynamics simulation loop.
@@ -1002,11 +1161,8 @@ class Simulation(Preparable):
             The callback can be defined as follows.
             The rate at with which this function is
             called can be set by `each_turn_i`.
-            >>> from blond import Beam, Simulation
-            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
-            >>>     ...
-            >>> my_callback.each_turn_i = 2
-            .
+        verbose
+            Will print infos if ``True``.
 
         Raises
         ------
@@ -1025,8 +1181,8 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - The beam must be prepared with ``prepare_beam()`` or
-        ``beam.setup_beam()`` before calling this method.
+        - The beam must be prepared with ``prepare_beam()`` or ``beam.setup_beam()``
+          before calling this method.
         - Observables are updated after each drift section, not after every element.
         - The progress bar shows turns per second, which helps estimate total runtime.
         - For counter-rotating beams, elements are traversed in opposite order for
@@ -1083,6 +1239,12 @@ class Simulation(Preparable):
         ...     beams=(beam1,),
         ...     n_turns=500,      # Run 500 more turns
         ... )
+
+        Callback Example
+        >>> from blond import Beam, Simulation
+        >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
+        >>>     ...
+        >>> my_callback.each_turn_i = 2
         """
         beams = _single_beam_to_tuple(beams)
         logger.info(f"Running `run_simulation` with {locals()}")
@@ -1096,36 +1258,19 @@ class Simulation(Preparable):
             n_turns=n_turns,
             observe=observe,
         )
+        if verbose:
+            self._plot_input_info(
+                beams=beams,
+                n_turns=n_turns,
+            )
 
-        if len(beams) == 1:  # NOQA: PLR2004
-            self.mainloop_single_beam(
-                beam=beams[0],
-                n_turns=_n_turns,
-                observe=observe,
-                show_progressbar=show_progressbar,
-                callbacks=callbacks,
-            )
-        elif len(beams) == 2:  # NOQA: PLR2004
-            assert (
-                beams[0].is_counter_rotating,
-                beams[1].is_counter_rotating,
-            ) == (
-                False,
-                True,
-            ), (
-                "First beam must be normal, second beam must be counter-rotating"
-            )
-            self.mainloop_counterrotating_beam(
-                n_turns=_n_turns,
-                observe=observe,
-                show_progressbar=show_progressbar,
-                callbacks=callbacks,
-                beams=beams,  # type: ignore
-            )
-        else:
-            raise NotImplementedError(
-                f"Up to two beam supported, but got {len(beams)}"
-            )
+        self.mainloop(
+            beams=beams,
+            n_turns=_n_turns,
+            observe=observe,
+            show_progressbar=show_progressbar,
+            callbacks=callbacks,
+        )
 
     def finalize(
         self,
@@ -1180,7 +1325,20 @@ class Simulation(Preparable):
         - Performance warnings are issued if using Python backend with many particles.
         """
         beams = _single_beam_to_tuple(beams)
-        self.ring.assert_circumference()
+        if self.execution_model is None:
+            self._autoselect_execution_model(beams)
+
+        if self.check_circumference == "raise":
+            self.ring.assert_circumference()
+        elif self.check_circumference == "warn":
+            try:
+                self.ring.assert_circumference()
+            except (AssertionError, ValueError) as exc:
+                warnings.warn(str(exc), UserWarning, stacklevel=3)
+        elif self.check_circumference == "ignore":
+            pass
+        else:
+            raise ValueError(f"Unknown {self.check_circumference=}")
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
@@ -1211,10 +1369,10 @@ class Simulation(Preparable):
                     f" {self._particle_performance_waning_threshold}"
                     f" particles in your beam."
                     f" Consider using another backend via\n"
-                    f" >>> from blond.core.backends.backend import backend\n"
+                    f" >>> from blond import backend\n"
                     f" >>> backend.set_specials(mode=...)",
                     PerformanceWarning,
-                    stacklevel=2,
+                    stacklevel=3,
                 )
         # temporarily pin attributes
         self._observe = (
@@ -1228,78 +1386,37 @@ class Simulation(Preparable):
         # unpin temporary attributes
         del self._observe
         del self._beams
-        if len(beams) == 1:
-            self.turn_i.value = 0
-            self.section_i.value = None
-            for observable in observe:
-                observable.update(
-                    simulation=self,
-                )
         return _n_turns
 
-    def mainloop_single_beam(
+    def _autoselect_execution_model(
         self,
-        beam: BeamBaseClass,
-        n_turns: int,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
-        show_progressbar: bool = True,
-        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
-    ) -> None:
+        beams: tuple[BeamBaseClass, ...],
+    ):
         """
-        Execute the beam dynamics simulation for only one beam.
+        Select the execution model based on the number of beams.
 
         Parameters
         ----------
-        beam
-            The beam to simulate.
-        n_turns
-            Number of turns to simulate.
-        observe
-            List of observables to protocol of whats happening inside
-            the simulation.
-        show_progressbar
-            If True, will show a progress bar indicating how many turns have
-            been completed and other metrics.
-        callbacks
-            Optional user-defined functions `[callback_1, callback_2, ...]`.
-            called at the end of each turn.
-            Useful for custom data collection or live plotting. Default is None.
-
-            The callback can be defined as follows.
-            The rate at with which this function is
-            called can be set by `each_turn_i`.
-            >>> from blond import Beam, Simulation
-            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
-            >>>     ...
-            >>> my_callback.each_turn_i = 2
-            .
-
-        Notes
-        -----
-        This method assumes that ``Simulation.finalize(...)`` was executed
-        before.
+        beams
+            Beams to be simulated. For two-beam simulations,
+            first must be co-rotating, second counter-rotating.
         """
-        logger.info("Starting simulation mainloop...")
-        callbacks = self._sanitize_callbacks(callbacks)
+        if len(beams) == 1:  # NOQA: PLR2004
+            from blond.core.simulation.execution_models.single_beam import (
+                MainloopSingleBeam,
+            )
 
-        iterator = range(self.turn_i.value, self.turn_i.value + n_turns)
-        if show_progressbar:
-            iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
-            # display to iteration
-        for turn_i in iterator:
-            self.turn_i.value = turn_i
-            for element in self._ring.elements.elements:
-                self.section_i.value = element.section_index
-                if element.is_active_this_turn(turn_i=self.turn_i.value):
-                    element.track(beam)
-            for observable in observe:
-                if observable.is_active_this_turn(turn_i=self.turn_i.value):
-                    observable.update(
-                        simulation=self,
-                    )
-            for callback in callbacks:
-                if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
-                    callback(self, beam)
+            self.execution_model = MainloopSingleBeam()
+        elif len(beams) == 2:  # NOQA: PLR2004
+            from blond.core.simulation.execution_models.conterrotating_beams import (
+                MainloopCounterRotatingBeams,
+            )
+
+            self.execution_model = MainloopCounterRotatingBeams()
+        else:
+            raise NotImplementedError(
+                f"Up to two beam supported, but got {len(beams)}"
+            )
 
     def _sanitize_callbacks(
         self,
@@ -1328,91 +1445,6 @@ class Simulation(Preparable):
             sanitised_callbacks.append(callback)
         return sanitised_callbacks
 
-    def mainloop_counterrotating_beam(
-        self,
-        beams: tuple[BeamBaseClass, BeamBaseClass],
-        n_turns: int,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
-        show_progressbar: bool = True,
-        callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
-    ) -> None:
-        """
-        Execute the beam dynamics simulation for counter-rotating beams.
-
-        Parameters
-        ----------
-        beams
-            Tuple of two beams (co-rotating, counter-rotating).
-        n_turns
-            Number of turns to simulate.
-        observe
-            List of observables to protocol of whats happening inside
-            the simulation.
-        show_progressbar
-            If True, will show a progress bar indicating how many turns have
-            been completed and other metrics.
-        callbacks
-            Optional user-defined functions `[callback_1, callback_2, ...]`.
-            called at the end of each turn.
-            Useful for custom data collection or live plotting. Default is None.
-
-            The callback can be defined as follows.
-            The rate at with which this function is
-            called can be set by `each_turn_i`.
-            >>> from blond import Beam, Simulation
-            >>> def my_callback(simulation: Simulation, beam: Beam) -> None:
-            >>>     ...
-            >>> my_callback.each_turn_i = 2
-            .
-        """
-        warnings.warn("Untested code", NotTestedWarning, stacklevel=2)
-
-        if callbacks is not None:
-            warnings.warn(
-                "Callbacks are currently not supported for simulations"
-                " with counter-rotating beams.",
-                UserWarning,
-                stacklevel=2,
-            )
-
-        logger.info("Starting simulation mainloop...")
-        iterator = range(n_turns)
-        if show_progressbar:
-            iterator = tqdm(iterator)  # Add TQDM display to iteration
-        self.turn_i.value = 0
-
-        num_elements = len(self._ring.elements.elements)
-
-        for observable in observe:
-            observable.update(
-                simulation=self,
-            )
-
-        for turn_i in iterator:
-            for element_ind, element in enumerate(
-                self._ring.elements.elements
-            ):
-                self.turn_i.value = turn_i
-                self.section_i.value = element.section_index
-
-                if element.is_active_this_turn(turn_i=self.turn_i.value):
-                    element.track(beams[0])  # [0] is expected to be corotating
-                element_counterrot = self.ring.elements.elements[
-                    num_elements - element_ind - 1
-                ]
-                if element_counterrot.is_active_this_turn(
-                    turn_i=self.turn_i.value
-                ):
-                    element_counterrot.track(beams[1])
-            for observable in observe:
-                if observable.is_active_this_turn(turn_i=self.turn_i.value):
-                    observable.update(
-                        simulation=self,
-                    )
-        # reset counters to uninitialized again
-        self.turn_i.value = None
-        self.section_i.value = None
-
     def save_results(
         self,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
@@ -1423,8 +1455,8 @@ class Simulation(Preparable):
 
         After running a simulation, this method saves the data collected by observables
         (like RF phase evolution, beam profiles, etc.) to disk. This is useful for:
-            - Analyzing results later without re-running the simulation
-            - Sharing results with others
+        - Analyzing results later without re-running the simulation
+        - Sharing results with others
 
         Each observable is saved according to its own format (typically NumPy arrays).
 
@@ -1446,8 +1478,7 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - Saved files are typically stored in the current working directory or a
-          subdirectory defined by the observable.
+        - Saved files are typically stored in the current working directory or a subdirectory defined by the observable.
         - Use ``load_results()`` to load saved data without re-running the simulation.
 
         Examples
@@ -1533,10 +1564,9 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - The observables must be created with the same parameters as when the data
-          was saved.
-        - The simulation setup (ring, RF stations, etc.) should match the original
-          simulation, though only the observables are populated with data.
+        - The observables must be created with the same parameters as when the data was saved.
+        - The simulation setup (ring, RF stations, etc.) should match the original simulation,
+          though only the observables are populated with data.
         - This method calls ``finalize()`` internally to set up the simulation state.
 
         Examples
@@ -1588,3 +1618,52 @@ class Simulation(Preparable):
             if common_name is not None:
                 observable.rename(new_common_filepath=common_name)
             observable.from_disk()
+
+    def _calculate_current_t_rev(self, reference: ReferenceCoordinates):
+        """
+        Calculate the revolution time of the current turn, in [s].
+
+        This method takes the reference frame of the beam at the first element
+        and tracks it along one turn back to the first element,
+        considering acceleration in sections.
+
+        Parameters
+        ----------
+        reference
+            The reference frame to calculate the time of one revolution.
+            The reference energy, i.e. velocity, impacts the revolution time
+            and might change along the ring when multiple sections are used.
+
+        Returns
+        -------
+        t_rev
+            Revolution time, in [s].
+        """
+        reference_tmp = copy(reference)
+        t0 = reference_tmp.time
+
+        for element in self.ring.elements.get_elements(AltersReference):
+            element: AltersReference
+            element.track_reference(reference_tmp)
+        t1 = reference_tmp.time
+        self._current_t_rev = t1 - t0
+
+    @property
+    def current_t_rev(self) -> float:
+        """
+        The revolution time of the current turn, in [s].
+
+        The revolution time is the time that it takes
+        the reference particle to complete one turn.
+
+        Returns
+        -------
+        t_rev
+            Revolution time, in [s].
+        """
+        if self._current_t_rev is None:
+            raise ValueError(
+                "The value of `current_t_rev` is only available during the simulation execution."
+            )
+        else:
+            return self._current_t_rev

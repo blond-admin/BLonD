@@ -28,6 +28,7 @@ cpp_files = [
     "drift.cpp",
     "linear_interp_kick.cpp",
     "histogram.cpp",
+    "drift_exact.cpp",
     # "music_track.cpp",
     # "blondmath.cpp",
     # "fast_resonator.cpp",
@@ -142,13 +143,14 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         "-O3",
         "-std=c++11",
         "-shared",
-        # Necessary on windows, as here the M_PI etc.
-        # are not defined by mingw without the flag.
+        "-funroll-loops",  # Aggressive loop unrolling
     ]
     # Some additional warning reporting related flags
     cflags += [
         "-Wall",
         "-Wno-unknown-pragmas",
+        # Necessary on windows, as here the M_PI etc.
+        # are not defined by mingw without the flag.
         "-D_USE_MATH_DEFINES",
     ]
 
@@ -323,6 +325,15 @@ def _prepare_cflags(
         libname_double = os.path.abspath(root + "_double" + ext)
 
     elif "win" in sys.platform:
+        # Add optimization flags for Windows (same as POSIX)
+        if optimize:
+            if "-ffast-math" not in cflags:
+                cflags += ["-ffast-math"]
+            cflags = _add_avx_flags(
+                cflags=cflags,
+                compiler=compiler,
+            )
+
         root, ext = os.path.splitext(libname)
         if not ext:
             ext = ".dll"
@@ -448,8 +459,15 @@ def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
     return cflags
 
 
-def main_cli() -> None:
-    """Parse arguments from command line."""
+def main_cli(force_parallel=False) -> None:
+    """
+    Parse arguments from command line.
+
+    Parameters
+    ----------
+    force_parallel
+        If `True`, the backend will be compiled for parallel execution.
+    """
     parser = argparse.ArgumentParser(
         description="Script used to compile the C++ libraries needed by BLonD.",
     )
@@ -555,7 +573,7 @@ def main_cli() -> None:
         boost=args["boost"],
         compiler=args["compiler"],
         libs=args["libs"],
-        parallel=args["parallel"],
+        parallel=True if force_parallel else args["parallel"],
         flags=args["flags"],
         optimize=args["optimize"],
         libname=args["libname"],

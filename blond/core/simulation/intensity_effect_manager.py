@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from blond.physics.cavities import RFStationBaseClass
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles import ProfileBaseClass
 
@@ -43,7 +42,7 @@ class IntensityEffectManager:
             True if there is any WakeField.
         """
         wakefields = self._parent_simulation.ring.elements.get_elements(
-            WakeField
+            WakeField, recursive=True
         )
         return len(wakefields) > 0
 
@@ -62,7 +61,7 @@ class IntensityEffectManager:
             If there is a mixed state of `Wakefields` being active/inactive.
         """
         wakefields = self._parent_simulation.ring.elements.get_elements(
-            WakeField
+            WakeField, recursive=True
         )
         actives = {wakefield.active for wakefield in wakefields}
         if len(actives) == 0:
@@ -81,12 +80,11 @@ class IntensityEffectManager:
         active
             True or False, so that simulation can skip the elements.
         """
-        cavities = self._parent_simulation.ring.elements.get_elements(
-            RFStationBaseClass
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField, recursive=True
         )
-        for cavity in cavities:
-            if cavity._local_wakefield:
-                cavity._local_wakefield.active = active
+        for wakefield in wakefields:
+            wakefield.active = active
 
     def set_profiles(self, active: bool) -> None:
         """
@@ -98,17 +96,12 @@ class IntensityEffectManager:
             True or False, so that simulation can skip the elements.
         """
         profiles = self._parent_simulation.ring.elements.get_elements(
-            ProfileBaseClass
+            ProfileBaseClass, recursive=True
         )
         for profile in profiles:
             profile.active = active
         # Deactivate the `Profiles` of the WakeFields.
         # The frozen wakefields can still affect the beam.
-        wakefields = self._parent_simulation.ring.elements.get_elements(
-            WakeField
-        )
-        for wakefield in wakefields:
-            wakefield.profile.active = active
 
     def is_active_profiles(self) -> bool:  # TODO testcae
         """
@@ -124,15 +117,10 @@ class IntensityEffectManager:
         AssertionError
             If there is a mixed state of `Wakefields` being active/inactive.
         """
-        wakefields = self._parent_simulation.ring.elements.get_elements(
-            WakeField
-        )
         profiles = self._parent_simulation.ring.elements.get_elements(
-            ProfileBaseClass
+            ProfileBaseClass, recursive=True
         )
-        actives = {wakefield.profile.active for wakefield in wakefields} | {
-            profile.active for profile in profiles
-        }
+        actives = {profile.active for profile in profiles}
 
         if len(actives) == 0:
             return False

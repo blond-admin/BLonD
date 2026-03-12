@@ -28,6 +28,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from matplotlib.lines import Line2D
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -102,7 +103,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         assert self._hist_y is not None
         self.invalidate_cache()
 
-    def plot(self, **kwargs_plot: dict[str, Any]) -> None:
+    def plot(self, **kwargs_plot: dict[str, Any]) -> list[Line2D]:
         """
         Plot the current histogram.
 
@@ -110,11 +111,17 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         ----------
         **kwargs_plot
             Keyword arguments for `matplotlib.pyplot.plot`.
+
+        Returns
+        -------
+        artists
+            The plotting artists.
         """
         from blond import AllowPlotting
 
         with AllowPlotting():
-            plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
+            artists = plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
+        return artists
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray | CupyArray:
@@ -325,7 +332,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
         return multi_gauss_fit(_hist_x, _hist_y, n_bunches)
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -339,14 +346,16 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
                 "Implement histogram on distributed array"
             )
         else:
-            # `_hist_x`, `_hist_x` could be None, which is not handled and
+            # `_hist_x`, `_hist_y` could be None, which is not handled and
             # causes a MyPy type error,
             # This is intentionally ignored, we want to get an exception.
-            backend.specials.histogram(
-                array_read=beam.read_partial_dt(),
-                array_write=self._hist_y,  # type: ignore
-                start=self.cut_left,
-                stop=self.cut_right,
+            beam._dt.histogram(  # MPI aware histogram calculation
+                len(self._hist_y),
+                range=(
+                    self.cut_left,
+                    self.cut_right,
+                ),
+                out=self._hist_y,
             )
             # this factor is used to reproduce the behaviour
             # of np.hist(..., density=True)
@@ -441,8 +450,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Delete the stored values of functions with @cached_property."""
         self._invalidate_cache(
             props=(
-                "gauss_fit_params",
-                "beam_spectrum",
+                "gradient_hist_y",
                 "hist_step",
                 "cut_left",
                 "cut_right",
@@ -619,7 +627,7 @@ class DynamicProfile(ProfileBaseClass):
         """
         pass
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -629,7 +637,7 @@ class DynamicProfile(ProfileBaseClass):
             Beam class to interact with this element.
         """
         self.update_attributes(beam=beam)
-        super().track(beam=beam)
+        super()._track(beam=beam)
 
 
 class DynamicProfileConstCutoff(DynamicProfile):

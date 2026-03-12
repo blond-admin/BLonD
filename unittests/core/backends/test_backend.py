@@ -12,11 +12,16 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     NumpyBackend,
     backend,
+    default,
 )
 from blond.core.backends.numba.callables import recompile_numba_backend
+from blond.testing.backend_testing import (
+    multi_backend_testcase,
+    skip_if_no_cupy,
+)
 
 try:
-    import cupy as _  # type: ignore
+    import cupy as cp  # type: ignore
 
     cupy_available = True
 except ModuleNotFoundError:
@@ -26,6 +31,11 @@ from numba import set_num_threads
 
 
 class TestBackendBaseClass(unittest.TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        backend.change_backend(type(default))
+        backend.set_specials("numba")
+
     def setUp(self) -> None:
         self.backend_base_class = Numpy32Bit()
 
@@ -50,7 +60,7 @@ class TestBackendBaseClass(unittest.TestCase):
     def test_apply_environment_variables(self):
         import os
 
-        backend_modes = ["python", "cpp", "numba", "fortran", "fail"]
+        backend_modes = ["python", "cpp", "numba", "fail"]
         backend_bits = ["32", "64", "fail"]
         try:
             import cupy
@@ -73,9 +83,7 @@ class TestBackendBaseClass(unittest.TestCase):
                         # Compiled backends might not be available locally --> skip.
                         # On the CI, these will always be available, as the before_script builds them
                         # or otherwise fails the CI
-                        if (
-                            backend_mode == "fortran" or backend_mode == "cpp"
-                        ):  # TODO better handling
+                        if backend_mode == "cpp":  # TODO better handling
                             warnings.warn(
                                 f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
                             )
@@ -96,6 +104,8 @@ class TestBackendBaseClass(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_temporary_specials_mode(self):
+        backend_org = type(backend)
+        backend.change_backend(Numpy64Bit)
         specials_org = (
             backend.specials_mode
         )  # prevent side effect on other tests
@@ -106,6 +116,7 @@ class TestBackendBaseClass(unittest.TestCase):
         self.assertEqual(backend.specials_mode, "numba")
 
         backend.set_specials(mode=specials_org)  # prevent side effect on tests
+        backend.change_backend(backend_org)
 
 
 class TestCupy32Bit(unittest.TestCase):
@@ -189,13 +200,6 @@ class TestNumpyBackend(unittest.TestCase):
         self.numpy_backend.set_specials(mode="numba")
 
     @pytest.mark.backend_mutation
-    def test_set_specials_fortran(self) -> None:
-        try:
-            self.numpy_backend.set_specials(mode="fortran")
-        except FileNotFoundError:
-            self.skipTest("fortran not available!")
-
-    @pytest.mark.backend_mutation
     def test_set_specials_fails(self):
         with self.assertRaises(ValueError):
             self.numpy_backend.set_specials("doesnt exist")
@@ -208,7 +212,6 @@ class TestSpecials(unittest.TestCase):
             "python",
             "cpp",
             "numba",
-            "fortran",
         ]
         if cupy_available:
             self.special_modes.append("cuda")
@@ -220,7 +223,6 @@ class TestSpecials(unittest.TestCase):
             "python",
             "cpp",
             "numba",
-            "fortran",
         ):
             if dtype == np.float32:
                 backend.change_backend(Numpy32Bit)
@@ -276,7 +278,6 @@ class TestSpecials(unittest.TestCase):
     def test___init__(self):
         pass
 
-    @unittest.skip
     @pytest.mark.backend_mutation
     def test_drift_exact(self) -> None:
         for dtype in (np.float32, np.float64):
@@ -286,17 +287,16 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                backend.specials.drift_exact(
-                    dt=self.dt,
-                    dE=self.dE,
-                    t_rev=self.t_rev,
-                    length_ratio=self.length_ratio,
-                    alpha_0=self.alpha_0,
-                    alpha_1=self.alpha_1,
-                    alpha_2=self.alpha_2,
-                    beta=self.beta,
-                    energy=self.energy,
-                )
+                for _ in range(2):
+                    backend.specials.drift_exact(
+                        dt=self.dt,
+                        dE=self.dE,
+                        T=self.t_rev * self.length_ratio,
+                        alpha_0=self.alpha_0,
+                        higher_alpha=backend.array([1.0, 2.0], dtype=dtype),
+                        beta=self.beta,
+                        energy=self.energy,
+                    )
                 result = self.dt
                 if special == "cuda":
                     result = result.get()
@@ -899,9 +899,162 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"{special=} {dtype=}",
                     )
 
+    @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    def test_cast_float_arr_np_only(self):
+        target = backend.array([1, 2, 3], dtype=backend.float)
+
+        for in_type in (tuple, list, np.array):
+            cast = backend.cast_arr_float_if_needed(in_type(target))
+            self.assertTrue(cast.dtype == backend.float)
+            self.assertIsInstance(cast, backend.ndarray)
+            np.testing.assert_array_equal(cast, target)
+
+        for in_dtype in (
+            np.int32,
+            np.int64,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
+            cast = backend.cast_arr_float_if_needed(target.astype(in_dtype))
+            self.assertTrue(cast.dtype == backend.float)
+            self.assertIsInstance(cast, backend.ndarray)
+            np.testing.assert_array_equal(cast, target)
+
+        unchanged = backend.cast_arr_float_if_needed(target)
+        self.assertTrue(target is unchanged)
+
+    @skip_if_no_cupy
+    @multi_backend_testcase
+    def test_cast_float_arr_full(self):
+        for in_type in (tuple, list, np.array, cp.array):
+            # Recreate the target for each loop, avoids issues with
+            # transferring back and forth between cupy and numpy.
+            target = backend.array([1, 2, 3], dtype=backend.float)
+
+            if backend.ndarray is cp.ndarray:
+                to_cast = in_type(target.get())
+            else:
+                to_cast = in_type(target)
+
+            cast = backend.cast_arr_float_if_needed(to_cast)
+            self.assertTrue(cast.dtype == backend.float)
+            self.assertIsInstance(cast, backend.ndarray)
+            if isinstance(backend, CupyBackend):
+                cast = cast.get()
+                target = target.get()
+            np.testing.assert_array_equal(cast, target)
+        for in_dtype in (
+            np.int32,
+            np.int64,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
+            # Recreate the target for each loop, avoids issues with
+            # transferring back and forth between cupy and numpy.
+            target = backend.array([1, 2, 3], dtype=backend.float)
+            to_cast = target.astype(in_dtype)
+            cast = backend.cast_arr_float_if_needed(to_cast)
+            self.assertTrue(cast.dtype == backend.float)
+            self.assertIsInstance(cast, backend.ndarray)
+
+            if isinstance(backend, CupyBackend):
+                cast = cast.get()
+                target = target.get()
+
+            np.testing.assert_array_equal(cast, target)
+
+        target = backend.array([1, 2, 3], dtype=backend.float)
+        unchanged = backend.cast_arr_float_if_needed(target)
+        self.assertTrue(target is unchanged)
+
+    @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    def test_cast_complex_arr_np_only(self):
+        target = backend.array([1, 2, 3], dtype=backend.complex)
+        for in_type in (tuple, list, np.array):
+            cast = backend.cast_arr_complex_if_needed(in_type(target))
+            self.assertTrue(cast.dtype == backend.complex)
+            self.assertIsInstance(cast, backend.ndarray)
+            np.testing.assert_array_equal(cast, target)
+
+        for in_dtype in (
+            np.int32,
+            np.int64,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
+            cast = backend.cast_arr_complex_if_needed(target.astype(in_dtype))
+            self.assertTrue(cast.dtype == backend.complex)
+            self.assertIsInstance(cast, backend.ndarray)
+            np.testing.assert_array_equal(cast, target)
+
+        target = backend.array([1, 2, 3], dtype=backend.complex)
+        unchanged = backend.cast_arr_complex_if_needed(target)
+        self.assertTrue(target is unchanged)
+
+    @skip_if_no_cupy
+    @multi_backend_testcase
+    def test_cast_complex_arr_full(self):
+        for in_type in (tuple, list, np.array, cp.array):
+            # Recreate the target for each loop, avoids issues with
+            # transferring back and forth between cupy and numpy.
+            target = backend.array([1, 2, 3], dtype=backend.complex)
+
+            if backend.ndarray is cp.ndarray:
+                to_cast = in_type(target.get())
+            else:
+                to_cast = in_type(target)
+            cast = backend.cast_arr_complex_if_needed(to_cast)
+            self.assertTrue(cast.dtype == backend.complex)
+            self.assertIsInstance(cast, backend.ndarray)
+            if isinstance(backend, CupyBackend):
+                cast = cast.get()
+                target = target.get()
+            np.testing.assert_array_equal(cast, target)
+        for in_dtype in (
+            np.int32,
+            np.int64,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        ):
+            # Recreate the target for each loop, avoids issues with
+            # transferring back and forth between cupy and numpy.
+            target = backend.array([1, 2, 3], dtype=backend.complex)
+            # Manually discard imaginary to prevent exception
+            # Needed for cupy array backends
+            to_cast = target.real.astype(in_dtype)
+            cast = backend.cast_arr_complex_if_needed(to_cast)
+            self.assertTrue(cast.dtype == backend.complex)
+            self.assertIsInstance(cast, backend.ndarray)
+            if isinstance(backend, CupyBackend):
+                cast = cast.get()
+                target = target.get()
+
+            np.testing.assert_array_equal(cast, target)
+
+        target = backend.array([1, 2, 3], dtype=backend.complex)
+        unchanged = backend.cast_arr_complex_if_needed(target)
+        self.assertTrue(target is unchanged)
+
+    def test_cast_exceptions(self):
+        with self.assertRaises(ValueError):
+            backend.cast_arr_float_if_needed(["a", "b", "c"])
+
+        with self.assertRaises(TypeError):
+            backend.cast_arr_float_if_needed({1, 2, 3})
+
+        with self.assertRaises(ValueError):
+            backend.cast_arr_float_if_needed([[1, 2], 3])
+
     def tearDown(self) -> None:
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
+
+    def test_import(self):
+        from blond.core.backends import backend  # see if import works
 
 
 class TestNumbaCompilation(unittest.TestCase):

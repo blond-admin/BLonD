@@ -51,10 +51,10 @@ class TestAsarrayOverrideManager(unittest.TestCase):
 
         arr_gpu = cp.ones(10)
         arr_cpu = self.manger.asarray_override(arr_gpu)
-        arr_cpu2 = self.manger.asarray_override(
-            arr_gpu
-        )  # should trigger cache
-        self.assertEqual(arr_cpu.ctypes.data, arr_cpu2.ctypes.data)
+        np.testing.assert_array_equal(arr_cpu, np.ones(10))
+
+        arr_cpu = self.manger.array_override(arr_gpu)
+        np.testing.assert_array_equal(arr_cpu, np.ones(10))
 
 
 if __name__ == "__main__":

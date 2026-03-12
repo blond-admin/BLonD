@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials
-from blond.core.beam.base import BeamFlags
+from blond.core.beam.flags import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -258,7 +258,8 @@ class PythonSpecials(Specials):
         dE
             Macro-particle energy coordinates, in [eV].
         T
-            Revolution period, in [s].
+            Time spend in the drift region, in [s].
+            :math:`T = L / (\beta c_0)`.
         eta_0
             General synchrotron parameter (zeroth-order slippage factor) [unitless].
         beta
@@ -272,113 +273,61 @@ class PythonSpecials(Specials):
         dt += T * coeff * dE
 
     @staticmethod
-    def drift_legacy(
-        dt: NumpyArray,
-        dE: NumpyArray,
-        T: float,
-        alpha_order: int,
-        eta_0: float,
-        eta_1: float,
-        eta_2: float,
-        beta: float,
-        energy: float,
-    ) -> None:  # pragma: no cover # TODO
-        r"""
-        Function to apply drift equation of motion.
-
-        Parameters
-        ----------
-        dt
-            Macro-particle time coordinates, in [s].
-        dE
-            Macro-particle energy coordinates, in [eV].
-        T
-            Revolution period, in [s].
-        alpha_order
-            Oder of the alpha parameter.
-        eta_0
-            General synchrotron parameter (zeroth-order slippage factor) [unitless].
-        eta_1
-            General synchrotron parameter (zeroth-order slippage factor) [unitless].
-        eta_2
-            General synchrotron parameter (zeroth-order slippage factor) [unitless].
-        beta
-            Relativistic velocity factor :math:`\beta = v/c` [unitless].
-        energy
-            Total beam energy [eV].
-        """
-        # solver_decoded = solver.decode(encoding='utf_8')
-
-        coeff = 1.0 / (beta * beta * energy)
-        eta0 = eta_0 * coeff
-        eta1 = eta_1 * coeff * coeff
-        eta2 = eta_2 * coeff * coeff * coeff
-
-        if alpha_order == 0:
-            dt += T * (1.0 / (1.0 - eta0 * dE) - 1.0)
-        elif alpha_order == 1:
-            dt += T * (1.0 / (1.0 - eta0 * dE - eta1 * dE * dE) - 1.0)
-        else:
-            dt += T * (
-                1.0 / (1.0 - eta0 * dE - eta1 * dE * dE - eta2 * dE * dE * dE)
-                - 1.0
-            )
-
-    @staticmethod
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
         alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
+        higher_alpha: NumpyArray,
         beta: float,
         energy: float,
-    ) -> None:  # pragma: no cover # TODO
+    ) -> None:  # pragma: no cover
         r"""
-        Function to apply drift equation of motion.
+        Exact drift equation of motion with higher order momentum compaction factors.
 
         Parameters
         ----------
-        dt
+        dt : NumpyArray
             Macro-particle time coordinates, in [s].
-        dE
+        dE : NumpyArray
             Macro-particle energy coordinates, in [eV].
-        T
+        T : float
             Revolution period, in [s].
-        alpha_0
+        alpha_0 : float
             Momentum compaction factor [unitless].
-        alpha_1
-            Momentum compaction factor [unitless].
-        alpha_2
-            Momentum compaction factor [unitless].
+        higher_alpha : NumpyArray
+            Momentum compaction factor to higher orders.
         beta
-            Relativistic velocity factor :math:`\beta = v/c` [unitless].
+            Relativistic velocity factor :math:\beta = v/c [unitless].
         energy
             Total beam energy [eV].
         """
-        # solver_decoded = solver.decode(encoding='utf_8')
+        n_alpha = len(higher_alpha)
+        invbetasq = 1.0 / (beta * beta)
+        inv_energy = 1.0 / energy
+        inv_energy_sq = inv_energy * inv_energy
 
-        invbetasq = 1 / (beta * beta)
-        invenesq = 1 / (energy * energy)
-        # double beam_delta;
-
+        # delta (vectorized)
         beam_delta = (
-            np.sqrt(1.0 + invbetasq * (dE * dE * invenesq + 2.0 * dE / energy))
+            np.sqrt(
+                1.0
+                + invbetasq * (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)
+            )
             - 1.0
         )
 
-        dt += T * (
-            (
-                1.0
-                + alpha_0 * beam_delta
-                + alpha_1 * (beam_delta * beam_delta)
-                + alpha_2 * (beam_delta * beam_delta * beam_delta)
-            )
-            * (1.0 + dE / energy)
-            / (1.0 + beam_delta)
-            - 1.0
-        )
+        # ---- Polynomial evaluation ----
+        poly = 1.0 + alpha_0 * beam_delta
+
+        if n_alpha > 0:
+            delta_power = beam_delta * beam_delta  # δ²
+
+            for k in range(n_alpha):
+                poly += higher_alpha[k] * delta_power
+                delta_power *= beam_delta  # next power
+
+        # ---- Final update ----
+        dt += T * (poly * (1.0 + dE * inv_energy) / (1.0 + beam_delta) - 1.0)
 
     @staticmethod
     def kick_induced_voltage(

@@ -15,6 +15,7 @@ from blond import (
     MagneticCyclePerTurnAllRFStations,
     proton,
 )
+from blond.acc_math.analytic.conversions import magnetic_rigidity_to_momentum
 from blond.acc_math.analytic.simple_math import (
     beta_by_momentum,
     calc_beta,
@@ -27,7 +28,6 @@ from blond.core.beam.particle_types import ParticleType, uranium_29
 from blond.cycles.magnetic_cycle import (
     MagneticCycleBase,
     _to_magnetic_rigidity,
-    magnetic_rigidity_to_momentum,
 )
 from blond.testing.simulation import (
     ExampleSimulation01,
@@ -181,6 +181,10 @@ class TestConstantEnergyCycle(unittest.TestCase):
             self.constant_magnetic_cycle.get_total_energy_init(
                 particle_type=proton,
             ),
+        )
+        self.assertEqual(
+            2000e6,
+            self.constant_magnetic_cycle.get_total_energy_init(),
         )
 
     def test_headless(self):
@@ -363,6 +367,12 @@ class TestEnergyCyclePerTurn(unittest.TestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_init_from_linspace(self):
+        MagneticCyclePerTurn.init_from_linspace(
+            values=np.linspace(450e9, 450e9, 3 + 1),
+            reference_particle=proton,
+        )
 
     def test_on_init_simulation(self):
         self.magnetic_cycle_per_turn.on_init_simulation(

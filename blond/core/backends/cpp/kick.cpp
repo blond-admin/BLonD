@@ -88,9 +88,9 @@ extern "C" void rf_volt_comp(const real_t *__restrict__ voltage,
                              const real_t *__restrict__ bin_centers,
                              const int n_rf, const int n_bins,
                              real_t *__restrict__ rf_voltage) {
-  for (int j = 0; j < n_rf; j++) {
 #pragma omp parallel for
-    for (int i = 0; i < n_bins; i++) {
+  for (int i = 0; i < n_bins; i++) {
+    for (int j = 0; j < n_rf; j++) {
       rf_voltage[i] +=
           voltage[j] * FAST_SIN(omega_RF[j] * bin_centers[i] + phi_RF[j]);
     }

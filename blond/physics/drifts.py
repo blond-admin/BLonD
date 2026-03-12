@@ -11,10 +11,11 @@
 from __future__ import annotations
 
 import abc
-import cmath
 from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
+
+import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.core.base import (
@@ -34,7 +35,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
 
 
-def _assert_purely_real_or_imaginary(val: complex):
+def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
     """
     Assert that a complex number is purely real or purely imaginary.
 
@@ -62,13 +63,13 @@ def _assert_purely_real_or_imaginary(val: complex):
         ...
     AssertionError: Expected number with only real or only imaginary part, not (2+4j)
     """
-    if val.real != 0 and val.imag != 0:
+    if np.any((val.real != 0) & (val.imag != 0)):
         raise ValueError(
             f"Expected purely real or purely imaginary number, not {val}."
         )
 
 
-class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
+class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
     """
     Base class of a drift.
 
@@ -79,14 +80,19 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         Length / Velocity => Time to pass the element.
     section_index
         Section index to group elements into sections.
+    radiation_integrals
+        Synchrotron radiation integrals.
+        Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
         self,
         orbit_length: float,
         section_index: int = 0,
+        radiation_integrals: NumpyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
         super().__init__(
@@ -95,6 +101,19 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         )
 
         self.orbit_length = orbit_length
+        self._radiation_integrals = radiation_integrals
+
+    @property
+    def radiation_integrals(self) -> NumpyArray | None:
+        """
+        Radiation integrals of the drift.
+
+        Returns
+        -------
+        radiation_integrals
+            Synchrotron radiation integrals.
+        """
+        return self._radiation_integrals
 
     @abc.abstractmethod  # pragma: no cover
     def eta_0(self, gamma: float) -> backend.float:
@@ -112,17 +131,6 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
             Drift in arc parameter eta for one turn in synchrotron.
         """
         pass
-
-    def track(self, beam: BeamBaseClass) -> None:
-        """
-        Main simulation routine to be called in the mainloop.
-
-        Parameters
-        ----------
-        beam
-            Beam class to interact with this element.
-        """
-        super().track(beam=beam)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -159,7 +167,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, Schedulable, ABC):
         pass
 
 
-class DriftSimple(DriftBaseClass, HasPropertyCache):
+class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     """
     Base class to implement beam drifts in synchrotrons.
 
@@ -169,19 +177,21 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         Length of drift, in [m].
     section_index
         Section index to group elements into sections.
-    transition_gamma
-        Gamma of transition crossing.
+    radiation_integrals
+        Synchrotron radiation integrals.
+        Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
     momentum_compaction_factor
         Momentum compaction factor.
     **kwargs
-        Additional keyword arguments for MRO of fused elements.
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
         self,
         orbit_length: float,
         section_index: int = 0,
-        transition_gamma: complex | float | None = None,
+        radiation_integrals: NumpyArray | None = None,
         momentum_compaction_factor: float | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
@@ -195,12 +205,13 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Length / Velocity => Time to pass the element.
         section_index
             Section index to group elements into sections.
-        transition_gamma
-            Gamma of transition crossing.
+        radiation_integrals
+            Synchrotron radiation integrals.
         momentum_compaction_factor
             Momentum compaction factor.
         **kwargs
-            Additional keyword arguments for MRO of fused elements.
+            Additional keyword arguments for method
+            resolution order of inheriting elements.
 
         Examples
         --------
@@ -213,92 +224,22 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         super().__init__(
             orbit_length=orbit_length,
             section_index=section_index,
+            radiation_integrals=radiation_integrals,
             **kwargs,  # for MRO of fused elements
         )
-
-        self._transition_gamma: complex | None = None
-        self._momentum_compaction_factor: float | None = None
+        self._add_intended_schedule("momentum_compaction_factor")
 
         self._simulation: Simulation | None = None
 
-        match (momentum_compaction_factor, transition_gamma):
-            case (None, None):
-                pass
-            case (None, _):
-                self.transition_gamma = transition_gamma
-            case (_, None):
-                self.momentum_compaction_factor = momentum_compaction_factor
-            case (_, _):
-                raise ValueError(
-                    "Got `momentum_compaction_factor` and "
-                    "`transition_gamma` as argument. "
-                    "Please provide only one of them."
-                )
+        self._last_eta_0: float | None = None
 
-    @property  # read only, set by `transition_gamma`
-    def momentum_compaction_factor(self) -> float | None:
-        """
-        Momentum compaction factor.
-
-        Returns
-        -------
-        momentum_compaction_factor
-            Momentum compaction factor.
-        """
-        return self._momentum_compaction_factor
-
-    @momentum_compaction_factor.setter  # read only, set by `transition_gamma`
-    def momentum_compaction_factor(
-        self, momentum_compaction_factor: float
-    ) -> None:
-        """
-        Momentum compaction factor.
-
-        Parameters
-        ----------
-        momentum_compaction_factor
-            Momentum compaction factor.
-        """
-        self._momentum_compaction_factor = momentum_compaction_factor
-        self._transition_gamma = 1 / cmath.sqrt(momentum_compaction_factor)
-
-    @property
-    def transition_gamma(self) -> complex | None:
-        """
-        Gamma of transition crossing.
-
-        Returns
-        -------
-        transition_gamma
-            Gamma of transition crossing.
-        """
-        return self._transition_gamma
-
-    @transition_gamma.setter
-    def transition_gamma(self, transition_gamma: complex) -> None:
-        """
-        Gamma of transition crossing.
-
-        Parameters
-        ----------
-        transition_gamma
-            Gamma of transition crossing.
-        """
-        _assert_purely_real_or_imaginary(transition_gamma)
-
-        _momentum_compaction_factor = 1.0 / (
-            transition_gamma * transition_gamma
+        self.momentum_compaction_factor: float | None = (
+            momentum_compaction_factor
         )
-
-        # .real is only possible, because we asserted that the momentum
-        # compaction factor is entirely real or complex.
-        self._momentum_compaction_factor = _momentum_compaction_factor.real
-
-        self._transition_gamma = complex(transition_gamma)
 
     @staticmethod
     def headless(
-        transition_gamma: complex | NumpyArray | tuple[NumpyArray, NumpyArray],
+        momentum_compaction_factor: NumpyArray | tuple[NumpyArray, NumpyArray],
         orbit_length: float,
         section_index: int = 0,
     ) -> DriftSimple:
@@ -307,8 +248,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
         Parameters
         ----------
-        transition_gamma
-            Gamma of transition crossing.
+        momentum_compaction_factor
+            Momentum compaction factor.
         orbit_length
             Length of drift, in [m].
             Length / Velocity => Time to pass the element.
@@ -326,10 +267,12 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             orbit_length=orbit_length,
             section_index=section_index,
         )
-        if isinstance(transition_gamma, complex | int | float):
-            d.transition_gamma = complex(transition_gamma)
+        if isinstance(momentum_compaction_factor, int | float):
+            d.momentum_compaction_factor = float(momentum_compaction_factor)
         else:
-            d.schedule("transition_gamma", transition_gamma)
+            d.schedule(
+                "momentum_compaction_factor", momentum_compaction_factor
+            )
         from blond.core.beam.base import BeamBaseClass
         from blond.core.simulation.simulation import Simulation
 
@@ -356,14 +299,14 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
         if (
-            self.transition_gamma is None
-        ) and "transition_gamma" not in self.schedules:
+            self.momentum_compaction_factor is None
+        ) and "momentum_compaction_factor" not in self.schedules:
             raise ValueError(
-                "You need to define `transition_gamma` via `.transition_gamma=...` "
-                "or `.schedule(attribute='transition_gamma', value=...)`"
+                "You need to define `momentum_compaction_factor` via `.momentum_compaction_factor=...` "
+                "or `.schedule(attribute='momentum_compaction_factor', value=...)`"
             )
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
 
@@ -372,7 +315,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         beam
             Beam class to interact with this element.
         """
-        super().track(beam=beam)
+        super()._track(beam=beam)
 
         if self.schedule_active:
             self.apply_schedules(
@@ -381,14 +324,15 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             )
 
         dt = self.track_reference(beam.reference)
+        gamma = beam.reference.gamma
+        self._last_eta_0 = self.eta_0(gamma)
 
         if beam.common_array_size > 0:
-            gamma = beam.reference.gamma
             backend.specials.drift_simple(
                 dt=beam.write_partial_dt(),
                 dE=beam.read_partial_dE(),
                 T=dt,
-                eta_0=(self.alpha_0 - (1 / (gamma * gamma))),
+                eta_0=self._last_eta_0,
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
             )
@@ -449,3 +393,134 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         """Delete the stored values of functions with @cached_property."""
         # super()._invalidate_cache(DriftSimple.cached_props)
         pass
+
+
+class DriftExact(DriftSimple):
+    """
+    Drift element using the exact drift formulation.
+
+    This replaces the simple drift with the exact solver based on:
+      - exact delta from dE
+      - full alpha(delta) expansion
+      - exact (1 + dE/E) / (1 + delta) factor
+
+    Parameters
+    ----------
+    orbit_length : float
+        Length of drift, in [m].
+        Length / Velocity => Time to pass the element.
+    section_index : int
+        Section index to group elements into sections.
+    momentum_compaction_factor : float
+        Momentum compaction factor.
+    higher_order_alpha : NumpyArray
+        Higher-order alpha array up to desired order.
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
+    """
+
+    def __init__(
+        self,
+        orbit_length: float,
+        section_index: int = 0,
+        momentum_compaction_factor: float | None = None,
+        higher_order_alpha: NumpyArray | None = None,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        super().__init__(
+            orbit_length=orbit_length,
+            section_index=section_index,
+            momentum_compaction_factor=momentum_compaction_factor,
+            **kwargs,
+        )
+
+        self.higher_order_alpha = higher_order_alpha
+
+    @staticmethod
+    def headless(
+        orbit_length: float,
+        section_index: int = 0,
+        momentum_compaction_factor: float | None = None,
+        higher_order_alpha: NumpyArray | None = None,
+    ) -> DriftExact:
+        """
+        `DriftExact` element using the exact drift formulation.
+
+        This replaces the simple drift with the exact solver based on:
+          - exact delta from dE
+          - full alpha(delta) expansion
+          - exact (1 + dE/E) / (1 + delta) factor
+
+        Parameters
+        ----------
+        orbit_length : float
+            Length of drift, in [m].
+            Length / Velocity => Time to pass the element.
+        section_index : int
+            Section index to group elements into sections.
+        momentum_compaction_factor : float
+            Momentum compaction factor.
+        higher_order_alpha : NumpyArray
+            Higher-order alpha array up to desired order.
+
+        Returns
+        -------
+        drift_exact
+            ``DriftExact`` object.
+        """
+        from blond import Beam, Simulation
+
+        drift = DriftExact(
+            orbit_length=orbit_length,
+            section_index=section_index,
+            momentum_compaction_factor=momentum_compaction_factor,
+            higher_order_alpha=higher_order_alpha,
+        )
+        mock_simulation = Mock(Simulation)
+        mock_beam = Mock(Beam)
+
+        drift.on_init_simulation(
+            simulation=mock_simulation,
+        )
+        drift.on_run_simulation(
+            simulation=mock_simulation,
+            beam=mock_beam,
+            n_turns=1,
+        )
+
+        return drift
+
+    def _track(self, beam: BeamBaseClass) -> None:
+        """
+        Main simulation routine (exact drift).
+
+        Parameters
+        ----------
+        beam : BeamBaseClass
+            Beam.
+        """
+        # Apply schedules if active
+        if self.schedule_active:
+            self.apply_schedules(
+                turn_i=self._simulation.turn_i.value,
+                reference_time=beam.reference.time,
+            )
+
+        # Advance reference
+        dt = self.track_reference(beam.reference)
+
+        higher_alpha = backend.array(
+            self.higher_order_alpha, dtype=backend.float
+        )
+
+        # Track macroparticles
+        if beam.common_array_size > 0:
+            backend.specials.drift_exact(
+                dt=beam.write_partial_dt(),
+                dE=beam.read_partial_dE(),
+                T=dt,
+                alpha_0=self.alpha_0,
+                higher_alpha=higher_alpha,
+                beta=beam.reference.beta,
+                energy=beam.reference.total_energy,
+            )

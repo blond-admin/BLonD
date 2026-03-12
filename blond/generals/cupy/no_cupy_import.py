@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.backends.backend import backend
-
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
@@ -49,7 +47,7 @@ def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
         return False
 
 
-def copy_to_cpu(array: NumpyArray | CupyArray):
+def copy_to_cpu(array: NumpyArray | CupyArray) -> NumpyArray:
     """
     Copy array from GPU/CPU to CPU.
 
@@ -77,8 +75,8 @@ def copy_to_cpu(array: NumpyArray | CupyArray):
 class _AsarrayOverrideManager:
     def __init__(self) -> None:
         """Override functionality for 'np.asarray' to handle Cupy."""
-        self.cache: dict[int, np.ndarray] = {}
         self._numpy_asarray_original = deepcopy(np.asarray)
+        self._numpy_array_original = deepcopy(np.array)
 
     def asarray_override(
         self,
@@ -88,21 +86,40 @@ class _AsarrayOverrideManager:
         *args: Any,
         **kwargs: Any,
     ) -> NumpyArray:
-        import cupy as cp  # type: ignore
-
-        if isinstance(a, cp.ndarray):
-            key = a.data.ptr
-            if key not in self.cache:
+        try:
+            import cupy as cp  # type: ignore
+        # TODO remove PRAGMA when Issue #194 is done.
+        except (ImportError, ModuleNotFoundError):  # pragma: no cover
+            pass
+        else:
+            if isinstance(a, cp.ndarray):
                 a = a.get()  # copy data from GPU
-                self.cache[key] = a
-            else:
-                # DON'T copy data from GPU, because it was done already
-                a = self.cache[key]
 
         return self._numpy_asarray_original(  # type: ignore
             a,
             dtype=dtype,
             order=order,
+            *args,  # NOQA: B026
+            **kwargs,
+        )
+
+    def array_override(
+        self, p_object, dtype=None, *args, **kwargs
+    ) -> NumpyArray:
+        a = p_object
+
+        try:
+            import cupy as cp  # type: ignore
+        # TODO remove PRAGMA when Issue #194 is done.
+        except (ImportError, ModuleNotFoundError):  # pragma: no cover
+            pass
+        else:
+            if isinstance(a, cp.ndarray):
+                a = a.get()  # copy data from GPU
+
+        return self._numpy_array_original(  # type: ignore
+            a,
+            dtype=dtype,
             *args,  # NOQA: B026
             **kwargs,
         )
@@ -125,18 +142,28 @@ class AllowPlotting:
     """
 
     def __init__(self) -> None:
-        if not backend.is_gpu:
+        try:
+            import cupy  # NOQA
+
+            self.cupy_found = True
+        # TODO remove PRAGMA when Issue #194 is done.
+        except (ImportError, ModuleNotFoundError):  # pragma: no cover
+            self.cupy_found = False
             return  # do nothing
         # initialize cache, make override function available
         self.asarray_override_manager = _AsarrayOverrideManager()
 
     def __enter__(self) -> None:
         """Override np.asarray with own function to handle .get() for Cupy arrays."""
-        if not backend.is_gpu:
+        # TODO remove PRAGMA when Issue #194 is done.
+        if not self.cupy_found:  # pragma: no cover
             return
         # override numpy "asarray" function with own function
         self.asarray_org = deepcopy(np.asarray)
         np.asarray = self.asarray_override_manager.asarray_override
+
+        self.array_org = deepcopy(np.array)
+        np.array = self.asarray_override_manager.array_override
 
     def __exit__(
         self,
@@ -156,7 +183,9 @@ class AllowPlotting:
         exc_tb
             Exception traceback if an exception occurred.
         """
-        if not backend.is_gpu:
+        # TODO remove PRAGMA when Issue #194 is done.
+        if not self.cupy_found:  # pragma: no cover
             return  # do nothing
         # reset to original numpy function
         np.asarray = self.asarray_org
+        np.array = self.array_org

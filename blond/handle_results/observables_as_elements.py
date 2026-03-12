@@ -122,7 +122,7 @@ class BeamObservationInRingElement(
             (n_entries, beam.common_array_size),
         )
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Record beam data without modifying it.
 
@@ -304,7 +304,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         """
         pass
 
-    def track(
+    def _track(
         self,
         beam: BeamBaseClass,
     ) -> None:
@@ -317,15 +317,12 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             Beam class to interact with this element.
         """
         if self._beam_id_filter is None or self._beam_id_filter == id(beam):
-            self._sigma_dt.write(np.std(beam._dt))
-            self._sigma_dE.write(np.std(beam._dE))
-            self._mean_dt.write(np.mean(beam._dt))
-            self._mean_dE.write(np.mean(beam._dE))
-            self._rms_emittance.write(
-                np.sqrt(
-                    np.average(beam._dE**2) * np.average(beam._dt**2)
-                    - np.average(beam._dE * beam._dt) ** 2
-                )
+            self._sigma_dt.write(beam._dt.std())
+            self._sigma_dE.write(beam._dE.std())
+            self._mean_dt.write(beam._dt.mean())
+            self._mean_dE.write(beam._dE.mean())
+            self._rms_emittance.write(  # attribute acess on cached property
+                beam.rms_emittance
             )
 
     @property  # as readonly attributes

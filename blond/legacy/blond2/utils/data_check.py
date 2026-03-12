@@ -23,8 +23,10 @@ import numpy as np
 from . import bmath as bm
 from . import exceptions as blond_exceptions
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Iterable, TypeVar
+
+    from numpy.typing import NDArray as NumpyArray
 
     T = TypeVar("T")
 

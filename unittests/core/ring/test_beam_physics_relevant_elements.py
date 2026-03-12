@@ -192,18 +192,31 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
 
     def test_get_element(self):
         self.beam_physics_relevant_elements.get_element(
-            class_=DriftBaseClass, section_i=0
+            class_=DriftBaseClass, section_i=0, recursive=False
         )
         with self.assertRaises(AssertionError):
             self.beam_physics_relevant_elements.get_element(
-                class_=DriftBaseClass, section_i=None
+                class_=DriftBaseClass, section_i=None, recursive=False
             )
 
     def test_get_elements(self):
         elements = self.beam_physics_relevant_elements.get_elements(
-            class_=DriftBaseClass, section_i=None
+            class_=DriftBaseClass, section_i=None, recursive=False
         )
         assert len(elements) == 2
+
+    def test_get_elements_cache_reset(self):
+        self.beam_physics_relevant_elements._on_init_simulation_passed = True
+        for i in range(33):
+            if i == 32:
+                pass
+            self.beam_physics_relevant_elements.get_elements(
+                class_=DriftBaseClass, section_i=i
+            )
+
+        assert (
+            len((self.beam_physics_relevant_elements._get_element_cache)) <= 32
+        )
 
     def test_get_order_info(self):
         for mock_element in self.beam_physics_relevant_elements.elements:

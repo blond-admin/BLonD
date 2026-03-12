@@ -11,10 +11,14 @@
 from __future__ import annotations
 
 import os
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
+from numpy.exceptions import ComplexWarning
+
+from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -22,10 +26,19 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import TYPE_CHECKING, Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
 DEFAULT_BACKEND = "python"
 DEFAULT_BITS = "64"
+
+ALL_BACKENDS: dict[str, BackendBaseClass] = {}
+AVAILABLE_BACKENDS: dict[str, BackendBaseClass] = {}
+
+
+def _register_backend(bd: BackendBaseClass) -> BackendBaseClass:
+    ALL_BACKENDS[bd.__name__] = bd
+    return bd
 
 
 class Specials(ABC):
@@ -93,30 +106,12 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_legacy(  # NOQA: D102
-        dt: NumpyArray,
-        dE: NumpyArray,
-        T: float,
-        alpha_order: int,
-        eta_0: float,
-        eta_1: float,
-        eta_2: float,
-        beta: float,
-        energy: float,
-    ) -> None:
-        raise NotImplementedError(
-            "Abstract method `drift_legacy` is not implemented."
-        )
-
-    @staticmethod
-    @abstractmethod  # pragma: no cover
     def drift_exact(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
         alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
+        higher_alpha: NumpyArray,
         beta: float,
         energy: float,
     ) -> None:
@@ -243,7 +238,7 @@ class BackendBaseClass(ABC):
     float: type[np.float32 | np.float64]
     complex: type[np.complex128 | np.complex64]
 
-    def __init__(
+    def __init__(  # noqa: PLR0912
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -251,7 +246,6 @@ class BackendBaseClass(ABC):
             "python",
             "cpp",
             "numba",
-            "fortran",
             "cuda",
         ],
         is_gpu: bool,
@@ -272,6 +266,8 @@ class BackendBaseClass(ABC):
         # Callables that link to e.g. Numpy, Cupy
         self.array: Callable = None  # type: ignore
         self.gradient: Callable = None  # type: ignore
+        self.empty: Callable = None  # type: ignore
+        self.repeat: Callable = None  # type: ignore
         self.linspace: Callable = None  # type: ignore
         self.histogram: Callable = None  # type: ignore
         self.zeros: Callable = None  # type: ignore
@@ -282,12 +278,34 @@ class BackendBaseClass(ABC):
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
         self.sqrt: Callable = None  # type: ignore
+        self.interp: Callable = None  # type: ignore
         self.meshgrid: Callable = None  # type: ignore
         self.square: Callable = None  # type: ignore
         self.mean: Callable = None  # type: ignore
         self.arange: Callable = None  # type: ignore
         self.average: Callable = None  # type: ignore
         self.fftconvolve: Callable = None  # type: ignore
+        self.min: Callable = None  # type: ignore
+        self.max: Callable = None  # type: ignore
+        self.dot: Callable = None  # type: ignore
+        self.percentile: Callable = None  # type: ignore
+        self.cumulative_sum: Callable = None  # type: ignore
+        self.array_split: Callable = None  # type: ignore
+        self.sign: Callable = None  # type: ignore
+        self.sin: Callable = None  # type: ignore
+        self.cos: Callable = None  # type: ignore
+        self.exp: Callable = None  # type: ignore
+        self.any: Callable = None  # type: ignore
+        self.abs: Callable = None  # type: ignore
+        self.convolve: Callable = None  # type: ignore
+        self.copy: Callable = None  # type: ignore
+        self.ones_like: Callable = None  # type: ignore
+        self.add: Callable = None  # type: ignore
+        self.default_rng: object = None  # type: ignore
+        self.concatenate: Callable = None  # type: ignore
+        self.unique: Callable = None  # type: ignore
+        self.repeat: Callable = None  # type: ignore
+        self.ndarray: type = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -352,7 +370,7 @@ class BackendBaseClass(ABC):
         -----
         Following environment variables can be set:
 
-        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'fortran', 'cuda'
+        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'cuda'
         - `BLOND_BACKEND_BITS` can be '32' or '64'
         """
         _backend_mode_raw: str = os.environ.get(
@@ -367,7 +385,6 @@ class BackendBaseClass(ABC):
             "python",
             "cpp",
             "numba",
-            "fortran",
             "cuda",
         )
         if _backend_mode_raw in _allowed_backend_modes:
@@ -375,7 +392,6 @@ class BackendBaseClass(ABC):
                 "python",
                 "cpp",
                 "numba",
-                "fortran",
                 "cuda",
             ] = _backend_mode_raw  # type: ignore
         else:
@@ -446,10 +462,131 @@ class BackendBaseClass(ABC):
         --------
         >>> with backend.temporary_specials_mode("python"):
         ...     print(backend.specials_mode)
-        ...     # ...
+        ...     ...
         >>> print(backend.specials_mode)
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
+
+    def _asarray_if_needed(self, arr: ArrayLike) -> NumpyArray | CupyArray:
+        # Faster to check than cast, so only cast if needed
+        if isinstance(arr, self.ndarray):
+            return arr
+
+        try:
+            gpu_arr = arr.device != "cpu"
+        except AttributeError:
+            gpu_arr = False
+
+        if gpu_arr:
+            arr = arr.get()
+
+        return self.array(arr)
+
+    def _cast_dtype_if_needed(
+        self, arr: NumpyArray | CupyArray, dtype: type
+    ) -> NumpyArray | CupyArray:
+        if arr.dtype != dtype:
+            warnings.warn(
+                f"Automatically casting dtype from {arr.dtype} to {dtype}",
+                stacklevel=3,
+                category=PrecisionWarning,
+            )
+            try:
+                # Casting numpy complex array -> float is smooth and
+                # includes an automatic ComplexWarning.  Trying to cast
+                # a cupy array in the same way raises an exception.
+                # Maybe a bug in CuPy?
+                # Catch the exception then throw the correct warning.
+                arr = arr.astype(dtype)
+            # Can be removed some years after 2025.
+            except AttributeError as e:  # pragma: no cover
+                # Cupy bugfix needed for `cupy-cuda12x<14.0.1`
+                if (
+                    str(e)
+                    == "module 'numpy' has no attribute 'ComplexWarning'"
+                ):
+                    ComplexWarning(
+                        "Casting complex values to real discards the imaginary part"
+                    )
+                    arr = arr.real.astype(dtype)
+                else:  # pragma: no cover
+                    raise
+
+        return arr
+
+    def _cast_arr_and_dtype(
+        self, arr: ArrayLike, dtype: type
+    ) -> NumpyArray | CupyArray:
+        # Catch likely errors and reraise with slightly friendlier
+        # messages.  Raise from the original exception to aid
+        # debugging.
+        #
+        # ValueError is raised by backend.array(arr) if input is ragged.
+        # TypeError is raised by arr.astype(backend.[type]) if input
+        # cannot be coerced to the new type (e.g. str -> float)
+
+        try:
+            new_arr = self._asarray_if_needed(arr)
+        except ValueError as exc:
+            raise ValueError(
+                f"Unable to convert input data {arr} to array."
+            ) from exc
+
+        try:
+            new_arr = self._cast_dtype_if_needed(new_arr, dtype)
+        except (TypeError, ValueError) as exc:
+            raise type(exc)(
+                "Unable to automatically cast dtype of input data from "
+                f"{new_arr.dtype} to {dtype}."
+            ) from exc
+
+        return new_arr
+
+    def cast_arr_float_if_needed(
+        self, arr: ArrayLike
+    ) -> NumpyArray | CupyArray:
+        """
+        Convert input to backend.array with ``dtype=backend.float``.
+
+        Uses isinstance and dtype checks to only modify the object if
+        needed, which is faster and avoids breaking references.  If the
+        reference is required to change, `backend.array` should be
+        called directly.
+
+        Parameters
+        ----------
+        arr
+            The object that should be returned as an array.
+
+        Returns
+        -------
+        NumpyArray | CupyArray
+            The modified (if needed) array.
+        """
+        return self._cast_arr_and_dtype(arr, self.float)
+
+    def cast_arr_complex_if_needed(
+        self, arr: ArrayLike
+    ) -> NumpyArray | CupyArray:
+        """
+        Convert input to backend.array with ``dtype=backend.complex``.
+
+        Uses isinstance and dtype checks to only modify the object if
+        needed, which is faster and avoids breaking references.  If the
+        reference is required to change, `backend.array` should be
+        called directly.
+
+        Parameters
+        ----------
+        arr
+            The object that should be returned as an array.
+
+        Returns
+        -------
+        NumpyArray | CupyArray
+            The modified (if needed) array.
+        """
+        return self._cast_arr_and_dtype(arr, self.complex)
 
 
 class NumpyBackend(BackendBaseClass):
@@ -464,7 +601,7 @@ class NumpyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0912
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -479,6 +616,8 @@ class NumpyBackend(BackendBaseClass):
 
         self.array = np.array
         self.gradient = np.gradient
+        self.empty = np.empty
+        self.repeat = np.repeat
         self.linspace = np.linspace
         self.histogram = np.histogram
         self.zeros = np.zeros
@@ -496,6 +635,30 @@ class NumpyBackend(BackendBaseClass):
         self.arange = np.arange
         self.average = np.average
         self.fftconvolve = fftconvolve
+        self.min = np.min
+        self.max = np.max
+        self.dot = np.dot
+        self.percentile = np.percentile
+        try:  # pragma: no cover
+            self.cumulative_sum = np.cumulative_sum
+        except AttributeError:  # pragma: no cover
+            self.cumulative_sum = np.cumsum
+        self.array_split = np.array_split
+        self.sign = np.sign
+        self.sin = np.sin
+        self.cos = np.cos
+        self.exp = np.exp
+        self.any = np.any
+        self.abs = np.abs
+        self.convolve = np.convolve
+        self.copy = np.copy
+        self.ones_like = np.ones_like
+        self.add = np.add
+        self.default_rng = np.random.default_rng
+        self.concatenate = np.concatenate
+        self.unique = np.unique
+        self.repeat = np.repeat
+        self.ndarray = np.ndarray
 
         self._finalize()
 
@@ -505,7 +668,6 @@ class NumpyBackend(BackendBaseClass):
             "python",
             "cpp",
             "numba",
-            "fortran",
         ],
     ) -> None:
         """
@@ -536,21 +698,13 @@ class NumpyBackend(BackendBaseClass):
             NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
-        elif mode == "fortran":
-            from blond.core.backends.fortran.callables import (
-                reload_fortran_backend,
-            )
-
-            FortranSpecials = reload_fortran_backend(self.float)
-
-            self.specials = FortranSpecials()
-            self.specials_mode = mode
         else:
             raise ValueError(mode)
         if self.verbose and onchange:
             print(f"Set special to `{mode}`")
 
 
+@_register_backend
 class Numpy32Bit(NumpyBackend):
     """Numpy backend with 32 bit precision."""
 
@@ -563,6 +717,7 @@ class Numpy32Bit(NumpyBackend):
         )
 
 
+@_register_backend
 class Numpy64Bit(NumpyBackend):
     """Numpy backend with 64 bit precision."""
 
@@ -587,7 +742,7 @@ class CupyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0912
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -599,10 +754,19 @@ class CupyBackend(BackendBaseClass):
             is_gpu=True,
         )
         import cupy as cp  # type: ignore # import only if needed, which is not always the case
-        from cupyx.scipy.signal import fftconvolve
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                category=FutureWarning,
+                message="cupyx.jit.rawkernel is experimental. The interface can change in the future.",
+            )
+            from cupyx.scipy.signal import fftconvolve
 
         self.array = cp.array
         self.gradient = cp.gradient
+        self.empty = cp.empty
+        self.repeat = cp.repeat
         self.linspace = cp.linspace
         self.histogram = cp.histogram
         self.zeros = cp.zeros
@@ -620,6 +784,27 @@ class CupyBackend(BackendBaseClass):
         self.arange = cp.arange
         self.average = cp.average
         self.fftconvolve = fftconvolve
+        self.min = cp.min
+        self.max = cp.max
+        self.dot = cp.dot
+        self.percentile = cp.percentile
+        self.cumulative_sum = cp.cumsum
+        self.array_split = cp.array_split
+        self.sign = cp.sign
+        self.sin = cp.sin
+        self.cos = cp.cos
+        self.exp = cp.exp
+        self.any = cp.any
+        self.abs = cp.abs
+        self.convolve = cp.convolve
+        self.copy = cp.copy
+        self.ones_like = cp.ones_like
+        self.add = cp.add
+        self.default_rng = cp.random.default_rng
+        self.concatenate = cp.concatenate
+        self.unique = cp.unique
+        self.repeat = cp.repeat
+        self.ndarray = cp.ndarray
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
@@ -648,6 +833,7 @@ class CupyBackend(BackendBaseClass):
             print(f"Set special to `{mode}`")
 
 
+@_register_backend
 class Cupy32Bit(CupyBackend):
     """Cupy backend with 64 bit precision."""
 
@@ -658,6 +844,7 @@ class Cupy32Bit(CupyBackend):
         )
 
 
+@_register_backend
 class Cupy64Bit(CupyBackend):
     """Cupy backend with 32 bit precision."""
 
@@ -668,7 +855,18 @@ class Cupy64Bit(CupyBackend):
         )
 
 
-default = Numpy32Bit()  # use .change_backend(...) to change it anywhere
+default = Numpy64Bit()  # use .change_backend(...) to change it anywhere
 backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
 backend.verbose = True
 backend.apply_environment_variables()
+
+
+for k, v in ALL_BACKENDS.items():
+    try:
+        v()
+    # Skip on any exception, we only care that it's not available,
+    # we don't care why.
+    except Exception:  # pragma: no cover
+        pass
+    else:
+        AVAILABLE_BACKENDS[k] = v

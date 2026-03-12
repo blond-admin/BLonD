@@ -10,8 +10,10 @@
 
 from __future__ import annotations
 
+import logging
+import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -31,15 +33,26 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.simulation.simulation import Simulation
     from blond.generals.protocols import AnyInterpolator
+    from blond.handle_results.observables import ObservablesOncePerTurnBase
 
     T = TypeVar("T")
 
+logger = logging.getLogger(__name__)
+
 
 class Preparable(ABC):
-    """Internal Mix-in for a class to make it preparable by the `Simulation` object."""
+    """
+    Internal Mix-in for a class to make it preparable by the `Simulation` object.
 
-    def __init__(self) -> None:
-        super().__init__()
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+    """
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
     @abstractmethod  # pragma: no cover
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -82,6 +95,12 @@ class MainLoopRelevant(Preparable):
     """
     Base class for objects that are relevant for the simulation main loop.
 
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+
     Attributes
     ----------
     each_turn_i
@@ -89,8 +108,8 @@ class MainLoopRelevant(Preparable):
         callable each n-th turn.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.each_turn_i = 1
         self.active = True
 
@@ -118,6 +137,12 @@ class Schedulable:
     """
     Base class for objects with schedule parameters.
 
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+
     Attributes
     ----------
     schedules
@@ -125,10 +150,26 @@ class Schedulable:
         via `apply_schedules`
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.intended_for_scheduling = set()
         self.schedules: dict[str, SchedulerBaseClass] = {}
         self.schedule_active = False
+
+    def _add_intended_schedule(self, *names: str) -> None:
+        """
+        Add a variable name to the intended schedules.
+
+        When scheduling anything different as an intended variable,
+        this class will issue a `UserWarning`.
+
+        Parameters
+        ----------
+        *names
+            Names of a variable.
+        """
+        for name in names:
+            self.intended_for_scheduling.add(str(name))
 
     def schedule(
         self,
@@ -173,6 +214,13 @@ class Schedulable:
         - Once a schedule is applied, the `schedule_active` flag is set to True.
         - For convenience, non-explicit types are automatically converted using `get_scheduler`.
         """
+        if attribute not in self.intended_for_scheduling:
+            warnings.warn(
+                f"'{attribute}' is not intended to be scheduled. "
+                f"This can result in bugs. Use at your own risk.",
+                UserWarning,
+                stacklevel=2,
+            )
         assert hasattr(self, attribute), (
             f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
@@ -183,6 +231,8 @@ class Schedulable:
             # should allow easier user input, but is less explicit
             self.schedules[attribute] = get_scheduler(value)
         self.schedule_active = True
+
+        self.apply_schedules(turn_i=0, reference_time=0)
 
     def schedule_from_file(
         self,
@@ -229,12 +279,14 @@ class Schedulable:
             Current time, in [s].
         """
         for attribute, schedule in self.schedules.items():
+            value = schedule.get_scheduled(
+                turn_i=turn_i, reference_time=reference_time
+            )
             self.__setattr__(
                 attribute,
-                schedule.get_scheduled(
-                    turn_i=turn_i, reference_time=reference_time
-                ),
+                value,
             )
+            logger.debug(f"Wrote {self}.{attribute} = {value}")
 
 
 class SimulationElementBase(MainLoopRelevant, ABC):
@@ -278,6 +330,26 @@ class SimulationElementBase(MainLoopRelevant, ABC):
                 else f"Unnamed-{type(self).__name__}"
             )
         self.name = name
+        self.observables: dict[
+            int, ObservablesOncePerTurnBase
+        ] = {}  # one observable per beam id
+
+    def add_observable(
+        self, beam: BeamBaseClass, observable: ObservablesOncePerTurnBase
+    ) -> None:
+        """
+        Add the observable to the self.observables dict at the id of the beam.
+
+        Parameters
+        ----------
+        beam
+            Beam, which should be tracked by this observable.
+        observable
+            Observable to be added to the list.
+        """
+        if id(beam) in self.observables:
+            raise ValueError(f"Observable for {id(beam)=} already set.")
+        self.observables[id(beam)] = observable
 
     @property  # as readonly attributes
     def section_index(self) -> int:
@@ -357,7 +429,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         return content
 
     @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Apply the element's physics effect to the beam.
 
@@ -367,6 +439,23 @@ class SimulationElementBase(MainLoopRelevant, ABC):
             The beam object whose state will be updated by this element.
         """
         pass
+
+    def track(self, beam: BeamBaseClass) -> None:
+        """
+        Check if the element is active this turn and then call _track.
+
+        Additionally, if any observables are attached to this element via
+        self.observables, they will be called.
+
+        Parameters
+        ----------
+        beam
+            The beam object whose state will be updated by this element.
+        """
+        if self.active:
+            self._track(beam=beam)
+        if id(beam) in self.observables:
+            self.observables[id(beam)].update()
 
 
 class BeamPhysicsRelevant(SimulationElementBase):
@@ -395,7 +484,7 @@ class BeamPhysicsRelevant(SimulationElementBase):
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
-        super().__init__(section_index, name)
+        super().__init__(section_index, name, **kwargs)
 
 
 class BeamObservationElement(SimulationElementBase):
@@ -439,7 +528,7 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
     ...     def __init__(self):
     ...         super().__init__()
     ...
-    ...     def track(self, beam: BeamBaseClass):
+    ...     def _track(self, beam: BeamBaseClass):
     ...         dt = beam.write_partial_dt()
     ...         dt += backend.random.rand(len(dt))
     """
@@ -477,6 +566,60 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
             Additional keyword arguments.
         """
         pass
+
+
+# n.b.:  runtime_checkable will check the method is present, but does
+# not validate the signature.
+@runtime_checkable
+class _Trackable(Protocol):
+    def track(self, beam): ...
+
+
+class UnsafeUserElement(UserDefinedElement):
+    """
+    Class to wrap around an arbitrary user defined element.
+
+    Used to sanitise non-standard objects defined by the user, should
+    not be used for production code.
+
+    The given `.track` method will be called on every turn, and the
+    element will be taken as part of section 0.  For any other
+    behaviour, inheriting from `UserDefinedElement` is essential.
+
+    Parameters
+    ----------
+    element
+        The element defined by the user, must implement a
+        `.track(self, beam)` method.
+
+    Examples
+    --------
+    >>> class Test:
+    ...    def track(self, beam):
+    ...        print("This is a test")
+    >>> ring.add_element(Test())
+    """
+
+    def __init__(self, element: _Trackable):
+        if not isinstance(element, _Trackable):
+            raise TypeError(
+                "Arbitrary user elements must at minimum "
+                "define a `.track(self, beam)` method."
+            )
+        else:
+            warnings.warn(
+                f"Element {element} (class name {element.__class__.__name__}) "
+                "is not recognised, attempting to coerce it to a usable form, "
+                "but results are not guaranteed. Inheriting from "
+                "`UserDefinedElement` is strongly recommended.",
+                stacklevel=2,
+            )
+
+        super().__init__()
+        self._element = element
+
+    def _track(self, beam: BeamBaseClass):
+        self._element.track(beam)
 
 
 class SchedulerBaseClass(ABC):

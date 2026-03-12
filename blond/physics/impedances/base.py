@@ -335,7 +335,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
 
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(
-                ProfileBaseClass, section_i=self.section_index
+                ProfileBaseClass, section_i=self.section_index, recursive=False
             )
             assert len(profiles) == 1, (
                 f"Found {len(profiles)} profiles in "
@@ -344,8 +344,6 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
                 f"profile from this group."
             )
             self._profile = profiles[0]
-        else:
-            pass
 
 
 class WakeField(ImpedanceBaseClass):
@@ -396,7 +394,7 @@ class WakeField(ImpedanceBaseClass):
     def __init__(
         self,
         sources: tuple[WakeFieldSource, ...],
-        solver: WakeFieldSolver | None,
+        solver: WakeFieldSolver,
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
     ):
@@ -405,6 +403,7 @@ class WakeField(ImpedanceBaseClass):
         self.solver = solver
         self.sources = sources
         self._induced_voltage = None
+        self.track_profile = True
 
     def info_string(self, prefix="") -> str:
         """
@@ -420,10 +419,13 @@ class WakeField(ImpedanceBaseClass):
         str
             Information string.
         """
-        content = (
-            f"{self.profile.info_string(prefix=prefix + ' ↓ ')}\n"
-            f"{super().info_string(prefix=prefix)}"
-        )
+        if self.track_profile:
+            content = (
+                f"{self.profile.info_string(prefix=prefix + ' ↓ ')}\n"
+                f"{super().info_string(prefix=prefix)}"
+            )
+        else:
+            content = super().info_string(prefix=prefix)
         return content
 
     @property
@@ -481,7 +483,7 @@ class WakeField(ImpedanceBaseClass):
         # because the track() method below requires it by calling the backend.
         return self.induced_voltage[: self.profile.n_bins]
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Calculate induced voltage and apply this voltage to the beam.
 
@@ -490,9 +492,7 @@ class WakeField(ImpedanceBaseClass):
         beam
             Beam class to interact with this element.
         """
-        if not self.active:
-            return
-        if self.profile.active:
+        if self.profile.active and self.track_profile:
             self.profile.track(beam=beam)
         induced_voltage = self.calc_induced_voltage(beam=beam)
         assert (induced_voltage).dtype == backend.float

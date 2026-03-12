@@ -11,19 +11,31 @@
 from __future__ import annotations
 
 import warnings
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from blond.core.backends.backend import backend
-from blond.core.beam.base import BeamBaseClass, BeamFlags
+from blond.core.backends.mpi_distributed.callables import rms_emittance
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.flags import BeamFlags
+from blond.core.helpers import int_from_float_with_warning
 from blond.generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.distributed.distributed_array import DistributedArray
+from blond.generals.distributed.helpers import (
+    distributed_arange,
+    mpi_aware_random_generator_cpu,
+    mpi_is_distributed,
+    mpi_local_size,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Literal
+
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from matplotlib.collections import QuadMesh
+    from matplotlib.axes import Axes
+    from matplotlib.collections import PathCollection, QuadMesh
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Simulation
@@ -66,6 +78,24 @@ class Beam(BeamBaseClass):
             is_distributed=False,
         )
 
+    def is_set_up(self) -> bool:
+        """
+        ``True`` of all required arrays are initialized.
+
+        Returns
+        -------
+        is_set_up
+            ``True`` of all required arrays are initialized.
+        """
+        return all(
+            (
+                self._dE is not None,
+                self._dt is not None,
+                self._flags is not None,
+                self._ids is not None,
+            )
+        )
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Initialize beam parameters when the simulation is created.
@@ -87,13 +117,20 @@ class Beam(BeamBaseClass):
         flags: NumpyArray | CupyArray | None = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
+        mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        **kwargs,
     ) -> None:
         """
         Configure the beam with an initial particle distributions.
 
-        This method sets the time and energy coordinates for all macro-particles
-        in the beam. It must be called before running a simulation to initialize
+        This method sets the time (`dt`) and energy (`dE`) offsets for each macro-particle
+        relative to reference values, and it also assigns status flags (`flags`) for each
+        particle. It must be called before starting the simulation in order to initialize
         the particle distribution.
+
+        The distribution of data across multiple processing units (ranks) is determined
+        by the `mpi_mode` parameter. This ensures that the beam setup is appropriately
+        handled for both parallel and non-parallel execution.
 
         Parameters
         ----------
@@ -113,6 +150,24 @@ class Beam(BeamBaseClass):
         reference_total_energy
             The reference total energy for the coordinate system, in [eV].
             Particle energies `dE` are relative to this reference.
+        mpi_mode
+            Specifies how the particle data is distributed across multiple ranks (processing
+            units) in a parallel environment:
+
+            - "root-distributes": The root node (rank 0) holds the full array and splits it
+              into smaller chunks, which are then distributed to all ranks, including rank 0.
+              Each rank stores its own chunk of the data. This mode is useful when loading
+              large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
+              across ranks.
+
+            - "all-ranks": Each rank independently generates and stores a full copy of the data.
+              While this mode uses more memory, it can be simpler to implement in scenarios where
+              each rank needs to work with its own independent data (e.g., generating separate
+              random distributions with `np.random.randn()`).
+
+        **kwargs
+            Unused - Keyword arguments to make the non-abstract implementation
+            extendable.
         """
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_macroparticles = len(dt)
@@ -124,18 +179,16 @@ class Beam(BeamBaseClass):
             assert flags.max() <= BeamFlags.ACTIVE.value
             assert len(dt) == len(flags)
 
-        self._dE: NumpyArray | CupyArray = backend.array(
-            dE, dtype=backend.float
+        self._dE: DistributedArray = DistributedArray(
+            backend.array(dE, dtype=backend.float)
         )
-        self._dt: NumpyArray | CupyArray = backend.array(
-            dt, dtype=backend.float
+        self._dt: DistributedArray = DistributedArray(
+            backend.array(dt, dtype=backend.float)
         )
 
         # intentionally 32 bit, this should be enough for all thinkable flags
-        self._flags: NumpyArray | CupyArray = flags.astype(np.int32)
-
-        self._ids: NumpyArray | CupyArray = backend.arange(
-            len(dt), dtype=np.int32
+        self._flags: DistributedArray = DistributedArray(
+            backend.array(flags, dtype=np.int32)
         )
 
         if reference_time:
@@ -143,7 +196,22 @@ class Beam(BeamBaseClass):
         if reference_total_energy:
             self.reference.total_energy = reference_total_energy
 
-        self.invalidate_cache()
+        if mpi_mode == "root-distributes":
+            self._dE.mpi_scatter()
+            self._dt.mpi_scatter()
+            self._flags.mpi_scatter()
+            # IDs need special treatment
+            self._ids: DistributedArray = DistributedArray(
+                backend.arange(len(dt), dtype=np.int32)
+            )
+            self._ids.mpi_scatter()
+        elif mpi_mode == "all-ranks":
+            # IDs need special treatment
+            self._ids: DistributedArray = distributed_arange(
+                len(dt), dtype=np.int32
+            )
+        else:
+            raise NameError(f"Unknown {mpi_mode=}")
 
     def on_run_simulation(
         self,
@@ -201,7 +269,7 @@ class Beam(BeamBaseClass):
         # is thus `common_array_size`.
         return self.intensity / self.common_array_size
 
-    @cached_property
+    @property
     def dt_min(self) -> float:
         """
         Minimum time coordinate among all macro-particles in the beam in [s].
@@ -213,7 +281,7 @@ class Beam(BeamBaseClass):
         """
         return self._dt.min()
 
-    @cached_property
+    @property
     def dt_max(self) -> float:
         """
         Maximum time coordinate among all macro-particles in the beam in [s].
@@ -225,7 +293,7 @@ class Beam(BeamBaseClass):
         """
         return self._dt.max()
 
-    @cached_property
+    @property
     def dE_min(self) -> float:
         """
         Minimum energy coordinate among all macro-particles in the beam in [eV].
@@ -237,7 +305,7 @@ class Beam(BeamBaseClass):
         """
         return self._dE.min()
 
-    @cached_property
+    @property
     def dE_max(self) -> float:
         """
         Maximum energy coordinate among all macro-particles in the beam in [eV].
@@ -249,7 +317,19 @@ class Beam(BeamBaseClass):
         """
         return self._dE.max()
 
-    @cached_property
+    @property
+    def rms_emittance(self):
+        """
+        Calculate the Root-Mean-Square emittance of the beam.
+
+        Returns
+        -------
+        rms_emittance
+            The Root-Mean-Square emittance in [s eV] of the beam.
+        """
+        return rms_emittance(dt=self._dt, dE=self._dE)
+
+    @property
     def common_array_size(self) -> int:
         """
         Total number of macro-particles in the beam regardless of `flags` state.
@@ -267,7 +347,7 @@ class Beam(BeamBaseClass):
         Particles that are labeled LOST will be nevertheless counted,
         as they still exist in the array.
         """
-        return len(self._dt)
+        return self._dt.global_size
 
     def plot_hist2d(self, **kwargs) -> QuadMesh:
         """
@@ -303,39 +383,64 @@ class Beam(BeamBaseClass):
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs:
             kwargs["bins"] = 256
-        if is_cupy_array(self._dt):
+        if mpi_is_distributed():
+            warnings.warn(
+                "Plotting MPI single node distribution only.",
+                UserWarning,
+                stacklevel=2,
+            )
+        if is_cupy_array(self._dt.array_local):
             # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE
-            dt: CupyArray = self._dt
+            dE: CupyArray = self._dE.array_local
+            dt: CupyArray = self._dt.array_local
             counts, xedges, yedges, image = plt.hist2d(
                 dt.get(), dE.get(), **kwargs
             )
         else:
             counts, xedges, yedges, image = plt.hist2d(
-                self._dt, self._dE, **kwargs
+                self._dt.array_local, self._dE.array_local, **kwargs
             )
         return image
 
-    def plot_scatter(self, **kwargs) -> None:
+    def plot_scatter(self, ax: Axes | None = None, **kwargs) -> PathCollection:
         """
         Scatter-plot of beam coordinates.
 
         Parameters
         ----------
+        ax
+            Pyplot axis object, for example ``ax = plt.gca()``.
         **kwargs
             Keyword arguments for ``matplotlib.pyplot.scatter``.
+
+        Returns
+        -------
+        scatter_path_collection
+            The `PathCollection` of the scatter plot.
         """
+        if ax is None:
+            ax = plt
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
             )
-        if is_cupy_array(self._dt):
+        if mpi_is_distributed():
+            warnings.warn(
+                "Plotting MPI single node distribution only.",
+                UserWarning,
+                stacklevel=2,
+            )
+        if is_cupy_array(self._dt.array_local):
             # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE
-            dt: CupyArray = self._dt
-            plt.scatter(dt.get(), dE.get(), **kwargs)
+            dE: CupyArray = self._dE.array_local
+            dt: CupyArray = self._dt.array_local
+            scat = ax.scatter(dt.get(), dE.get(), **kwargs)
         else:
-            plt.scatter(self._dt, self._dE, **kwargs)
+            scat = ax.scatter(
+                self._dt.array_local, self._dE.array_local, **kwargs
+            )
+
+        return scat
 
     def plot_hist(self, axis=0, **kwargs) -> None:
         """
@@ -364,23 +469,137 @@ class Beam(BeamBaseClass):
             )
         if "bins" not in kwargs:
             kwargs["bins"] = 256
-        if is_cupy_array(self._dt):
-            # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE
-            dt: CupyArray = self._dt
+        if mpi_is_distributed():
+            warnings.warn(
+                "Plotting MPI single node distribution only.",
+                UserWarning,
+                stacklevel=2,
+            )
+        dE = self._dE.array_local
+        dt = self._dt.array_local
+
+        if is_cupy_array(dE):  # assume `dE` is the same like `dt`
             if axis == 0:
-                xs = dt.get()
+                dt = dt.get()
             elif axis == 1:
-                xs = dE.get()
+                dE = dE.get()
             else:
                 raise ValueError(f"{axis=}")
-        elif axis == 0:
-            xs = self._dt
+
+        if axis == 0:
+            xs = dt
         elif axis == 1:
-            xs = self._dE
+            xs = dE
         else:
             raise ValueError(f"{axis=}")
         plt.hist(xs, **kwargs)
+
+    @staticmethod
+    def simple_gaussian(
+        n_macroparticles: int,
+        intensity: int | float,
+        particle_type: ParticleType,
+        dt_scale: float,
+        dE_scale: float,
+        dE_offset: float = 0.0,
+        dt_offset: float = 0.0,
+        seed: int | None = None,
+        reference_time: float | None = None,
+        reference_total_energy: float | None = None,
+        is_counter_rotating: bool = False,
+    ) -> Beam:
+        """
+        Generate a beam with gaussian macro-particle positions.
+
+        Parameters
+        ----------
+        n_macroparticles
+            Number of macroparticles that will be generated by the random
+            generator.
+        intensity
+           The total number of real particles in the beam (beam intensity).
+           This is distinct from the number of macro-particles used in the
+           simulation, which is typically much smaller.
+        particle_type
+           The type of particle in the beam (e.g., protons, electrons).
+           This determines properties like mass and charge.
+        dt_scale
+            Scale of the beam in time direction,
+            see `numpy.random.standard_normal`.
+        dE_scale
+            Scale of the beam in energy direction,
+            see `numpy.random.standard_normal`.
+        dE_offset
+            Offset of the particle distribution, in [s].
+        dt_offset
+            Offset of the particle distributiion, in [eV].
+        seed
+            Random seed.
+            ``None`` will generete a different beam distribution on each run.
+            An integer, e.g. ``1``, will always yield the same random
+            coordinates.
+        reference_time
+            The absolute reference time for the coordinate system,
+            in [s]. Particle times `dt` are relative to
+            this reference.
+        reference_total_energy
+            The reference total energy for the coordinate system, in [eV].
+            Particle energies `dE` are relative to this reference.
+        is_counter_rotating
+           Whether this beam rotates in the opposite direction to the main beam.
+           Default is False (co-rotating beam).
+
+        Returns
+        -------
+        beam
+            A beam that is ready to be used in a simulation.
+
+        Examples
+        --------
+        >>> from blond import Beam, proton
+        >>> beam = Beam.simple_gaussian(
+        ...     n_macroparticles=10_000,
+        ...     intensity=1e10,
+        ...     particle_type=proton,
+        ...     dt_scale=1e-9,
+        ...     dE_scale=1e9,
+        ...     dE_offset=0.5e9,
+        ...     dt_offset=0.5e-9,
+        ... )
+        """
+        local_size = mpi_local_size(
+            int_from_float_with_warning(
+                n_macroparticles, warning_stacklevel=2
+            ),
+            warning_hint="n_macroparticles",
+        )
+        dts = (
+            mpi_aware_random_generator_cpu(
+                seed=seed, n_forward_per_rank=local_size
+            ).standard_normal(size=local_size)
+            * dt_scale
+            + dt_offset
+        )
+        dEs = (
+            mpi_aware_random_generator_cpu(
+                seed=seed, n_forward_per_rank=local_size
+            ).standard_normal(size=local_size)
+            * dE_scale
+            + dE_offset
+        )
+        beam = Beam(
+            intensity=intensity,
+            particle_type=particle_type,
+            is_counter_rotating=is_counter_rotating,
+        )
+        beam.setup_beam(
+            dt=dts,
+            dE=dEs,
+            mpi_mode="all-ranks",
+            reference_time=reference_time,
+            reference_total_energy=reference_total_energy,
+        )
+        return beam
 
 
 class ProbeBeam(Beam):

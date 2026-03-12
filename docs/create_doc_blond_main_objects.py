@@ -15,10 +15,11 @@ import blond
 class Categories(Enum):
     """Categories that will be displayed on the website."""
 
+    DYNAMICS = "Beam Dynamics & Tracking"
     LATTICE = "Lattice & Hardware"
     CYCLE = "Energy Ramp"
     BEAM = "Beam Generation & Distribution"
-    DYNAMICS = "Beam Dynamics & Tracking"
+    WAKE = "Wakefield Utilities"
     DIAGNOSTICS = "Observables & Diagnostics"
     PLOTTING = "Plotting & Visualization"
     BACKEND = "Computing Backend"
@@ -26,17 +27,25 @@ class Categories(Enum):
 
 
 ASSIGNED_CATEGORIES = {
+    "Simulation": Categories.DYNAMICS.value,
+    "Ring": Categories.DYNAMICS.value,
     # Lattice & Hardware
-    "Simulation": Categories.LATTICE.value,
     "BoxLosses": Categories.LATTICE.value,
     "DriftSimple": Categories.LATTICE.value,
     "MultiHarmonicRFStation": Categories.LATTICE.value,
     "ReferenceEnergyChange": Categories.LATTICE.value,
-    "Ring": Categories.LATTICE.value,
     "SingleHarmonicRFStation": Categories.LATTICE.value,
     "UserDefinedElement": Categories.LATTICE.value,
     "WakeField": Categories.LATTICE.value,
     "StaticProfile": Categories.LATTICE.value,
+    "DynamicProfileConstNBins": Categories.LATTICE.value,
+    # Wakes
+    "InductiveImpedance": Categories.WAKE.value,
+    "PeriodicFreqSolver": Categories.WAKE.value,
+    "Resonators": Categories.WAKE.value,
+    "InductiveImpedanceSolver": Categories.WAKE.value,
+    "ImpedanceTableFreq": Categories.WAKE.value,
+    "TimeDomainFftSolver": Categories.WAKE.value,
     # Cycle
     "MagneticCycleByTime": Categories.CYCLE.value,
     "MagneticCyclePerTurn": Categories.CYCLE.value,
@@ -44,12 +53,15 @@ ASSIGNED_CATEGORIES = {
     "ConstantMagneticCycle": Categories.CYCLE.value,
     # Beam Generation & Distribution
     "Beam": Categories.BEAM.value,
+    "EmptyBeam": Categories.BEAM.value,
     "BiGaussian": Categories.BEAM.value,
     # Diagnostics
     "RFStationPhaseObservation": Categories.DIAGNOSTICS.value,
     "StaticProfileObservation": Categories.DIAGNOSTICS.value,
     "BeamObservationInRingElement": Categories.DIAGNOSTICS.value,
     "BeamObservationOncePerTurn": Categories.DIAGNOSTICS.value,
+    "DriftObservation": Categories.DIAGNOSTICS.value,
+    "SimulationObservation": Categories.DIAGNOSTICS.value,
     # Plotting
     "AllowPlotting": Categories.PLOTTING.value,
     # Backend / Precision
@@ -86,7 +98,6 @@ def main():
     :undoc-members:
     :show-inheritance:
     :noindex:
-
 """
 
             category = ASSIGNED_CATEGORIES[name]

@@ -1,24 +1,27 @@
-"""helper functions to add the copyright notice to all files."""
+"""Checks the copyright notice to all files."""
 
 import os
-import pathlib
+from pathlib import Path
 
-_HERE = pathlib.Path(__file__).parent.resolve()
+EXCLUDE = "legacy"
 
 
-def insert_copyright_notes():
-    """Adds the copyright notice to all files."""
-    ROOT = _HERE / "../blond/"
+def perform_check():
+    """Check the copyright notice in all files."""
+    this_dir = Path(__file__).parent
+    ROOT = (this_dir / "../blond/").resolve()
     assert ROOT.exists(), str(ROOT)
-    with open(f"{_HERE}/copyright_notice.txt") as file:
+    with open(this_dir / "copyright_notice.txt") as file:
         text_py = file.read() + "\n"
-    text_cpp = text_py.replace("#", r"//")
-    text_fortran = text_py.replace("#", r"!")
 
     for dirpath, _, filenames in os.walk(ROOT):
-        if "legacy" in dirpath:
+        if EXCLUDE in dirpath:
             continue
         for name in filenames:
+            if (
+                name == "_version.py"
+            ):  # is dynamically written during pip install
+                continue
             is_python_file = name.endswith(".py")
             is_cpp_file = (
                 name.endswith(".h")
@@ -26,28 +29,69 @@ def insert_copyright_notes():
                 or name.endswith(".cu")
             )
             is_fortran_file = name.endswith(".f90")
+
             if is_python_file or is_cpp_file or is_fortran_file:
+                copyright_message = get_copyright_message(
+                    is_cpp_file,
+                    is_fortran_file,
+                    is_python_file,
+                    text_py,
+                )
                 full_path = os.path.join(dirpath, name)
                 if os.path.getsize(full_path) > 0:  # skip empty files
-                    with open(full_path, "r+") as f:
+                    with open(full_path) as f:
                         content = f.read()
-                        if "copyright" in content.lower():
-                            print("Skipped:")
-                            print(f"{full_path}:1")
-                            continue
-                        f.seek(0)
-                        if is_python_file:
-                            f.write(text_py + content)
-                        elif is_cpp_file:
-                            f.write(text_cpp + content)
-                        elif is_fortran_file:
-                            f.write(text_fortran + content)
-                        else:
-                            raise RuntimeError()
+                    if not content.startswith(copyright_message):
+                        with open(full_path, "w") as f:
+                            f.seek(0)
+                            if (
+                                is_python_file
+                                or is_cpp_file
+                                or is_fortran_file
+                            ):
+                                f.write(copyright_message + content)
+                            else:
+                                raise RuntimeError()
 
-                        print("Updated:")
-                        print(f"{full_path}:1")
+
+def get_copyright_message(
+    is_cpp_file: bool,
+    is_fortran_file: bool,
+    is_python_file: bool,
+    text_py: str,
+):
+    """
+    Get the copyright message in the correct syntax for the different backends.
+
+    Parameters
+    ----------
+    is_cpp_file
+        Whether the file is C++.
+    is_fortran_file
+        Whether the file is FORTRAN.
+    is_python_file
+        Whether the file is Python.
+    text_py
+        The original text message to be converted.
+
+    Returns
+    -------
+    copyright_message
+        The copyright message in the correct syntax for the different backends.
+
+    """
+    text_cpp = text_py.replace("#", r"//")
+    text_fortran = text_py.replace("#", r"!")
+    if is_python_file:
+        copyright_message = text_py
+    elif is_fortran_file:
+        copyright_message = text_fortran
+    elif is_cpp_file:
+        copyright_message = text_cpp
+    else:
+        raise RuntimeError()
+    return copyright_message
 
 
 if __name__ == "__main__":
-    insert_copyright_notes()
+    perform_check()
