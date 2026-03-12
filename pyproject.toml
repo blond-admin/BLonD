@@ -71,6 +71,9 @@ optional-dependencies = { all = { file = [
   "legacy/requirements.txt",
 ] }, doc = { file = "requirements-doc.txt" }, xsuite = { file = "blond/interfaces/xsuite/requirements.txt" } }
 
+[tool.ty.src]
+include = ["blond"]
+exclude = ["blond/legacy"]
 
 [tool.ruff]
 src = ["blond"]                                                       # Source directories
