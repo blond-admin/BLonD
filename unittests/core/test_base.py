@@ -5,6 +5,7 @@ import numpy as np
 import scipy
 
 from blond import Simulation
+from blond.core.backends import backend
 from blond.core.base import (
     BeamObservationElement,
     BeamPhysicsRelevant,
@@ -14,13 +15,12 @@ from blond.core.base import (
     Preparable,
     Schedulable,
     ScheduledArray,
-    ScheduledInterpolation,
     ScheduledConstant,
+    ScheduledInterpolation,
     UnsafeUserElement,
     UserDefinedElement,
     get_scheduler,
 )
-from blond.core.backends import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import multi_backend_testcase
@@ -304,27 +304,33 @@ class TestSchedulable(unittest.TestCase):
 
 
 class TestMultiSchedules(unittest.TestCase):
-
     def setUp(self):
         self.turn_based_np = np.arange(10)
         self.turn_based_list = np.linspace(0, 5, 10).tolist()
-        self.turn_based_tuple = tuple(v*2 for v in range(10))
+        self.turn_based_tuple = tuple(v * 2 for v in range(10))
 
-        self.all_turn_based = [self.turn_based_np, self.turn_based_list,
-                               self.turn_based_tuple]
+        self.all_turn_based = [
+            self.turn_based_np,
+            self.turn_based_list,
+            self.turn_based_tuple,
+        ]
 
         self.time_based_np = np.array([[0, 5], [1, 2]])
         self.time_based_list = [[0, 5], [10, 20]]
         self.time_based_tuple = ((0, 5), (30, 31))
 
-        self.all_time_based = [self.time_based_np, self.time_based_list,
-                               self.time_based_tuple]
+        self.all_time_based = [
+            self.time_based_np,
+            self.time_based_list,
+            self.time_based_tuple,
+        ]
 
         self.all_elements = self.all_turn_based + self.all_time_based
 
-        self.scheduled_array = ScheduledArray(np.arange(10)**2)
-        self.scheduled_time = ScheduledInterpolation(np.array([0, 5]),
-                                                     np.array([100, 200]))
+        self.scheduled_array = ScheduledArray(np.arange(10) ** 2)
+        self.scheduled_time = ScheduledInterpolation(
+            np.array([0, 5]), np.array([100, 200])
+        )
 
     @multi_backend_testcase
     def test_get_scheduler_constant(self):
@@ -341,11 +347,12 @@ class TestMultiSchedules(unittest.TestCase):
             self.assertIsInstance(scheduler.values, backend.backend.ndarray)
 
             for turn in range(10):
-                self.assertEqual(element[turn], scheduler.get_scheduled(turn, None))
+                self.assertEqual(
+                    element[turn], scheduler.get_scheduled(turn, None)
+                )
 
     @multi_backend_testcase
     def test_get_scheduler_interpolate(self):
-
         for element in self.all_time_based:
             scheduler = get_scheduler(element)
             self.assertIsInstance(scheduler, ScheduledInterpolation)
@@ -356,7 +363,6 @@ class TestMultiSchedules(unittest.TestCase):
 
     @multi_backend_testcase
     def test_schedule_singles(self):
-
         schedulable = Schedulable()
         schedulable.test = 0
 

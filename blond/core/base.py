@@ -11,10 +11,10 @@
 from __future__ import annotations
 
 import logging
+import numbers
 import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
-import numbers
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -196,13 +196,16 @@ class Schedulable:
             The name of the attribute to be scheduled.
             Must be an existing attribute of the object.
 
-        value
-            The schedule definition for the attribute.
-            Can be provided in one of several forms:
+        *args
+            The schedules definition for the attribute.  Allows multiple
+            values for attributes that are not single valued e.g.
+            `DriftExact.higher_order_alpha`.
+            Each entry can be provided in one of several forms:
 
             1. **Convenient input options**:
-                - `NumpyArray`: Automatically cast to `ScheduledArray`.
-                - `tuple[NumpyArray, NumpyArray]`: Automatically cast to `ScheduledInterpolation`.
+                - 1D `ArrayLike`: Automatically cast to `ScheduledArray`.
+                - 2D `ArrayLike` [time, value]: Automatically cast to `ScheduledInterpolation`.
+                - Single valued:  Allows the scheduling infrastructure to be used with constant valued input.
 
             2. **Explicit scheduling objects**:
                 - `ScheduledArray`: Full control over array-based scheduling.
@@ -660,15 +663,46 @@ class SchedulerBaseClass(ABC):
 
 
 class MultiSchedule(SchedulerBaseClass):
+    """
+    Class to allow multi valued scheduling.
+
+    Allows parameters to be scheduled that are not single valued.  E.g.
+    `DriftExact.higher_order_alpha` can be arbitrarily long, and each
+    order may be scheduled differently.
+
+    Parameters
+    ----------
+    schedules
+        List of SchedulerBaseClass objects that describe the schedules
+        to use.
+    """
 
     def __init__(self, schedules: list[SchedulerBaseClass]):
-
         super().__init__()
         self._schedules = schedules
 
-    def get_scheduled(self, turn_i: int, reference_time: float) -> NumpyArray | CupyArray:
+    def get_scheduled(
+        self, turn_i: int, reference_time: float
+    ) -> NumpyArray | CupyArray:
+        """
+        Get the value of the schedule for the current turn/time.
 
-        values = backend.array([s.get_scheduled(turn_i, reference_time) for s in self._schedules])
+        Parameters
+        ----------
+        turn_i
+            Currently turn index.
+        reference_time
+            Current time, in [s].
+
+        Returns
+        -------
+        values
+            A Numpy or Cupy array (follows backend) of the values for
+            the current turn and/or time.
+        """
+        values = backend.array(
+            [s.get_scheduled(turn_i, reference_time) for s in self._schedules]
+        )
         return values
 
 
@@ -866,7 +900,9 @@ def get_scheduler(
             case (_,):
                 schedule = ScheduledArray(values=value)
             case _, _:
-                schedule = ScheduledInterpolation(times=value[0], values=value[1])
+                schedule = ScheduledInterpolation(
+                    times=value[0], values=value[1]
+                )
             case _:
                 raise ValueError(
                     "Scheduler input must be either 1D for turn-based or 2D"
