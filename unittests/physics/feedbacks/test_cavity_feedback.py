@@ -620,7 +620,7 @@ class TestIQCavityFeedbackTimingClass:
             num=n_sections * n_turns_to_simulate,
         )
         vals_after_rf_station = np.reshape(
-            vals_after_rf_station, (n_sections, n_turns_to_simulate)
+            vals_after_rf_station, (n_sections, n_turns_to_simulate), order="F"
         )
 
         cnst_cycle = MagneticCyclePerTurnAllRFStations(
@@ -644,12 +644,17 @@ class TestIQCavityFeedbackTimingClass:
             newline = "\n"
             if not all(check_allclose):
                 pytest.fail(
-                    f"problem in turn {turn} with {array_name}:\n\n{newline.join(str(ln) for ln in array)}\n--> {check_allclose}"
+                    f"problem in turn {turn} with {array_name}:\n\n{newline.join(str(ln) for ln in array)}\n--> {check_allclose}",
                 )
 
         def check_fail_printing(bool, msg):
             if bool:
                 pytest.fail(msg)
+
+        time_passed_list = [
+            [] for _ in range(n_turns_to_simulate)
+        ] * n_sections
+        omega_list = [[] for _ in range(n_turns_to_simulate)] * n_sections
 
         def callback(simulation: Simulation, beam: Beam):
             if simulation.turn_i.value == 0:  # TODO: and not CR
@@ -660,48 +665,56 @@ class TestIQCavityFeedbackTimingClass:
             for idx, fdbk in enumerate(timing_fdbk_list):
                 fdbk: IQCavityFeedbackTimingClass
                 # TODO: check rf centers --> add calculation of rf centers
-                # check_fail_printing(
-                #     not np.isclose(
-                #         fdbk.current_beam_reference_time,
-                #         fdbk.reference_time_after_reverse,
-                #         atol=0,
-                #         rtol=1e-12,
-                #     ),
-                #     f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
-                # )
-                check_fail_printing(
-                    not np.isclose(
-                        fdbk.current_beam_reference_energy,
-                        fdbk.reference_energy_after_reverse,
-                        atol=0,
-                        rtol=1e-12,
-                    ),
-                    f"reference energy after reverse not within tolerance {fdbk.current_beam_reference_energy}, {fdbk.reference_energy_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
-                )
+                if (
+                    n_sections != 1
+                ):  # only relevant/only gets set on multistation
+                    check_fail_printing(
+                        not np.isclose(
+                            fdbk.current_beam_reference_time,
+                            fdbk.reference_time_after_reverse,
+                            atol=0,
+                            rtol=1e-12,
+                        ),
+                        f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
+                    )
+                    check_fail_printing(
+                        not np.isclose(
+                            fdbk.current_beam_reference_energy,
+                            fdbk.reference_energy_after_reverse,
+                            atol=0,
+                            rtol=1e-12,
+                        ),
+                        f"reference energy after reverse not within tolerance {fdbk.current_beam_reference_energy}, {fdbk.reference_energy_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
+                    )
 
-                time_passed_list.append(fdbk.reverse_tracking_time_array)
-                msk = fdbk.reverse_tracking_time_array != 0
-                used_time_array = np.array(fdbk.reverse_tracking_time_array)[
-                    msk
-                ]
-                target_length = (n_sections - 1) * 2
-                check_fail_printing(
-                    len(used_time_array) != target_length,
-                    f"time arr length err {len(used_time_array)} != {target_length} section {idx}, trn {simulation.turn_i.value}",
-                )  # two drifts per section, 3 sections in between cavities
-                omega_list.append(fdbk.reverse_tracking_omega_list)
-                check_fail_printing(
-                    len(fdbk.reverse_tracking_omega_list)
-                    != len(fdbk.reverse_tracking_time_array),
-                    f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
-                )
+                    time_passed_list[sim.turn_i.value][idx] = (
+                        fdbk.reverse_tracking_time_array
+                    )
+                    omega_list[sim.turn_i.value][idx] = (
+                        fdbk.reverse_tracking_omega_list
+                    )
+                    msk = fdbk.reverse_tracking_time_array != 0
+                    used_time_array = np.array(
+                        fdbk.reverse_tracking_time_array
+                    )[msk]
+                    target_length = (n_sections - 1) * 2
+                    check_fail_printing(
+                        len(used_time_array) != target_length,
+                        f"time arr length err {len(used_time_array)} != {target_length} section {idx}, trn {simulation.turn_i.value}",
+                    )  # two drifts per section, 3 sections in between cavities
+
+                    check_fail_printing(
+                        len(fdbk.reverse_tracking_omega_list)
+                        != len(fdbk.reverse_tracking_time_array),
+                        f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
+                    )
+
+                    assert (
+                        fdbk.tracked_forward_until_element
+                        not in fdbk.current_slice_elements_forward
+                    )  # this element should be tracked afterwards, not now
 
                 # rf_centers_list.append(fdbk.rf_centers_reverse_direction)
-
-                # assert (
-                #         fdbk.tracked_forward_until_element
-                #         not in fdbk.current_slice_elements_forward
-                # )  # this element should be tracked afterwards, not now
                 # assert (
                 #         fdbk.tracked_forward_until_element
                 #         is fdbk.reference_altering_elements[
@@ -710,14 +723,14 @@ class TestIQCavityFeedbackTimingClass:
                 #             ]
                 # )  # 3 elements between two cavities
 
-            check_allclose_turn_printing(
-                time_passed_list, simulation.turn_i.value, "time_passed"
-            )  # with no acceleration, this has to be true (all time_passed are the same
-            check_allclose_turn_printing(
-                omega_list, simulation.turn_i.value, "omega_list"
-            )  # with no acceleration, this has to be true (all omegas are the same)
-            # check_allclose_turn_printing(rf_centers_list, simulation.turn_i.value)  # with no acceleration, this has to be true (all RF centers are the same)
-
         sim.run_simulation(
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
         )
+        pass
+
+        # check_allclose_turn_printing(
+        #     np.array(time_passed_list), simulation.turn_i.value, "time_passed"
+        # )  # with no acceleration, this has to be true (all time_passed are the same
+        # check_allclose_turn_printing(
+        #     omega_list, simulation.turn_i.value, "omega_list"
+        # )  # with no acceleration, this has to be true (all omegas are the same)

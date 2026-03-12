@@ -562,6 +562,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.reverse_tracking_omega_list: list[float] | None = None
 
         self.reference_state_until_tracked: ReferenceCoordinates | None = None
+        self.reference_turn_offset: int = 0
 
         self.debug = debug
 
@@ -637,17 +638,21 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         for el_ind, element in enumerate(
             self.reference_altering_elements[
                 self.own_index_in_reference_list :
+                # beam is tracked after the feedback, therefore we have to track the current element
+                # the schedules are applied correctly though as this is done in the RFCavityBaseClass._track, which was already called
             ]
         ):  # iterate through remaining current turn
-            element: AltersReference
-            element.track_reference(dummy_reference)
             if isinstance(element, RFStationBaseClass) and el_ind != 0:
                 found = True
                 next_reference_altering_element_index = (
                     el_ind
                     + self.own_index_in_reference_list  # This will be the next element
                 )
+                self.reference_turn_offset = -1
                 break
+            element: AltersReference
+
+            element.track_reference(dummy_reference)
 
         if not found:
             for el_ind, element in enumerate(
@@ -666,10 +671,11 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                             self.reference_altering_elements
                         )  # This will be the next element
                     )
+                    self.reference_turn_offset = 0
                     break
         self.forward_tracking_time = dummy_reference.time - start_time
         self.forward_tracking_omega_rf = (
-            self._parent_rf_station.omega_rf_design
+            self._parent_rf_station.omega_rf_design  # TODO: this should probably be omega_rf as here we have the correct one, but this will cause a discrepancy elsewhere
         )
         self.tracked_forward_until_element = (
             self.reference_altering_elements[
@@ -718,7 +724,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         start_index = self.reference_altering_elements.index(
             self.tracked_forward_until_element
         )
-        time_list = [self.reference_state_until_tracked.time]
+        time_list = []
         omega_list = []
 
         found = False
@@ -726,13 +732,18 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             start_index:
         ]:  # iterate through remaining last turn
             element: AltersReference  # TODO: are duplicate elements allowed in pipeline?
-            if isinstance(element, RFStationBaseClass):
+            if isinstance(
+                element, RFStationBaseClass
+            ):  # and element == self.tracked_forward_until_element:
                 # Since we are in the previous turn, we need to decrease this manually
-                # and increase it afterwards (only for cavities in case of scheduled acceleration)
-                element._turn_i._value -= 1
+                # and increase it afterwards (only for cavities in case of scheduled acceleration).
+                # this is not strictly true for all cases, but only cases, where the reference crosses the turn border on the forward tracking
+                element._turn_i._value += self.reference_turn_offset
             element.track_reference(self.reference_state_until_tracked)
-            if isinstance(element, RFStationBaseClass):
-                element._turn_i._value += 1
+            if isinstance(
+                element, RFStationBaseClass
+            ):  # and element == self.tracked_forward_until_element:
+                element._turn_i._value -= self.reference_turn_offset
             # if (
             #     isinstance(element, SingleHarmonicRFStation) and not self.debug
             # ):  # does not alter time coordinate
@@ -743,9 +754,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     self.ring.circumference,
                 )
             )
-            time_list.append(
-                self.reference_state_until_tracked.time - time_list[0]
-            )
+            time_list.append(self.reference_state_until_tracked.time)
             isclose = np.isclose(
                 self.reference_state_until_tracked.time,
                 beam.reference.time,
@@ -757,7 +766,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
             if isclose or is_above:  # counterrotation should break earlier
                 if is_above:
-                    warnings.warn("inconsistency with references")
+                    warnings.warn(
+                        "inconsistency with references", stacklevel=1
+                    )
                 found = True
                 break
 
@@ -766,24 +777,20 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 : self.own_index_in_reference_list
             ]:  # iterate through initial current turn
                 element: AltersReference
-
-                element.track_reference(
-                    self.reference_state_until_tracked
-                )  # TODO: will this be properly done with the correct timing? --> will the interpolation cycle work with this?
-                # if (
-                #     isinstance(element, SingleHarmonicRFStation)
-                #     and not self.debug
-                # ):  # does not alter time coordinate
-                #     continue
+                if (
+                    isinstance(element, SingleHarmonicRFStation)
+                    and not self.debug
+                ):  # does not alter time coordinate
+                    print("oops")
+                    continue
+                element.track_reference(self.reference_state_until_tracked)
                 omega_list.append(
                     self._parent_rf_station.calc_omega_rf_design(
                         self.reference_state_until_tracked.beta,
                         self.ring.circumference,
                     )
                 )
-                time_list.append(
-                    self.reference_state_until_tracked.time - time_list[0]
-                )
+                time_list.append(self.reference_state_until_tracked.time)
                 if np.isclose(
                     self.reference_state_until_tracked.time,
                     beam.reference.time,
@@ -792,7 +799,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 ):  # counterrotation should break earlier
                     break
 
-        self.reverse_tracking_time_array = np.diff(time_list[1:])
+        self.reverse_tracking_time_array = np.diff(time_list)
         self.reverse_tracking_omega_list = omega_list[1:]
         # first entry references the 0 time-point, which is this cavity
 
@@ -986,8 +993,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             Beam to be tracked.
         """
         self.rf_centers = np.zeros(0)
-        if self.tracked_forward_until_element is not None:
-            self.calculate_rf_centers_for_reverse_direction(beam=beam)
+        if self.tracked_forward_until_element is not None:  # noqa: SIM102
+            if (
+                self.tracked_forward_until_element
+                is not self._parent_rf_station
+            ):  # otherwise, the full turn was already tracked
+                self.calculate_rf_centers_for_reverse_direction(beam=beam)
 
         self.calculate_rf_centers_for_forward_direction(beam=beam)
         self.relative_voltage_correction = np.ones_like(self.profile.hist_x)
