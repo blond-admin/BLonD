@@ -33,7 +33,7 @@ from numba import set_num_threads
 class TestBackendBaseClass(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
-        backend.change_backend(type(default))
+        backend.change_backend(default)
         backend.set_specials("numba")
 
     def setUp(self) -> None:

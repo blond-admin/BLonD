@@ -861,8 +861,8 @@ class Cupy64Bit(CupyBackend):
         )
 
 
-default = Numpy64Bit()  # use .change_backend(...) to change it anywhere
-backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
+default = Numpy64Bit  # use .change_backend(...) to change it anywhere
+backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default()
 backend.verbose = True
 backend.apply_environment_variables()
 
