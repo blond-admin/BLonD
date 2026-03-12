@@ -19,7 +19,7 @@ from blond.core.beam.flags import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
 
 # The function definition is recycled by the numba backend.

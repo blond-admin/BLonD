@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.random import Generator
-from numpy.typing import NDArray as NumpyArray
 
 from blond import backend
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
@@ -29,7 +28,9 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 from blond.core.base import BeamPhysicsRelevant, DynamicParameter
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray as NumpyArray
+    from typing import Any
+
+    from numpy import ndarray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
@@ -76,12 +77,16 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
     energy_kick
         Energy kick induced by synchrotron radiation and quantum excitation.
     """
+    if random_generator is None:
+        random_generator = np.random.default_rng(seed=0)
     if disable_quantum_excitation:
         energy_kick = (
             -energy_lost
             - 2.0 / longitudinal_damping_time * beam_delta_energy_array
         )
     else:
+        assert natural_energy_spread is not None
+
         energy_kick = (
             -energy_lost
             - 2.0 / longitudinal_damping_time * beam_delta_energy_array
@@ -102,11 +107,11 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
 
     Parameters
     ----------
+    section_index
+        Section index to group elements into sections.
     name
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
-    section_index
-        Section index to group elements into sections.
     share_of_radiation_integrals
         Share of synchrotron radiation integrals.
     disable_quantum_excitation
@@ -117,8 +122,8 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
 
     def __init__(
         self,
+        section_index: int,
         name: str | None = None,
-        section_index: int | None = None,
         share_of_radiation_integrals: NumpyArray | None = None,
         disable_quantum_excitation: bool = False,
         seed: int | None = None,
@@ -234,7 +239,9 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        **kwargs,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -243,8 +250,12 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        beam
+            Simulation `Beam` object.
+        n_turns
+            Number of turns to simulate.
         **kwargs
-            Additional keyword arguments for simulation setup.
+            Additional keyword arguments.
         """
         pass
 

@@ -20,7 +20,7 @@ from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
 try:
     from mpi4py import MPI

@@ -13,14 +13,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from numpy import ndarray as numpyarray
-from numpy.typing import NDArray as NumpyArray
+from numpy import ndarray
+from numpy import ndarray as NumpyArray
 
 from blond.generals.exceptions import UnevenArraySizes
 
 
 def raise_on_uneven_array_sizes(
-    *args: tuple[float | Sequence | NumpyArray],
+    *args: float | Sequence | NumpyArray,
 ) -> Any:
     """
     Check if the tuple of arguments have the same length.
@@ -39,11 +39,11 @@ def raise_on_uneven_array_sizes(
     --------
     >>> def function(*args):
     >>>     args = locals().values()
-    >>>     raise_on_uneven_array_sizes(args)
+    >>>     raise_on_uneven_array_sizes(*args)
     """
     lengths = []
     for a in args:
-        if isinstance(a, Sequence | numpyarray):
+        if isinstance(a, Sequence | ndarray):
             lengths.append(len(a))
     if len(set(lengths)) > 1:
         raise UnevenArraySizes(

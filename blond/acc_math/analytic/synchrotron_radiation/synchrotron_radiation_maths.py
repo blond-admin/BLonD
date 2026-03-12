@@ -24,7 +24,7 @@ from blond.core.beam.particle_types import ParticleType
 from blond.generals.function_helpers import raise_on_uneven_array_sizes
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
 
 def _selective_calculate_partition_numbers(

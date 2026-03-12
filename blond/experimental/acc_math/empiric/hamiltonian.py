@@ -22,7 +22,7 @@ except ImportError:
 from scipy.signal import find_peaks
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
 
 def separatrixes(hamilton_2D: NumpyArray):

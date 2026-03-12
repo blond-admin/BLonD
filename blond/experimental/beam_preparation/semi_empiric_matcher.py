@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
     from blond import (
         Simulation,

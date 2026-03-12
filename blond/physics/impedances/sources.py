@@ -43,8 +43,8 @@ from blond.physics.impedances.readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy import ndarray as NumpyArray
     from numpy.typing import ArrayLike
-    from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
 

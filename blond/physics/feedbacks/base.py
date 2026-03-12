@@ -27,7 +27,7 @@ from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation

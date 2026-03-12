@@ -26,8 +26,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import TYPE_CHECKING, Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy import ndarray as NumpyArray
     from numpy.typing import ArrayLike
-    from numpy.typing import NDArray as NumpyArray
 
 DEFAULT_BACKEND = "python"
 DEFAULT_BITS = "64"
@@ -301,7 +301,7 @@ class BackendBaseClass(ABC):
         self.copy: Callable = None  # type: ignore
         self.ones_like: Callable = None  # type: ignore
         self.add: Callable = None  # type: ignore
-        self.default_rng: object = None  # type: ignore
+        self.default_rng: Callable = None  # type: ignore
         self.concatenate: Callable = None  # type: ignore
         self.unique: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore

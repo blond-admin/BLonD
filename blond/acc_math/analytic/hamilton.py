@@ -16,7 +16,7 @@ import numpy as np
 from scipy.constants import speed_of_light as c  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
 
 def is_in_separatrix(

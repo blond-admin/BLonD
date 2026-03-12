@@ -23,7 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Any, TypeVar
 
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
     from scipy.interpolate import (
         Akima1DInterpolator,
         PchipInterpolator,

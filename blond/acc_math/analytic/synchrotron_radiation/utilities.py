@@ -29,7 +29,7 @@ from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths i
 from blond.core.beam.particle_types import ParticleType, electron
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
 
 def gather_longitudinal_synchrotron_radiation_parameters(

@@ -23,7 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
 
 def c_real(

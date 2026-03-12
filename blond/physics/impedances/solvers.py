@@ -50,7 +50,7 @@ from blond.physics.profiles import (
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):

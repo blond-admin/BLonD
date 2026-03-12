@@ -36,7 +36,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from matplotlib.axes import Axes
     from matplotlib.collections import PathCollection, QuadMesh
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
     from blond import Simulation
     from blond.core.beam.particle_types import ParticleType

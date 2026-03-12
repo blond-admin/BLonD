@@ -15,7 +15,7 @@ from enum import Enum
 from os import PathLike
 
 import numpy as np
-from numpy.typing import NDArray as NumpyArray
+from numpy import ndarray as NumpyArray
 
 
 class ImpedanceReader(ABC):

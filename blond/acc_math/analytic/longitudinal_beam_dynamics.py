@@ -23,7 +23,7 @@ from scipy.constants import e
 from blond.generals.function_helpers import raise_on_uneven_array_sizes
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
 
 def get_small_amplitude_angular_synchrotron_tune(

@@ -24,7 +24,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation

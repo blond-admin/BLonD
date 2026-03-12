@@ -32,7 +32,7 @@ from blond.generals.distributed.helpers import (
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
 
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
 

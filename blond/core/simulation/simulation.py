@@ -52,7 +52,7 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
 
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
     from blond import BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine

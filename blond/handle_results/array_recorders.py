@@ -26,8 +26,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy import ndarray as NumpyArray
     from numpy.typing import DTypeLike
-    from numpy.typing import NDArray as NumpyArray
 
 
 class ArrayRecorder(ABC):

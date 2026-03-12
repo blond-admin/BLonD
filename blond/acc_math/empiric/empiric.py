@@ -23,7 +23,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
 
 def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:

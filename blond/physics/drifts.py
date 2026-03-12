@@ -29,7 +29,7 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from numpy.typing import NDArray as NumpyArray
+    from numpy import ndarray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
