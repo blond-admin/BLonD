@@ -19,8 +19,12 @@ from blond.core.backends.backend import backend
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any
+
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
 try:
     from mpi4py import MPI

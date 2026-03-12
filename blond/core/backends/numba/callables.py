@@ -26,8 +26,12 @@ from blond.core.backends.python.callables import (
 from blond.core.beam.flags import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any
+
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
 logger = logging.getLogger(__name__)
 

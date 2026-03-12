@@ -27,7 +27,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
     from typing import Any
 
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
     from blond.core.base import SimulationElementBase
     from blond.core.beam.base import BeamBaseClass

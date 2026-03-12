@@ -24,7 +24,9 @@ from blond.core.simulation.simulation import Simulation
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
 
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
     from blond.core.base import SimulationElementBase
 

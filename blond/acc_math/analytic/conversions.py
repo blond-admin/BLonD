@@ -24,8 +24,12 @@ import numpy as np
 from scipy.constants import speed_of_light as c0
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from cupy.typing import NDArray as CupyArray
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
 ############################################
 ############################################

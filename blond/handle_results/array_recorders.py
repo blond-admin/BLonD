@@ -23,10 +23,12 @@ from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
-    from typing import Literal
+    from typing import Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
     from numpy.typing import DTypeLike
 
 

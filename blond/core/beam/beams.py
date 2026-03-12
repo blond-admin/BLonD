@@ -31,12 +31,14 @@ from blond.generals.distributed.helpers import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Literal
+    from typing import Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from matplotlib.axes import Axes
     from matplotlib.collections import PathCollection, QuadMesh
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
     from blond import Simulation
     from blond.core.beam.particle_types import ParticleType

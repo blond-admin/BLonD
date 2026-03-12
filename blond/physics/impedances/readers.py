@@ -13,9 +13,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from os import PathLike
+from typing import Any
 
 import numpy as np
-from numpy import ndarray as NumpyArray
+from numpy import ndarray
+
+NumpyArray = ndarray[Any]
 
 
 class ImpedanceReader(ABC):

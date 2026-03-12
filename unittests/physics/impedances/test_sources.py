@@ -5,7 +5,9 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 from matplotlib import pyplot as plt
-from numpy import ndarray as NumpyArray
+from numpy import ndarray
+
+NumpyArray = ndarray[Any]
 from scipy.constants import pi
 from scipy.constants import speed_of_light as c0
 from scipy.signal import find_peaks

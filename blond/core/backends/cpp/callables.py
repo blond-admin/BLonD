@@ -21,9 +21,12 @@ from blond.core.backends.backend import Specials, backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
+    from typing import Any
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
 
 def c_real(

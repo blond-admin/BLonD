@@ -34,10 +34,13 @@ from blond.physics.synchrotron_radiation.base import (
 
 if TYPE_CHECKING:
     from typing import (
+        Any,
         TypeVar,
     )
 
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
     from blond.core.ring.ring import Ring
     from blond.core.simulation.simulation import Simulation

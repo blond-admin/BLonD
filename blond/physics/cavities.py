@@ -40,7 +40,9 @@ from blond.physics.feedbacks.base import LocalFeedback
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
     from blond import Ring
     from blond.core.beam.base import BeamBaseClass

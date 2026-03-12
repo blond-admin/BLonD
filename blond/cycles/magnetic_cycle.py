@@ -41,7 +41,9 @@ from blond.cycles.base import ProgrammedCycle
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, TypeVar
 
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
     from scipy.interpolate import (
         Akima1DInterpolator,
         PchipInterpolator,

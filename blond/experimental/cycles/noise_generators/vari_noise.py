@@ -16,7 +16,11 @@ import numpy as np
 from blond.cycles.noise_generators.base import NoiseGenerator
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy import ndarray as NumpyArray
+    from typing import Any
+
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
 
 class VariNoise(NoiseGenerator):

@@ -23,7 +23,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Any, TypeVar
 
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
     from scipy.interpolate import (
         Akima1DInterpolator,
         PchipInterpolator,
@@ -594,6 +596,8 @@ class UnsafeUserElement(UserDefinedElement):
 
     Examples
     --------
+    >>> from blond import Ring
+    >>> ring = Ring(circumference=27e3)
     >>> class Test:
     ...    def track(self, beam):
     ...        print("This is a test")

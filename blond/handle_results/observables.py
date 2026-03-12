@@ -17,7 +17,6 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy import ndarray as NumpyArray
 
 from blond.core.base import MainLoopRelevant
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
@@ -26,6 +25,10 @@ from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
+
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
     from blond import WakeField
     from blond.core.beam.base import BeamBaseClass

@@ -14,7 +14,11 @@ from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy import ndarray as NumpyArray
+    from typing import Any
+
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
     from blond.core.beam.base import BeamBaseClass
 

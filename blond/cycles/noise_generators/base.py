@@ -14,7 +14,11 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy import ndarray as NumpyArray
+    from typing import Any
+
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
 
 class NoiseGenerator(ABC):

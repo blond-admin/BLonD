@@ -23,7 +23,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from cupy.typing import NDArray as CupyArray
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation

@@ -14,9 +14,10 @@ from collections.abc import Sequence
 from typing import Any
 
 from numpy import ndarray
-from numpy import ndarray as NumpyArray
 
 from blond.generals.exceptions import UnevenArraySizes
+
+NumpyArray = ndarray[Any]
 
 
 def raise_on_uneven_array_sizes(

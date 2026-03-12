@@ -30,7 +30,9 @@ from blond.core.base import BeamPhysicsRelevant, DynamicParameter
 if TYPE_CHECKING:
     from typing import Any
 
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation

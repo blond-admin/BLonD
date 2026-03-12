@@ -14,7 +14,11 @@ import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy import ndarray as NumpyArray
+    from typing import Any
+
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
 
 def pinned_values_helper(variable: NumpyArray, variable_name: str) -> None:

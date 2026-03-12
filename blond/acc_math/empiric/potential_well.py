@@ -17,7 +17,11 @@ from matplotlib import pyplot as plt
 from scipy.signal import find_peaks
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy import ndarray as NumpyArray
+    from typing import Any
+
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
 
 class PotentialWellHelper:

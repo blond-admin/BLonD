@@ -24,7 +24,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy import ndarray as NumpyArray
+    from numpy import ndarray
+
+    NumpyArray = ndarray[Any]
 
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
@@ -392,7 +394,13 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._ids.array_local
+        if self._ids is not None:
+            return self._ids.array_local
+        else:
+            raise AttributeError(
+                f"{self._dE=}. You can use `setup_beam("
+                f"...)` for initialisation."
+            )
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
         """
