@@ -12,7 +12,7 @@ from blond.testing.helpers import pinned_values_helper
 
 class TestPotentialWellHelper(unittest.TestCase):
     def test_single_not_bucket(self):
-        DEV_PLOT = True
+        DEV_PLOT = False
         xs = np.linspace(-0, 1, 1000)
         if DEV_PLOT:
             plt.subplot(3, 1, 1)
@@ -25,7 +25,7 @@ class TestPotentialWellHelper(unittest.TestCase):
         self.assertEqual(len(pwh.bucket_list), 0)
 
     def test_single_not_bucket2(self):
-        DEV_PLOT = True
+        DEV_PLOT = False
         xs = np.linspace(-0, 1, 1000)
         if DEV_PLOT:
             plt.subplot(3, 1, 1)
@@ -39,7 +39,7 @@ class TestPotentialWellHelper(unittest.TestCase):
         self.assertEqual(len(pwh.bucket_list), 0)
 
     def test_single_bucket(self):
-        DEV_PLOT = True
+        DEV_PLOT = False
         xs = np.linspace(0.4, 2 * np.pi - 0.3, 1000)
         if DEV_PLOT:
             plt.subplot(3, 1, 1)
@@ -59,7 +59,7 @@ class TestPotentialWellHelper(unittest.TestCase):
         )
 
     def test_double_bucket(self):
-        DEV_PLOT = True
+        DEV_PLOT = False
         xs = np.linspace(0.4, 4 * np.pi - 0.3, 1000)
         if DEV_PLOT:
             plt.subplot(3, 1, 1)
@@ -82,7 +82,7 @@ class TestPotentialWellHelper(unittest.TestCase):
         )
 
     def test_triple_bucket(self):
-        DEV_PLOT = True
+        DEV_PLOT = False
         xs = np.linspace(0.4, 6 * np.pi - 0.3, 1000)
         if DEV_PLOT:
             plt.subplot(3, 1, 1)
@@ -107,7 +107,7 @@ class TestPotentialWellHelper(unittest.TestCase):
         )
 
     def test_analyze_buckets(self):
-        DEV_PLOT = True
+        DEV_PLOT = False
         xs = np.linspace(-10, 20, 1000)
         if DEV_PLOT:
             plt.subplot(3, 1, 1)
