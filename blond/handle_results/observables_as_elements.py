@@ -26,7 +26,7 @@ from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesBaseClass
-from blond.physics.cavities import SingleHarmonicRFStation
+from blond.physics.cavities import RFStationBaseClass
 
 
 class BeamObservationInRingElement(
@@ -409,7 +409,7 @@ class InducedVoltageObservationCR(
     each_turn_i
         Value to control that the element is
         callable each n-th turn.
-    single_harmonic_cavity
+    rf_station
         Cavity object, which holds the wakefield to report the induced voltage of.
     folder
         Path to the target folder used for
@@ -419,7 +419,7 @@ class InducedVoltageObservationCR(
     def __init__(
         self,
         each_turn_i: int,
-        single_harmonic_cavity: SingleHarmonicRFStation,
+        rf_station: RFStationBaseClass,
         folder: str = "",
     ):
         super().__init__(folder=folder)
@@ -427,7 +427,7 @@ class InducedVoltageObservationCR(
         self.each_turn_i = each_turn_i
 
         self._induced_voltage: DenseArrayRecorder | None = None
-        self._single_harmonic_cavity = single_harmonic_cavity
+        self._rf_station = rf_station
 
     @requires(["RFStationBaseClass"])
     def on_run_simulation(
@@ -459,9 +459,7 @@ class InducedVoltageObservationCR(
 
         count = 2  # 2 beams
 
-        ind_volt_len = len(
-            self._single_harmonic_cavity._local_wakefield._profile.hist_x
-        )
+        ind_volt_len = len(self._rf_station._local_wakefield._profile.hist_x)
 
         n_entries = int(n_turns * count // self.each_turn_i)
         shape = (n_entries, ind_volt_len)
@@ -507,19 +505,18 @@ class InducedVoltageObservationCR(
             Beam class to interact with this element.
         """
         try:
-            if np.all(
-                self._single_harmonic_cavity._local_wakefield.induced_voltage
-                == 0
-            ):
+            if np.all(self._rf_station._local_wakefield.induced_voltage == 0):
                 warnings.warn(
-                    f"no induced voltage calculated yet {beam.is_counter_rotating} in turn {self._single_harmonic_cavity._turn_i.value} for {self._single_harmonic_cavity.name}",
+                    f"no induced voltage calculated yet CR {beam.is_counter_rotating} "
+                    f"in turn {self._rf_station._turn_i.value} for {self._rf_station.name}",
                     stacklevel=1,
                 )
                 return
         except AttributeError as orig_exception:
             if "Use `calc_induced_voltage` first!" in orig_exception.args[0]:
                 warnings.warn(
-                    f"not calculated yet {beam.is_counter_rotating} in turn {self._single_harmonic_cavity._turn_i.value} for {self._single_harmonic_cavity.name}",
+                    f"not calculated yet CR {beam.is_counter_rotating} in turn "
+                    f"{self._rf_station._turn_i.value} for {self._rf_station.name}",
                     stacklevel=1,
                 )
                 return
@@ -527,7 +524,7 @@ class InducedVoltageObservationCR(
                 raise orig_exception
 
         if all(
-            self._single_harmonic_cavity._local_wakefield.induced_voltage
+            self._rf_station._local_wakefield.induced_voltage
             == self._induced_voltage._memory[
                 self._induced_voltage._write_idx - 1
             ]
@@ -535,5 +532,5 @@ class InducedVoltageObservationCR(
             logging.debug(f"data was equivalent {beam.is_counter_rotating}")
             return  # return early on duplicate data
         self._induced_voltage.write(
-            self._single_harmonic_cavity._local_wakefield.induced_voltage
+            self._rf_station._local_wakefield.induced_voltage
         )
