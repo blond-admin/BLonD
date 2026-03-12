@@ -49,7 +49,7 @@ class ObservablesBaseClass(MainLoopRelevant):
     ----------
     folder
         Target folder to save the data at.
-        Use `rename` to change the ddestination.
+        Use `rename` to change the destination.
     **kwargs
         Additional keyword arguments.
     """
@@ -612,7 +612,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
 
 class RFStationInducedVoltageObservation(ObservablesOncePerTurnBase):
     """
-    Observe the RF station parameters during the execution of the simulation.
+    Observe the RF station induced voltage during the execution of the simulation.
 
     Parameters
     ----------
@@ -696,39 +696,29 @@ class RFStationInducedVoltageObservation(ObservablesOncePerTurnBase):
             shape,
         )
 
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+    def _update(self) -> None:
+        """Update memory with new values."""
         try:
             self._induced_voltage.write(
                 self._rf_station._local_wakefield.induced_voltage,
             )
         except AttributeError:
-            if simulation.turn_i.value != 0:
+            if self._simulation.turn_i.value != 0:
                 warnings.warn(
                     f"no induced voltage has been "
-                    f"computed yet in turn {simulation.turn_i.value}",
+                    f"computed yet in turn {self._simulation.turn_i.value}",
                     stacklevel=2,
                 )
 
     @property  # as readonly attributes
     def induced_voltage(self) -> NumpyArray:
         """
-        RF station's induced voltage of shape ``(n_observations, )``, in [V].
+        RF station's induced voltage of shape ``(n_observations, len(rf_station._local_wakefield.induced_voltage)``, in [V].
 
         Returns
         -------
-        phases
-            Array of RF phases.
+        induced_voltage
+            Array of induced voltages.
         """
         return self._induced_voltage.get_valid_entries()
 
