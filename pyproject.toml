@@ -71,6 +71,10 @@ optional-dependencies = { all = { file = [
   "legacy/requirements.txt",
 ] }, doc = { file = "requirements-doc.txt" }, xsuite = { file = "blond/interfaces/xsuite/requirements.txt" } }
 
+[tool.ty.environment]
+root = ["./blond"]
+python = "./.venv"
+
 
 [tool.ruff]
 src = ["blond"]                                                       # Source directories
