@@ -773,6 +773,8 @@ class ScheduledInterpolation(SchedulerBaseClass):
         **kwargs,
     ) -> None:
         super().__init__()
+        times = no_cupy_import.copy_to_cpu(times)
+        values = no_cupy_import.copy_to_cpu(values)
         self.interpolator = interpolator(times, values, **kwargs)
 
     def get_scheduled(
