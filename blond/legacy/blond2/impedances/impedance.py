@@ -1116,12 +1116,11 @@ class InducedVoltageResonator(_InducedVoltage):
         multi_turn_wake: bool = False,
         mtw_mode: Optional[MtwModeTypes] = "time",
         rf_station: Optional[RFStation] = None,
-        rf_station_list: Optional[list[RFStation]] = None,
         use_regular_fft: bool = True,
         time_decay_factor: Optional[float] = 0.01,
+        rf_station_list: Optional[list[RFStation]] = None,
         time_array: Optional[NDArray] = None,
         old_time_array_impl: bool = True,
-        time_array_mtw: Optional[NDArray] = None,
     ):
         # Test if one or more quality factors is smaller than 0.5.
         if sum(resonators.Q < 0.5) > 0:
@@ -1182,7 +1181,7 @@ class InducedVoltageResonator(_InducedVoltage):
             self.time_array = np.array([])
 
             if self.old_mtw_time_array_impl:
-                warnings.warn("No time_array_mtw given, if the simulation relies on low-beta beams or multi-stations, "
+                warnings.warn("Old implementation of time arrays. If the simulation relies on low-beta beams or multi-stations, "
                               "the mtw calculation will be incorrect.")
                 for turn_ind in range(self._n_turns_calculation):
                     self.time_array = np.append(
