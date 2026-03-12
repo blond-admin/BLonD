@@ -182,9 +182,21 @@ def beta_by_momentum(
     return np.sqrt(1 / (1 + (mass / momentum) ** 2))
 
 
+@overload
+def momentum_compaction_factor(  # NOQA D103
+    transition_gamma: complex,
+) -> float: ...
+
+
+@overload
+def momentum_compaction_factor(  # NOQA D103
+    transition_gamma: NumpyArray,
+) -> NumpyArray: ...
+
+
 def momentum_compaction_factor(
-    transition_gamma: complex | NumpyArray,
-) -> float | NumpyArray:
+    transition_gamma,
+):
     """
     Calculate the momentum compaction factor.
 
