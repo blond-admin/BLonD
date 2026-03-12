@@ -14,7 +14,6 @@ import logging
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
-from unittest import mock
 from unittest.mock import Mock
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -115,10 +114,10 @@ def _find(
         if id(obj) in seen:
             return
 
-        if (
-            type(obj) is mock._Call
-        ):  # prevent crash on `hash(obj)` with mocks...
-            return
+        # if (
+        #     type(obj) is mock._Call
+        # ):  # prevent crash on `hash(obj)` with mocks...
+        #     return
 
         seen.add(id(obj))
         is_mock = isinstance(obj, Mock)
