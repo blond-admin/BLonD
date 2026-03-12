@@ -228,10 +228,6 @@ class BLonD3Cavity:
         # expected to be mocked from `headless` cavity..
         self._cavity._ring.is_below_transition.return_value = bool(eta < 0)  # ty:ignore[unresolved-attribute]
 
-        # self.set_time_shift() # initial setting of time shift # this was changd
-
-        self.orbit_shift = XSuiteZetaShift(dzeta=0.0)
-
     def track(self, particles: XSuiteParticles):
         """
         Track particles through the wrapped BLonD element.
@@ -329,8 +325,8 @@ class BLonD3Cavity:
         dzeta = circumference * domega / omega_rf_design
 
         # Apply shift
-        self.orbit_shift = XSuiteZetaShift(dzeta=dzeta)
-        self.orbit_shift.track(particles)
+        self._time_center_shift = XSuiteZetaShift(dzeta=dzeta)
+        self._time_center_shift.track(particles)
 
     def xsuite_to_blond_transform_particles(
         self, particles: XSuiteParticles, beam: BeamBaseClass
