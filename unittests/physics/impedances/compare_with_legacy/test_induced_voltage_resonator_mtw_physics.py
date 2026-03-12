@@ -1,4 +1,5 @@
 import sys
+import unittest
 from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
@@ -17,8 +18,10 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     mu_plus,
 )
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.observables import RFStationInducedVoltageObservation
 from blond.legacy.blond2.beam.beam import Beam, MuPlus
 from blond.legacy.blond2.beam.profile import CutOptions, Profile
@@ -59,8 +62,8 @@ def nonperiodic_wake(time_array, f0, R, Q):
     return wake
 
 
-DEBUG_PLOTTING = True
-SAVE_PLOTS = True
+DEBUG_PLOTTING = False
+SAVE_PLOTS = False
 
 from cycler import cycler
 
@@ -71,8 +74,8 @@ plt.rcParams["font.size"] = 12
 plt.rcParams["lines.linewidth"] = 2.0
 
 
-class InducdedVoltageResonator:
-    def __init__(self):
+class InducdedVoltageResonator(unittest.TestCase):
+    def setUp(self):
         self.n_slices = 2**12
         self.cut_left = 0
         self.cut_right = (
@@ -359,7 +362,7 @@ class InducdedVoltageResonator:
                         self.time_axis,
                         self.convolution_result[inter_turn_ind],
                     )
-                    assert np.allclose(
+                    np.testing.assert_allclose(
                         -conv_result
                         * e
                         / self.profile.bin_size
@@ -392,10 +395,10 @@ class InducdedVoltageResonator:
             particle_type=mu_plus,
             is_counter_rotating=False,
         )
-        beam._dt = np.zeros(self.n_macroparticles)
-        beam._dE = np.zeros(self.n_macroparticles)
-        beam._flags = np.ones(self.n_macroparticles)
-        beam._ids = np.arange(self.n_macroparticles)
+        beam._dt = DistributedArray(np.zeros(self.n_macroparticles))
+        beam._dE = DistributedArray(np.zeros(self.n_macroparticles))
+        beam._flags = DistributedArray(np.ones(self.n_macroparticles))
+        beam._ids = DistributedArray(np.arange(self.n_macroparticles))
         profile = Mock(StaticProfile)
         profile.cut_left = self.cut_left
         profile.cut_right = self.cut_right
@@ -434,7 +437,9 @@ class InducdedVoltageResonator:
                     DriftSimple(
                         orbit_length=self.n_section_lengths[sec_ind],
                         section_index=sec_ind,
-                        transition_gamma=1,
+                        momentum_compaction_factor=momentum_compaction_factor(
+                            1
+                        ),
                     ),
                 ]
             )
@@ -512,16 +517,14 @@ class InducdedVoltageResonator:
                     self.time_axis,
                     self.convolution_result[inter_turn_ind],
                 )
-                assert np.allclose(
+                np.testing.assert_allclose(
                     -conv_result * e / self.profile.bin_size * self.dt_profile,
                     ind_volt_obs_list[inter_turn_ind].induced_voltage[trn_ind],
                     atol=1e8,
                     rtol=1e-8,
                 )
 
-
-if __name__ == "__main__":
-    indi = InducdedVoltageResonator()
-    indi.setUpB2(old_impl=False)
-    indi.setUpB2(old_impl=True)
-    indi.setUpB3()
+    def test_blond2_3(self):
+        self.setUpB2(old_impl=False)
+        # self.setUpB2(old_impl=True)  # This will give wrong results, leaving in as comparison
+        self.setUpB3()  # some of the code relies on the matcher in b2, therefore blond2 has to run first
