@@ -93,7 +93,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
                 size=len(beam_delta_energy_array)
             )
         )
-    return energy_kick
+    return energy_kick.astype(backend.float)
 
 
 class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
