@@ -48,6 +48,13 @@ pip install blond[gpu]
 Optional backends can be compiled after installation using the commands `blond-compile-cpp --parallel` or `blond-compile-cuda`
 for improved performance. The backend can be selected in Python using ```backend.set_specials(...)```.
 
+NB: check your cuda version with `nvidia-smi`, if you have any other version than `cuda12` you will need to reinstall `cupy` with
+
+```bash
+pip uninstall cupy-cuda12x
+pip install cupy-cuda13x  # to be adapted to your cuda version
+```
+
 ## Documentation
 See full documentation [here](https://blond-code.docs.cern.ch/).
 
