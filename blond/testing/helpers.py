@@ -39,11 +39,12 @@ def pinned_values_helper(variable: NumpyArray, variable_name: str) -> None:
     >>> array = np.ones(10)
     >>> pinned_values_helper(array, "array")
     """
+    variable_name_nodot = variable_name.replace(".", "_")
     print(
-        f"\n{variable_name}_pinned = {variable.tolist()}\n"
+        f"\n{variable_name_nodot}_pinned = {variable.tolist()}\n"
         f"""np.testing.assert_allclose(
     {variable_name},
-    {variable_name}_pinned,
+    {variable_name_nodot}_pinned,
     rtol=1e-6 if backend.float == np.float32 else 1e-12,
 )"""
     )

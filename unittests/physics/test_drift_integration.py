@@ -8,7 +8,6 @@ import pytest
 from blond import (
     Beam,
     BeamObservationOncePerTurn,
-    ConstantMagneticCycle,
     DriftSimple,
     EmptyBeam,
     Ring,
