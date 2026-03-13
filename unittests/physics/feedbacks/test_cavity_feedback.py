@@ -267,7 +267,6 @@ class TestIQCavityFeedbackTimingClass:
             )
             rf_centers_array.append(cav_fdbk_timing.rf_centers)
             omega_rf_save.append(cav_fdbk_timing.omega_rf)
-            print(cav_fdbk_timing._parent_rf_station.omega_rf_design)
             if simulation.turn_i.value == 0:
                 self.t_rf_init = 2 * np.pi / self.rf_station.omega_rf_design
                 self.rf_station.delta_omega_rf = (
@@ -742,21 +741,32 @@ class TestIQCavityFeedbackTimingClass:
 
         # test for time_array consistency
         comp_len = 0
+        per_fdbk_continuuous = []
         for idx, fdbk in enumerate(time_passed_list):
             current_fdbk_total_time = np.array(fdbk).flatten()
-            increaser = np.diff(current_fdbk_total_time) != 0
+            per_fdbk_continuuous.append(current_fdbk_total_time)
+            increaser = np.diff(current_fdbk_total_time) < 0
             assert all(increaser), (
-                f"time must be different, but its not: {increaser}"
+                f"time must be decreasing, but its not: {increaser}"
             )
             if idx == 0:
                 comp_len = len(current_fdbk_total_time)
             else:
                 assert comp_len == len(current_fdbk_total_time)
+            if idx > 0:
+                np.testing.assert_allclose(
+                    per_fdbk_continuuous[-1][:-1],
+                    per_fdbk_continuuous[-2][1:],
+                    rtol=1e-12,
+                    atol=0,
+                )  # shifted by one, but otherwise equal
 
         comp_len = 0
+        per_fdbk_continuuous = []
         for idx, fdbk in enumerate(omega_list):
             current_fdbk_omega_list = np.array(fdbk).flatten()
-            increaser = np.diff(current_fdbk_omega_list) != 0
+            per_fdbk_continuuous.append(current_fdbk_omega_list)
+            increaser = np.diff(current_fdbk_omega_list) > 0
             assert all(increaser), (
                 f"omega must be increasing, but its not: {increaser}"
             )
@@ -764,6 +774,13 @@ class TestIQCavityFeedbackTimingClass:
                 comp_len = len(current_fdbk_omega_list)
             else:
                 assert comp_len == len(current_fdbk_omega_list)
+            if idx > 0:
+                np.testing.assert_allclose(
+                    per_fdbk_continuuous[-1][:-1],
+                    per_fdbk_continuuous[-2][1:],
+                    rtol=1e-12,
+                    atol=0,
+                )  # shifted by one, but otherwise equal
         pass
 
         # check_allclose_turn_printing(

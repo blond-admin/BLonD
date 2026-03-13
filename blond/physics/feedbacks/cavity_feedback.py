@@ -779,12 +779,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 : self.own_index_in_reference_list
             ]:  # iterate through initial current turn
                 element: AltersReference
-                if (
-                    isinstance(element, SingleHarmonicRFStation)
-                    and not self.debug
-                ):  # does not alter time coordinate
-                    print("oops")
-                    continue
                 element.track_reference(self.reference_state_until_tracked)
                 omega_list.append(
                     self._parent_rf_station.calc_omega_rf_design(
@@ -940,8 +934,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             ):
                 time_arr_to_use[omega_ind] += time_arr_to_use[omega_ind - 1]
                 time_arr_to_use[omega_ind - 1] = 0
-        print(time_arr_to_use)
-        print(omega_array_to_use)
 
         mask = time_arr_to_use != 0
         self.reverse_tracking_time_array = time_arr_to_use[mask]
