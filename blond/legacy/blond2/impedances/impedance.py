@@ -1367,7 +1367,9 @@ class InducedVoltageResonator(_InducedVoltage):
         interpolating the line density and applying the analytic equation
         to the result.
         """
-        time_array_used = self.time_array if self.old_mtw_time_array_impl else self.generate_mtw_array(self.rf_params.counter[0])
+        time_array_used = self.time_array \
+            if self.old_mtw_time_array_impl or not self.multi_turn_wake \
+            else self.generate_mtw_array(self.rf_params.counter[0])
         self.n_time = len(time_array_used)
         self._tmp_matrix = np.ones(
             (self.n_resonators, self.n_time),
