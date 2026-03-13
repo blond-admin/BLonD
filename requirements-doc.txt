@@ -1,5 +1,5 @@
 pyqt5
 sphinx-autopackagesummary
-sphinx-rtd-theme
+sphinx-rtd-theme>=3
 sphinx>=8
-sphinxcontrib-napoleon
+sphinxcontrib-napoleon>=0.6.0
