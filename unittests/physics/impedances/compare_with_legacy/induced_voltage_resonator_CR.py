@@ -298,15 +298,16 @@ class InducedVoltageResonatorPhysicsCR:
                         )
                         + self.bunch_offset)
 
-        profile_time_combined = [[] for _ in range(self.n_turns)]
+        profile_time_combined = [[] for _ in range(self.n_stations)]
         for turn in range(0, self.n_turns):
             for inter_turn_ind in range(self.n_stations):
-                if profile_time_corot[turn][inter_turn_ind] < profile_time_counterrot[turn][inter_turn_ind]:
-                    profile_time_combined[turn].append(profile_time_corot[turn][inter_turn_ind]) # + self.profile.bin_centers)
-                    profile_time_combined[turn].append(profile_time_counterrot[turn][inter_turn_ind]) # + self.profile.bin_centers)
+                if profile_time_corot[inter_turn_ind][turn] < profile_time_counterrot[inter_turn_ind][turn]:
+                    profile_time_combined[inter_turn_ind].append(profile_time_corot[inter_turn_ind][turn] + self.profile.bin_centers)
+                    profile_time_combined[inter_turn_ind].append(profile_time_counterrot[inter_turn_ind][turn] + self.profile.bin_centers)
                 else:
-                    profile_time_combined[turn].append(profile_time_corot[turn][inter_turn_ind]) # + self.profile.bin_centers)
-                    profile_time_combined[turn].append(profile_time_counterrot[turn][inter_turn_ind]) # + self.profile.bin_centers)
+                    profile_time_combined[inter_turn_ind].append(profile_time_corot[inter_turn_ind][turn] + self.profile.bin_centers)
+                    profile_time_combined[inter_turn_ind].append(profile_time_counterrot[inter_turn_ind][turn] + self.profile.bin_centers)
+        self.time_array_profile = profile_time_combined
 
         self.convolution_result = np.zeros_like(profiles)
         DEBUG_PLOTTING = False
@@ -331,81 +332,7 @@ class InducedVoltageResonatorPhysicsCR:
             self.profile.bin_centers, self.sigma_bunch, self.bunch_offset
         )
         self.hist_y = self.profile.n_macroparticles
-
-        self.time_array_profile = [[] for _ in range(self.n_stations)]
-
-        for trn_ind in range(self.n_turns):
-            for inter_turn_ind in range(self.n_stations):
-                turn_time_corot = (np.sum(
-                            self.section_time[
-                                0 : trn_ind * self.n_stations + inter_turn_ind
-                            ]
-                        )
-                        if trn_ind > 0
-                        else 0
-                        if inter_turn_ind == 0
-                        else np.sum(self.section_time[:inter_turn_ind])
-                    )
-                turn_time_CR = (np.sum(
-                                    self.section_time[
-                                        0: trn_ind * self.n_stations + (inter_turn_ind - self.n_stations) % self.n_stations
-                                    ]
-                                )
-                                if trn_ind > 0
-                                else 0
-                                if inter_turn_ind == 3  #
-                                else np.sum(self.section_time[:inter_turn_ind])
-                                )
-                self.time_array_profile[inter_turn_ind].append(
-                    # self.profile.bin_centers
-                    # + (
-                    turn_time_corot
-                )
-                self.time_array_profile[inter_turn_ind].append()
-
         self.dt_profile = self.time_axis[1] - self.time_axis[0]
-        return
-        if DEBUG_PLOTTING:
-            for inter_turn_ind in range(self.n_stations):
-                plt.figure()
-                plt.title(f"blond2 old_impl = {old_impl}")
-                plt.plot(
-                    self.time_axis,
-                    -self.convolution_result[inter_turn_ind][
-                        0 : len(self.time_axis)
-                    ]
-                    * e
-                    / self.profile.bin_size
-                    * self.dt_profile,
-                    label="convolution_2",
-                )
-                for el in range(self.n_turns):
-                    plt.plot(
-                        self.time_array_profile[inter_turn_ind][el],
-                        save_voltage_array[inter_turn_ind][el],
-                        ls="--",
-                        label=f"resonator turn {el}",
-                    )
-                plt.legend(loc="upper right")
-                plt.show(block=False)
-        plt.show(block=True)
-        if not old_impl:
-            for inter_turn_ind in range(self.n_stations):
-                for trn_ind in range(self.n_turns):
-                    conv_result = np.interp(
-                        self.time_array_profile[inter_turn_ind][trn_ind],
-                        self.time_axis,
-                        self.convolution_result[inter_turn_ind],
-                    )
-                    np.testing.assert_allclose(
-                        -conv_result
-                        * e
-                        / self.profile.bin_size
-                        * self.dt_profile,
-                        save_voltage_array[inter_turn_ind][trn_ind],
-                        atol=1e8,
-                        rtol=1e-8,
-                    )
 
     def setUpB3(self):
         ring = ring_b3(
@@ -520,13 +447,6 @@ class InducedVoltageResonatorPhysicsCR:
         )
         sim.print_one_turn_execution_order()
 
-        ind_volt_obs_list = []
-        for sec_ind in range(self.n_stations):
-            ind_volt_obs_list.append(
-                RFStationInducedVoltageObservation(
-                    rf_station=shc_list[sec_ind], each_turn_i=1
-                )
-            )
         beam._dE = DistributedArray(np.array([0, 0, 0], dtype=np.float64))
         beam._dt = DistributedArray(np.array([0, 0, 0], dtype=np.float64))
         beam._flags = DistributedArray(np.array([0, 0, 0], dtype=np.float64))
