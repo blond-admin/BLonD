@@ -105,7 +105,7 @@ class SynchrotronRadiationSimulation:
         )
 
         self.beam = beam
-        self.four_times_rms_bunch_length = 50 * 4e-3 / c
+        self.four_times_rms_bunch_length = 4e-3 / c
         self.energy_spread = 1e-3
 
 
