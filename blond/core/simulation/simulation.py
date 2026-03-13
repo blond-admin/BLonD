@@ -476,7 +476,13 @@ class Simulation(Preparable):
         t1 = probe_bunch.reference.time
         T = t1 - t0
         drift_term = (
-            cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
+            # `copy_to_cpu` because `cumulative_simpson` does not have a
+            # cupy implementation for now.
+            cumulative_simpson(
+                copy_to_cpu(probe_bunch.read_partial_dt()),
+                x=copy_to_cpu(dE),
+                initial=0,
+            )
             / T
         )
         drift_term -= drift_term.min()
