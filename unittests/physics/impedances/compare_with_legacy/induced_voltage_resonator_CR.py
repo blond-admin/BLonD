@@ -84,10 +84,10 @@ class InducedVoltageResonatorPhysicsCR:
         self.Q_factor = 2e1
         self.alpha_p = -8.986e-4
         self.energy = 120e6
-        self.energy_gain_per_turn = 30e6
+        self.energy_gain_per_turn = 50e6
 
         self.n_turns = 5
-        self.n_stations = 3
+        self.n_stations = 2
         self.n_section_lengths = np.array([3, 3, 3, 0])  # 0-drift last
 
         self.n_macroparticles = int(1e4)
@@ -117,7 +117,7 @@ class InducedVoltageResonatorPhysicsCR:
         self.sigma_bunch = 5e-10
         self.bunch_offset = 3e-9
 
-    def setUpB2(self, old_impl: bool = True):
+    def setUpB2(self, old_impl: bool = True):  # just for time arrays
         ring = Ring(
             self.n_section_lengths,
             self.alpha_p,
@@ -384,7 +384,7 @@ class InducedVoltageResonatorPhysicsCR:
         )
         energy_array = np.reshape(
             self.energy_array, (self.n_stations, self.n_turns + 1), order="F"
-        )
+        )  # TODO: this seems to be very complicated
 
         magnetic_cycle = MagneticCyclePerTurnAllRFStations.headless(
             value_init=energy_array[0][0],
