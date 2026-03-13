@@ -11,7 +11,6 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
-    momentum_compaction_factor,
     mu_plus,
 )
 from blond.core.backends.backend import Numpy64Bit, backend
@@ -75,12 +74,12 @@ bunch_intensity = 2.4e12
 station_downscale = 40
 circumference = 5990
 harmonic = 25920
-voltage_per_cavity = 31140000.0
+voltage_per_cavity = 31140000.0 * 1e-2
 cut_left = -0e-10
 cut_right = 7e-10
 
 n_slices_profile = 2**10
-mtw = True
+mtw = False
 
 energy_gain_per_turn = (
     (ejection_energy - inj_energy) / n_turns / station_downscale
@@ -129,7 +128,7 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
         / harmonic
     )
     prof = StaticProfile.from_rad(
-        cut_left * 2 * np.pi / t_rf,
+        0,
         cut_right * 2 * np.pi / t_rf,
         n_slices_profile,
         t_rf,
@@ -174,9 +173,7 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
                 section_index=0,
             ),
             DriftSimple(
-                momentum_compaction_factor=momentum_compaction_factor(
-                    -gamma_transition
-                ),
+                momentum_compaction_factor=alpha_p,
                 orbit_length=circumference,
                 section_index=0,
             ),
@@ -256,9 +253,11 @@ def setup_and_run_blond2(mtw=False):
         profile,
         res_fund,
         rf_station=rf_station,
+        rf_station_list=[rf_station],
         multi_turn_wake=mtw,
         mtw_mode="time",
         time_decay_factor=decay_fraction_threshold,
+        old_time_array_impl=False,
     )
 
     # frequency_resolution_input = 0.5 * ring.f_rev[0] / 1 * harmonic
@@ -384,14 +383,14 @@ def plot_and_compare():
         plt.legend()
         plt.show()
 
-        ind = 49
-        plt.clf()
-        plt.title(f"{ind} induced_voltage")
-        plt.plot(ind_volt_obs.induced_voltage[ind + 1] / 1e6)
-        plt.plot(save_ind_volt_b2[ind] / 1e6, label="blond2", ls="--")
-        plt.ylabel("induced voltage [MV]")
-        plt.legend()
-        plt.show()
+        # ind = 49
+        # plt.clf()
+        # plt.title(f"{ind} induced_voltage")
+        # plt.plot(ind_volt_obs.induced_voltage[ind + 1] / 1e6)
+        # plt.plot(save_ind_volt_b2[ind] / 1e6, label="blond2", ls="--")
+        # plt.ylabel("induced voltage [MV]")
+        # plt.legend()
+        # plt.show()
 
         plt.clf()
         plt.title("energy centroid")
@@ -400,12 +399,12 @@ def plot_and_compare():
         plt.legend()
         plt.show()
 
-        plt.clf()
-        plt.title(f"{ind} profile")
-        plt.plot(profile_observation.hist_y[ind + 1])
-        plt.plot(save_profile_b2[ind], label="blond2", ls="--")
-        plt.legend()
-        plt.show()
+        # plt.clf()
+        # plt.title(f"{ind} profile")
+        # plt.plot(profile_observation.hist_y[ind + 1])
+        # plt.plot(save_profile_b2[ind], label="blond2", ls="--")
+        # plt.legend()
+        # plt.show()
 
     np.testing.assert_allclose(
         energy_centroid_b2, bunch_observation.mean_dE, rtol=1e-4
