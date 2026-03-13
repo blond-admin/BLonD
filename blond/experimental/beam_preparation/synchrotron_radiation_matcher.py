@@ -126,6 +126,8 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         phi_s = rf_system.calc_phi_s_main_harmonic(beam)
 
         return {
+            "charge": beam.particle_type.charge,
+            # "rf_voltage": rf_system
             "U0": U0,
             "sigma_dE": sigma_dE,
             "beta": beta,
@@ -135,6 +137,36 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             "omega_rf": omega_rf,
             "phi_s": phi_s,
         }
+
+    def _compute_covariance_matrix(self, all_base_params: dict):
+        charge = all_base_params["charge"]
+
+        # Define the Kick Drift parameters
+        K_param = -charge * total_voltage * omega_rf * np.cos(phi_s)
+        D_param = -t_rev * eta_0 / (beta**2.0 * energy)
+
+        # Compute the Courant-Snyder parameters for the kick drift
+        Qs = np.arcsin(np.sqrt(-(D_param * K_param) / 4)) / np.pi
+        mu = np.sign(D_param) * 2 * np.pi * Qs
+        beta_cs = D_param / np.sin(mu)
+        gamma_cs = -K_param / np.sin(mu)
+        alpha_cs = np.sign(D_param) * np.tan(np.pi * Qs)
+
+        # Get the longitudinal emittance
+        epsilon_rms_tilted = (sigma_dE * energy) ** 2.0 / gamma_cs
+
+        # Get the covariance matrix
+        covariance_matrix = epsilon_rms_tilted * np.array(
+            [[beta_cs, -alpha_cs], [-alpha_cs, gamma_cs]]
+        )
+
+        # Get the "scaled" covariance matrix (NB: multivariate_normal doesn't like big order of magnitude values)
+        scaling_factor = 10 ** np.floor(np.log10(np.abs(beta_cs)))
+        covariance_matrix_scaled = np.array(covariance_matrix)
+        covariance_matrix_scaled[0, 0] /= scaling_factor
+        covariance_matrix_scaled[1, 1] *= scaling_factor
+
+        return covariance_matrix_scaled
 
 
 def match_with_synchrotron_radiation(
@@ -239,7 +271,7 @@ def match_with_synchrotron_radiation(
     return np.array(dt_distrib), np.array(dE_distrib), equilibrium_params
 
 
-def sawtooth_factor(n_sections):
+def sawtooth_factor(n_sections, order="sr+drift"):
     """The sawtooth factor is the fraction of the total energy loss due to
     synchrotron radiation at which the synchronous energy is sitting right
     before the RF cavity with a single RF station (for the one-turn map
@@ -247,4 +279,10 @@ def sawtooth_factor(n_sections):
 
     This will depend on the layout and needs to be generalized.
     """
-    return (n_sections + 1) / (2 * n_sections)
+    if order == "sr+drift":
+        return (n_sections - 1) / (2 * n_sections)
+
+    if order == "drift+sr":
+        return (n_sections + 1) / (2 * n_sections)
+
+    raise ValueError("The order should either be sr+drift or drift+sr")
