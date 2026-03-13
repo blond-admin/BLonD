@@ -24,6 +24,7 @@ from blond import (
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.observables import RFStationInducedVoltageObservation
 from blond.handle_results.observables_as_elements import (
     InducedVoltageObservationCR,
@@ -72,10 +73,10 @@ DEBUG_PLOTTING = True
 
 class InducedVoltageResonatorPhysicsCR:
     def __init__(self):
-        self.n_slices = 2**8
+        self.n_slices = 2**12
         self.cut_left = 0
         self.cut_right = (
-            1.4072317864464973e-09  # self.rf_station_list[0].t_rf[0, 0] * 2
+            1.4072317864464973e-08  # self.rf_station_list[0].t_rf[0, 0] * 2
         )
 
         self.harmonic = 10
@@ -87,7 +88,7 @@ class InducedVoltageResonatorPhysicsCR:
         self.energy_gain_per_turn = 50e6
 
         self.n_turns = 5
-        self.n_stations = 2
+        self.n_stations = 3
         self.n_section_lengths = np.array([3, 3, 3, 0])  # 0-drift last
 
         self.n_macroparticles = int(1e4)
@@ -234,6 +235,8 @@ class InducedVoltageResonatorPhysicsCR:
             self.time_axis, self.sigma_bunch, self.bunch_offset
         )
 
+        profile_time_corot = [[] for _ in range(self.n_stations)]
+        profile_time_corot[0].append(0)
         for prof_ind in range(0, self.n_turns):
             for inter_turn_ind in range(self.n_stations):
                 if prof_ind == 0 and inter_turn_ind == 0:
@@ -248,34 +251,68 @@ class InducedVoltageResonatorPhysicsCR:
                     )
                     + self.bunch_offset,
                 )
+                profile_time_corot[inter_turn_ind].append(np.sum(
+                    self.section_time[
+                        0 : prof_ind * self.n_stations + inter_turn_ind
+                    ]
+                ) + self.bunch_offset)
 
-        profiles_CR = np.zeros_like(profiles)
+        # profiles_CR = np.zeros_like(profiles)
+        profile_time_counterrot = [[] for _ in range(self.n_stations)]
         for prof_ind in range(0, self.n_turns):
             for inter_turn_ind in range(self.n_stations):
                 if prof_ind == 0 and inter_turn_ind < self.n_stations // 2:
-                    continue
-                profiles_CR[inter_turn_ind] += gauss(
-                    self.time_axis,
-                    self.sigma_bunch,
-                    np.sum(
-                        self.section_time[
-                            inter_turn_ind : prof_ind * self.n_stations
-                            + self.n_stations
-                            - inter_turn_ind
-                        ]
+                    profiles[inter_turn_ind] += gauss(
+                        self.time_axis,
+                        self.sigma_bunch,
+                        np.sum(
+                            self.section_time[
+                                0: self.n_stations - inter_turn_ind - 1
+                            ]
+                        ) + self.bunch_offset,
                     )
-                    + self.bunch_offset,
-                )
+                    profile_time_counterrot[inter_turn_ind].append(np.sum(
+                                                                            self.section_time[
+                                                                                0: self.n_stations - inter_turn_ind - 1
+                                                                            ]
+                                                                        ) + self.bunch_offset)
+                else:
+                    profiles[inter_turn_ind] += gauss(
+                        self.time_axis,
+                        self.sigma_bunch,
+                        np.sum(
+                            self.section_time[
+                                inter_turn_ind : prof_ind * self.n_stations
+                                + self.n_stations
+                                - inter_turn_ind
+                            ]
+                        )
+                        + self.bunch_offset,
+                    )
+                    profile_time_counterrot[inter_turn_ind].append(np.sum(
+                            self.section_time[
+                                inter_turn_ind : prof_ind * self.n_stations
+                                + self.n_stations
+                                - inter_turn_ind
+                            ]
+                        )
+                        + self.bunch_offset)
+
+        profile_time_combined = [[] for _ in range(self.n_turns)]
+        for turn in range(0, self.n_turns):
+            for inter_turn_ind in range(self.n_stations):
+                if profile_time_corot[turn][inter_turn_ind] < profile_time_counterrot[turn][inter_turn_ind]:
+                    profile_time_combined[turn].append(profile_time_corot[turn][inter_turn_ind]) # + self.profile.bin_centers)
+                    profile_time_combined[turn].append(profile_time_counterrot[turn][inter_turn_ind]) # + self.profile.bin_centers)
+                else:
+                    profile_time_combined[turn].append(profile_time_corot[turn][inter_turn_ind]) # + self.profile.bin_centers)
+                    profile_time_combined[turn].append(profile_time_counterrot[turn][inter_turn_ind]) # + self.profile.bin_centers)
 
         self.convolution_result = np.zeros_like(profiles)
-        self.convolution_result_CR = np.zeros_like(profiles)
+        DEBUG_PLOTTING = False
         for inter_turn_ind in range(self.n_stations):
             self.convolution_result[inter_turn_ind] = sig.convolve(
                 profiles[inter_turn_ind], wake_kernel
-            )[0 : len(self.time_axis)]
-
-            self.convolution_result_CR[inter_turn_ind] = sig.convolve(
-                profiles_CR[inter_turn_ind], -wake_kernel
             )[0 : len(self.time_axis)]
 
             if DEBUG_PLOTTING:
@@ -290,17 +327,6 @@ class InducedVoltageResonatorPhysicsCR:
                 )
                 plt.show(block=False)
 
-                fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
-                fig.suptitle(f"CR beam {inter_turn_ind}")
-                ax[0].plot(self.time_axis, profiles_CR[inter_turn_ind])
-                ax[1].plot(
-                    self.time_axis,
-                    self.convolution_result_CR[inter_turn_ind][
-                        0 : len(self.time_axis)
-                    ],
-                )
-                plt.show(block=False)
-
         self.profile.n_macroparticles = gauss(
             self.profile.bin_centers, self.sigma_bunch, self.bunch_offset
         )
@@ -308,20 +334,9 @@ class InducedVoltageResonatorPhysicsCR:
 
         self.time_array_profile = [[] for _ in range(self.n_stations)]
 
-        save_voltage_array = [[] for _ in range(self.n_stations)]
         for trn_ind in range(self.n_turns):
             for inter_turn_ind in range(self.n_stations):
-                ind_volt_list[inter_turn_ind].induced_voltage_generation()
-                ind_volt_list[inter_turn_ind].rf_params.counter[0] += 1
-                save_voltage_array[inter_turn_ind].append(
-                    ind_volt_list[inter_turn_ind].induced_voltage[
-                        : self.profile.n_slices
-                    ]
-                )
-                self.time_array_profile[inter_turn_ind].append(
-                    self.profile.bin_centers
-                    + (
-                        np.sum(
+                turn_time_corot = (np.sum(
                             self.section_time[
                                 0 : trn_ind * self.n_stations + inter_turn_ind
                             ]
@@ -331,7 +346,22 @@ class InducedVoltageResonatorPhysicsCR:
                         if inter_turn_ind == 0
                         else np.sum(self.section_time[:inter_turn_ind])
                     )
+                turn_time_CR = (np.sum(
+                                    self.section_time[
+                                        0: trn_ind * self.n_stations + (inter_turn_ind - self.n_stations) % self.n_stations
+                                    ]
+                                )
+                                if trn_ind > 0
+                                else 0
+                                if inter_turn_ind == 3  #
+                                else np.sum(self.section_time[:inter_turn_ind])
+                                )
+                self.time_array_profile[inter_turn_ind].append(
+                    # self.profile.bin_centers
+                    # + (
+                    turn_time_corot
                 )
+                self.time_array_profile[inter_turn_ind].append()
 
         self.dt_profile = self.time_axis[1] - self.time_axis[0]
         return
@@ -405,14 +435,26 @@ class InducedVoltageResonatorPhysicsCR:
         cav_obs_list = []
         profile_list = []
         for sec_ind in range(self.n_stations):
+            mocked_profile = Mock(spec=StaticProfile)
+            # prof = StaticProfile.from_rad(
+            #         self.cut_left * 2 * np.pi / self.t_rf,
+            #         self.cut_right * 2 * np.pi / self.t_rf,
+            #         n_bins=self.n_slices,
+            #         t_period=self.t_rf,
+            #         section_index=sec_ind,
+            #     )
+            mocked_profile.cut_left = self.cut_left
+            mocked_profile.cut_right = self.cut_right
+            mocked_profile.hist_y = self.hist_y
+            mocked_profile.hist_x = self.hist_x
+            mocked_profile.hist_step = self.hist_step
+            mocked_profile.hist_y_to_density_factor = 1 / self.beam.intensity
+            mocked_profile.active = True
+            mocked_profile.n_bins = len(self.hist_y)
+            mocked_profile.section_index = sec_ind
+            mocked_profile.info_string.return_value = "me_mock"
             profile_list.append(
-                StaticProfile.from_rad(
-                    self.cut_left * 2 * np.pi / self.t_rf,
-                    self.cut_right * 2 * np.pi / self.t_rf,
-                    n_bins=self.n_slices,
-                    t_period=self.t_rf,
-                    section_index=sec_ind,
-                )
+                mocked_profile
             )
             local_res = res_b3(
                 center_frequencies=1 / self.t_rf,
@@ -465,7 +507,7 @@ class InducedVoltageResonatorPhysicsCR:
                             orbit_length=self.n_section_lengths[sec_ind],
                             section_index=sec_ind,
                             momentum_compaction_factor=momentum_compaction_factor(
-                                1
+                                float(1)
                             ),
                         ),
                     ]
@@ -485,19 +527,24 @@ class InducedVoltageResonatorPhysicsCR:
                     rf_station=shc_list[sec_ind], each_turn_i=1
                 )
             )
-        sim.prepare_beam(
-            beam=beam,
-            preparation_routine=SemiEmpiricMatcher(
-                time_limit=[self.cut_left, self.cut_right],
-                n_macroparticles=int(1e4),
-                animate=True,
-                hamilton_to_density_kwargs={
-                    "density_modifier": 1.0,
-                    "hamilton_max": 5000,
-                },
-            ),
-            turn_i=0,
-        )
+        beam._dE = DistributedArray(np.array([0, 0, 0], dtype=np.float64))
+        beam._dt = DistributedArray(np.array([0, 0, 0], dtype=np.float64))
+        beam._flags = DistributedArray(np.array([0, 0, 0], dtype=np.float64))
+        beam._ids = DistributedArray(np.array([0, 1, 2], dtype=np.float64))
+        # sim.prepare_beam(
+        #     beam=beam,
+        #     preparation_routine=SemiEmpiricMatcher(
+        #         time_limit=[self.cut_left, self.cut_right],
+        #         n_macroparticles=int(1e6),
+        #         animate=True,
+        #         hamilton_to_density_kwargs={
+        #             "density_modifier": 0.25,
+        #             "hamilton_max": 5000,
+        #         },
+        #     ),
+        #     turn_i=0,
+        # )
+        plt.show()
         beam_CR = deepcopy(beam)
         beam_CR._is_counter_rotating = True
         sim.run_simulation(
