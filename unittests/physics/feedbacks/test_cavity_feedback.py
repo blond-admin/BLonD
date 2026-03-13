@@ -483,7 +483,6 @@ class TestIQCavityFeedbackTimingClass:
         self.harmonic = 20
         self.setup_simulation()
 
-        n_sections = 4
         circumference = 20
 
         ring, element_list, timing_fdbk_list = (
@@ -528,40 +527,41 @@ class TestIQCavityFeedbackTimingClass:
             for idx, fdbk in enumerate(timing_fdbk_list):
                 fdbk: IQCavityFeedbackTimingClass
                 # TODO: check rf centers --> add calculation of rf centers
-                check_fail_printing(
-                    not np.isclose(
-                        fdbk.current_beam_reference_time,
-                        fdbk.reference_time_after_reverse,
-                        atol=0,
-                        rtol=1e-12,
-                    ),
-                    f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
-                )
-                check_fail_printing(
-                    not np.isclose(
-                        fdbk.current_beam_reference_energy,
-                        fdbk.reference_energy_after_reverse,
-                        atol=0,
-                        rtol=1e-12,
-                    ),
-                    f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
-                )
+                if not n_sections == 1:  # checks only apply to multi-section
+                    check_fail_printing(
+                        not np.isclose(
+                            fdbk.current_beam_reference_time,
+                            fdbk.reference_time_after_reverse,
+                            atol=0,
+                            rtol=1e-12,
+                        ),
+                        f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
+                    )
+                    check_fail_printing(
+                        not np.isclose(
+                            fdbk.current_beam_reference_energy,
+                            fdbk.reference_energy_after_reverse,
+                            atol=0,
+                            rtol=1e-12,
+                        ),
+                        f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
+                    )
 
-                time_passed_list.append(fdbk.reverse_tracking_time_array)
-                msk = fdbk.reverse_tracking_time_array != 0
-                used_time_array = np.array(fdbk.reverse_tracking_time_array)[
-                    msk
-                ]
-                check_fail_printing(
-                    len(used_time_array) != 6,
-                    f"time arr length err {len(used_time_array)} != 6 section {idx}, trn {simulation.turn_i.value}",
-                )  # two drifts per section, 3 sections in between cavities
-                omega_list.append(fdbk.reverse_tracking_omega_list)
-                check_fail_printing(
-                    len(fdbk.reverse_tracking_omega_list)
-                    != len(fdbk.reverse_tracking_time_array),
-                    f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
-                )
+                    time_passed_list.append(fdbk.reverse_tracking_time_array)
+                    msk = fdbk.reverse_tracking_time_array != 0
+                    used_time_array = np.array(
+                        fdbk.reverse_tracking_time_array
+                    )[msk]
+                    check_fail_printing(
+                        len(used_time_array) != 1,
+                        f"time arr length err {len(used_time_array)} != 1 section {idx}, trn {simulation.turn_i.value}",
+                    )  # should be unified to 1 value, since only one frequency is used, regardless of number of sections (no acceleration)
+                    omega_list.append(fdbk.reverse_tracking_omega_list)
+                    check_fail_printing(
+                        len(fdbk.reverse_tracking_omega_list)
+                        != len(fdbk.reverse_tracking_time_array),
+                        f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
+                    )
 
                 # rf_centers_list.append(fdbk.rf_centers_reverse_direction)
 
@@ -607,7 +607,7 @@ class TestIQCavityFeedbackTimingClass:
             )
         )
 
-        n_turns_to_simulate = 5
+        n_turns_to_simulate = 6
         injection_energy = 5e9
         en_gain_per_turn = 20e9
         ejection_energy = (
@@ -652,16 +652,18 @@ class TestIQCavityFeedbackTimingClass:
                 pytest.fail(msg)
 
         time_passed_list = [
-            [] for _ in range(n_turns_to_simulate)
-        ] * n_sections
-        omega_list = [[] for _ in range(n_turns_to_simulate)] * n_sections
+            [[] for _ in range(n_turns_to_simulate - 1)]
+            for _ in range(n_sections)
+        ]
+        omega_list = [
+            [[] for _ in range(n_turns_to_simulate - 1)]
+            for _ in range(n_sections)
+        ]
 
         def callback(simulation: Simulation, beam: Beam):
             if simulation.turn_i.value == 0:  # TODO: and not CR
                 return
-            time_passed_list = []
-            omega_list = []
-            rf_centers_list = []
+            # rf_centers_list = []
             for idx, fdbk in enumerate(timing_fdbk_list):
                 fdbk: IQCavityFeedbackTimingClass
                 # TODO: check rf centers --> add calculation of rf centers
@@ -687,27 +689,38 @@ class TestIQCavityFeedbackTimingClass:
                         f"reference energy after reverse not within tolerance {fdbk.current_beam_reference_energy}, {fdbk.reference_energy_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
                     )
 
-                    time_passed_list[sim.turn_i.value][idx] = (
-                        fdbk.reverse_tracking_time_array
-                    )
-                    omega_list[sim.turn_i.value][idx] = (
-                        fdbk.reverse_tracking_omega_list
-                    )
                     msk = fdbk.reverse_tracking_time_array != 0
                     used_time_array = np.array(
                         fdbk.reverse_tracking_time_array
                     )[msk]
-                    target_length = (n_sections - 1) * 2
+                    used_omega_array = np.array(
+                        fdbk.reverse_tracking_omega_list
+                    )[msk]
+                    target_length = n_sections - 1
                     check_fail_printing(
                         len(used_time_array) != target_length,
                         f"time arr length err {len(used_time_array)} != {target_length} section {idx}, trn {simulation.turn_i.value}",
                     )  # two drifts per section, 3 sections in between cavities
-
                     check_fail_printing(
                         len(fdbk.reverse_tracking_omega_list)
                         != len(fdbk.reverse_tracking_time_array),
                         f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
                     )
+                    # if simulation.turn_i.value >= 2:
+                    #     used_omega_array = np.append(np.array(omega_list[idx][sim.turn_i.value - 2][-1]), used_omega_array)
+                    #     used_time_array = np.append(np.array(time_passed_list[idx][sim.turn_i.value - 2][-1]),
+                    #                                       used_time_array)
+                    used_omega_array = np.append(
+                        used_omega_array, fdbk.forward_tracking_omega_rf
+                    )
+                    used_time_array = np.append(
+                        used_time_array, fdbk.forward_tracking_time
+                    )
+
+                    time_passed_list[idx][sim.turn_i.value - 1] = (
+                        used_time_array
+                    )
+                    omega_list[idx][sim.turn_i.value - 1] = used_omega_array
 
                     assert (
                         fdbk.tracked_forward_until_element
@@ -726,6 +739,31 @@ class TestIQCavityFeedbackTimingClass:
         sim.run_simulation(
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
         )
+
+        # test for time_array consistency
+        comp_len = 0
+        for idx, fdbk in enumerate(time_passed_list):
+            current_fdbk_total_time = np.array(fdbk).flatten()
+            increaser = np.diff(current_fdbk_total_time) != 0
+            assert all(increaser), (
+                f"time must be different, but its not: {increaser}"
+            )
+            if idx == 0:
+                comp_len = len(current_fdbk_total_time)
+            else:
+                assert comp_len == len(current_fdbk_total_time)
+
+        comp_len = 0
+        for idx, fdbk in enumerate(omega_list):
+            current_fdbk_omega_list = np.array(fdbk).flatten()
+            increaser = np.diff(current_fdbk_omega_list) != 0
+            assert all(increaser), (
+                f"omega must be increasing, but its not: {increaser}"
+            )
+            if idx == 0:
+                comp_len = len(current_fdbk_omega_list)
+            else:
+                assert comp_len == len(current_fdbk_omega_list)
         pass
 
         # check_allclose_turn_printing(

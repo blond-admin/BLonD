@@ -559,7 +559,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.tracked_forward_until_element: AltersReference | None = None
 
         self.reverse_tracking_time_array: NumpyArray | None = None
-        self.reverse_tracking_omega_list: list[float] | None = None
+        self.reverse_tracking_omega_list: NumpyArray | None = None
 
         self.reference_state_until_tracked: ReferenceCoordinates | None = None
         self.reference_turn_offset: int = 0
@@ -675,7 +675,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     break
         self.forward_tracking_time = dummy_reference.time - start_time
         self.forward_tracking_omega_rf = (
-            self._parent_rf_station.omega_rf_design  # TODO: this should probably be omega_rf as here we have the correct one, but this will cause a discrepancy elsewhere
+            self._parent_rf_station.calc_omega_rf_design(
+                dummy_reference.beta, self.ring.circumference
+            )  # TODO: this should probably be omega_rf as here we have the correct one, but this will cause a discrepancy elsewhere
         )
         self.tracked_forward_until_element = (
             self.reference_altering_elements[
@@ -800,7 +802,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     break
 
         self.reverse_tracking_time_array = np.diff(time_list)
-        self.reverse_tracking_omega_list = omega_list[1:]
+        self.reverse_tracking_omega_list = np.array(omega_list[1:])
+
+        self._unify_same_frequency_time_points_reverse()
         # first entry references the 0 time-point, which is this cavity
 
         if self.debug:
@@ -934,11 +938,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 omega_array_to_use[omega_ind - 1]
                 == omega_array_to_use[omega_ind]
             ):
-                time_arr_to_use[omega_ind - 1] += time_arr_to_use[omega_ind]
-                time_arr_to_use[omega_ind] = 0
+                time_arr_to_use[omega_ind] += time_arr_to_use[omega_ind - 1]
+                time_arr_to_use[omega_ind - 1] = 0
+        print(time_arr_to_use)
+        print(omega_array_to_use)
 
         mask = time_arr_to_use != 0
-        return time_arr_to_use[mask], omega_array_to_use[mask]
+        self.reverse_tracking_time_array = time_arr_to_use[mask]
+        self.reverse_tracking_omega_list = omega_array_to_use[mask]
 
     def calculate_rf_centers_for_reverse_direction(
         self, beam: BeamBaseClass
@@ -953,16 +960,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         """
         self.get_time_omega_array_reverse_direction(beam=beam)
 
-        time_arr_to_use, omega_array_to_use = (
-            self._unify_same_frequency_time_points_reverse()
-        )
-
-        for time_ind, time in enumerate(time_arr_to_use):
+        for time_ind, time in enumerate(self.reverse_tracking_time_array):
             self.rf_centers = np.append(
                 self.rf_centers,
                 self._generate_rf_centers(
-                    t_rf=(2 * np.pi / omega_array_to_use[time_ind]),
-                    omega_rf=omega_array_to_use[time_ind],
+                    t_rf=(
+                        2 * np.pi / self.reverse_tracking_omega_list[time_ind]
+                    ),
+                    omega_rf=self.reverse_tracking_omega_list[time_ind],
                     phi_rf=self.phi_rf,
                     until_time=time,
                 ),
