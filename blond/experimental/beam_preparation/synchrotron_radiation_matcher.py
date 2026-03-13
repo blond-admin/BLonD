@@ -11,24 +11,35 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.constants import c, e, epsilon_0, hbar, m_e
+from scipy.constants import c, e, m_e
 
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning
 from blond.generals.distributed.helpers import mpi_local_size
+from blond.physics.cavities import SingleHarmonicRFStation
+from blond.physics.drifts import DriftSimple
+from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
+    _SynchrotronRadiationTracker,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+    from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
+        SynchrotronRadiationMaster,
+    )
 
 
 class SynchrotronRadiationMatcher(MatchingRoutine):
     def __init__(
         self,
+        synchrotron_radiation_master: SynchrotronRadiationMaster,
         n_macroparticles: int | float,
         seed: int | None = 0,
     ) -> None:
         super().__init__()
+
+        self._sr_master = synchrotron_radiation_master
 
         self._n_macroparticles_local = mpi_local_size(
             int_from_float_with_warning(
@@ -55,7 +66,53 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             Simulation :class:`~blond.core.beam.beam.Beam` object.
         """
 
+        # Check if the lattice is comparable to expectation
+        # To be extented for many SR+Drift
+
+        ring = simulation.ring
+
+        expected_elements = [
+            SingleHarmonicRFStation,
+            _SynchrotronRadiationTracker,
+            DriftSimple,
+        ]
+
+        element_error_message = (
+            "The SynchrotronRadiationMatcher function "
+            + "is presently only implemented for the lattice [Kick, SR, Drift]"
+        )
+
+        if len(ring.elements.elements) != len(expected_elements):
+            raise ValueError(element_error_message)
+        for idx_element, element in enumerate(ring.elements.elements):
+            if not isinstance(element, expected_elements[idx_element]):
+                raise ValueError(element_error_message)
+
+        # Prepare the beam and other objects to get base parameters
+        super().prepare_beam(
+            simulation=simulation,
+            beam=beam,
+        )
+        rf_system = ring.elements.elements[0]
+        drift = ring.elements.elements[-1]
+
         # Get the parameters from the simulation
+        self._sr_master.compute_synchrotron_radiation_parameters(
+            ring,
+            beam,
+        )
+
+        U0 = self._sr_master.energy_loss_per_turn
+        sigma_dE = self._sr_master.natural_energy_spread
+
+        beta = beam.reference.beta
+        eta_0 = drift.eta_0(beam.reference.gamma)
+        t_rev = simulation.get_t_rev_init()
+        t_rf = rf_system.calc_main_harmonic_t_rf(beta, ring.circumference)
+        omega_rf = 2 * np.pi / t_rf
+
+        # NB: already factors in the synchrotron radiation loss!
+        phi_s = rf_system.calc_phi_s_main_harmonic(beam)
 
 
 def match_with_synchrotron_radiation(
@@ -83,26 +140,26 @@ def match_with_synchrotron_radiation(
 
     """
 
-    U0, _, sigma_dE = _calculate_SR_params(
-        energy,
-        ring_circumference,
-        momentum_compaction_factor,
-        bending_radius,
-        charge,
-        mass,
-    )
+    # U0, _, sigma_dE = _calculate_SR_params(
+    #     energy,
+    #     ring_circumference,
+    #     momentum_compaction_factor,
+    #     bending_radius,
+    #     charge,
+    #     mass,
+    # )
 
-    # Get some base parameters that should be provided by BLonD2/3 objects
-    _, beta, _, eta_0, t_rev, t_rf, omega_rf, phi_s = _calculate_base_params(
-        energy,
-        charge,
-        mass,
-        ring_circumference,
-        momentum_compaction_factor,
-        total_voltage,
-        harmonic,
-        energy_gain_per_turn=energy_gain_per_turn,
-    )
+    # # Get some base parameters that should be provided by BLonD2/3 objects
+    # _, beta, _, eta_0, t_rev, t_rf, omega_rf, phi_s = _calculate_base_params(
+    #     energy,
+    #     charge,
+    #     mass,
+    #     ring_circumference,
+    #     momentum_compaction_factor,
+    #     total_voltage,
+    #     harmonic,
+    #     energy_gain_per_turn=energy_gain_per_turn,
+    # )
 
     # Compute the expected stable phase offset
     phi_s_offset = np.arcsin(U0 / (charge * total_voltage))
@@ -169,81 +226,3 @@ def sawtooth_factor(n_sections):
     This will depend on the layout and needs to be generalized.
     """
     return (n_sections + 1) / (2 * n_sections)
-
-
-def _calculate_base_params(
-    energy,
-    charge,
-    mass,
-    ring_circumference,
-    momentum_compaction_factor,
-    total_voltage,
-    harmonic,
-    energy_gain_per_turn=0.0,
-):
-    """
-    This already exists in BLonD2, to be ported in BLonD3.
-    """
-    gamma = energy / mass
-    beta = np.sqrt(1.0 - 1.0 / gamma**2.0)
-    momentum = beta * energy
-
-    eta_0 = momentum_compaction_factor - 1 / gamma**2
-
-    t_rev = ring_circumference / (beta * c)
-
-    omega_rf = 2 * np.pi / (t_rev) * harmonic
-    t_rf = t_rev / harmonic
-
-    phi_s = np.arcsin((charge * energy_gain_per_turn) / total_voltage)
-
-    return gamma, beta, momentum, eta_0, t_rev, t_rf, omega_rf, phi_s
-
-
-def _calculate_SR_params(
-    energy,
-    ring_circumference,
-    momentum_compaction_factor,
-    bending_radius,
-    charge=-1,
-    mass=m_e * c**2 / e,
-):
-    """
-    This already exists in BLonD2, to be ported in BLonD3.
-
-    This computes the synchrotron radiation parameters for one full turn
-    assuming an isomagnetic machine for the synchrotron radiation integrals.
-
-    NB: can be adapted for non-isomagnetic machines with arbitrary radiation integrals
-    like it already exists in BLonD2
-
-    """
-
-    # Lorentz factor
-    gamma = energy / mass
-
-    # Classical particle radius [m]
-    radius_cl = 0.25 / (np.pi * epsilon_0) * e**2 * charge**2 / (mass * e)
-
-    # Sand's radiation constant [ m / eV^3]
-    c_gamma = 4 * np.pi / 3 * radius_cl / mass**3
-
-    # Quantum radiation constant [m]
-    c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (mass * e)
-
-    # Assuming isomagnetic machine
-    I2 = 2.0 * np.pi / bending_radius
-    I3 = 2.0 * np.pi / bending_radius**2.0
-    I4 = ring_circumference * momentum_compaction_factor / bending_radius**2.0
-    jz = 2.0 + I4 / I2
-
-    # Energy loss per turn/RF section [eV]
-    U0 = c_gamma * energy**4.0 * I2 / (2.0 * np.pi)
-
-    # Damping time [turns]
-    tau_z = 2.0 / jz * energy / U0
-
-    # Equilibrium energy spread
-    sigma_dE = np.sqrt(c_q * gamma**2.0 * I3 / (jz * I2))
-
-    return U0, tau_z, sigma_dE
