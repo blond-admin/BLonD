@@ -427,6 +427,7 @@ class InducedVoltageObservationCR(
         self.each_turn_i = each_turn_i
 
         self._induced_voltage: DenseArrayRecorder | None = None
+        self._beam_reference_time: DenseArrayRecorder | None = None
         self._rf_station = rf_station
 
     @requires(["RFStationBaseClass"])
@@ -469,6 +470,11 @@ class InducedVoltageObservationCR(
             shape,
         )
 
+        self._beam_reference_time = DenseArrayRecorder(
+            f"{self.common_filepath}_induced_voltage",
+            n_entries,
+        )
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -491,6 +497,18 @@ class InducedVoltageObservationCR(
             Induced voltage arrays for both beams.
         """
         return self._induced_voltage.get_valid_entries()
+
+    @property  # as readonly attributes
+    def beam_reference_time(self):
+        """
+        Beam reference time on the specified cavity object for both beams.
+
+        Returns
+        -------
+        beam_reference_time
+            Reference time according to the induced voltages for both beams.
+        """
+        return self._beam_reference_time.get_valid_entries()
 
     def _track(
         self,
@@ -534,3 +552,4 @@ class InducedVoltageObservationCR(
         self._induced_voltage.write(
             self._rf_station._local_wakefield.induced_voltage
         )
+        self._beam_reference_time.write(beam.reference.time)
