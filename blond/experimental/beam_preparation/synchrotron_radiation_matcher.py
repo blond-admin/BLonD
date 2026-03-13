@@ -69,8 +69,6 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         # Check if the lattice is comparable to expectation
         # To be extented for many SR+Drift
 
-        ring = simulation.ring
-
         expected_elements = [
             SingleHarmonicRFStation,
             _SynchrotronRadiationTracker,
@@ -82,9 +80,11 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             + "is presently only implemented for the lattice [Kick, SR, Drift]"
         )
 
-        if len(ring.elements.elements) != len(expected_elements):
+        if len(simulation.ring.elements.elements) != len(expected_elements):
             raise ValueError(element_error_message)
-        for idx_element, element in enumerate(ring.elements.elements):
+        for idx_element, element in enumerate(
+            simulation.ring.elements.elements
+        ):
             if not isinstance(element, expected_elements[idx_element]):
                 raise ValueError(element_error_message)
 
@@ -93,6 +93,17 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             simulation=simulation,
             beam=beam,
         )
+
+        all_base_params = self._generate_all_base_params(
+            simulation=simulation,
+            beam=beam,
+        )
+
+    def _generate_all_base_params(
+        self, simulation: Simulation, beam: BeamBaseClass
+    ):
+        ring = simulation.ring
+
         rf_system = ring.elements.elements[0]
         drift = ring.elements.elements[-1]
 
@@ -113,6 +124,17 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         # NB: already factors in the synchrotron radiation loss!
         phi_s = rf_system.calc_phi_s_main_harmonic(beam)
+
+        return {
+            "U0": U0,
+            "sigma_dE": sigma_dE,
+            "beta": beta,
+            "eta_0": eta_0,
+            "t_rev": t_rev,
+            "t_rf": t_rf,
+            "omega_rf": omega_rf,
+            "phi_s": phi_s,
+        }
 
 
 def match_with_synchrotron_radiation(
