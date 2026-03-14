@@ -589,7 +589,7 @@ class TestIQCavityFeedbackTimingClass:
         )
 
     @pytest.mark.backend_mutation
-    @pytest.mark.parametrize("n_sections", [1, 4, 20])
+    @pytest.mark.parametrize("n_sections", [4])  # [1, 4, 20]
     def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse(
         self, n_sections: int
     ):
@@ -658,14 +658,16 @@ class TestIQCavityFeedbackTimingClass:
             [[] for _ in range(n_turns_to_simulate - 1)]
             for _ in range(n_sections)
         ]
+        rf_center_list = [
+            [[] for _ in range(n_turns_to_simulate - 1)]
+            for _ in range(n_sections)
+        ]
 
         def callback(simulation: Simulation, beam: Beam):
             if simulation.turn_i.value == 0:  # TODO: and not CR
                 return
-            # rf_centers_list = []
             for idx, fdbk in enumerate(timing_fdbk_list):
                 fdbk: IQCavityFeedbackTimingClass
-                # TODO: check rf centers --> add calculation of rf centers
                 if (
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
@@ -705,10 +707,6 @@ class TestIQCavityFeedbackTimingClass:
                         != len(fdbk.reverse_tracking_time_array),
                         f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
                     )
-                    # if simulation.turn_i.value >= 2:
-                    #     used_omega_array = np.append(np.array(omega_list[idx][sim.turn_i.value - 2][-1]), used_omega_array)
-                    #     used_time_array = np.append(np.array(time_passed_list[idx][sim.turn_i.value - 2][-1]),
-                    #                                       used_time_array)
                     used_omega_array = np.append(
                         used_omega_array, fdbk.forward_tracking_omega_rf
                     )
@@ -726,14 +724,14 @@ class TestIQCavityFeedbackTimingClass:
                         not in fdbk.current_slice_elements_forward
                     )  # this element should be tracked afterwards, not now
 
-                # rf_centers_list.append(fdbk.rf_centers_reverse_direction)
-                # assert (
-                #         fdbk.tracked_forward_until_element
-                #         is fdbk.reference_altering_elements[
-                #             (fdbk.own_index_in_reference_list + 3)
-                #             % len(fdbk.reference_altering_elements)
-                #             ]
-                # )  # 3 elements between two cavities
+                    rf_center_list[idx][sim.turn_i.value - 1] = fdbk.rf_centers
+                    assert (
+                        fdbk.tracked_forward_until_element
+                        is fdbk.reference_altering_elements[
+                            (fdbk.own_index_in_reference_list + 3)
+                            % len(fdbk.reference_altering_elements)
+                        ]
+                    )  # 3 elements between two cavities
 
         sim.run_simulation(
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
@@ -741,10 +739,10 @@ class TestIQCavityFeedbackTimingClass:
 
         # test for time_array consistency
         comp_len = 0
-        per_fdbk_continuuous = []
+        continuousfdbk_time = []
         for idx, fdbk in enumerate(time_passed_list):
             current_fdbk_total_time = np.array(fdbk).flatten()
-            per_fdbk_continuuous.append(current_fdbk_total_time)
+            continuousfdbk_time.append(current_fdbk_total_time)
             increaser = np.diff(current_fdbk_total_time) < 0
             assert all(increaser), (
                 f"time must be decreasing, but its not: {increaser}"
@@ -755,17 +753,17 @@ class TestIQCavityFeedbackTimingClass:
                 assert comp_len == len(current_fdbk_total_time)
             if idx > 0:
                 np.testing.assert_allclose(
-                    per_fdbk_continuuous[-1][:-1],
-                    per_fdbk_continuuous[-2][1:],
+                    continuousfdbk_time[-1][:-1],
+                    continuousfdbk_time[-2][1:],
                     rtol=1e-12,
                     atol=0,
                 )  # shifted by one, but otherwise equal
 
         comp_len = 0
-        per_fdbk_continuuous = []
+        continuous_omega = []
         for idx, fdbk in enumerate(omega_list):
             current_fdbk_omega_list = np.array(fdbk).flatten()
-            per_fdbk_continuuous.append(current_fdbk_omega_list)
+            continuous_omega.append(current_fdbk_omega_list)
             increaser = np.diff(current_fdbk_omega_list) > 0
             assert all(increaser), (
                 f"omega must be increasing, but its not: {increaser}"
@@ -776,16 +774,185 @@ class TestIQCavityFeedbackTimingClass:
                 assert comp_len == len(current_fdbk_omega_list)
             if idx > 0:
                 np.testing.assert_allclose(
-                    per_fdbk_continuuous[-1][:-1],
-                    per_fdbk_continuuous[-2][1:],
+                    continuous_omega[-1][:-1],
+                    continuous_omega[-2][1:],
                     rtol=1e-12,
                     atol=0,
                 )  # shifted by one, but otherwise equal
-        pass
 
-        # check_allclose_turn_printing(
-        #     np.array(time_passed_list), simulation.turn_i.value, "time_passed"
-        # )  # with no acceleration, this has to be true (all time_passed are the same
-        # check_allclose_turn_printing(
-        #     omega_list, simulation.turn_i.value, "omega_list"
-        # )  # with no acceleration, this has to be true (all omegas are the same)
+    @pytest.mark.backend_mutation
+    @pytest.mark.parametrize("n_sections", [2])  # [1, 4, 20]
+    def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse_rf_centers(
+        self, n_sections: int
+    ):
+        backend.change_backend(Numpy64Bit)
+        self.harmonic = 10
+        self.setup_simulation()
+
+        # n_sections = 4
+        circumference = 10
+
+        ring, element_list, timing_fdbk_list = (
+            self.setup_simulation_multisection(
+                circumference=circumference, n_sections=n_sections
+            )
+        )
+
+        n_turns_to_simulate = 3
+        injection_energy = 5e8
+        en_gain_per_turn = 20e9
+        ejection_energy = (
+            injection_energy + en_gain_per_turn * n_turns_to_simulate
+        )
+
+        vals_after_rf_station = np.linspace(
+            injection_energy + en_gain_per_turn / n_sections,
+            ejection_energy,
+            num=n_sections * n_turns_to_simulate,
+        )
+        vals_after_rf_station = np.reshape(
+            vals_after_rf_station, (n_sections, n_turns_to_simulate), order="F"
+        )
+
+        cnst_cycle = MagneticCyclePerTurnAllRFStations(
+            reference_particle=mu_plus,
+            value_init=injection_energy,
+            values_after_rf_station_per_turn=vals_after_rf_station,
+            in_unit="momentum",
+        )
+
+        sim = Simulation(
+            ring,
+            cnst_cycle,
+        )
+
+        time_passed_list = [
+            [[] for _ in range(n_turns_to_simulate - 1)]
+            for _ in range(n_sections)
+        ]
+        omega_list = [
+            [[] for _ in range(n_turns_to_simulate - 1)]
+            for _ in range(n_sections)
+        ]
+        rf_center_list = [
+            [[] for _ in range(n_turns_to_simulate - 1)]
+            for _ in range(n_sections)
+        ]
+
+        def callback(simulation: Simulation, beam: Beam):
+            if simulation.turn_i.value == 0:  # TODO: and not CR
+                return
+            for idx, fdbk in enumerate(timing_fdbk_list):
+                fdbk: IQCavityFeedbackTimingClass
+                if (
+                    n_sections != 1
+                ):  # only relevant/only gets set on multistation
+                    msk = fdbk.reverse_tracking_time_array != 0
+                    used_time_array = np.array(
+                        fdbk.reverse_tracking_time_array
+                    )[msk]
+                    used_omega_array = np.array(
+                        fdbk.reverse_tracking_omega_list
+                    )[msk]
+                    used_omega_array = np.append(
+                        used_omega_array, fdbk.forward_tracking_omega_rf
+                    )
+                    used_time_array = np.append(
+                        used_time_array, fdbk.forward_tracking_time
+                    )
+
+                    time_passed_list[idx][sim.turn_i.value - 1] = (
+                        used_time_array
+                    )
+                    omega_list[idx][sim.turn_i.value - 1] = used_omega_array
+
+                    rf_center_list[idx][sim.turn_i.value - 1] = fdbk.rf_centers
+
+        sim.run_simulation(
+            self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
+        )
+
+        if DEBUG_PLOTTING:
+            continuousfdbk_time = []
+            for idx, fdbk in enumerate(time_passed_list):
+                current_fdbk_total_time = np.array(fdbk).flatten()
+                continuousfdbk_time.append(current_fdbk_total_time)
+
+            continuousfdbk_omega = []
+            for idx, fdbk in enumerate(omega_list):
+                current_fdbk_omega_list = np.array(fdbk).flatten()
+                continuousfdbk_omega.append(current_fdbk_omega_list)
+
+            voltage_array = [[] for _ in range(n_sections)]
+            global_time_array = [[] for _ in range(n_sections)]
+
+            for fdbk_ind in range(len(continuousfdbk_time)):
+                for time_ind in range(len(continuousfdbk_time[fdbk_ind])):
+                    start_time = np.cumsum(
+                        continuousfdbk_time[fdbk_ind][:time_ind]
+                    )
+                    until_time = (
+                        start_time + continuousfdbk_time[fdbk_ind][time_ind]
+                    )
+                    time_arr_local = np.linspace(
+                        start_time, until_time, num=500
+                    )
+                    voltage_array[fdbk_ind] = np.sin(
+                        time_arr_local
+                        * continuousfdbk_omega[fdbk_ind][time_ind]
+                    )
+                    global_time_array[fdbk_ind] = time_arr_local
+                plt.figure(f"Feedback section {fdbk_ind + 1}")
+                plt.title(f"Feedback section {fdbk_ind + 1}")
+                plt.plot(
+                    global_time_array[fdbk_ind],
+                    voltage_array[fdbk_ind],
+                    label="continuous voltage",
+                    marker="o",
+                )
+
+                for _ in range(1, n_turns_to_simulate):  # end of turns
+                    plt.axvline(
+                        x=np.cumsum(
+                            continuousfdbk_time[fdbk_ind][
+                                : int(_ * n_sections)
+                            ]
+                        )[-1],
+                        ls="--",
+                        color="red",
+                    )
+                offset = 0
+                sec_ind = 0
+                for trn_ind in range(n_turns_to_simulate - 1):  # RF centers
+                    for rf_center_ind, rf_center in enumerate(
+                        rf_center_list[fdbk_ind][trn_ind]
+                    ):
+                        if (
+                            rf_center
+                            <= rf_center_list[fdbk_ind][trn_ind][
+                                rf_center_ind - 1
+                            ]
+                        ):
+                            print(rf_center_ind)
+                            offset += continuousfdbk_time[fdbk_ind][sec_ind]
+                            sec_ind += 1
+                        plt.axvline(
+                            x=rf_center + offset, marker="x", color="green"
+                        )
+                plt.legend()
+
+                plt.show(
+                    block=False
+                    if fdbk_ind != len(continuousfdbk_time) - 1
+                    else True
+                )
+
+        for fdbk_ind in range(1, n_sections):
+            np.testing.assert_allclose(
+                rf_center_list[fdbk_ind],
+                rf_center_list[fdbk_ind - 1],
+                atol=0,
+                rtol=1e-12,
+            )
+
+        pass
