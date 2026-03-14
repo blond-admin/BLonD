@@ -234,7 +234,9 @@ def setup_and_run_blond2(mtw=False):
         n_slices=n_slices_profile,
     )
 
-    profile = profile_b2(beam, cut_options=cut_options)
+    profile = profile_b2(
+        beam, cut_options=cut_options
+    )  # TODO: try with mocked profile
     profile.track()
     profile.fwhm()
 
