@@ -637,7 +637,7 @@ class Resonators(
         storage_time
             Time, after which the decay fraction threshold is reached.
         """
-        time_axis = np.linspace(
+        time_axis = backend.linspace(
             0,
             -2
             * np.max(self._quality_factors / self._omega)
@@ -648,7 +648,7 @@ class Resonators(
         _, envelope = self.calculate_envelope(time_axis=time_axis)
 
         storage_time = time_axis[
-            np.abs(envelope - decay_fraction_threshold).argmin()
+            backend.abs(envelope - decay_fraction_threshold).argmin()
         ]
 
         return storage_time
