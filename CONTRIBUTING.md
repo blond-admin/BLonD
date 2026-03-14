@@ -109,7 +109,7 @@ Ensure the following tools are installed:
 
 ```bash
 git clone https://gitlab.cern.ch/blond/BLonD/
-cd blond
+cd BLonD
 git checkout blonder  # Current development branch for BLonD3
 ```
 
@@ -125,13 +125,13 @@ source .venv/bin/activate
 For CPU-only development:
 
 ```bash
-pip install --editable .[dev]
+pip install --editable ".[dev]"
 ```
 
 For GPU-enabled development:
 
 ```bash
-pip install --editable .[dev, gpu]
+pip install --editable ".[dev, gpu]"
 ```
 
 ### 4. Set Up Pre-Commit Hooks
