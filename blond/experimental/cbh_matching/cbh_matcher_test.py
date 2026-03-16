@@ -89,8 +89,8 @@ sim.prepare_beam(
     preparation_routine=CBHMatcher(
         simulation=sim,
         beam=beam,
-        n_macroparticles=int(1e5),  # TODO
-        order=3,  # above order 3, takes a long time
+        n_macroparticles=int(1e5),  # TODO handle int properly
+        order=3,
         distribution="Gaussian",
         time_window_limit=(0, 2.5e-9),
         energy_window_limit=(-2e9, 2e9),
@@ -98,7 +98,11 @@ sim.prepare_beam(
     beam=beam,
 )
 
+
 sim.run_simulation(beams=[beam], n_turns=n_turns)
+
+
+# plot
 plt.scatter(observation.dts[0], observation.dEs[0])
 plt.scatter(observation.dts[-1], observation.dEs[-1])
 plt.show()

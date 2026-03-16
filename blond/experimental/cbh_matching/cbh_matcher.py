@@ -26,6 +26,8 @@ class CBHMatcher(MatchingRoutine):
     Then, the Hamiltonian is expanded up to arbitrary order with the CBH expansion.
     From here, the distribution is matched, where f, the distribution, is a function of
     H, the CBH expanded Hamiltonian with Lie algebra, f(H).
+
+    For now, does not work with a desired emittance. In progress.
     """
 
     def __init__(
