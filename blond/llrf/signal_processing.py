@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 import numpy
 from scipy.special import comb
 
-from blond.beam.sparse_profiles import _SparseProfileBaseClass
+from blond.beam.sparse_profiles import SparseProfileBaseClass
 from blond.llrf.impulse_response import TravellingWaveCavity
 
 # Set up logging
@@ -135,7 +135,7 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
     return I_new + 1j * Q_new
 
 
-def rf_beam_current(profile: Profile | _SparseProfileBaseClass, omega_c: float, T_rev: (
+def rf_beam_current(profile: Profile | SparseProfileBaseClass, omega_c: float, T_rev: (
     float), lpf: bool = True, downsample: dict = None,
                     external_reference: bool = True, dT: float = 0):
     r"""Function calculating the beam charge at the (RF) frequency, slice by
@@ -202,7 +202,7 @@ def rf_beam_current(profile: Profile | _SparseProfileBaseClass, omega_c: float, 
 
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    if isinstance(profile, _SparseProfileBaseClass):
+    if isinstance(profile, SparseProfileBaseClass):
         charges = profile.beam.ratio * profile.beam.Particle.charge * e \
                   * np.copy(profile.n_macroparticles)
     else:
@@ -242,7 +242,7 @@ def rf_beam_current(profile: Profile | _SparseProfileBaseClass, omega_c: float, 
             raise RuntimeError('Downsampling input erroneous in rf_beam_current')
 
         #Find which index in fine grid matches index in coarse grid
-        if isinstance(profile, _SparseProfileBaseClass):
+        if isinstance(profile, SparseProfileBaseClass):
             charges_coarse = np.zeros(n_points, dtype=complex)
 
             for profile_ in profile.profiles_list:

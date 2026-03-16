@@ -20,7 +20,7 @@ import numpy as np
 from scipy.constants import e
 
 from ..beam.profile import Profile
-from ..beam.sparse_profiles import _SparseProfileBaseClass
+from ..beam.sparse_profiles import SparseProfileBaseClass
 from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
 
@@ -1014,7 +1014,7 @@ class InducedVoltageSparse(_InducedVoltage):
 
         self.profile_object = profile_object
 
-        if isinstance(profile_object, _SparseProfileBaseClass):
+        if isinstance(profile_object, SparseProfileBaseClass):
             self.bin_centers = (
                 profile_object.bin_centers_array.flatten()).astype(
                 dtype=bm.precision.real_t, order='C', copy=False)
@@ -1034,7 +1034,7 @@ class InducedVoltageSparse(_InducedVoltage):
         self.impedance_source_list = impedance_source_list
 
         if adaptive_frequency_sampling:
-            if isinstance(profile_object, _SparseProfileBaseClass):
+            if isinstance(profile_object, SparseProfileBaseClass):
                 init_profile = self.profile_object.n_macroparticles_array.flatten()
             elif isinstance(profile_object, Profile):
                 init_profile = self.profile_object.n_macroparticles

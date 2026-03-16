@@ -25,7 +25,7 @@ import numpy.random as rnd
 import scipy.signal
 from scipy.interpolate import interp1d
 
-from blond.beam.sparse_profiles import _SparseProfileBaseClass
+from blond.beam.sparse_profiles import SparseProfileBaseClass, SparseBatch
 from blond.llrf.impulse_response import (
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
@@ -1955,7 +1955,7 @@ class FCCBoosterCavityLoop(CavityFeedback):
     def __init__(
         self,
         RFStation: RFStation,
-        Profile: Profile | _SparseProfileBaseClass ,
+        Profile: Profile | SparseProfileBaseClass ,
         n_cavities: int = 112,
         f_c: float = 801573985.3775489,
         G_gen: float = 1,
@@ -2123,42 +2123,91 @@ class FCCBoosterCavityLoop(CavityFeedback):
     def cavity_response_fine_matrix(self):
         r"""ACS cavity response model in matrix form on the fine-grid"""
 
-        # Number of samples on fine grid
-        self.samples_fine = self.omega_rf * self.profile.bin_size
+        if isinstance(self.profile, SparseBatch):
+            for p, profile in enumerate(self.profile.profiles_list):
+                # Number of samples on fine grid
+                self.samples_fine = self.omega_rf * profile.bin_size
 
-        # Find initial value of antenna voltage and generator current
-        t_at_init = self.profile.bin_centers[0] - self.profile.bin_size
-        V_A_init = interp1d(
-            np.concatenate(
-                (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)
-            ),
-            self.V_ANT_COARSE,
-            fill_value="extrapolate",
-        )(t_at_init)
-        I_gen_init = interp1d(
-            np.concatenate(
-                (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)
-            ),
-            self.I_BEAM_COARSE,
-            fill_value="extrapolate",
-        )(t_at_init)
+                # Find initial value of antenna voltage and generator current
+                t_at_init = profile.bin_centers[0] - profile.bin_size
+                V_A_init = interp1d(
+                    np.concatenate(
+                        (self.rf_centers - self.T_s * self.n_coarse,
+                         self.rf_centers)
+                    ),
+                    self.V_ANT_COARSE,
+                    fill_value="extrapolate",
+                )(t_at_init)
+                I_gen_init = interp1d(
+                    np.concatenate(
+                        (self.rf_centers - self.T_s * self.n_coarse,
+                         self.rf_centers)
+                    ),
+                    self.I_BEAM_COARSE,
+                    fill_value="extrapolate",
+                )(t_at_init)
 
-        self.V_ANT_FINE = cavity_response_sparse_matrix(
-            I_beam=self.I_BEAM_FINE,
-            I_gen=self.I_GEN_FINE,
-            n_samples=self.profile.n_slices,
-            V_ant_init=V_A_init,
-            I_gen_init=I_gen_init,
-            samples_per_rf=self.samples_fine,
-            R_over_Q=self.R_over_Q,
-            Q_L=self.Q_L,
-            detuning=self.detuning,
-        )
+                I_BEAM_FINE_segment = self.I_BEAM_FINE[
+                    p * profile.n_slices: (p + 1) * profile.n_slices]
+                I_GEN_FINE_segment = self.I_GEN_FINE[
+                    p * profile.n_slices: (p + 1) * profile.n_slices]
 
-        self.V_ANT_FINE[-self.profile.n_slices:] = (
-                self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices:]
-        )
+                V_ANT_FINE_segment = cavity_response_sparse_matrix(
+                    I_beam=I_BEAM_FINE_segment,
+                    I_gen=I_GEN_FINE_segment,
+                    n_samples=profile.n_slices,
+                    V_ant_init=V_A_init,
+                    I_gen_init=I_gen_init,
+                    samples_per_rf=self.samples_fine,
+                    R_over_Q=self.R_over_Q,
+                    Q_L=self.Q_L,
+                    detuning=self.detuning,
+                )
+                V_ANT_FINE_segment[-profile.n_slices:] *= self.n_cavities
+                if p == 0:
+                    self.V_ANT_FINE[0:profile.n_slices + 1] = \
+                        V_ANT_FINE_segment
+                else:
+                    self.V_ANT_FINE[p * profile.n_slices + 1: (p + 1) * profile.n_slices + 1] \
+                        = V_ANT_FINE_segment[-profile.n_slices:]
+        else:
+            # Number of samples on fine grid
+            self.samples_fine = self.omega_rf * self.profile.bin_size
 
+            # Find initial value of antenna voltage and generator current
+            t_at_init = self.profile.bin_centers[0] - self.profile.bin_size
+            V_A_init = interp1d(
+                np.concatenate(
+                    (self.rf_centers - self.T_s * self.n_coarse,
+                     self.rf_centers)
+                ),
+                self.V_ANT_COARSE,
+                fill_value="extrapolate",
+            )(t_at_init)
+            I_gen_init = interp1d(
+                np.concatenate(
+                    (self.rf_centers - self.T_s * self.n_coarse,
+                     self.rf_centers)
+                ),
+                self.I_BEAM_COARSE,
+                fill_value="extrapolate",
+            )(t_at_init)
+
+            self.V_ANT_FINE = cavity_response_sparse_matrix(
+                I_beam=self.I_BEAM_FINE,
+                I_gen=self.I_GEN_FINE,
+                n_samples=self.profile.n_slices,
+                V_ant_init=V_A_init,
+                I_gen_init=I_gen_init,
+                samples_per_rf=self.samples_fine,
+                R_over_Q=self.R_over_Q,
+                Q_L=self.Q_L,
+                detuning=self.detuning,
+            )
+
+            self.V_ANT_FINE[-self.profile.n_slices:] = (
+                    self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices:]
+            )
     def generator_current(self):
         r"""Generator response
 

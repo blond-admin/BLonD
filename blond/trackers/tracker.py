@@ -21,7 +21,7 @@ import numpy as np
 import scipy
 from packaging.version import Version
 
-from ..beam.sparse_profiles import _SparseProfileBaseClass
+from ..beam.sparse_profiles import SparseProfileBaseClass
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -246,7 +246,7 @@ class RingAndRFTracker:
             raise RuntimeError("ERROR in RingAndRFTracker: Empty RFStation" +
                                " with periodicity not yet implemented!")
         if (self.cavityFB is not None) and (self.interpolation is False):
-            # if not isinstance(self.profile, _SparseProfileBaseClass):
+            # if not isinstance(self.profile, SparseProfileBaseClass):
             #     #fixme
             #     self.interpolation = False
             self.interpolation = True
@@ -446,7 +446,7 @@ class RingAndRFTracker:
                     else:
                         self.total_voltage = self.rf_voltage
                     #warpper bucket by bucket (profile by profile),
-                    if isinstance(self.profile, _SparseProfileBaseClass):
+                    if isinstance(self.profile, SparseProfileBaseClass):
                         n_macroparticles_per_profile = int(
                                 self.profile.beam.n_macroparticles/len(
                             self.profile.profiles_list))
