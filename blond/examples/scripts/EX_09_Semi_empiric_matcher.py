@@ -18,20 +18,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-from blond.core.backends.backend import Numpy64Bit, backend
-from blond.experimental.beam_preparation.bucket_filler_functions import (
-    multibunch_match_metric_to_hamilton,
-)
-from blond.experimental.beam_preparation.density_functions import (
-    gaussian_density,
-)
-from blond.experimental.beam_preparation.metric_functions import rms_emittance
-from blond.experimental.beam_preparation.semi_empiric_matcher import (
-    SemiEmpiricMatcher,
-)
-
-backend.change_backend(Numpy64Bit)
-
 from blond import SingleHarmonicRFStation  # NOQA
 from blond import (  # NOQA
     Beam,
@@ -42,6 +28,17 @@ from blond import (  # NOQA
     StaticProfile,
     WakeField,
     proton,
+)
+from blond.core.backends.backend import Numpy64Bit, backend
+from blond.experimental.beam_preparation.bucket_filler_functions import (
+    multibunch_match_metric_to_hamilton,
+)
+from blond.experimental.beam_preparation.density_functions import (
+    gaussian_density,
+)
+from blond.experimental.beam_preparation.metric_functions import rms_emittance
+from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    SemiEmpiricMatcher,
 )
 from blond.physics.impedances.solvers import PeriodicFreqSolver
 from blond.physics.impedances.sources import Resonators
@@ -135,7 +132,7 @@ def main():
     cavity = SingleHarmonicRFStation()
     cavity.harmonic = HARMONIC
     cavity.voltage = VOLTAGE
-    cavity.schedule("phi_rf_design", PHI_RF[:-1].copy()[:, np.newaxis])
+    cavity.schedule("phi_rf_design", PHI_RF[:-1].copy()[:])
 
     drift = DriftSimple(
         orbit_length=CIRCUMFERENCE,
