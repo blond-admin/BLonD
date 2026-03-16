@@ -53,7 +53,7 @@ write_to = 'blond/_version.py' # autogenerates version string using git
 dependencies = { file = ["requirements.txt"] }
 optional-dependencies = { all_cuda12 = { file = [
   "requirements.txt",
-  "requirements-gpu-12.txt",
+  "requirements-gpu-cuda12.txt",
   "requirements-dev.txt",
   "requirements-fortran.txt",
   "requirements-doc.txt",
@@ -61,7 +61,7 @@ optional-dependencies = { all_cuda12 = { file = [
   "requirements-mpi.txt",
 ] }, all_cuda13 = { file = [
   "requirements.txt",
-  "requirements-gpu-13.txt",
+  "requirements-gpu-cuda13.txt",
   "requirements-dev.txt",
   "requirements-fortran.txt",
   "requirements-doc.txt",
