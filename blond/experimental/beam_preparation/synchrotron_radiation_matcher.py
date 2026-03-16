@@ -94,12 +94,18 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             beam=beam,
         )
 
-        all_base_params = self._generate_all_base_params(
+        all_base_params = self._get_all_base_params(
             simulation=simulation,
             beam=beam,
         )
 
-    def _generate_all_base_params(
+        covariance_matrix_scaled = self._compute_covariance_matrix(
+            all_base_params=all_base_params
+        )
+
+        pass
+
+    def _get_all_base_params(
         self, simulation: Simulation, beam: BeamBaseClass
     ):
         ring = simulation.ring
@@ -113,7 +119,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             beam,
         )
 
-        U0 = self._sr_master.energy_loss_per_turn
+        energy_loss_per_turn = self._sr_master.energy_loss_per_turn
         sigma_dE = self._sr_master.natural_energy_spread
 
         beta = beam.reference.beta
@@ -126,9 +132,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         phi_s = rf_system.calc_phi_s_main_harmonic(beam)
 
         return {
+            "energy": beam.reference.total_energy,
             "charge": beam.particle_type.charge,
-            # "rf_voltage": rf_system
-            "U0": U0,
+            "rf_voltage": rf_system.voltage,
+            "energy_loss_per_turn": energy_loss_per_turn,
             "sigma_dE": sigma_dE,
             "beta": beta,
             "eta_0": eta_0,
@@ -139,21 +146,32 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         }
 
     def _compute_covariance_matrix(self, all_base_params: dict):
-        charge = all_base_params["charge"]
-
         # Define the Kick Drift parameters
-        K_param = -charge * total_voltage * omega_rf * np.cos(phi_s)
-        D_param = -t_rev * eta_0 / (beta**2.0 * energy)
+        kick_param = (
+            -all_base_params["charge"]
+            * all_base_params["rf_voltage"]
+            * all_base_params["omega_rf"]
+            * np.cos(all_base_params["phi_s"])
+        )
+        drift_param = (
+            -all_base_params["t_rev"]
+            * all_base_params["eta_0"]
+            / (all_base_params["beta"] ** 2.0 * all_base_params["energy"])
+        )
 
         # Compute the Courant-Snyder parameters for the kick drift
-        Qs = np.arcsin(np.sqrt(-(D_param * K_param) / 4)) / np.pi
-        mu = np.sign(D_param) * 2 * np.pi * Qs
-        beta_cs = D_param / np.sin(mu)
-        gamma_cs = -K_param / np.sin(mu)
-        alpha_cs = np.sign(D_param) * np.tan(np.pi * Qs)
+        synchrotron_tune = (
+            np.arcsin(np.sqrt(-(drift_param * kick_param) / 4)) / np.pi
+        )
+        mu = np.sign(drift_param) * 2 * np.pi * synchrotron_tune
+        beta_cs = drift_param / np.sin(mu)
+        gamma_cs = -kick_param / np.sin(mu)
+        alpha_cs = np.sign(drift_param) * np.tan(np.pi * synchrotron_tune)
 
         # Get the longitudinal emittance
-        epsilon_rms_tilted = (sigma_dE * energy) ** 2.0 / gamma_cs
+        epsilon_rms_tilted = (
+            all_base_params["sigma_dE"] * all_base_params["energy"]
+        ) ** 2.0 / gamma_cs
 
         # Get the covariance matrix
         covariance_matrix = epsilon_rms_tilted * np.array(
