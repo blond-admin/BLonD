@@ -18,15 +18,16 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-from blond import SingleHarmonicRFStation  # NOQA
 from blond import (  # NOQA
     Beam,
     DriftSimple,
     MagneticCyclePerTurn,
     Ring,
     Simulation,
+    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    momentum_compaction_factor,
     proton,
 )
 from blond.core.backends.backend import Numpy64Bit, backend
@@ -103,51 +104,58 @@ def bucket_fill_by_emittance_gaussian(
 
 def main():
     # Defining a 1 turn simulation with values typical of the Proton Synchrotron
-    PHI_RF = np.array(2 * [0])
-    GAMMA_T = np.array(2 * [6.2])
-    MOMENTUM = np.array([7e9, (7 + 0.0001) * 1e9])
-    CIRCUMFERENCE = 2 * np.pi * 100
-    VOLTAGE = 200e3
-    HARMONIC = 8
-    INTENSITY = 1e13
+    phi_rf = np.array([0])
+    gamma_transition = np.array(2 * [6.2])
+    momentum_program = np.array([7e9, (7 + 0.0001) * 1e9])
+    circumference = 2 * np.pi * 100
+    rf_voltage = 200e3
+    harmonic = 8
+    intensity = 1e13
 
     # Simulation specific parameters
-    N_MACROS = 1e5
-    N_BINS = 1000
+    number_of_macroparticles = 1e5
+    number_of_profile_bins = 1000
 
     # Defining Some resonator impedance
     Q = 3
-    F_RES = 4e6  # Hz
-    R_SH = 10000  # Ohms
-    PROFILE_LENGTH = 2.1e-06
+    resonator_resonant_frequency = 4e6  # Hz
+    resonator_r_shunt = 10000  # Ohms
+    profile_length = 2.1e-06
 
     # Set up simulation
-    ring = Ring(circumference=CIRCUMFERENCE)
+    ring = Ring(circumference=circumference)
     energy_cycle = MagneticCyclePerTurn(
-        value_init=float(MOMENTUM[0]),
-        values_after_turn=MOMENTUM[1:].copy(),
+        value_init=float(momentum_program[0]),
+        values_after_turn=momentum_program[1:].copy(),
         reference_particle=proton,
     )
 
     cavity = SingleHarmonicRFStation()
-    cavity.harmonic = HARMONIC
-    cavity.voltage = VOLTAGE
-    cavity.schedule("phi_rf_design", PHI_RF[:-1].copy()[:])
+    cavity.harmonic = harmonic
+    cavity.voltage = rf_voltage
+    cavity.schedule("phi_rf_design", phi_rf)
 
     drift = DriftSimple(
-        orbit_length=CIRCUMFERENCE,
+        orbit_length=circumference,
     )
 
-    drift.schedule("momentum_compaction_factor", 1 / GAMMA_T[1:].copy() ** 2)
+    drift.schedule(
+        "momentum_compaction_factor",
+        momentum_compaction_factor(gamma_transition),
+    )
 
-    beam = Beam(intensity=INTENSITY, particle_type=proton)
+    beam = Beam(intensity=intensity, particle_type=proton)
 
-    profile = StaticProfile(0, PROFILE_LENGTH, N_BINS)
+    profile = StaticProfile(0, profile_length, number_of_profile_bins)
     wakefield = WakeField(
         sources=(
-            Resonators(np.array([R_SH]), np.array([F_RES]), np.array([Q])),
+            Resonators(
+                np.array([resonator_r_shunt]),
+                np.array([resonator_resonant_frequency]),
+                np.array([Q]),
+            ),
         ),
-        solver=PeriodicFreqSolver(PROFILE_LENGTH, allow_next_fast_len=True),
+        solver=PeriodicFreqSolver(profile_length, allow_next_fast_len=True),
         profile=profile,
     )
 
@@ -174,7 +182,7 @@ def main():
         beam=beam,
         preparation_routine=SemiEmpiricMatcher(
             time_limit=(3e-8, 3e-8 + 2.1e-6),
-            n_macroparticles=1e6,
+            n_macroparticles=int(number_of_macroparticles),
             hamilton_to_density_function=bucket_fill_by_emittance_gaussian,
             hamilton_to_density_kwargs={
                 "emittance_list": [
@@ -200,8 +208,8 @@ def main():
                 "n_buckets": 8,  # Number of buckets within time_limit
                 "max_emittance_diff": 0.01,
             },  # Greatest tolerated difference in generated emittance
-            animate=True,
-            tolerance=1e-8,
+            animate=False,
+            tolerance=1e-3,
             increment_intensity_effects_until_iteration_i=10,
         ),
     )
