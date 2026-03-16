@@ -5,9 +5,11 @@ from functools import cached_property
 from unittest.mock import Mock
 
 import numpy as np
+import pytest
 from scipy.constants import speed_of_light as c0
 
 from blond import (
+    Numpy64Bit,
     electron,
 )
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
@@ -307,7 +309,9 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             energy_kick_from_SynchrotronRadiationSection,
         )
 
+    @pytest.mark.backend_mutation
     def test_update_beam_energy(self):
+        backend.change_backend(Numpy64Bit)  # fails with 32 bit
         previous_energy = self.beam.read_partial_dE().copy()
         energy_kick = self.SRB._calculate_kick(
             beam=self.beam,
