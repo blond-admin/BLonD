@@ -1162,7 +1162,7 @@ class SingleHarmonicRFStation(
         beam
             Beam with reference attached.
         ring
-            Ring object to access circumference.
+            Ring with reference attached.
 
         Returns
         -------
@@ -1173,16 +1173,20 @@ class SingleHarmonicRFStation(
 
         V = self.voltage
         phi = self.phi_rf
-        charge = beam.reference.particle_type.charge
+        h = self.harmonic
+
+        charge = beam.particle_type.charge
 
         beta = beam.reference.beta
-        circumference = ring.circumference
-        harmonic = self.harmonic
 
-        # RF angular frequency
-        omega_rf = 2 * sp.pi * harmonic * beta * sp.Symbol("c") / circumference
+        C = ring.circumference
+        # Shift phase by 90 degrees if necessary
+        phi_shift = sp.pi
+        omega_rf = 2 * sp.pi * h * beta * c0 / C
 
-        return -(charge * V / omega_rf) * sp.cos(omega_rf * q + phi)
+        return -(charge * V / omega_rf) * sp.cos(
+            omega_rf * q + phi - phi_shift
+        )
 
 
 class MultiHarmonicRFStation(RFStationBaseClass):

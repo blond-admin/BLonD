@@ -389,7 +389,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         """
         return self.momentum_compaction_factor
 
-    def symbolic_hamiltonian(self, q, p, beam: BeamBaseClass):
+    def symbolic_hamiltonian(self, q, p, beam: BeamBaseClass, **kwargs):
         """
         Return the symbolic Hamiltonian for this drift element.
 
@@ -401,6 +401,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
             Canonical momentum ΔE.
         beam
             Beam so that reference can be used.
+        **kwargs
+            Allows more arguments in the method definition.
 
         Returns
         -------
