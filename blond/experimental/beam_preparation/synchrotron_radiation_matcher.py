@@ -107,10 +107,15 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         # Generate the random distribution
         # TODO: assess usage of mpi_aware_random_generator_cpu
-        rng = np.random.default_rng(seed=self._seed)
-        dt_distrib, dE_distrib = rng.multivariate_normal(
-            [0, 0], covariance_matrix_scaled, size=self._n_macroparticles_local
-        ).T
+        dt_distrib, dE_distrib = (
+            np.random.default_rng(seed=self._seed)
+            .multivariate_normal(
+                [0, 0],
+                covariance_matrix_scaled,
+                size=self._n_macroparticles_local,
+            )
+            .T
+        )
 
         # Scale the distribution
         dt_distrib *= np.sqrt(scaling_factor)
