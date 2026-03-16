@@ -22,7 +22,10 @@ from blond import (
     mu_plus,
 )
 from blond.generals.distributed.distributed_array import DistributedArray
-from blond.handle_results.observables import RFStationInducedVoltageObservation
+from blond.handle_results.observables import (
+    RFStationInducedVoltageObservation,
+    WakeFieldObservation,
+)
 from blond.legacy.blond2.beam.beam import Beam, MuPlus
 from blond.legacy.blond2.beam.profile import CutOptions, Profile
 from blond.legacy.blond2.impedances.impedance import (
@@ -74,7 +77,7 @@ plt.rcParams["font.size"] = 12
 plt.rcParams["lines.linewidth"] = 2.0
 
 
-class InducdedVoltageResonator(unittest.TestCase):
+class InducedVoltageResonatorComparisonTest(unittest.TestCase):
     def setUp(self):
         self.n_slices = 2**12
         self.cut_left = 0
@@ -455,8 +458,8 @@ class InducdedVoltageResonator(unittest.TestCase):
         ind_volt_obs_list = []
         for sec_ind in range(self.n_stations):
             ind_volt_obs_list.append(
-                RFStationInducedVoltageObservation(
-                    rf_station=shc_list[sec_ind], each_turn_i=1
+                WakeFieldObservation(
+                    wakefield=shc_list[sec_ind]._local_wakefield, each_turn_i=1
                 )
             )
 

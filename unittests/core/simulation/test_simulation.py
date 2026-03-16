@@ -378,6 +378,7 @@ class TestSimulation(unittest.TestCase):
             start_turn_i=10,
             n_turns=20,
             beams=(self.beam,),
+            stats_lines=20,
         )
 
     def test_ring(self):
