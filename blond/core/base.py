@@ -153,7 +153,10 @@ class Schedulable:
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.intended_for_scheduling = set()
+
         self.schedules: dict[str, SchedulerBaseClass] = {}
+        self.schedules_indexed: dict[str, dict[int, SchedulerBaseClass]] = {}
+
         self.schedule_active = False
 
     def _add_intended_schedule(self, *names: str) -> None:
@@ -178,6 +181,7 @@ class Schedulable:
         | ScheduledInterpolation
         | NumpyArray
         | tuple[NumpyArray, NumpyArray],
+        index: int | None = None,
     ) -> None:
         """
         Schedule a parameter to change dynamically during the simulation.
@@ -203,6 +207,9 @@ class Schedulable:
             2. **Explicit scheduling objects**:
                 - `ScheduledArray`: Full control over array-based scheduling.
                 - `ScheduledInterpolation`: Full control over interpolation-based scheduling.
+        index
+            To be used, if a single entry of an array should be scheduled,
+            rather than scheduling an enntire attribute.
 
         Raises
         ------
@@ -226,10 +233,20 @@ class Schedulable:
         )
         if isinstance(value, SchedulerBaseClass):
             # explicit declaration
-            self.schedules[attribute] = value
+            scheduler = value
         else:
             # should allow easier user input, but is less explicit
-            self.schedules[attribute] = get_scheduler(value)
+            scheduler = get_scheduler(value)
+
+        if index is None:
+            self.schedules[attribute] = scheduler
+        else:
+            try:
+                self.schedules_indexed[attribute]  # NOQA
+            except KeyError:
+                self.schedules_indexed[attribute] = {}
+            self.schedules_indexed[attribute][index] = scheduler
+
         self.schedule_active = True
 
         self.apply_schedules(turn_i=0, reference_time=0)
@@ -287,6 +304,16 @@ class Schedulable:
                 value,
             )
             logger.debug(f"Wrote {self}.{attribute} = {value}")
+
+        for attribute in self.schedules_indexed:
+            for index, schedule in self.schedules_indexed[attribute].items():
+                value = schedule.get_scheduled(
+                    turn_i=turn_i, reference_time=reference_time
+                )
+                self.__getattribute__(
+                    attribute,
+                )[index] = value
+                logger.debug(f"Wrote {self}.{attribute}[{index}] = {value}")
 
 
 class SimulationElementBase(MainLoopRelevant, ABC):
