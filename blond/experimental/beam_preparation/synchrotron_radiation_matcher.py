@@ -135,18 +135,6 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             mpi_mode="all-ranks",  # because the random generator above is MPI aware
         )
 
-        # # Return the distribution and useful parameters
-        # equilibrium_params = {
-        #     "covariance_matrix": covariance_matrix,
-        #     "epsilon_rms_tilted": epsilon_rms_tilted,
-        #     "time_offset": t_rf / 2 + dt_offset,
-        #     "energy_offset": -U0 * sawtooth_factor(n_sections),
-        #     "sigma_dt": np.sqrt(covariance_matrix[0, 0]),
-        #     "sigma_dE": np.sqrt(covariance_matrix[1, 1]),
-        # }
-
-        # return np.array(dt_distrib), np.array(dE_distrib), equilibrium_params
-
     def _get_all_base_params(
         self, simulation: Simulation, beam: BeamBaseClass
     ) -> dict[str, float]:
