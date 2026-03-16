@@ -79,7 +79,7 @@ class SynchrotronRadiationSimulation:
         self.ring = Ring(
             self.circumference,
             radiation_integrals=self.radiation_integrals,
-            check_section_indices=False,
+            check_section_indices=False,  # To tackle the missing RF stations after Drifts
         )
 
         one_turn_execution_order = [self.cavity]
@@ -177,7 +177,7 @@ def main(n_turns: int = 100):
             radiation_integrals=params.radiation_integrals,
         )
     )
-    fig, ax = plt.subplots(nrows=3, figsize=(16, 6), constrained_layout=True)
+    fig, ax = plt.subplots(nrows=4, figsize=(8, 12), constrained_layout=True)
     synchronous_phase = np.pi - np.arcsin(
         energy_loss_per_turn / params.cavity.voltage
     )
@@ -193,15 +193,16 @@ def main(n_turns: int = 100):
     ax[0].set_ylabel("Bunch position [ns]")
     ax[0].legend()
 
-    ax[1].plot(bunch_relative_energy, label="Bunch relative energy")
+    ax[1].plot(bunch_relative_energy / 1e6, label="Bunch relative energy")
     ax[1].plot(
         -energy_loss_per_turn
         * sawtooth_factor(params.number_of_sections, "sr+drift")
-        * np.ones(len(bunch_statistics.bunch_position)),
+        * np.ones(len(bunch_statistics.bunch_position))
+        / 1e6,
         label="Reference energy before the kick",
     )
     ax[1].set_xlabel("Turn number")
-    ax[1].set_ylabel("Bunch relative energy [eV]")
+    ax[1].set_ylabel("Bunch relative energy [MeV]")
     ax[1].legend()
 
     ax[2].plot(
@@ -218,9 +219,18 @@ def main(n_turns: int = 100):
     ax[2].set_xlabel("Turn number")
     ax[2].set_ylabel("Energy spread [%]")
     ax[2].legend()
+
+    ax[3].plot(
+        bunch_statistics.bunch_length / 1e12,
+        label="Bunch length evolution",
+    )
+    ax[3].set_xlabel("Turn number")
+    ax[3].set_ylabel("Bunch length [ps]")
+    ax[3].legend()
+
     os.makedirs("results/EX_Synchrotron_Radiation/", exist_ok=True)
     plt.savefig("results/EX_Synchrotron_Radiation/energy_spread_evolution.png")
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main(10000)
+    main()
