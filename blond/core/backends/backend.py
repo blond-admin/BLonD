@@ -25,20 +25,21 @@ if TYPE_CHECKING:  # pragma: no cover
     from types import ModuleType
     from typing import TYPE_CHECKING, Any, Literal
 
-    from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy import ndarray
+    from cupy import ndarray as CupyArray  # type: ignore
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
     from numpy.typing import ArrayLike
+
 
 DEFAULT_BACKEND = "python"
 DEFAULT_BITS = "64"
 
-ALL_BACKENDS: dict[str, BackendBaseClass] = {}
-AVAILABLE_BACKENDS: dict[str, BackendBaseClass] = {}
+ALL_BACKENDS: dict[str, type[BackendBaseClass]] = {}
+AVAILABLE_BACKENDS: dict[str, type[BackendBaseClass]] = {}
 
 
-def _register_backend(bd: BackendBaseClass) -> BackendBaseClass:
+def _register_backend(bd: type[BackendBaseClass]) -> type[BackendBaseClass]:
     ALL_BACKENDS[bd.__name__] = bd
     return bd
 
@@ -316,7 +317,13 @@ class BackendBaseClass(ABC):
 
     def change_backend(
         self,
-        new_backend: type[Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit],
+        new_backend: (
+            type[Numpy32Bit]
+            | type[Numpy64Bit]
+            | type[Cupy32Bit]
+            | type[Cupy64Bit]
+            | type[BackendBaseClass]
+        ),
     ) -> None:
         """
         Change the backend precision.
@@ -329,8 +336,8 @@ class BackendBaseClass(ABC):
         if self.__class__ == new_backend.__class__:
             return
         if self.verbose:
-            print(f"Changing backend to `{new_backend.__name__}`")
-        _new_backend = new_backend()
+            print(f"Changing backend to `{new_backend.__name__}`")  # ty:ignore[unresolved-attribute]
+        _new_backend = new_backend()  # ty:ignore[missing-argument]
         # transfer variables that should be kept when changing backend.
 
         _new_backend.verbose = self.verbose
@@ -857,15 +864,17 @@ class Cupy64Bit(CupyBackend):
         )
 
 
-default = Numpy64Bit()  # use .change_backend(...) to change it anywhere
-backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
+default = Numpy64Bit  # use .change_backend(...) to change it anywhere
+backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit | BackendBaseClass = (
+    default()
+)
 backend.verbose = True
 backend.apply_environment_variables()
 
 
 for k, v in ALL_BACKENDS.items():
     try:
-        v()
+        v()  # ty:ignore[missing-argument]
     # Skip on any exception, we only care that it's not available,
     # we don't care why.
     except Exception:  # pragma: no cover

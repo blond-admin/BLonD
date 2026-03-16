@@ -21,9 +21,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
 
 # The function definition is recycled by the numba backend.

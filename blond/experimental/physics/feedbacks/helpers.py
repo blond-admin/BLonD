@@ -24,9 +24,9 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
     from blond.physics.profiles import StaticProfile
 

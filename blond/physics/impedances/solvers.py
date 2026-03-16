@@ -52,9 +52,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from cupy.typing import NDArray as CupyArray
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
@@ -1070,6 +1070,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         -----
         Expects the parent wakefield to use a `StaticProfile`.
         """
+        assert self._parent_wakefield is not None
         # The assumptions below work only with static profiles.
         # This could be rewritten if necessary.
         width = (
@@ -1085,7 +1086,11 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
         wake_kernel = None  # This needs to be derived
         for source in self._parent_wakefield.sources:
-            source: TimeDomain  # type hint what the we expect
+            if isinstance(source, TimeDomain):
+                source: TimeDomain  # type hint what the we expect
+            else:
+                raise TypeError(type(source))
+
             wake_kernel_tmp = source.get_wake(time_axis)
 
             if wake_kernel is None:

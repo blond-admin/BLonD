@@ -40,9 +40,9 @@ from blond.physics.feedbacks.base import LocalFeedback
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
     from blond import Ring
     from blond.core.beam.base import BeamBaseClass
@@ -59,7 +59,7 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
-class RFManipulationBaseClass(BeamPhysicsRelevant, ABC):
+class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     """
     Base class to implement beam-rf any interactions in synchrotrons.
 
@@ -256,6 +256,9 @@ class RFStationBaseClass(
         -----
         `omega_rf` can not be set, use `omega_rf_design` instead
         """
+        assert self.omega_rf_design is not None
+        assert self.delta_omega_rf is not None
+
         return self.omega_rf_design + self.delta_omega_rf
 
     @omega_rf.setter
@@ -1209,6 +1212,8 @@ class MultiHarmonicRFStation(RFStationBaseClass):
     >>> rf_station = MultiHarmonicRFStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
     """
+
+    omega_rf: NumpyArray
 
     def __init__(
         self,

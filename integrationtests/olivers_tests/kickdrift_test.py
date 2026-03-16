@@ -82,7 +82,7 @@ def main():  # noqa
     rf_station1.harmonic = np.array([HARMONIC])
     rf_station1.voltage = np.array([VOLTAGE])
     rf_station1.schedule(
-        "phi_rf",
+        "phi_rf_design",
         phi_rf[:-1].copy()[:, np.newaxis],
     )
 

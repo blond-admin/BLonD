@@ -31,9 +31,9 @@ from blond.core.beam.particle_types import ParticleType, electron
 if TYPE_CHECKING:
     from typing import Any
 
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
 
 def gather_longitudinal_synchrotron_radiation_parameters(

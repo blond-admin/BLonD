@@ -29,9 +29,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from matplotlib.lines import Line2D
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation

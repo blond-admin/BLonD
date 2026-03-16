@@ -16,9 +16,9 @@ from blond.physics.profiles import StaticProfile
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
     from blond.core.beam.base import BeamBaseClass
 

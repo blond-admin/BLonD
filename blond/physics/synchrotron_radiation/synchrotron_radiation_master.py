@@ -38,9 +38,9 @@ if TYPE_CHECKING:
         TypeVar,
     )
 
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
     from blond.core.ring.ring import Ring
     from blond.core.simulation.simulation import Simulation

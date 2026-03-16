@@ -20,9 +20,9 @@ from blond.physics.drifts import _assert_purely_real_or_imaginary
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
 
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
     T = TypeVar("T")
 

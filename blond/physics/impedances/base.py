@@ -23,9 +23,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from cupy.typing import NDArray as CupyArray
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
@@ -273,6 +273,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         profile
             The reference profile object.
         """
+        assert self._profile is not None
         return self._profile
 
     @abstractmethod  # pragma: no cover
@@ -403,7 +404,7 @@ class WakeField(ImpedanceBaseClass):
         super().__init__(section_index=section_index, profile=profile)
 
         self.solver = solver
-        self.sources = sources
+        self.sources: tuple[WakeFieldSource, ...] = sources
         self._induced_voltage = None
         self.track_profile = True
 

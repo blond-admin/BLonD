@@ -23,9 +23,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Any, TypeVar
 
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
     from scipy.interpolate import (
         Akima1DInterpolator,
         PchipInterpolator,
@@ -176,10 +176,12 @@ class Schedulable:
     def schedule(
         self,
         attribute: str,
-        value: ScheduledArray
-        | ScheduledInterpolation
-        | NumpyArray
-        | tuple[NumpyArray, NumpyArray],
+        value: (
+            ScheduledArray
+            | ScheduledInterpolation
+            | NumpyArray
+            | tuple[NumpyArray, NumpyArray]
+        ),
     ) -> None:
         """
         Schedule a parameter to change dynamically during the simulation.

@@ -26,9 +26,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
     from numpy.typing import DTypeLike
 
 

@@ -25,9 +25,9 @@ from blond.generals.function_helpers import raise_on_uneven_array_sizes
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
 
 def get_small_amplitude_angular_synchrotron_tune(

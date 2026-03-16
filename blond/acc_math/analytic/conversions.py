@@ -27,9 +27,9 @@ if TYPE_CHECKING:
     from typing import Any
 
     from cupy.typing import NDArray as CupyArray
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
-    NumpyArray = ndarray[Any]
+    NumpyArray = NDArray[Any]
 
 ############################################
 ############################################
