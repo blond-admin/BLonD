@@ -249,13 +249,8 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         gamma_cs = -kick_param / np.sin(mu)
         alpha_cs = np.sign(drift_param) * np.tan(np.pi * synchrotron_tune)
 
-        # Get the longitudinal emittance
-        epsilon_rms_tilted = (
-            all_base_params["sigma_dE"] * all_base_params["energy"]
-        ) ** 2.0 / gamma_cs
-
         # Get the covariance matrix
-        covariance_matrix = epsilon_rms_tilted * np.array(
+        covariance_matrix = np.array(
             [[beta_cs, -alpha_cs], [-alpha_cs, gamma_cs]]
         )
 
@@ -320,9 +315,14 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             .T
         )
 
+        # Get the longitudinal emittance
+        epsilon_rms_tilted = (
+            all_base_params["sigma_dE"] * all_base_params["energy"]
+        ) ** 2.0 / covariance_matrix[1, 1]
+
         # Scale the distribution
-        dt_distrib *= np.sqrt(scaling_factor)
-        dE_distrib *= np.sqrt(1 / scaling_factor)
+        dt_distrib *= np.sqrt(epsilon_rms_tilted * scaling_factor)
+        dE_distrib *= np.sqrt(epsilon_rms_tilted / scaling_factor)
 
         # Compute the expected stable phase offset
         dt_center = all_base_params["phi_s"] / all_base_params["omega_rf"]
@@ -331,9 +331,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         )
 
         # Position the beam in the stable point in (time, energy)
-        dt_distrib += dt_center
-        dE_distrib += dE_center
+        dt_distrib += dt_center - np.mean(dt_distrib)
+        dE_distrib += dE_center - np.mean(dE_distrib)
 
+        # Setup the beam
         beam.setup_beam(
             dt=dt_distrib,
             dE=dE_distrib,
