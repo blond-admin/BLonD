@@ -1,0 +1,343 @@
+variables:
+  project_name: BLonD
+  # Set the project root to the directory containing your setup.py
+  project_root: ./
+  PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
+stages:
+  - precommit
+  - test
+  - deploy
+default:
+  interruptible: true
+
+# Automatically cancel older running
+# pipelines when a new one starts on the same branch
+workflow:
+  rules:
+    - when: always
+  auto_cancel:
+    on_new_commit: interruptible
+
+.on_tag:
+  # Rules to run a job only on a git tagged commit
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: on_success
+
+.before:
+  before_script:
+    # Verify CUDA installation
+    - nvidia-smi
+    - gcc --version
+    - nvcc --version # probe NVCC installation
+
+
+    # Create and activate a virtual environment
+    - python3 -m venv ./.venv
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+
+    # Install project with extras
+    - python3 --version && gcc --version && mpirun --version
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install -v -e ${project_root}[all]
+    - cd ${project_root}
+    # Compile C++, CUDA backends
+    - python3 blond/core/backends/cpp/compile.py --parallel
+    - python3 blond/core/backends/cuda/compile.py
+
+
+.main:
+  variables:
+    BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
+    BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
+    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
+  script:
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    - pip list
+    - cd ${project_root}
+    # Run only MPI unittests. Only the main thread should report.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib; fi'
+    # Run all unittests + the examples
+    - pip uninstall -y mpi4py
+    - python3 -m pytest
+      -v unittests/
+      --import-mode=importlib
+      --cov-append
+      --cov
+      --cov-config=.coveragerc
+      --cov-report html:coverage-html
+      --cov-report xml:coverage.xml
+      --junitxml=junit-report.xml
+    - COV=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
+    - echo "XML_COVERAGE=$COV"
+  coverage: '/XML_COVERAGE=(\d+\.\d+)/'
+
+
+.main_only_cupy:
+  variables:
+    BLOND_BACKEND_MODE: "cuda"     # Set the basic backend to CUDA.
+    BLOND_FORCE_TEST_ALL_BACKENDS: "False"     # Force backend scanning unittests to use all available backends
+    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
+  script:
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    - pip list
+    - cd ${project_root}
+    - python3 -m pytest
+      -m "not backend_mutation and not mpi"
+      -m "not backend_mutation"
+      -v unittests/
+
+
+
+.main_also_no_cupy:
+  variables:
+    BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
+    BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
+    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
+  script:
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    - pip list
+    - cd ${project_root}
+    # Run only MPI unittests. Only the main thread should report.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib; fi'
+    # Run all unittests + the examples
+    - pip uninstall -y mpi4py
+    - python3 -m pytest
+      -v unittests/
+      --import-mode=importlib
+      --cov-append
+      --cov
+      --cov-config=.coveragerc
+    - pip uninstall -y cupy-cuda12x
+    - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
+    - python3 -m pytest
+      -v unittests/
+      --import-mode=importlib
+      --cov-append
+      --cov
+      --cov-config=.coveragerc
+      --cov-report html:coverage-html
+      --cov-report xml:coverage.xml
+      --junitxml=junit-report.xml
+    - COV=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
+    - echo "XML_COVERAGE=$COV"
+  coverage: '/XML_COVERAGE=(\d+\.\d+)/'
+
+
+.publish:
+  artifacts:
+    expire_in: 30 days
+    reports:
+      # Enables https://docs.gitlab.com/ee/user/project/merge_requests/test_coverage_visualization.html
+      coverage_report:
+        coverage_format: cobertura
+        path: ${project_root}coverage.xml
+      # Enables https://docs.gitlab.com/ee/ci/unit_test_reports.html
+      junit: ${project_root}junit-report.xml
+    paths:
+      - ${project_root}coverage-html/*
+      - ${project_root}coverage.xml
+      - ${project_root}junit-report.xml
+    # reports:
+    #   junit: ${project_root}/coverage-report.xml
+
+precommit-check:
+
+  image: python:3.12 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
+  stage: precommit
+  interruptible: true
+  before_script:
+    - pip install pre-commit
+  script:
+    - pre-commit run --all-files
+  cache:
+    key: pre-commit-cache
+    paths:
+      - .cache/pre-commit
+
+test_py_310:
+  image: gitlab-registry.cern.ch/blond/blond/python310
+  stage: test
+  interruptible: true
+  extends:
+    - .before
+    - .main_also_no_cupy
+#    - .after
+    - .publish
+  tags:
+    - k8s-gpu
+
+test_py_311:
+  image: gitlab-registry.cern.ch/blond/blond/python311
+  stage: test
+  interruptible: true
+  extends:
+    - .before
+    - .main
+    # - .publish
+  tags:
+    - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+
+    # ALSO run in merge requests targeting blonder
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+test_py_312:
+  image: gitlab-registry.cern.ch/blond/blond/python312
+  stage: test
+  interruptible: true
+  extends:
+    - .before
+    - .main
+    # - .publish
+  tags:
+    - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+
+    # ALSO run in merge requests targeting blonder
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+test_py_313:
+  image: gitlab-registry.cern.ch/blond/blond/python313
+  stage: test
+  interruptible: true
+  extends:
+    - .before
+    - .main
+    # - .publish
+  tags:
+    - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+
+    # ALSO run in merge requests targeting blonder
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+test_py_314:
+  image: gitlab-registry.cern.ch/blond/blond/python314
+  stage: test
+  interruptible: true
+  extends:
+    - .before
+    - .main
+    # - .publish
+  tags:
+    - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+    # ALSO run in merge requests targeting blonder
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+test_py_314_only_cupy:
+  image: gitlab-registry.cern.ch/blond/blond/python314
+  stage: test
+  interruptible: true
+  extends:
+    - .before
+    - .main_only_cupy
+  tags:
+    - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+    # ALSO run in merge requests targeting blonder
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+test_minimum:
+  image: gitlab-registry.cern.ch/blond/blond/python310
+  stage: test
+  interruptible: true
+  variables:
+    BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
+
+  # Replace .before to use uv
+  before_script:
+    # Create venv to avoid permission error when installing packages
+    - python3 -m venv .venv
+    - . .venv/bin/activate
+    # Install uv
+    - python -m pip install uv
+    - python -m uv pip install --resolution lowest-direct ${project_root}[all]
+    - cd ${project_root}
+    # Compile C++, CUDA, Fortran backends
+    - python blond/core/backends/cpp/compile.py --parallel
+    - python blond/core/backends/cuda/compile.py
+
+  # Replace .main to use python from venv not python3 from system
+  script:
+    - pip list
+    - cd ${project_root}
+    # Run all unittests + the examples
+    - python -m pytest
+      -v unittests/
+      --import-mode=importlib
+  tags:
+    - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+
+    # ALSO run in merge requests targeting blonder
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+release_sdist_310:
+  image: gitlab-registry.cern.ch/blond/blond/python310
+  stage: deploy
+  extends:
+    - .on_tag
+  before_script:
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install build twine
+    # Without an up-to-date setuptools, we don't get the requirements.txt
+    # inside the sdist.
+    - python3 -m pip install -U setuptools
+    - eval ${PRE_SDIST_BUILD}
+  script:
+    - cd ${project_root}
+    - python3 -m build --sdist .
+    - python3 -m twine upload --verbose
+      --repository-url="${PYPI_UPLOAD_URL}"
+      --username="${PYPI_USERNAME}"
+      --password="${PYPI_PASSWORD}"
+      dist/*.tar.gz
+
+test_documentation_building:
+  image: gitlab-registry.cern.ch/blond/blond/python310
+  interruptible: true
+  script:
+    - cd ${project_root}
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install .[doc]
+    - cd ${project_root}/docs
+    - export PATH=/home/non_root/.local/bin:$PATH
+    - . ./create_docs.sh
+  artifacts:
+    paths:
+      - ${project_root}/docs/_build/html
+    expire_in: 1 hour
+    when: always
+
+
+pages:
+  image: gitlab-registry.cern.ch/blond/blond/python310
+  script:
+    - cd ${project_root}
+    - mkdir public
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install -v ${project_root}[doc]
+    - export PATH=$HOME/.local/bin:$PATH
+    - cd ./docs
+    - ./create_docs.sh
+    - cd ..
+    - cp -r docs/_build/html/* public/
+  artifacts:
+    paths:
+      - ${project_root}public
+  only:
+    - blonder

@@ -1,0 +1,382 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.constants import pi
+
+from blond import (
+    Beam,
+    DriftSimple,
+    MagneticCyclePerTurn,
+    Ring,
+    Simulation,
+    SingleHarmonicRFStation,
+    StaticProfile,
+    WakeField,
+    momentum_compaction_factor,
+    mu_plus,
+)
+from blond.core.backends.backend import Numpy64Bit, backend
+from blond.handle_results.observables import (
+    BunchObservationMetaParams,
+    StaticProfileObservation,
+    WakeFieldObservation,
+)
+from blond.legacy.blond2.beam.beam import Beam as beam_b2
+from blond.legacy.blond2.beam.beam import MuPlus as mu_plus_b2
+from blond.legacy.blond2.beam.distributions import (
+    matched_from_distribution_function,
+)
+from blond.legacy.blond2.beam.profile import CutOptions as cut_options_b2
+from blond.legacy.blond2.beam.profile import Profile as profile_b2
+from blond.legacy.blond2.impedances.impedance import (
+    InducedVoltageResonator as ind_volt_res_b2,
+)
+from blond.legacy.blond2.impedances.impedance import (
+    InducedVoltageTime,
+)
+from blond.legacy.blond2.impedances.impedance import (
+    TotalInducedVoltage as total_ind_volt_b2,
+)
+from blond.legacy.blond2.impedances.impedance_sources import (
+    Resonators as res_b2,
+)
+from blond.legacy.blond2.input_parameters.rf_parameters import (
+    RFStation as rf_station_blond2,
+)
+from blond.legacy.blond2.input_parameters.ring import Ring as ring_b2
+from blond.legacy.blond2.trackers.tracker import (
+    FullRingAndRF,
+    RingAndRFTracker,
+)
+from blond.physics.impedances.solvers import (
+    MultiPassResonatorSolver,
+    SingleTurnResonatorConvolutionSolver,
+)
+from blond.physics.impedances.sources import Resonators
+from blond.specifics.muon_collider.beam_preparation import (
+    load_beam_data_counterrot_from_file,
+)
+
+backend.change_backend(Numpy64Bit)
+backend.set_specials("numba")
+
+# RCS2
+phi_s = 170 * pi / 180  # deg
+inj_energy = 313.83e9
+ejection_energy = 750e9
+n_turns = 56
+alpha_p = 8.986e-4
+Q_factor = 1.76e6
+bunch_intensity = 2.4e12
+station_downscale = 40
+circumference = 5990
+harmonic = 25920
+voltage_per_cavity = 31140000.0
+cut_left = 1e-10
+cut_right = 7e-10
+
+n_slices_profile = 2**6
+mtw = True
+
+energy_gain_per_turn = (
+    (ejection_energy - inj_energy) / n_turns / station_downscale
+)
+
+n_turns_downscale = 1000
+ejection_energy = inj_energy + n_turns_downscale * energy_gain_per_turn
+total_voltage = energy_gain_per_turn / np.sin(phi_s)
+voltage_per_station = total_voltage
+n_cavities = int(np.ceil(total_voltage / voltage_per_cavity))
+cav_per_station = n_cavities / station_downscale
+
+R_over_Q = 100
+gamma_transition = 1 / np.sqrt(alpha_p)
+
+emittance = 0.025 * 4 * np.pi
+n_macroparticles = int(1e6)
+
+decay_fraction_threshold = 0.01
+
+from blond.legacy.blond2.utils import bmath as bm
+
+bm.use_numba()
+bm.use_precision("double")
+
+
+def setup_and_run_blond3(multi_turn_wake: bool = False):
+    ring = Ring(circumference=circumference)
+    magnetic_cycle = MagneticCyclePerTurn(
+        value_init=inj_energy,
+        values_after_turn=np.linspace(
+            inj_energy + energy_gain_per_turn,
+            ejection_energy,
+            n_turns_downscale,
+        ),
+        in_unit="total energy",
+        reference_particle=mu_plus,
+    )
+    one_turn_model = []
+    t_rf = (
+        magnetic_cycle.get_t_rev_init(
+            ring.circumference,
+            particle_type=mu_plus,
+        )
+        / harmonic
+    )
+    prof = StaticProfile.from_rad(
+        cut_left * 2 * np.pi / t_rf,
+        cut_right * 2 * np.pi / t_rf,
+        n_slices_profile,
+        t_rf,
+        section_index=0,
+    )  # very slight difference in linspaces of bin_centers
+    local_res = Resonators(
+        center_frequencies=1 / t_rf,
+        quality_factors=Q_factor,
+        shunt_impedances=R_over_Q * Q_factor * cav_per_station,
+    )  # FM only
+    wf = WakeField(
+        sources=(local_res,),
+        solver=MultiPassResonatorSolver(
+            decay_fraction_threshold=decay_fraction_threshold
+        )
+        if multi_turn_wake
+        else SingleTurnResonatorConvolutionSolver(),
+        profile=prof,
+    )
+    one_turn_model.extend(
+        [
+            prof,
+            SingleHarmonicRFStation(
+                voltage=voltage_per_station,
+                phi_rf=0,
+                harmonic=harmonic,
+                local_wakefield=wf,
+                section_index=0,
+            ),
+            DriftSimple(
+                momentum_compaction_factor=momentum_compaction_factor(
+                    -gamma_transition
+                ),
+                orbit_length=circumference,
+                section_index=0,
+            ),
+        ]
+    )
+    ring.add_elements(one_turn_model, reorder=False)
+    ####################################################################
+    beam = Beam(
+        intensity=bunch_intensity,
+        particle_type=mu_plus,
+        is_counter_rotating=False,
+    )
+    beam_CR = Beam(
+        intensity=bunch_intensity,
+        particle_type=mu_plus,
+        is_counter_rotating=True,
+    )
+    sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
+    # sim.print_one_turn_execution_order()
+    load_filename = "initial_beam.npz"
+    load_beam_data_counterrot_from_file(
+        load_filename,
+        beam,
+        beam_CR,
+    )
+
+    bunch_observation = BunchObservationMetaParams(
+        each_turn_i=1, obs_per_turn=1, beam=beam
+    )
+    profile_observation = StaticProfileObservation(
+        each_turn_i=1, obs_per_turn=1, profile=prof
+    )
+    wf_observation = WakeFieldObservation(
+        wakefield=wf, each_turn_i=1, obs_per_turn=1
+    )
+    sim.run_simulation(
+        beams=([beam]),
+        n_turns=n_turns_downscale,
+        observe=(
+            bunch_observation,
+            profile_observation,
+            wf_observation,
+        ),
+    )
+
+    return (bunch_observation, profile_observation, wf_observation)
+
+
+def setup_and_run_blond2(mtw=False):
+    energy = np.linspace(
+        inj_energy, ejection_energy, n_turns_downscale + 1, endpoint=True
+    )
+    ring = ring_b2(
+        circumference,
+        alpha_p,
+        energy,
+        mu_plus_b2(),
+        synchronous_data_type="total energy",
+        n_turns=n_turns_downscale,
+    )
+
+    rf_station = rf_station_blond2(
+        ring, harmonic, voltage_per_station, 0, n_rf=1, section_index=1
+    )  # indexing is 1...n_stations
+
+    beam = beam_b2(
+        ring, n_macroparticles=n_macroparticles, intensity=bunch_intensity
+    )
+    cut_options = cut_options_b2(
+        cut_left=cut_left,
+        cut_right=cut_right,
+        n_slices=n_slices_profile,
+    )
+
+    profile = profile_b2(beam, cut_options=cut_options)
+    profile.track()
+    profile.fwhm()
+
+    res_fund = res_b2(
+        R_over_Q * Q_factor * cav_per_station,
+        rf_station.omega_rf[0, 0] / 2 / np.pi,
+        Q_factor,
+    )
+
+    ind_volt_res = ind_volt_res_b2(
+        beam,
+        profile,
+        res_fund,
+        rf_station=rf_station,
+        multi_turn_wake=mtw,
+        mtw_mode="time",
+        time_decay_factor=decay_fraction_threshold,
+    )
+
+    # frequency_resolution_input = 0.5 * ring.f_rev[0] / 1 * harmonic
+    #
+    ind_volt_time_matching = InducedVoltageTime(
+        beam,
+        profile,
+        [res_fund],
+        rf_station=rf_station,
+        multi_turn_wake=False,
+        # frequency_resolution=frequency_resolution_input,
+        mtw_mode="time",
+    )
+
+    total_ind_volt = total_ind_volt_b2(beam, profile, [ind_volt_res])
+    # total_ind_volt.induced_voltage_sum()
+
+    total_ind_volt_matcher = total_ind_volt_b2(
+        beam, profile, [ind_volt_time_matching]
+    )
+    total_ind_volt_matcher.induced_voltage_sum()
+
+    long_tracker_match = RingAndRFTracker(
+        rf_station,
+        beam,
+        profile=profile,
+        total_induced_voltage=total_ind_volt_matcher,
+        interpolation=False,
+    )
+    full_ring_and_rf_tracker_matcher = FullRingAndRF([long_tracker_match])
+
+    matching = matched_from_distribution_function(
+        beam,
+        full_ring_and_rf_tracker_matcher,
+        n_iterations=10,
+        total_induced_voltage=total_ind_volt_matcher,
+        dt_margin_percent=0.01,
+        seed=1234,
+        distribution_exponent=2,
+        distribution_type="binomial",
+        emittance=2 * emittance,
+        distribution_variable="Hamiltonian",
+        process_pot_well=True,
+        turn_number=0,
+        # n_points_grid=profile.n_slices
+    )
+    np.savez("initial_beam.npz", dt=beam.dt, dE=beam.dE, id=beam.id)
+
+    long_tracker = RingAndRFTracker(
+        rf_station,
+        beam,
+        profile=profile,
+        total_induced_voltage=total_ind_volt,
+        interpolation=False,
+    )  # without interpolation no ind voltage
+    full_ring_and_rf_tracker = FullRingAndRF([long_tracker])
+
+    profile.track()
+
+    save_bunch_centroid = []
+    save_energy_centroid = []
+    save_ind_volt = np.zeros(
+        (ring.n_turns, len(total_ind_volt.induced_voltage))
+    )
+
+    from tqdm import tqdm
+
+    iterator = range(ring.n_turns)
+    iterator = tqdm(iterator)
+
+    for trn in iterator:
+        profile.track()
+        # profile.fwhm()
+
+        total_ind_volt.induced_voltage_sum()
+
+        long_tracker.track()
+
+        # statistics
+        save_ind_volt[trn, :] = total_ind_volt.induced_voltage
+        save_bunch_centroid.append(np.mean(beam.dt))
+        save_energy_centroid.append(np.mean(beam.dE))
+
+    return (
+        np.array(save_bunch_centroid),
+        np.array(save_energy_centroid),
+        np.array(save_ind_volt),
+    )
+
+
+def plot_and_compare():
+    bunch_centroid_b2, energy_centroid_b2, save_ind_volt_b2 = (
+        setup_and_run_blond2(mtw=mtw)
+    )
+
+    bunch_observation, profile_observation, ind_volt_obs = (
+        setup_and_run_blond3(multi_turn_wake=mtw)
+    )
+
+    DEBUG_PLOTTING = True
+    if DEBUG_PLOTTING:
+        plt.title("bunch centroid")
+        plt.plot(bunch_observation.mean_dt * 1e9)
+        plt.plot(bunch_centroid_b2 * 1e9, label="blond2", ls="--")
+        plt.ylabel("bunch centroid [ns]")
+        plt.legend()
+        plt.show()
+
+        plt.title("last induced_voltage")
+        plt.plot(ind_volt_obs.induced_voltage[-1] / 1e6)
+        plt.plot(save_ind_volt_b2[-1] / 1e6, label="blond2", ls="--")
+        plt.ylabel("induced voltage [MV]")
+        plt.legend()
+        plt.show()
+
+        plt.title("energy centroid")
+        plt.plot(bunch_observation.mean_dE)
+        plt.plot(energy_centroid_b2, label="blond2", ls="--")
+        plt.legend()
+        plt.show()
+
+    np.testing.assert_allclose(
+        energy_centroid_b2, bunch_observation.mean_dE, rtol=1e-4
+    )
+    np.testing.assert_allclose(
+        bunch_centroid_b2, bunch_observation.mean_dt, rtol=1e-4
+    )
+
+
+if __name__ == "__main__":
+    plot_and_compare()

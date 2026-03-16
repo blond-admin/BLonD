@@ -1,0 +1,86 @@
+import unittest
+from unittest.mock import Mock
+
+import numba
+import numpy as np
+import pytest
+from matplotlib import pyplot as plt
+
+from blond.generals.cupy.no_cupy_import import is_cupy_array
+
+
+class TestFunctions(unittest.TestCase):
+    @pytest.mark.cupy
+    @pytest.mark.backend_mutation
+    def test_allow_plotting(self) -> None:
+        try:
+            import cupy as cp  # type: ignore
+        except ImportError as exc:
+            self.skipTest(str(exc))
+        from blond import AllowPlotting
+
+        # demo of AllowPlotting
+        array = cp.array([1, 2, 23])
+        array2 = cp.array([1, 2, 25])
+        plt.figure()
+        from blond.core.backends.backend import Cupy32Bit, backend
+
+        backend_org = type(backend)
+        backend.change_backend(Cupy32Bit)
+        with AllowPlotting():
+            # would crash without AllowPlotting
+            # TypeError: Implicit conversion to a NumPy array is not allowed. Please use `.get()` to construct a NumPy array explicitly.
+            plt.plot(array)
+            plt.plot(array2)
+        with self.assertRaisesRegex(
+            TypeError, "Implicit conversion to a NumPy array is not allowed."
+        ):
+            plt.plot(array)  # should not work outside AllowPlotting
+
+        backend.change_backend(backend_org)
+        plt.close()
+
+    @pytest.mark.cupy
+    def test_scatter(self):
+        try:
+            import cupy as cp  # type: ignore
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
+
+        from matplotlib import pyplot as plt
+
+        import blond.generals.cupy.no_cupy_import as no_cupy
+
+        y = cp.ones(12)
+
+        with no_cupy.AllowPlotting():
+            plt.scatter(y, y)
+        plt.close("all")
+
+    @pytest.mark.cupy
+    def test_is_cupy_array(self):
+        try:
+            import cupy as cp  # type: ignore
+            from numba import cuda
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
+        self.assertRaises(
+            TypeError, lambda: is_cupy_array(cuda.to_device(np.ones(10)))
+        )
+        self.assertEqual(is_cupy_array(cp.ones(10)), True)
+
+        self.assertEqual(is_cupy_array(np.ones(10)), False)
+        self.assertEqual(is_cupy_array([1, 2, 3]), False)
+        self.assertEqual(is_cupy_array("Not an array"), False)
+
+        with self.assertRaises(TypeError):
+            from numba.cuda import to_device
+
+            arr_numba_cuda = to_device(np.ones(10))
+            is_cupy_array(arr_numba_cuda)
+
+        numba_array_dummy = Mock()
+        numba_array_dummy.gpu_data = True
+        self.assertEqual(is_cupy_array(numba.cuda), False)

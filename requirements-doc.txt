@@ -1,0 +1,11 @@
+sphinx>=6
+sphinx-rtd-theme>=3
+numpydoc>1
+intersphinx_registry>0.2511
+myst-parser>4
+sphinx_autodoc_typehints>3
+pydata_sphinx_theme>0.16
+nbsphinx>=0.9
+nbconvert>=6
+ipython>5
+notebook>=7 # for jupyter-notebooks in the examples
