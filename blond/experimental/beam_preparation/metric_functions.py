@@ -70,8 +70,9 @@ def q_percent_emittance(
     dE_grid: NumpyArray,
     q: float = 0.9,
 ) -> float:
-    """Calculates the phase space area occupied
-     by a fraction q of a distribution
+    """
+    Calculates the phase space area occupied
+    by a fraction q of a distribution
 
     Notes
     -----

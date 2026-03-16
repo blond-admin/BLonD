@@ -19,7 +19,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def gaussian_density(hamilton: NumpyArray, sigma: float) -> NumpyArray:
-    """Turns a hamiltonian into a gaussian density distribution
+    """
+    Turns a hamiltonian into a gaussian density distribution
      with some standard deviation sigma
 
     Parameters
@@ -41,17 +42,18 @@ def gaussian_density(hamilton: NumpyArray, sigma: float) -> NumpyArray:
 
 
 def binomial_density(
-    hamilton: NumpyArray, bunch_length: float, exponent: float
+    hamilton: NumpyArray, width: float, exponent: float
 ) -> NumpyArray:
-    """Turns a hamiltonian into a binomial density distribution
+    """
+    Turns a hamiltonian into a binomial density distribution
     with some bunch length and form factor
 
     Parameters
     ----------
     hamilton
         2D hamiltonian, in [eV]
-    bunch_length
-        length of distribution, in [eV]
+    width
+        width of distribution, in [eV]
     exponent
         exponent of the distribution
 
@@ -61,7 +63,7 @@ def binomial_density(
     density
         2D density distribution
     """
-    density = (1 - (2.0 * (hamilton) / bunch_length) ** 2) ** (exponent + 0.5)
+    density = (1 - (2.0 * (hamilton) / width) ** 2) ** (exponent + 0.5)
     select = np.isnan(density)
     density[select] = (
         0.0  # binomial distribution is nan where there is no particles

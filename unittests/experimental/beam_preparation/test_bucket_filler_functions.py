@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from blond.experimental.beam_preparation.bucket_filler_functions import (
-    generalized_bucket_filler,
+    multibunch_match_metric_to_hamilton,
 )
 from blond.experimental.beam_preparation.density_functions import (
     binomial_density,
@@ -25,7 +25,7 @@ class TestGeneralizedBucketFiller(unittest.TestCase):
     def test_can_converge(cls):
         desired_metric = 5
         tolerance = 0.1
-        density = generalized_bucket_filler(
+        density = multibunch_match_metric_to_hamilton(
             time_grid=cls.time_grid,
             deltaE_grid=cls.deltaE_grid,
             hamilton_2D=cls.hamilton_2D,

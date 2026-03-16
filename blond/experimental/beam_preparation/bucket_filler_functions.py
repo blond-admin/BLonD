@@ -42,7 +42,8 @@ def metric_fitter(
     max_metric_diff: float,
     max_iterations: int = 100,
 ) -> NumpyArray:
-    """fits a density distribution with one free parameter to a metric of interest,
+    """
+    fits a density distribution with one free parameter to a metric of interest,
     then returns the resulting density
 
     Parameters
@@ -107,7 +108,7 @@ def metric_fitter(
     return density
 
 
-def generalized_bucket_filler(
+def multibunch_match_metric_to_hamilton(
     time_grid: NumpyArray,
     deltaE_grid: NumpyArray,
     hamilton_2D: NumpyArray,
@@ -126,16 +127,20 @@ def generalized_bucket_filler(
     max_iterations: int = 100,
     free_parameter_guess: float | None = None,
 ) -> NumpyArray:
-    """Generalized method for generating density distributions for a hamiltonian.
+    """
+    Generalized method for generating density distributions for a hamiltonian.
     Notes
     -----
-    Allows for a density distribution rho(H, value) with a free parameters value. This value is then
-    automatically selected to make the generated bunches
+    Allows for a density distribution 'rho(H, value)' with a free parameters value.
+    This value is then automatically selected to make the generated bunches
     satisfy some metric that is also user defined.
 
-    This method does not have functionality for identifying the wells. When the number of buckets is specified the time
-    axis is simply split into n_buckets equal sized pieces. If the edges of these slices do not neatly align with the
-    maxima of the potential, bunches may not be generated correctly. These bounds can be changed by setting
+    This method does not have functionality for identifying the wells.
+    When the number of buckets is specified the time
+    axis is simply split into 'n_buckets' equal sized pieces.
+    If the edges of these slices do not neatly align with the
+    maxima of the potential, bunches may not be generated correctly.
+    These bounds can be changed by setting
     different bounds in the matcher.
 
     Parameters
@@ -232,7 +237,7 @@ def hamilton_to_density_by_max(
     hamilton_max: float,
 ) -> NumpyArray:
     """
-    Converts a 2D Hamilton 2D array into a density distribution.
+    Converts a 2D Hamilton array into a density distribution.
 
     This function normalizes the input Hamilton by a specified maximum value,
     inverts it to represent particle density (i.e., lower energy = higher density),

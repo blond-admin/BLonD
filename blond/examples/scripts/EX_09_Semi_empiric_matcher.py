@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.experimental.beam_preparation.bucket_filler_functions import (
-    generalized_bucket_filler,
+    multibunch_match_metric_to_hamilton,
 )
 from blond.experimental.beam_preparation.density_functions import (
     gaussian_density,
@@ -87,7 +87,7 @@ def bucket_fill_by_emittance_gaussian(
             2D array containing the density distribution of the beam.
     """
 
-    _density = generalized_bucket_filler(
+    _density = multibunch_match_metric_to_hamilton(
         time_grid,
         deltaE_grid,
         hamilton_2D,
@@ -171,7 +171,7 @@ def main():
     # To return a density distribution as a function of a hamiltonian. bucket_fill_by_emittance_gaussian is a specialized
     # function for this purpose with a few keyword arguments giving flexibility without the user having to define a custom
     # hamilton_to_density_function. bucket_fill_by_emittance_gaussian is a specific application of the even more general
-    # generalized_bucket_filler function.
+    # multibunch_match_metric_to_hamilton function.
 
     sim.prepare_beam(
         beam=beam,
