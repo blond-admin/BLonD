@@ -95,7 +95,32 @@ class TestSynchrotronRadiationMatcher(unittest.TestCase):
 
     def test_prepare_beam_invalid_layout(self):
         ring_invalid = Ring(self.circumference)
-        ring_invalid.add_element(self.rf)
+
+        one_turn_execution_order = (
+            DriftSimple(
+                momentum_compaction_factor=self.momentum_compaction_factor,
+                orbit_length=0.3 * self.circumference,
+                section_index=0,
+            ),
+            SingleHarmonicRFStation(
+                harmonic=self.rf.harmonic,
+                phi_rf=self.rf.phi_rf_design,
+                voltage=self.rf.voltage,
+                section_index=0,
+            ),
+            DriftSimple(
+                momentum_compaction_factor=self.momentum_compaction_factor,
+                orbit_length=0.7 * self.circumference,
+                section_index=1,
+            ),
+            SingleHarmonicRFStation(
+                harmonic=self.rf.harmonic,
+                phi_rf=self.rf.phi_rf_design,
+                voltage=self.rf.voltage,
+                section_index=1,
+            ),
+        )
+        ring_invalid.add_elements(one_turn_execution_order, reorder=False)
         sim_invalid = Simulation(ring=ring_invalid, magnetic_cycle=self.cycle)
 
         matcher = SynchrotronRadiationMatcher(
@@ -116,9 +141,29 @@ class TestSynchrotronRadiationMatcher(unittest.TestCase):
         self.assertEqual(len(self.beam.read_partial_dt()), int(1e3))
         self.assertEqual(len(self.beam.read_partial_dE()), int(1e3))
 
-        # To be refined
-        self.assertTrue(np.std(self.beam.read_partial_dt()) > 0)
-        self.assertTrue(np.std(self.beam.read_partial_dE()) > 0)
+        # Check generated distribution stats against theoretical expectations
+        all_base_params = matcher.get_all_base_params(
+            self.simulation, self.beam
+        )
+        cov = matcher.compute_covariance_matrix(all_base_params)
+        beta_cs = cov[0, 0]
+        gamma_cs = cov[1, 1]
+
+        expected_std_dE = (
+            all_base_params["sigma_dE"] * all_base_params["energy"]
+        )
+        expected_std_dt = expected_std_dE * np.sqrt(beta_cs / gamma_cs)
+
+        np.testing.assert_allclose(
+            float(np.std(self.beam.read_partial_dt())),
+            expected_std_dt,
+            rtol=0.1,
+        )
+        np.testing.assert_allclose(
+            float(np.std(self.beam.read_partial_dE())),
+            expected_std_dE,
+            rtol=0.1,
+        )
 
     def test_compute_covariance_matrix(self):
         matcher = SynchrotronRadiationMatcher(
@@ -136,16 +181,28 @@ class TestSynchrotronRadiationMatcher(unittest.TestCase):
             "t_rev": 1e-5,
             "t_rf": 1e-6,
             "omega_rf": 2 * np.pi * 1e6,
-            "phi_s": 0.0,
+            "phi_s": np.pi,  # Use pi for stable phase above transition to avoid invalid values
         }
         cov = matcher.compute_covariance_matrix(params)
 
         self.assertEqual(cov.shape, (2, 2))
         self.assertAlmostEqual(cov[0, 1], cov[1, 0])  # symmetric
 
-        # To be refined
-        self.assertTrue(cov[0, 0] > 0)  # beta_cs * emittance > 0
-        self.assertTrue(cov[1, 1] > 0)  # gamma_cs * emittance > 0
+        # Expected values computed analytically for the Courant-Snyder parameters
+        expected_beta_cs = 1.2615662610100802e-15
+        expected_gamma_cs = 792665459521222.2
+        expected_alpha_cs = -0.003963337582522509
+
+        np.testing.assert_allclose(
+            cov,
+            np.array(
+                [
+                    [expected_beta_cs, -expected_alpha_cs],
+                    [-expected_alpha_cs, expected_gamma_cs],
+                ]
+            ),
+            rtol=1e-5,
+        )
 
 
 if __name__ == "__main__":
