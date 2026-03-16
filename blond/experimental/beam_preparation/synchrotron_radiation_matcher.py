@@ -6,6 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+# References: Alexandre Lasheen
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -30,6 +32,38 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class SynchrotronRadiationMatcher(MatchingRoutine):
+    """
+    Beam matching routine to generate a matched distribution with synchrotron radiation.
+
+    The expected layout for the ring is
+    [SingleHarmonicRFStation, SynchrotronRadiationTracker, DriftSimple].
+
+    The case with multiple RF stations is not covered.
+
+    Parameters
+    ----------
+    synchrotron_radiation_master
+        The :class:`~blond.physics.synchrotron_radiation.synchrotron_radiation_master.SynchrotronRadiationMaster`
+        object handling the synchrotron radiation parameters.
+    n_macroparticles
+        Number of macroparticles to be generated.
+    seed
+        Random seed parameter.
+
+    Examples
+    --------
+    >>> from blond import Simulation
+    >>> from blond.experimental.beam_preparation.synchrotron_radiation_matcher import SynchrotronRadiationMatcher
+    >>> simulation = Simulation( ... )
+    >>> simulation.prepare_beam(
+    ...     beam= ... ,
+    ...     preparation_routine=SynchrotronRadiationMatcher(
+    ...         synchrotron_radiation_master= ... ,
+    ...         n_macroparticles=100000,
+    ...     ),
+    ... )
+    """
+
     def __init__(
         self,
         synchrotron_radiation_master: SynchrotronRadiationMaster,
@@ -80,7 +114,9 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         )
 
         # TODO: consider many SR+Drift sections or Drift+SR
-        n_sections = 1  # Hard coded for now to be taken from the Ring layout
+        # Hard coded for now to be taken from the Ring layout
+        n_sections = 1
+        order = "sr+drift"
 
         if len(simulation.ring.elements.elements) != len(expected_elements):
             raise ValueError(element_error_message)
@@ -96,48 +132,45 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             beam=beam,
         )
 
-        all_base_params = self._get_all_base_params(
+        all_base_params = self.get_all_base_params(
             simulation=simulation,
             beam=beam,
         )
 
-        covariance_matrix_scaled, scaling_factor = (
-            self._compute_covariance_matrix(all_base_params=all_base_params)
+        covariance_matrix = self.compute_covariance_matrix(
+            all_base_params=all_base_params
         )
 
-        # Generate the random distribution
-        # TODO: assess usage of mpi_aware_random_generator_cpu
-        dt_distrib, dE_distrib = (
-            np.random.default_rng(seed=self._seed)
-            .multivariate_normal(
-                [0, 0],
-                covariance_matrix_scaled,
-                size=self._n_macroparticles_local,
-            )
-            .T
+        self.generate_distribution(
+            beam=beam,
+            all_base_params=all_base_params,
+            covariance_matrix=covariance_matrix,
+            n_sections=n_sections,
+            order=order,
         )
 
-        # Scale the distribution
-        dt_distrib *= np.sqrt(scaling_factor)
-        dE_distrib *= np.sqrt(1 / scaling_factor)
-
-        # Compute the expected stable phase offset
-        dt_center = all_base_params["phi_s"] / all_base_params["omega_rf"]
-        dE_center = -all_base_params["energy"] * sawtooth_factor(n_sections)
-
-        # Position the beam in the stable point in (time, energy)
-        dt_distrib += dt_center
-        dE_distrib += dE_center
-
-        beam.setup_beam(
-            dt=dt_distrib,
-            dE=dE_distrib,
-            mpi_mode="all-ranks",  # because the random generator above is MPI aware
-        )
-
-    def _get_all_base_params(
+    def get_all_base_params(
         self, simulation: Simulation, beam: BeamBaseClass
     ) -> dict[str, float]:
+        """
+        Get the parameters to compute the covariance matrix.
+
+        This includes: energy, charge, rf_voltage, energy_loss_per_turn,
+        sigma_dE, beta, eta_0, t_rev, t_rf, omega_rf, phi_s.
+
+        Parameters
+        ----------
+            simulation (Simulation)
+                `Simulation` context manager.
+            beam (BeamBaseClass)
+                Simulation :class:`~blond.core.beam.beam.Beam` object.
+
+        Returns
+        -------
+            dict[str, float]
+                All relevant parameters for the `compute_covariance_matrix` function.
+        """
+
         ring = simulation.ring
 
         rf_system = ring.elements.elements[0]
@@ -175,9 +208,25 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             "phi_s": phi_s,
         }
 
-    def _compute_covariance_matrix(
-        self, all_base_params: dict
-    ) -> tuple[np.ndarray, float]:
+    def compute_covariance_matrix(self, all_base_params: dict) -> np.ndarray:
+        """
+        Compute the covariance matrix (Courant-Snyder parameters) representing the
+        expected tilted trajectories of the particles in phase space.
+
+        The input dict for all_base_params should contain : energy, charge, rf_voltage,
+        energy_loss_per_turn, sigma_dE, beta, eta_0, t_rev, t_rf, omega_rf, phi_s.
+
+        Parameters
+        ----------
+            all_base_params (dict)
+                All relevant parameters for the `get_all_base_params` function.
+
+        Returns
+        -------
+            covariance_matrix (np.ndarray)
+                The Courant-Snyder parameters for the kick drift
+        """
+
         # Define the Kick Drift parameters
         kick_param = (
             -all_base_params["charge"]
@@ -210,17 +259,91 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             [[beta_cs, -alpha_cs], [-alpha_cs, gamma_cs]]
         )
 
+        return covariance_matrix
+
+    def generate_distribution(
+        self,
+        beam: BeamBaseClass,
+        all_base_params: dict,
+        covariance_matrix: np.ndarray,
+        n_sections: int,
+        order: str,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Generate a random multivariate normal particle distribution following the
+        covariance matrix.
+
+        The input dict for all_base_params should contain : energy, charge, rf_voltage,
+        energy_loss_per_turn, sigma_dE, beta, eta_0, t_rev, t_rf, omega_rf, phi_s.
+
+        TODO: assess usage of mpi_aware_random_generator_cpu
+
+        Parameters
+        ----------
+            beam (BeamBaseClass)
+                Simulation :class:`~blond.core.beam.beam.Beam` object.
+            all_base_params (dict)
+                All relevant parameters for the `get_all_base_params` function.
+            covariance_matrix (np.ndarray)
+                The Courant-Snyder parameters for the kick drift as output from `compute_covariance_matrix`.
+            n_sections (int)
+                Number of [Drift, SR] or [SR, Drift] sections in the ring.
+            order (str):
+                The order of the [Drift, SR] or [SR, Drift] sections in the ring.
+                The expected input is "sr+drift" or "drift+sr".
+
+        Returns
+        -------
+            tuple[np.ndarray, np.ndarray]
+                The generated particle distribution in (dt, dE)
+                NB: the beam distribution is already passed to the `Beam` object
+                at that stage.
+        """
+
         # Get the "scaled" covariance matrix
         # (NB: multivariate_normal doesn't like big order of magnitude values)
-        scaling_factor = 10 ** np.floor(np.log10(np.abs(beta_cs)))
+        scaling_factor = 10 ** np.floor(
+            np.log10(np.abs(covariance_matrix[0, 0]))
+        )
         covariance_matrix_scaled = np.array(covariance_matrix)
         covariance_matrix_scaled[0, 0] /= scaling_factor
         covariance_matrix_scaled[1, 1] *= scaling_factor
 
-        return covariance_matrix_scaled, scaling_factor
+        # Generate the random distribution
+        dt_distrib, dE_distrib = (
+            np.random.default_rng(seed=self._seed)
+            .multivariate_normal(
+                [0, 0],
+                covariance_matrix_scaled,
+                size=self._n_macroparticles_local,
+            )
+            .T
+        )
+
+        # Scale the distribution
+        dt_distrib *= np.sqrt(scaling_factor)
+        dE_distrib *= np.sqrt(1 / scaling_factor)
+
+        # Compute the expected stable phase offset
+        dt_center = all_base_params["phi_s"] / all_base_params["omega_rf"]
+        dE_center = -all_base_params["energy"] * sawtooth_factor(
+            n_sections, order
+        )
+
+        # Position the beam in the stable point in (time, energy)
+        dt_distrib += dt_center
+        dE_distrib += dE_center
+
+        beam.setup_beam(
+            dt=dt_distrib,
+            dE=dE_distrib,
+            mpi_mode="all-ranks",  # To be checked
+        )
+
+        return dt_distrib, dE_distrib
 
 
-def sawtooth_factor(n_sections, order="sr+drift") -> float:
+def sawtooth_factor(n_sections: int, order: str) -> float:
     """The sawtooth factor is the fraction of the total energy loss due to
     synchrotron radiation at which the synchronous energy is sitting right
     before the RF cavity with a single RF station (for the one-turn map
@@ -228,6 +351,7 @@ def sawtooth_factor(n_sections, order="sr+drift") -> float:
 
     This will depend on the layout and needs to be generalized.
     """
+
     if order == "sr+drift":
         return (n_sections - 1) / (2 * n_sections)
 
