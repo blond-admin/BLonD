@@ -295,6 +295,7 @@ def sawtooth_factor(n_sections, order="sr+drift") -> float:
 
     This will depend on the layout and needs to be generalized.
     """
+
     if order == "sr+drift":
         return (n_sections - 1) / (2 * n_sections)
 
