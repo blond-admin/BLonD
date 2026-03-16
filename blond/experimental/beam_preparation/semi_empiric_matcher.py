@@ -283,6 +283,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
         If ``True``, prints convergence and status messages to the console.
     debug
         If ``True``, variables are saved into the `debug_helper` attribute.
+    until_section
+        Section index until which to run the simulation. Default is -1.
 
     Notes
     -----
@@ -306,6 +308,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         animate: bool = False,
         verbose: bool = True,
         debug=False,
+        until_section: int = -1,
     ) -> None:
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
@@ -335,6 +338,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         assert callable(hamilton_to_density_function)
         self.hamilton_to_density_function = hamilton_to_density_function
         self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
+        self.until_section = until_section
         self.animate = animate
         self.tolerance = tolerance
         self.verbose = verbose
@@ -423,6 +427,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 sim_tmp.run_simulation(
                     beams=(beam,),
                     n_turns=1,
+                    until_section=self.until_section,
                     show_progressbar=False,
                 )
                 # reset to original value before simulation
@@ -484,6 +489,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         beam: BeamBaseClass,
         simulation: Simulation,
         ts: NumpyArray | CupyArray,
+        until_section: int = -1,
     ) -> None:
         """Matches the beam coordinates to the current potential well.
 
@@ -501,6 +507,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             `Simulation` context manager
         ts
             Time coordinate, in [s] for observation of the potential well.
+        until_section
+            Section index until which to run the simulation. Default is -1.
         """
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
@@ -511,6 +519,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 ),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
+                until_section=self.until_section,
             )
         )
         potential_well = (
