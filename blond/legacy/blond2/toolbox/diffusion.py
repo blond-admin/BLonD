@@ -29,7 +29,6 @@ from .action import action_from_phase_amplitude, x2
 if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Tuple
-    from typing import Tuple
 
     from numpy.typing import NDArray as NumpyArray
 

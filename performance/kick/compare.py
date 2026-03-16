@@ -1,7 +1,6 @@
 import os
 import subprocess
 import time
-
 from pathlib import Path
 
 
@@ -34,7 +33,7 @@ def main():
         print("Done!")
 
         result = subprocess.run(
-            ["python3", target], capture_output=True, text=True
+            ["python3", target], check=False, capture_output=True, text=True
         )
         print(f"{result.stdout[:-1]} on {branch}")  # stdout without last \n
 

@@ -23,7 +23,6 @@ import numpy as np
 
 from ..utils import bmath as bm
 from .profile import CutOptions, Profile
-from ..utils import bmath as bm
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -32,7 +31,6 @@ if TYPE_CHECKING:
 
     from ..input_parameters.rf_parameters import RFStation
     from .beam import Beam
-    from ..input_parameters.rf_parameters import RFStation
 
     TrackerTypes = Literal["C", "onebyone"]
 

@@ -17,10 +17,9 @@ statistics
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 import itertools as itl
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
@@ -31,7 +30,7 @@ from ..utils import exceptions as blond_exceptions
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Iterable, Self, Optional
+    from typing import Iterable, Optional, Self
 
     import cupy as cp
     from numpy.typing import NDArray as NumpyArray

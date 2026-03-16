@@ -4,8 +4,8 @@ import cupy as cp
 import numpy as np
 from cupy import cuda
 
-from blond.utils import bmath as bm
 from blond.gpu import butils_wrap_cupy
+from blond.utils import bmath as bm
 
 
 def main():

@@ -1,10 +1,9 @@
 import time
 
 import numpy as np
+from scipy.constants import elementary_charge
 
 from blond.utils import butils_wrap_cpp
-
-from scipy.constants import elementary_charge
 
 
 def main():

@@ -15,6 +15,7 @@ adding additional injections to the beam object.
 
 # Standard library imports
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 # General imports
@@ -23,7 +24,7 @@ import numpy as np
 # BLonD imports
 
 if TYPE_CHECKING:
-    from typing import Self, Iterable
+    from typing import Iterable, Self
 
     from .beam import Beam
 
@@ -49,7 +50,7 @@ class MultiTurnInjection:
 
     def __next__(self):
         """
-        If the current turn has an injection, the beam will be added to 
+        If the current turn has an injection, the beam will be added to
         the simulation.
 
         Returns
@@ -66,7 +67,7 @@ class MultiTurnInjection:
             self.main_beam += self._injections.pop(self._counter[0])
         elif len(self._injections) == 0:
             raise StopIteration("All defined injections have been used")
-    
+
         return self._counter[0]
 
     def __iter__(self) -> Self:
@@ -83,7 +84,7 @@ class MultiTurnInjection:
     # could be solved with the proposed TurnCounter object
     def set_counter(self, counter: list[int]):
         """
-        Add a 1D list of int to the object to be used as the turn 
+        Add a 1D list of int to the object to be used as the turn
         counter.  This should be derived from the RFStation object.
         """
         self._counter = counter
@@ -109,7 +110,7 @@ class MultiTurnInjection:
             The default is None.
             If None, the value will be set to the number of already
             defined injections + 1
-        
+
         Raises
         ------
         ValueError:
@@ -131,7 +132,7 @@ class MultiTurnInjection:
             new_beam = np.array(new_beam)
 
         self._injections[injection_turn] = new_beam
-    
+
 
     def _check_beam_injection(self, new_beam: Beam):
 
