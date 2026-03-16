@@ -30,6 +30,36 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class SynchrotronRadiationMatcher(MatchingRoutine):
+    """
+    Beam matching routine to generate a matched distribution with synchrotron radiation.
+
+    The expected layout for the ring is
+    [SingleHarmonicRFStation, SynchrotronRadiationTracker, DriftSimple]
+
+    Parameters
+    ----------
+    synchrotron_radiation_master
+        The :class:`~blond.physics.synchrotron_radiation.synchrotron_radiation_master.SynchrotronRadiationMaster`
+        object handling the synchrotron radiation parameters.
+    n_macroparticles
+        Number of macroparticles to be generated.
+    seed
+        Random seed parameter.
+
+    Examples
+    --------
+    >>> from blond import Simulation
+    >>> from blond.experimental.beam_preparation.synchrotron_radiation_matcher import SynchrotronRadiationMatcher
+    >>> simulation = Simulation( ... )
+    >>> simulation.prepare_beam(
+    ...     beam= ... ,
+    ...     preparation_routine=SynchrotronRadiationMatcher(
+    ...         synchrotron_radiation_master= ... ,
+    ...         n_macroparticles=100000,
+    ...     ),
+    ... )
+    """
+
     def __init__(
         self,
         synchrotron_radiation_master: SynchrotronRadiationMaster,
@@ -96,13 +126,13 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             beam=beam,
         )
 
-        all_base_params = self._get_all_base_params(
+        all_base_params = self.get_all_base_params(
             simulation=simulation,
             beam=beam,
         )
 
         covariance_matrix_scaled, scaling_factor = (
-            self._compute_covariance_matrix(all_base_params=all_base_params)
+            self.compute_covariance_matrix(all_base_params=all_base_params)
         )
 
         # Generate the random distribution
@@ -135,9 +165,28 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             mpi_mode="all-ranks",  # because the random generator above is MPI aware
         )
 
-    def _get_all_base_params(
+    def get_all_base_params(
         self, simulation: Simulation, beam: BeamBaseClass
     ) -> dict[str, float]:
+        """
+        Get the parameters to compute the covariance matrix.
+
+        This includes: energy, charge, rf_voltage, energy_loss_per_turn,
+        sigma_dE, beta, eta_0, t_rev, t_rf, omega_rf, phi_s.
+
+        Parameters
+        ----------
+            simulation (Simulation)
+                `Simulation` context manager.
+            beam (BeamBaseClass)
+                Simulation :class:`~blond.core.beam.beam.Beam` object.
+
+        Returns
+        -------
+            dict[str, float]
+                All relevant parameters for the `compute_covariance_matrix` function.
+        """
+
         ring = simulation.ring
 
         rf_system = ring.elements.elements[0]
@@ -175,9 +224,27 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             "phi_s": phi_s,
         }
 
-    def _compute_covariance_matrix(
+    def compute_covariance_matrix(
         self, all_base_params: dict
     ) -> tuple[np.ndarray, float]:
+        """
+        Compute the covariance matrix (Courant-Snyder parameters) representing the
+        expected tilted trajectories of the particles in phase space.
+
+        The input dict should contain : energy, charge, rf_voltage,
+        energy_loss_per_turn, sigma_dE, beta, eta_0, t_rev, t_rf, omega_rf, phi_s.
+
+        Parameters
+        ----------
+            all_base_params (dict)
+                All relevant parameters for the `get_all_base_params` function.
+
+        Returns
+        -------
+            covariance_matrix_scaled
+                The Courant-Snyder parameters for the kick drift
+        """
+
         # Define the Kick Drift parameters
         kick_param = (
             -all_base_params["charge"]
