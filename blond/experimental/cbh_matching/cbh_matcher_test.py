@@ -37,7 +37,7 @@ from blond.handle_results.observables_as_elements import (
 # #-------LHC
 p_s = 450.0e9  # Synchronous momentum [eV]
 harmonic_number = 35640  # Harmonic number
-voltage1 = 1e6  # RF voltage, station 1 [eV]
+voltage1 = 1e8  # RF voltage, station 1 [eV]
 voltage2 = 4e6  # RF voltage, station 2 [eV]
 voltage3 = 2e6
 phi_rf = 0  # Phase modulation/offset
@@ -45,7 +45,7 @@ momentum_compaction_factor_ = momentum_compaction_factor(
     transition_gamma=55.759505
 )
 circumference = 26588
-n_turns = 100
+n_turns = 1000
 
 energy_cycle = ConstantMagneticCycle(
     value=p_s,
@@ -88,15 +88,33 @@ sim.prepare_beam(
     preparation_routine=CBHMatcher(
         simulation=sim,
         beam=beam,
-        n_macroparticles=10000,
+        n_macroparticles=int(1e5),  # TODO
         order=2,  # above order 3, takes a long time
         distribution="Gaussian",
+        time_window_limit=(0, 2.5e-9),
+        energy_window_limit=(-1.3e9, 1.3e9),
     ),
     beam=beam,
 )
 
 sim.run_simulation(beams=[beam], n_turns=n_turns)
 plt.scatter(observation.dts[0], observation.dEs[0])
-# plt.scatter(observation.dts[1], observation.dEs[1])
 plt.scatter(observation.dts[-1], observation.dEs[-1])
+plt.show()
+
+import numpy as np
+
+# for i in range(100):
+#     plt.hist(observation.dts[i], bins=np.linspace(-2.5e-9, 0, 100))
+# plt.show()
+dat = []
+
+
+for i in range(100):
+    dat.append(
+        np.histogram(
+            observation.dts[i * 1], bins=np.linspace(-2.5e-9, 0, 100)
+        )[0]
+    )
+plt.contourf(dat, levels=40)
 plt.show()
