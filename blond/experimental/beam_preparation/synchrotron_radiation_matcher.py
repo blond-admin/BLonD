@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.constants import c, e, m_e
 
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning
@@ -80,6 +79,9 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             + "is presently only implemented for the lattice [Kick, SR, Drift]"
         )
 
+        # TODO: consider many SR+Drift sections or Drift+SR
+        n_sections = 1  # Hard coded for now to be taken from the Ring layout
+
         if len(simulation.ring.elements.elements) != len(expected_elements):
             raise ValueError(element_error_message)
         for idx_element, element in enumerate(
@@ -99,11 +101,42 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             beam=beam,
         )
 
-        covariance_matrix_scaled = self._compute_covariance_matrix(
-            all_base_params=all_base_params
+        covariance_matrix_scaled, scaling_factor = (
+            self._compute_covariance_matrix(all_base_params=all_base_params)
         )
 
-        pass
+        # Generate the random distribution
+        rng = np.random.default_rng(seed=self._seed)
+        dt_distrib, dE_distrib = rng.multivariate_normal(
+            [0, 0], covariance_matrix_scaled, size=self._n_macroparticles_local
+        ).T
+
+        # Scale the distribution
+        dt_distrib *= np.sqrt(scaling_factor)
+        dE_distrib *= np.sqrt(1 / scaling_factor)
+
+        # # Compute the expected stable phase offset
+        # phi_s_offset = np.arcsin(U0 / (charge * total_voltage))
+        # dt_offset = phi_s_offset / omega_rf
+        dt_center = all_base_params["phi_s"] / all_base_params["omega_rf"]
+
+        # Position the beam in the stable point in (time, energy)
+        dt_distrib += dt_center
+        dE_distrib += -all_base_params["energy"] * sawtooth_factor(n_sections)
+
+        # # Return the distribution and useful parameters
+        # equilibrium_params = {
+        #     "covariance_matrix": covariance_matrix,
+        #     "epsilon_rms_tilted": epsilon_rms_tilted,
+        #     "time_offset": t_rf / 2 + dt_offset,
+        #     "energy_offset": -U0 * sawtooth_factor(n_sections),
+        #     "sigma_dt": np.sqrt(covariance_matrix[0, 0]),
+        #     "sigma_dE": np.sqrt(covariance_matrix[1, 1]),
+        # }
+
+        return np.array(dt_distrib), np.array(
+            dE_distrib
+        )  # , equilibrium_params
 
     def _get_all_base_params(
         self, simulation: Simulation, beam: BeamBaseClass
@@ -184,109 +217,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         covariance_matrix_scaled[0, 0] /= scaling_factor
         covariance_matrix_scaled[1, 1] *= scaling_factor
 
-        return covariance_matrix_scaled
-
-
-def match_with_synchrotron_radiation(
-    energy,
-    ring_circumference,
-    momentum_compaction_factor,
-    bending_radius,
-    total_voltage,
-    harmonic,
-    n_macroparticles,
-    charge=-1,
-    mass=m_e * c**2 / e,
-    n_sections=1,
-    energy_gain_per_turn=0.0,
-    seed=None,
-):
-    """
-    This is the functional bit!
-
-    Equilibrium params at the start of the tracking map
-    The function now works in the context of having one RF station
-    with one RF harmonic and multiple ring sections and the
-    synchrotron radiation computed at the end of each section.
-    The one-turn map is expected to be (RF + [Drift + SR] * n_sections)
-
-    """
-
-    # U0, _, sigma_dE = _calculate_SR_params(
-    #     energy,
-    #     ring_circumference,
-    #     momentum_compaction_factor,
-    #     bending_radius,
-    #     charge,
-    #     mass,
-    # )
-
-    # # Get some base parameters that should be provided by BLonD2/3 objects
-    # _, beta, _, eta_0, t_rev, t_rf, omega_rf, phi_s = _calculate_base_params(
-    #     energy,
-    #     charge,
-    #     mass,
-    #     ring_circumference,
-    #     momentum_compaction_factor,
-    #     total_voltage,
-    #     harmonic,
-    #     energy_gain_per_turn=energy_gain_per_turn,
-    # )
-
-    # Compute the expected stable phase offset
-    phi_s_offset = np.arcsin(U0 / (charge * total_voltage))
-    dt_offset = phi_s_offset / omega_rf
-
-    # Define the Kick Drift parameters
-    K_param = -charge * total_voltage * omega_rf * np.cos(phi_s)
-    D_param = -t_rev * eta_0 / (beta**2.0 * energy)
-
-    # Compute the Courant-Snyder parameters for the kick drift
-    Qs = np.arcsin(np.sqrt(-(D_param * K_param) / 4)) / np.pi
-    mu = np.sign(D_param) * 2 * np.pi * Qs
-    beta_cs = D_param / np.sin(mu)
-    gamma_cs = -K_param / np.sin(mu)
-    alpha_cs = np.sign(D_param) * np.tan(np.pi * Qs)
-
-    # Get the longitudinal emittance
-    epsilon_rms_tilted = (sigma_dE * energy) ** 2.0 / gamma_cs
-
-    # Get the covariance matrix
-    covariance_matrix = epsilon_rms_tilted * np.array(
-        [[beta_cs, -alpha_cs], [-alpha_cs, gamma_cs]]
-    )
-
-    # Get the "scaled" covariance matrix (NB: multivariate_normal doesn't like big order of magnitude values)
-    scaling_factor = 10 ** np.floor(np.log10(np.abs(beta_cs)))
-    covariance_matrix_scaled = np.array(covariance_matrix)
-    covariance_matrix_scaled[0, 0] /= scaling_factor
-    covariance_matrix_scaled[1, 1] *= scaling_factor
-
-    # Generate the random distribution
-    rng = np.random.default_rng(seed=seed)
-    dt_distrib, dE_distrib = rng.multivariate_normal(
-        [0, 0], covariance_matrix_scaled, size=n_macroparticles
-    ).T
-
-    # Scale the distribution
-    dt_distrib *= np.sqrt(scaling_factor)
-    dE_distrib *= np.sqrt(1 / scaling_factor)
-
-    # Position the beam in the stable point in (time, energy)
-    dt_distrib += t_rf / 2 + dt_offset
-    dE_distrib += -U0 * sawtooth_factor(n_sections)
-
-    # Return the distribution and useful parameters
-    equilibrium_params = {
-        "covariance_matrix": covariance_matrix,
-        "epsilon_rms_tilted": epsilon_rms_tilted,
-        "time_offset": t_rf / 2 + dt_offset,
-        "energy_offset": -U0 * sawtooth_factor(n_sections),
-        "sigma_dt": np.sqrt(covariance_matrix[0, 0]),
-        "sigma_dE": np.sqrt(covariance_matrix[1, 1]),
-    }
-
-    return np.array(dt_distrib), np.array(dE_distrib), equilibrium_params
+        return covariance_matrix_scaled, scaling_factor
 
 
 def sawtooth_factor(n_sections, order="sr+drift"):
