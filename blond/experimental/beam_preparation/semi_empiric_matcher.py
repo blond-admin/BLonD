@@ -22,7 +22,7 @@ from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.bucket_filler_functions import (
     hamilton_to_density_by_max,
 )
-from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
@@ -38,95 +38,6 @@ if TYPE_CHECKING:  # pragma: no cover
         Simulation,
     )
     from blond.core.beam.base import BeamBaseClass
-
-
-def hamilton_to_density_by_max(
-    time_grid: NumpyArray,
-    deltaE_grid: NumpyArray,
-    hamilton_2D: NumpyArray,
-    density_modifier: float,
-    hamilton_max: float,
-) -> NumpyArray:
-    """
-    Converts a 2D Hamilton 2D array into a density distribution.
-
-    This function normalizes the input Hamilton by a specified maximum value,
-    inverts it to represent particle density (i.e., lower energy = higher density),
-    and optionally adjusts the shape of the distribution using a power-law modifier.
-
-    Notes
-    -----
-    - The density is highest in regions with the lowest Hamilton values.
-    - Values in `hamilton_2D` greater than `hamilton_max` are clipped before processing.
-    - The function preserves the array type (NumPy or CuPy) of the input.
-
-    Parameters
-    ----------
-    deltaE_grid
-        The time coordinates corresponding to `hamilton_2D`, in [eV].
-    time_grid
-        The time coordinates corresponding to `hamilton_2D`, in [s].
-    hamilton_2D
-        A 2D array representing the spatial Hamilton field.
-    density_modifier
-        Exponent applied to the normalized and inverted Hamilton values
-        to shape the final density distribution.
-        Higher values exaggerate differences in density.
-    hamilton_max
-        The maximum reference value for normalizing the Hamilton.
-        Values above this threshold are truncated.
-
-    Returns
-    -------
-    density : NumpyArray or CupyArray
-        A 2D array of the same shape as `hamilton_2D`, representing the
-        computed density distribution. Values are scaled between 0 and 1.
-
-    Examples
-    --------
-    Defining a custom function to convert between hamilton and particle
-    density.
-    >>> import numpy as np
-    >>>
-    >>> def custom_density_function(
-    ...         time_grid, deltaE_grid, hamilton_2D, # required arguments
-    ...         custom_param, hamilton_max # your custom arguments
-    ...    ):
-    ...    '''Example custom density mapping with exponential falloff.'''
-    ...    normalized_H = hamilton_2D / hamilton_max
-    ...    normalized_H[normalized_H > 1] = 1
-    ...    density = np.exp(-custom_param * normalized_H)
-    ...    return density / density.max()  # Normalize to [0, 1]
-    >>>
-    >>> matcher = SemiEmpiricMatcher(
-    ...    time_limit=(-2e-9, 2e-9),
-    ...    n_macroparticles=100_000,
-    ...    hamilton_to_density_function=custom_density_function,
-    ...    hamilton_to_density_kwargs=dict(
-    ...        custom_param=5.0,
-    ...        hamilton_max=1.0
-    ...    ),
-    ...    internal_grid_shape=(1023, 1023),
-    ...    tolerance=1e-6,
-    ...    verbose=True,
-    ... )
-    >>> matcher.prepare_beam(...)
-
-    """
-    _density = hamilton_2D.copy()  # So the changes stay in this scope
-
-    _density /= hamilton_max
-    # Now 1 representing the limit between particles/no-particles.
-    # Smaller 1 means there should be particles.
-
-    _density[_density > 1] = 1  # Truncate
-    # Flip max with min
-    _density *= -1
-    _density -= _density.min()
-
-    # Modify of the density to be more/less dense in different regions.
-    _density **= density_modifier
-    return _density
 
 
 def get_hamilton_semi_analytic(
