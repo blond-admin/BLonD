@@ -267,7 +267,7 @@ class Simulation(Preparable):
         if stats_lines is None:
             ps.print_stats()
         else:
-            ps.print_stats(stats_lines)  # pragma: no cover
+            ps.print_stats(stats_lines)
         print(s.getvalue())
 
     def plot_potential_well_empiric(
