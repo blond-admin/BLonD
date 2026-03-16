@@ -37,7 +37,7 @@ from blond.handle_results.observables_as_elements import (
 # #-------LHC
 p_s = 450.0e9  # Synchronous momentum [eV]
 harmonic_number = 35640  # Harmonic number
-voltage1 = 1e8  # RF voltage, station 1 [eV]
+voltage1 = 1e6  # RF voltage, station 1 [eV]
 voltage2 = 4e6  # RF voltage, station 2 [eV]
 voltage3 = 2e6
 phi_rf = 0  # Phase modulation/offset

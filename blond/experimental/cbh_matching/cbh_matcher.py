@@ -85,6 +85,8 @@ class CBHMatcher(MatchingRoutine):
         return self.H_list
 
     def make_sympy_map(self):
+        """Create the symbolic one turn map from the ring to the desired order."""
+
         self.H_eff = cbh_lattice(self.H_list, self.q, self.p, order=self.order)
         self.H_eff = sp.sympify(self.H_eff)
         self.H_func = sp.lambdify((self.q, self.p), self.H_eff, "numpy")
@@ -96,6 +98,8 @@ class CBHMatcher(MatchingRoutine):
         q_range=(-1e-9, 1e-9),
         p_range=(-1e6, 1e6),
     ):
+        """Plot the Hamiltonian contours."""
+
         if not hasattr(self, "H_eff"):
             raise RuntimeError("Run make_sympy_map() first")
 
@@ -120,8 +124,7 @@ class CBHMatcher(MatchingRoutine):
         plt.show()
 
     def find_bucket_level(self):
-        import numpy as np
-
+        """Find the unstable fixed point of the separatrix."""
         # Extract RF frequency numerically
         rf = None
         for el in self.simulation.ring.elements.elements:
@@ -146,6 +149,7 @@ class CBHMatcher(MatchingRoutine):
         self.H_sep = float(H_sep)
 
     def build_numeric_hamiltonian(self):
+        """Return numerical evaluation of sympy expression."""
         self.H_func = sp.lambdify((self.q, self.p), self.H_eff, "numpy")
 
     def sample_matched_bunch(
