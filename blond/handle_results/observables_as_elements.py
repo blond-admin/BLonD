@@ -22,6 +22,7 @@ import numpy as np
 
 from blond.core.base import BeamObservationElement
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.beams import ProbeBeam
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
 from blond.handle_results.array_recorders import DenseArrayRecorder
@@ -318,6 +319,8 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         beam
             Beam class to interact with this element.
         """
+        if isinstance(beam, ProbeBeam):
+            return
         if self._beam_id_filter is None or self._beam_id_filter == id(beam):
             self._sigma_dt.write(beam._dt.std())
             self._sigma_dE.write(beam._dE.std())
