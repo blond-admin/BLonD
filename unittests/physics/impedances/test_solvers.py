@@ -701,12 +701,20 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
 
     def test_warns_on_edge_bins(self):
-        with self.assertWarnsRegex(Warning, "particle detected in trailing edge bin"):
-            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y[-1] = 2
+        with self.assertWarnsRegex(
+            Warning, "particle detected in trailing edge bin"
+        ):
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y[
+                -1
+            ] = 2
             self.single_turn_resonator_convolution_solver._update_potential_sources()
-        with self.assertWarnsRegex(Warning, "particle detected in leading edge bin"):
+        with self.assertWarnsRegex(
+            Warning, "particle detected in leading edge bin"
+        ):
             self.single_turn_resonator_convolution_solver._wake_function_vals_needs_update = True
-            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y[0] = 2
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y[
+                0
+            ] = 2
             self.single_turn_resonator_convolution_solver._update_potential_sources()
 
     def test___init__(self):
@@ -1554,13 +1562,23 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
     def test__update_past_profile_warns_edges(self):
         self.multi_pass_resonator_solver._past_profiles.append(np.array([0]))
-        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag.append(False)
-        with self.assertWarnsRegex(Warning, "particle detected in trailing edge bin"):
-            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y[-1] = 2
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag.append(
+            False
+        )
+        with self.assertWarnsRegex(
+            Warning, "particle detected in trailing edge bin"
+        ):
+            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y[
+                -1
+            ] = 2
             self.multi_pass_resonator_solver._update_past_profile_wake_functions()
-        with self.assertWarnsRegex(Warning, "particle detected in leading edge bin"):
+        with self.assertWarnsRegex(
+            Warning, "particle detected in leading edge bin"
+        ):
             self.multi_pass_resonator_solver._wake_function_vals_needs_update = True
-            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y[0] = 2
+            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y[
+                0
+            ] = 2
             self.multi_pass_resonator_solver._update_past_profile_wake_functions()
 
     def test__update_past_profile_potentials_new_arr_init(self):

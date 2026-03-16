@@ -375,10 +375,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_profiling(self):
         self.simulation.profiling(
-            start_turn_i=10,
-            n_turns=20,
-            beams=(self.beam,),
-            stats_lines=20
+            start_turn_i=10, n_turns=20, beams=(self.beam,), stats_lines=20
         )
 
     def test_ring(self):

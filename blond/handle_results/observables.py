@@ -31,7 +31,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import (
-        RFStationBaseClass,
         SingleHarmonicRFStation,
     )
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile

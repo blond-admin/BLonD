@@ -3,13 +3,20 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import Simulation, SingleHarmonicRFStation, WakeField, StaticProfile, Beam
+from blond import (
+    Beam,
+    Simulation,
+    SingleHarmonicRFStation,
+    StaticProfile,
+    WakeField,
+)
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables_as_elements import (
-    BeamObservationInRingElement, InducedVoltageObservationCR,
+    BeamObservationInRingElement,
+    InducedVoltageObservationCR,
 )
 
 simulation = Mock(Simulation)
@@ -111,16 +118,20 @@ class TestInducedVoltage(unittest.TestCase):
         beam = Mock(Beam)
         beam.is_counter_rotating = False
 
-        obs = (InducedVoltageObservationCR(rf_station=shc, each_turn_i=1))
+        obs = InducedVoltageObservationCR(rf_station=shc, each_turn_i=1)
 
-        with self.assertWarnsRegex(Warning, "no induced voltage calculated yet "):
+        with self.assertWarnsRegex(
+            Warning, "no induced voltage calculated yet "
+        ):
             obs._track(beam)
-        with self.assertRaisesRegex(AttributeError, "'NoneType' object has no attribute 'get_valid_entries'"):
+        with self.assertRaisesRegex(
+            AttributeError,
+            "'NoneType' object has no attribute 'get_valid_entries'",
+        ):
             _ = obs.induced_voltage
 
     def test___init__(self):
         pass
-
 
 
 if __name__ == "__main__":

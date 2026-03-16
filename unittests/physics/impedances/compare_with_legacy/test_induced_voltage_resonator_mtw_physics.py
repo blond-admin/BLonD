@@ -22,7 +22,10 @@ from blond import (
     mu_plus,
 )
 from blond.generals.distributed.distributed_array import DistributedArray
-from blond.handle_results.observables import RFStationInducedVoltageObservation, WakeFieldObservation
+from blond.handle_results.observables import (
+    RFStationInducedVoltageObservation,
+    WakeFieldObservation,
+)
 from blond.legacy.blond2.beam.beam import Beam, MuPlus
 from blond.legacy.blond2.beam.profile import CutOptions, Profile
 from blond.legacy.blond2.impedances.impedance import (
