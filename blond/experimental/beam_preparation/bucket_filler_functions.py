@@ -77,27 +77,37 @@ def metric_fitter(
         the density mass function,
         fitted to give the right metric of interest
     """
-    # Make a lambda expression for the absolute difference between desired and calculated metrics for any free parameter
-    minimization_function = lambda x: np.abs(
-        metric_function(density_function(hamilton, x), dt_grid, dE_grid)
-        - desired_metric
-    )
+
+    # Absolute difference between desired and calculated metrics for any free parameter
+    def minimization_function(x):
+        return np.abs(
+            metric_function(density_function(hamilton, x), dt_grid, dE_grid)
+            - desired_metric
+        )
+
+    best = {"x": None, "f": float("inf")}
+
+    def callback(xk):  # abort if value is better than tolerance
+        fx = minimization_function(xk)
+        if fx < best["f"]:
+            best["x"] = xk
+            best["f"] = fx
+        if fx < max_metric_diff:
+            raise StopIteration
 
     # minimize
     optimize_result = minimize(
-        minimization_function,
-        free_parameter_guess,
+        fun=minimization_function,
+        x0=free_parameter_guess,
         method="Nelder-Mead",
-        options={"maxiter": max_iterations, "fatol": max_metric_diff},
+        options={"maxiter": max_iterations},
+        callback=callback,
     )
 
-    # If the optimization was not successful, let the user know why.
-    if not optimize_result.success:
-        warnings.warn(optimize_result.message, RuntimeWarning)
-        if np.abs(optimize_result.fun - desired_metric) > max_metric_diff:
-            warnings.warn(
-                "Specified metric accuracy was not reached", RuntimeWarning
-            )
+    if np.abs(optimize_result.fun - desired_metric) > max_metric_diff:
+        warnings.warn(
+            "Specified metric accuracy was not reached.", RuntimeWarning
+        )
 
     ideal_free_parameter = optimize_result.x[
         0
@@ -149,7 +159,7 @@ def multibunch_match_metric_to_hamilton(
         Time coordinates of the hamiltonian, in [s].
     deltaE_grid
         Energy coordinate of the hamiltonian, in [eV].
-    hamiltonn_2D
+    hamilton_2D
         Hamiltonian value, in [eV].
     metric_list
         List of values to for the metric to have for each bunch.
