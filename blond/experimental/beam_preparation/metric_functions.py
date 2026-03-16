@@ -102,8 +102,8 @@ def q_percent_emittance(
     dE = dE_grid[0, 1] - dE_grid[0, 0]
 
     cumulative_array = np.cumsum(np.flip(np.sort(density.flatten())))
-    n_bins = np.argmin(
-        np.abs(cumulative_array - q)
+    n_bins = (
+        np.argmin(np.abs(cumulative_array - q)) + 1
     )  # figure out how many bins are necessary to contain a fraction q of distribution
 
     emittance = n_bins * dE * dt

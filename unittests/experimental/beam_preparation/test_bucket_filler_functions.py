@@ -15,7 +15,7 @@ from blond.experimental.beam_preparation.metric_functions import (
 )
 
 
-class TestGeneralizedBucketFiller(unittest.TestCase):
+class TestMultibunchMatchMetricToHamilton(unittest.TestCase):
     def setUp(self):
         grid_size = 100
         self.time_grid, self.deltaE_grid = np.meshgrid(
