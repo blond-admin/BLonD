@@ -539,7 +539,7 @@ class InducedVoltageObservationCR(
                 )
                 return
             else:
-                raise orig_exception
+                raise orig_exception  # pragma: no cover
 
         if all(
             self._rf_station._local_wakefield.induced_voltage

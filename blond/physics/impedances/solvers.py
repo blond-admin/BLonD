@@ -891,6 +891,16 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             if (
                 prof_ind == 0
             ):  # current profile does not yet have arrays initialized
+                if self._parent_wakefield.profile.hist_y[0] != 0.0:
+                    warnings.warn(
+                        "particle detected in leading edge bin, simulation might become unstable",
+                        stacklevel=1,
+                    )
+                elif self._parent_wakefield.profile.hist_y[-1] != 0.0:
+                    warnings.warn(
+                        "particle detected in trailing edge bin, simulation might become unstable",
+                        stacklevel=1,
+                    )
                 hist_step = self._parent_wakefield.profile.hist_step
                 arr_len = len(self._parent_wakefield.profile.hist_x)
                 self._wake_function_time.appendleft(

@@ -700,6 +700,15 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
+    def test_warns_on_edge_bins(self):
+        with self.assertWarnsRegex(Warning, "particle detected in trailing edge bin"):
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y[-1] = 2
+            self.single_turn_resonator_convolution_solver._update_potential_sources()
+        with self.assertWarnsRegex(Warning, "particle detected in leading edge bin"):
+            self.single_turn_resonator_convolution_solver._wake_function_vals_needs_update = True
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y[0] = 2
+            self.single_turn_resonator_convolution_solver._update_potential_sources()
+
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
@@ -1542,6 +1551,17 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
                 current_time=self.multi_pass_resonator_solver._last_reference_time
                 - delta_t
             )
+
+    def test__update_past_profile_warns_edges(self):
+        self.multi_pass_resonator_solver._past_profiles.append(np.array([0]))
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag.append(False)
+        with self.assertWarnsRegex(Warning, "particle detected in trailing edge bin"):
+            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y[-1] = 2
+            self.multi_pass_resonator_solver._update_past_profile_wake_functions()
+        with self.assertWarnsRegex(Warning, "particle detected in leading edge bin"):
+            self.multi_pass_resonator_solver._wake_function_vals_needs_update = True
+            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y[0] = 2
+            self.multi_pass_resonator_solver._update_past_profile_wake_functions()
 
     def test__update_past_profile_potentials_new_arr_init(self):
         sim = Mock(Simulation)

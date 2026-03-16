@@ -578,6 +578,14 @@ class TestResonators(unittest.TestCase):
                 # plt.savefig("")
                 plt.show()
 
+    def test_calculate_envelope(self):
+        time_axis = np.linspace(0, backend.max(self.resonators._quality_factors / self.resonators._omega) * 20, 100000)
+        env_time, envelope = (self.resonators.calculate_envelope())
+        ent_time_2, envelope_2 = (self.resonators.calculate_envelope(time_axis=time_axis))
+
+        np.testing.assert_allclose(env_time, ent_time_2, rtol=1e-12 if backend is Numpy64Bit else 1e-12, atol=0)
+        np.testing.assert_allclose(envelope, envelope_2, rtol=1e-12 if backend is Numpy64Bit else 1e-12, atol=0)
+
     def test_get_wake_counterrotation(self):
         freq, q_factor, shut_imp = (
             self.resonators._center_frequencies[0],

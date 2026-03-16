@@ -3,13 +3,13 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import Simulation
+from blond import Simulation, SingleHarmonicRFStation, WakeField, StaticProfile, Beam
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables_as_elements import (
-    BeamObservationInRingElement,
+    BeamObservationInRingElement, InducedVoltageObservationCR,
 )
 
 simulation = Mock(Simulation)
@@ -94,6 +94,33 @@ class TestBeamObservationInRingElement(unittest.TestCase):
             np.full(3, beam.reference.total_energy),
             err_msg="Reference total energy not recorded correctly",
         )
+
+
+class TestInducedVoltage(unittest.TestCase):
+    def setUp(self) -> None:
+        sim = Mock(Simulation)
+        sim.turn_i = 0
+        shc = Mock(SingleHarmonicRFStation)
+        shc._local_wakefield = Mock(WakeField)
+        shc._local_wakefield._profile = Mock(StaticProfile)
+        shc._local_wakefield._profile.hist_x = np.array([0, 1])
+        shc._local_wakefield.induced_voltage = np.zeros(5)
+        shc.name = "mock"
+        shc._turn_i = Mock(DynamicParameter)
+        shc._turn_i.value = 0
+        beam = Mock(Beam)
+        beam.is_counter_rotating = False
+
+        obs = (InducedVoltageObservationCR(rf_station=shc, each_turn_i=1))
+
+        with self.assertWarnsRegex(Warning, "no induced voltage calculated yet "):
+            obs._track(beam)
+        with self.assertRaisesRegex(AttributeError, "'NoneType' object has no attribute 'get_valid_entries'"):
+            _ = obs.induced_voltage
+
+    def test___init__(self):
+        pass
+
 
 
 if __name__ == "__main__":
