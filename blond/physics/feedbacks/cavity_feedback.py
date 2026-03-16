@@ -914,8 +914,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.rf_centers = np.append(
             self.rf_centers,
             self._generate_rf_centers(
-                t_rf=(2 * np.pi / self.omega_rf),
-                omega_rf=self.omega_rf,
+                t_rf=(2 * np.pi / self.forward_tracking_omega_rf),
+                omega_rf=self.forward_tracking_omega_rf,
                 phi_rf=self.phi_rf,
                 until_time=self.forward_tracking_time,
             ),

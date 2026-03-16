@@ -43,6 +43,39 @@ class IQFDBKTester(IQCavityFeedback):
         pass
 
 
+def check_allclose_turn_printing_nested(
+    array: list, turn: int, array_name: str
+):
+    check_allclose = [
+        np.allclose(array_entry, array[0], rtol=1e-12, atol=0)
+        for array_entry in array
+    ]
+    newline = "\n"
+    if not all(check_allclose):
+        pytest.fail(
+            f"problem in turn {turn} with {array_name}:\n\n{newline.join(str(ln) for ln in array)}\n--> {check_allclose}",
+        )
+
+
+def check_allclose_turn_printing(
+    array_1: list, array_2: list, turn: int, array_name: str
+):
+    check_allclose = [
+        np.isclose(array_1[array_idx], array_2[array_idx], rtol=1e-12, atol=0)
+        for array_idx in range(len(array_1))
+    ]
+    newline = "\n"
+    if not all(check_allclose):
+        pytest.fail(
+            f"problem in idx {turn} with {array_name}:\n\n{newline.join(str(ln) for ln in array_1)}\n--> {check_allclose}",
+        )
+
+
+def check_fail_printing(bool_expr: bool, msg: str):
+    if bool_expr:
+        pytest.fail(msg)
+
+
 class TestIQCavityFeedbackTimingClass:
     def setup_simulation(self):
         # single section
@@ -501,22 +534,6 @@ class TestIQCavityFeedbackTimingClass:
             cnst_cycle,
         )
 
-        def check_allclose_turn_printing(
-            array: list, turn: int, array_name: str
-        ):
-            check_allclose = [
-                np.allclose(array_entry, array[0]) for array_entry in array
-            ]
-            newline = "\n"
-            if not all(check_allclose):
-                pytest.fail(
-                    f"problem in turn {turn} with {array_name}:\n\n{newline.join(str(ln) for ln in array)}\n--> {check_allclose}"
-                )
-
-        def check_fail_printing(bool, msg):
-            if bool:
-                pytest.fail(msg)
-
         def callback(simulation: Simulation, beam: Beam):
             if simulation.turn_i.value == 0:  # TODO: and not CR
                 return
@@ -576,10 +593,10 @@ class TestIQCavityFeedbackTimingClass:
                 #             ]
                 # )  # 3 elements between two cavities
 
-            check_allclose_turn_printing(
+            check_allclose_turn_printing_nested(
                 time_passed_list, simulation.turn_i.value, "time_passed"
             )  # with no acceleration, this has to be true (all time_passed are the same
-            check_allclose_turn_printing(
+            check_allclose_turn_printing_nested(
                 omega_list, simulation.turn_i.value, "omega_list"
             )  # with no acceleration, this has to be true (all omegas are the same)
             # check_allclose_turn_printing(rf_centers_list, simulation.turn_i.value)  # with no acceleration, this has to be true (all RF centers are the same)
@@ -633,22 +650,6 @@ class TestIQCavityFeedbackTimingClass:
             ring,
             cnst_cycle,
         )
-
-        def check_allclose_turn_printing(
-            array: list, turn: int, array_name: str
-        ):
-            check_allclose = [
-                np.allclose(array_entry, array[0]) for array_entry in array
-            ]
-            newline = "\n"
-            if not all(check_allclose):
-                pytest.fail(
-                    f"problem in turn {turn} with {array_name}:\n\n{newline.join(str(ln) for ln in array)}\n--> {check_allclose}",
-                )
-
-        def check_fail_printing(bool, msg):
-            if bool:
-                pytest.fail(msg)
 
         time_passed_list = [
             [[] for _ in range(n_turns_to_simulate - 1)]
@@ -781,16 +782,24 @@ class TestIQCavityFeedbackTimingClass:
                 )  # shifted by one, but otherwise equal
 
     @pytest.mark.backend_mutation
-    @pytest.mark.parametrize("n_sections", [2])  # [1, 4, 20]
+    @pytest.mark.parametrize("n_sections", [1, 4, 20])  # [1, 4, 20]
     def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse_rf_centers(
         self, n_sections: int
     ):
         backend.change_backend(Numpy64Bit)
-        self.harmonic = 10
+        self.harmonic = 20
         self.setup_simulation()
 
         # n_sections = 4
-        circumference = 10
+        circumference = 20
+
+        # only debugging/testing requirement, not for running
+        assert circumference % n_sections == 0, (
+            "simulation setup wrong, check input changes"
+        )
+        assert self.harmonic % n_sections == 0, (
+            "simulation setup wrong, check input changes"
+        )
 
         ring, element_list, timing_fdbk_list = (
             self.setup_simulation_multisection(
@@ -810,6 +819,13 @@ class TestIQCavityFeedbackTimingClass:
             ejection_energy,
             num=n_sections * n_turns_to_simulate,
         )
+        vals_after_rf_station = np.append(
+            np.ones(n_sections) * injection_energy, vals_after_rf_station
+        )
+        vals_after_rf_station = np.append(
+            np.ones(n_sections) * injection_energy, vals_after_rf_station
+        )
+        n_turns_to_simulate += 2
         vals_after_rf_station = np.reshape(
             vals_after_rf_station, (n_sections, n_turns_to_simulate), order="F"
         )
@@ -887,6 +903,7 @@ class TestIQCavityFeedbackTimingClass:
             global_time_array = [[] for _ in range(n_sections)]
 
             for fdbk_ind in range(len(continuousfdbk_time)):
+                # plotting incorrect, should start at different positions for different feedbacks --> also in past turn --> essentially just shifting the turn marker
                 for time_ind in range(len(continuousfdbk_time[fdbk_ind])):
                     start_time = np.cumsum(
                         continuousfdbk_time[fdbk_ind][:time_ind]
@@ -946,13 +963,16 @@ class TestIQCavityFeedbackTimingClass:
                     if fdbk_ind != len(continuousfdbk_time) - 1
                     else True
                 )
-
+        harm_per_section = self.harmonic // n_sections
+        rf_center_list = np.array(rf_center_list)
         for fdbk_ind in range(1, n_sections):
-            np.testing.assert_allclose(
-                rf_center_list[fdbk_ind],
-                rf_center_list[fdbk_ind - 1],
-                atol=0,
-                rtol=1e-12,
-            )
+            for trn_ind in range(0, n_turns_to_simulate):
+                np.testing.assert_allclose(
+                    rf_center_list[fdbk_ind].flatten()[:-harm_per_section],
+                    rf_center_list[fdbk_ind - 1].flatten()[harm_per_section:],
+                    atol=0,
+                    rtol=1e-12,
+                    err_msg=f"problem in trn {trn_ind} in fdbk {fdbk_ind}",
+                )
 
         pass
