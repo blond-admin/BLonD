@@ -22,6 +22,8 @@ import numpy as np
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING: # pragma: no cover
+    from typing import Optional
+
     from os import PathLike
     from typing import Optional
 

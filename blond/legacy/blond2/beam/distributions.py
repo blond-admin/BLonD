@@ -57,6 +57,9 @@ if TYPE_CHECKING:  # pragma: no cover
         SynchrotronRadiation,
     )
     from ..trackers.tracker import FullRingAndRF, MainHarmonicOptionType
+    from ..synchrotron_radiation.synchrotron_radiation import (
+        SynchrotronRadiation,
+    )
     from ..utils.types import (
         BunchLengthFitTypes,
         DistributionUserTableType,
