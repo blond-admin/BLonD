@@ -149,7 +149,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
     def _get_all_base_params(
         self, simulation: Simulation, beam: BeamBaseClass
-    ):
+    ) -> dict[str, float]:
         ring = simulation.ring
 
         rf_system = ring.elements.elements[0]
@@ -187,7 +187,9 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             "phi_s": phi_s,
         }
 
-    def _compute_covariance_matrix(self, all_base_params: dict):
+    def _compute_covariance_matrix(
+        self, all_base_params: dict
+    ) -> tuple[np.ndarray, float]:
         # Define the Kick Drift parameters
         kick_param = (
             -all_base_params["charge"]
@@ -220,7 +222,8 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             [[beta_cs, -alpha_cs], [-alpha_cs, gamma_cs]]
         )
 
-        # Get the "scaled" covariance matrix (NB: multivariate_normal doesn't like big order of magnitude values)
+        # Get the "scaled" covariance matrix
+        # (NB: multivariate_normal doesn't like big order of magnitude values)
         scaling_factor = 10 ** np.floor(np.log10(np.abs(beta_cs)))
         covariance_matrix_scaled = np.array(covariance_matrix)
         covariance_matrix_scaled[0, 0] /= scaling_factor
@@ -229,7 +232,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         return covariance_matrix_scaled, scaling_factor
 
 
-def sawtooth_factor(n_sections, order="sr+drift"):
+def sawtooth_factor(n_sections, order="sr+drift") -> float:
     """The sawtooth factor is the fraction of the total energy loss due to
     synchrotron radiation at which the synchronous energy is sitting right
     before the RF cavity with a single RF station (for the one-turn map
