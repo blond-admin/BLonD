@@ -30,7 +30,7 @@ class TestMultibunchMatchMetricToHamilton(unittest.TestCase):
         with self.assertWarnsRegex(
             RuntimeWarning, "Specified metric accuracy was not reached"
         ):
-            density = multibunch_match_metric_to_hamilton(
+            _ = multibunch_match_metric_to_hamilton(
                 time_grid=self.time_grid,
                 deltaE_grid=self.deltaE_grid,
                 hamilton_2D=self.hamilton_2D,
@@ -41,7 +41,6 @@ class TestMultibunchMatchMetricToHamilton(unittest.TestCase):
                 density_function=gaussian_density,
                 metric_function=rms_emittance,
                 max_iterations=1000,
-                # free_parameter_guess=10,
             )
 
     def test_can_converge(self):
