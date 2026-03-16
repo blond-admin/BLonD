@@ -478,7 +478,6 @@ class Simulation(Preparable):
         particle_type: ParticleType,
         subtract_min: bool = True,
         intensity: int = 0,
-        until_section: int = -1,
     ) -> tuple[NumpyArray, float, float]:
         """
         Calculate the RF potential well by tracking particles through one turn.
@@ -511,8 +510,6 @@ class Simulation(Preparable):
         intensity
             Beam intensity (number of real particles) to include collective effects.
             Default is 0 (no intensity effects).
-        until_section
-            Section index until which to run the simulation. Default is -1.
 
         Returns
         -------
@@ -574,7 +571,6 @@ class Simulation(Preparable):
             beams=(probe_bunch,),
             n_turns=1,
             show_progressbar=False,
-            until_section=until_section,
         )
         # Calculate passed time
         t_1 = probe_bunch.reference.time
@@ -1018,7 +1014,6 @@ class Simulation(Preparable):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
-        until_section: int = -1,
     ) -> None:
         """
         Execute the beam dynamics simulation.
@@ -1045,8 +1040,6 @@ class Simulation(Preparable):
             called can be set by `each_turn_i`.
 
             An example is shown below.
-        until_section
-            Section index until which to run the simulation. Default is -1.
 
         Notes
         -----
@@ -1072,7 +1065,6 @@ class Simulation(Preparable):
             n_turns=n_turns,
             observe=observe,
             show_progressbar=show_progressbar,
-            until_section=until_section,
             callbacks=callbacks,
         )
 
@@ -1122,7 +1114,6 @@ class Simulation(Preparable):
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
         verbose: bool = True,
-        until_section: int = -1,
     ) -> None:
         """
         Execute the main beam dynamics simulation loop.
@@ -1166,8 +1157,6 @@ class Simulation(Preparable):
             called can be set by `each_turn_i`.
         verbose
             Will print infos if ``True``.
-        until_section
-            Section index until which to run the simulation. Default is -1.
 
         Raises
         ------
@@ -1279,7 +1268,6 @@ class Simulation(Preparable):
             observe=observe,
             show_progressbar=show_progressbar,
             callbacks=callbacks,
-            until_section=until_section,
         )
 
     def finalize(
