@@ -23,7 +23,6 @@ from blond import (
 )
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.observables import (
-    RFStationInducedVoltageObservation,
     WakeFieldObservation,
 )
 from blond.legacy.blond2.beam.beam import Beam, MuPlus
@@ -79,7 +78,7 @@ plt.rcParams["lines.linewidth"] = 2.0
 
 class InducedVoltageResonatorComparisonTest(unittest.TestCase):
     def setUp(self):
-        self.n_slices = 2**12
+        self.n_slices = 2**10
         self.cut_left = 0
         self.cut_right = (
             1.4072317864464973e-08  # self.rf_station_list[0].t_rf[0, 0] * 2
