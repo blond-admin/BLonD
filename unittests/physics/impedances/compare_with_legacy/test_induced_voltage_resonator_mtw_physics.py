@@ -74,7 +74,7 @@ plt.rcParams["font.size"] = 12
 plt.rcParams["lines.linewidth"] = 2.0
 
 
-class InducdedVoltageResonator(unittest.TestCase):
+class InducedVoltageResonatorComparisonTest(unittest.TestCase):
     def setUp(self):
         self.n_slices = 2**12
         self.cut_left = 0
