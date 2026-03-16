@@ -13,6 +13,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+import scipy.constants as cont
+
 from blond.core.backends.backend import backend
 from blond.physics.cavities import RFManipulationBaseClass
 
@@ -214,8 +216,27 @@ class BarrierGenerator(RFManipulationBaseClass):
         turn = self._turn_i.value
         time = beam.reference.time
 
+        beta = beam.reference.beta
+        circ = self._ring.circumference
 
-        waveform = self.waveform_at_turn_or_time(turn, time)
+        t_rev = circ / (beta * cont.c)
+        bins = backend.linspace(0, t_rev, self.n_bins)
+
+        waveform = self.waveform_at_turn_or_time(turn, time, bins)
+
+        reference = beam.reference
+        reference_energy_change = self.track_reference(
+            reference, beam.is_counter_rotating
+        )
+
+        backend.specials.kick_induced_voltage(
+            beam.write_partial_dt(),
+            beam.write_partial_dE(),
+            waveform,
+            bins,
+            beam.particle_type.charge,
+            acceleration_kick=-reference_energy_change,
+        )
 
     def on_run_simulation(self, simulation, beam, n_turns, **kwargs):
         """
