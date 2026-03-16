@@ -285,7 +285,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         if simulation.intensity_effect_manager.has_wakefields():
             simulation.intensity_effect_manager.set_wakefields(active=True)
             for i_intensity in range(self.maxiter_intensity_effects):
-                sim_tmp = deepcopy(simulation)
+                sim_tmp = deepcopy(simulation)  # prevent side effects
 
                 # Change the strength of intensity effects to allow
                 # convergence to a stable solution (if there is any?)
