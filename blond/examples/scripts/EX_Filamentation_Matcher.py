@@ -23,7 +23,7 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
-from blond.experimental import FilamentationMatcher
+from blond.beam_preparation.filamentation_matcher import FilamentationMatcher
 
 n_iter = 1000
 
