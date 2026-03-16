@@ -87,6 +87,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         self,
         simulation: Simulation,
         beam: BeamBaseClass,
+        check_ring_layout: bool = True,
     ) -> None:
         """
         Populate the `Beam` object with macro-particles.
@@ -100,31 +101,27 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         """
 
         # Check if the lattice is comparable to expectation
-        # To be extented for many SR+Drift
+        if check_ring_layout:
+            n_sections = int((simulation.ring.elements.n_elements - 1) / 2)
+            expected_elements = [SingleHarmonicRFStation] + [
+                _SynchrotronRadiationTracker,
+                DriftSimple,
+            ] * n_sections
 
-        expected_elements = [
-            SingleHarmonicRFStation,
-            _SynchrotronRadiationTracker,
-            DriftSimple,
-        ]
+            element_error_message = (
+                "The SynchrotronRadiationMatcher function "
+                + "is presently only implemented for the lattice [Kick, SR, Drift]"
+            )
 
-        element_error_message = (
-            "The SynchrotronRadiationMatcher function "
-            + "is presently only implemented for the lattice [Kick, SR, Drift]"
-        )
-
-        # TODO: consider many SR+Drift sections or Drift+SR
-        # Hard coded for now to be taken from the Ring layout
-        n_sections = 1
-        order = "sr+drift"
-
-        if len(simulation.ring.elements.elements) != len(expected_elements):
-            raise ValueError(element_error_message)
-        for idx_element, element in enumerate(
-            simulation.ring.elements.elements
-        ):
-            if not isinstance(element, expected_elements[idx_element]):
+            if len(simulation.ring.elements.elements) != len(
+                expected_elements
+            ):
                 raise ValueError(element_error_message)
+            for idx_element, element in enumerate(
+                simulation.ring.elements.elements
+            ):
+                if not isinstance(element, expected_elements[idx_element]):
+                    raise ValueError(element_error_message)
 
         # Prepare the beam and other objects to get base parameters
         super().prepare_beam(
@@ -146,7 +143,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             all_base_params=all_base_params,
             covariance_matrix=covariance_matrix,
             n_sections=n_sections,
-            order=order,
+            order="sr+drift",  # to be extended when SR allows for drift+sr
         )
 
     def get_all_base_params(
@@ -326,7 +323,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         # Compute the expected stable phase offset
         dt_center = all_base_params["phi_s"] / all_base_params["omega_rf"]
-        dE_center = -all_base_params["energy"] * sawtooth_factor(
+        dE_center = -all_base_params["energy_loss_per_turn"] * sawtooth_factor(
             n_sections, order
         )
 

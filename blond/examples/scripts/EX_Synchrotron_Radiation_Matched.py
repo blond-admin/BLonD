@@ -79,10 +79,11 @@ class SynchrotronRadiationSimulation:
         self.ring = Ring(
             self.circumference,
             radiation_integrals=self.radiation_integrals,
+            check_section_indices=False,
         )
 
         one_turn_execution_order = [self.cavity]
-        self.number_of_sections = 2
+        self.number_of_sections = 100
 
         for i in range(self.number_of_sections):
             drift = DriftSimple(
@@ -93,17 +94,6 @@ class SynchrotronRadiationSimulation:
             )
 
             one_turn_execution_order.append(drift)
-
-            if i == (self.number_of_sections - 1):
-                continue
-
-            empty_rf_station = SingleHarmonicRFStation(
-                voltage=0,
-                harmonic=1,
-                phi_rf=0,
-                section_index=i + 1,
-            )
-            one_turn_execution_order.append(empty_rf_station)
 
         self.ring.add_elements(one_turn_execution_order, reorder=False)
 
@@ -187,7 +177,7 @@ def main(n_turns: int = 100):
             radiation_integrals=params.radiation_integrals,
         )
     )
-    fig, ax = plt.subplots(nrows=3, figsize=(12, 6), constrained_layout=True)
+    fig, ax = plt.subplots(nrows=3, figsize=(16, 6), constrained_layout=True)
     synchronous_phase = np.pi - np.arcsin(
         energy_loss_per_turn / params.cavity.voltage
     )
@@ -205,7 +195,7 @@ def main(n_turns: int = 100):
 
     ax[1].plot(bunch_relative_energy, label="Bunch relative energy")
     ax[1].plot(
-        energy_loss_per_turn
+        -energy_loss_per_turn
         * sawtooth_factor(params.number_of_sections, "sr+drift")
         * np.ones(len(bunch_statistics.bunch_position)),
         label="Reference energy before the kick",
@@ -233,4 +223,4 @@ def main(n_turns: int = 100):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main()
+    main(10000)
