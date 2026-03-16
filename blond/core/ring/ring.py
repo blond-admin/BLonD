@@ -19,7 +19,6 @@ import numpy as np
 
 from blond.core.base import (
     Preparable,
-    SimulationElementBase,
     UnsafeUserElement,
 )
 

@@ -30,8 +30,14 @@ from blond.generals.distributed.helpers import (
 from blond.generals.iterables_ import all_equal
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any
+
+    from numpy.typing import NDArray
+
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+
+    NumpyArray = NDArray[Any]
 
 
 def _get_dE_from_dt_core(

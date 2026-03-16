@@ -17,22 +17,25 @@ S. Albright
 
 from __future__ import annotations
 
-import numbers
 import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond import copy_to_cpu
 from blond.beam_preparation import base
 from blond.core import helpers as core_help
-from blond.generals.cupy import no_cupy_import
 from blond.generals.distributed import helpers as mpi_help
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import ArrayLike
+    from typing import Any
+
+    from numpy.typing import NDArray
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+
+    NumpyArray = NDArray[Any]
 
 
 class Coasting(base.BeamPreparationRoutine):
@@ -71,11 +74,11 @@ class Coasting(base.BeamPreparationRoutine):
     def __init__(
         self,
         n_macroparticles: int,
-        energy_bins: ArrayLike,
-        energy_profile: ArrayLike,
-        start_time: float = 0,
+        energy_bins: NumpyArray,
+        energy_profile: NumpyArray,
+        start_time: float = 0.0,
         stop_time: float | None = None,
-        energy_offset: float | ArrayLike = 0,
+        energy_offset: float | NumpyArray = 0.0,
         seed: int | None = None,
     ):
         super().__init__()
@@ -91,7 +94,7 @@ class Coasting(base.BeamPreparationRoutine):
 
         # Automatically cast energy profile to numpy array, delay moving
         # to CPU until calling setup_beam.
-        energy_profile = np.array(no_cupy_import.copy_to_cpu(energy_profile))
+        energy_profile = np.array(copy_to_cpu(energy_profile))
         profile_sum = np.sum(energy_profile)
 
         if profile_sum != 1:
@@ -113,12 +116,10 @@ class Coasting(base.BeamPreparationRoutine):
         self.start_time = start_time
         self.stop_time = stop_time
 
-        if isinstance(energy_offset, numbers.Number):
-            self.energy_offset = energy_offset
+        if isinstance(energy_offset, float):
+            self.energy_offset = float(energy_offset)
         else:
-            self.energy_offset = np.array(
-                no_cupy_import.copy_to_cpu(energy_offset)
-            )
+            self.energy_offset = np.array(copy_to_cpu(energy_offset))
 
         self._seed = seed
 
@@ -149,7 +150,7 @@ class Coasting(base.BeamPreparationRoutine):
         # Generated distribution is discrete at values defined in
         # self.energy_bins.  An offset is applied to make each bin be
         # sampled uniformly.
-        bin_width = self.energy_bins[1] - self.energy_bins[0]
+        bin_width = float(self.energy_bins[1]) - float(self.energy_bins[0])
         # Use overlapping triangular offsets to create a smoother distribution
         e_shift = rng.triangular(
             left=-bin_width,
@@ -173,9 +174,9 @@ class Coasting(base.BeamPreparationRoutine):
             size=self._n_macroparticles_local,
         )
 
-        if isinstance(self.energy_offset, np.ndarray):
-            dE += np.interp(dt, self.energy_offset[0], self.energy_offset[1])
-        else:
+        if isinstance(self.energy_offset, float):
             dE += self.energy_offset
+        else:
+            dE += np.interp(dt, self.energy_offset[0], self.energy_offset[1])
 
         beam.setup_beam(dt=dt, dE=dE, mpi_mode="all-ranks")

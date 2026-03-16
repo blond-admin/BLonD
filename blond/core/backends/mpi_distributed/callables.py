@@ -22,9 +22,6 @@ try:
 except Exception as exc:
     warnings.warn(str(exc), ImportWarning, stacklevel=1)
     MPI = None
-from blond.generals.distributed.distributed_array import (
-    DistributedArray,
-)
 from blond.generals.distributed.helpers import mpi_is_distributed
 
 if TYPE_CHECKING:  # pragma: no cover

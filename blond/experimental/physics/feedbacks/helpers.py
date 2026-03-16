@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy
-from numpy._typing import NDArray as NumpyArray
 from scipy.constants import e
 
 from blond.core.beam.base import BeamBaseClass

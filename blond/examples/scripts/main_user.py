@@ -24,7 +24,6 @@ from blond import (
     Simulation,
     StaticProfile,
     WakeField,
-    backend,
     momentum_compaction_factor,
     proton,
 )
