@@ -284,7 +284,7 @@ class BackendBaseClass(ABC):
     float: type[np.float32 | np.float64]
     complex: type[np.complex128 | np.complex64]
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -688,7 +688,7 @@ class NumpyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -835,7 +835,7 @@ class CupyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
