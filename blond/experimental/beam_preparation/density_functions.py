@@ -21,14 +21,14 @@ if TYPE_CHECKING:  # pragma: no cover
 def gaussian_density(hamilton: NumpyArray, sigma: float) -> NumpyArray:
     """
     Turns a hamiltonian into a gaussian density distribution
-     with some standard deviation sigma
+    with some standard deviation sigma
 
     Parameters
     ----------
     hamilton
         2D hamiltonian, in [eV]
     sigma
-        standard deviation of distribution, in [eV]
+        Standard deviation of distribution, in [eV]
 
 
     Returns
@@ -53,9 +53,9 @@ def binomial_density(
     hamilton
         2D hamiltonian, in [eV]
     width
-        width of distribution, in [eV]
+        Width of distribution, in [eV]
     exponent
-        exponent of the distribution
+        Exponent of the distribution
 
 
     Returns

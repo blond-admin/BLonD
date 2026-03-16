@@ -150,22 +150,22 @@ def multibunch_match_metric_to_hamilton(
     deltaE_grid
         Energy coordinate of the hamiltonian, in [eV].
     hamiltonn_2D
-        hamiltonian value, in [eV].
+        Hamiltonian value, in [eV].
     metric_list
-        list of values to for the metric to have for each bunch.
+        List of values to for the metric to have for each bunch.
         Metric definition specified by metric function
     intensity_frac_list
-        fraction of total intensity for each bunch to have.
+        Fraction of total intensity for each bunch to have.
     n_buckets
-        number of buckets spanned by the time axis.
+        Number of buckets spanned by the time axis.
     max_metric_diff
-        the maximum allowed difference between the desired
+        The maximum allowed difference between the desired
         metric and the metric of the generated bunch
     density_function
-        simplistic function for the density with one free parameter
+        Simplistic function for the density with one free parameter
         rho(H, value). Value and metric must scale monotonically.
     metric_function
-        function of a hamiltonian. Must take the density,
+        Function of a hamiltonian. Must take the density,
         time and energy as 2d arrays
     free_parameter_guess
         The initial guess for the free parameter
