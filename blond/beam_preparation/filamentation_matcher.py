@@ -6,6 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""Matching with filamentation tracking."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -44,9 +46,9 @@ class FilamentationMatcher(MatchingRoutine):
         Number of macroparticles used to initialize the beam.
     n_iter : int
         Number of simulation iterations to perform.
-    animate: bool
+    animate : bool
         Whether or not to display the simulation animation.
-    animate_pause_time: float
+    animate_pause_time : float
         Time to pause the simulation animation, default 0.1, in [s].
     every_iter_to_plot : int, optional
         A snapshot of the beam is
@@ -74,9 +76,8 @@ class FilamentationMatcher(MatchingRoutine):
     When ``purge=True``, macroparticles outside the specified phase-space
     limits are permanently removed. This reduces the number of macroparticles.
 
-    Example
-    -------
-
+    Examples
+    --------
     >>> from blond import (
     ...     Beam,
     ...     ConstantMagneticCycle,
@@ -86,7 +87,7 @@ class FilamentationMatcher(MatchingRoutine):
     ...     SingleHarmonicRFStation,
     ...     proton,
     ... )
-    >>> from blond.experimental.beam_preparation.filamentation_matcher import (
+    >>> from blond.beam_preparation.filamentation_matcher import (
     ...     FilamentationMatcher,
     ... )
     >>> from blond.handle_results.observables_as_elements import (
