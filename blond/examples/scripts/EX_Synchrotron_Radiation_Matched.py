@@ -81,8 +81,6 @@ class SynchrotronRadiationSimulation:
             radiation_integrals=self.radiation_integrals,
         )
 
-        # self.ring.add_element(self.cavity)
-
         one_turn_execution_order = [self.cavity]
         self.number_of_sections = 2
 
