@@ -109,7 +109,13 @@ class CBHMatcher(MatchingRoutine):
 
         H_list = []
         for element in self.simulation.ring.elements.elements:
-            if isinstance(element, (DriftSimple, SingleHarmonicRFStation)):
+            if isinstance(
+                element,
+                (
+                    SingleHarmonicRFStation,
+                    DriftSimple,
+                ),
+            ):
                 H_list.append(
                     element.symbolic_hamiltonian(
                         q=self.q,
@@ -207,6 +213,7 @@ class CBHMatcher(MatchingRoutine):
         """Apply desired emittance to algorithm."""
         # not yet sure how to add this to the routine
         pass  # TODO
+        # 2d spline interpolation
 
     def plot_hamiltonian(
         self,

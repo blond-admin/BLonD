@@ -6,6 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+import numpy as np
 from matplotlib import pyplot as plt
 
 from blond import (
@@ -65,18 +66,18 @@ observation = BeamObservationInRingElement(
     folder="./",
 )
 one_turn_execution_order = (
-    observation,
-    DriftSimple(
-        momentum_compaction_factor=momentum_compaction_factor_,
-        orbit_length=circumference,
-        section_index=0,
-    ),
     SingleHarmonicRFStation(
         harmonic=harmonic_number,
         phi_rf=0,
         voltage=voltage1,
         section_index=0,
     ),
+    DriftSimple(
+        momentum_compaction_factor=momentum_compaction_factor_,
+        orbit_length=circumference,
+        section_index=0,
+    ),
+    observation,
 )
 ring.add_elements(one_turn_execution_order, reorder=False)
 
@@ -89,10 +90,10 @@ sim.prepare_beam(
         simulation=sim,
         beam=beam,
         n_macroparticles=int(1e5),  # TODO
-        order=2,  # above order 3, takes a long time
+        order=3,  # above order 3, takes a long time
         distribution="Gaussian",
         time_window_limit=(0, 2.5e-9),
-        energy_window_limit=(-1.3e9, 1.3e9),
+        energy_window_limit=(-2e9, 2e9),
     ),
     beam=beam,
 )
@@ -102,19 +103,12 @@ plt.scatter(observation.dts[0], observation.dEs[0])
 plt.scatter(observation.dts[-1], observation.dEs[-1])
 plt.show()
 
-import numpy as np
-
-# for i in range(100):
-#     plt.hist(observation.dts[i], bins=np.linspace(-2.5e-9, 0, 100))
-# plt.show()
 dat = []
-
-
 for i in range(100):
     dat.append(
-        np.histogram(
-            observation.dts[i * 1], bins=np.linspace(-2.5e-9, 0, 100)
-        )[0]
+        np.histogram(observation.dts[i * 1], bins=np.linspace(0, 2.5e-9, 100))[
+            0
+        ]
     )
 plt.contourf(dat, levels=40)
 plt.show()

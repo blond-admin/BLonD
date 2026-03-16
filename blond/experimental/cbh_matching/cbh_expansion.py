@@ -25,7 +25,7 @@ def poisson_bracket(F, G, q, p):
     -------
 
     """
-    return sp.diff(F, q) * sp.diff(G, p) - sp.diff(F, p) * sp.diff(G, q)
+    return sp.diff(F, p) * sp.diff(G, q) - sp.diff(F, q) * sp.diff(G, p)
 
 
 def cbh_two(A, B, q, p, order=2):
