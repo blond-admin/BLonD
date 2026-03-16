@@ -22,7 +22,6 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
-    backend,
     positron,
 )
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
@@ -38,7 +37,6 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
 )
 
 # logging.basicConfig(level=logging.INFO)
-backend.change_backend(Cupy64Bit)
 
 
 class SynchrotronRadiationSimulation:
