@@ -106,6 +106,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         )
 
         # Generate the random distribution
+        # TODO: assess usage of mpi_aware_random_generator_cpu
         rng = np.random.default_rng(seed=self._seed)
         dt_distrib, dE_distrib = rng.multivariate_normal(
             [0, 0], covariance_matrix_scaled, size=self._n_macroparticles_local
@@ -115,14 +116,19 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         dt_distrib *= np.sqrt(scaling_factor)
         dE_distrib *= np.sqrt(1 / scaling_factor)
 
-        # # Compute the expected stable phase offset
-        # phi_s_offset = np.arcsin(U0 / (charge * total_voltage))
-        # dt_offset = phi_s_offset / omega_rf
+        # Compute the expected stable phase offset
         dt_center = all_base_params["phi_s"] / all_base_params["omega_rf"]
+        dE_center = -all_base_params["energy"] * sawtooth_factor(n_sections)
 
         # Position the beam in the stable point in (time, energy)
         dt_distrib += dt_center
-        dE_distrib += -all_base_params["energy"] * sawtooth_factor(n_sections)
+        dE_distrib += dE_center
+
+        beam.setup_beam(
+            dt=dt_distrib,
+            dE=dE_distrib,
+            mpi_mode="all-ranks",  # because the random generator above is MPI aware
+        )
 
         # # Return the distribution and useful parameters
         # equilibrium_params = {
@@ -134,9 +140,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         #     "sigma_dE": np.sqrt(covariance_matrix[1, 1]),
         # }
 
-        return np.array(dt_distrib), np.array(
-            dE_distrib
-        )  # , equilibrium_params
+        # return np.array(dt_distrib), np.array(dE_distrib), equilibrium_params
 
     def _get_all_base_params(
         self, simulation: Simulation, beam: BeamBaseClass
