@@ -417,7 +417,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
 
         # time to cross element
         T = self.orbit_length / beam.reference.velocity
-
         coeff = T * eta0 / (2 * beta**2 * energy)
 
         return coeff * p**2

@@ -203,6 +203,11 @@ class CBHMatcher(MatchingRoutine):
         self.matched_dt = matched_dt
         self.matched_dE = matched_dE
 
+    def apply_desired_emittance(self):
+        """Apply desired emittance to algorithm."""
+        # not yet sure how to add this to the routine
+        pass  # TODO
+
     def plot_hamiltonian(
         self,
         nq=1000,
