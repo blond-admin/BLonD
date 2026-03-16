@@ -1,8 +1,27 @@
 import unittest
+from unittest.mock import Mock
 
+import numpy as np
+
+from blond import (
+    Beam,
+    ConstantMagneticCycle,
+    DriftSimple,
+    Resonators,
+    Ring,
+    Simulation,
+    SingleHarmonicRFStation,
+    StaticProfile,
+    WakeField,
+    mu_plus,
+)
 from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
+)
+from blond.generals.distributed.distributed_array import DistributedArray
+from blond.physics.impedances.solvers import (
+    SingleTurnResonatorConvolutionSolver,
 )
 
 
@@ -136,6 +155,51 @@ class TestFunctions(unittest.TestCase):
     def test_walk(self):
         # TODO: implement test for `walk`
         walk(obj=None)
+
+
+class TestNestedMocksHashingBug(unittest.TestCase):
+    def test_hashing_bug(self):
+        profile = Mock(StaticProfile)
+        profile.active = True
+        profile.hist_x = np.zeros(1)
+        profile.hist_y = np.zeros(1)
+        profile.n_bins = 1
+        profile.hist_step = 1
+        profile.hist_y_to_density_factor = 1
+        rf_station = SingleHarmonicRFStation(
+            phi_rf=0,
+            harmonic=5,
+            voltage=5e6,
+            local_wakefield=WakeField(
+                profile=profile,
+                solver=SingleTurnResonatorConvolutionSolver(),
+                sources=[
+                    Resonators(
+                        center_frequencies=1,
+                        quality_factors=1,
+                        shunt_impedances=1,
+                    )
+                ],
+            ),
+        )
+        circumference = 5
+        drift = DriftSimple(circumference, momentum_compaction_factor=0)
+        ring = Ring(circumference=circumference, check_section_indices=False)
+        ring.add_elements([rf_station, drift])
+
+        beam = Beam(
+            intensity=1, particle_type=mu_plus, is_counter_rotating=False
+        )
+        beam._dt = DistributedArray(np.zeros(5))
+        beam._dE = DistributedArray(np.zeros(5))
+        beam._ids = DistributedArray(np.arange(5))
+        beam._flags = DistributedArray(np.zeros(5))
+
+        cnst_cycle = ConstantMagneticCycle(
+            reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
+        )
+
+        sim = Simulation(ring, cnst_cycle)  # NOQA
 
 
 if __name__ == "__main__":

@@ -311,7 +311,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_update_beam_energy(self):
-        backend.change_backend(Numpy64Bit)
+        backend.change_backend(Numpy64Bit)  # fails with 32 bit
         previous_energy = self.beam.read_partial_dE().copy()
         energy_kick = self.SRB._calculate_kick(
             beam=self.beam,
