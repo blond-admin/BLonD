@@ -197,6 +197,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
         If ``True``, prints convergence and status messages to the console.
     debug
         If ``True``, variables are saved into the `debug_helper` attribute.
+    until_section_index
+        Section index until which to run the simulation. Default is -1.
 
     Notes
     -----
@@ -220,6 +222,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         animate: bool = False,
         verbose: bool = True,
         debug=False,
+        until_section_index: int = -1,
     ) -> None:
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
@@ -249,6 +252,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         assert callable(hamilton_to_density_function)
         self.hamilton_to_density_function = hamilton_to_density_function
         self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
+        self.until_section_index = until_section_index
         self.animate = animate
         self.tolerance_potential_well = tolerance_potential_well
         self.verbose = verbose
@@ -339,6 +343,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 sim_tmp.run_simulation(
                     beams=(beam,),
                     n_turns=1,
+                    until_section_index=self.until_section_index,
                     show_progressbar=False,
                 )
 
@@ -428,6 +433,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 ),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
+                until_section_index=self.until_section_index,
             )
         )
         potential_well = (
