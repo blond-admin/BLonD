@@ -15,7 +15,7 @@ from scipy.constants import c as c0
 from blond import DriftSimple, Simulation, SingleHarmonicRFStation
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.beam.base import BeamBaseClass
-from blond.experimental.cbh_matching.bch_expansion import cbh_lattice
+from blond.experimental.cbh_matching.bch_expansion import bch_lattice
 
 
 class BCHMatcher(MatchingRoutine):
@@ -132,7 +132,7 @@ class BCHMatcher(MatchingRoutine):
     def make_sympy_map(self):
         """Create the symbolic one turn map from the ring to the desired order."""
 
-        self.H_eff = cbh_lattice(self.H_list, self.q, self.p, order=self.order)
+        self.H_eff = bch_lattice(self.H_list, self.q, self.p, order=self.order)
         self.H_eff = sp.sympify(self.H_eff)
         self.H_func = sp.lambdify((self.q, self.p), self.H_eff, "numpy")
 
