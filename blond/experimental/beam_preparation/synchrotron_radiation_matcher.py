@@ -110,7 +110,9 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
             element_error_message = (
                 "The SynchrotronRadiationMatcher function "
-                + "is presently only implemented for the lattice [Kick, SR, Drift]"
+                + "is presently only implemented for the lattice "
+                + "[`SingleHarmonicRFStation`] "
+                + "+ [`_SynchrotronRadiationTracker`, `DriftSimple`] * n_sections"
             )
 
             if len(simulation.ring.elements.elements) != len(
