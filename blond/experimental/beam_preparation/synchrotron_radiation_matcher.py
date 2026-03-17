@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -29,6 +30,21 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
         SynchrotronRadiationMaster,
     )
+
+
+@dataclass
+class _MatcherAcceleratorParameters:
+    energy: float
+    charge: float
+    rf_voltage: float
+    energy_loss_per_turn: float
+    sigma_dE: float
+    beta: float
+    eta_0: float
+    t_rev: float
+    t_rf: float
+    omega_rf: float
+    phi_s: float
 
 
 class SynchrotronRadiationMatcher(MatchingRoutine):
@@ -129,26 +145,26 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             beam=beam,
         )
 
-        all_base_params = self.get_all_base_params(
+        matcher_parameters = self.get_matcher_parameters(
             simulation=simulation,
             beam=beam,
         )
 
         covariance_matrix = self.compute_covariance_matrix(
-            all_base_params=all_base_params
+            matcher_parameters=matcher_parameters
         )
 
         self.generate_distribution(
             beam=beam,
-            all_base_params=all_base_params,
+            matcher_parameters=matcher_parameters,
             covariance_matrix=covariance_matrix,
             n_sections=n_sections,
             order="sr+drift",  # to be extended when SR allows for drift+sr
         )
 
-    def get_all_base_params(
+    def get_matcher_parameters(
         self, simulation: Simulation, beam: BeamBaseClass
-    ) -> dict[str, float]:
+    ) -> _MatcherAcceleratorParameters:
         """
         Get the parameters to compute the covariance matrix.
 
@@ -164,7 +180,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         Returns
         -------
-            dict[str, float]
+            _MatcherAcceleratorParameters
                 All relevant parameters for the `compute_covariance_matrix` function.
         """
 
@@ -191,32 +207,31 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         # NB: already factors in the synchrotron radiation loss!
         phi_s = rf_system.calc_phi_s_main_harmonic(beam)
 
-        return {
-            "energy": beam.reference.total_energy,
-            "charge": beam.particle_type.charge,
-            "rf_voltage": rf_system.voltage,
-            "energy_loss_per_turn": energy_loss_per_turn,
-            "sigma_dE": sigma_dE,
-            "beta": beta,
-            "eta_0": eta_0,
-            "t_rev": t_rev,
-            "t_rf": t_rf,
-            "omega_rf": omega_rf,
-            "phi_s": phi_s,
-        }
+        return _MatcherAcceleratorParameters(
+            energy=beam.reference.total_energy,
+            charge=beam.particle_type.charge,
+            rf_voltage=rf_system.voltage,
+            energy_loss_per_turn=energy_loss_per_turn,
+            sigma_dE=sigma_dE,
+            beta=beta,
+            eta_0=eta_0,
+            t_rev=t_rev,
+            t_rf=t_rf,
+            omega_rf=omega_rf,
+            phi_s=phi_s,
+        )
 
-    def compute_covariance_matrix(self, all_base_params: dict) -> np.ndarray:
+    def compute_covariance_matrix(
+        self, matcher_parameters: _MatcherAcceleratorParameters
+    ) -> np.ndarray:
         """
         Compute the covariance matrix (Courant-Snyder parameters) representing the
         expected tilted trajectories of the particles in phase space.
 
-        The input dict for all_base_params should contain : energy, charge, rf_voltage,
-        energy_loss_per_turn, sigma_dE, beta, eta_0, t_rev, t_rf, omega_rf, phi_s.
-
         Parameters
         ----------
-            all_base_params (dict)
-                All relevant parameters for the `get_all_base_params` function.
+            matcher_parameters (_MatcherAcceleratorParameters)
+                All relevant parameters from the `get_matcher_parameters` function.
 
         Returns
         -------
@@ -226,15 +241,15 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         # Define the Kick Drift parameters
         kick_param = (
-            -all_base_params["charge"]
-            * all_base_params["rf_voltage"]
-            * all_base_params["omega_rf"]
-            * np.cos(all_base_params["phi_s"])
+            -matcher_parameters.charge
+            * matcher_parameters.rf_voltage
+            * matcher_parameters.omega_rf
+            * np.cos(matcher_parameters.phi_s)
         )
         drift_param = (
-            -all_base_params["t_rev"]
-            * all_base_params["eta_0"]
-            / (all_base_params["beta"] ** 2.0 * all_base_params["energy"])
+            -matcher_parameters.t_rev
+            * matcher_parameters.eta_0
+            / (matcher_parameters.beta**2.0 * matcher_parameters.energy)
         )
 
         # Compute the Courant-Snyder parameters for the kick drift
@@ -256,7 +271,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
     def generate_distribution(
         self,
         beam: BeamBaseClass,
-        all_base_params: dict,
+        matcher_parameters: _MatcherAcceleratorParameters,
         covariance_matrix: np.ndarray,
         n_sections: int,
         order: str,
@@ -265,17 +280,14 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         Generate a random multivariate normal particle distribution following the
         covariance matrix.
 
-        The input dict for all_base_params should contain : energy, charge, rf_voltage,
-        energy_loss_per_turn, sigma_dE, beta, eta_0, t_rev, t_rf, omega_rf, phi_s.
-
         TODO: assess usage of mpi_aware_random_generator_cpu
 
         Parameters
         ----------
             beam (BeamBaseClass)
                 Simulation :class:`~blond.core.beam.beam.Beam` object.
-            all_base_params (dict)
-                All relevant parameters for the `get_all_base_params` function.
+            matcher_parameters (_MatcherAcceleratorParameters)
+                All relevant parameters from the `get_matcher_parameters` function.
             covariance_matrix (np.ndarray)
                 The Courant-Snyder parameters for the kick drift as output from `compute_covariance_matrix`.
             n_sections (int)
@@ -314,7 +326,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         # Get the longitudinal emittance
         epsilon_rms_tilted = (
-            all_base_params["sigma_dE"] * all_base_params["energy"]
+            matcher_parameters.sigma_dE * matcher_parameters.energy
         ) ** 2.0 / covariance_matrix[1, 1]
 
         # Scale the distribution
@@ -322,8 +334,8 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         dE_distrib *= np.sqrt(epsilon_rms_tilted / scaling_factor)
 
         # Compute the expected stable phase offset
-        dt_center = all_base_params["phi_s"] / all_base_params["omega_rf"]
-        dE_center = -all_base_params["energy_loss_per_turn"] * sawtooth_factor(
+        dt_center = matcher_parameters.phi_s / matcher_parameters.omega_rf
+        dE_center = -matcher_parameters.energy_loss_per_turn * sawtooth_factor(
             n_sections, order
         )
 
