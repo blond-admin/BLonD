@@ -119,10 +119,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
                 expected_elements
             ):
                 raise ValueError(element_error_message)
-            for idx_element, element in enumerate(
-                simulation.ring.elements.elements
+            for expected, actual in zip(
+                expected_elements, simulation.ring.elements.elements
             ):
-                if not isinstance(element, expected_elements[idx_element]):
+                if not isinstance(actual, expected):
                     raise ValueError(element_error_message)
 
         # Prepare the beam and other objects to get base parameters
