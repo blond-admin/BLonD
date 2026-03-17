@@ -1572,21 +1572,51 @@ class LHCCavityLoop(CavityFeedback):
 
         if not no_beam:
             # Resample generator current to the fine-grid
-            self.I_GEN_FINE = np.interp(
-                np.concatenate(
-                    (
-                        np.array(
-                            [
-                                self.profile.bin_centers[0]
-                                - self.profile.bin_size
-                            ]
-                        ),
-                        self.profile.bin_centers,
-                    )
-                ),
-                self.rf_centers,
-                self.I_GEN_COARSE[-self.n_coarse :],
-            )
+            if isinstance(self.profile, SparseBatch):
+                for p, profile in enumerate(self.profile.profiles_list):
+                    if p == 0:
+                        self.I_GEN_FINE[0 : profile.n_slices + 1] = np.interp(
+                            np.concatenate(
+                                (
+                                    np.array(
+                                        [
+                                            profile.bin_centers[0]
+                                            - profile.bin_size
+                                        ]
+                                    ),
+                                    profile.bin_centers,
+                                )
+                            ),
+                            self.rf_centers,
+                            self.I_GEN_COARSE[-self.n_coarse :],
+                        )
+                    else:
+                        self.I_GEN_FINE[
+                            p * profile.n_slices + 1 : (p + 1)
+                            * profile.n_slices
+                            + 1
+                        ] = np.interp(
+                            profile.bin_centers,
+                            self.rf_centers,
+                            self.I_GEN_COARSE[-self.n_coarse :],
+                        )
+
+            else:
+                self.I_GEN_FINE = np.interp(
+                    np.concatenate(
+                        (
+                            np.array(
+                                [
+                                    self.profile.bin_centers[0]
+                                    - self.profile.bin_size
+                                ]
+                            ),
+                            self.profile.bin_centers,
+                        )
+                    ),
+                    self.rf_centers,
+                    self.I_GEN_COARSE[-self.n_coarse :],
+                )
 
             # Compute the fine-grid antenna voltage through solving a sparse matrix equation
             self.cavity_response_fine_matrix()
