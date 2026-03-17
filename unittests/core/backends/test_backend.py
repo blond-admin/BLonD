@@ -15,6 +15,7 @@ from blond.core.backends.backend import (
     default,
 )
 from blond.core.backends.numba.callables import recompile_numba_backend
+from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     multi_backend_testcase,
     skip_if_no_cupy,
@@ -1041,20 +1042,13 @@ class TestSpecials(unittest.TestCase):
 
     @multi_backend_testcase
     def test_cast_exceptions(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed(["a", "b", "c"])
 
-        # Numpy and Cupy both fail as expected, but at different points
-        # in the casting, therefore, we test for different exceptions.
-        if isinstance(backend, NumpyBackend):
-            exc_type = TypeError
-        else:
-            exc_type = ValueError
-
-        with self.assertRaises(exc_type):
+        with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed({1, 2, 3})
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed([[1, 2], 3])
 
     def tearDown(self) -> None:

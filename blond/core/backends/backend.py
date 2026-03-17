@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.exceptions import ComplexWarning
 
+from blond.generals.exceptions_ import ArrayCastingError
 from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -530,14 +531,14 @@ class BackendBaseClass(ABC):
         try:
             new_arr = self._asarray_if_needed(arr)
         except ValueError as exc:
-            raise ValueError(
+            raise ArrayCastingError(
                 f"Unable to convert input data {arr} to array."
             ) from exc
 
         try:
             new_arr = self._cast_dtype_if_needed(new_arr, dtype)
         except (TypeError, ValueError) as exc:
-            raise type(exc)(
+            raise ArrayCastingError(
                 "Unable to automatically cast dtype of input data from "
                 f"{new_arr.dtype} to {dtype}."
             ) from exc
