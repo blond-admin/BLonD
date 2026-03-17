@@ -302,8 +302,6 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         Generate a random multivariate normal particle distribution following the
         covariance matrix.
 
-        TODO: assess usage of mpi_aware_random_generator_cpu
-
         Parameters
         ----------
             beam
@@ -336,6 +334,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         covariance_matrix_scaled[1, 1] *= scaling_factor
 
         # Generate the random distribution
+        # TODO: assess usage of mpi_aware_random_generator_cpu
         dt_distrib, dE_distrib = (
             np.random.default_rng(seed=self._seed)
             .multivariate_normal(
