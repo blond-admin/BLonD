@@ -1,10 +1,12 @@
 import unittest
+from copy import deepcopy
 from unittest.mock import Mock
 
 import numpy as np
 
 from blond import (
     Beam,
+    Ring,
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
@@ -12,10 +14,15 @@ from blond import (
 )
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.core.ring.beam_physics_relevant_elements import (
+    BeamPhysicsRelevantElements,
+)
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
+    BunchObservationMetaParams,
     InducedVoltageObservationCR,
 )
 
@@ -101,6 +108,45 @@ class TestBeamObservationInRingElement(unittest.TestCase):
             np.full(3, beam.reference.total_energy),
             err_msg="Reference total energy not recorded correctly",
         )
+
+    def test_ignores_probe_beam(self):
+        observation = BunchObservationMetaParams(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+        observation.common_filepath = "test"
+
+        simulation.ring = Mock(Ring)
+        simulation.ring.elements = Mock(BeamPhysicsRelevantElements)
+        simulation.ring.elements.elements = [
+            observation,
+        ]
+
+        observation.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=3,
+        )
+
+        probe_beam = Mock(spec=ProbeBeam)
+        probe_beam.reference = Mock(ReferenceCoordinates)
+        probe_beam.common_array_size = 4
+        probe_beam.reference.time = 0.8
+        probe_beam.reference.total_energy = 11.0
+        probe_beam.read_partial_dE.return_value = np.arange(4, dtype=float)
+        probe_beam.read_partial_dt.return_value = (
+            np.arange(4, dtype=float) + 0.1
+        )
+        probe_beam.read_partial_flags.return_value = np.ones(4, dtype=int)
+
+        for _ in range(3):
+            observation.track(probe_beam)
+
+        assert len(observation.sigma_dt) == 0
+        assert len(observation.sigma_dE) == 0
+        assert len(observation.mean_dt) == 0
+        assert len(observation.mean_dE) == 0
+        assert len(observation.rms_emittance) == 0
 
 
 class TestInducedVoltage(unittest.TestCase):
