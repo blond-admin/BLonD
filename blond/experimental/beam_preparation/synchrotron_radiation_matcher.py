@@ -25,6 +25,8 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray as NumpyArray
+
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
@@ -228,7 +230,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
     def compute_covariance_matrix(
         self, matcher_parameters: _MatcherAcceleratorParameters
-    ) -> np.ndarray:
+    ) -> NumpyArray:
         """
         Compute the covariance matrix (Courant-Snyder parameters) representing the
         expected tilted trajectories of the particles in phase space.
@@ -240,7 +242,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         Returns
         -------
-            covariance_matrix (np.ndarray)
+            covariance_matrix (NumpyArray)
                 The Courant-Snyder parameters for the kick drift
         """
 
@@ -277,10 +279,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         self,
         beam: BeamBaseClass,
         matcher_parameters: _MatcherAcceleratorParameters,
-        covariance_matrix: np.ndarray,
+        covariance_matrix: NumpyArray,
         n_sections: int,
         order: str,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[NumpyArray, NumpyArray]:
         """
         Generate a random multivariate normal particle distribution following the
         covariance matrix.
@@ -293,7 +295,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
                 Simulation :class:`~blond.core.beam.beam.Beam` object.
             matcher_parameters (_MatcherAcceleratorParameters)
                 All relevant parameters from the `get_matcher_parameters` function.
-            covariance_matrix (np.ndarray)
+            covariance_matrix (NumpyArray)
                 The Courant-Snyder parameters for the kick drift as output from `compute_covariance_matrix`.
             n_sections (int)
                 Number of [Drift, SR] or [SR, Drift] sections in the ring.
@@ -303,7 +305,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         Returns
         -------
-            tuple[np.ndarray, np.ndarray]
+            tuple[NumpyArray, NumpyArray]
                 The generated particle distribution in (dt, dE)
                 NB: the beam distribution is already passed to the `Beam` object
                 at that stage.
