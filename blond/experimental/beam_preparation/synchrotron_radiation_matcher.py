@@ -376,9 +376,14 @@ def sawtooth_factor(
     """
 
     if order == "sr+drift":
-        return (n_sections - 1) / (2 * n_sections)
+        factor = (n_sections - 1) / (2 * n_sections)
 
-    if order == "drift+sr":
-        return (n_sections + 1) / (2 * n_sections)
+    elif order == "drift+sr":
+        factor = (n_sections + 1) / (2 * n_sections)
 
-    raise ValueError("The order should either be sr+drift or drift+sr")
+    else:
+        raise ValueError(
+            f"The order should either be 'sr+drift' or 'drift+sr', not {order}."
+        )
+
+    return factor
