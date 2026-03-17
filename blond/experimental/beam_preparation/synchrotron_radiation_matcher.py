@@ -57,7 +57,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
     Beam matching routine to generate a matched distribution with synchrotron radiation.
 
     The expected layout for the ring is
-    [SingleHarmonicRFStation, SynchrotronRadiationTracker, DriftSimple].
+    [`SingleHarmonicRFStation`, `_SynchrotronRadiationTracker`, `DriftSimple`]..
 
     The case with multiple RF stations is not covered.
 
@@ -132,8 +132,8 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             element_error_message = (
                 "The SynchrotronRadiationMatcher function "
                 + "is presently only implemented for the lattice "
-                + "[`SingleHarmonicRFStation`] "
-                + "+ [`_SynchrotronRadiationTracker`, `DriftSimple`] * n_sections"
+                + "[SingleHarmonicRFStation] "
+                + "+ [_SynchrotronRadiationTracker, DriftSimple] * n_sections"
             )
 
             if len(simulation.ring.elements.elements) != len(
