@@ -793,6 +793,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         parent_wakefield
             Wakefield that this solver affiliated to.
         """
+        if backend.float(0).dtype.itemsize * 8 < 64:  # noqa: PLR2004
+            raise RuntimeError(
+                "MultiPassResonatorSolver does only run with 64 bit backends"
+            )
+
         self._simulation = simulation
         if parent_wakefield.profile is None:
             raise ValueError("Parent wakefield needs to have a profile.")
@@ -1013,16 +1018,20 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             _charge_per_macroparticle
         )
 
-        wake_sum = backend.zeros_like(self._past_profiles[0])
+        wake_sum = backend.zeros_like(
+            self._past_profiles[0], dtype=backend.float
+        )
         for prof_ind in range(
             len(self._past_profiles)
         ):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue --> deque not usable with numba
-            wake_sum += self._past_charge_per_macroparticle[
-                prof_ind
-            ] * backend.convolve(
+            convolve_result = backend.convolve(
                 self._wake_function_vals[prof_ind],
                 self._past_profiles[prof_ind],
                 mode="valid",
+            )
+            wake_sum += (
+                backend.float(self._past_charge_per_macroparticle[prof_ind])
+                * convolve_result
             )
         return wake_sum
 

@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 import scipy.signal as sig
 from scipy.constants import c, e
 
@@ -11,6 +12,7 @@ from blond import Beam as beam_b3
 from blond import (
     DriftSimple,
     MagneticCyclePerTurnAllRFStations,
+    Numpy64Bit,
 )
 from blond import Ring as ring_b3
 from blond import (
@@ -110,7 +112,11 @@ class InducedVoltageResonatorComparisonTest(unittest.TestCase):
         self.sigma_bunch = 5e-10
         self.bunch_offset = 3e-9
 
+    @pytest.mark.backend_mutation
     def setUpB2(self, old_impl: bool = True):
+        from blond.legacy.blond2.utils import bmath
+
+        bmath.use_precision("double")
         ring = Ring(
             self.n_section_lengths,
             self.alpha_p,
@@ -376,7 +382,9 @@ class InducedVoltageResonatorComparisonTest(unittest.TestCase):
                         rtol=1e-8,
                     )
 
+    @pytest.mark.backend_mutation
     def setUpB3(self):
+        backend.change_backend(Numpy64Bit)
         ring = ring_b3(
             circumference=np.sum(self.n_section_lengths),
             check_section_indices=False,
@@ -412,13 +420,15 @@ class InducedVoltageResonatorComparisonTest(unittest.TestCase):
             backend.arange(self.n_macroparticles, dtype=backend.float)
         )
         profile = Mock(StaticProfile)
-        profile.cut_left = self.cut_left
-        profile.cut_right = self.cut_right
-        profile.hist_x = self.hist_x
-        profile.hist_y = self.hist_y
-        profile.hist_step = self.hist_step
+        profile.cut_left = backend.float(self.cut_left)
+        profile.cut_right = backend.float(self.cut_right)
+        profile.hist_x = backend.array(self.hist_x, dtype=backend.float)
+        profile.hist_y = backend.array(self.hist_y, dtype=backend.float)
+        profile.hist_step = backend.float(self.hist_step)
         profile.active = True
-        profile.hist_y_to_density_factor = 1 / self.beam.intensity
+        profile.hist_y_to_density_factor = backend.float(
+            1 / self.beam.intensity
+        )
         profile.n_bins = len(profile.hist_y)
         shc_list = []
         for sec_ind in range(self.n_stations):
