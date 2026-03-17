@@ -27,6 +27,9 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
 )
+from blond.core.simulation.execution_models.conterrotating_beams import (
+    MainloopCounterRotatingBeams,
+)
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
@@ -95,6 +98,25 @@ class TestSimulation(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             self.simulation.run_simulation(
                 beams=(self.beam, self.beam, self.beam)
+            )
+
+    def test_running_until_section_index(self):
+        # self.simulation.finalize((self.beam,))
+        with self.assertWarnsRegex(Warning, "n_turns is ignored since "):
+            self.simulation.run_simulation(
+                beams=(self.beam,),
+                n_turns=2,
+                until_section_index=0,
+            )
+
+        CR_beam = deepcopy(self.beam)
+        CR_beam._is_counter_rotating = True
+        self.simulation.execution_model = MainloopCounterRotatingBeams()
+        with self.assertWarnsRegex(Warning, "n_turns is ignored since "):
+            self.simulation.run_simulation(
+                beams=(self.beam, CR_beam),
+                n_turns=2,
+                until_section_index=0,
             )
 
     def test__run_simulation_counterrotating_beam_no_int_effects(self):

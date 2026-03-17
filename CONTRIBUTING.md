@@ -128,10 +128,16 @@ For CPU-only development:
 pip install --editable ".[dev]"
 ```
 
-For GPU-enabled development:
+For GPU-enabled development both CUDA12 and CUDA 13 are available:
 
+For CUDA12:
 ```bash
-pip install --editable ".[dev, gpu]"
+pip install --editable ".[dev, gpu_cuda12]"
+```
+
+For CUDA13:
+```bash
+pip install --editable ".[dev, gpu_cuda12]"
 ```
 
 ### 4. Set Up Pre-Commit Hooks
