@@ -35,6 +35,12 @@ from blond.core.base import (
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
+from blond.experimental.physics.feedbacks.base import (
+    LocalFeedback as LocalFeedbackExp,
+)
+from blond.experimental.physics.feedbacks.beam_feedback import (
+    BeamFeedbackBase,
+)
 from blond.experimental.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
@@ -148,6 +154,12 @@ class RFStationBaseClass(
         Optional beam feedback.
     name
         User given name of the element.
+    delayed_kick
+        The common interface to apply the kick later.
+        `PooledInterpolationKick.track(...)` must be executed elsewhere.
+    delayed_kick_time_axis
+        The time axis along which to interpolate the kick.
+        This impacts the accuracy and range of the RF kick.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -880,7 +892,8 @@ class RFStationBaseClass(
 
 
 class SingleHarmonicRFStation(
-    RFStationBaseClass, SupportsPooledInterpolationKickMixIn
+    RFStationBaseClass,
+    SupportsPooledInterpolationKickMixIn,
 ):
     r"""
     RF station with only one RF wave for beam interaction.
@@ -918,7 +931,6 @@ class SingleHarmonicRFStation(
     delayed_kick_time_axis
         The time axis along which to interpolate the kick.
         This impacts the accuracy and range of the RF kick.
-
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -977,6 +989,10 @@ class SingleHarmonicRFStation(
         self.delta_phi_rf: float = 0.0
         self.delta_omega_rf: float = 0.0
         self._dphi_rf_next: float = 0.0
+
+        if self._delayed_kick is not None:
+            assert delayed_kick_time_axis is not None
+        self._delayed_kick_time_axis = delayed_kick_time_axis
 
     def get_main_harmonic(self) -> float:
         """
@@ -1267,7 +1283,6 @@ class MultiHarmonicRFStation(
     delayed_kick_time_axis
         The time axis along which to interpolate the kick.
         This impacts the accuracy and range of the RF kick.
-
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -1355,6 +1370,10 @@ class MultiHarmonicRFStation(
         self.delta_phi_rf: NumpyArray = np.zeros(n_harmonics)
         self.delta_omega_rf: NumpyArray = np.zeros(n_harmonics)
         self._dphi_rf_next: NumpyArray = np.zeros(n_harmonics)
+
+        if self._delayed_kick is not None:
+            assert delayed_kick_time_axis is not None
+        self._delayed_kick_time_axis = delayed_kick_time_axis
 
     def get_main_harmonic(self) -> float:
         """
@@ -1488,14 +1507,15 @@ class MultiHarmonicRFStation(
                 voltage = backend.array(
                     self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
                 )
-                if self._delayed_kick is not None:
-                    if self._delayed_kick_time_axis is not None:
-                        warnings.warn(
-                            "`delayed_kick_time_axis` is ignored with "
-                            "feedbacks. Set to `None` to silence this warning.",
-                            UserWarning,
-                            stacklevel=1,
-                        )
+                if (self._delayed_kick is not None) and (
+                    self._delayed_kick_time_axis is not None
+                ):
+                    warnings.warn(
+                        "`delayed_kick_time_axis` is ignored with "
+                        "feedbacks. Set to `None` to silence this warning.",
+                        UserWarning,
+                        stacklevel=1,
+                    )
                 self._track_interp(
                     beam=beam,
                     reference_energy_change=reference_energy_change,
@@ -1514,6 +1534,10 @@ class MultiHarmonicRFStation(
                     reference_energy_change=reference_energy_change,
                     time_axis=time_axis,
                     voltage=voltage,
+                )
+                self._delayed_kick.register(
+                    time_axis=self._delayed_kick_time_axis,
+                    voltage=voltage - reference_energy_change,
                 )
             else:
                 self._track_no_interp(

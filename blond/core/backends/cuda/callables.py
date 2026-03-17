@@ -89,6 +89,7 @@ def reload_cuda_backend(  # NOQA: D102
         raise TypeError(floattype)
 
     _drift_simple = gpu_module.get_function("drift_simple")
+    _drift_exact = gpu_module.get_function("drift_exact")
     _beam_phase = gpu_module.get_function("beam_phase")
     _kick_multi_harmonic = gpu_module.get_function("kick_multi_harmonic")
     _kick_single_harmonic = gpu_module.get_function("kick_single_harmonic")
@@ -289,37 +290,47 @@ def reload_cuda_backend(  # NOQA: D102
             )
 
         @staticmethod
-        def drift_legacy(
-            dt: CupyArray,
-            dE: CupyArray,
-            T: float,
-            alpha_order: int,
-            eta_0: float,
-            eta_1: float,
-            eta_2: float,
-            beta: float,
-            energy: float,
-        ) -> None:
-            raise NotImplementedError()
-            assert dt.device != "cpu", (
-                f"Requires Cupy array, but got {type(dt)}."
-            )
-            assert dE.device != "cpu", (
-                f"Requires Cupy array, but got {type(dE)}."
-            )
-
-        @staticmethod
         def drift_exact(
             dt: CupyArray,
             dE: CupyArray,
             T: float,
             alpha_0: float,
-            alpha_1: float,
-            alpha_2: float,
+            higher_alpha: CupyArray,
             beta: float,
             energy: float,
         ) -> None:
-            raise NotImplementedError()
+            assert dt.device != "cpu"
+            assert dE.device != "cpu"
+            assert higher_alpha.device != "cpu"
+
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert higher_alpha.dtype == floattype
+
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert higher_alpha.flags.c_contiguous
+
+            T = floattype(T)
+            alpha_0 = floattype(alpha_0)
+            beta = floattype(beta)
+            energy = floattype(energy)
+
+            _drift_exact(
+                args=(
+                    dt,  # beam_dt
+                    dE,  # beam_dE
+                    T,  # t_rev
+                    alpha_0,  # alpha_zero
+                    higher_alpha,  # higher_alpha
+                    np.int32(len(higher_alpha)),  # n_alpha
+                    beta,  # beta
+                    energy,  # energy
+                    np.int32(len(dE)),  # n_macroparticles
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
             assert dt.device != "cpu", (
                 f"Requires Cupy array, but got {type(dt)}."
             )

@@ -1003,18 +1003,18 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         impedance = np.zeros(len(freq_x), dtype=backend.complex, order="C")
 
         for i in range(0, len(self.R_S)):
-            xs_plus = self.a_factor[i] * (freq_x - self.frequency_R[i])
-            xs_minus = self.a_factor[i] * (freq_x + self.frequency_R[i])
-
-            Zplus = self.R_S[i] * (
-                (np.sin(xs_plus / 2) / xs_plus / 2) ** 2
-                - 2j * (xs_plus - np.sin(xs_plus)) / (xs_plus * xs_plus)
-            )
-
+            arg2_minus = self.a_factor[i] * (freq_x - self.frequency_R[i])
             Zminus = self.R_S[i] * (
-                (np.sin(xs_minus / 2) / xs_minus / 2) ** 2
-                - 2j * (xs_minus - np.sin(xs_minus)) / (xs_minus * xs_minus)
+                (np.sinc(arg2_minus * 0.5 / np.pi)) ** 2
+                - 2j * (arg2_minus - np.sin(arg2_minus)) / arg2_minus**2
             )
 
-            impedance += Zplus + Zminus
+            arg2_plus = self.a_factor[i] * (freq_x + self.frequency_R[i])
+            Zplus = self.R_S[i] * (
+                (np.sinc(arg2_plus * 0.5 / np.pi)) ** 2
+                - 2j * (arg2_plus - np.sin(arg2_plus)) / arg2_plus**2
+            )
+            Zminus[freq_x == self.frequency_R[i]] = self.R_S[i]
+            imp = Zplus + Zminus
+            impedance += imp
         return impedance

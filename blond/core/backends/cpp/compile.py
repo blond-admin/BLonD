@@ -28,6 +28,7 @@ cpp_files = [
     "drift.cpp",
     "linear_interp_kick.cpp",
     "histogram.cpp",
+    "drift_exact.cpp",
     # "music_track.cpp",
     # "blondmath.cpp",
     # "fast_resonator.cpp",
