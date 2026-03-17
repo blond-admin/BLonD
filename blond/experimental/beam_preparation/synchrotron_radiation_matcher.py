@@ -45,6 +45,7 @@ class _MatcherAcceleratorParameters:
     t_rf: float
     omega_rf: float
     phi_s: float
+    phi_rf: float
 
 
 class SynchrotronRadiationMatcher(MatchingRoutine):
@@ -204,7 +205,8 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         eta_0 = drift.eta_0(beam.reference.gamma)
         t_rev = simulation.get_t_rev_init()
         t_rf = rf_system.calc_main_harmonic_t_rf(beta, ring.circumference)
-        omega_rf = 2 * np.pi / t_rf
+        omega_rf = rf_system.calc_omega_rf_design(beta, ring.circumference)
+        phi_rf = rf_system.phi_rf_design
 
         # NB: already factors in the synchrotron radiation loss!
         phi_s = rf_system.calc_phi_s_main_harmonic(beam)
@@ -221,6 +223,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             t_rf=t_rf,
             omega_rf=omega_rf,
             phi_s=phi_s,
+            phi_rf=phi_rf,
         )
 
     def compute_covariance_matrix(
@@ -336,7 +339,9 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         dE_distrib *= np.sqrt(epsilon_rms_tilted / scaling_factor)
 
         # Compute the expected stable phase offset
-        dt_center = matcher_parameters.phi_s / matcher_parameters.omega_rf
+        dt_center = (
+            matcher_parameters.phi_s - matcher_parameters.phi_rf
+        ) / matcher_parameters.omega_rf
         dE_center = -matcher_parameters.energy_loss_per_turn * sawtooth_factor(
             n_sections, order
         )

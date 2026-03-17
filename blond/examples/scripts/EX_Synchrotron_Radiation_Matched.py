@@ -62,7 +62,7 @@ class SynchrotronRadiationSimulation:
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
-        self.cavity.phi_rf_design = 0
+        self.cavity.phi_rf_design = 0  # any phase should work
 
         self.n_turns = n_turns
         self.energy_cycle = MagneticCyclePerTurn(
@@ -181,7 +181,7 @@ def main(n_turns: int = 100):
     )
     ax[0].plot(bunch_statistics.bunch_position * 1e9, label="Bunch position")
     ax[0].plot(
-        synchronous_phase
+        (synchronous_phase - params.cavity.phi_rf_design)
         / params.cavity.omega_rf_design
         * 1e9
         * np.ones(len(bunch_statistics.bunch_position)),
