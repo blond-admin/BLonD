@@ -184,14 +184,14 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         Parameters
         ----------
-            simulation (Simulation)
+            simulation
                 `Simulation` context manager.
-            beam (BeamBaseClass)
+            beam
                 Simulation :class:`~blond.core.beam.beam.Beam` object.
 
         Returns
         -------
-            _MatcherAcceleratorParameters
+            matcher_parameters
                 All relevant parameters for the `compute_covariance_matrix` function.
         """
 
@@ -245,12 +245,12 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         Parameters
         ----------
-            matcher_parameters (_MatcherAcceleratorParameters)
+            matcher_parameters
                 All relevant parameters from the `get_matcher_parameters` function.
 
         Returns
         -------
-            covariance_matrix (NumpyArray)
+            covariance_matrix
                 The Courant-Snyder parameters for the kick drift
         """
 
@@ -299,21 +299,21 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         Parameters
         ----------
-            beam (BeamBaseClass)
+            beam
                 Simulation :class:`~blond.core.beam.beam.Beam` object.
-            matcher_parameters (_MatcherAcceleratorParameters)
+            matcher_parameters
                 All relevant parameters from the `get_matcher_parameters` function.
-            covariance_matrix (NumpyArray)
+            covariance_matrix
                 The Courant-Snyder parameters for the kick drift as output from `compute_covariance_matrix`.
-            n_sections (int)
+            n_sections
                 Number of [Drift, SR] or [SR, Drift] sections in the ring.
-            order (str):
+            order
                 The order of the [Drift, SR] or [SR, Drift] sections in the ring.
                 The expected input is "sr+drift" or "drift+sr".
 
         Returns
         -------
-            tuple[NumpyArray, NumpyArray]
+            dt_distrib, dE_distrib
                 The generated particle distribution in (dt, dE)
                 NB: the beam distribution is already passed to the `Beam` object
                 at that stage.
