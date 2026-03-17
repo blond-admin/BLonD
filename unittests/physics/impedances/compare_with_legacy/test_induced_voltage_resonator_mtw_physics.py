@@ -298,19 +298,20 @@ class InducedVoltageResonatorComparisonTest(unittest.TestCase):
                         : self.profile.n_slices
                     ]
                 )
-                self.time_array_profile[inter_turn_ind].append(
-                    self.profile.bin_centers
-                    + (
-                        np.sum(
-                            section_time[
-                                0 : trn_ind * self.n_stations + inter_turn_ind
-                            ]
-                        )
-                        if trn_ind > 0
-                        else 0
-                        if inter_turn_ind == 0
-                        else np.sum(section_time[:inter_turn_ind])
+                time_shift = 0
+                if trn_ind > 0:
+                    time_shift = np.sum(
+                        section_time[
+                            0 : trn_ind * self.n_stations + inter_turn_ind
+                        ]
                     )
+                else:
+                    if inter_turn_ind != 0:
+                        time_shift = np.sum(section_time[:inter_turn_ind])
+                    # inter_turn_ind == 0 means, that this is the first section
+                    # and there is no previous turn
+                self.time_array_profile[inter_turn_ind].append(
+                    self.profile.bin_centers + time_shift
                 )
 
         if DEBUG_PLOTTING:
