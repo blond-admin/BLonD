@@ -1301,7 +1301,7 @@ class InducedVoltageResonator(_InducedVoltage):
             beta_arrays.append(rf_station_list[station_ind].beta.tolist())
             section_length_arrays.append(rf_station_list[station_ind].section_length)
         # combine beta array in correct ordering
-        beta_array = np.array([result for combination in zip(*beta_arrays) for result in combination])
+        beta_array = np.array(beta_arrays).flatten(order="F")  # column wise flattening
 
         own_section_index = self.rf_params.section_index
         section_length_arrays = section_length_arrays[own_section_index % n_stations:] + section_length_arrays[
