@@ -39,7 +39,7 @@ workflow:
     # Install project with extras
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
-    - python3 -m pip install -v -e ${project_root}[all]
+    - python3 -m pip install -v -e ${project_root}[all_cuda12]
     - cd ${project_root}
     # Compile C++, CUDA backends
     - python3 blond/core/backends/cpp/compile.py --parallel
@@ -263,7 +263,7 @@ test_minimum:
     - . .venv/bin/activate
     # Install uv
     - python -m pip install uv
-    - python -m uv pip install --resolution lowest-direct ${project_root}[all]
+    - python -m uv pip install --resolution lowest-direct ${project_root}[all_cuda12]
     - cd ${project_root}
     # Compile C++, CUDA, Fortran backends
     - python blond/core/backends/cpp/compile.py --parallel
