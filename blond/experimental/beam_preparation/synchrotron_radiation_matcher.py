@@ -33,7 +33,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 @dataclass
-class MatcherParameters:
+class _MatcherAcceleratorParameters:
     energy: float
     charge: float
     rf_voltage: float
@@ -166,7 +166,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
     def get_matcher_parameters(
         self, simulation: Simulation, beam: BeamBaseClass
-    ) -> MatcherParameters:
+    ) -> _MatcherAcceleratorParameters:
         """
         Get the parameters to compute the covariance matrix.
 
@@ -182,7 +182,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         Returns
         -------
-            MatcherParameters
+            _MatcherAcceleratorParameters
                 All relevant parameters for the `compute_covariance_matrix` function.
         """
 
@@ -209,7 +209,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         # NB: already factors in the synchrotron radiation loss!
         phi_s = rf_system.calc_phi_s_main_harmonic(beam)
 
-        return MatcherParameters(
+        return _MatcherAcceleratorParameters(
             energy=beam.reference.total_energy,
             charge=beam.particle_type.charge,
             rf_voltage=rf_system.voltage,
@@ -224,7 +224,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         )
 
     def compute_covariance_matrix(
-        self, matcher_parameters: MatcherParameters
+        self, matcher_parameters: _MatcherAcceleratorParameters
     ) -> np.ndarray:
         """
         Compute the covariance matrix (Courant-Snyder parameters) representing the
@@ -232,7 +232,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         Parameters
         ----------
-            matcher_parameters (MatcherParameters)
+            matcher_parameters (_MatcherAcceleratorParameters)
                 All relevant parameters from the `get_matcher_parameters` function.
 
         Returns
@@ -273,7 +273,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
     def generate_distribution(
         self,
         beam: BeamBaseClass,
-        matcher_parameters: MatcherParameters,
+        matcher_parameters: _MatcherAcceleratorParameters,
         covariance_matrix: np.ndarray,
         n_sections: int,
         order: str,
@@ -288,7 +288,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         ----------
             beam (BeamBaseClass)
                 Simulation :class:`~blond.core.beam.beam.Beam` object.
-            matcher_parameters (MatcherParameters)
+            matcher_parameters (_MatcherAcceleratorParameters)
                 All relevant parameters from the `get_matcher_parameters` function.
             covariance_matrix (np.ndarray)
                 The Courant-Snyder parameters for the kick drift as output from `compute_covariance_matrix`.
