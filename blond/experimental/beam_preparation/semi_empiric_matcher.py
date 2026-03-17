@@ -190,7 +190,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         Runs with the same seed will produce identical distributions.
     animate : bool, default=False
         If ``True``, draws a plot using ``matplotlib.pyplot.draw()`` at each iteration.
-    tolerance : float, optional
+    tolerance_potential_well : float, optional
         Convergence threshold. The matching process stops when the error
         falls below this tolerance.
     verbose : bool, default=False
@@ -214,7 +214,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ] = hamilton_to_density_by_max,
         internal_grid_shape: tuple[int, int] = (1023, 1023),
         seed: int | None = 0,
-        tolerance: float = 1e-6,
+        tolerance_potential_well: float = 1e-6,
         maxiter_intensity_effects=1000,
         increment_intensity_effects_until_iteration_i: int = 0,
         animate: bool = False,
@@ -250,7 +250,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self.hamilton_to_density_function = hamilton_to_density_function
         self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
         self.animate = animate
-        self.tolerance = tolerance
+        self.tolerance_potential_well = tolerance_potential_well
         self.verbose = verbose
 
         # For error calculation and plotting during `prepare_beam`
@@ -298,7 +298,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
         # Get decimal places from the tolerance (e.g., 1e-6 → 6)
         tolerance_decimal_places = abs(
-            int(math.floor(math.log10(self.tolerance)))
+            int(math.floor(math.log10(self.tolerance_potential_well)))
         )
         if self.animate:
             plt.figure("SemiEmpiricMatcher")
@@ -384,7 +384,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                             f" | Error: {error:.{tolerance_decimal_places}f}"
                         )
                     if (
-                        error < self.tolerance
+                        error < self.tolerance_potential_well
                         and i_intensity
                         > self.increment_intensity_effects_until_iteration_i
                     ):

@@ -207,7 +207,7 @@ def main():
                 "max_emittance_diff": 0.01,
             },  # Greatest tolerated difference in generated emittance
             animate=False,
-            tolerance=1e-3,
+            tolerance_potential_well=1e-3,
             increment_intensity_effects_until_iteration_i=10,
         ),
     )
