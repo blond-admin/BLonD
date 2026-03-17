@@ -121,6 +121,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             Simulation :class:`~blond.core.beam.beam.Beam` object.
         """
 
+        assert simulation.ring.n_rf_stations == 1, (
+            "The case with multiple RF stations is not covered."
+        )
+
         # Check if the lattice is comparable to expectation
         if check_ring_layout:
             n_sections = int((simulation.ring.elements.n_elements - 1) / 2)
@@ -130,10 +134,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             ] * n_sections
 
             element_error_message = (
-                "The SynchrotronRadiationMatcher function "
+                "The `SynchrotronRadiationMatcher` function "
                 + "is presently only implemented for the lattice "
-                + "[SingleHarmonicRFStation] "
-                + "+ [_SynchrotronRadiationTracker, DriftSimple] * n_sections"
+                + "[`SingleHarmonicRFStation`] "
+                + "+ [`_SynchrotronRadiationTracker`, `DriftSimple`] * n_sections"
             )
 
             if len(simulation.ring.elements.elements) != len(
