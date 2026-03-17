@@ -318,10 +318,10 @@ def hamilton_to_density_by_max(
     # Now 1 representing the limit between particles/no-particles.
     # Smaller 1 means there should be particles.
 
-    _density[_density > 1] = 1  # Truncate
+    np.clip(_density, 0, 1, out=_density)  # Truncate
     # Flip max with min
     _density *= -1
-    _density -= _density.min()
+    _density += 1
 
     # Modify of the density to be more/less dense in different regions.
     _density **= density_modifier
