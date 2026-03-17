@@ -993,7 +993,7 @@ class Simulation(Preparable):
         ...         hamilton_max=1.0                   # Hamiltonian cutoff [eV]
         ...     ),
         ...     internal_grid_shape=(1023, 1023),      # Resolution of phase space grid
-        ...     tolerance=1e-6,                        # Convergence threshold
+        ...     tolerance_potential_well=1e-6,                        # Convergence threshold
         ...     maxiter_intensity_effects=100,         # Max iterations with wakefields
         ...     increment_intensity_effects_until_iteration_i=10,  # Intensity ramp-up steps
         ...     seed=42,                               # For reproducibility
