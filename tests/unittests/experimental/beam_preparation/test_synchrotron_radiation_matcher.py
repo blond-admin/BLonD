@@ -13,6 +13,7 @@ from blond import (
 )
 from blond.experimental.beam_preparation.synchrotron_radiation_matcher import (
     SynchrotronRadiationMatcher,
+    _MatcherAcceleratorParameters,
     sawtooth_factor,
 )
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
@@ -93,8 +94,8 @@ class TestSynchrotronRadiationMatcher(unittest.TestCase):
         self.assertEqual(matcher._seed, 42)
         self.assertIsInstance(matcher._sr_master, SynchrotronRadiationMaster)
 
-    def test_prepare_beam_invalid_layout(self):
-        ring_invalid = Ring(self.circumference)
+    def test_assertion_multiple_rf_stations(self):
+        ring_invalid = Ring(self.circumference, check_section_indices=False)
 
         one_turn_execution_order = (
             DriftSimple(
@@ -121,6 +122,22 @@ class TestSynchrotronRadiationMatcher(unittest.TestCase):
             ),
         )
         ring_invalid.add_elements(one_turn_execution_order, reorder=False)
+
+        sim_invalid = Simulation(ring=ring_invalid, magnetic_cycle=self.cycle)
+
+        matcher = SynchrotronRadiationMatcher(
+            synchrotron_radiation_master=self.sr_master,
+            n_macroparticles=10,
+        )
+        with self.assertRaisesRegex(
+            AssertionError, "multiple RF stations is not covered"
+        ):
+            matcher.prepare_beam(simulation=sim_invalid, beam=self.beam)
+
+    def test_prepare_beam_invalid_layout(self):
+        ring_invalid = Ring(self.circumference)
+
+        ring_invalid.add_elements([self.drift, self.rf], reorder=False)
         sim_invalid = Simulation(ring=ring_invalid, magnetic_cycle=self.cycle)
 
         matcher = SynchrotronRadiationMatcher(
@@ -142,15 +159,15 @@ class TestSynchrotronRadiationMatcher(unittest.TestCase):
         self.assertEqual(len(self.beam.read_partial_dE()), int(1e3))
 
         # Check generated distribution stats against theoretical expectations
-        all_base_params = matcher.get_all_base_params(
+        matcher_parameters = matcher.get_matcher_parameters(
             self.simulation, self.beam
         )
-        cov = matcher.compute_covariance_matrix(all_base_params)
+        cov = matcher.compute_covariance_matrix(matcher_parameters)
         beta_cs = cov[0, 0]
         gamma_cs = cov[1, 1]
 
         expected_std_dE = (
-            all_base_params["sigma_dE"] * all_base_params["energy"]
+            matcher_parameters.sigma_dE * matcher_parameters.energy
         )
         expected_std_dt = expected_std_dE * np.sqrt(beta_cs / gamma_cs)
 
@@ -170,19 +187,20 @@ class TestSynchrotronRadiationMatcher(unittest.TestCase):
             synchrotron_radiation_master=self.sr_master,
             n_macroparticles=10,
         )
-        params = {
-            "energy": 1e9,
-            "charge": 1,
-            "rf_voltage": 1e6,
-            "energy_loss_per_turn": 1e3,
-            "sigma_dE": 1e-3,
-            "beta": 1.0,
-            "eta_0": 1e-3,
-            "t_rev": 1e-5,
-            "t_rf": 1e-6,
-            "omega_rf": 2 * np.pi * 1e6,
-            "phi_s": np.pi,  # Use pi for stable phase above transition to avoid invalid values
-        }
+        params = _MatcherAcceleratorParameters(
+            energy=1e9,
+            charge=1,
+            rf_voltage=1e6,
+            energy_loss_per_turn=1e3,
+            sigma_dE=1e-3,
+            beta=1.0,
+            eta_0=1e-3,
+            t_rev=1e-5,
+            t_rf=1e-6,
+            omega_rf=2 * np.pi * 1e6,
+            phi_s=np.pi,  # Use pi for stable phase above transition to avoid invalid values
+            phi_rf=0.0,
+        )
         cov = matcher.compute_covariance_matrix(params)
 
         self.assertEqual(cov.shape, (2, 2))
