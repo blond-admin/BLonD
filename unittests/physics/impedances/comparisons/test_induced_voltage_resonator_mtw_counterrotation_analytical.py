@@ -206,10 +206,18 @@ class InducedVoltageResonatorPhysicsCR(unittest.TestCase):
         )
         sim.print_one_turn_execution_order()
 
-        beam._dE = DistributedArray(np.array([0, 0, 0], dtype=np.float64))
-        beam._dt = DistributedArray(np.array([0, 0, 0], dtype=np.float64))
-        beam._flags = DistributedArray(np.array([0, 0, 0], dtype=np.float64))
-        beam._ids = DistributedArray(np.array([0, 1, 2], dtype=np.float64))
+        beam._dE = DistributedArray(
+            backend.array([0, 0, 0], dtype=backend.float)
+        )
+        beam._dt = DistributedArray(
+            backend.array([0, 0, 0], dtype=backend.float)
+        )
+        beam._flags = DistributedArray(
+            backend.array([0, 0, 0], dtype=backend.float)
+        )
+        beam._ids = DistributedArray(
+            backend.array([0, 1, 2], dtype=backend.float)
+        )
 
         beam_CR = deepcopy(beam)
         beam_CR._is_counter_rotating = True
