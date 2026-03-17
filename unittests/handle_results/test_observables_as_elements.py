@@ -142,11 +142,11 @@ class TestBeamObservationInRingElement(unittest.TestCase):
         for _ in range(3):
             observation.track(probe_beam)
 
-        assert len(observation.sigma_dt) == 0
-        assert len(observation.sigma_dE) == 0
-        assert len(observation.mean_dt) == 0
-        assert len(observation.mean_dE) == 0
-        assert len(observation.rms_emittance) == 0
+        self.assertEqual(len(observation.sigma_dt), 0)
+        self.assertEqual(len(observation.sigma_dE), 0)
+        self.assertEqual(len(observation.mean_dt), 0)
+        self.assertEqual(len(observation.mean_dE), 0)
+        self.assertEqual(len(observation.rms_emittance), 0)
 
 
 class TestInducedVoltage(unittest.TestCase):
