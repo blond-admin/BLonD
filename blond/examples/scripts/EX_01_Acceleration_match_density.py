@@ -54,7 +54,7 @@ def get_test_profile(noisy=False):
     std_dev = 2.5e-9 / 30  # Standard deviation
     size = 10000  # Number of data points
 
-    if noisy:
+    if noisy:  # pragma: no cover
         # Generate random data from a Gaussian distribution
         data = np.random.normal(loc=mean, scale=std_dev, size=size)
 
