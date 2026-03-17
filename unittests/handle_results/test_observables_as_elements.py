@@ -150,7 +150,7 @@ class TestBeamObservationInRingElement(unittest.TestCase):
 
 
 class TestInducedVoltage(unittest.TestCase):
-    def setUp(self) -> None:
+    def test_warning_throwing_without_induced_voltage(self) -> None:
         sim = Mock(Simulation)
         sim.turn_i = 0
         shc = Mock(SingleHarmonicRFStation)
@@ -175,9 +175,6 @@ class TestInducedVoltage(unittest.TestCase):
             "'NoneType' object has no attribute 'get_valid_entries'",
         ):
             _ = obs.induced_voltage
-
-    def test___init__(self):
-        pass
 
 
 if __name__ == "__main__":
