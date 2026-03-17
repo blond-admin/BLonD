@@ -120,35 +120,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         beam
             Simulation :class:`~blond.core.beam.beam.Beam` object.
         """
-
-        assert simulation.ring.n_rf_stations == 1, (
-            "The case with multiple RF stations is not covered."
-        )
-
-        # Check if the lattice is comparable to expectation
         if check_ring_layout:
-            n_sections = int((simulation.ring.elements.n_elements - 1) / 2)
-            expected_elements = [SingleHarmonicRFStation] + [
-                _SynchrotronRadiationTracker,
-                DriftSimple,
-            ] * n_sections
+            self.check_ring_layout(simulation)
 
-            element_error_message = (
-                "The `SynchrotronRadiationMatcher` function "
-                + "is presently only implemented for the lattice "
-                + "[`SingleHarmonicRFStation`] "
-                + "+ [`_SynchrotronRadiationTracker`, `DriftSimple`] * n_sections"
-            )
-
-            if len(simulation.ring.elements.elements) != len(
-                expected_elements
-            ):
-                raise ValueError(element_error_message)
-            for expected, actual in zip(
-                expected_elements, simulation.ring.elements.elements
-            ):
-                if not isinstance(actual, expected):
-                    raise ValueError(element_error_message)
+        n_sections = int((simulation.ring.elements.n_elements - 1) / 2)
 
         # Prepare the beam and other objects to get base parameters
         super().prepare_beam(
@@ -172,6 +147,36 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             n_sections=n_sections,
             order="sr+drift",  # to be extended when SR allows for drift+sr
         )
+
+    def check_ring_layout(self, simulation: Simulation) -> None:
+        """
+        Check if the lattice is comparable to expectation.
+        """
+
+        assert simulation.ring.n_rf_stations == 1, (
+            "The case with multiple RF stations is not covered."
+        )
+
+        n_sections = int((simulation.ring.elements.n_elements - 1) / 2)
+        expected_elements = [SingleHarmonicRFStation] + [
+            _SynchrotronRadiationTracker,
+            DriftSimple,
+        ] * n_sections
+
+        element_error_message = (
+            "The `SynchrotronRadiationMatcher` function "
+            + "is presently only implemented for the lattice "
+            + "[`SingleHarmonicRFStation`] "
+            + "+ [`_SynchrotronRadiationTracker`, `DriftSimple`] * n_sections"
+        )
+
+        if len(simulation.ring.elements.elements) != len(expected_elements):
+            raise ValueError(element_error_message)
+        for expected, actual in zip(
+            expected_elements, simulation.ring.elements.elements
+        ):
+            if not isinstance(actual, expected):
+                raise ValueError(element_error_message)
 
     def get_matcher_parameters(
         self, simulation: Simulation, beam: BeamBaseClass
