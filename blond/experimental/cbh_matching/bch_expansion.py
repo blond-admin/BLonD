@@ -28,9 +28,9 @@ def poisson_bracket(F, G, q, p):
     return sp.diff(F, p) * sp.diff(G, q) - sp.diff(F, q) * sp.diff(G, p)
 
 
-def cbh_two(A, B, q, p, order=2):
+def bch_two(A, B, q, p, order=2):
     """
-    Compute log(exp(A) exp(B)) using CBH expansion
+    Compute log(exp(A) exp(B)) using BCH expansion
     """
 
     PB = lambda X, Y: poisson_bracket(X, Y, q, p)
@@ -50,10 +50,10 @@ def cbh_two(A, B, q, p, order=2):
     return H
 
 
-def cbh_lattice(hamiltonians, q, p, order=2):
+def bch_lattice(hamiltonians, q, p, order=2):
     """
     Combine a list of Hamiltonians into one effective generator
-    using recursive CBH.
+    using recursive BCH.
     """
 
     if len(hamiltonians) == 0:
@@ -62,6 +62,6 @@ def cbh_lattice(hamiltonians, q, p, order=2):
     H_eff = hamiltonians[0]
 
     for H_next in hamiltonians[1:]:
-        H_eff = cbh_two(H_eff, H_next, q, p, order=order)
+        H_eff = bch_two(H_eff, H_next, q, p, order=order)
 
     return H_eff

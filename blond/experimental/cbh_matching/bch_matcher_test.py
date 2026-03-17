@@ -6,8 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+import mplhep
 import numpy as np
 from matplotlib import pyplot as plt
+
+mplhep.style.use("CMS")
 
 from blond import (
     Beam,
@@ -19,8 +22,8 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
-from blond.experimental.cbh_matching.cbh_matcher import (
-    CBHMatcher,
+from blond.experimental.cbh_matching.bch_matcher import (
+    BCHMatcher,
 )
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
@@ -36,6 +39,8 @@ from blond.handle_results.observables_as_elements import (
 # voltage1 = 10e6
 
 # #-------LHC
+order = 1
+
 p_s = 450.0e9  # Synchronous momentum [eV]
 harmonic_number = 35640  # Harmonic number
 voltage1 = 1e8  # RF voltage, station 1 [eV]
@@ -86,11 +91,11 @@ sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
 beam.reference.total_energy = p_s
 
 sim.prepare_beam(
-    preparation_routine=CBHMatcher(
+    preparation_routine=BCHMatcher(
         simulation=sim,
         beam=beam,
         n_macroparticles=int(1e5),  # TODO handle int properly
-        order=3,
+        order=order,
         distribution="Gaussian",
         time_window_limit=(0, 2.5e-9),
         energy_window_limit=(-2e9, 2e9),
@@ -103,8 +108,12 @@ sim.run_simulation(beams=[beam], n_turns=n_turns)
 
 
 # plot
-plt.scatter(observation.dts[0], observation.dEs[0])
-plt.scatter(observation.dts[-1], observation.dEs[-1])
+plt.title(f"order = {order}")
+plt.scatter(observation.dts[0], observation.dEs[0], label="turn 0")
+plt.scatter(observation.dts[-1], observation.dEs[-1], label="turn 100")
+plt.legend()
+plt.xlabel("Δt [s]")
+plt.ylabel("ΔE [eV]")
 plt.show()
 
 dat = []
@@ -114,5 +123,9 @@ for i in range(100):
             0
         ]
     )
+
 plt.contourf(dat, levels=40)
+plt.title(f"order = {order}")
+plt.ylabel("Turn")
+plt.xlabel("Δt [s]")
 plt.show()

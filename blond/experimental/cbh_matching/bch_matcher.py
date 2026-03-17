@@ -15,17 +15,17 @@ from scipy.constants import c as c0
 from blond import DriftSimple, Simulation, SingleHarmonicRFStation
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.beam.base import BeamBaseClass
-from blond.experimental.cbh_matching.cbh_expansion import cbh_lattice
+from blond.experimental.cbh_matching.bch_expansion import cbh_lattice
 
 
-class CBHMatcher(MatchingRoutine):
+class BCHMatcher(MatchingRoutine):
     """
     Uses sympy to create a symbolic representation of the Hamiltonian with Lie algebra.
     $e^{:H_{drift}:}$
     The Hamiltonians are extracted from the ring.
     Then, the Hamiltonian is expanded up to arbitrary order with the CBH expansion.
     From here, the distribution is matched, where f, the distribution, is a function of
-    H, the CBH expanded Hamiltonian with Lie algebra, f(H).
+    H, the BCH formula expanded Hamiltonian with Lie algebra, f(H).
 
     For now, does not work with a desired emittance. In progress.
     """
@@ -246,5 +246,5 @@ class CBHMatcher(MatchingRoutine):
         plt.clabel(cs, inline=True, fontsize=8)
         plt.xlabel("Δt [s]")
         plt.ylabel("ΔE [eV]")
-        plt.title("Effective Hamiltonian contours")
+        plt.title(f"order = {self.order}")
         plt.show()
