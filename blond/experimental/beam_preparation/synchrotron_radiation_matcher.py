@@ -25,6 +25,8 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Literal
+
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -281,7 +283,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         matcher_parameters: _MatcherAcceleratorParameters,
         covariance_matrix: NumpyArray,
         n_sections: int,
-        order: str,
+        order: Literal["sr+drift", "drift+sr"],
     ) -> tuple[NumpyArray, NumpyArray]:
         """
         Generate a random multivariate normal particle distribution following the
@@ -362,7 +364,9 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         return dt_distrib, dE_distrib
 
 
-def sawtooth_factor(n_sections: int, order: str) -> float:
+def sawtooth_factor(
+    n_sections: int, order: Literal["sr+drift", "drift+sr"]
+) -> float:
     """The sawtooth factor is the fraction of the total energy loss due to
     synchrotron radiation at which the synchronous energy is sitting right
     before the RF cavity with a single RF station (for the one-turn map
