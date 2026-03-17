@@ -104,8 +104,8 @@ def bucket_fill_by_emittance_gaussian(
 
 def main():
     # Defining a 1 turn simulation with values typical of the Proton Synchrotron
-    phi_rf = np.array([0])
-    gamma_transition = np.array(2 * [6.2])
+    phi_rf = 0
+    gamma_transition = 6.2
     momentum_program = np.array([7e9, (7 + 0.0001) * 1e9])
     circumference = 2 * np.pi * 100
     rf_voltage = 200e3
@@ -133,15 +133,13 @@ def main():
     cavity = SingleHarmonicRFStation()
     cavity.harmonic = harmonic
     cavity.voltage = rf_voltage
-    cavity.schedule("phi_rf_design", phi_rf)
+    cavity.phi_rf_design = phi_rf
 
     drift = DriftSimple(
         orbit_length=circumference,
-    )
-
-    drift.schedule(
-        "momentum_compaction_factor",
-        momentum_compaction_factor(gamma_transition),
+        momentum_compaction_factor=momentum_compaction_factor(
+            gamma_transition
+        ),
     )
 
     beam = Beam(intensity=intensity, particle_type=proton)
@@ -213,8 +211,6 @@ def main():
             increment_intensity_effects_until_iteration_i=10,
         ),
     )
-
-    # plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover
