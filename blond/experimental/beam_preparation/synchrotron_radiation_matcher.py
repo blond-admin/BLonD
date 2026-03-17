@@ -202,8 +202,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         ring = simulation.ring
 
-        rf_system = ring.elements.elements[0]
-        drift = ring.elements.elements[-1]
+        rf_system = simulation.ring.elements.get_element(
+            SingleHarmonicRFStation
+        )
+        drift = simulation.ring.elements.get_elements(DriftSimple)[0]
 
         # Get the parameters from the simulation
         self._sr_master.compute_synchrotron_radiation_parameters(
