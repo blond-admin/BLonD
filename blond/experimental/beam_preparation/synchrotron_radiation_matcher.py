@@ -25,6 +25,10 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Literal
+
+    from numpy.typing import NDArray as NumpyArray
+
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
@@ -53,7 +57,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
     Beam matching routine to generate a matched distribution with synchrotron radiation.
 
     The expected layout for the ring is
-    [SingleHarmonicRFStation, SynchrotronRadiationTracker, DriftSimple].
+    [`SingleHarmonicRFStation`, `_SynchrotronRadiationTracker`, `DriftSimple`]..
 
     The case with multiple RF stations is not covered.
 
@@ -117,6 +121,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             Simulation :class:`~blond.core.beam.beam.Beam` object.
         """
 
+        assert simulation.ring.n_rf_stations == 1, (
+            "The case with multiple RF stations is not covered."
+        )
+
         # Check if the lattice is comparable to expectation
         if check_ring_layout:
             n_sections = int((simulation.ring.elements.n_elements - 1) / 2)
@@ -126,8 +134,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
             ] * n_sections
 
             element_error_message = (
-                "The SynchrotronRadiationMatcher function "
-                + "is presently only implemented for the lattice [Kick, SR, Drift]"
+                "The `SynchrotronRadiationMatcher` function "
+                + "is presently only implemented for the lattice "
+                + "[`SingleHarmonicRFStation`] "
+                + "+ [`_SynchrotronRadiationTracker`, `DriftSimple`] * n_sections"
             )
 
             if len(simulation.ring.elements.elements) != len(
@@ -226,10 +236,12 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
     def compute_covariance_matrix(
         self, matcher_parameters: _MatcherAcceleratorParameters
-    ) -> np.ndarray:
+    ) -> NumpyArray:
         """
-        Compute the covariance matrix (Courant-Snyder parameters) representing the
-        expected tilted trajectories of the particles in phase space.
+        Compute the covariance matrix for tilted phase space trajectories.
+
+        The covariance matrix (Courant-Snyder parameters) is obtained assuming
+        linear longitudinal maps.
 
         Parameters
         ----------
@@ -238,7 +250,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         Returns
         -------
-            covariance_matrix (np.ndarray)
+            covariance_matrix (NumpyArray)
                 The Courant-Snyder parameters for the kick drift
         """
 
@@ -275,10 +287,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         self,
         beam: BeamBaseClass,
         matcher_parameters: _MatcherAcceleratorParameters,
-        covariance_matrix: np.ndarray,
+        covariance_matrix: NumpyArray,
         n_sections: int,
-        order: str,
-    ) -> tuple[np.ndarray, np.ndarray]:
+        order: Literal["sr+drift", "drift+sr"],
+    ) -> tuple[NumpyArray, NumpyArray]:
         """
         Generate a random multivariate normal particle distribution following the
         covariance matrix.
@@ -291,7 +303,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
                 Simulation :class:`~blond.core.beam.beam.Beam` object.
             matcher_parameters (_MatcherAcceleratorParameters)
                 All relevant parameters from the `get_matcher_parameters` function.
-            covariance_matrix (np.ndarray)
+            covariance_matrix (NumpyArray)
                 The Courant-Snyder parameters for the kick drift as output from `compute_covariance_matrix`.
             n_sections (int)
                 Number of [Drift, SR] or [SR, Drift] sections in the ring.
@@ -301,7 +313,7 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         Returns
         -------
-            tuple[np.ndarray, np.ndarray]
+            tuple[NumpyArray, NumpyArray]
                 The generated particle distribution in (dt, dE)
                 NB: the beam distribution is already passed to the `Beam` object
                 at that stage.
@@ -358,7 +370,9 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         return dt_distrib, dE_distrib
 
 
-def sawtooth_factor(n_sections: int, order: str) -> float:
+def sawtooth_factor(
+    n_sections: int, order: Literal["sr+drift", "drift+sr"]
+) -> float:
     """The sawtooth factor is the fraction of the total energy loss due to
     synchrotron radiation at which the synchronous energy is sitting right
     before the RF cavity with a single RF station (for the one-turn map
@@ -368,9 +382,14 @@ def sawtooth_factor(n_sections: int, order: str) -> float:
     """
 
     if order == "sr+drift":
-        return (n_sections - 1) / (2 * n_sections)
+        factor = (n_sections - 1) / (2 * n_sections)
 
-    if order == "drift+sr":
-        return (n_sections + 1) / (2 * n_sections)
+    elif order == "drift+sr":
+        factor = (n_sections + 1) / (2 * n_sections)
 
-    raise ValueError("The order should either be sr+drift or drift+sr")
+    else:
+        raise ValueError(
+            f"The order should either be 'sr+drift' or 'drift+sr', not {order}."
+        )
+
+    return factor
