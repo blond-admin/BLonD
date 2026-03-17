@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import scipy.signal as sig
+from cycler import cycler
 from scipy.constants import c, e
 
 from blond import Beam as beam_b3
@@ -69,8 +70,6 @@ def nonperiodic_wake(time_array, f0, R, Q):
 
 DEBUG_PLOTTING = False
 SAVE_PLOTS = False
-
-from cycler import cycler
 
 plt.rcParams["axes.prop_cycle"] = cycler(
     color=["#0033a0", "#e15e32", "#2f2f2f", "#708238", "#6a4c93", "#c9a227"]
