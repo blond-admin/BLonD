@@ -19,6 +19,7 @@ L. Thiele
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
@@ -47,7 +48,7 @@ class MainloopSingleBeam(ExecutionModel):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
-        until_section: int = -1,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam.
@@ -70,8 +71,6 @@ class MainloopSingleBeam(ExecutionModel):
             Optional user-defined functions `[callback_1, callback_2, ...]`.
             called at the end of each turn.
             Useful for custom data collection or live plotting. Default is None.
-        until_section
-            Section index until which to run the simulation. Default is -1.
 
             The callback can be defined as follows.
             The rate at with which this function is
@@ -81,6 +80,8 @@ class MainloopSingleBeam(ExecutionModel):
             >>>     ...
             >>> my_callback.each_turn_i = 2
             .
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Notes
         -----
@@ -111,10 +112,12 @@ class MainloopSingleBeam(ExecutionModel):
             simulation._calculate_current_t_rev(reference=beam.reference)
             for element in simulation._ring.elements.elements:
                 simulation.section_i.value = element.section_index
-                if (
-                    simulation.section_i.value >= until_section
-                    and until_section != -1
-                ):
+                if simulation.section_i.value >= until_section_index != -1:
+                    if n_turns != 1:
+                        warnings.warn(
+                            f"n_turns is ignored since until_section_index was {until_section_index}",
+                            stacklevel=1,
+                        )
                     return
                 if element.is_active_this_turn(turn_i=simulation.turn_i.value):
                     element.track(beam=beam)

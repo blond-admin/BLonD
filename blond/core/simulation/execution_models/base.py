@@ -46,7 +46,7 @@ class ExecutionModel(ABC):  # pragma: no cover
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
-        until_section: int = -1,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the beam dynamics simulation.
@@ -78,7 +78,7 @@ class ExecutionModel(ABC):  # pragma: no cover
             >>>     ...
             >>> my_callback.each_turn_i = 2
             .
-        until_section
+        until_section_index
             Section index until which to run the simulation. Default is -1.
 
         Notes
