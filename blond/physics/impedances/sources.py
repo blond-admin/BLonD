@@ -647,9 +647,9 @@ class Resonators(
         )
         _, envelope = self.calculate_envelope(time_axis=time_axis)
 
-        storage_time = time_axis[
+        storage_time = float(time_axis[
             backend.abs(envelope - decay_fraction_threshold).argmin()
-        ]
+        ])
 
         return storage_time
 

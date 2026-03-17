@@ -547,7 +547,7 @@ class InducedVoltageObservationCR(
         if all(
             self._rf_station._local_wakefield.induced_voltage
             == self._induced_voltage._memory[
-                self._induced_voltage._write_idx - 1
+                self._induced_voltage._write_idx - 1, :
             ]
         ):
             logging.debug(f"data was equivalent {beam.is_counter_rotating}")

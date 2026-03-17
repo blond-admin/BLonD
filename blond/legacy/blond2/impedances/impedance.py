@@ -19,7 +19,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.constants import c, e
+from scipy.constants import speed_of_light as c, elementary_charge as e
 
 from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
