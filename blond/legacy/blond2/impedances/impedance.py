@@ -1200,12 +1200,12 @@ class InducedVoltageResonator(_InducedVoltage):
                         ),
                     )
             else:
-                self._inter_turn_time: NDArray
+                self._profile_time_to_calculate_on: NDArray
                 if rf_station_list is None:
                     raise RuntimeError("New implementation requires list of all rf stations to rf_station_list")
                 self.prepare_multi_turn_wake_time_arrays(rf_station_list, prof_idx_min_potential)
 
-                self.time_array = self.generate_mtw_array(turn=0) # to get initial values
+                self.time_array = self.generate_mtw_time_array(turn=0) # to get initial values
 
             self.atLineDensityTimes = False
 
@@ -1311,14 +1311,14 @@ class InducedVoltageResonator(_InducedVoltage):
             from_idx = own_section_index + (trn + 1) * n_stations # don't consider initial values
             to_idx = from_idx + n_stations
             self._section_time_distance_array[trn] = np.sum(1 / (beta_array[from_idx:to_idx] * c) * section_length_arrays)
-        extension = (2
+        profile_extension = (2
                      * (
                              self.profile.bin_centers[prof_idx_min_potential]
                              - self.profile.bin_centers[0]
                      ))  # unknown why this is necessary
-        self._inter_turn_time = np.linspace(
+        self._profile_time_to_calculate_on = np.linspace(
             self.profile.bin_centers[0],
-            self.profile.bin_centers[-1] + extension,
+            self.profile.bin_centers[-1] + profile_extension,
             self.profile.n_slices + 2 * prof_idx_min_potential,
         )
 
@@ -1345,7 +1345,7 @@ class InducedVoltageResonator(_InducedVoltage):
             self.n_time, dtype=bm.precision.real_t, order="C"
         )
 
-    def generate_mtw_array(self, turn: int) -> np.ndarray:
+    def generate_mtw_time_array(self, turn: int) -> np.ndarray:
         """
         Generates the multi turn wake array, taking into account the beta changes in between the RF stations.
 
@@ -1359,9 +1359,12 @@ class InducedVoltageResonator(_InducedVoltage):
         time_array
             Array to calculate the MTW array on, taking into account the beta change between stations.
         """
-        turn_times = self._section_time_distance_array[turn:max(turn + self._n_turns_calculation, self.rf_params.n_turns)]
-        turn_times = np.concatenate((np.array([0]), np.cumsum(turn_times)))
-        time_axis_for_mtw_per_turn = np.array([turn_time + self._inter_turn_time for turn_time in turn_times])
+        # offsets at which to calculate the MTW array
+        turn_durations = self._section_time_distance_array[turn:max(turn + self._n_turns_calculation, self.rf_params.n_turns)]
+        turn_durations = np.concatenate((np.array([0]), np.cumsum(turn_durations)))
+
+        # full time array == offset + profile_time
+        time_axis_for_mtw_per_turn = np.array([turn_time + self._profile_time_to_calculate_on for turn_time in turn_durations])
         return time_axis_for_mtw_per_turn.flatten()
 
     def induced_voltage_1turn(self, beam_spectrum_dict: Dict[Any, Any] = {}):
@@ -1372,7 +1375,7 @@ class InducedVoltageResonator(_InducedVoltage):
         """
         time_array_used = self.time_array \
             if self.old_mtw_time_array_impl or not self.multi_turn_wake \
-            else self.generate_mtw_array(self.rf_params.counter[0])
+            else self.generate_mtw_time_array(self.rf_params.counter[0])
         self.n_time = len(time_array_used)
         self._tmp_matrix = np.ones(
             (self.n_resonators, self.n_time),
