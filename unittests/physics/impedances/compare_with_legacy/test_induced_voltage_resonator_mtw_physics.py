@@ -18,6 +18,7 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    backend,
     momentum_compaction_factor,
     mu_plus,
 )
