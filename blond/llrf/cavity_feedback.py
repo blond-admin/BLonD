@@ -2148,8 +2148,8 @@ class FCCBoosterCavityLoop(CavityFeedback):
                     self.I_BEAM_COARSE,
                     fill_value="extrapolate",
                 )(t_at_init)
-
-                V_ANT_FINE_segment = cavity_response_sparse_matrix(
+                if p ==0:
+                    self.V_ANT_FINE[0:profile.n_slices + 1] = cavity_response_sparse_matrix(
                     I_beam=self.I_BEAM_FINE[
                     p * profile.n_slices: (p + 1) * profile.n_slices],
                     I_gen=self.I_GEN_FINE[
@@ -2162,14 +2162,22 @@ class FCCBoosterCavityLoop(CavityFeedback):
                     Q_L=self.Q_L,
                     detuning=self.detuning,
                 )
-                V_ANT_FINE_segment[-profile.n_slices:] *= self.n_cavities
-                if p == 0:
-                    self.V_ANT_FINE[0:profile.n_slices + 1] = \
-                        V_ANT_FINE_segment
+
                 else:
-                    self.V_ANT_FINE = np.concatenate((self.V_ANT_FINE,
-                                                      V_ANT_FINE_segment[
-                                                          -profile.n_slices:]))
+                    self.V_ANT_FINE[p*profile.n_slices + 1:(p+1)*profile.n_slices + 1]  = cavity_response_sparse_matrix(
+                    I_beam=self.I_BEAM_FINE[
+                    p * profile.n_slices: (p + 1) * profile.n_slices],
+                    I_gen=self.I_GEN_FINE[
+                    p * profile.n_slices: (p + 1) * profile.n_slices],
+                    n_samples=profile.n_slices,
+                    V_ant_init=V_A_init,
+                    I_gen_init=I_gen_init,
+                    samples_per_rf=self.samples_fine,
+                    R_over_Q=self.R_over_Q,
+                    Q_L=self.Q_L,
+                    detuning=self.detuning,
+                )
+                self.V_ANT_FINE[-self.profile.n_slices:] *= self.n_cavities
         else:
             # Number of samples on fine grid
             self.samples_fine = self.omega_rf * self.profile.bin_size
