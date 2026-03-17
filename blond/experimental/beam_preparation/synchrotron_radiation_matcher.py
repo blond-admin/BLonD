@@ -238,8 +238,10 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
         self, matcher_parameters: _MatcherAcceleratorParameters
     ) -> NumpyArray:
         """
-        Compute the covariance matrix (Courant-Snyder parameters) representing the
-        expected tilted trajectories of the particles in phase space.
+        Compute the covariance matrix for tilted phase space trajectories.
+
+        The covariance matrix (Courant-Snyder parameters) is obtained assuming
+        linear longitudinal maps.
 
         Parameters
         ----------
