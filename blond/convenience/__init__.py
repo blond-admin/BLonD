@@ -7,8 +7,3 @@
 # Project website: http://blond.web.cern.ch/
 
 """Convenience functions to interact with BLonD."""
-
-__all__ = [
-    "single_section_simulation",
-]
-from blond.convenience.single_section_setup import single_section_simulation

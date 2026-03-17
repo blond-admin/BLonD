@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from blond import Resonators, TimeDomainFftSolver, proton
-from blond.convenience import single_section_simulation
+from blond.convenience.single_section_setup import single_section_simulation
 
 
 class TestCallables(unittest.TestCase):
