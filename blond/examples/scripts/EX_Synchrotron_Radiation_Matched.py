@@ -125,7 +125,7 @@ def main(n_turns: int = 100):
         beam=params.beam,
         preparation_routine=SynchrotronRadiationMatcher(
             synchrotron_radiation_master=params.SRHandler,
-            n_macroparticles=1e5,
+            n_macroparticles=1e4,
             seed=1,
         ),
     )
