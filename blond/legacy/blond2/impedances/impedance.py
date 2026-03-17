@@ -19,7 +19,8 @@ import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.constants import speed_of_light as c, elementary_charge as e
+from scipy.constants import elementary_charge as e
+from scipy.constants import speed_of_light as c
 
 from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
@@ -1204,7 +1205,7 @@ class InducedVoltageResonator(_InducedVoltage):
                     raise RuntimeError("New implementation requires list of all rf stations to rf_station_list")
                 self.prepare_multi_turn_wake_time_arrays(rf_station_list, prof_idx_min_potential)
 
-                self.time_array = self.generate_mtw_array(0) # to get initial values
+                self.time_array = self.generate_mtw_array(turn=0) # to get initial values
 
             self.atLineDensityTimes = False
 
