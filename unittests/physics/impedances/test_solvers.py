@@ -45,6 +45,7 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+from blond.testing.backend_testing import skip_if_no_cupy
 
 
 class TestTimeDomainFftSolver(unittest.TestCase):
@@ -1153,6 +1154,33 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             local_solv._parent_wakefield = None
             local_solv._determine_storage_time()
+
+    @skip_if_no_cupy
+    def test_start_with_32_bit_backend_gpu(self):
+        backend.change_backend(Cupy32Bit)
+
+        simulation = Mock(Simulation)
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "MultiPassResonatorSolver does only run with 64 bit backends.",
+        ):
+            self.multi_pass_resonator_solver.on_wakefield_init_simulation(
+                simulation=simulation,
+                parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
+            )
+
+    @pytest.mark.backend_mutation
+    def test_start_with_32_bit_backend_cpu(self):
+        backend.change_backend(Numpy32Bit)
+        simulation = Mock(Simulation)
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "MultiPassResonatorSolver does only run with 64 bit backends.",
+        ):
+            self.multi_pass_resonator_solver.on_wakefield_init_simulation(
+                simulation=simulation,
+                parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
+            )
 
     def test_determine_storage_time_multi_res(self):
         # Check for mixing with multiple resonators
