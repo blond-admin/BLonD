@@ -25,6 +25,7 @@ from blond import (
     momentum_compaction_factor,
     mu_plus,
 )
+from blond.acc_math.analytic.simple_math import gaussian_distribution
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.observables import (
     WakeFieldObservation,
@@ -39,14 +40,6 @@ from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
 from blond.legacy.blond2.input_parameters.ring import Ring
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 from blond.physics.impedances.sources import Resonators as res_b3
-
-
-def gauss(x, width, center):
-    return (
-        1
-        / (width * np.sqrt(2 * np.pi))
-        * np.exp(-((x - center) ** 2) / (2 * width**2))
-    )
 
 
 def nonperiodic_wake(time_array, f0, R, Q):
@@ -209,25 +202,25 @@ class InducedVoltageResonatorComparisonTest(unittest.TestCase):
                 for result in combination
             ]
         )
-        section_length_array_extended = []
+        section_length_array_all_turns = []
         [
-            section_length_array_extended.append(section_length_arrays)
+            section_length_array_all_turns.append(section_length_arrays)
             for _ in range(self.n_turns)
         ]
-        section_length_array_extended = np.array(
-            section_length_array_extended
+        section_length_array_all_turns = np.array(
+            section_length_array_all_turns
         ).flatten()
 
         section_time = (
             1
             / (beta_array[self.n_stations :] * c)
-            * section_length_array_extended
+            * section_length_array_all_turns
         )
 
         profiles = np.zeros(
             (self.n_stations, len(self.time_axis)), dtype=float
         )
-        profiles[0] += gauss(
+        profiles[0] += gaussian_distribution(
             self.time_axis, self.sigma_bunch, self.bunch_offset
         )
 
@@ -235,7 +228,7 @@ class InducedVoltageResonatorComparisonTest(unittest.TestCase):
             for inter_turn_ind in range(self.n_stations):
                 if prof_ind == 0 and inter_turn_ind == 0:
                     continue
-                profiles[inter_turn_ind] += gauss(
+                profiles[inter_turn_ind] += gaussian_distribution(
                     self.time_axis,
                     self.sigma_bunch,
                     np.sum(
@@ -282,7 +275,7 @@ class InducedVoltageResonatorComparisonTest(unittest.TestCase):
                     )
                 plt.show(block=False)
 
-        self.profile.n_macroparticles = gauss(
+        self.profile.n_macroparticles = gaussian_distribution(
             self.profile.bin_centers, self.sigma_bunch, self.bunch_offset
         )
         self.hist_y = self.profile.n_macroparticles
