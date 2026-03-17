@@ -1039,11 +1039,19 @@ class TestSpecials(unittest.TestCase):
         unchanged = backend.cast_arr_complex_if_needed(target)
         self.assertTrue(target is unchanged)
 
+    @multi_backend_testcase
     def test_cast_exceptions(self):
         with self.assertRaises(ValueError):
             backend.cast_arr_float_if_needed(["a", "b", "c"])
 
-        with self.assertRaises(TypeError):
+        # Numpy and Cupy both fail as expected, but at different points
+        # in the casting, therefore, we test for different exceptions.
+        if isinstance(backend, NumpyBackend):
+            exc_type = TypeError
+        else:
+            exc_type = ValueError
+
+        with self.assertRaises(exc_type):
             backend.cast_arr_float_if_needed({1, 2, 3})
 
         with self.assertRaises(ValueError):
