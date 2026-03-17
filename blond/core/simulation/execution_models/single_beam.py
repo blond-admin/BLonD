@@ -89,6 +89,13 @@ class MainloopSingleBeam(ExecutionModel):
         before.
         """
         assert len(beams) == 1, f"{beams=}"
+
+        if n_turns != 1 and until_section_index != -1:
+            warnings.warn(
+                f"n_turns is ignored since until_section_index was {until_section_index}",
+                stacklevel=1,
+            )
+
         beam = beams[0]
         logger.info("Starting simulation mainloop...")
         callbacks = simulation._sanitize_callbacks(callbacks)
@@ -113,11 +120,6 @@ class MainloopSingleBeam(ExecutionModel):
             for element in simulation._ring.elements.elements:
                 simulation.section_i.value = element.section_index
                 if simulation.section_i.value >= until_section_index != -1:
-                    if n_turns != 1:
-                        warnings.warn(
-                            f"n_turns is ignored since until_section_index was {until_section_index}",
-                            stacklevel=1,
-                        )
                     return
                 if element.is_active_this_turn(turn_i=simulation.turn_i.value):
                     element.track(beam=beam)

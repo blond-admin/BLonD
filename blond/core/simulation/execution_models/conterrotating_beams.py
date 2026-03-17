@@ -104,6 +104,12 @@ class MainloopCounterRotatingBeams(ExecutionModel):
                 stacklevel=2,
             )
 
+        if n_turns != 1 and until_section_index != -1:
+            warnings.warn(
+                f"n_turns is ignored since until_section_index was {until_section_index}",
+                stacklevel=1,
+            )
+
         logger.info("Starting simulation mainloop...")
         iterator = range(n_turns)
         if show_progressbar:
@@ -120,11 +126,6 @@ class MainloopCounterRotatingBeams(ExecutionModel):
                 simulation.section_i.value = element.section_index
 
                 if simulation.section_i.value >= until_section_index != -1:
-                    if n_turns != 1:
-                        warnings.warn(
-                            f"n_turns is ignored since until_section_index was {until_section_index}",
-                            stacklevel=1,
-                        )
                     return
 
                 if element.is_active_this_turn(turn_i=simulation.turn_i.value):
