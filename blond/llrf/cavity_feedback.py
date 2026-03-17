@@ -2124,6 +2124,8 @@ class FCCBoosterCavityLoop(CavityFeedback):
         r"""ACS cavity response model in matrix form on the fine-grid"""
 
         if isinstance(self.profile, SparseBatch):
+            self.V_ANT_FINE = np.zeros(self.profile.n_slices + 1,
+                                       dtype=complex)
             for p, profile in enumerate(self.profile.profiles_list):
                 # Number of samples on fine grid
                 self.samples_fine = self.omega_rf * profile.bin_size
@@ -2147,14 +2149,11 @@ class FCCBoosterCavityLoop(CavityFeedback):
                     fill_value="extrapolate",
                 )(t_at_init)
 
-                I_BEAM_FINE_segment = self.I_BEAM_FINE[
-                    p * profile.n_slices: (p + 1) * profile.n_slices]
-                I_GEN_FINE_segment = self.I_GEN_FINE[
-                    p * profile.n_slices: (p + 1) * profile.n_slices]
-
                 V_ANT_FINE_segment = cavity_response_sparse_matrix(
-                    I_beam=I_BEAM_FINE_segment,
-                    I_gen=I_GEN_FINE_segment,
+                    I_beam=self.I_BEAM_FINE[
+                    p * profile.n_slices: (p + 1) * profile.n_slices],
+                    I_gen=self.I_GEN_FINE[
+                    p * profile.n_slices: (p + 1) * profile.n_slices],
                     n_samples=profile.n_slices,
                     V_ant_init=V_A_init,
                     I_gen_init=I_gen_init,
@@ -2168,8 +2167,9 @@ class FCCBoosterCavityLoop(CavityFeedback):
                     self.V_ANT_FINE[0:profile.n_slices + 1] = \
                         V_ANT_FINE_segment
                 else:
-                    self.V_ANT_FINE[p * profile.n_slices + 1: (p + 1) * profile.n_slices + 1] \
-                        = V_ANT_FINE_segment[-profile.n_slices:]
+                    self.V_ANT_FINE = np.concatenate((self.V_ANT_FINE,
+                                                      V_ANT_FINE_segment[
+                                                          -profile.n_slices:]))
         else:
             # Number of samples on fine grid
             self.samples_fine = self.omega_rf * self.profile.bin_size
