@@ -231,3 +231,30 @@ def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
         raise ValueError(
             f"Expected purely real or purely imaginary number, not {val}."
         )
+
+
+def gaussian_distribution(
+    time_array: NumpyArray, sigma_t: float, center: float
+):
+    """
+    Return a gaussian distribution on a given time array.
+
+    Parameters
+    ----------
+    time_array
+        Time array for which the gaussian distribution is to be calculated.
+    sigma_t
+        Standard deviation of the gaussian distribution.
+    center
+        Center of the gaussian distribution.
+
+    Returns
+    -------
+    gauss
+        Gaussian distribution.
+    """
+    return (
+        1
+        / (sigma_t * np.sqrt(2 * np.pi))
+        * np.exp(-((time_array - center) ** 2) / (2 * sigma_t**2))
+    )

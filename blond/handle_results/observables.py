@@ -30,7 +30,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import WakeField
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import SingleHarmonicRFStation
+    from blond.physics.cavities import (
+        SingleHarmonicRFStation,
+    )
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
@@ -49,7 +51,7 @@ class ObservablesBaseClass(MainLoopRelevant):
     ----------
     folder
         Target folder to save the data at.
-        Use `rename` to change the ddestination.
+        Use `rename` to change the destination.
     **kwargs
         Additional keyword arguments.
     """
