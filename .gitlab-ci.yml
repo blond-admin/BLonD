@@ -89,6 +89,33 @@ test_py_312:
   tags:
     - k8s-gpu
 
+test_minimum:
+  image: gitlab-registry.cern.ch/blond/blond/python310
+  stage: test
+
+  # Replace .before to use uv
+  before_script:
+    # Create venv to avoid permission error when installing packages
+    - python3 -m venv .venv
+    - . .venv/bin/activate
+    # Install uv
+    - python -m pip install uv
+    - python -m uv pip install --resolution lowest-direct ${project_root}[all]
+    - cd ${project_root}
+    # Compile as normal
+    - python3 blond/compile.py -p --optimize --parallel -gpu
+
+  # Replace .main to use python from venv not python3 from system
+  script:
+    - pip list
+    - cd ${project_root}
+    # Run unittests
+    - python -m pytest
+      -v unittests/
+      --import-mode=importlib
+  tags:
+    - k8s-gpu
+
 release_sdist_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: deploy

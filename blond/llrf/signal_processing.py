@@ -144,10 +144,10 @@ def modulator(
     if len(signal) < 2:
         # TypeError
         raise RuntimeError(
-            "ERROR in filters.py/demodulator: signal should" + " be an array!"
+            "ERROR in filters.py/demodulator: signal should be an array!"
         )
     delta_phi = (omega_i - omega_f) * (
-        T_sampling * np.arange(len(signal)) + dt
+        T_sampling * np.arange(len(signal)) + dt  # TODO might be -dt ?
     )
     # Precompute sine and cosine for speed up
     cs = np.cos(delta_phi + phi_0)
@@ -319,9 +319,9 @@ def charges_from_fine_to_coarse(
     charges_coarse = np.zeros(n_points, dtype=complex)
     charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
     for i in range(1, len(indices)):
-        charges_coarse[i + ind_fine[0]] = np.sum(
+        charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
             charges_fine[np.arange(indices[i - 1], indices[i])]
-        )
+        )  # TODO: modulo might not be physical
     return charges_coarse
 
 
@@ -482,7 +482,7 @@ def fir_filter(coeff: NumpyArray, signal: NumpyArray):
     """
 
     n_taps = len(coeff)
-    filtered_signal = np.zeros(len(signal) - n_taps)
+    filtered_signal = np.zeros(len(signal) - n_taps, dtype=signal.dtype)
     for i in range(n_taps, len(signal)):
         for k in range(n_taps):
             filtered_signal[i - n_taps] += coeff[k] * signal[i - k]

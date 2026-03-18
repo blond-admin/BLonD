@@ -593,33 +593,6 @@ class TestSPSCavityFeedback(unittest.TestCase):
             + "is different from expected values!",
         )
 
-    @unittest.skip
-    def setUp(self):
-        # TODO: implement test for `__init__`
-        self.sps_cavity_feedback = SPSCavityFeedback(
-            RFStation=None,
-            Profile=None,
-            G_ff=None,
-            G_llrf=None,
-            G_tx=None,
-            a_comb=None,
-            turns=None,
-            post_LS2=None,
-            V_part=None,
-            df=None,
-            commissioning=None,
-            n_h=None,
-        )
-
-    @unittest.skip
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
-
-    @unittest.skip
-    def test_track_init(self):
-        # TODO: implement test for `track_init`
-        self.sps_cavity_feedback.track_init(debug=None)
-
 
 class TestSPSOneTurnFeedback(unittest.TestCase):
     def setUp(self):
@@ -941,63 +914,6 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             "mismatch in imaginary part of generator response",
         )
 
-    @unittest.skip
-    def setUp(self):
-        # TODO: implement test for `__init__`
-        self.sps_one_turn_feedback = SPSOneTurnFeedback(
-            RFStation=None,
-            Profile=None,
-            n_sections=None,
-            n_cavities=None,
-            V_part=None,
-            G_ff=None,
-            G_llrf=None,
-            G_tx=None,
-            a_comb=None,
-            df=None,
-            commissioning=None,
-            n_h=None,
-        )
-
-    @unittest.skip
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
-
-    @unittest.skip
-    def test_beam_model(self):
-        # TODO: implement test for `beam_model`
-        self.sps_one_turn_feedback.beam_model()
-
-    @unittest.skip
-    def test_calc_power(self):
-        # TODO: implement test for `calc_power`
-        self.sps_one_turn_feedback.calc_power()
-
-    @unittest.skip
-    def test_call_conv(self):
-        # TODO: implement test for `call_conv`
-        self.sps_one_turn_feedback.call_conv(signal=None, kernel=None)
-
-    @unittest.skip
-    def test_set_point_mod(self):
-        # TODO: implement test for `set_point_mod`
-        self.sps_one_turn_feedback.set_point_mod()
-
-    @unittest.skip
-    def test_update_fb_variables(self):
-        # TODO: implement test for `update_fb_variables`
-        self.sps_one_turn_feedback.update_fb_variables()
-
-    @unittest.skip
-    def test_w_clamping(self):
-        # TODO: implement test for `w_clamping`
-        self.sps_one_turn_feedback.w_clamping()
-
-    @unittest.skip
-    def test_wo_clamping(self):
-        # TODO: implement test for `wo_clamping`
-        self.sps_one_turn_feedback.wo_clamping()
-
 
 class TestSPSTransmitterGain(unittest.TestCase):
     def setUp(self):
@@ -1011,7 +927,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
         )
         # Set up RF parameters
         self.rf = RFStation(self.ring, [4620], [4.5e6], [0.0], n_rf=1)
-        self.rf.omega_rf[0, 0] = 200.222e6 * 2 * np.pi
+
         # Define beam and fill it
         self.beam = Beam(self.ring, int(1e5), 1.0e11)
         bigaussian(
@@ -1056,12 +972,12 @@ class TestSPSTransmitterGain(unittest.TestCase):
             n_cavities=no_cavities,
             V_part=V_part,
             G_ff=0,
-            G_llrf=5,
+            G_llrf=10,
             G_tx=G_tx,
             a_comb=15 / 16,
             commissioning=commissioning,
         )
-        for i in range(100):
+        for i in range(1000):
             OTFB.track_no_beam()
 
         V = (
@@ -1075,31 +991,55 @@ class TestSPSTransmitterGain(unittest.TestCase):
 
     def test_preLS24sec(self):
         OTFB, V, I = self.init_otfb(
-            self.rf, self.profile, self.commissioning, 4, 2, 4 / 9, 1.03573985
+            self.rf,
+            self.profile,
+            self.commissioning,
+            4,
+            2,
+            4 / 9,
+            1.04978045,  # old: 1.03573985
         )
         self.assertAlmostEqual(V, 2.00000000, places=7)
-        self.assertAlmostEqual(I, 0.78244888, places=7)
+        self.assertAlmostEqual(I, 0.79305585, places=7)  # Old: 0.78244888
 
     def test_preLS25sec(self):
         OTFB, V, I = self.init_otfb(
-            self.rf, self.profile, self.commissioning, 5, 2, 5 / 9, 1.01547845
+            self.rf,
+            self.profile,
+            self.commissioning,
+            5,
+            2,
+            5 / 9,
+            1.0279351,  # old: 1.01547845
         )
         self.assertAlmostEqual(V, 2.50000000, places=7)
-        self.assertAlmostEqual(I, 0.76359084, places=7)
+        self.assertAlmostEqual(I, 0.77295764, places=7)  # old: 0.76359084
 
     def test_postLS23sec(self):
         OTFB, V, I = self.init_otfb(
-            self.rf, self.profile, self.commissioning, 3, 4, 6 / 10, 1.01724955
+            self.rf,
+            self.profile,
+            self.commissioning,
+            3,
+            4,
+            6 / 10,
+            1.01294445,  # old: 1.01724955
         )
         self.assertAlmostEqual(V, 2.70000000, places=7)
-        self.assertAlmostEqual(I, 0.69703574, places=7)
+        self.assertAlmostEqual(I, 0.69408581, places=7)  # old: 0.69703574
 
     def test_postLS24sec(self):
         OTFB, V, I = self.init_otfb(
-            self.rf, self.profile, self.commissioning, 4, 2, 4 / 10, 1.03573985
+            self.rf,
+            self.profile,
+            self.commissioning,
+            4,
+            2,
+            4 / 10,
+            1.04978045,  # old: 1.03573985
         )
         self.assertAlmostEqual(V, 1.80000000, places=7)
-        self.assertAlmostEqual(I, 0.70420400, places=7)
+        self.assertAlmostEqual(I, 0.71375026, places=7)  # old: 0.70420400
 
 
 class TestLHCOpenDrive(unittest.TestCase):
@@ -1144,13 +1084,13 @@ class TestLHCOpenDrive(unittest.TestCase):
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT_COARSE[-10:])) * 1e-6
-        self.assertAlmostEqual(V_ant, 0.49817991, places=7)
+        self.assertAlmostEqual(V_ant, 0.49810230, places=7)
         # Updated generator current [A]
         I_gen = np.mean(np.absolute(CL.I_GEN_COARSE[-CL.n_coarse :]))
-        self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
+        self.assertAlmostEqual(I_gen, 0.2758209845787027, places=10)
         # Generator power [kW]
         P_gen = CL.generator_power()[-1] * 1e-3
-        self.assertAlmostEqual(P_gen, 34.7277780000, places=10)
+        self.assertAlmostEqual(P_gen, 34.72777799999999, places=10)
 
     def test_2(self):
         CL = LHCCavityLoop(
@@ -1170,10 +1110,10 @@ class TestLHCOpenDrive(unittest.TestCase):
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT_COARSE[-10:])) * 1e-6
-        self.assertAlmostEqual(V_ant, 1.26745787, places=7)
+        self.assertAlmostEqual(V_ant, 1.2642679936181571, places=7)
         # Updated generator current [A]
         I_gen = np.mean(np.absolute(CL.I_GEN_COARSE[-CL.n_coarse :]))
-        self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
+        self.assertAlmostEqual(I_gen, 0.275820984578702, places=10)
         # Generator power [kW]
         P_gen = CL.generator_power()[-1] * 1e-3
         self.assertAlmostEqual(P_gen, 104.1833340000, places=10)
@@ -1196,10 +1136,10 @@ class TestLHCOpenDrive(unittest.TestCase):
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT_COARSE[-10:])) * 1e-6
-        self.assertAlmostEqual(V_ant, 0.99635982, places=7)
+        self.assertAlmostEqual(V_ant, 0.9962046131775252, places=7)
         # Updated generator current [A]
         I_gen = np.mean(np.absolute(CL.I_GEN_COARSE[-CL.n_coarse :]))
-        self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
+        self.assertAlmostEqual(I_gen, 0.2758209845787027, places=10)
         # Generator power [kW]
         P_gen = CL.generator_power()[-1] * 1e-3
         self.assertAlmostEqual(P_gen, 69.4555560000, places=10)

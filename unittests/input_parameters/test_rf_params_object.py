@@ -308,6 +308,13 @@ class testRFParamClass(unittest.TestCase):
             n_rf=2,
         )
 
+    def test_bucket_center(self):
+        dt_first_bucket = self.ring.t_rev[0] / (2 * 4620)
+
+        self.assertAlmostEqual(dt_first_bucket, self.rf_params.bucket_center(0), 12,
+                               msg="In testRFParamClass test_bucket_center" +
+                               "Bucket zero is different from expected value")
+
     def test_RFSectionParameters_eta_tracking(self):
         # To be written
         pass

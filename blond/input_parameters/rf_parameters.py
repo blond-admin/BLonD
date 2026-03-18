@@ -396,8 +396,8 @@ class RFStation:
                 if len(system) == 0:
                     raise ValueError("No matching harmonic in phi_modulation")
                 elif len(system) > 1:
-                    raise RuntimeError("""Phase modulation not yet 
-                                       implemented with multiple systems 
+                    raise RuntimeError("""Phase modulation not yet
+                                       implemented with multiple systems
                                        at the same harmonic.""")
                 else:
                     system = system[0]
@@ -493,6 +493,29 @@ class RFStation:
                 eta_i = getattr(self, "eta_" + str(i))[counter]
                 eta += eta_i * (delta**i)
             return eta
+
+    def bucket_center(self, bucket_number: int, n_h: int = 0) -> float:
+        '''
+        Computes the center of a given RF bucket in time relative to the start of the turn.
+
+        Parameters
+        ----------
+        bucket_number : int
+            The bucket number to take the phase of
+        n_h : int
+            Default = 0
+            The number of the RF system to use
+        '''
+        # The edge of the bucket in time
+        dt_bucket = 2 * np.pi * bucket_number / self.omega_rf[n_h, self.counter[0]]
+
+        # If the beam control is acting in the simulation
+        if self.eta_0[self.counter[0]] > 0:
+            dt_bucket -= (self.phi_rf[n_h, self.counter[0]] - np.pi) / self.omega_rf[n_h, self.counter[0]]
+        else:
+            dt_bucket -= self.phi_rf[n_h, self.counter[0]] / self.omega_rf[n_h, self.counter[0]]
+
+        return dt_bucket
 
     def compute_voltage_waveform(
         self,
