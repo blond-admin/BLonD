@@ -579,7 +579,7 @@ class TestResonators(unittest.TestCase):
                 plt.show()
 
     def test_calculate_envelope(self):
-        time_axis = np.linspace(
+        time_axis = backend.linspace(
             0,
             backend.max(
                 self.resonators._quality_factors / self.resonators._omega
