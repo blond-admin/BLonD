@@ -20,6 +20,7 @@ from typing import Any
 
 import numpy as np
 
+from blond import copy_to_cpu
 from blond.core.base import BeamObservationElement
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
@@ -543,16 +544,14 @@ class InducedVoltageObservationCR(
                 return
             else:
                 raise orig_exception  # pragma: no cover
-
-        if all(
-            self._rf_station._local_wakefield.induced_voltage
-            == self._induced_voltage._memory[
-                self._induced_voltage._write_idx - 1, :
-            ]
-        ):
-            logging.debug(f"data was equivalent {beam.is_counter_rotating}")
-            return  # return early on duplicate data
-        self._induced_voltage.write(
+        last_recorded = self._induced_voltage._memory[
+            self._induced_voltage._write_idx - 1, :
+        ]
+        current_recorded = copy_to_cpu(
             self._rf_station._local_wakefield.induced_voltage
         )
+        if all(current_recorded == last_recorded):
+            logging.debug(f"data was equivalent {beam.is_counter_rotating}")
+            return  # return early on duplicate data
+        self._induced_voltage.write(current_recorded)
         self._beam_reference_time.write(beam.reference.time)
