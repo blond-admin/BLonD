@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import backend
+from blond import Cupy64Bit, Numpy64Bit, backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -109,3 +109,12 @@ def allclose_tolerances(
         "atol": amplitude * rtol,
     }
     return kwargs
+
+
+def enforce_64_bit_backend():
+    """Enforce 64-bit backend, GPU is taken into account."""
+    if backend.float == np.float32:
+        if backend.is_gpu:
+            backend.change_backend(Cupy64Bit)
+        else:
+            backend.change_backend(Numpy64Bit)

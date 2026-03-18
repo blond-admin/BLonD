@@ -27,6 +27,7 @@ from blond.handle_results.observables_as_elements import (
 )
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 from blond.physics.impedances.sources import Resonators
+from blond.testing.helpers import enforce_64_bit_backend
 
 
 def gauss(x, width, center):
@@ -94,7 +95,9 @@ class InducedVoltageResonatorPhysicsCR(unittest.TestCase):
         self.sigma_bunch = 5e-10
         self.bunch_offset = 7e-9
 
+    @pytest.mark.backend_mutation
     def test_blond3_btw(self):
+        enforce_64_bit_backend()
         ring = Ring(
             circumference=np.sum(self.n_section_lengths),
             check_section_indices=False,

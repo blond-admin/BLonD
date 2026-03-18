@@ -46,6 +46,7 @@ from blond.physics.profiles import (
     StaticProfile,
 )
 from blond.testing.backend_testing import skip_if_no_cupy
+from blond.testing.helpers import enforce_64_bit_backend
 
 
 class TestTimeDomainFftSolver(unittest.TestCase):
@@ -1068,11 +1069,8 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 @pytest.mark.backend_mutation
 class TestMultiPassResonatorSolver(unittest.TestCase):
     def setUp(self):
+        enforce_64_bit_backend()
         # the histogram step is to tiny and would result in hist_step = 0
-        if isinstance(backend, Numpy32Bit):
-            backend.change_backend(Numpy64Bit)
-        elif isinstance(backend, Cupy32Bit):
-            backend.change_backend(Cupy64Bit)
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
             center_frequencies=np.array([500e6, 750e6, 1.5e9]),

@@ -40,6 +40,7 @@ from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
 from blond.legacy.blond2.input_parameters.ring import Ring
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 from blond.physics.impedances.sources import Resonators as res_b3
+from blond.testing.helpers import enforce_64_bit_backend
 
 
 def nonperiodic_wake(time_array, f0, R, Q):
@@ -377,7 +378,7 @@ class InducedVoltageResonatorComparisonTest(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def setUpB3(self):
-        backend.change_backend(Numpy64Bit)
+        enforce_64_bit_backend()
         ring = ring_b3(
             circumference=np.sum(self.n_section_lengths),
             check_section_indices=False,
