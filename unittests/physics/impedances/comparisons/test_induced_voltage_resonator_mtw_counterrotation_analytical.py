@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 import scipy.signal as sig
 from scipy.constants import e
 
