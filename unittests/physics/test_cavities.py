@@ -17,6 +17,9 @@ from blond import (
 from blond.acc_math.analytic.hamilton import (
     calc_synchrotron_tune_single_harmonic,
 )
+from blond.acc_math.analytic.simple_math import (
+    _assert_purely_real_or_imaginary,
+)
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_energy_loss_per_turn,
 )
@@ -37,7 +40,7 @@ from blond.physics.cavities import (
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,
 )
-from blond.physics.drifts import DriftSimple, _assert_purely_real_or_imaginary
+from blond.physics.drifts import DriftSimple
 from blond.physics.impedances.base import WakeField
 from unittests.handle_results.test_observables_as_elements import beam
 

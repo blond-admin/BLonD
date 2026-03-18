@@ -39,7 +39,7 @@ workflow:
     # Install project with extras
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
-    - python3 -m pip install -v -e ${project_root}[all]
+    - python3 -m pip install -v -e ${project_root}[all_cuda12]
     - cd ${project_root}
     # Compile C++, CUDA backends
     - python3 blond/core/backends/cpp/compile.py --parallel
@@ -75,7 +75,7 @@ workflow:
 
 .main_only_cupy:
   variables:
-    BLOND_BACKEND_MODE: "cuda"     # Set the basic backend to numba. It is most verbose about wrong types
+    BLOND_BACKEND_MODE: "cuda"     # Set the basic backend to CUDA.
     BLOND_FORCE_TEST_ALL_BACKENDS: "False"     # Force backend scanning unittests to use all available backends
     MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
   script:
@@ -83,6 +83,7 @@ workflow:
     - pip list
     - cd ${project_root}
     - python3 -m pytest
+      -m "not backend_mutation and not mpi"
       -m "not backend_mutation"
       -v unittests/
 
@@ -242,6 +243,11 @@ test_py_314_only_cupy:
     - .main_only_cupy
   tags:
     - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+    # ALSO run in merge requests targeting blonder
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 test_minimum:
   image: gitlab-registry.cern.ch/blond/blond/python310
@@ -257,7 +263,7 @@ test_minimum:
     - . .venv/bin/activate
     # Install uv
     - python -m pip install uv
-    - python -m uv pip install --resolution lowest-direct ${project_root}[all]
+    - python -m uv pip install --resolution lowest-direct ${project_root}[all_cuda12]
     - cd ${project_root}
     # Compile C++, CUDA, Fortran backends
     - python blond/core/backends/cpp/compile.py --parallel
