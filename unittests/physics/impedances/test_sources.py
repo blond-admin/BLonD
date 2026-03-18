@@ -593,14 +593,14 @@ class TestResonators(unittest.TestCase):
         )
 
         np.testing.assert_allclose(
-            env_time,
-            ent_time_2,
+            copy_to_cpu(env_time),
+            copy_to_cpu(ent_time_2),
             rtol=1e-12 if backend is Numpy64Bit else 1e-12,
             atol=0,
         )
         np.testing.assert_allclose(
-            envelope,
-            envelope_2,
+            copy_to_cpu(envelope),
+            copy_to_cpu(envelope_2),
             rtol=1e-12 if backend is Numpy64Bit else 1e-12,
             atol=0,
         )
