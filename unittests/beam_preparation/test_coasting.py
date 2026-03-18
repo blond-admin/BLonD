@@ -59,11 +59,13 @@ class TestCoasting(unittest.TestCase):
             coasting.Coasting(0, [], [], start_time=1, stop_time=0)
 
     @multi_backend_testcase
-    def test_prepare_beam_dflts(self):
+    def test_prepare_beam_defaults(self):
         bins = np.linspace(-1, 1, 1000)
         dens = -(bins**2) + 1
 
-        coast = coasting.Coasting(1 << 16, bins.tolist(), dens.tolist())
+        coast = coasting.Coasting(
+            1 << 16, bins.tolist(), dens.tolist(), seed=0
+        )
 
         coast.prepare_beam(self.simulation, self.beam)
 
