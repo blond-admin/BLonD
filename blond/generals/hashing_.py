@@ -37,7 +37,6 @@ def hash_files(file_paths: list[str]) -> str:
         The resulting SHA-256 hexadecimal digest.
     """
     file_paths = sorted(file_paths)
-
     hasher = hashlib.sha256()
 
     for file_path in file_paths:
@@ -80,5 +79,5 @@ def hash_in_folder(
         extensions=extensions,
         recursive=recursive,
     )
-    _hash = hash_files([str(f) for f in files])
+    _hash = hash_files([str(f).lower() for f in files])
     return _hash
