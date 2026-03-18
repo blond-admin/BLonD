@@ -1642,9 +1642,10 @@ class LHCCavityLoop(CavityFeedback):
             self.V_ANT_FINE = np.zeros(
                 self.profile.n_slices + 1, dtype=complex
             )
+            self.samples_fine = self.omega_rf * self.profile.bin_size
             for p, profile in enumerate(self.profile.profiles_list):
                 # Number of samples on fine grid
-                self.samples_fine = self.omega_rf * profile.bin_size
+                samples_fine = self.omega_rf * profile.bin_size
 
                 # Find initial value of antenna voltage and generator current
                 t_at_init = profile.bin_centers[0] - profile.bin_size
@@ -1682,7 +1683,7 @@ class LHCCavityLoop(CavityFeedback):
                             n_samples=profile.n_slices,
                             V_ant_init=V_A_init,
                             I_gen_init=I_gen_init,
-                            samples_per_rf=self.samples_fine,
+                            samples_per_rf=samples_fine,
                             R_over_Q=self.R_over_Q,
                             Q_L=self.Q_L,
                             detuning=self.detuning,
@@ -1703,12 +1704,13 @@ class LHCCavityLoop(CavityFeedback):
                         n_samples=profile.n_slices,
                         V_ant_init=V_A_init,
                         I_gen_init=I_gen_init,
-                        samples_per_rf=self.samples_fine,
+                        samples_per_rf=samples_fine,
                         R_over_Q=self.R_over_Q,
                         Q_L=self.Q_L,
                         detuning=self.detuning,
-                    )[profile.n_slices :]
-                self.V_ANT_FINE[-self.profile.n_slices :] *= self.n_cavities
+                    )[-profile.n_slices :]
+
+            self.V_ANT_FINE[-self.profile.n_slices :] *= self.n_cavities
 
         else:
             # Number of samples on fine grid
