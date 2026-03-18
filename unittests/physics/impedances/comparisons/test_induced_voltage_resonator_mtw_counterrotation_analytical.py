@@ -106,7 +106,7 @@ class InducedVoltageResonatorPhysicsCR(unittest.TestCase):
         )
         energy_array = np.reshape(
             self.energy_array, (self.n_stations, self.n_turns + 1), order="F"
-        )  # TODO: this seems to be very complicated
+        )
 
         magnetic_cycle = MagneticCyclePerTurnAllRFStations.headless(
             value_init=energy_array[0][0],
