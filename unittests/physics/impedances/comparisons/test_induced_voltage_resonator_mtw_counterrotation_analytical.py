@@ -13,6 +13,7 @@ from blond import (
     Beam,
     DriftSimple,
     MagneticCyclePerTurnAllRFStations,
+    Numpy64Bit,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -98,7 +99,7 @@ class InducedVoltageResonatorPhysicsCR(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_blond3_btw(self):
-        enforce_64_bit_backend()
+        backend.change_backend(Numpy64Bit)
         ring = Ring(
             circumference=np.sum(self.n_section_lengths),
             check_section_indices=False,
