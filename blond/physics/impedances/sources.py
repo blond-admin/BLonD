@@ -310,9 +310,9 @@ class Resonators(
             assert len(shunt_impedances) == len(quality_factors), (
                 f"{len(shunt_impedances)} != {len(quality_factors)}"
             )
-            self._shunt_impedances = backend.array(shunt_impedances)
-            self._center_frequencies = backend.array(center_frequencies)
-            self._quality_factors = backend.array(quality_factors)
+            self._shunt_impedances = np.array(shunt_impedances)
+            self._center_frequencies = np.array(center_frequencies)
+            self._quality_factors = np.array(quality_factors)
             self._n_resonators = len(shunt_impedances)
 
         self._shunt_impedances_counter_rotating: (
@@ -348,7 +348,7 @@ class Resonators(
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
         self._alpha = self._omega / (2 * self._quality_factors)
-        self._omega_bar = backend.sqrt(self._omega**2 - self._alpha**2)
+        self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
 
         # Test if one or more quality factors is smaller than 0.5.
         if backend.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004

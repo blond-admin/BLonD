@@ -329,7 +329,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
             -9.179795916267638e-07,
         ]
         np.testing.assert_allclose(
-            induced_voltage,
+            copy_to_cpu(induced_voltage),
             induced_voltage_pinned,
             rtol=1e-6 if backend.float == np.float32 else 1e-12,
         )
@@ -1639,6 +1639,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         """
         Test presence of arrays and correct shifting of timing
         """
+        print(f"{backend=}")
+        print(f"{backend.specials_mode=}")
+        print(f"{backend.float=}")
         sim = Mock(Simulation)
 
         local_res = deepcopy(self.multi_pass_resonator_solver)
