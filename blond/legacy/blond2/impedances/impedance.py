@@ -1360,7 +1360,7 @@ class InducedVoltageResonator(_InducedVoltage):
             Array to calculate the MTW array on, taking into account the beta change between stations.
         """
         # offsets at which to calculate the MTW array
-        turn_durations = self._section_time_distance_array[turn:max(turn + self._n_turns_calculation, self.rf_params.n_turns)]
+        turn_durations = self._section_time_distance_array[turn:max(turn + self._n_turns_calculation, self.rf_params.n_turns) - 1]
         turn_durations = np.concatenate((np.array([0]), np.cumsum(turn_durations)))
 
         # full time array == offset + profile_time
