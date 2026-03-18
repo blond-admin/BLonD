@@ -1,8 +1,10 @@
 import unittest
+from copy import deepcopy
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
+from pylab import dtype
 from scipy.constants import speed_of_light as c0
 
 from blond import (
@@ -26,8 +28,10 @@ from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths i
 from blond.core.backends.backend import Cupy32Bit, backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.particle_types import ParticleType
+from blond.core.beam.beams import ProbeBeam
+from blond.core.beam.particle_types import ParticleType, lead_82
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.experimental import PooledInterpolationKick
 from blond.experimental.physics.feedbacks.base import (
     LocalFeedback,
 )
@@ -609,11 +613,13 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         beam.reference = Mock(ReferenceCoordinates)
         beam.common_array_size = 1
         beam.particle_type = proton
+        beam._particle_type = beam.particle_type
         beam.reference.time = 0
         beam.reference.beta = 0.5
         beam.reference.velocity = beam.reference.beta * c0
         beam.reference.gamma = np.sqrt(1 - 0.25)  # beta**2
         beam.reference.total_energy = 938
+        beam.reference._total_energy = beam.reference.total_energy
         beam.dE = backend.linspace(-1e6, 1e6, 10, dtype=backend.float)  #
         # delta E  in eV
         beam.dt = backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  #
@@ -787,6 +793,38 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     def test_info_string(self):
         self.multi_harmonic_cavity.info_string()  # just hope it executes.
+
+    def test_interp_kick(self):
+        delayed_kick = PooledInterpolationKick()
+        _delayed_kick_time_axis = np.linspace(
+            0,
+            self.multi_harmonic_cavity.calc_main_harmonic_omega_rf_design(
+                beam_beta=self.beam.reference.beta,
+                ring_circumference=self.multi_harmonic_cavity._ring.circumference,
+            ),
+            dtype=backend.float,
+        )
+        beam_smooth_rf = ProbeBeam(
+            particle_type=lead_82,
+            dt=_delayed_kick_time_axis.copy(),
+            reference_total_energy=938e9,
+        )
+        beam_interp_rf = deepcopy(beam_smooth_rf)
+        beam_smooth_rf.reference.beta
+        beam_interp_rf.reference.beta
+        self.multi_harmonic_cavity.track(beam=beam_smooth_rf)
+        beam_interp_rf.reference.beta
+        self.multi_harmonic_cavity._delayed_kick = delayed_kick
+        self.multi_harmonic_cavity._delayed_kick_time_axis = (
+            _delayed_kick_time_axis.copy()
+        )
+        beam_interp_rf.reference.beta
+        self.multi_harmonic_cavity.track(beam=beam_interp_rf)
+
+        np.testing.assert_array_equal(
+            beam_interp_rf.dE.copy_as_numpy(),
+            beam_smooth_rf.dE.copy_as_numpy(),
+        )
 
 
 class TestSingleHarmonicRFStation(unittest.TestCase):
