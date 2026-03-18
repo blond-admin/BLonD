@@ -22,6 +22,7 @@ from scipy.constants import c
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
+from blond.beam.sparse_profiles import SparseBatch
 from blond.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
 from blond.impedances.impedance_sources import TravelingWaveCavity
 from blond.input_parameters.rf_parameters import RFStation
@@ -1374,6 +1375,224 @@ class TestLHCCavityLoopCommissioning(unittest.TestCase):
     def test_generate_white_noise(self):
         # TODO: implement test for `generate_white_noise`
         self.lhc_cavity_loop_commissioning.generate_white_noise(n_points=None)
+
+
+class TestLHCCavityLoopSparseProfile(unittest.TestCase):
+    def setUp(self):
+        # The synchrotron ring
+        C = 26658.883  # Machine circumference [m]
+        p_s = 450e9  # Synchronous momentum [eV/c]
+        gamma_t = 53.606713  # Transition gamma [-]
+        alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor [-]
+        n_turns = 50  # Number of turns to track [-]
+        # TODO: implement test for `__init__`
+        ring = Ring(C, alpha, p_s, Proton(), n_turns=n_turns)
+        print(f"Synchronous energy is {ring.energy[0, 0] * 1e-9:.1f} GeV")
+
+        # The RF station
+        h = 35640  # Harmonic number [-]
+        V = 5e6  # RF voltage [V]
+        dphi = 0  # Phase modulation/offset [rad]
+
+        rfstation = RFStation(ring, [h], [V], [dphi], n_rf=1)
+        rfstation_sparse = RFStation(ring, [h], [V], [dphi], n_rf=1)
+
+        # The beam
+        number_of_bunches = 2  # Length of the batch [number of bunches]
+        bunch_intensity = 2.3e11  # Bunch intensity [p/b]
+        n_macroparticles = 10000  # Number of macroparticles per bunch [-]
+        tau_bunch = 1.6e-9  # Bunch length [s]
+        bunch_spacing = 1000  # Bunch spacing [number of rf buckets]
+        injection_energy_error = 0  # Injection energy error [eV]
+        bucket_shift = 10000
+        # Beam object for the batch
+        N_m = n_macroparticles * number_of_bunches
+        N_p = bunch_intensity * number_of_bunches
+        beam = Beam(ring, N_m, N_p)
+        beam_sparse = Beam(ring, N_m, N_p)
+        # First generate a single gaussian bunch
+        single_bunch = Beam(ring, n_macroparticles, bunch_intensity)
+        bigaussian(
+            ring,
+            rfstation,
+            single_bunch,
+            sigma_dt=tau_bunch / 4 / 2,
+            seed=1234,
+        )
+        # Copy the bunch throughout the batch
+        for i in range(number_of_bunches):
+            beam.dE[i * n_macroparticles : (i + 1) * n_macroparticles] = (
+                single_bunch.dE
+            )
+            beam.dt[i * n_macroparticles : (i + 1) * n_macroparticles] = (
+                single_bunch.dt + i * bunch_spacing * rfstation.t_rf[0, 0]
+            )
+            beam_sparse.dE[
+                i * n_macroparticles : (i + 1) * n_macroparticles
+            ] = single_bunch.dE
+            beam_sparse.dt[
+                i * n_macroparticles : (i + 1) * n_macroparticles
+            ] = single_bunch.dt + i * bunch_spacing * rfstation.t_rf[0, 0]
+
+        # Add final corrections to the bunch positions
+        bucket_shift = 10000
+        beam.dt += bucket_shift * rfstation.t_rf[0, 0]
+        beam.dE += injection_energy_error
+        beam_sparse.dt += bucket_shift * rfstation.t_rf[0, 0]
+        beam_sparse.dE += injection_energy_error
+        # The beam profile
+        cut_options = CutOptions(
+            cut_left=(0 + bucket_shift) * rfstation.t_rf[0, 0],
+            cut_right=(5 + bunch_spacing * number_of_bunches + bucket_shift)
+            * rfstation.t_rf[
+                0,
+                0,
+            ],
+            n_slices=(5 + bunch_spacing * number_of_bunches) * 2**4,
+        )
+        profile = Profile(beam, cut_options)
+        # Cavity Controller
+        G_a = 6.79e-6  # Analog FB gain [A/V]
+        G_d = 10  # Digital FB gain [-]
+        tau_loop = 650e-9  # Overall loop delay [s]
+        tau_a = 170e-6  # Analog FB delay [s]
+        tau_d = 400e-6  # Digital FB delay [s]
+        a_comb = 15 / 16  # Comb filter alpha [-]
+        Q_L = 20000  # Loaded Quality factor [-]
+        G_otfb = 10  # OTFB gain [-]
+        tau_comp = 1200e-9  # Complimentary delay in OTFB [s]
+        delta_f = 0  # Initial detuning due to 12 bunches [Hz]
+
+        commissioning = LHCCavityLoopCommissioning(
+            G_a=G_a,
+            G_d=G_d,
+            tau_d=tau_d,
+            tau_a=tau_a,
+            alpha=a_comb,
+            G_o=G_otfb,
+            open_tuner=True,
+            open_rffb=False,
+        )
+        self.lhc_cavity_loop = LHCCavityLoop(
+            rf_station=rfstation,
+            profile=profile,
+            n_cavities=7,
+            f_c=rfstation.omega_rf[0, 0] / (2 * np.pi) + delta_f,
+            G_gen=1,
+            I_gen_offset=0,
+            n_pretrack=50,
+            Q_L=Q_L,
+            R_over_Q=45,
+            tau_loop=tau_loop,
+            tau_otfb=1472e-9,
+            RFFB=commissioning,
+            n_h=0,
+        )
+        filling_pattern = np.zeros(h)
+        for k in range(number_of_bunches):
+            filling_pattern[bucket_shift + k * bunch_spacing] = 1
+        profile_sparse = SparseBatch(
+            rf_station=rfstation_sparse,
+            beam=beam_sparse,
+            number_of_slices_per_profile=10 * 2**4,
+            batch_list=filling_pattern,
+            batch_length=10,
+            tracker_mode="onebyone",
+            do_track_on_init=False,
+        )
+
+        self.lhc_cavity_loop_sparse = LHCCavityLoop(
+            rf_station=rfstation_sparse,
+            profile=profile_sparse,
+            n_cavities=7,
+            f_c=rfstation.omega_rf[0, 0] / (2 * np.pi) + delta_f,
+            G_gen=1,
+            I_gen_offset=0,
+            n_pretrack=50,
+            Q_L=Q_L,
+            R_over_Q=45,
+            tau_loop=tau_loop,
+            tau_otfb=1472e-9,
+            RFFB=commissioning,
+            n_h=0,
+        )
+
+    @unittest.skip
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
+    def test_cavity_response_fine_matrix(self):
+        self.lhc_cavity_loop.I_BEAM_FINE *= -1j * np.exp(
+            1j
+            * (
+                self.lhc_cavity_loop.rf_station.phi_s[
+                    self.lhc_cavity_loop.rf_station.counter[0]
+                ]
+            )
+        )
+        self.lhc_cavity_loop.I_BEAM_COARSE[
+            -self.lhc_cavity_loop.n_coarse :
+        ] *= -1j * np.exp(
+            1j
+            * (
+                self.lhc_cavity_loop.rf_station.phi_s[
+                    self.lhc_cavity_loop.rf_station.counter[0]
+                ]
+            )
+        )
+
+        self.lhc_cavity_loop_sparse.I_BEAM_FINE *= -1j * np.exp(
+            1j
+            * (
+                self.lhc_cavity_loop_sparse.rf_station.phi_s[
+                    self.lhc_cavity_loop_sparse.rf_station.counter[0]
+                ]
+            )
+        )
+        self.lhc_cavity_loop_sparse.I_BEAM_COARSE[
+            -self.lhc_cavity_loop_sparse.n_coarse :
+        ] *= -1j * np.exp(
+            1j
+            * (
+                self.lhc_cavity_loop_sparse.rf_station.phi_s[
+                    self.lhc_cavity_loop_sparse.rf_station.counter[0]
+                ]
+            )
+        )
+
+        # TODO: implement test for `cavity_response_fine_matrix`
+        self.lhc_cavity_loop.cavity_response_fine_matrix()
+        self.lhc_cavity_loop_sparse.cavity_response_fine_matrix()
+
+        self.assertAlmostEqual(
+            self.lhc_cavity_loop_sparse.samples_fine,
+            self.lhc_cavity_loop.samples_fine,
+            places=12,
+        )
+
+        for p, profile in enumerate(
+            self.lhc_cavity_loop_sparse.profile.profiles_list
+        ):
+            index = np.argmin(
+                np.abs(
+                    self.lhc_cavity_loop.profile.bin_centers
+                    - profile.bin_centers[0]
+                )
+            )
+
+            np.testing.assert_array_equal(
+                self.lhc_cavity_loop_sparse.V_ANT_FINE[
+                    p * profile.n_slices + 1 : (p + 1) * profile.n_slices + 1
+                ],
+                self.lhc_cavity_loop.V_ANT_FINE[
+                    index + 1 : index + profile.n_slices + 1
+                ],
+            )
+
+    @unittest.skip
+    def test_circuit_track(self):
+        # TODO: implement test for `circuit_track`
+        self.lhc_cavity_loop.circuit_track(no_beam=None)
 
 
 if __name__ == "__main__":
