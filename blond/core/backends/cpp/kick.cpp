@@ -75,10 +75,11 @@ extern "C" void kick_single_harmonic(const real_t *__restrict__ beam_dt,
                                      const real_t acc_kick) {
 
 // KICK
+const real_t amp = charge * voltage;
 #pragma omp parallel for
   for (int i = 0; i < n_macroparticles; i++) {
     beam_dE[i] +=
-        charge * voltage * FAST_SIN(omega_RF * beam_dt[i] + phi_RF) + acc_kick;
+        amp * FAST_SIN(omega_RF * beam_dt[i] + phi_RF) + acc_kick;
   }
 }
 
