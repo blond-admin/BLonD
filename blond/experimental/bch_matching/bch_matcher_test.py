@@ -29,18 +29,8 @@ from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
 )
 
-# # ------SPS
-# charge_particles = 82.0
-# circumference = 6911.5038  # Machine circumference [m]
-# gamma_transition = 17.95142852  # Transition gamma
-# p_s = 5e9 * charge_particles  # 17.07e9 * charge_particles
-# momentum_compaction_factor_ = 1.0 / gamma_transition**2  # Momentum compaction array
-# harmonic_number = 4653
-# voltage1 = 10e6
-
-# #-------LHC
 order = 3
-
+# LHC
 p_s = 450.0e9  # Synchronous momentum [eV]
 harmonic_number = 35640  # Harmonic number
 voltage1 = 1e8  # RF voltage, station 1 [eV]

@@ -201,9 +201,9 @@ class BCHMatcher(MatchingRoutine):
                     # inside bucket
                     mask_bucket = H_vals < self.H_sep
                     # Gaussian in H
-                    prob = np.exp(-H_vals / self.H0)  #
+                    prob = np.exp(-H_vals / self.H0)
                     # normalize for rejection sampling
-                    prob /= prob.max()
+                    prob = prob / np.max(prob)
                     rand = np.random.uniform(0, 1, batch_size)
                     mask = (rand < prob) & mask_bucket
                 else:
@@ -304,3 +304,8 @@ class BCHMatcher(MatchingRoutine):
 
         # small-amplitude approximation
         self.H0 = self.emittance * omega_s / (2 * np.pi)
+
+    def haissinki_induced_voltage(self):
+        # iterative computation of matched distribution
+        # H = H_{BCH} + H_{lamda(H)}
+        pass
