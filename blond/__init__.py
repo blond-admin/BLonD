@@ -84,6 +84,7 @@ from blond.cycles.magnetic_cycle import (
     MagneticCyclePerTurn,
     MagneticCyclePerTurnAllRFStations,
 )
+from blond.experimental import PooledInterpolationKick
 from blond.generals.cupy.no_cupy_import import AllowPlotting, copy_to_cpu
 from blond.handle_results.observables import (
     BeamObservationOncePerTurn,
