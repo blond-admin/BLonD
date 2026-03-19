@@ -22,8 +22,6 @@ import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
 
-from jupyter_server.auth import User
-
 from blond import backend
 from blond.core.base import BeamPhysicsRelevant, Preparable
 
