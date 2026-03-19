@@ -132,13 +132,10 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
 
         key = id(time_axis)
 
-        if key in self._buffer_voltage:
+        try:
             # Update existing entry
             self._buffer_voltage[key] += voltage
-            # Move to end to mark as recently used (optional)
-            self._buffer_voltage.move_to_end(key)
-            self._buffer_time_axis.move_to_end(key)
-        else:
+        except KeyError:
             # Insert new entry
             self._buffer_voltage[key] = voltage.copy()
             self._buffer_time_axis[key] = time_axis.copy()
@@ -147,6 +144,10 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
             if len(self._buffer_voltage) > self._maxsize:
                 oldest_key, _ = self._buffer_voltage.popitem(last=False)
                 self._buffer_time_axis.pop(oldest_key, None)
+        else:
+            # Move to end to mark as recently used (optional)
+            self._buffer_voltage.move_to_end(key)
+            self._buffer_time_axis.move_to_end(key)
 
     def _track(self, beam: BeamBaseClass) -> None:
         """

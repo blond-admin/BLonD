@@ -131,7 +131,6 @@ def main(n_turns=1000):
             ),
             beam=beam,
         )
-        # sim.profiling(beams=beam, profile_n_turns=1000, sortby=SortKey.TIME)
         t0 = time.time()
         sim.run_simulation(beams=beam, n_turns=n_turns)
 
