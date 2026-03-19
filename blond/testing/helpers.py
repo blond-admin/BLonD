@@ -108,6 +108,7 @@ def allclose_tolerances(
         "rtol": 0,  # intentional 0, it makes problems at arrays that cross 0.
         "atol": amplitude * rtol,
     }
+    print(kwargs)
     return kwargs
 
 

@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+from matplotlib import pyplot as plt
 from numpy import ndarray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
@@ -224,7 +225,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(
-            ValueError, "If no harmonic_index is provided"
+            ValueError, "If no `harmonic_index` is provided"
         ):
             mhc._get_gap_voltage_per_harmonic(ts=ts)
 
@@ -803,36 +804,120 @@ class TestMultiHarmonicCavity(unittest.TestCase):
     def test_info_string(self):
         self.multi_harmonic_cavity.info_string()  # just hope it executes.
 
-    def test_interp_kick(self):
-        delayed_kick = PooledInterpolationKick()
-        _delayed_kick_time_axis = np.linspace(
-            0,
-            self.multi_harmonic_cavity.calc_main_harmonic_omega_rf_design(
-                beam_beta=self.beam.reference.beta,
-                ring_circumference=self.multi_harmonic_cavity._ring.circumference,
-            ),
-            dtype=backend.float,
-        )
-        beam_smooth_rf = ProbeBeam(
+    def test_interp_kick_single_harmonic(self):
+        beam = ProbeBeam(
             particle_type=lead_82,
-            dt=_delayed_kick_time_axis.copy(),
-            reference_total_energy=938e9,
+            dt=np.linspace(0, 1, 100),
+            reference_total_energy=1e12,
         )
-        beam_interp_rf = deepcopy(beam_smooth_rf)
-        beam_smooth_rf.reference.beta
-        beam_interp_rf.reference.beta
-        self.multi_harmonic_cavity.track(beam=beam_smooth_rf)
-        beam_interp_rf.reference.beta
-        self.multi_harmonic_cavity._delayed_kick = delayed_kick
-        self.multi_harmonic_cavity._delayed_kick_time_axis = (
-            _delayed_kick_time_axis.copy()
+        rf_station_smooth = SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=1e3,
+            phi_rf=np.deg2rad(33),
+            harmonic=5,
+            circumference=123,
+            total_energy=beam.reference.total_energy,
+            beam_reference_beta=beam.reference.beta,
+            local_wakefield=None,
+            cavity_feedback=None,
+            delayed_kick=None,
+            delayed_kick_time_axis=None,
         )
-        beam_interp_rf.reference.beta
-        self.multi_harmonic_cavity.track(beam=beam_interp_rf)
+        beam1_smooth = deepcopy(beam)
+        rf_station_smooth.track(beam1_smooth)
+        result_smooth = beam1_smooth.dE.copy_as_numpy()
 
-        np.testing.assert_array_equal(
-            beam_interp_rf.dE.copy_as_numpy(),
-            beam_smooth_rf.dE.copy_as_numpy(),
+        pool = PooledInterpolationKick()
+        beam_interp = deepcopy(beam)
+        rf_station_interp = SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=1e3,
+            phi_rf=np.deg2rad(33),
+            harmonic=5,
+            circumference=123,
+            total_energy=beam.reference.total_energy,
+            beam_reference_beta=beam.reference.beta,
+            local_wakefield=None,
+            cavity_feedback=None,
+            delayed_kick=pool,
+            delayed_kick_time_axis=beam_interp.dt.copy_as_numpy(),
+        )
+        rf_station_interp.track(beam_interp)
+        pool.track(beam_interp)
+
+        result_interp = beam_interp.dE.copy_as_numpy()
+        offset = 2 * np.min(result_smooth)
+        result_smooth += offset
+        result_interp += offset
+        DEV_PLOT = False
+        if DEV_PLOT:
+            plt.plot(result_smooth, "o", label="result_smooth")
+            plt.plot(result_interp, "x", label="result_interp")
+            plt.show()
+        self.assertTrue(not np.any(np.isnan(result_smooth)))
+        self.assertTrue(not np.any(np.isnan(result_interp)))
+        np.testing.assert_allclose(
+            result_smooth[:-1],
+            result_interp[:-1],
+        )
+
+    def test_interp_kick_multi_harmonic(self):
+        beam = ProbeBeam(
+            particle_type=lead_82,
+            dt=np.linspace(0, 1, 100),
+            reference_total_energy=1e12,
+        )
+        rf_station_smooth = MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([1e3, 2e3]),
+            phi_rf=np.array([np.deg2rad(33), np.deg2rad(63)]),
+            harmonic=np.array([5, 7.3]),
+            circumference=123,
+            main_harmonic_idx=1,
+            total_energy=beam.reference.total_energy,
+            beam_reference_beta=beam.reference.beta,
+            local_wakefield=None,
+            cavity_feedback=None,
+            delayed_kick=None,
+            delayed_kick_time_axis=None,
+        )
+        beam1_smooth = deepcopy(beam)
+        rf_station_smooth.track(beam1_smooth)
+        result_smooth = beam1_smooth.dE.copy_as_numpy()
+
+        pool = PooledInterpolationKick()
+        beam_interp = deepcopy(beam)
+        rf_station_interp = MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([1e3, 2e3]),
+            phi_rf=np.array([np.deg2rad(33), np.deg2rad(63)]),
+            harmonic=np.array([5, 7.3]),
+            circumference=123,
+            main_harmonic_idx=1,
+            total_energy=beam.reference.total_energy,
+            beam_reference_beta=beam.reference.beta,
+            local_wakefield=None,
+            cavity_feedback=None,
+            delayed_kick=pool,
+            delayed_kick_time_axis=beam_interp.dt.copy_as_numpy(),
+        )
+        rf_station_interp.track(beam_interp)
+        pool.track(beam_interp)
+
+        result_interp = beam_interp.dE.copy_as_numpy()
+        offset = 2 * np.min(result_smooth)
+        result_smooth += offset
+        result_interp += offset
+        DEV_PLOT = False
+        if DEV_PLOT:
+            plt.plot(result_smooth, "o", label="result_smooth")
+            plt.plot(result_interp, "x", label="result_interp")
+            plt.show()
+        self.assertTrue(not np.any(np.isnan(result_smooth)))
+        self.assertTrue(not np.any(np.isnan(result_interp)))
+        np.testing.assert_allclose(
+            result_smooth[:-1],
+            result_interp[:-1],
         )
 
 

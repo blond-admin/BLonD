@@ -53,7 +53,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Beam, Ring
+    from blond import Ring
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
@@ -473,7 +473,7 @@ class RFStationBaseClass(
         """
         if harmonic_index is None and not isinstance(self.phi_rf, float):
             raise ValueError(
-                "If no harmonic_index is provided, phi_rf needs to be a float."
+                "If no `harmonic_index` is provided, `phi_rf` needs to be a float."
             )
 
         phi_rf = (
@@ -954,6 +954,10 @@ class SingleHarmonicRFStation(
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...))
     """
 
+    voltage: float | None
+    phi_rf: float | None
+    omega_rf: float | None
+
     def __init__(
         self,
         voltage: float | None = None,
@@ -1072,6 +1076,32 @@ class SingleHarmonicRFStation(
         """
         return self.omega_rf
 
+    def calc_gap_voltage_without_feedbacks(
+        self, ts: NumpyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Calculate total gap voltage in the RF station.
+
+        This function calculates the total gap voltage including
+        both the beam-induced and generator-induced voltages inside the
+        RF cavities of the RF station.
+
+        Parameters
+        ----------
+        ts
+            Time array at which to evaluate, in [s].
+
+        Returns
+        -------
+        gap_voltage
+            Gap voltage in [V] within the length of the profile.
+        """
+        gap_voltage = self._get_gap_voltage_per_harmonic(
+            ts=ts,
+            harmonic_index=None,
+        )
+        return gap_voltage
+
     def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
@@ -1111,33 +1141,54 @@ class SingleHarmonicRFStation(
                         voltage=voltage - reference_energy_change,
                     )
                 else:
-                    backend.specials.kick_interpolated(
-                        dt=beam.read_partial_dt(),
-                        dE=beam.write_partial_dE(),
+                    self._track_interp(
+                        beam=beam,
+                        reference_energy_change=reference_energy_change,
+                        time_axis=time_axis,
                         voltage=voltage,
-                        bin_centers=time_axis,
-                        charge=beam.particle_type.charge,
-                        acceleration_kick=-reference_energy_change,  # Mind the minus!
                     )
             elif self._delayed_kick is not None:
-                voltage = self._get_gap_voltage_per_harmonic(
-                    ts=self._delayed_kick_time_axis,
-                    harmonic_index=0,
+                assert self._delayed_kick_time_axis is not None
+
+                time_axis = self._delayed_kick_time_axis
+                voltage = self.calc_gap_voltage_without_feedbacks(
+                    ts=time_axis, harmonic_index=0
                 )
                 self._delayed_kick.register(
-                    time_axis=self._delayed_kick_time_axis,
+                    time_axis=time_axis,
                     voltage=voltage - reference_energy_change,
                 )
             else:
-                backend.specials.kick_single_harmonic(
-                    dt=beam.read_partial_dt(),
-                    dE=beam.write_partial_dE(),
-                    voltage=self.voltage,
-                    phi_rf=self.phi_rf,
-                    omega_rf=self.omega_rf,
-                    charge=beam.particle_type.charge,
-                    acceleration_kick=-reference_energy_change,  # Mind the minus!
+                self._track_no_interp(
+                    beam=beam, reference_energy_change=reference_energy_change
                 )
+
+    def _track_no_interp(
+        self, beam: BeamBaseClass, reference_energy_change: float
+    ):
+        """
+        Track without interpolation.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        reference_energy_change
+            Update of the reference coordinate system, in [eV].
+        """
+        assert self.voltage is not None
+        assert self.phi_rf is not None
+        assert self.omega_rf is not None
+
+        backend.specials.kick_single_harmonic(
+            dt=beam.read_partial_dt(),
+            dE=beam.write_partial_dE(),
+            voltage=self.voltage,
+            phi_rf=self.phi_rf,
+            omega_rf=self.omega_rf,
+            charge=beam.particle_type.charge,
+            acceleration_kick=-reference_energy_change,  # Mind the minus!
+        )
 
     def calc_gap_voltage_with_feedbacks(self):
         """
@@ -1173,6 +1224,8 @@ class SingleHarmonicRFStation(
         beam_reference_beta: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
+        delayed_kick: PooledInterpolationKick | None = None,
+        delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
     ) -> SingleHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1197,6 +1250,12 @@ class SingleHarmonicRFStation(
             Optional wakefield to interact with beam.
         cavity_feedback
             Optional cavity feedback to change cavity parameters.
+        delayed_kick
+            The common interface to apply the kick later.
+            `PooledInterpolationKick.track(...)` must be executed elsewhere.
+        delayed_kick_time_axis
+            The time axis along which to interpolate the kick.
+            This impacts the accuracy and range of the RF kick.
 
         Returns
         -------
@@ -1215,6 +1274,8 @@ class SingleHarmonicRFStation(
             voltage=voltage,
             phi_rf=phi_rf,
             harmonic=harmonic,
+            delayed_kick=delayed_kick,
+            delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
         ring = Mock(Ring)
@@ -1306,6 +1367,10 @@ class MultiHarmonicRFStation(
     >>> rf_station = MultiHarmonicRFStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...))
     """
+
+    voltage: NumpyArray | CupyArray | None
+    phi_rf: NumpyArray | CupyArray | None
+    omega_rf: NumpyArray | CupyArray | None
 
     def __init__(
         self,
@@ -1451,7 +1516,36 @@ class MultiHarmonicRFStation(
         omega_rf
             The angular frequency of the main harmonic, in [rad/s].
         """
+        assert self.omega_rf is not None
         return self.omega_rf[self.main_harmonic_idx]
+
+    def calc_gap_voltage_without_feedbacks(
+        self, ts: NumpyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Calculate total gap voltage in the RF station.
+
+        This function calculates the total gap voltage including
+        both the beam-induced and generator-induced voltages inside the
+        RF cavities of the RF station.
+
+        Parameters
+        ----------
+        ts
+            Time array at which to evaluate, in [s].
+
+        Returns
+        -------
+        gap_voltage
+            Gap voltage in [V] within the length of the profile.
+        """
+        gap_voltage = backend.zeros(len(ts))
+        for ind in range(self.n_rf):
+            gap_voltage += self._get_gap_voltage_per_harmonic(
+                ts=ts,
+                harmonic_index=ind,
+            )
+        return gap_voltage
 
     def calc_gap_voltage_with_feedbacks(self):
         """
@@ -1507,40 +1601,39 @@ class MultiHarmonicRFStation(
 
         if beam.common_array_size > 0:
             if self.any_feedback_not_none:
-                time_axis = self.cavity_feedback_list[0].profile.hist_x
                 voltage = backend.array(
                     self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
                 )
-                if (self._delayed_kick is not None) and (
-                    self._delayed_kick_time_axis is not None
-                ):
-                    warnings.warn(
-                        "`delayed_kick_time_axis` is ignored with "
-                        "feedbacks. Set to `None` to silence this warning.",
-                        UserWarning,
-                        stacklevel=1,
+                time_axis = self.cavity_feedback_list[0].profile.hist_x
+                if self._delayed_kick is not None:
+                    if self._delayed_kick_time_axis is not None:
+                        warnings.warn(
+                            "`delayed_kick_time_axis` is ignored with "
+                            "feedbacks. Set to `None` to silence this warning.",
+                            UserWarning,
+                            stacklevel=1,
+                        )
+                    self._delayed_kick.register(
+                        time_axis=time_axis,
+                        voltage=voltage - reference_energy_change,
                     )
-                self._track_interp(
-                    beam=beam,
-                    reference_energy_change=reference_energy_change,
-                    time_axis=time_axis,
-                    voltage=voltage,
-                )
+                else:
+                    self._track_interp(
+                        beam=beam,
+                        reference_energy_change=reference_energy_change,
+                        time_axis=time_axis,
+                        voltage=voltage,
+                    )
             elif self._delayed_kick is not None:
-                voltage = self._get_gap_voltage_per_harmonic(
-                    ts=self._delayed_kick_time_axis,
-                    harmonic_index=0,
-                )
-                time_axis = self._delayed_kick_time_axis
+                assert self._delayed_kick_time_axis is not None
 
-                self._track_interp(
-                    beam=beam,
-                    reference_energy_change=reference_energy_change,
-                    time_axis=time_axis,
-                    voltage=voltage,
+                time_axis = self._delayed_kick_time_axis
+                voltage = self.calc_gap_voltage_without_feedbacks(
+                    ts=self._delayed_kick_time_axis,
                 )
+
                 self._delayed_kick.register(
-                    time_axis=self._delayed_kick_time_axis,
+                    time_axis=time_axis,
                     voltage=voltage - reference_energy_change,
                 )
             else:
@@ -1548,7 +1641,23 @@ class MultiHarmonicRFStation(
                     beam=beam, reference_energy_change=reference_energy_change
                 )
 
-    def _track_no_interp(self, beam: Beam, reference_energy_change):
+    def _track_no_interp(
+        self, beam: BeamBaseClass, reference_energy_change: float
+    ):
+        """
+        Track without interpolation.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        reference_energy_change
+            Update of the reference coordinate system, in [eV].
+        """
+        assert self.voltage is not None
+        assert self.phi_rf is not None
+        assert self.omega_rf is not None
+
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
@@ -1573,6 +1682,8 @@ class MultiHarmonicRFStation(
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
+        delayed_kick: PooledInterpolationKick | None = None,
+        delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
     ) -> MultiHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1602,6 +1713,12 @@ class MultiHarmonicRFStation(
             Optional cavity feedback to change cavity parameters.
         beam_feedback
             Optional beam feedback to change cavity parameters.
+        delayed_kick
+            The common interface to apply the kick later.
+            `PooledInterpolationKick.track(...)` must be executed elsewhere.
+        delayed_kick_time_axis
+            The time axis along which to interpolate the kick.
+            This impacts the accuracy and range of the RF kick.
 
         Returns
         -------
@@ -1623,6 +1740,8 @@ class MultiHarmonicRFStation(
             cavity_feedback=cavity_feedback,
             beam_feedback=beam_feedback,
             main_harmonic_idx=main_harmonic_idx,
+            delayed_kick=delayed_kick,
+            delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
         ring = Mock(Ring)
