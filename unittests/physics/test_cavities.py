@@ -11,6 +11,7 @@ from scipy.constants import speed_of_light as c0
 from blond import (
     ConstantMagneticCycle,
     MagneticCyclePerTurn,
+    Numpy64Bit,
     Ring,
     Simulation,
     StaticProfile,
@@ -859,8 +860,10 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         np.testing.assert_allclose(
             result_smooth[:-1],
             result_interp[:-1],
+            rtol=1e-5 if backend.float == np.float32 else 1e-11,
         )
 
+    @pytest.mark.backend_mutation
     def test_interp_kick_multi_harmonic(self):
         beam = ProbeBeam(
             particle_type=lead_82,
@@ -918,6 +921,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         np.testing.assert_allclose(
             result_smooth[:-1],
             result_interp[:-1],
+            rtol=1e-5 if backend.float == np.float32 else 1e-11,
         )
 
 
