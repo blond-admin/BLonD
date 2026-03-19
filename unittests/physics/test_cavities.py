@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from pylab import dtype
+from numpy import ndarray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond import (
@@ -25,7 +25,7 @@ from blond.acc_math.analytic.simple_math import (
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_energy_loss_per_turn,
 )
-from blond.core.backends.backend import Cupy32Bit, backend
+from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
@@ -46,7 +46,7 @@ from blond.physics.cavities import (
 )
 from blond.physics.drifts import DriftSimple
 from blond.physics.impedances.base import WakeField
-from unittests.handle_results.test_observables_as_elements import beam
+from blond.testing.helpers import allclose_tolerances
 
 
 class TestRFStationBaseClass(unittest.TestCase):
@@ -150,7 +150,7 @@ class TestRFStationBaseClass(unittest.TestCase):
     def test__get_gap_voltage_per_harmonic(self):
         def calc_rf_waveform(
             _time_arr, _omega, _phi, _voltage, _v_corr=1, _phi_corr=0
-        ):
+        ) -> NumpyArray:
             return (
                 _voltage
                 * _v_corr
@@ -173,11 +173,16 @@ class TestRFStationBaseClass(unittest.TestCase):
         mhc.omega_rf_design = omega_rf
 
         for harm_ind in harmonic_index:
+            desired = calc_rf_waveform(
+                ts,
+                omega_rf[harm_ind],
+                phi_rf[harm_ind],
+                voltage[harm_ind],
+            )
             np.testing.assert_allclose(
-                mhc._get_gap_voltage_per_harmonic(ts, harm_ind),
-                calc_rf_waveform(
-                    ts, omega_rf[harm_ind], phi_rf[harm_ind], voltage[harm_ind]
-                ),
+                copy_to_cpu(mhc._get_gap_voltage_per_harmonic(ts, harm_ind)),
+                copy_to_cpu(desired),
+                **allclose_tolerances(desired),
             )
 
         cav_fb_0 = Mock(spec=LocalFeedback)
@@ -212,7 +217,11 @@ class TestRFStationBaseClass(unittest.TestCase):
                 ts, omega_rf[harm_ind], phi_rf[harm_ind], voltage[harm_ind]
             )
 
-        np.testing.assert_allclose(mhc.calc_gap_voltage_with_feedbacks(), sol)
+        np.testing.assert_allclose(
+            copy_to_cpu(mhc.calc_gap_voltage_with_feedbacks()),
+            sol,
+            **allclose_tolerances(sol),
+        )
 
         with self.assertRaisesRegex(
             ValueError, "If no harmonic_index is provided"

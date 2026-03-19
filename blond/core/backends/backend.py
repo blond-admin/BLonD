@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.exceptions import ComplexWarning
 
+from blond.generals.exceptions_ import ArrayCastingError
 from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -278,6 +279,7 @@ class BackendBaseClass(ABC):
         self.fft: ModuleType = None  # type: ignore
         self.all: Callable = None  # type: ignore
         self.random: ModuleType = None  # type: ignore
+        self.sinc: Callable = None  # type: ignore
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
         self.sqrt: Callable = None  # type: ignore
@@ -531,14 +533,14 @@ class BackendBaseClass(ABC):
         try:
             new_arr = self._asarray_if_needed(arr)
         except ValueError as exc:
-            raise ValueError(
+            raise ArrayCastingError(
                 f"Unable to convert input data {arr} to array."
             ) from exc
 
         try:
             new_arr = self._cast_dtype_if_needed(new_arr, dtype)
         except (TypeError, ValueError) as exc:
-            raise type(exc)(
+            raise ArrayCastingError(
                 "Unable to automatically cast dtype of input data from "
                 f"{new_arr.dtype} to {dtype}."
             ) from exc
@@ -631,6 +633,7 @@ class NumpyBackend(BackendBaseClass):
         self.fft = np.fft
         self.all = np.all
         self.random = np.random
+        self.sinc = np.sinc
         self.isnan = np.isnan
         self.sum = np.sum
         self.sqrt = np.sqrt
@@ -783,6 +786,7 @@ class CupyBackend(BackendBaseClass):
         self.fft = cp.fft
         self.all = cp.all
         self.random = cp.random
+        self.sinc = cp.sinc
         self.isnan = cp.isnan
         self.sum = cp.sum
         self.sqrt = cp.sqrt
@@ -864,8 +868,8 @@ class Cupy64Bit(CupyBackend):
         )
 
 
-default = Numpy64Bit()  # use .change_backend(...) to change it anywhere
-backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
+default = Numpy64Bit  # use .change_backend(...) to change it anywhere
+backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default()
 backend.verbose = True
 backend.apply_environment_variables()
 

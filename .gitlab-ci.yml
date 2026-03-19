@@ -39,7 +39,7 @@ workflow:
     # Install project with extras
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
-    - python3 -m pip install -v -e ${project_root}[all]
+    - python3 -m pip install -v -e ${project_root}[all_cuda12]
     - cd ${project_root}
     # Compile C++, CUDA backends
     - python3 blond/core/backends/cpp/compile.py --parallel
@@ -56,12 +56,12 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib; fi'
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
       -v unittests/
-      --import-mode=importlib
+      --randomly-seed=$CI_PIPELINE_ID
       --cov-append
       --cov
       --cov-config=.coveragerc
@@ -86,6 +86,7 @@ workflow:
       -m "not backend_mutation and not mpi"
       -m "not backend_mutation"
       -v unittests/
+      --randomly-seed=$CI_PIPELINE_ID
 
 
 
@@ -99,7 +100,7 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib; fi'
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
@@ -112,7 +113,7 @@ workflow:
     - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
     - python3 -m pytest
       -v unittests/
-      --import-mode=importlib
+      --randomly-seed=$CI_PIPELINE_ID
       --cov-append
       --cov
       --cov-config=.coveragerc
@@ -263,7 +264,7 @@ test_minimum:
     - . .venv/bin/activate
     # Install uv
     - python -m pip install uv
-    - python -m uv pip install --resolution lowest-direct ${project_root}[all]
+    - python -m uv pip install --resolution lowest-direct ${project_root}[all_cuda12]
     - cd ${project_root}
     # Compile C++, CUDA, Fortran backends
     - python blond/core/backends/cpp/compile.py --parallel
