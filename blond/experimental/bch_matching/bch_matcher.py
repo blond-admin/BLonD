@@ -15,7 +15,7 @@ from scipy.constants import c as c0
 from blond import DriftSimple, Simulation, SingleHarmonicRFStation
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.beam.base import BeamBaseClass
-from blond.experimental.cbh_matching.bch_expansion import bch_lattice
+from blond.experimental.bch_matching.bch_expansion import bch_lattice
 
 
 class BCHMatcher(MatchingRoutine):
@@ -37,6 +37,7 @@ class BCHMatcher(MatchingRoutine):
         n_macroparticles: int,
         order: int = 1,
         distribution="Gaussian",
+        emittance=None,
         plot: bool = True,
         time_window_limit: tuple = None,
         energy_window_limit: tuple = None,
@@ -55,11 +56,14 @@ class BCHMatcher(MatchingRoutine):
             Order of CBH expansion.
         distribution
             Distribution to match f(H).
+        emittance
+            Emittance to match f(H).
         plot
             If True, plot the Hamiltonian expansion.
         """
         self.simulation = simulation
         self.beam = beam
+        self.emittance = emittance
         self.H_list = None
         self.n_macroparticles = n_macroparticles
         self.order = order
@@ -83,6 +87,7 @@ class BCHMatcher(MatchingRoutine):
         self.make_sympy_map()
         self.find_bucket_level()
         self.build_numeric_hamiltonian()
+        self.compute_H0()
 
         if self.plot:
             self.plot_hamiltonian(
@@ -163,7 +168,7 @@ class BCHMatcher(MatchingRoutine):
 
     def sample_matched_bunch(
         self,
-        batch_size=10,
+        batch_size=1000,
     ):
         """
         Sample a distribution that is matched, f(H).
@@ -191,9 +196,19 @@ class BCHMatcher(MatchingRoutine):
                     self.energy_window_limit[1],
                     batch_size,
                 )
-
-                H_vals = self.H_func(q_try, p_try)
-                mask = H_vals < self.H_sep
+                if self.distribution == "Gaussian":
+                    H_vals = self.H_func(q_try, p_try)
+                    # inside bucket
+                    mask_bucket = H_vals < self.H_sep
+                    # Gaussian in H
+                    prob = np.exp(-H_vals / self.H0)  #
+                    # normalize for rejection sampling
+                    prob /= prob.max()
+                    rand = np.random.uniform(0, 1, batch_size)
+                    mask = (rand < prob) & mask_bucket
+                else:
+                    H_vals = self.H_func(q_try, p_try)
+                    mask = H_vals < self.H_sep
 
                 n_accept = mask.sum()
                 n_to_take = min(n_accept, n - count)
@@ -248,3 +263,44 @@ class BCHMatcher(MatchingRoutine):
         plt.ylabel("ΔE [eV]")
         plt.title(f"order = {self.order}")
         plt.show()
+
+    def compute_omega_s(self):
+        rf = None
+        for el in self.simulation.ring.elements.elements:
+            if isinstance(el, SingleHarmonicRFStation):
+                rf = el
+                break
+
+        beta = self.beam.reference.beta
+        E = self.beam.reference.total_energy
+        h = rf.harmonic
+        V = rf.voltage
+        phi_s = rf.phi_rf
+
+        eta = self.simulation.ring.calc_average_eta_0(
+            gamma=self.beam.reference.gamma
+        )
+
+        omega_rf = (
+            2 * np.pi * h * beta * c0 / self.simulation.ring.circumference
+        )
+
+        omega_s = (
+            np.sqrt(
+                abs(eta * h * V * np.cos(phi_s)) / (2 * np.pi * beta**2 * E)
+            )
+            * omega_rf
+        )
+
+        return omega_s
+
+    def compute_H0(self):
+        if self.emittance is None:
+            raise ValueError(
+                "Emittance must be provided for Gaussian matching"
+            )
+
+        omega_s = self.compute_omega_s()
+
+        # small-amplitude approximation
+        self.H0 = self.emittance * omega_s / (2 * np.pi)

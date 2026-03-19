@@ -22,7 +22,7 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
-from blond.experimental.cbh_matching.bch_matcher import (
+from blond.experimental.bch_matching.bch_matcher import (
     BCHMatcher,
 )
 from blond.handle_results.observables_as_elements import (
@@ -39,7 +39,7 @@ from blond.handle_results.observables_as_elements import (
 # voltage1 = 10e6
 
 # #-------LHC
-order = 1
+order = 3
 
 p_s = 450.0e9  # Synchronous momentum [eV]
 harmonic_number = 35640  # Harmonic number
@@ -97,6 +97,7 @@ sim.prepare_beam(
         n_macroparticles=int(1e5),  # TODO handle int properly
         order=order,
         distribution="Gaussian",
+        emittance=4e-9,
         time_window_limit=(0, 2.5e-9),
         energy_window_limit=(-2e9, 2e9),
     ),
@@ -109,11 +110,31 @@ sim.run_simulation(beams=[beam], n_turns=n_turns)
 
 # plot
 plt.title(f"order = {order}")
-plt.scatter(observation.dts[0], observation.dEs[0], label="turn 0")
-plt.scatter(observation.dts[-1], observation.dEs[-1], label="turn 100")
+plt.scatter(observation.dts[0] * 1e9, observation.dEs[0], label="turn 0")
+plt.scatter(
+    observation.dts[-1] * 1e9 + 2, observation.dEs[-1], label="turn 100"
+)
 plt.legend()
-plt.xlabel("Δt [s]")
+plt.xlabel("Δt [ns]")
 plt.ylabel("ΔE [eV]")
+plt.show()
+
+# plot
+plt.title(f"order = {order}")
+plt.hist(
+    observation.dts[0] * 1e9,
+    bins=np.linspace(0, 2.5, 100),
+    label="turn 0",
+    density=True,
+)
+plt.hist(
+    observation.dts[-1] * 1e9,
+    bins=np.linspace(0, 2.5, 100),
+    label="turn 100",
+    density=True,
+)
+plt.legend()
+plt.xlabel("Δt [ns]")
 plt.show()
 
 dat = []
@@ -124,7 +145,7 @@ for i in range(100):
         ]
     )
 
-plt.contourf(dat, levels=40)
+plt.contourf(dat, levels=100, cmap="plasma")
 plt.title(f"order = {order}")
 plt.ylabel("Turn")
 plt.xlabel("Δt [s]")
