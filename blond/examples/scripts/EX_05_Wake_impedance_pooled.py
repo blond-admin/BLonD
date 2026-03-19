@@ -42,6 +42,7 @@ from blond import (
     TimeDomainFftSolver,
     WakeField,
     backend,
+    momentum_compaction_factor,
     proton,
 )
 from blond.experimental import PooledInterpolationKick
@@ -82,7 +83,9 @@ def main():
             particle_type=proton,
         )
         drift = DriftSimple(
-            transition_gamma=22.82177322938192,
+            momentum_compaction_factor=momentum_compaction_factor(
+                transition_gamma=22.82177322938192
+            ),
             orbit_length=1.0 * ring.circumference,
         )
         profile = StaticProfile.from_rad(

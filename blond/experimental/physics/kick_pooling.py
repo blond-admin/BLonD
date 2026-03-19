@@ -18,6 +18,7 @@ Simon Lauber
 from __future__ import annotations
 
 import logging
+from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
 
 from blond import backend
@@ -54,16 +55,23 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
     name
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
+    maxsize
+        Maximum time axis that can be stored/buffered at the sime time
     **kwargs
         Additional keyword arguments passed to the parent.
     """
 
     def __init__(
-        self, section_index: int = 0, name: str | None = None, **kwargs
+        self,
+        section_index: int = 0,
+        name: str | None = None,
+        maxsize=100,
+        **kwargs,
     ) -> None:
         super().__init__(section_index, name)
-        self._buffer_voltage = {}
-        self._buffer_time_axis = {}
+        self._maxsize = maxsize
+        self._buffer_voltage = OrderedDict()
+        self._buffer_time_axis = OrderedDict()
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -123,11 +131,22 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         """
 
         key = id(time_axis)
-        try:
+
+        if key in self._buffer_voltage:
+            # Update existing entry
             self._buffer_voltage[key] += voltage
-        except KeyError:
+            # Move to end to mark as recently used (optional)
+            self._buffer_voltage.move_to_end(key)
+            self._buffer_time_axis.move_to_end(key)
+        else:
+            # Insert new entry
             self._buffer_voltage[key] = voltage.copy()
             self._buffer_time_axis[key] = time_axis.copy()
+
+            # Enforce maxsize
+            if len(self._buffer_voltage) > self._maxsize:
+                oldest_key, _ = self._buffer_voltage.popitem(last=False)
+                self._buffer_time_axis.pop(oldest_key, None)
 
     def _track(self, beam: BeamBaseClass) -> None:
         """

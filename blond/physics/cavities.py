@@ -478,17 +478,17 @@ class RFStationBaseClass(
 
         phi_rf = (
             self.phi_rf[harmonic_index]
-            if harmonic_index is not None
+            if isinstance(self, MultiHarmonicRFStation)
             else self.phi_rf
         )
         omega_rf = (
             self.omega_rf[harmonic_index]
-            if harmonic_index is not None
+            if isinstance(self, MultiHarmonicRFStation)
             else self.omega_rf
         )
         voltage = (
             self.voltage[harmonic_index]
-            if harmonic_index is not None
+            if isinstance(self, MultiHarmonicRFStation)
             else self.voltage
         )
         gap_voltage = (
@@ -951,7 +951,7 @@ class SingleHarmonicRFStation(
     >>> import numpy as np
     >>> from blond import SingleHarmonicRFStation
     >>> rf_station = SingleHarmonicRFStation(...)
-    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
+    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...))
     """
 
     def __init__(
@@ -991,7 +991,9 @@ class SingleHarmonicRFStation(
         self._dphi_rf_next: float = 0.0
 
         if self._delayed_kick is not None:
-            assert delayed_kick_time_axis is not None
+            assert delayed_kick_time_axis is not None, (
+                f"Got {delayed_kick_time_axis=}"
+            )
         self._delayed_kick_time_axis = delayed_kick_time_axis
 
     def get_main_harmonic(self) -> float:
@@ -1302,7 +1304,7 @@ class MultiHarmonicRFStation(
 
     >>> from blond import MultiHarmonicRFStation
     >>> rf_station = MultiHarmonicRFStation(...)
-    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
+    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...))
     """
 
     def __init__(
@@ -1372,7 +1374,9 @@ class MultiHarmonicRFStation(
         self._dphi_rf_next: NumpyArray = np.zeros(n_harmonics)
 
         if self._delayed_kick is not None:
-            assert delayed_kick_time_axis is not None
+            assert delayed_kick_time_axis is not None, (
+                f"Got {delayed_kick_time_axis=}."
+            )
         self._delayed_kick_time_axis = delayed_kick_time_axis
 
     def get_main_harmonic(self) -> float:

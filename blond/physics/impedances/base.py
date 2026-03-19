@@ -522,7 +522,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         voltage = induced_voltage.astype(backend.float)
         bin_centers = self.profile.hist_x  # base for induced voltage
         if self._delayed_kick is not None:
-            # Relies on PooledInterpolationKick.tracK()
+            # Relies on PooledInterpolationKick.track()
             # being called later.
             self._delayed_kick.register(
                 time_axis=bin_centers,
