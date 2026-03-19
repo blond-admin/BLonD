@@ -1151,9 +1151,7 @@ class SingleHarmonicRFStation(
                 assert self._delayed_kick_time_axis is not None
 
                 time_axis = self._delayed_kick_time_axis
-                voltage = self.calc_gap_voltage_without_feedbacks(
-                    ts=time_axis, harmonic_index=0
-                )
+                voltage = self.calc_gap_voltage_without_feedbacks(ts=time_axis)
                 self._delayed_kick.register(
                     time_axis=time_axis,
                     voltage=voltage - reference_energy_change,

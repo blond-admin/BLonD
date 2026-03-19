@@ -48,11 +48,10 @@ from blond import (
 from blond.experimental import PooledInterpolationKick
 from blond.handle_results.helpers import callers_relative_path
 
-backend.set_specials("cpp")
 pooling = False
 
 
-def main():
+def main(n_turns=1000):
     sync_momentum = 25.92e9  # [eV / c]
 
     resonator_data = np.loadtxt(
@@ -134,12 +133,14 @@ def main():
         )
         # sim.profiling(beams=beam, profile_n_turns=1000, sortby=SortKey.TIME)
         t0 = time.time()
-        sim.run_simulation(beams=beam, n_turns=1000)
+        sim.run_simulation(beams=beam, n_turns=n_turns)
 
         print(f"{pooling=}", time.time() - t0, "s")
 
 
 if __name__ == "__main__":  # pragma: no cover
+    backend.set_specials("cpp")
+
     for b in (True, False):
         pooling = b
         main()
