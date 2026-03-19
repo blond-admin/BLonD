@@ -74,12 +74,22 @@ extern "C" void kick_single_harmonic(const real_t *__restrict__ beam_dt,
                                      const int n_macroparticles,
                                      const real_t acc_kick) {
 
-// KICK
-const real_t amp = charge * voltage;
-#pragma omp parallel for
-  for (int i = 0; i < n_macroparticles; i++) {
-    beam_dE[i] +=
-        amp * FAST_SIN(omega_RF * beam_dt[i] + phi_RF) + acc_kick;
+  const real_t cv = charge * voltage;
+  beam_dt = (const real_t *)__builtin_assume_aligned(beam_dt, 64);
+  beam_dE = (real_t *)__builtin_assume_aligned(beam_dE, 64);
+
+// Fast path: skip the per-element add when acc_kick is zero (common case),
+// giving the compiler a cleaner loop to vectorize via FAST_SIN.
+  if (acc_kick == 0.0) {
+#pragma omp parallel for simd
+    for (int i = 0; i < n_macroparticles; i++) {
+      beam_dE[i] += cv * FAST_SIN(omega_RF * beam_dt[i] + phi_RF);
+    }
+  } else {
+#pragma omp parallel for simd
+    for (int i = 0; i < n_macroparticles; i++) {
+      beam_dE[i] += cv * FAST_SIN(omega_RF * beam_dt[i] + phi_RF) + acc_kick;
+    }
   }
 }
 

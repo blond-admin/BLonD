@@ -9,9 +9,6 @@
 // Optimised C++ routine that calculates the drift.
 // Author: Danilo Quartullo, Helga Timko, Alexandre Lasheen
 
-#include <math.h>
-#include <string.h>
-
 #include "blond_common.h"
 
 extern "C" void drift_simple(real_t *__restrict__ beam_dt,
@@ -19,8 +16,12 @@ extern "C" void drift_simple(real_t *__restrict__ beam_dt,
                              const real_t eta_zero, const real_t beta,
                              const real_t energy, const int n_macroparticles) {
 
-  real_t coeff = T * eta_zero / (beta * beta * energy);
-#pragma omp parallel for
+  const real_t coeff = T * eta_zero / (beta * beta * energy);
+  beam_dt = (real_t *)__builtin_assume_aligned(beam_dt, 64);
+  beam_dE = (const real_t *)__builtin_assume_aligned(beam_dE, 64);
+// Non-temporal stores bypass the cache: avoids polluting L3 for large beams
+// where the array won't be re-read soon (array size >> L3 cache).
+#pragma omp parallel for simd nontemporal(beam_dt)
   for (int i = 0; i < n_macroparticles; i++) {
     beam_dt[i] += coeff * beam_dE[i];
   }
