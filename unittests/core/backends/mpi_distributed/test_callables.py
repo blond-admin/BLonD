@@ -61,11 +61,13 @@ class TestCallables(unittest.TestCase):
         cp.random.seed(0)
         dt = DistributedArray(cp.random.normal(loc=0, scale=1, size=512))
         dE = DistributedArray(cp.random.normal(loc=0, scale=1, size=512))
-        rms_expected = float(
-            cp.sqrt(
-                cp.average(dt.array_local**2) * cp.average(dE.array_local**2)
-                - (cp.average(dt.array_local * dE.array_local)) ** 2
-            )
+        mean_dt = cp.mean(dt.array_local)
+        mean_dE = cp.mean(dE.array_local)
+        centered_dt = dt.array_local - mean_dt
+        centered_dE = dE.array_local - mean_dE
+        rms_expected = cp.sqrt(
+            cp.average(centered_dt**2) * cp.average(centered_dE**2)
+            - (cp.average(centered_dt * centered_dE)) ** 2
         )
         dt.mpi_scatter()
         dE.mpi_scatter()
