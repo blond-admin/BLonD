@@ -469,7 +469,7 @@ class RFStationBaseClass(
             * voltage_correction_factors
             * np.sin(omega_rf * ts + phi_rf + phase_offsets)
         )
-        return gap_voltage
+        return backend.array(gap_voltage, backend.float)
 
     def calc_main_harmonic_t_rf(
         self, beam_beta: float, ring_circumference: float
