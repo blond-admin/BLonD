@@ -19,9 +19,13 @@ class TestCallables(unittest.TestCase):
         rng = np.random.default_rng(0)
         dt = DistributedArray(rng.normal(loc=0, scale=1, size=512))
         dE = DistributedArray(rng.normal(loc=0, scale=1, size=512))
+        mean_dt = np.mean(dt.array_local)
+        mean_dE = np.mean(dE.array_local)
+        centered_dt = dt.array_local - mean_dt
+        centered_dE = dE.array_local - mean_dE
         rms_expected = np.sqrt(
-            np.average(dt.array_local**2) * np.average(dE.array_local**2)
-            - (np.average(dt.array_local * dE.array_local)) ** 2
+            np.average(centered_dt**2) * np.average(centered_dE**2)
+            - (np.average(centered_dt * centered_dE)) ** 2
         )
         rms = rms_emittance(dt=dt, dE=dE)
         self.assertAlmostEqual(rms_expected, rms)
@@ -32,9 +36,13 @@ class TestCallables(unittest.TestCase):
         rng = np.random.default_rng(0)
         dt = DistributedArray(rng.normal(loc=0, scale=1, size=512))
         dE = DistributedArray(rng.normal(loc=0, scale=1, size=512))
+        mean_dt = np.mean(dt.array_local)
+        mean_dE = np.mean(dE.array_local)
+        centered_dt = dt.array_local - mean_dt
+        centered_dE = dE.array_local - mean_dE
         rms_expected = np.sqrt(
-            np.average(dt.array_local**2) * np.average(dE.array_local**2)
-            - (np.average(dt.array_local * dE.array_local)) ** 2
+            np.average(centered_dt**2) * np.average(centered_dE**2)
+            - (np.average(centered_dt * centered_dE)) ** 2
         )
         dt.mpi_scatter()
         dE.mpi_scatter()
