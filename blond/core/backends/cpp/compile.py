@@ -143,7 +143,20 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         "-O3",
         "-std=c++11",
         "-shared",
-        "-funroll-loops",  # Aggressive loop unrolling
+        # Optimize the generated code for the architecture of the machine doing the compilation
+        "-march=native",
+        # Tune the performance for the host CPU without changing the generated instruction set
+        "-mtune=native",
+        # Enable Link Time Optimization (LTO) to optimize across multiple translation units
+        "-flto",
+        # Enable automatic vectorization of loops to use SIMD instructions
+        "-ftree-vectorize",
+        # Allow faster, less strict floating-point math (may break strict IEEE compliance)
+        "-ffast-math",
+        # Use a dynamic cost model to decide whether to vectorize loops
+        "-fvect-cost-model=dynamic",
+        # Allow the compiler to use a linker plugin for more efficient LTO
+        "-fuse-linker-plugin",
     ]
     # Some additional warning reporting related flags
     cflags += [
@@ -252,7 +265,6 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         except Exception as exception:
             print("Compilation failed.")
             print(exception)
-
     command = (
         [compiler]
         + cflags
