@@ -994,7 +994,7 @@ class SingleHarmonicRFStation(
         self.delta_omega_rf: float = 0.0
         self._dphi_rf_next: float = 0.0
 
-        if self._delayed_kick is not None:
+        if self._delayed_kick is not None and self.any_feedback_not_none:
             assert delayed_kick_time_axis is not None, (
                 f"Got {delayed_kick_time_axis=}"
             )
@@ -1436,7 +1436,7 @@ class MultiHarmonicRFStation(
         self.delta_omega_rf: NumpyArray = np.zeros(n_harmonics)
         self._dphi_rf_next: NumpyArray = np.zeros(n_harmonics)
 
-        if self._delayed_kick is not None:
+        if self._delayed_kick is not None and self.any_feedback_not_none:
             assert delayed_kick_time_axis is not None, (
                 f"Got {delayed_kick_time_axis=}."
             )

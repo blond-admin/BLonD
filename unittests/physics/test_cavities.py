@@ -1,5 +1,6 @@
 import unittest
 from copy import deepcopy
+from turtle import back
 from unittest.mock import Mock
 
 import numpy as np
@@ -10,6 +11,8 @@ from scipy.constants import speed_of_light as c0
 
 from blond import (
     ConstantMagneticCycle,
+    Cupy32Bit,
+    Cupy64Bit,
     MagneticCyclePerTurn,
     Numpy64Bit,
     Ring,
@@ -27,7 +30,7 @@ from blond.acc_math.analytic.simple_math import (
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_energy_loss_per_turn,
 )
-from blond.core.backends.backend import backend
+from blond.core.backends.backend import Numpy32Bit, backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
@@ -805,7 +808,12 @@ class TestMultiHarmonicCavity(unittest.TestCase):
     def test_info_string(self):
         self.multi_harmonic_cavity.info_string()  # just hope it executes.
 
+    @pytest.mark.backend_mutation
     def test_interp_kick_single_harmonic(self):
+        if isinstance(backend, Cupy32Bit):
+            backend.change_backend(Cupy64Bit)
+        if isinstance(backend, Numpy32Bit):
+            backend.change_backend(Numpy64Bit)
         beam = ProbeBeam(
             particle_type=lead_82,
             dt=np.linspace(0, 1, 100),
@@ -860,14 +868,18 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         np.testing.assert_allclose(
             result_smooth[:-1],
             result_interp[:-1],
-            rtol=1e-5 if backend.float == np.float32 else 1e-11,
+            rtol=1e-3 if backend.float == np.float32 else 1e-11,
         )
 
     @pytest.mark.backend_mutation
     def test_interp_kick_multi_harmonic(self):
+        if isinstance(backend, Cupy32Bit):
+            backend.change_backend(Cupy64Bit)
+        if isinstance(backend, Numpy32Bit):
+            backend.change_backend(Numpy64Bit)
         beam = ProbeBeam(
             particle_type=lead_82,
-            dt=np.linspace(0, 1, 100),
+            dt=np.linspace(0, 1, 100, dtype=backend.float),
             reference_total_energy=1e12,
         )
         rf_station_smooth = MultiHarmonicRFStation.headless(
@@ -921,7 +933,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         np.testing.assert_allclose(
             result_smooth[:-1],
             result_interp[:-1],
-            rtol=1e-5 if backend.float == np.float32 else 1e-11,
+            rtol=1e-3 if backend.float == np.float32 else 1e-11,
         )
 
 

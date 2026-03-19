@@ -18,8 +18,11 @@ Simon Lauber
 from __future__ import annotations
 
 import logging
+import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
+
+from jupyter_server.auth import User
 
 from blond import backend
 from blond.core.base import BeamPhysicsRelevant, Preparable
@@ -142,6 +145,13 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
 
             # Enforce maxsize
             if len(self._buffer_voltage) > self._maxsize:
+                warnings.warn(
+                    f"More than {self._maxsize} elements were "
+                    f"allocated. Removing the oldest `voltage` "
+                    f"from the memory. Use `clear_buffer()` to "
+                    f"prevent this warning.",
+                    UserWarning,
+                )
                 oldest_key, _ = self._buffer_voltage.popitem(last=False)
                 self._buffer_time_axis.pop(oldest_key, None)
         else:
