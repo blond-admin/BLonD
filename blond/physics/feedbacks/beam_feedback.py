@@ -14,6 +14,8 @@ Notes
 Authors:
 Helga Timko
 Alexandre Lasheen
+Birk Emil Karlsen-Bæck
+Oleksandr Naumenko
 """
 
 from __future__ import annotations
