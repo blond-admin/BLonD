@@ -11,14 +11,10 @@ PS triple splitting example with BLonD3.
 """
 
 import os
-import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.append(
-    "/home/alasheen/cernbox/Work/FCCMatchingAndBLonD3Testing/BLonD"
-)
 from blond import (
     Beam,
     ConstantMagneticCycle,
@@ -120,6 +116,8 @@ preparation_routine = SemiEmpiricMatcher(
 
 sim.prepare_beam(beam=beam, preparation_routine=preparation_routine)
 
+# The initial emittance can be varied by changing hamilton_max in SemiEmpiricMatcher
+# based on the potential well that can be plotted with
 # sim.plot_potential_well_empiric(np.linspace(time_limit[0], time_limit[-1], 10000), proton)
 
 profile_observation = StaticProfileObservation(
@@ -132,7 +130,6 @@ sim.run_simulation(
     beams=(beam,),
     n_turns=n_turns,
     observe=(profile_observation,),
-    # callbacks=[custom_analysis],
 )
 
 bunch_time = profile.hist_x * 1e9
