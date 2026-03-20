@@ -86,8 +86,8 @@ def load_beam_coordinates_from_file(
     )
 
 
-def copy_beam_coordinates_from_other_beam(
-    beam: BeamBaseClass,
+def copy_beam_data_from_other_beam(
+    to_beam: BeamBaseClass,
     other_beam: BeamBaseClass,
 ):
     """
@@ -95,7 +95,7 @@ def copy_beam_coordinates_from_other_beam(
 
     Parameters
     ----------
-    beam
+    to_beam
         Beam to copy parameters onto.
     other_beam
         Beam to copy parameters from.
@@ -103,12 +103,12 @@ def copy_beam_coordinates_from_other_beam(
     if other_beam._is_distributed:
         raise RuntimeError("Copying is not supported with distributed beams.")
 
-    beam._dt = deepcopy(other_beam._dt)
-    beam._dE = deepcopy(other_beam._dE)
-    beam._flags = deepcopy(other_beam._flags)
-    beam._ids = deepcopy(other_beam._ids)
+    to_beam._dt = deepcopy(other_beam._dt)
+    to_beam._dE = deepcopy(other_beam._dE)
+    to_beam._flags = deepcopy(other_beam._flags)
+    to_beam._ids = deepcopy(other_beam._ids)
 
-    beam.intensity = deepcopy(other_beam.intensity)
-    beam._is_distributed = False
+    to_beam.intensity = deepcopy(other_beam.intensity)
+    to_beam._is_distributed = False
 
-    beam.reference = deepcopy(other_beam.reference)
+    to_beam.reference = deepcopy(other_beam.reference)
