@@ -24,6 +24,7 @@ _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 default_libname = "libblond"
 
 cpp_files = [
+    "openmp.cpp",
     "kick.cpp",
     "drift.cpp",
     "linear_interp_kick.cpp",
@@ -148,7 +149,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         # Tune the performance for the host CPU without changing the generated instruction set
         "-mtune=native",
         # Enable Link Time Optimization (LTO) to optimize across multiple translation units
-        "-flto",
+        #"-flto",
         # Enable automatic vectorization of loops to use SIMD instructions
         "-ftree-vectorize",
         # Allow faster, less strict floating-point math (may break strict IEEE compliance)
@@ -156,7 +157,11 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         # Use a dynamic cost model to decide whether to vectorize loops
         "-fvect-cost-model=dynamic",
         # Allow the compiler to use a linker plugin for more efficient LTO
-        "-fuse-linker-plugin",
+        #"-fuse-linker-plugin",
+        # Unroll loops to improve instruction throughput for hot loops
+        #"-funroll-loops",
+        # Insert software prefetch instructions for array accesses in loops
+        #"-fprefetch-loop-arrays",
     ]
     # Some additional warning reporting related flags
     cflags += [
@@ -593,4 +598,4 @@ def main_cli(force_parallel=False) -> None:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main_cli()
+    main_cli(force_parallel=True)

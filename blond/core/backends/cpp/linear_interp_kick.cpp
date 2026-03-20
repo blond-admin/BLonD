@@ -25,18 +25,26 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
                                    const int n_macroparticles,
                                    const real_t acc_kick) {
 
+  beam_dt = (real_t *)__builtin_assume_aligned(beam_dt, sizeof(real_t));
+  beam_dE = (real_t *)__builtin_assume_aligned(beam_dE, sizeof(real_t));
+  voltage_array = (const real_t *)__builtin_assume_aligned(voltage_array, sizeof(real_t));
+  bin_centers = (const real_t *)__builtin_assume_aligned(bin_centers, sizeof(real_t));
+
   const int STEP = 64;
   const real_t inv_bin_width =
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
 
-  real_t *voltageKick = (real_t *)malloc((n_slices - 1) * sizeof(real_t));
-  real_t *factor = (real_t *)malloc((n_slices - 1) * sizeof(real_t));
+  // Round allocation up to 64-byte boundary so the arrays can be assumed aligned.
+  const size_t alloc_bytes =
+      (((n_slices - 1) * sizeof(real_t) + (sizeof(real_t)-1)) /sizeof(real_t)) * sizeof(real_t);
+  real_t *voltageKick = (real_t *)aligned_alloc(sizeof(real_t), alloc_bytes);
+  real_t *factor = (real_t *)aligned_alloc(sizeof(real_t), alloc_bytes);
 
 #pragma omp parallel
   {
     unsigned fbin[STEP];
 
-#pragma omp for
+#pragma omp for schedule(static)
     for (int i = 0; i < n_slices - 1; i++) {
       voltageKick[i] =
           charge * (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
@@ -45,7 +53,7 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
           acc_kick;
     }
 
-#pragma omp for
+#pragma omp for schedule(static)
     for (int i = 0; i < n_macroparticles; i += STEP) {
 
       const int loop_count =

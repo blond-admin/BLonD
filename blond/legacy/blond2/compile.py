@@ -277,7 +277,7 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
                 # shell=True, # legacy, because of HIGH VULNERABILITY:
                 # Improper neutralization of special elements used
                 # in an OS Command ('OS Command Injection')
-                shell=False,
+                shell=True,
                 # FIXME Probably broken by shell=False, rewrite `args` list
                 stdout=subprocess.PIPE,
                 universal_newlines=True,

@@ -116,7 +116,7 @@ class MainloopSingleBeam(ExecutionModel):
 
             simulation.turn_i.value = turn_i
 
-            simulation._calculate_current_t_rev(reference=beam.reference)
+            #simulation._calculate_current_t_rev(reference=beam.reference)
             for element in simulation._ring.elements.elements:
                 simulation.section_i.value = element.section_index
                 if simulation.section_i.value >= until_section_index != -1:

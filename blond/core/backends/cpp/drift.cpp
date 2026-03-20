@@ -17,11 +17,11 @@ extern "C" void drift_simple(real_t *__restrict__ beam_dt,
                              const real_t energy, const int n_macroparticles) {
 
   const real_t coeff = T * eta_zero / (beta * beta * energy);
-  beam_dt = (real_t *)__builtin_assume_aligned(beam_dt, 64);
-  beam_dE = (const real_t *)__builtin_assume_aligned(beam_dE, 64);
+  beam_dt = (real_t *)__builtin_assume_aligned(beam_dt, sizeof(real_t));
+  beam_dE = (const real_t *)__builtin_assume_aligned(beam_dE, sizeof(real_t));
 // Non-temporal stores bypass the cache: avoids polluting L3 for large beams
 // where the array won't be re-read soon (array size >> L3 cache).
-#pragma omp parallel for simd nontemporal(beam_dt)
+#pragma omp parallel for simd aligned(beam_dt, beam_dE: sizeof(real_t)) schedule(static)
   for (int i = 0; i < n_macroparticles; i++) {
     beam_dt[i] += coeff * beam_dE[i];
   }

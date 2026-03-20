@@ -21,7 +21,8 @@ extern "C" void histogram(const real_t *__restrict__ input,
                           const real_t cut_right, const int n_slices,
                           const int n_macroparticles) {
   // Number of Iterations of the inner loop
-  const int STEP = 16;
+  // STEP=32: 2x AVX-512 ops for the bin computation, better loop amortisation.
+  const int STEP = 32;
   const real_t inv_bin_width = n_slices / (cut_right - cut_left);
 
   // allocate memory for the thread_private histogram
@@ -35,28 +36,28 @@ extern "C" void histogram(const real_t *__restrict__ input,
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
     memset(histo[id], 0, n_slices * sizeof(int));
-    float fbin[STEP] = {-1};
-#pragma omp for
+    // Use int directly to avoid float→int conversion in the scatter loop.
+    int fbin[STEP];
+#pragma omp for schedule(static)
     for (int i = 0; i < n_macroparticles; i += STEP) {
 
       const int loop_count =
           n_macroparticles - i > STEP ? STEP : n_macroparticles - i;
 
-      // First calculate the index to update
+      // First calculate the index to update (vectorisable)
       for (int j = 0; j < loop_count; j++) {
-        fbin[j] = floor((input[i + j] - cut_left) * inv_bin_width);
+        fbin[j] = (int)floor((input[i + j] - cut_left) * inv_bin_width);
 
         // Clamp to the last bin if val == cut_right
         if (input[i + j] == cut_right) {
           fbin[j] = n_slices - 1;
         }
       }
-      // Then update the corresponding bins
+      // Then update the corresponding bins (scatter — serial by necessity)
       for (int j = 0; j < loop_count; j++) {
-        const int bin = (int)fbin[j];
-        if (bin < 0 || bin >= n_slices)
+        if (fbin[j] < 0 || fbin[j] >= n_slices)
           continue;
-        histo[id][bin] += 1.;
+        histo[id][fbin[j]] += 1;
       }
     }
 
