@@ -16,7 +16,6 @@ Leonard Thiele
 Simon Lauber
 """
 
-from copy import deepcopy
 from os import PathLike
 
 import numpy as np
@@ -84,31 +83,3 @@ def load_beam_coordinates_from_file(
         dE=loaded_dict["dE"],
         mpi_mode="root-distributes",
     )
-
-
-def copy_beam_coordinates_from_other_beam(
-    beam: BeamBaseClass,
-    other_beam: BeamBaseClass,
-):
-    """
-    Copy beam data from one beam to another.
-
-    Parameters
-    ----------
-    beam
-        Beam to copy parameters onto.
-    other_beam
-        Beam to copy parameters from.
-    """
-    if other_beam._is_distributed:
-        raise RuntimeError("Copying is not supported with distributed beams.")
-
-    beam._dt = deepcopy(other_beam._dt)
-    beam._dE = deepcopy(other_beam._dE)
-    beam._flags = deepcopy(other_beam._flags)
-    beam._ids = deepcopy(other_beam._ids)
-
-    beam.intensity = deepcopy(other_beam.intensity)
-    beam._is_distributed = False
-
-    beam.reference = deepcopy(other_beam.reference)
