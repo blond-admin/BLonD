@@ -110,5 +110,3 @@ def copy_beam_data_from_other_beam(
 
     to_beam.intensity = deepcopy(other_beam.intensity)
     to_beam._is_distributed = False
-
-    to_beam.reference = deepcopy(other_beam.reference)
