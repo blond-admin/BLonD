@@ -413,6 +413,18 @@ class RFStationBaseClass(
         """
         pass
 
+    @abstractmethod  # pragma: no cover
+    def get_main_harmonic_omega_rf_design(self) -> float:
+        """
+        Return the omega_rf_design of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_design
+            The omega_rf_design of the main harmonic, in [rad/s].
+        """
+        pass
+
     def _get_gap_voltage_per_harmonic(
         self,
         ts: NumpyArray,
@@ -1006,6 +1018,17 @@ class SingleHarmonicRFStation(
         """
         return self.omega_rf
 
+    def get_main_harmonic_omega_rf_design(self) -> float:
+        """
+        Return the omega_rf_design of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_design
+            The omega_rf_design of the main harmonic, in [rad/s].
+        """
+        return self.omega_rf_design
+
     def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
@@ -1343,6 +1366,17 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             The angular frequency of the main harmonic, in [rad/s].
         """
         return self.omega_rf[self.main_harmonic_idx]
+
+    def get_main_harmonic_omega_rf_design(self) -> float:
+        """
+        Return the omega_rf_design of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_design
+            The omega_rf_design of the main harmonic, in [rad/s].
+        """
+        return self.omega_rf_design[self.main_harmonic_idx]
 
     def calc_gap_voltage_with_feedbacks(self):
         """

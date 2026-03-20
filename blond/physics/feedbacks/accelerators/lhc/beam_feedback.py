@@ -125,15 +125,15 @@ class LHCBeamControl(BeamFeedbackBase):
         )
 
         if self.sl_gain != 0:
-            Q_s0 = self.cavities[0].calc_synchrotron_tune_single_harmonic(
+            Q_s0 = self.cavities[0].calc_synchrotron_tune_main_harmonic(
                 beam,
                 np.pi,
-                simulation.ring.calc_average_eta_0(beam.reference_gamma),
+                simulation.ring.calc_average_eta_0(beam.reference.gamma),
             ) * np.ones(n_turns + 1)
 
-            omega_rf = self.cavities[0].get_main_harmonic_omega_rf_design(
-                beam.reference_beta, simulation.ring.circumference
-            ) * np.ones(n_turns + 1)
+            omega_rf = self.cavities[
+                0
+            ].get_main_harmonic_omega_rf_design() * np.ones(n_turns + 1)
 
             harm = self.cavities[0].get_main_harmonic()
 
