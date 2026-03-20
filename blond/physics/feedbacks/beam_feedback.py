@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond import Simulation, backend
+from blond.core.ring.helpers import requires
 from blond.physics.feedbacks.base import (
     GlobalFeedback,
 )
@@ -89,6 +90,7 @@ class BeamFeedbackBase(GlobalFeedback):
 
         self.phi_beam: float = 0.0
 
+    @requires(["RFStationBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,

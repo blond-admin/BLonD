@@ -26,7 +26,7 @@ import numpy as np
 
 from blond import Simulation
 from blond.core.beam.base import BeamBaseClass
-from blond.experimental.physics.feedbacks.beam_feedback import BeamFeedbackBase
+from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 
 
 class SPSBeamControl(BeamFeedbackBase):

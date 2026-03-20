@@ -49,7 +49,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.experimental.physics.feedbacks.base import (
         LocalFeedback as LocalFeedbackExp,
     )
-    from blond.experimental.physics.feedbacks.beam_feedback import (
+    from blond.physics.feedbacks.beam_feedback import (
         BeamFeedbackBase,
     )
     from blond.physics.impedances.base import WakeField
@@ -514,7 +514,7 @@ class RFStationBaseClass(
         beam_feedback
             Beam feedback to be attached to the RF station.
         """
-        from blond.experimental.physics.feedbacks.beam_feedback import (
+        from blond.physics.feedbacks.beam_feedback import (
             BeamFeedbackBase,
         )
 

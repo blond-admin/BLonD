@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.experimental.physics.feedbacks.beam_feedback import (
+from blond.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
 )
 
