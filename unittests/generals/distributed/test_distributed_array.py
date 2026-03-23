@@ -21,7 +21,9 @@ class TestDistributedArray(unittest.TestCase):
         self.array = np.astype(
             rng.normal(loc=0, scale=1.0, size=128), backend.float
         )
-        self.distributed_array = DistributedArray(self.array.copy())
+        self.distributed_array = DistributedArray(
+            backend.array(self.array.copy())
+        )
 
     def test_local_size(self):
         mpi_active = mpi_is_distributed()
@@ -60,7 +62,11 @@ class TestDistributedArray(unittest.TestCase):
         if mpi_active:
             self.distributed_array.mpi_scatter()
         actual = getattr(self.distributed_array, func_name)()
-        np.testing.assert_almost_equal(expected, actual)
+        np.testing.assert_almost_equal(
+            actual, expected, decimal=5 if backend.float == np.float32 else 11
+        )
+        if mpi_active:
+            self.distributed_array.mpi_scatter()
 
     def test_min(self):
         self._call_test(np.min, "min")
@@ -75,7 +81,7 @@ class TestDistributedArray(unittest.TestCase):
         self._call_test(np.std, "std")
 
     def test_sum(self):
-        self._call_test(np.sum, "sum")
+        self._call_test(lambda x: float(np.sum(x)), "sum")
 
     def test_histogram(self):
         mpi_active = mpi_is_distributed()
@@ -94,7 +100,7 @@ class TestDistributedArray(unittest.TestCase):
         expected, _ = np.histogram(self.array, bins=8)
         if mpi_active:
             self.distributed_array.mpi_scatter()
-        actual = np.zeros_like(expected, dtype=backend.float)
+        actual = backend.zeros_like(expected, dtype=backend.float)
         self.distributed_array.histogram(bins=8, out=actual)
         np.testing.assert_allclose(expected, copy_to_cpu(actual))
 
