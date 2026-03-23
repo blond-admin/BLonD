@@ -581,4 +581,4 @@ def main_cli(force_parallel=False) -> None:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main_cli()
+    main_cli(force_parallel=True)
