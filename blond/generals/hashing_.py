@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import hashlib
+import platform
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -79,5 +80,10 @@ def hash_in_folder(
         extensions=extensions,
         recursive=recursive,
     )
-    _hash = hash_files([str(f).lower() for f in files])
+    _hash = hash_files(
+        [
+            str(f).lower() if platform.system() == "Windows" else str(f)
+            for f in files
+        ]
+    )
     return _hash
