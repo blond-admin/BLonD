@@ -74,7 +74,9 @@ def reload_cuda_backend(  # NOQA: D102
         if not os.path.isfile(path):
             from blond.core.backends.cuda.compile import compile_cuda_library
 
+            print("CUDA backend was not found.. Trying to compile.")
             compile_cuda_library()
+
             if not os.path.isfile(path):
                 raise FileNotFoundError(
                     f"The compiled CUDA backend was not found at {path=}.\n"
