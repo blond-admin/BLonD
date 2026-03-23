@@ -35,7 +35,11 @@ def classname_to_varname(name):
     varname
         Converted class name in snake_case format.
     """
+    # Insert underscore before each uppercase letter that follows a lowercase letter or number
+    # Example: "CamelCase" -> "Camel_Case"
     s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    # Insert underscore before uppercase letters followed by lowercase letters or end of string
+    # This handles things like "HTMLParser" -> "HTML_Parser" and combines with previous step
     s2 = re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1)
     return s2.lower()
 
@@ -89,7 +93,9 @@ class FunctionVisitor(ast.NodeVisitor):
         self.stack = []
         self.results = []  # List of (func_name, class_name, args)
         self.class_methods = {}  # class_name -> list of (func_name, args)
-        self.class_missing = set()
+        self.class_missing = (
+            set()  # Dont allow duplicates
+        )  # classes with at least one missing method (not __init__)
         self.missing_lines = None
 
     def visit_ClassDef(self, node):
@@ -120,14 +126,16 @@ class FunctionVisitor(ast.NodeVisitor):
         class_name = self.stack[-1] if self.stack else None
         args = [arg.arg for arg in node.args.args]
         if class_name and args and args[0] == "self":
-            args = args[1:]
+            args = args[1:]  # skip 'self' for methods
 
+        # Save all class methods for possible __init__ add later
         if class_name:
             self.class_methods.setdefault(class_name, []).append(
                 (node.name, args)
             )
 
         if any(start <= line <= end for line in self.missing_lines):
+            # Mark class as having missing methods (except __init__)
             if class_name and node.name != "__init__":
                 self.class_missing.add(class_name)
 
@@ -171,9 +179,11 @@ def extract_untested_functions(cov_data):
         visitor.missing_lines = missing_lines
         visitor.visit(tree)
 
+        # Now add __init__ methods for classes that had missing other methods
         for cls in visitor.class_missing:
             methods = visitor.class_methods.get(cls, [])
             for func_name, args in methods:
+                # Only add if not already in results
                 if (func_name == "__init__") and (
                     not any(
                         rn == "__init__" and rcls == cls
@@ -214,6 +224,7 @@ def write_boilerplate_tests(untested_functions):
 
         os.makedirs(test_path_dir, exist_ok=True)
 
+        # Read existing content to avoid duplicate stubs
         existing = ""
         if os.path.exists(test_file):
             with open(test_file, encoding="utf-8") as f:
@@ -230,6 +241,7 @@ def write_boilerplate_tests(untested_functions):
             if test_func in existing:
                 continue
 
+            # Build function call string with keyword args set to None
             call_args = ", ".join([f"{arg}=None" for arg in args])
             if class_name:
                 var_name = classname_to_varname(class_name)
@@ -271,6 +283,7 @@ def write_boilerplate_tests(untested_functions):
             for method in methods:
                 content += "\n" + method
 
+        # Write to file
         with open(test_file, "a", encoding="utf-8") as f:
             f.write(content)
 

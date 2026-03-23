@@ -5,6 +5,8 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+from blond import backend, copy_to_cpu
+from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.generals.distributed.helpers import mpi_barrier, mpi_is_distributed
 
 
@@ -16,12 +18,16 @@ class TestDistributedArray(unittest.TestCase):
         )
 
         rng = np.random.default_rng(0)
-        self.array = rng.normal(loc=0, scale=1.0, size=128)
+        self.array = np.astype(
+            rng.normal(loc=0, scale=1.0, size=128), backend.float
+        )
         # Force the global extrema onto zero-weight particles so that
         # weighted min/max tests are non-trivial.
         self.array[0] = -999.0
         self.array[1] = 999.0
-        self.distributed_array = DistributedArray(self.array.copy())
+        self.distributed_array = DistributedArray(
+            backend.array(self.array.copy())
+        )
 
         self.weights = rng.uniform(0.5, 1.5, size=128)
         self.weights[0] = 0.0  # global minimum particle is inactive
@@ -46,6 +52,18 @@ class TestDistributedArray(unittest.TestCase):
             self.assertFalse(self.distributed_array._is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
 
+    def test_copy_as_numpy(self):
+        array = self.distributed_array.copy_as_numpy()
+        assert array.device == "cpu"
+
+    def test_copy_as_cupy(self):
+        try:
+            import cupy  # type: ignore
+        except (ImportError, ModuleNotFoundError) as exc:  # pragma: no cover
+            self.skipTest(str(exc))
+        array = self.distributed_array.copy_as_cupy()
+        assert is_cupy_array(array)
+
     def _call_test(self, func, func_name):
         mpi_active = mpi_is_distributed()
 
@@ -53,7 +71,11 @@ class TestDistributedArray(unittest.TestCase):
         if mpi_active:
             self.distributed_array.mpi_scatter()
         actual = getattr(self.distributed_array, func_name)()
-        np.testing.assert_almost_equal(expected, actual)
+        np.testing.assert_almost_equal(
+            actual, expected, decimal=5 if backend.float == np.float32 else 11
+        )
+        if mpi_active:
+            self.distributed_array.mpi_scatter()
 
     def test_min(self):
         self._call_test(np.min, "min")
@@ -68,7 +90,7 @@ class TestDistributedArray(unittest.TestCase):
         self._call_test(np.std, "std")
 
     def test_sum(self):
-        self._call_test(np.sum, "sum")
+        self._call_test(lambda x: float(np.sum(x)), "sum")
 
     def test_histogram(self):
         mpi_active = mpi_is_distributed()
@@ -77,7 +99,7 @@ class TestDistributedArray(unittest.TestCase):
         if mpi_active:
             self.distributed_array.mpi_scatter()
         actual = self.distributed_array.histogram(bins=8)
-        np.testing.assert_allclose(expected, actual)
+        np.testing.assert_allclose(expected, copy_to_cpu(actual))
 
     def test_histogram_with_out(self):
         from blond import backend
@@ -87,9 +109,9 @@ class TestDistributedArray(unittest.TestCase):
         expected, _ = np.histogram(self.array, bins=8)
         if mpi_active:
             self.distributed_array.mpi_scatter()
-        actual = np.zeros_like(expected, dtype=backend.float)
+        actual = backend.zeros_like(expected, dtype=backend.float)
         self.distributed_array.histogram(bins=8, out=actual)
-        np.testing.assert_allclose(expected, actual)
+        np.testing.assert_allclose(expected, copy_to_cpu(actual))
 
     # ------------------------------------------------------------------
     # Weighted statistics

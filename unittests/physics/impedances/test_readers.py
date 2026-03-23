@@ -18,7 +18,7 @@ class TestExampleReader2(unittest.TestCase):
         freq_table_short = ImpedanceTableFreq.from_file(
             Path(
                 callers_relative_path(
-                    "../../../blond/examples/resources/EX_02_Finemet.txt",
+                    "../../../blond/examples/scripts/resources/EX_02_Finemet.txt",
                     stacklevel=1,
                 )
             ),
@@ -30,7 +30,7 @@ class TestExampleReader2(unittest.TestCase):
         freq_table_short = ImpedanceTableFreq.from_file(
             Path(
                 callers_relative_path(
-                    "../../../blond/examples/resources/EX_02_Finemet.txt",
+                    "../../../blond/examples/scripts/resources/EX_02_Finemet.txt",
                     stacklevel=1,
                 )
             ),
@@ -42,7 +42,7 @@ class TestExampleReader2(unittest.TestCase):
         freq_table_open = ImpedanceTableFreq.from_file(
             Path(
                 callers_relative_path(
-                    "../../../blond/examples/resources/EX_02_Finemet.txt",
+                    "../../../blond/examples/scripts/resources/EX_02_Finemet.txt",
                     stacklevel=1,
                 )
             ),
@@ -61,7 +61,7 @@ class TestExampleReader2(unittest.TestCase):
             _ = (
                 ImpedanceTableFreq.from_file(
                     callers_relative_path(
-                        "../../../blond/examples/resources/EX_02_Finemet.txt",
+                        "../../../blond/examples/scripts/resources/EX_02_Finemet.txt",
                         stacklevel=1,
                     ),
                     reader,

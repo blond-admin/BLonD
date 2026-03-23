@@ -10,6 +10,7 @@ from blond import Simulation, proton
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.distributed_array import DistributedArray
 
 if TYPE_CHECKING:
@@ -34,13 +35,13 @@ class BeamBaseClassTester(BeamBaseClass):
             is_distributed=is_distributed,
         )
         self._dE = DistributedArray(
-            np.linspace(1, 10, 10, dtype=backend.float)
+            backend.linspace(1, 10, 10, dtype=backend.float)
         )
         self._dt = DistributedArray(
-            np.linspace(20, 30, 10, dtype=backend.float)
+            backend.linspace(20, 30, 10, dtype=backend.float)
         )
-        self._flags = DistributedArray(np.zeros(10, dtype=np.int32))
-        self._ids = DistributedArray(np.arange(10, dtype=np.int32))
+        self._flags = DistributedArray(backend.zeros(10, dtype=np.int32))
+        self._ids = DistributedArray(backend.arange(10, dtype=np.int32))
 
     @property
     def ratio(self) -> float:
@@ -178,17 +179,19 @@ class TestBeamBaseClass(unittest.TestCase):
 
     def test_read_partial_dE(self):
         self.assertTrue(
-            isinstance(self.beam_base_class.read_partial_dE(), np.ndarray)
+            isinstance(self.beam_base_class.read_partial_dE(), backend.ndarray)
         )
 
     def test_read_partial_dt(self):
         self.assertTrue(
-            isinstance(self.beam_base_class.read_partial_dt(), np.ndarray)
+            isinstance(self.beam_base_class.read_partial_dt(), backend.ndarray)
         )
 
     def test_read_partial_ids(self):
         self.assertTrue(
-            isinstance(self.beam_base_class.read_partial_ids(), np.ndarray)
+            isinstance(
+                self.beam_base_class.read_partial_ids(), backend.ndarray
+            )
         )
 
     @unittest.skip("Abstract method")
@@ -197,32 +200,38 @@ class TestBeamBaseClass(unittest.TestCase):
 
     def test_write_partial_dE(self):
         self.assertTrue(
-            isinstance(self.beam_base_class.write_partial_dE(), np.ndarray)
+            isinstance(
+                self.beam_base_class.write_partial_dE(), backend.ndarray
+            )
         )
 
     def test_write_partial_dt(self):
         self.assertTrue(
-            isinstance(self.beam_base_class.write_partial_dt(), np.ndarray)
+            isinstance(
+                self.beam_base_class.write_partial_dt(), backend.ndarray
+            )
         )
 
     def test_write_partial_flags(self):
         self.assertTrue(
-            isinstance(self.beam_base_class.write_partial_flags(), np.ndarray)
+            isinstance(
+                self.beam_base_class.write_partial_flags(), backend.ndarray
+            )
         )
 
     def test_purge_flagged_entries(self):
-        ids_before = self.beam_base_class._ids.array_local.copy()
+        ids_before = copy_to_cpu(self.beam_base_class._ids.array_local.copy())
         select = [0, 1, -1]
 
         self.beam_base_class._flags.array_local[select] = -500
         self.beam_base_class.purge_flagged_entries()
         self.assertTrue(
-            np.all(self.beam_base_class._flags.array_local != -500)
+            backend.all(self.beam_base_class._flags.array_local != -500)
         )
 
         mask = np.ones(len(ids_before), dtype=bool)
         mask[select] = False
-        ids_after = self.beam_base_class._ids.array_local
+        ids_after = copy_to_cpu(self.beam_base_class._ids.array_local)
         np.testing.assert_equal(np.sort(ids_before[mask]), np.sort(ids_after))
 
 

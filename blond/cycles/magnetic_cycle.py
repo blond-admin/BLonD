@@ -31,6 +31,7 @@ import numpy as np
 from scipy.constants import speed_of_light as c0
 from scipy.interpolate import interp1d
 
+from blond.acc_math.analytic import conversions
 from blond.acc_math.analytic.simple_math import calc_total_energy
 from blond.core.base import HasPropertyCache
 from blond.core.beam.base import BeamBaseClass
@@ -193,7 +194,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
     def get_total_energy_init(
         self,
-        particle_type: ParticleType,
+        particle_type: ParticleType | None = None,
     ) -> float:
         """
         Compute the initial the total energy [eV] for the initial turn.
@@ -208,9 +209,11 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         reference_total_energy
             The total energy, in [eV].
         """
+        if particle_type is None:
+            particle_type = self.reference_particle
         total_energy_init = calc_total_energy(
             mass=particle_type.mass,
-            momentum=magnetic_rigidity_to_momentum(
+            momentum=conversions.magnetic_rigidity_to_momentum(
                 magnetic_rigidity=self._magnetic_rigidity_before_turn_0,
                 charge=particle_type.charge,
             ),
@@ -394,7 +397,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
         if key not in self._total_energy_cache:
             self._total_energy_cache[key] = calc_total_energy(
                 mass=particle_type.mass,
-                momentum=magnetic_rigidity_to_momentum(
+                momentum=conversions.magnetic_rigidity_to_momentum(
                     magnetic_rigidity=self._magnetic_rigidity,
                     charge=particle_type.charge,
                 ),
@@ -588,9 +591,11 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         """
         key = hash(particle_type)
         if key not in self._momentum_cached:
-            self._momentum_cached[key] = magnetic_rigidity_to_momentum(
-                magnetic_rigidity=self._magnetic_rigidity[:, :],
-                charge=particle_type.charge,
+            self._momentum_cached[key] = (
+                conversions.magnetic_rigidity_to_momentum(
+                    magnetic_rigidity=self._magnetic_rigidity[:, :],
+                    charge=particle_type.charge,
+                )
             )
             self._total_energy_cached[key] = calc_total_energy(
                 mass=particle_type.mass,
@@ -659,6 +664,45 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         )
 
         return ret
+
+    @staticmethod
+    def init_from_linspace(
+        reference_particle: ParticleType,
+        values: NumpyArray,
+        in_unit: SynchronousDataTypes = "momentum",
+        bending_radius: float | None = None,
+    ) -> MagneticCyclePerTurn:
+        """
+        Magnetic cycle per turn.
+
+        Parameters
+        ----------
+        reference_particle
+            Type of particles, e.g. protons.
+        values
+             Values of the cycle in unit `in_unit`.
+             This must be ``n_turns + 1`` values long.
+        in_unit
+            - 'momentum' [eV/c], (no conversion is done)
+            - 'total energy' [eV],
+            - 'kinetic energy' [eV], or
+            - 'bending field' [T]
+        bending_radius
+            To 'bending field' associated bending radius, in [m].
+
+        Returns
+        -------
+        cycle
+            The initialized `MagneticCyclePerTurn`.
+        """
+        cycle = MagneticCyclePerTurn(
+            reference_particle=reference_particle,
+            value_init=float(values[0]),
+            values_after_turn=values[1:],
+            in_unit=in_unit,
+            bending_radius=bending_radius,
+        )
+        return cycle
 
 
 class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
@@ -792,11 +836,13 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         """
         key = hash(particle_type)
         if key not in self._momentum_cached:
-            self._momentum_cached[key] = magnetic_rigidity_to_momentum(
-                magnetic_rigidity=self._magnetic_rigidity_after_rf_station_per_turn[
-                    :, :
-                ],
-                charge=particle_type.charge,
+            self._momentum_cached[key] = (
+                conversions.magnetic_rigidity_to_momentum(
+                    magnetic_rigidity=self._magnetic_rigidity_after_rf_station_per_turn[
+                        :, :
+                    ],
+                    charge=particle_type.charge,
+                )
             )
         return calc_total_energy(
             mass=particle_type.mass,
@@ -1013,7 +1059,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         assert not np.isinf(magnetic_rigidity), f"{magnetic_rigidity}"
         return calc_total_energy(
             mass=particle_type.mass,
-            momentum=magnetic_rigidity_to_momentum(
+            momentum=conversions.magnetic_rigidity_to_momentum(
                 magnetic_rigidity=magnetic_rigidity,
                 charge=particle_type.charge,
             ),
@@ -1147,40 +1193,3 @@ def _to_magnetic_rigidity(
         raise ValueError(f"Unrecognized option {convert_from=}")
     magnetic_rigidity = momentum / (np.abs(charge) * c0)
     return magnetic_rigidity
-
-
-def magnetic_rigidity_to_momentum(
-    magnetic_rigidity: float | NumpyArray,
-    charge: float,
-) -> float | NumpyArray:
-    r"""
-    Convert magnetic rigidity to momentum.
-
-    Parameters
-    ----------
-    magnetic_rigidity
-        Magnetic rigidity :math:`B \rho`, in [Tm].
-    charge
-        Particle charge, i.e. number of elementary charges `e`.
-        Example: For an electron `charge=-1`.
-
-    Returns
-    -------
-    momentum
-        Relativistic momentum, in [eV/c].
-
-    Notes
-    -----
-    The momentum is calculated using the relation:
-
-    .. math::
-
-        p = B \rho \cdot |q| \cdot c
-
-    where:
-        - :math:`p`  is the momentum,
-        - :math:`B \rho` is the magnetic rigidity,
-        - :math:`q`  is the particle charge in units of `e`,
-        - :math:`c` is the speed of light in vacuum.
-    """
-    return magnetic_rigidity * np.abs(charge) * c0
