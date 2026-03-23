@@ -574,6 +574,7 @@ class Simulation(Preparable):
             beams=(probe_bunch,),
             n_turns=1,
             show_progressbar=False,
+            verbose=False,
             until_section_index=until_section_index,
         )
         # Calculate passed time
