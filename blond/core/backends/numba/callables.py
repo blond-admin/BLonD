@@ -465,7 +465,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             for i in prange(len(dE)):
                 x = dt[i]
 
-                if x <= x_min or x >= x_max:
+                if x < x_min or x >= x_max:
                     continue
                 else:
                     idx = int((x - x_min) * inv_dx)
