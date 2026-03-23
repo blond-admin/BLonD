@@ -1034,7 +1034,7 @@ class SingleHarmonicRFStation(
                     dE=beam.write_partial_dE(),
                     voltage=backend.array(gap_voltage, dtype=backend.float),
                     bin_centers=self.cavity_feedback_list[0].profile.hist_x,
-                    charge=beam.particle_type.charge,
+                    charge=beam.particle_type.charge * -1 if beam.is_counter_rotating else beam.particle_type.charge,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
             else:
@@ -1044,7 +1044,7 @@ class SingleHarmonicRFStation(
                     voltage=self.voltage,
                     phi_rf=self.phi_rf,
                     omega_rf=self.omega_rf,
-                    charge=beam.particle_type.charge,
+                    charge=beam.particle_type.charge * -1 if beam.is_counter_rotating else beam.particle_type.charge,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
 
@@ -1404,7 +1404,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                     dE=beam.write_partial_dE(),
                     voltage=backend.array(gap_voltage, dtype=backend.float),
                     bin_centers=self.cavity_feedback_list[0].profile.hist_x,
-                    charge=beam.particle_type.charge,
+                    charge=beam.particle_type.charge * -1 if beam.is_counter_rotating else beam.particle_type.charge,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
             else:
@@ -1414,7 +1414,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                     voltage=backend.array(self.voltage, dtype=backend.float),
                     phi_rf=backend.array(self.phi_rf, dtype=backend.float),
                     omega_rf=backend.array(self.omega_rf, dtype=backend.float),
-                    charge=beam.particle_type.charge,
+                    charge=beam.particle_type.charge * -1 if beam.is_counter_rotating else beam.particle_type.charge,
                     n_rf=self.n_rf,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
