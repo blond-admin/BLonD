@@ -165,19 +165,6 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def histogram_weighted(  # NOQA: D102
-        array_read: NumpyArray,
-        array_write: NumpyArray,
-        weights: NumpyArray,
-        start: float,
-        stop: float,
-    ) -> None:
-        raise NotImplementedError(
-            "Abstract method `histogram_weighted` is not implemented."
-        )
-
-    @staticmethod
-    @abstractmethod  # pragma: no cover
     def beam_phase(  # NOQA: D102
         hist_x: NumpyArray,
         hist_y: NumpyArray,

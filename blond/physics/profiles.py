@@ -349,7 +349,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             # `_hist_x`, `_hist_y` could be None, which is not handled and
             # causes a MyPy type error,
             # This is intentionally ignored, we want to get an exception.
-            weights = beam.weights  # None for Beam; array for WeightenedBeam
             beam._dt.histogram(  # MPI aware histogram calculation
                 len(self._hist_y),
                 range=(
@@ -357,16 +356,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
                     self.cut_right,
                 ),
                 out=self._hist_y,
-                weights=weights,
             )
             # this factor is used to reproduce the behaviour
             # of np.hist(..., density=True)
-            if weights is None:
-                self.hist_y_to_density_factor = 1.0 / beam.common_array_size
-            else:
-                # weights is a DistributedArray; .sum() performs the
-                # MPI-wide Allreduce so the factor is globally consistent.
-                self.hist_y_to_density_factor = 1.0 / weights.sum()
+            self.hist_y_to_density_factor = 1.0 / beam.common_array_size
         self.invalidate_cache()
 
     @staticmethod

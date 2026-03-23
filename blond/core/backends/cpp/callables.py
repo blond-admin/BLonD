@@ -199,35 +199,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
-        def histogram_weighted(
-            array_read: NumpyArray,
-            array_write: NumpyArray,
-            weights: NumpyArray,
-            start: float,
-            stop: float,
-        ) -> None:
-            assert array_read.dtype == floattype
-            assert array_write.dtype == floattype
-            assert weights.dtype == floattype
-            assert array_read.flags.c_contiguous
-            assert array_write.flags.c_contiguous
-            assert weights.flags.c_contiguous
-
-            # Cast Python floats to backend floattype
-            start = floattype(start)
-            stop = floattype(stop)
-
-            _LIBBLOND.histogram_weighted(
-                array_read.ctypes.data_as(ct.c_void_p),
-                array_write.ctypes.data_as(ct.c_void_p),
-                weights.ctypes.data_as(ct.c_void_p),
-                c_real(start, floattype),
-                c_real(stop, floattype),
-                ct.c_int(len(array_write)),
-                ct.c_int(len(array_read)),
-            )
-
-        @staticmethod
         def kick_induced_voltage(
             dt: NumpyArray,
             dE: NumpyArray,

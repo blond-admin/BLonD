@@ -179,8 +179,7 @@ __global__ void hybrid_histogram(
                                  const int capacity
                                  )
 {
-    extern __shared__ unsigned char smem_raw[];
-    int* block_hist = (int*)smem_raw;
+    extern __shared__ int block_hist[];
     //reset shared memory
     for (int i = threadIdx.x; i < capacity; i += blockDim.x)
         block_hist[i] = 0;
@@ -225,8 +224,7 @@ __global__ void sm_histogram(const real_t * __restrict__  input,
                              const unsigned int n_slices,
                              const unsigned int n_macroparticles)
 {
-    extern __shared__ unsigned char smem_raw[];
-    int* block_hist = (int*)smem_raw;
+    extern __shared__ int block_hist[];
     for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
         block_hist[i] = 0;
     __syncthreads();
@@ -253,92 +251,6 @@ __global__ void sm_histogram(const real_t * __restrict__  input,
 }
 
 
-
-
-extern "C"
-__global__ void sm_histogram_weighted(
-                             const real_t * __restrict__ input,
-                             real_t * __restrict__ output,
-                             const real_t * __restrict__ weights,
-                             const real_t cut_left,
-                             const real_t cut_right,
-                             const unsigned int n_slices,
-                             const unsigned int n_macroparticles)
-{
-    // Shared memory is real_t (not int) because weights are floating-point.
-    // atomicAdd(float*) requires CC 2.0+; atomicAdd(double*) in shared
-    // requires CC 7.0+ (Volta).
-    extern __shared__ unsigned char smem_raw[];
-    real_t* block_hist = (real_t*)smem_raw;
-    for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
-        block_hist[i] = 0;
-    __syncthreads();
-
-    int const tid = threadIdx.x + blockDim.x * blockIdx.x;
-    real_t const inv_bin_width = n_slices / (cut_right - cut_left);
-
-    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-        int target_bin = (int)floor((input[i] - cut_left) * inv_bin_width);
-
-        if (input[i] == cut_right)
-            target_bin = n_slices - 1;
-
-        if (target_bin < 0 || target_bin >= n_slices)
-            continue;
-
-        atomicAdd(&block_hist[target_bin], weights[i]);
-    }
-    __syncthreads();
-    for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
-        atomicAdd(&output[i], block_hist[i]);
-}
-
-
-extern "C"
-__global__ void hybrid_histogram_weighted(
-                                 const real_t * __restrict__ input,
-                                 real_t * __restrict__ output,
-                                 const real_t * __restrict__ weights,
-                                 const real_t cut_left,
-                                 const real_t cut_right,
-                                 const unsigned int n_slices,
-                                 const unsigned int n_macroparticles,
-                                 const int capacity)
-{
-    extern __shared__ unsigned char smem_raw[];
-    real_t* block_hist = (real_t*)smem_raw;
-    for (int i = threadIdx.x; i < capacity; i += blockDim.x)
-        block_hist[i] = 0;
-    __syncthreads();
-
-    int const tid = threadIdx.x + blockDim.x * blockIdx.x;
-    int target_bin;
-    real_t const inv_bin_width = n_slices / (cut_right - cut_left);
-
-    const int low_tbin = (n_slices / 2) - (capacity / 2);
-    const int high_tbin = low_tbin + capacity;
-
-    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-        if (input[i] == cut_right) {
-            target_bin = n_slices - 1;
-            if (target_bin >= low_tbin && target_bin < high_tbin)
-                atomicAdd(&block_hist[target_bin - low_tbin], weights[i]);
-            else
-                atomicAdd(&output[target_bin], weights[i]);
-            continue;
-        }
-        target_bin = (int)floor((input[i] - cut_left) * inv_bin_width);
-        if (target_bin < 0 || target_bin >= n_slices)
-            continue;
-        if (target_bin >= low_tbin && target_bin < high_tbin)
-            atomicAdd(&block_hist[target_bin - low_tbin], weights[i]);
-        else
-            atomicAdd(&output[target_bin], weights[i]);
-    }
-    __syncthreads();
-    for (int i = threadIdx.x; i < capacity; i += blockDim.x)
-        atomicAdd(&output[low_tbin + i], block_hist[i]);
-}
 
 
 extern "C"

@@ -90,10 +90,6 @@ def reload_cuda_backend(  # NOQA: D102
     _kick_single_harmonic = gpu_module.get_function("kick_single_harmonic")
     _sm_histogram = gpu_module.get_function("sm_histogram")
     _hybrid_histogram = gpu_module.get_function("hybrid_histogram")
-    _sm_histogram_weighted = gpu_module.get_function("sm_histogram_weighted")
-    _hybrid_histogram_weighted = gpu_module.get_function(
-        "hybrid_histogram_weighted"
-    )
     _gm_linear_interp_kick_help = gpu_module.get_function("lik_only_gm_copy")
     _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
     _loss_box = gpu_module.get_function("loss_box")
@@ -445,74 +441,6 @@ def reload_cuda_backend(  # NOQA: D102
                         np.uint32(n_slices),
                         np.uint32(len(array_read)),
                         np.int32(max_shared_memory_per_block / 4),
-                    ),
-                    grid=grid_size,
-                    block=block_size,
-                    shared_mem=max_shared_memory_per_block,
-                )
-
-        @staticmethod
-        def histogram_weighted(
-            array_read: CupyArray,
-            array_write: CupyArray,
-            weights: CupyArray,
-            start: float,
-            stop: float,
-        ) -> None:
-            assert array_read.device != "cpu", (
-                f"Requires Cupy array, but got {type(array_read)}."
-            )
-            assert array_write.device != "cpu", (
-                f"Requires Cupy array, but got {type(array_write)}."
-            )
-            assert weights.device != "cpu", (
-                f"Requires Cupy array, but got {type(weights)}."
-            )
-
-            assert array_read.dtype == floattype
-            assert array_write.dtype == floattype
-            assert weights.dtype == floattype
-            assert array_read.flags.c_contiguous
-            assert array_write.flags.c_contiguous
-            assert weights.flags.c_contiguous
-
-            # Cast Python floats to backend floattype
-            start = floattype(start)
-            stop = floattype(stop)
-
-            n_slices = array_write.size
-            array_write.fill(0)
-
-            # Shared memory per element: sizeof(real_t) bytes.
-            # atomicAdd(float*) in shared: CC 2.0+
-            # atomicAdd(double*) in shared: CC 7.0+ (Volta)
-            item_size = np.dtype(floattype).itemsize
-            if item_size * n_slices < max_shared_memory_per_block:
-                _sm_histogram_weighted(
-                    args=(
-                        array_read,
-                        array_write,
-                        weights,
-                        start,
-                        stop,
-                        np.uint32(n_slices),
-                        np.uint32(len(array_read)),
-                    ),
-                    grid=grid_size,
-                    block=block_size,
-                    shared_mem=item_size * n_slices,
-                )
-            else:
-                _hybrid_histogram_weighted(
-                    args=(
-                        array_read,
-                        array_write,
-                        weights,
-                        start,
-                        stop,
-                        np.uint32(n_slices),
-                        np.uint32(len(array_read)),
-                        np.int32(max_shared_memory_per_block // item_size),
                     ),
                     grid=grid_size,
                     block=block_size,
