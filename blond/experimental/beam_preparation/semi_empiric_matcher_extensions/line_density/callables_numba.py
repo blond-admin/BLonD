@@ -158,7 +158,7 @@ def _gen_density_numba(
     e_max = np.empty(n_states)
 
     # to remove calculation from inner loop
-    for state_i in range(n_states):
+    for state_i in prange(n_states):
         s = BIN_SIGMA * potential_change[state_i]
         sigma[state_i] = s
         inv_two_sigma_sq[state_i] = -1.0 / (2.0 * s * s)
