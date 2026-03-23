@@ -11,7 +11,11 @@
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter
+from blond.core.base import (
+    AltersReference,
+    BeamPhysicsRelevant,
+    DynamicParameter,
+)
 from blond.core.beam.base import BeamBaseClass
 from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
@@ -20,7 +24,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import Ring
 
 
-class ReferenceEnergyChange(BeamPhysicsRelevant):
+class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
     """
     Update beam's `reference.total_energy` and `dE` array, but constant in absolute terms.
 
