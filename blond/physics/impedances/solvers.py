@@ -1024,7 +1024,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         for prof_ind in range(
             len(self._past_profiles)
         ):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue --> deque not usable with numba
-            convolve_result = backend.convolve(
+            convolve_result = backend.fftconvolve(
                 self._wake_function_vals[prof_ind],
                 self._past_profiles[prof_ind],
                 mode="valid",
