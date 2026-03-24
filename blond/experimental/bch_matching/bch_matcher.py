@@ -16,6 +16,7 @@ from blond import DriftSimple, Simulation, SingleHarmonicRFStation
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.beam.base import BeamBaseClass
 from blond.experimental.bch_matching.bch_expansion import bch_lattice
+from blond.physics.drifts import DriftExact
 
 
 class BCHMatcher(MatchingRoutine):
@@ -37,6 +38,7 @@ class BCHMatcher(MatchingRoutine):
         n_macroparticles: int,
         order: int = 1,
         distribution="Gaussian",
+        phi_s=None,
         emittance=None,
         plot: bool = True,
         time_window_limit: tuple = None,
@@ -71,6 +73,7 @@ class BCHMatcher(MatchingRoutine):
         self.plot = plot
         self.time_window_limit = time_window_limit
         self.energy_window_limit = energy_window_limit
+        self.phi_s = phi_s
 
     def prepare_beam(self, simulation: Simulation, beam: BeamBaseClass):
         """
@@ -118,10 +121,7 @@ class BCHMatcher(MatchingRoutine):
         for element in self.simulation.ring.elements.elements:
             if isinstance(
                 element,
-                (
-                    SingleHarmonicRFStation,
-                    DriftSimple,
-                ),
+                (SingleHarmonicRFStation, DriftSimple, DriftExact),
             ):
                 H_list.append(
                     element.symbolic_hamiltonian(
@@ -257,9 +257,9 @@ class BCHMatcher(MatchingRoutine):
         H = H_func(Q, P)
 
         plt.figure(figsize=(6, 5))
-        cs = plt.contour(Q, P, H, levels=40)
+        cs = plt.contour(Q * 1e9, P, H, levels=40)
         plt.clabel(cs, inline=True, fontsize=8)
-        plt.xlabel("Δt [s]")
+        plt.xlabel("Δt [ns]")
         plt.ylabel("ΔE [eV]")
         plt.title(f"order = {self.order}")
         plt.show()
@@ -308,4 +308,6 @@ class BCHMatcher(MatchingRoutine):
     def haissinki_induced_voltage(self):
         # iterative computation of matched distribution
         # H = H_{BCH} + H_{lamda(H)}
+        # resonator convolution integral?
+
         pass

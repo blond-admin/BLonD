@@ -10,12 +10,11 @@ import mplhep
 import numpy as np
 from matplotlib import pyplot as plt
 
-mplhep.style.use("CMS")
-
 from blond import (
     Beam,
     ConstantMagneticCycle,
     DriftSimple,
+    MagneticCyclePerTurn,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -28,6 +27,10 @@ from blond.experimental.bch_matching.bch_matcher import (
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
 )
+from blond.physics.drifts import DriftExact
+
+# mplhep.style.use("CMS")
+
 
 order = 3
 # LHC
@@ -41,7 +44,13 @@ momentum_compaction_factor_ = momentum_compaction_factor(
     transition_gamma=55.759505
 )
 circumference = 26588
-n_turns = 1000
+n_turns = 2000
+
+energy_cycle = MagneticCyclePerTurn.init_from_linspace(
+    values=np.linspace(p_s, p_s * 1.05, n_turns + 1),
+    reference_particle=proton,
+    in_unit="momentum",
+)
 
 energy_cycle = ConstantMagneticCycle(
     value=p_s,
@@ -67,8 +76,14 @@ one_turn_execution_order = (
         voltage=voltage1,
         section_index=0,
     ),
-    DriftSimple(
+    # DriftSimple(
+    #     momentum_compaction_factor=momentum_compaction_factor_,
+    #     orbit_length=circumference,
+    #     section_index=0,
+    # ),
+    DriftExact(
         momentum_compaction_factor=momentum_compaction_factor_,
+        higher_order_alpha=[momentum_compaction_factor_ * 100],
         orbit_length=circumference,
         section_index=0,
     ),
@@ -87,8 +102,8 @@ sim.prepare_beam(
         n_macroparticles=int(1e5),  # TODO handle int properly
         order=order,
         distribution="Gaussian",
-        emittance=4e-9,
-        time_window_limit=(0, 2.5e-9),
+        emittance=1e-9,
+        time_window_limit=(0.0e-9, 2.5e-9),
         energy_window_limit=(-2e9, 2e9),
     ),
     beam=beam,
@@ -97,19 +112,14 @@ sim.prepare_beam(
 
 sim.run_simulation(beams=[beam], n_turns=n_turns)
 
-
-# plot
 plt.title(f"order = {order}")
 plt.scatter(observation.dts[0] * 1e9, observation.dEs[0], label="turn 0")
-plt.scatter(
-    observation.dts[-1] * 1e9 + 2, observation.dEs[-1], label="turn 100"
-)
+plt.scatter(observation.dts[-1] * 1e9, observation.dEs[-1], label="turn 100")
 plt.legend()
 plt.xlabel("Δt [ns]")
 plt.ylabel("ΔE [eV]")
 plt.show()
 
-# plot
 plt.title(f"order = {order}")
 plt.hist(
     observation.dts[0] * 1e9,
@@ -122,21 +132,27 @@ plt.hist(
     bins=np.linspace(0, 2.5, 100),
     label="turn 100",
     density=True,
+    alpha=0.5,
 )
 plt.legend()
 plt.xlabel("Δt [ns]")
 plt.show()
 
-dat = []
-for i in range(100):
-    dat.append(
-        np.histogram(observation.dts[i * 1], bins=np.linspace(0, 2.5e-9, 100))[
-            0
-        ]
-    )
-
-plt.contourf(dat, levels=100, cmap="plasma")
+plt.clf()
 plt.title(f"order = {order}")
-plt.ylabel("Turn")
-plt.xlabel("Δt [s]")
+
+t_min, t_max = 0.5e-9, 2.0e-9
+
+for i in range(n_turns):
+    dt = observation.dts[i]
+
+    mask = (dt > 0) & (dt < 2.5e-9)  # your window
+    dt_masked = dt[mask]
+
+    sigma_t = np.std(dt_masked)
+    plt.scatter(i, sigma_t, color="r", s=4)
+plt.ylim([1.8e-10, 2e-10])
+plt.xlabel("Turn")
+plt.ylabel("RMS Δt")
+plt.tight_layout()
 plt.show()

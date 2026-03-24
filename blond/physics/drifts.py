@@ -520,3 +520,55 @@ class DriftExact(DriftSimple):
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
             )
+
+    def symbolic_hamiltonian(self, q, p, beam: BeamBaseClass):
+        """
+        Symbolic Hamiltonian including higher-order momentum compaction.
+
+        Parameters
+        ----------
+        q : sympy.Symbol
+            Canonical coordinate (Δt).
+        p : sympy.Symbol
+            Canonical momentum (ΔE).
+        beam : BeamBaseClass
+            Beam to extract reference quantities.
+
+        Returns
+        -------
+        H
+            Symbolic Hamiltonian.
+        """
+        import sympy as sp
+
+        gamma = beam.reference.gamma
+        beta = beam.reference.beta
+        energy = beam.reference.total_energy
+
+        T = self.orbit_length / beam.reference.velocity
+
+        # Convert p (ΔE) -> δ ≈ p / (β² E)
+        delta = p / (beta**2 * energy)
+
+        # Build alpha(δ) = alpha_0 + alpha_1 δ + alpha_2 δ² + ...
+        alpha_expr = self.alpha_0
+        if self.higher_order_alpha is not None:
+            for i, a_i in enumerate(self.higher_order_alpha, start=1):
+                alpha_expr += a_i * delta**i
+
+        p_prime = sp.Symbol("p_prime")
+        delta_prime = p_prime / (beta**2 * energy)
+
+        alpha_prime = self.alpha_0
+        if self.higher_order_alpha is not None:
+            for i, a_i in enumerate(self.higher_order_alpha, start=1):
+                alpha_prime += a_i * delta_prime**i
+
+        eta_prime = alpha_prime - 1 / gamma**2
+
+        integrand = eta_prime * p_prime
+        integral = sp.integrate(integrand, (p_prime, 0, p))
+
+        H = T / (beta**2 * energy) * integral
+
+        return sp.simplify(H)
