@@ -76,9 +76,9 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
             t_rev = 1 / f_rev
 
             profile = StaticProfile(
-                cut_left=-5.5 / f_rf,
-                cut_right=(6.5 + number_of_bunches * bunch_spacing) / f_rf,
-                n_bins=(bunch_spacing * number_of_bunches + 12) * 2**5,
+                cut_left=-5.5 * t_rf,
+                cut_right=(6.5 + number_of_bunches * bunch_spacing) * t_rf,
+                n_bins=(bunch_spacing * number_of_bunches + 12) * 2**6,
             )
 
             bigaussian = BiGaussian(
@@ -86,7 +86,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
             )
             beam_control = LHCBeamControl(
                 pl_gain=1 / (5 * t_rev) * 1,
-                sl_gain=1 / (5 * t_rev) / 10 * 1,
+                sl_gain=1 / (5 * t_rev) / 10,
                 profile=profile,
             )
 
@@ -110,6 +110,9 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
             beam._dt.array_local += injection_offset_phase * t_rf / 360
 
             profile.track(beam)
+
+            cls.initial_profile_blond3 = np.copy(profile.hist_y)
+            cls.initial_bins_blond3 = np.copy(profile.hist_x)
 
             cls.pl_error_blond3 = np.zeros(n_turns)
             cls.delta_phi_rf_blond3 = np.zeros(n_turns)
@@ -161,7 +164,6 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
             rfstation = RFStation(ring, [h], [voltage], [0], n_rf=1)
 
             # The beam
-            injection_energy_error = 0  # Injection energy error [eV]
             # First generate a single gaussian bunch
             beam = Beam(ring, n_macroparticles, intensity)
             bigaussian(
@@ -170,7 +172,6 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
 
             # Add final corrections to the bunch positions
             beam.dt += injection_offset_phase * rfstation.t_rf[0, 0] / 360
-            beam.dE += injection_energy_error
 
             # The beam profile
             cut_options = CutOptions(
@@ -180,7 +181,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
                     0,
                     0,
                 ],
-                n_slices=(bunch_spacing * number_of_bunches + 12) * 2**5,
+                n_slices=(bunch_spacing * number_of_bunches + 12) * 2**6,
             )
             profile = Profile(beam, cut_options)
 
@@ -216,6 +217,11 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
                 interpolation=True,
                 BeamFeedback=beam_loop,
             )
+
+            profile.track()
+
+            cls.initial_profile_blond2 = np.copy(profile.n_macroparticles)
+            cls.initial_bins_blond2 = np.copy(profile.bin_centers)
 
             # Initialize data arrays
             beam_loop_error = np.zeros(n_turns)
@@ -272,6 +278,14 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
 
         setup_blond2()
         setup_blond3()
+
+        import matplotlib.pyplot as plt
+
+        plt.figure()
+        plt.plot(cls.initial_bins_blond3, cls.initial_profile_blond3, "o")
+        plt.plot(cls.initial_bins_blond2, cls.initial_profile_blond2, "o")
+
+        plt.show()
 
     def test_phase_loop_error(self):
         np.testing.assert_allclose(
