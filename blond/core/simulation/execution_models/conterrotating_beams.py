@@ -116,6 +116,8 @@ class MainloopCounterRotatingBeams(ExecutionModel):
             iterator = tqdm(iterator)  # Add TQDM display to iteration
         simulation.turn_i.value = 0
 
+        callbacks = simulation._sanitize_callbacks(callbacks)
+
         num_elements = len(simulation._ring.elements.elements)
 
         for turn_i in iterator:
@@ -144,3 +146,9 @@ class MainloopCounterRotatingBeams(ExecutionModel):
                     turn_i=simulation.turn_i.value
                 ):
                     observable.update()
+
+            for callback in callbacks:
+                if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
+                    callback(
+                        simulation, beams[0]
+                    )  # TODO hand over multiple beams or beam_cr ?
