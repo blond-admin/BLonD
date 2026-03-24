@@ -527,11 +527,11 @@ class DriftExact(DriftSimple):
 
         Parameters
         ----------
-        q : sympy.Symbol
+        q
             Canonical coordinate (Δt).
-        p : sympy.Symbol
+        p
             Canonical momentum (ΔE).
-        beam : BeamBaseClass
+        beam
             Beam to extract reference quantities.
 
         Returns
@@ -547,10 +547,8 @@ class DriftExact(DriftSimple):
 
         T = self.orbit_length / beam.reference.velocity
 
-        # Convert p (ΔE) -> δ ≈ p / (β² E)
         delta = p / (beta**2 * energy)
 
-        # Build alpha(δ) = alpha_0 + alpha_1 δ + alpha_2 δ² + ...
         alpha_expr = self.alpha_0
         if self.higher_order_alpha is not None:
             for i, a_i in enumerate(self.higher_order_alpha, start=1):
