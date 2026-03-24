@@ -219,64 +219,104 @@ class TestRFCurrentSparse(unittest.TestCase):
         self.rf = RFStation(self.ring, 4620, 4.5e6, 0)
         self.omega = 2 * np.pi * 200.222e6
         # Create a batch of 100 equal, short bunches
-        bunches = 100
+        number_of_bunches_per_batch = 10
+        number_of_batches = 5
+        total_number_of_bunches = (
+            number_of_batches * number_of_bunches_per_batch
+        )
+        bunch_spacing = 5 * self.rf.t_rf[0, 0]
+        batch_spacing = 25 * self.rf.t_rf[0, 0]
+        buckets = int(batch_spacing / self.rf.t_rf[0, 0]) * number_of_batches
         self.T_s = 5 * self.rf.t_rev[0] / self.rf.harmonic[0, 0]
         N_m = int(1e5)
-        N_b = int(2.3e11)
-        self.beam = Beam(self.ring, N_m, N_b)
+        N_p = int(2.3e11)
+        beam_batch = Beam(self.ring, N_m, N_p)
         bigaussian(
-            self.ring, self.rf, self.beam, 0.1e-9, seed=1234, reinsertion=True
+            self.ring,
+            self.rf,
+            beam_batch,
+            0.01e-9,
+            seed=1234,
+            reinsertion=True,
         )
-        self.beam2 = Beam(self.ring, bunches * N_m, bunches * N_b)
-        self.beam_sparse = Beam(self.ring, bunches * N_m, bunches * N_b)
-        bunch_spacing = 5 * self.rf.t_rf[0, 0]
-        buckets = 5 * bunches
-        for i in range(bunches):
-            self.beam2.dt[i * N_m : (i + 1) * N_m] = (
-                self.beam.dt + i * bunch_spacing
-            )
-            self.beam_sparse.dt[i * N_m : (i + 1) * N_m] = (
-                self.beam.dt + i * bunch_spacing
-            )
-            self.beam2.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
-            self.beam_sparse.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
+        self.beam2 = Beam(
+            self.ring,
+            total_number_of_bunches * N_m,
+            total_number_of_bunches * N_b,
+        )
+        self.beam_sparse = Beam(
+            self.ring,
+            total_number_of_bunches * N_m,
+            total_number_of_bunches * N_b,
+        )
 
-        self.profile = Profile(
-            self.beam2,
-            cut_options=CutOptions(
-                cut_left=0,
-                cut_right=bunches * bunch_spacing,
-                n_slices=1000 * buckets,
-            ),
+        for k in range(number_of_bunches_per_batch):
+            beam_batch.dt[
+                k * n_macroparticles : (k + 1) * n_macroparticles
+            ] -= np.average(
+                beam_batch.dt[
+                    k * n_macroparticles : (k + 1) * n_macroparticles
+                ]
+            )
+            beam_batch.dt[
+                k * n_macroparticles : (k + 1) * n_macroparticles
+            ] += (np.pi / 2 + phi_s[1]) / rfcav.omega_rf[
+                0, 0
+            ] + k * bunch_spacing * bucket_length
+        for ba in range(number_of_batches):
+            for i in range(number_of_bunches_per_batch):
+                self.beam2.dt[i * N_m : (i + 1) * N_m] = (
+                    self.beam.dt + ba * batch_spacing + i * bunch_spacing
+                )
+                self.beam_sparse.dt[i * N_m : (i + 1) * N_m] = (
+                    self.beam.dt + ba * batch_spacing + i * bunch_spacing
+                )
+                self.beam2.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
+                self.beam_sparse.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
+
+        cut_options = CutOptions(
+            cut_left=0,
+            cut_right=(number_of_bunches_per_batch * bunch_spacing),
+            n_slices=(
+                number_of_bunches_per_batch
+                * int(bunch_spacing / self.rf.t_rf[0, 0])
+            )
+            * 2**10,
         )
+
+        self.profile = Profile(self.beam2, cut_options)
         self.profile.track()
 
         # Creation of the SparseBatch profile
         # creating the simple batch_list
-        batch_list = np.zeros(
-            int(bunch_spacing / self.rf.t_rf[0, 0]) * (bunches - 1) + 1
-        )
-        batch_list[0] = 1
-        # Initialisation of the SparseBatch profile which perfectly matches
+        batch_list = np.zeros(4620)
+        for k in range(number_of_batches):
+            batch_list[0 + k * int(batch_spacing / self.rf.t_rf[0, 0])] = 1
+            # Initialisation of the SparseBatch profile which perfectly matches
         # the standard profile
         self.sparse_profile = SparseBatch(
-            rf_station=self.rf,
+            rf_station=self.rf_sparse,
             beam=self.beam_sparse,
-            number_of_slices_per_profile=int(1000 * buckets),  # same number
-            # of slices per bucket
+            number_of_slices_per_profile=(
+                number_of_bunches_per_batch
+                * int(bunch_spacing / self.rf.t_rf[0, 0])
+            )
+            * 2**10,
             batch_list=batch_list,
-            batch_length=bunches * 5,  # ensure the cut_right of the
-            # SparseBatch matches the cut_right of the standard profile
+            batch_length=(
+                number_of_bunches_per_batch
+                * int(bunch_spacing / self.rf.t_rf[0, 0])
+            ),
             tracker_mode="onebyone",
+            do_track_on_init=False,
         )
-        self.sparse_profile.track()
 
-        np.testing.assert_equal(
-            self.sparse_profile.bin_centers, self.profile.bin_centers
-        )
-        np.testing.assert_equal(
-            self.sparse_profile.n_macroparticles, self.profile.n_macroparticles
-        )
+        self.sparse_profile.track()
+        index_profile = np.zeros(number_of_batches)
+        for p, profile in enumerate(self.sparse_profile.profiles_list):
+            index_profile[p] = np.argmin(
+                np.abs(self.profile.bin_centers - profile.bin_centers[0])
+            )
 
     def test_downsampling(self):
         downsample_dict = {
@@ -284,15 +324,15 @@ class TestRFCurrentSparse(unittest.TestCase):
             "points": self.rf.harmonic[0, 0] / 5,
         }
 
-        sparse_bucket_profile = SparseBucket(
+        sparse_bucket_profile = SparseBatch(
             rf_station=self.rf,
             beam=self.beam_sparse,
             number_of_slices_per_profile=int(1000),  # same number
             # of slices per bucket
-            bunch_list=self.sparse_profile.batch_list,
+            batch_list=self.sparse_profile.batch_list,
             tracker_mode="onebyone",
         )
-        with self.assertRaises(TypeError):
+        with self.assertRaises(IndexError):
             rf_beam_current(
                 sparse_bucket_profile,
                 self.omega,
@@ -302,7 +342,7 @@ class TestRFCurrentSparse(unittest.TestCase):
                 external_reference=True,
                 dT=0,
             )
-        rf_current_std, rf_current_coarse_std = rf_beam_current(
+        rf_current, rf_current_coarse = rf_beam_current(
             self.profile,
             self.omega,
             self.ring.t_rev[0],
@@ -335,10 +375,10 @@ class TestRFCurrentSparse(unittest.TestCase):
         self.assertAlmostEqual(tot_charges, 2.3000000000e13, 9)
         self.assertEqual(tot_charges, tot_charges_sparse)
 
-        rf_current_coarse_std /= self.T_s
+        rf_current_coarse /= self.T_s
         rf_current_coarse_sparse /= self.T_s
         # Peak RF current on coarse grid
-        peak_rf_current = np.max(np.absolute(rf_current_coarse_std))
+        peak_rf_current = np.max(np.absolute(rf_current_coarse))
         peak_rf_current_sparse = np.max(np.absolute(rf_current_coarse_sparse))
         self.assertAlmostEqual(peak_rf_current, 2.9284691149551643, 7)
         self.assertEqual(peak_rf_current, peak_rf_current_sparse)

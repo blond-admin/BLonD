@@ -30,7 +30,7 @@ C = 26658.883  # Machine circumference [m]
 p_s = 450e9  # Synchronous momentum [eV/c]
 gamma_t = 53.606713  # Transition gamma [-]
 alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor [-]
-n_turns = 50  # Number of turns to track [-]
+n_turns = 2  # Number of turns to track [-]
 
 ring = Ring(C, alpha, p_s, Proton(), n_turns=n_turns)
 print(f"Synchronous energy is {ring.energy[0, 0] * 1e-9:.1f} GeV")
@@ -45,7 +45,7 @@ rfstation_sparse = RFStation(ring, [h], [V], [dphi], n_rf=1)
 print(f"RF voltage is {rfstation.voltage[0, 0] * 1e-6:.1f} MV")
 
 # The beam
-number_of_bunches = 2  # Length of the batch [number of bunches]
+number_of_bunches = 5  # Length of the batch [number of bunches]
 bunch_intensity = 2.3e11  # Bunch intensity [p/b]
 n_macroparticles = 10000  # Number of macroparticles per bunch [-]
 tau_bunch = 1.6e-9  # Bunch length [s]
@@ -246,6 +246,7 @@ rf_power_sparse = np.zeros((h // 10, n_turns), dtype=complex)
 I_beam_coarse = np.zeros((h // 10, n_turns), dtype=complex)
 I_beam_coarse_sparse = np.zeros((h // 10, n_turns), dtype=complex)
 # Tracking
+fig, ax_vcorr = plt.subplots(nrows=n_turns)
 for i in range(n_turns):
     profile.track()
     profile_sparse.track()
@@ -257,6 +258,38 @@ for i in range(n_turns):
     rf_power_sparse[:, i] = cavity_loop_sparse.generator_power()[-h // 10 :]
     I_beam_coarse[:, i] = cavity_loop.I_BEAM_COARSE[-h // 10 :]
     I_beam_coarse_sparse[:, i] = cavity_loop_sparse.I_BEAM_COARSE[-h // 10 :]
+
+    ax_vcorr[i].plot(
+        cavity_loop.profile.bin_centers,
+        cavity_loop.V_corr,
+        label="Standard profile",
+    )
+    for p, profile in enumerate(cavity_loop_sparse.profile.profiles_list):
+        ax_vcorr[i].plot(
+            profile.bin_centers,
+            cavity_loop_sparse.V_corr[
+                p * profile.n_slices : (p + 1) * profile.n_slices
+            ],
+            label=f"Sparse profile #{p}",
+        )
+    # np.testing.assert_array_almost_equal(cavity_loop.I_BEAM_COARSE[-h // 10 :],
+    #                               cavity_loop_sparse.I_BEAM_COARSE[-h // 10
+    #                                                                :],
+    #                                      decimal= 12,
+    #                               )
+    #
+    # np.testing.assert_array_equal(cavity_loop.I_BEAM_FINE[0:
+    #                                   profile_sparse.n_slices],
+    #                               cavity_loop_sparse.I_BEAM_FINE)
+
+    # I_beam_fine[:, i] = cavity_loop.I_BEAM_FINE
+    # I_beam_fine_sparse[:, i] = cavity_loop_sparse.I_BEAM_FINE
+    ax_vcorr[i].set(
+        xlabel="bin centers",
+        ylabel="V_corr",
+    )
+    ax_vcorr[i].legend()
+plt.show()
 
 # Bucket-by-bucket RF power
 fig, (ax, ax_sparse) = plt.subplots(nrows=2, figsize=(10, 5))
@@ -333,7 +366,9 @@ ax_current.plot(
     label="Standard profile",
 )
 ax_current.plot(
-    np.linspace(0, rfstation.t_rev[0], len(np.abs(I_beam_coarse.flatten())))
+    np.linspace(
+        0, rfstation.t_rev[0], len(np.abs(I_beam_coarse_sparse.flatten()))
+    )
     * 1e6,
     np.abs(I_beam_coarse_sparse.flatten()) * 1e3,
     ls="--",
