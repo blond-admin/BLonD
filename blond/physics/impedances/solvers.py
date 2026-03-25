@@ -735,7 +735,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         decay_fraction_threshold: float = 0.001,
         allow_delta_t_zero: bool = False,
     ):
-        # this import is here because of sphinx warning
+        # This import is here because of sphinx warning
         # `list assignment index out of range [autodoc]`
         from collections import deque
 
@@ -1063,7 +1063,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     """
 
     def __init__(self, n_turns: int) -> None:
-        # this import is here because of sphinx warning
+        # This import is here because of sphinx warning
         # `list assignment index out of range [autodoc]`
         from collections import deque
 

@@ -306,7 +306,7 @@ def _topological_sort(
     sorted_classes
         List of class names in topologically sorted order.
     """
-    # this import is here because of sphinx warning
+    # This import is here because of sphinx warning
     # `list assignment index out of range [autodoc]`
     # Initialize queue with classes that have no dependencies (in-degree 0)
     from collections import deque

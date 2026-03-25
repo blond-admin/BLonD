@@ -35,8 +35,8 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
     Parameters
     ----------
     section_index
-            Identifier grouping elements that belong to the same section of the ring.
-            Defaults to 0.
+        Identifier grouping elements that belong to the same section of the ring.
+        Defaults to 0.
     name
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
@@ -300,7 +300,7 @@ class EquidistantMultiProfile(MultiProfile):
         name: str | None = None,
     ) -> EquidistantMultiProfile:
         """
-        Make a instance of this class that does not rely on `Simulation`.
+        Make an instance of this class that does not rely on `Simulation`.
 
         Parameters
         ----------
@@ -430,13 +430,13 @@ class EquidistantMultiProfile(MultiProfile):
             self.profiles[i]._hist_x = self._continuous_memory_hist_x[sel]
             self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
 
-    def _get_slice_single_profile(self, i: int) -> slice:
+    def _get_slice_single_profile(self, index: int) -> slice:
         """
         Get slice indices to select the i-th active profile.
 
         Parameters
         ----------
-        i
+        index
             Activate profile number.
 
         Returns
@@ -445,7 +445,7 @@ class EquidistantMultiProfile(MultiProfile):
             ``slice`` selection of the profile within the memory.
         """
         bins_per_profile = self._bins_per_profile
-        start = i * bins_per_profile
+        start = index * bins_per_profile
         stop = start + bins_per_profile
         sel = slice(start, stop)
         return sel

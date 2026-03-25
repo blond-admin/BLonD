@@ -6,7 +6,6 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-# pragma: no cover
 import logging
 
 import numpy as np
@@ -21,7 +20,6 @@ from blond import (
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
-    backend,
     momentum_compaction_factor,
     proton,
 )

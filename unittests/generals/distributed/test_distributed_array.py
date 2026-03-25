@@ -7,6 +7,9 @@ import pytest
 
 from blond import backend, copy_to_cpu
 from blond.generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.generals.distributed.helpers import mpi_barrier, mpi_is_distributed
 
 
@@ -117,10 +120,6 @@ class TestDistributedArray(unittest.TestCase):
             )  # assumes `mpirun -n 2`
 
     def test_histogram_sparse_left_edged(self) -> None:
-        from blond.generals.distributed.distributed_array import (
-            DistributedArray,
-        )
-
         mpi_active = mpi_is_distributed()
 
         if mpi_active:
@@ -145,8 +144,8 @@ class TestDistributedArray(unittest.TestCase):
             )
 
             for _ in range(
-                10
-            ):  # not 1 to see if result is accumulated (shouldn't be)
+                10  # not 1 to see if result is accumulated (shouldn't be)
+            ):
                 result_direct = da.histogram_sparse(
                     out=array_write,
                     first_left_cut=-12,
