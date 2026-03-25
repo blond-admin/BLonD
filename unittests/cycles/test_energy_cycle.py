@@ -368,6 +368,12 @@ class TestEnergyCyclePerTurn(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
+    def test_init_from_linspace(self):
+        MagneticCyclePerTurn.init_from_linspace(
+            values=np.linspace(450e9, 450e9, 3 + 1),
+            reference_particle=proton,
+        )
+
     def test_on_init_simulation(self):
         self.magnetic_cycle_per_turn.on_init_simulation(
             simulation=simulation_ex1

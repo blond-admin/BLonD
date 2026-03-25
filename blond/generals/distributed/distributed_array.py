@@ -264,7 +264,7 @@ class DistributedArray:
         bins,
         range: tuple[float, float] | None = None,
         out: NumpyArray | CupyArray | None = None,
-    ):
+    ) -> NumpyArray | CupyArray:
         """
         Compute the global histogram across all processes.
 

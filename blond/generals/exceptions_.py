@@ -19,3 +19,9 @@ class UnevenArraySizes(BLonDException, ValueError):
     """Exception to be raised when some array dimensions don't match."""
 
     pass
+
+
+class ArrayCastingError(BLonDException, ValueError, TypeError):
+    """Exception raised when automatic array casting fails."""
+
+    pass
