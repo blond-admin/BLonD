@@ -6,22 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Custom exception definitions for BLonD3."""
-
-
-class BLonDException(Exception):
-    """BLonD exception base class."""
-
-    pass
-
-
-class UnevenArraySizes(BLonDException, ValueError):
-    """Exception to be raised when some array dimensions don't match."""
-
-    pass
-
-
-class ArrayCastingError(BLonDException, ValueError, TypeError):
-    """Exception raised when automatic array casting fails."""
-
-    pass
+"""Helper implementations to fit a line density with `SemiEmpiricMatcher`."""

@@ -310,9 +310,9 @@ class Resonators(
             assert len(shunt_impedances) == len(quality_factors), (
                 f"{len(shunt_impedances)} != {len(quality_factors)}"
             )
-            self._shunt_impedances = backend.array(shunt_impedances)
-            self._center_frequencies = backend.array(center_frequencies)
-            self._quality_factors = backend.array(quality_factors)
+            self._shunt_impedances = np.array(shunt_impedances)
+            self._center_frequencies = np.array(center_frequencies)
+            self._quality_factors = np.array(quality_factors)
             self._n_resonators = len(shunt_impedances)
 
         self._shunt_impedances_counter_rotating: (
@@ -348,7 +348,7 @@ class Resonators(
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
         self._alpha = self._omega / (2 * self._quality_factors)
-        self._omega_bar = backend.sqrt(self._omega**2 - self._alpha**2)
+        self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
 
         # Test if one or more quality factors is smaller than 0.5.
         if backend.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
@@ -622,6 +622,38 @@ class Resonators(
         envelope /= backend.max(envelope)
 
         return time_axis, envelope
+
+    def get_decay_time(self, decay_fraction_threshold: float) -> float:
+        """
+        Calculate the decay time of the full envelope based on a decay fraction threshold.
+
+        Parameters
+        ----------
+        decay_fraction_threshold
+            Decay fraction threshold.
+
+        Returns
+        -------
+        storage_time
+            Time, after which the decay fraction threshold is reached.
+        """
+        time_axis = backend.linspace(
+            0,
+            -2
+            * np.max(self._quality_factors / self._omega)
+            * np.log(decay_fraction_threshold)
+            * 2,
+            100000,
+        )
+        _, envelope = self.calculate_envelope(time_axis=time_axis)
+
+        storage_time = float(
+            time_axis[
+                backend.abs(envelope - decay_fraction_threshold).argmin()
+            ]
+        )
+
+        return storage_time
 
     def get_impedance(
         self,
