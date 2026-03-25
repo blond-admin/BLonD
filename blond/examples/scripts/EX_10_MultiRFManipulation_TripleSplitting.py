@@ -25,6 +25,7 @@ from blond import (
     StaticProfile,
     StaticProfileObservation,
     backend,
+    copy_to_cpu,
     momentum_compaction_factor,
     proton,
 )
@@ -140,7 +141,7 @@ def main(
         observe=(profile_observation,),
     )
 
-    bunch_time = profile.hist_x * 1e9
+    bunch_time = copy_to_cpu(profile.hist_x) * 1e9
     cycle_time = np.arange(0, n_turns + 1, each_turn_i_profile) * t_rev * 1e3
     plt.figure("bunch evolution")
     plt.clf()
