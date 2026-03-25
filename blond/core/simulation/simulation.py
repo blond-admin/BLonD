@@ -1117,7 +1117,7 @@ class Simulation(Preparable):
     def run_simulation(
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
-        n_turns: int | float | None = None,
+        n_turns: int | None = None,
         observe: ObservablesOncePerTurnBase
         | tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
