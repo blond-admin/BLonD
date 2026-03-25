@@ -25,13 +25,15 @@ from blond import (
     WakeField,
 )
 from blond.core.base import ScheduledBaseClass
+from blond.cycles.magnetic_cycle import (
+    MagneticCyclePerTurn,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.particle_types import ParticleType
     from blond.cycles.magnetic_cycle import (
-        MagneticCyclePerTurn,
         SynchronousDataTypes,
     )
     from blond.physics.impedances.base import WakeFieldSolver, WakeFieldSource
@@ -43,9 +45,9 @@ def single_section_simulation(  # noqa: PLR0912
     cycle_unit: SynchronousDataTypes,
     particle_type: ParticleType,
     ring_momentum_compaction_factor: float | ScheduledBaseClass,
-    cavity_voltage: float | ScheduledBaseClass,
-    cavity_phi_rf: float | ScheduledBaseClass,
-    cavity_harmonic: float | ScheduledBaseClass,
+    cavity_voltage: float | NumpyArray | ScheduledBaseClass,
+    cavity_phi_rf: float | NumpyArray | ScheduledBaseClass,
+    cavity_harmonic: float | NumpyArray | ScheduledBaseClass,
     cavity_n_harmonics: int,
     wakefield_impedance_sources: tuple[WakeFieldSource, ...] | None = None,
     wakefield_solver: WakeFieldSolver | None = None,
