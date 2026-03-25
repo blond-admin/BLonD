@@ -36,7 +36,7 @@ class TestPooledInterpolationKick(unittest.TestCase):
         assert 0 not in vals
 
     def test__track(self):
-        time_axis = np.linspace(
+        time_axis = backend.linspace(
             0,
             1,
             100,
