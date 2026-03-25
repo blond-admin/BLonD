@@ -1058,11 +1058,12 @@ class MagneticCycleByTime(MagneticCycleBase):
                     break
             if break_:
                 break
-            if reference.time >= self._t_max:
-                n_turns += 1
-                break
 
             n_turns += 1
+
+            if reference.time >= self._t_max:
+                break
+
         assert n_turns > 0, f"{n_turns=}"
         self._n_turns_max = n_turns
 
