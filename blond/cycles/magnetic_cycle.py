@@ -39,6 +39,7 @@ from blond.core.base import AltersReference, HasPropertyCache
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.core.ring.helpers import requires
 from blond.cycles.base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -1008,6 +1009,11 @@ class MagneticCycleByTime(MagneticCycleBase):
         self._in_unit = in_unit  # only for debugging
         self._bending_radius = bending_radius  # only for debugging
 
+    @requires(
+        [
+            "AltersReference",  # required for pre-tracking in `_calc_n_turns_max`
+        ]
+    )
     def on_init_simulation(
         self,
         simulation: Simulation,
@@ -1028,7 +1034,24 @@ class MagneticCycleByTime(MagneticCycleBase):
             n_turns_max=None,
             **kwargs,
         )
+        try:
+            self._calc_n_turns_max(simulation)
+        except Exception as exc:  # Allow mocking and testing, `headless()`.
+            warnings.warn(
+                f"Failed to calculate `n_turns_max` with exception {str(exc)}.",
+                RuntimeWarning,
+                stacklevel=1,
+            )
 
+    def _calc_n_turns_max(self, simulation: Simulation):
+        """
+        Derive the maximum number of turns.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        """
         sim_tmp = deepcopy(simulation)
 
         particle_type = sim_tmp.magnetic_cycle.reference_particle
@@ -1040,29 +1063,29 @@ class MagneticCycleByTime(MagneticCycleBase):
             particle_type=particle_type,
         )
 
-        elements = (
+        elements = tuple(
             e
             for e in sim_tmp.ring.elements.elements
             if isinstance(e, AltersReference)
         )
 
         n_turns = 0
-        break_ = False
+        failed_within_turn = False
         while True:
             for e in elements:
                 try:
                     e.track_reference(reference=reference)
                 except Exception as exc:  # we cant know a priori what the interpolation algorithm might fail with.
                     warnings.warn(str(exc), UserWarning, stacklevel=1)
-                    break_ = True
+                    failed_within_turn = True
                     break
-            if break_:
+            if failed_within_turn:
+                break
+            if reference.time >= self._t_max:
+                n_turns += 1  # range(n_turns=2) = 0,1, which is exclusive
                 break
 
             n_turns += 1
-
-            if reference.time >= self._t_max:
-                break
 
         assert n_turns > 0, f"{n_turns=}"
         self._n_turns_max = n_turns
