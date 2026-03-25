@@ -23,6 +23,7 @@ Simon Lauber
 
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
 from copy import deepcopy
 from typing import TYPE_CHECKING
@@ -1029,12 +1030,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         )
 
         sim_tmp = deepcopy(simulation)
-        n_turns = 0
-        elements = (
-            e
-            for e in sim_tmp.ring.elements.elements
-            if isinstance(e, AltersReference)
-        )
+
         particle_type = sim_tmp.magnetic_cycle.reference_particle
         reference = ReferenceCoordinates(
             time=0,
@@ -1043,11 +1039,31 @@ class MagneticCycleByTime(MagneticCycleBase):
             ),
             particle_type=particle_type,
         )
-        for e in elements:
-            e.track_reference(reference=reference)
-            n_turns += 1
-            if reference.time >= self._t_max:
+
+        elements = (
+            e
+            for e in sim_tmp.ring.elements.elements
+            if isinstance(e, AltersReference)
+        )
+
+        n_turns = 0
+        break_ = False
+        while True:
+            for e in elements:
+                try:
+                    e.track_reference(reference=reference)
+                except Exception as exc:  # we cant know a priori what the interpolation algorithm might fail with.
+                    warnings.warn(str(exc), UserWarning, stacklevel=1)
+                    break_ = True
+                    break
+            if break_:
                 break
+            if reference.time >= self._t_max:
+                n_turns += 1
+                break
+
+            n_turns += 1
+        assert n_turns > 0, f"{n_turns=}"
         self._n_turns_max = n_turns
 
     def get_target_total_energy(
