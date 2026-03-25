@@ -24,6 +24,7 @@ Simon Lauber
 from __future__ import annotations
 
 from abc import abstractmethod
+from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -33,9 +34,10 @@ from scipy.interpolate import interp1d
 
 from blond.acc_math.analytic import conversions
 from blond.acc_math.analytic.simple_math import calc_total_energy
-from blond.core.base import HasPropertyCache
+from blond.core.base import AltersReference, HasPropertyCache
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType, proton
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.cycles.base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -1000,6 +1002,7 @@ class MagneticCycleByTime(MagneticCycleBase):
             base_magnetic_rigidity[:],
             **kwargs,
         )
+        self._t_max = base_time.max()
         self._base_values = base_values[:]  # only for debugging
         self._in_unit = in_unit  # only for debugging
         self._bending_radius = bending_radius  # only for debugging
@@ -1024,6 +1027,28 @@ class MagneticCycleByTime(MagneticCycleBase):
             n_turns_max=None,
             **kwargs,
         )
+
+        sim_tmp = deepcopy(simulation)
+        n_turns = 0
+        elements = (
+            e
+            for e in sim_tmp.ring.elements.elements
+            if isinstance(e, AltersReference)
+        )
+        particle_type = sim_tmp.magnetic_cycle.reference_particle
+        reference = ReferenceCoordinates(
+            time=0,
+            total_energy=sim_tmp.magnetic_cycle.get_total_energy_init(
+                particle_type=particle_type
+            ),
+            particle_type=particle_type,
+        )
+        for e in elements:
+            e.track_reference(reference=reference)
+            n_turns += 1
+            if reference.time >= self._t_max:
+                break
+        self._n_turns_max = n_turns
 
     def get_target_total_energy(
         self,
