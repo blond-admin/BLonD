@@ -20,6 +20,7 @@ import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
 from blond.core.base import MainLoopRelevant
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.physics.drifts import DriftSimple
 
@@ -29,7 +30,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import WakeField
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import SingleHarmonicRFStation
+    from blond.physics.cavities import (
+        SingleHarmonicRFStation,
+    )
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
@@ -48,7 +51,7 @@ class ObservablesBaseClass(MainLoopRelevant):
     ----------
     folder
         Target folder to save the data at.
-        Use `rename` to change the ddestination.
+        Use `rename` to change the destination.
     **kwargs
         Additional keyword arguments.
     """
@@ -826,7 +829,7 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
     def _update(self) -> None:
         """Update memory with new values."""
         self._hist_y.write(
-            self._profile.hist_y,
+            copy_to_cpu(self._profile.hist_y),
         )
 
     @property  # as readonly attributes
@@ -839,7 +842,7 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         hist_x
             Histogram x-axis array.
         """
-        return self._profile.hist_x
+        return copy_to_cpu(self._profile.hist_x)
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray:
@@ -954,7 +957,9 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
 
     def _update(self) -> None:
         """Update the data."""
-        self._hist_y.write([prof.hist_y for prof in self._profiles])
+        self._hist_y.write(
+            [copy_to_cpu(prof.hist_y) for prof in self._profiles]
+        )
 
     @property  # as readonly attributes
     def hist_x(self) -> list[NumpyArray]:
@@ -966,7 +971,10 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         hist_x
             List of histogram x-axis arrays.
         """
-        return [self._profiles[i].hist_x for i in range(len(self._profiles))]
+        return [
+            copy_to_cpu(self._profiles[i].hist_x)
+            for i in range(len(self._profiles))
+        ]
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray:

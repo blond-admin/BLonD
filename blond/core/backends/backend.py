@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.exceptions import ComplexWarning
 
+from blond.generals.exceptions_ import ArrayCastingError
 from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -106,30 +107,12 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_legacy(  # NOQA: D102
-        dt: NumpyArray,
-        dE: NumpyArray,
-        T: float,
-        alpha_order: int,
-        eta_0: float,
-        eta_1: float,
-        eta_2: float,
-        beta: float,
-        energy: float,
-    ) -> None:
-        raise NotImplementedError(
-            "Abstract method `drift_legacy` is not implemented."
-        )
-
-    @staticmethod
-    @abstractmethod  # pragma: no cover
     def drift_exact(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
         alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
+        higher_alpha: NumpyArray,
         beta: float,
         energy: float,
     ) -> None:
@@ -256,7 +239,7 @@ class BackendBaseClass(ABC):
     float: type[np.float32 | np.float64]
     complex: type[np.complex128 | np.complex64]
 
-    def __init__(
+    def __init__(  # noqa: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -284,15 +267,19 @@ class BackendBaseClass(ABC):
         # Callables that link to e.g. Numpy, Cupy
         self.array: Callable = None  # type: ignore
         self.gradient: Callable = None  # type: ignore
+        self.isclose: Callable = None  # type: ignore
         self.empty: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
         self.linspace: Callable = None  # type: ignore
+        self.sinc: Callable = None  # type: ignore
         self.histogram: Callable = None  # type: ignore
         self.zeros: Callable = None  # type: ignore
         self.ones: Callable = None  # type: ignore
         self.zeros_like: Callable = None  # type: ignore
         self.fft: ModuleType = None  # type: ignore
+        self.all: Callable = None  # type: ignore
         self.random: ModuleType = None  # type: ignore
+        self.sinc: Callable = None  # type: ignore
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
         self.sqrt: Callable = None  # type: ignore
@@ -319,6 +306,7 @@ class BackendBaseClass(ABC):
         self.copy: Callable = None  # type: ignore
         self.ones_like: Callable = None  # type: ignore
         self.add: Callable = None  # type: ignore
+        self.default_rng: object = None  # type: ignore
         self.concatenate: Callable = None  # type: ignore
         self.unique: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
@@ -379,7 +367,7 @@ class BackendBaseClass(ABC):
         """
         return self._is_gpu
 
-    def apply_environment_variables(self) -> None:  # NOQA PLR0912
+    def apply_environment_variables(self) -> None:  # NOQA PLR0915
         """
         Load the environment variables and set up the backend accordingly.
 
@@ -545,14 +533,14 @@ class BackendBaseClass(ABC):
         try:
             new_arr = self._asarray_if_needed(arr)
         except ValueError as exc:
-            raise ValueError(
+            raise ArrayCastingError(
                 f"Unable to convert input data {arr} to array."
             ) from exc
 
         try:
             new_arr = self._cast_dtype_if_needed(new_arr, dtype)
         except (TypeError, ValueError) as exc:
-            raise type(exc)(
+            raise ArrayCastingError(
                 "Unable to automatically cast dtype of input data from "
                 f"{new_arr.dtype} to {dtype}."
             ) from exc
@@ -618,7 +606,7 @@ class NumpyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -633,15 +621,19 @@ class NumpyBackend(BackendBaseClass):
 
         self.array = np.array
         self.gradient = np.gradient
+        self.isclose = np.isclose
         self.empty = np.empty
         self.repeat = np.repeat
         self.linspace = np.linspace
+        self.sinc = np.sinc
         self.histogram = np.histogram
         self.zeros = np.zeros
         self.ones = np.ones
         self.zeros_like = np.zeros_like
         self.fft = np.fft
+        self.all = np.all
         self.random = np.random
+        self.sinc = np.sinc
         self.isnan = np.isnan
         self.sum = np.sum
         self.sqrt = np.sqrt
@@ -671,6 +663,7 @@ class NumpyBackend(BackendBaseClass):
         self.copy = np.copy
         self.ones_like = np.ones_like
         self.add = np.add
+        self.default_rng = np.random.default_rng
         self.concatenate = np.concatenate
         self.unique = np.unique
         self.repeat = np.repeat
@@ -758,7 +751,7 @@ class CupyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -781,15 +774,19 @@ class CupyBackend(BackendBaseClass):
 
         self.array = cp.array
         self.gradient = cp.gradient
+        self.isclose = cp.isclose
         self.empty = cp.empty
         self.repeat = cp.repeat
         self.linspace = cp.linspace
+        self.sinc = cp.sinc
         self.histogram = cp.histogram
         self.zeros = cp.zeros
         self.ones = cp.ones
         self.zeros_like = cp.zeros_like
         self.fft = cp.fft
+        self.all = cp.all
         self.random = cp.random
+        self.sinc = cp.sinc
         self.isnan = cp.isnan
         self.sum = cp.sum
         self.sqrt = cp.sqrt
@@ -816,6 +813,7 @@ class CupyBackend(BackendBaseClass):
         self.copy = cp.copy
         self.ones_like = cp.ones_like
         self.add = cp.add
+        self.default_rng = cp.random.default_rng
         self.concatenate = cp.concatenate
         self.unique = cp.unique
         self.repeat = cp.repeat
@@ -870,8 +868,8 @@ class Cupy64Bit(CupyBackend):
         )
 
 
-default = Numpy64Bit()  # use .change_backend(...) to change it anywhere
-backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
+default = Numpy64Bit  # use .change_backend(...) to change it anywhere
+backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default()
 backend.verbose = True
 backend.apply_environment_variables()
 

@@ -7,3 +7,7 @@
 # Project website: http://blond.web.cern.ch/
 
 """Utilities for testing of BLonD."""
+
+__all__ = ["pytest_active"]
+
+from blond.testing.helpers import pytest_active

@@ -98,6 +98,13 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         from blond.testing.simulation import SimulationTwoRFStationsWithWake
 
         sim = SimulationTwoRFStationsWithWake()
+        wakefield = sim.simulation.ring.elements.get_element(WakeField)
+
+        wakefield.track_profile = False
+        sim.simulation.print_one_turn_execution_order()
+        wakefield.track_profile = True
+        sim.simulation.print_one_turn_execution_order()
+
         self._test_matching(sim)
         DEV_PLOT = False
         DEV_PLOT2 = False
@@ -327,8 +334,9 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             internal_grid_shape=(512 - 1, 512 - 1),
             increment_intensity_effects_until_iteration_i=10,
             maxiter_intensity_effects=1000,
-            tolerance=0.000001,
+            tolerance_potential_well=0.000001,
             animate=False,
+            debug=True,
         )
         sim.simulation.prepare_beam(
             beam=sim.beam1,

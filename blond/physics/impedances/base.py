@@ -120,11 +120,11 @@ class TimeDomain(ABC):
     @abstractmethod  # pragma: no cover
     def get_wake_impedance(
         self,
-        time: NumpyArray,
+        time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
-    ) -> NumpyArray:
+    ) -> NumpyArray | CupyArray:
         """
         Get impedance equivalent to the partial wake in time domain.
 
@@ -152,8 +152,10 @@ class TimeDomainCounterRotation(ABC):
 
     @abstractmethod  # pragma: no cover
     def get_wake(
-        self, time: NumpyArray
-    ) -> NumpyArray:  # TODO: this function should be moved to TimeDomain
+        self, time: NumpyArray | CupyArray
+    ) -> (
+        NumpyArray | CupyArray
+    ):  # TODO: this function should be moved to TimeDomain
         """
         Get wake potential equivalent to the partial wake in time domain.
 
@@ -165,7 +167,9 @@ class TimeDomainCounterRotation(ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_wake_counter_rotation(self, time: NumpyArray) -> NumpyArray:
+    def get_wake_counter_rotation(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
         """
         Get wake potential equivalent to the partial wake in time domain for the counter-rotating case.
 
@@ -184,11 +188,11 @@ class TimeDomainCounterRotation(ABC):
     @abstractmethod  # pragma: no cover
     def get_wake_impedance_counter_rotation(
         self,
-        time: NumpyArray,
+        time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
-    ) -> NumpyArray:
+    ) -> NumpyArray | CupyArray:
         """
         Get impedance equivalent to the partial wake in time domain for the counter-rotating case.
 
@@ -217,7 +221,7 @@ class FreqDomain(ABC):
     @abstractmethod  # pragma: no cover
     def get_impedance(
         self,
-        freq_x: NumpyArray,
+        freq_x: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> NumpyArray | CupyArray:
@@ -394,7 +398,7 @@ class WakeField(ImpedanceBaseClass):
     def __init__(
         self,
         sources: tuple[WakeFieldSource, ...],
-        solver: WakeFieldSolver | None,
+        solver: WakeFieldSolver,
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
     ):
@@ -403,6 +407,7 @@ class WakeField(ImpedanceBaseClass):
         self.solver = solver
         self.sources = sources
         self._induced_voltage = None
+        self.track_profile = True
 
     def info_string(self, prefix="") -> str:
         """
@@ -418,10 +423,13 @@ class WakeField(ImpedanceBaseClass):
         str
             Information string.
         """
-        content = (
-            f"{self.profile.info_string(prefix=prefix + ' ↓ ')}\n"
-            f"{super().info_string(prefix=prefix)}"
-        )
+        if self.track_profile:
+            content = (
+                f"{self.profile.info_string(prefix=prefix + ' ↓ ')}\n"
+                f"{super().info_string(prefix=prefix)}"
+            )
+        else:
+            content = super().info_string(prefix=prefix)
         return content
 
     @property
@@ -488,10 +496,12 @@ class WakeField(ImpedanceBaseClass):
         beam
             Beam class to interact with this element.
         """
-        if self.profile.active:
+        if self.profile.active and self.track_profile:
             self.profile.track(beam=beam)
         induced_voltage = self.calc_induced_voltage(beam=beam)
-        assert (induced_voltage).dtype == backend.float
+        assert induced_voltage.dtype == backend.float, (
+            f"{induced_voltage.dtype}"
+        )
         backend.specials.kick_induced_voltage(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),

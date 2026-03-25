@@ -1,6 +1,5 @@
 import unittest
 from pathlib import Path
-from unittest import skipIf
 from unittest.mock import Mock
 
 import numpy as np
@@ -73,7 +72,7 @@ class TestImpedanceTableFreq(unittest.TestCase):
         freq_table_short = ImpedanceTableFreq.from_file(
             Path(
                 callers_relative_path(
-                    "../../../blond/examples/resources/EX_02_Finemet.txt",
+                    "../../../blond/examples/scripts/resources/EX_02_Finemet.txt",
                     stacklevel=1,
                 )
             ),
@@ -579,6 +578,33 @@ class TestResonators(unittest.TestCase):
                 # plt.savefig("")
                 plt.show()
 
+    def test_calculate_envelope(self):
+        time_axis = backend.linspace(
+            0,
+            backend.max(
+                self.resonators._quality_factors / self.resonators._omega
+            )
+            * 20,
+            100000,
+        )
+        env_time, envelope = self.resonators.calculate_envelope()
+        ent_time_2, envelope_2 = self.resonators.calculate_envelope(
+            time_axis=time_axis
+        )
+
+        np.testing.assert_allclose(
+            copy_to_cpu(env_time),
+            copy_to_cpu(ent_time_2),
+            rtol=1e-12 if backend is Numpy64Bit else 1e-12,
+            atol=0,
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(envelope),
+            copy_to_cpu(envelope_2),
+            rtol=1e-12 if backend is Numpy64Bit else 1e-12,
+            atol=0,
+        )
+
     def test_get_wake_counterrotation(self):
         freq, q_factor, shut_imp = (
             self.resonators._center_frequencies[0],
@@ -745,7 +771,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         # pinned to an arbitrary value, physics is not checked or guaranteed
         # to work
-        SAVE_PINNED = True
+        SAVE_PINNED = False
         if SAVE_PINNED:
             np.savetxt(
                 callers_relative_path(
@@ -862,6 +888,35 @@ class TestTravelingWaveCavity(unittest.TestCase):
             impedance_pinned_float,
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
+
+    def test_division_by_zero(self):
+        pinned_values = [  # visual confirmation with DEV_DRAW lead to pinned
+            # values.
+            (7 + 0j),
+            (3.506997824563613 - 0.3026719592604971j),
+            (3.5 - 2.9166666666666576e-13j),
+        ]
+        DEV_DRAW = False
+        for i, a_factor in enumerate((3e-12, 3, 3e12)):
+            twc_floats = TravelingWaveCavity(
+                3.5,
+                4,
+                a_factor,
+            )
+
+            impedance = twc_floats.get_impedance(
+                freq_x=np.linspace(
+                    twc_floats.frequency_R[0],
+                    (1 + 1e-12) * twc_floats.frequency_R[0],
+                ),
+                beam=None,
+                simulation=None,
+            )
+            if DEV_DRAW:
+                plt.plot(impedance)
+                plt.show()
+            self.assertAlmostEqual(pinned_values[i].real, impedance[0].real)
+            self.assertAlmostEqual(pinned_values[i].imag, impedance[0].imag)
 
 
 if __name__ == "__main__":

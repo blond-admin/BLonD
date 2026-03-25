@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds `CduaSpecials` and helper functions."""
+"""Holds `CudaSpecials` and helper functions."""

@@ -425,7 +425,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
         no_array_buffer = n_fft not in self._beam_spectrum_buffer
         if no_array_buffer:
-            self._beam_spectrum_buffer[n_fft] = np.fft.rfft(
+            self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
                 self._hist_y,  # type: ignore
                 n_fft,
             )
@@ -450,8 +450,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Delete the stored values of functions with @cached_property."""
         self._invalidate_cache(
             props=(
-                "gauss_fit_params",
-                "beam_spectrum",
+                "gradient_hist_y",
                 "hist_step",
                 "cut_left",
                 "cut_right",

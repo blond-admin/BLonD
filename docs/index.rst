@@ -6,6 +6,10 @@
 Welcome to the BLonD documentation!
 ===================================
 
+.. important:: The BlonD development team is actively working on a revision of the entire
+    BLonD package. If you have any suggestions, do not hesitate to contact us!
+    The release via PyPi is planned for the third quarter of 2026. A preview version is available via our GitLab page https://gitlab.cern.ch/blond/BLonD/ .
+
 Contents
 ========
 The Beam Longitudinal Dynamics code BLonD is a CERN software package for the
@@ -18,12 +22,13 @@ download the code.
 .. _gitlab: https://gitlab.cern.ch/blond/BLonD
 
 Modules
-=======
+========
 
 .. toctree::
    :maxdepth: 2
 
-   models_new/getting_started
+   examples/notebooks/getting_started
+   models_new/tab_examples
    modules/blond_main_objects
    index_math
    modules/blond
