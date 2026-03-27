@@ -55,12 +55,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
     """
 
     def __init__(
-        self, section_index: int = 0, name: str | None = None
+        self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
-        super().__init__(
-            section_index=section_index,
-            name=name,
-        )
+        super().__init__(section_index=section_index, name=name, **kwargs)
         self._hist_x: NumpyArray | CupyArray | None = None
         self._hist_y: NumpyArray | CupyArray | None = None
         self.hist_y_to_density_factor: float | None = None
@@ -341,6 +338,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         beam
             Beam class to interact with this element.
         """
+
+
         if beam.is_distributed:
             raise NotImplementedError(
                 "Implement histogram on distributed array"
@@ -349,17 +348,21 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             # `_hist_x`, `_hist_y` could be None, which is not handled and
             # causes a MyPy type error,
             # This is intentionally ignored, we want to get an exception.
-            beam._dt.histogram(  # MPI aware histogram calculation
-                len(self._hist_y),
-                range=(
-                    self.cut_left,
-                    self.cut_right,
-                ),
-                out=self._hist_y,
-            )
-            # this factor is used to reproduce the behaviour
-            # of np.hist(..., density=True)
-            self.hist_y_to_density_factor = 1.0 / beam.common_array_size
+            if beam.common_array_size > 0:
+                beam._dt.histogram(  # MPI aware histogram calculation
+                    len(self._hist_y),
+                    range=(
+                        self.cut_left,
+                        self.cut_right,
+                    ),
+                    out=self._hist_y,
+                )
+                # this factor is used to reproduce the behaviour
+                # of np.hist(..., density=True)
+                self.hist_y_to_density_factor = 1.0 / beam.common_array_size
+            else:
+                self._hist_y[:] = 0
+                self.hist_y_to_density_factor = 0.0
         self.invalidate_cache()
 
     @staticmethod
@@ -485,11 +488,9 @@ class StaticProfile(ProfileBaseClass):
         n_bins: int,
         section_index: int = 0,
         name: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__(
-            section_index=section_index,
-            name=name,
-        )
+        super().__init__(section_index=section_index, name=name, **kwargs)
         self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
             cut_left=float(cut_left),
             cut_right=float(cut_right),

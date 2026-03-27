@@ -221,9 +221,9 @@ class Schedulable:
                 UserWarning,
                 stacklevel=2,
             )
-        assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
-        )
+        assert hasattr(
+            self, attribute
+        ), f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         if isinstance(value, SchedulerBaseClass):
             # explicit declaration
             self.schedules[attribute] = value
@@ -256,9 +256,9 @@ class Schedulable:
         -----
         Can be constant, per turn or interpolated in time.
         """
-        assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
-        )
+        assert hasattr(
+            self, attribute
+        ), f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         values = np.loadtxt(filename, **kwargs_loadtxt)
         self.schedules[attribute] = get_scheduler(values)
         self.schedule_active = True
@@ -859,6 +859,9 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
 
 class HasPropertyCache:
     """Helper objet to use @cached_property() for class methods."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def _invalidate_cache(self, props: tuple[str, ...]) -> None:
         """

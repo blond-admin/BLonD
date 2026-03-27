@@ -279,7 +279,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         beam
             Beam class to interact with this element.
         """
-        super()._track(beam=beam)
 
         if self.schedule_active:
             self.apply_schedules(
@@ -287,7 +286,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
                 reference_time=beam.reference.time,
             )
 
-        dt = self.track_reference(beam.reference)
+        DriftSimple.track_reference(self,beam.reference)
+
+        dt =self._last_dt
         gamma = beam.reference.gamma
         self._last_eta_0 = self.eta_0(gamma)
 
@@ -322,7 +323,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         """
         reference_time_change = self.orbit_length / reference.velocity
         reference.time += reference_time_change
-        return reference_time_change
+        self._last_dt = reference_time_change
 
     def eta_0(self, gamma: float) -> float:
         """
@@ -463,6 +464,7 @@ class DriftExact(DriftSimple):
         beam : BeamBaseClass
             Beam.
         """
+        super()._track(beam=beam)
         # Apply schedules if active
         if self.schedule_active:
             self.apply_schedules(
@@ -471,8 +473,8 @@ class DriftExact(DriftSimple):
             )
 
         # Advance reference
-        dt = self.track_reference(beam.reference)
-
+        DriftSimple.track_reference(self,beam.reference)
+        dt = self._last_dt
         higher_alpha = backend.array(
             self.higher_order_alpha, dtype=backend.float
         )

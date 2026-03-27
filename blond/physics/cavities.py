@@ -111,7 +111,6 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, ABC):
         beam
             Beam class to interact with this element.
         """
-        super()._track(beam=beam)
         if self.schedule_active:
             self.apply_schedules(
                 turn_i=self._turn_i.value,
@@ -120,7 +119,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, ABC):
 
 
 class RFStationBaseClass(
-    RFManipulationBaseClass, Schedulable, AltersReference, ABC
+    RFManipulationBaseClass, AltersReference, ABC, Schedulable
 ):
     """
     Base class to implement beam-rf interactions in synchrotrons.
@@ -788,7 +787,7 @@ class RFStationBaseClass(
         )
         reference_energy_change = target_total_energy - reference.total_energy
         reference.total_energy = target_total_energy
-        return reference_energy_change
+        self._last_reference_energy_change = reference_energy_change
 
     def calc_omega_rf_design(
         self,
@@ -1022,9 +1021,10 @@ class SingleHarmonicRFStation(
         super()._track(beam=beam)
 
         reference = beam.reference
-        reference_energy_change = self.track_reference(
+        RFStationBaseClass.track_reference(self,
             reference, beam.is_counter_rotating
         )
+        reference_energy_change = self._last_reference_energy_change
 
         if beam.common_array_size > 0:
             if self.any_feedback_not_none:
@@ -1392,9 +1392,10 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         super()._track(beam=beam)
 
         reference = beam.reference
-        reference_energy_change = self.track_reference(
+        self.track_reference(
             reference, beam.is_counter_rotating
         )
+        reference_energy_change = self._last_reference_energy_change
 
         if beam.common_array_size > 0:
             if self.any_feedback_not_none:

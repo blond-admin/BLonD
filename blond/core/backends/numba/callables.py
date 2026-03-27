@@ -496,6 +496,65 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             )
             return n_new
 
+        @staticmethod
+        @njit(
+            parallel=True,
+            fastmath=True,
+            cache=True,
+        )
+        def fused_kick_drift_profile(
+
+                                     dt,
+                                     dE,
+                                     voltage,
+                                     phi_rf,
+                                     omega_rf,
+                                     charge,
+                                     acceleration_kick,
+                                     T,
+                                     eta_0,
+                                     beta,
+                                     energy,
+                                     array_read,
+                                     array_write,
+                                     start,
+                                     stop,
+                                     ):
+            voltage_kick = charge * voltage
+
+            coeff = T * eta_0 / (beta * beta * energy)
+
+            n_threads = numba.get_num_threads()  # this prevents caching
+            width = stop - start
+            n_bins = len(array_write)
+            bin_step = width / n_bins
+            inv_bin_step = 1 / bin_step
+            array_tmp = np.zeros((n_threads, n_bins))
+            array_write[:] = 0
+
+            for i in prange(len(dt)):
+                dti = dt[i]
+                dEi = dE[i]
+                dEi += (
+                        voltage_kick * np.sin(omega_rf * dti + phi_rf)
+                        + acceleration_kick
+                )
+
+                dti += coeff * dEi
+
+                curr_thread = numba.get_thread_id()
+                array_tmp[curr_thread, -1] += 1 * (dti == stop)
+                idx = (dti - start) * inv_bin_step
+                dt[i] = dti
+                dE[i] = dEi
+                if idx < 0 or idx >= n_bins:
+                    continue
+                else:
+                    array_tmp[curr_thread, int(idx)] += 1
+
+
+            array_write[:] = np.sum(array_tmp, axis=0)
+
     return NumbaSpecials
 
 

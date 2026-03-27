@@ -191,6 +191,29 @@ class Specials(ABC):
             "The backend for `move_flagged_elements_to_end` is missing."
         )
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def fused_kick_drift_profile(
+        dt,
+        dE,
+        voltage,
+        phi_rf,
+        omega_rf,
+        charge,
+        acceleration_kick,
+        T,
+        eta_0,
+        beta,
+        energy,
+        array_read,
+        array_write,
+        start,
+        stop,
+    ):
+        raise NotImplementedError(
+            "Abstract method `beam_phase` is not implemented."
+        )
+
 
 class _ModeSwitchHelper:
     """

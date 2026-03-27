@@ -549,6 +549,29 @@ def reload_cuda_backend(  # NOQA: D102
             n_new = len(ids) - cp.sum(select)
             return n_new
 
+        @staticmethod
+        def fused_kick_drift_profile(
+
+                                     dt,
+                                     dE,
+                                     voltage,
+                                     phi_rf,
+                                     omega_rf,
+                                     charge,
+                                     acceleration_kick,
+                                     T,
+                                     eta_0,
+                                     beta,
+                                     energy,
+                                     array_read,
+                                     array_write,
+                                     start,
+                                     stop,
+                                     ):
+            return
+            raise NotImplementedError(
+                "Abstract method `beam_phase` is not implemented."
+            )
     return CudaSpecials
 
 

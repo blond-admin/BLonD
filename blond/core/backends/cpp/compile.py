@@ -24,6 +24,7 @@ _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 default_libname = "libblond"
 
 cpp_files = [
+    "kick_drift_profile.cpp",
     "openmp.cpp",
     "kick.cpp",
     "drift.cpp",

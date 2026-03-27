@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -142,6 +143,7 @@ class PythonSpecials(Specials):
         stop
             Stop of the histogram bins.
         """
+
         array_write[:], _ = np.histogram(
             array_read,
             range=(float(start), float(stop)),
@@ -192,6 +194,7 @@ class PythonSpecials(Specials):
         acceleration_kick
             Energy that is added to all particles, in [eV].
         """
+
         voltage_kick = charge * voltage
 
         dE[:] += (
@@ -414,3 +417,36 @@ class PythonSpecials(Specials):
             ids=ids,
         )
         return n_new
+
+    @staticmethod
+    def fused_kick_drift_profile(
+        dt,
+        dE,
+        voltage,
+        phi_rf,
+        omega_rf,
+        charge,
+        acceleration_kick,
+        T,
+        eta_0,
+        beta,
+        energy,
+        array_read,
+        array_write,
+        start,
+        stop,
+    ):
+        voltage_kick = charge * voltage
+
+        dE[:] += (
+            voltage_kick * np.sin(omega_rf * dt[:] + phi_rf)
+            + acceleration_kick
+        )
+        coeff = eta_0 / (beta * beta * energy)
+        dt[:] += T * coeff * dE
+
+        array_write[:], _ = np.histogram(
+            array_read,
+            range=(float(start), float(stop)),
+            bins=len(array_write),
+        )

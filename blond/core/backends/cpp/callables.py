@@ -435,6 +435,43 @@ def reload_cpp_backend(  # NOQA: PLR0915
             n_new = int(n_new)
             return n_new
 
+        @staticmethod
+        def fused_kick_drift_profile(
+            dt,
+            dE,
+            voltage,
+            phi_rf,
+            omega_rf,
+            charge,
+            acceleration_kick,
+            T,
+            eta_0,
+            beta,
+            energy,
+            array_read,
+            array_write,
+            start,
+            stop,
+        ):
+            _LIBBLOND.kick_drift_profile(
+                dt.ctypes.data_as(ct.c_void_p),
+                dE.ctypes.data_as(ct.c_void_p),
+                c_real((charge), floattype),  # const real_t T
+                c_real((voltage), floattype),  # const real_t T
+                c_real((omega_rf), floattype),  # const real_t T,
+                c_real((phi_rf), floattype),  # const real_t T
+                c_real((T), floattype),  # const real_t T
+                c_real((eta_0), floattype),  # const real_t T,
+                c_real((beta), floattype),  # const real_t T
+                c_real((energy), floattype),  # const real_t T
+                array_write.ctypes.data_as(ct.c_void_p),
+                c_real(start, floattype),
+                c_real(stop, floattype),
+                ct.c_int32(len(array_write)),  # n_slices
+                ct.c_int32(len(dt)),  # n_macroparticles
+                c_real(acceleration_kick, floattype),
+            )
+
     return CppSpecials
 
 
