@@ -448,7 +448,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
             eta_0,
             beta,
             energy,
-            array_read,
             array_write,
             start,
             stop,

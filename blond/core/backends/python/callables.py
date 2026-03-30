@@ -431,7 +431,6 @@ class PythonSpecials(Specials):
         eta_0,
         beta,
         energy,
-        array_read,
         array_write,
         start,
         stop,

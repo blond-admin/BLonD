@@ -205,7 +205,6 @@ class Specials(ABC):
         eta_0,
         beta,
         energy,
-        array_read,
         array_write,
         start,
         stop,
@@ -723,11 +722,8 @@ class NumpyBackend(BackendBaseClass):
             self.specials = reload_cpp_backend(self.float)
             self.specials_mode = mode
         elif mode == "numba":
-            from blond.core.backends.numba.callables import (
-                recompile_numba_backend,
-            )
+            from blond.core.backends.numba.callables import NumbaSpecials
 
-            NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         else:

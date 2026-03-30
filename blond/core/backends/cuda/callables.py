@@ -563,7 +563,6 @@ def reload_cuda_backend(  # NOQA: D102
                                      eta_0,
                                      beta,
                                      energy,
-                                     array_read,
                                      array_write,
                                      start,
                                      stop,

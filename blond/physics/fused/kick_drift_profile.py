@@ -1,4 +1,5 @@
 import sys
+import time
 from copy import copy, deepcopy
 from typing import Any
 
@@ -13,12 +14,12 @@ from blond import (
     backend,
     Simulation,
     Ring,
-    MagneticCyclePerTurn, copy_to_cpu,
+    MagneticCyclePerTurn,
+    copy_to_cpu,
 )
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from core.reference_clock.reference_clock import ReferenceCoordinates
-
 
 
 class KickDriftProfile(SingleHarmonicRFStation, DriftSimple, StaticProfile):
@@ -53,9 +54,9 @@ class KickDriftProfile(SingleHarmonicRFStation, DriftSimple, StaticProfile):
         )
 
         SingleHarmonicRFStation._track(self, beam=hack)
-        #print("phi_rf_design", self.phi_rf_design)
+
         kwargs = dict(
-            dt=beam.read_partial_dt(),
+            dt=beam.write_partial_dE(),
             dE=beam.write_partial_dE(),
             voltage=copy(self.voltage),
             phi_rf=copy(self.phi_rf),
@@ -65,8 +66,8 @@ class KickDriftProfile(SingleHarmonicRFStation, DriftSimple, StaticProfile):
             # Mind the
             # minus!
         )
+
         DriftSimple._track(self, beam=hack)
-        #print("momentum_compaction_factor", self.momentum_compaction_factor)
 
         kwargs.update(
             dict(
@@ -78,19 +79,26 @@ class KickDriftProfile(SingleHarmonicRFStation, DriftSimple, StaticProfile):
                 energy=(hack.reference.total_energy),
             )
         )
+
         StaticProfile._track(self, beam=hack)
 
         kwargs.update(
             dict(
-                array_read=beam.read_partial_dt(),
                 array_write=self._hist_y,
                 start=self.cut_left,
                 stop=self.cut_right,
             )
         )
+
         backend.specials.fused_kick_drift_profile(**kwargs)
+        for key, val in kwargs.items():
+            if isinstance(val, float):
+                kwargs[key] = val
+
         self.hist_y_to_density_factor = 1.0 / beam.common_array_size
+
         self.invalidate_cache()
+
         beam.reference.time = hack.reference.time
         beam.reference.total_energy = hack.reference.total_energy
 
@@ -228,7 +236,6 @@ class TestKickDriftProfile(object):
             desired.reference.total_energy,
         )
 
-
     def test_track_correct_kickdrift_only(self):
         self._setup_Sim()
         actual = ProbeBeam(
@@ -260,7 +267,6 @@ class TestKickDriftProfile(object):
             actual.dt.copy_as_numpy(),
             desired.dt.copy_as_numpy(),
         )
-
 
     def test_track_correct_kickdriftprofile(self):
         self._setup_Sim()
@@ -305,8 +311,6 @@ class TestKickDriftProfile(object):
                 copy_to_cpu(self.profile.hist_y),
             )
             print(f"Turn {turn} sucessful")
-
-
 
 
 if __name__ == "__main__":

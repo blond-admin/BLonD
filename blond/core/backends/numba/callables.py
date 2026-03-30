@@ -11,6 +11,13 @@
 
 from __future__ import annotations
 
+import os
+
+NUMBA_BOUNDSCHECK = os.environ.get("NUMBA_BOUNDSCHECK", None)
+if NUMBA_BOUNDSCHECK is None:
+    os.environ["NUMBA_BOUNDSCHECK"] = "1"
+os.environ["NUMBA_COMPATIBILITY_MODE"] = "0"
+
 import logging
 from functools import cache, wraps
 from typing import TYPE_CHECKING
@@ -57,508 +64,517 @@ def enforce_precision(dtype):
     return decorator
 
 
-@cache  # or set a limit like maxsize=128
-def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
-    floattype: type[np.float32 | np.float64],
+floattype = np.float64
+
+logger.info(f"Compiling numba for {floattype}")
+
+nb_i = numba.int32
+
+if floattype == np.float32:
+    nb_f = numba.float32
+
+elif floattype == np.float64:
+    nb_f = numba.float64
+
+else:
+    raise TypeError(floattype)
+
+sig_dt = nb_f[:]
+sig_dE = nb_f[:]
+sig_singleharmonic_voltage = nb_f
+sig_singleharmonic_omega_rf = nb_f
+sig_singleharmonic_phi_rf = nb_f
+sig_charge = nb_f
+sig_acceleration_kick = nb_f
+sig_voltage_multi_harmonic = nb_f[:]
+sig_omega_rf_multi_harmonic = nb_f[:]
+sig_phi_rf_multi_harmonic = nb_f[:]
+sig_n_rf_multi_harmonic = nb_i
+
+sig_t_rev = nb_f
+sig_T = nb_f
+sig_eta_0 = nb_f
+sig_alpha_0 = nb_f
+sig_higher_alpha = nb_f[:]
+sig_beta = nb_f
+sig_energy = nb_f
+
+sig_voltage = nb_f[:]
+sig_bin_centers = nb_f[:]
+
+# function signatures
+sig_kick_single_harmonic = void(
+    sig_dt,
+    sig_dE,
+    sig_singleharmonic_voltage,
+    sig_singleharmonic_omega_rf,
+    sig_singleharmonic_phi_rf,
+    sig_charge,
+    sig_acceleration_kick,
+)
+
+sig_kick_multi_harmonic = void(
+    sig_dt,
+    sig_dE,
+    sig_voltage_multi_harmonic,
+    sig_omega_rf_multi_harmonic,
+    sig_phi_rf_multi_harmonic,
+    sig_charge,
+    sig_n_rf_multi_harmonic,
+    sig_acceleration_kick,
+)
+
+sig_drift_simple = void(
+    sig_dt,
+    sig_dE,
+    sig_T,
+    sig_eta_0,
+    sig_beta,
+    sig_energy,
+)
+
+sig_drift_exact = void(
+    sig_dt,  # dt: NumpyArray,
+    sig_dE,  # dE: NumpyArray,
+    sig_t_rev,  # T: float,
+    sig_alpha_0,  # alpha_0: float,
+    sig_higher_alpha,  # higher_alpha: NumpyArray,
+    sig_beta,  # beta: float,
+    sig_energy,  # energy: float,
+)
+
+sig_kick_induced_voltage = void(
+    sig_dt,
+    sig_dE,
+    sig_voltage,
+    sig_bin_centers,
+    sig_charge,
+    sig_acceleration_kick,
+)
+sig_array_read = nb_f[:]
+sig_array_write = nb_f[:]
+sig_start = nb_f
+sig_stop = nb_f
+sig_histogram = (
+    sig_array_read,
+    sig_array_write,
+    sig_start,
+    sig_stop,
+)
+
+sig_hist_x = nb_f[:]
+sig_hist_y = nb_f[:]
+sig_alpha = nb_f
+sig_omega_rf = nb_f
+sig_phi_rf = nb_f
+sig_bin_size = nb_f
+
+sig_beam_phase = nb_f(
+    sig_hist_x,
+    sig_hist_y,
+    sig_alpha,
+    sig_omega_rf,
+    sig_phi_rf,
+    sig_bin_size,
+)
+# Internal definition, to make `njit` compile with the correct signature,
+# that is eiter 32 or 64 bit, defined by the backend.
+
+sig_flag = numba.int32
+sig_flags = numba.int32[:]
+sig_ids = nb_i[:]
+sig_move_flagged_elements_to_end = nb_i(
+    sig_flag,
+    sig_flags,
+    sig_dt,
+    sig_dE,
+    sig_ids,
+)
+
+sig_top = nb_f
+sig_bottom = nb_f
+sig_left = nb_f
+sig_right = nb_f
+
+sig_loss_box = (
+    sig_top,
+    sig_bottom,
+    sig_left,
+    sig_right,
+    sig_dt,
+    sig_dE,
+    sig_flags,
+)
+
+sig_fused_kick_drift_profile = (
+    sig_dt,
+    sig_dE,
+    nb_f,
+    nb_f,
+    nb_f,
+    nb_f,
+    nb_f,
+    nb_f,
+    nb_f,
+    nb_f,
+    nb_f,
+    sig_array_write,
+    sig_start,
+    sig_stop,
+    nb_f[:, :],   # array_tmp  (pre-allocated, n_threads × n_bins)
+    numba.int64,  # n_threads
+)
+
+_move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
+    _move_flagged_elements_to_end_py
+)
+_lost = BeamFlags.LOST.value
+
+
+@njit(
+    sig_fused_kick_drift_profile,
+    parallel=True,
+    fastmath=True,
+    cache=True,
+    boundscheck=False,
+)
+def fused_kick_drift_profile_glob(
+    dt,
+    dE,
+    voltage,
+    phi_rf,
+    omega_rf,
+    charge,
+    acceleration_kick,
+    T,
+    eta_0,
+    beta,
+    energy,
+    array_write,
+    start,
+    stop,
+    array_tmp,
+    n_threads,
 ):
-    """
-    Helper to recompile `NumbaSpecials` when the backend changed.
+    voltage_kick = charge * voltage
+    coeff = T * eta_0 / (beta * beta * energy)
 
-    Parameters
-    ----------
-    floattype
-        Float type to compile the backend for.
-        `np.float32` or `np.float64` bit.
+    n_bins = len(array_write)
+    inv_bin_step = n_bins / (stop - start)
 
-    Returns
-    -------
-    NumbaSpecials
-        The `NumbaSpecials` backend.
-    """
-    logger.info(f"Compiling numba for {floattype}")
+    array_tmp[:] = 0
 
-    nb_i = numba.int32
+    for i in prange(len(dt)):
+        curr_thread = numba.get_thread_id()
 
-    if floattype == np.float32:
-        nb_f = numba.float32
+        dE[i] += voltage_kick * np.sin(omega_rf * dt[i] + phi_rf) + acceleration_kick
+        dt[i] += coeff * dE[i]
 
-    elif floattype == np.float64:
-        nb_f = numba.float64
+        dti = dt[i]
+        if dti == stop:
+            array_tmp[curr_thread, n_bins - 1] += 1
+            continue
 
-    else:
-        raise TypeError(floattype)
+        idx = (dti - start) * inv_bin_step
+        if idx < 0 or idx >= n_bins:
+            continue
+        array_tmp[curr_thread, int(idx)] += 1
 
-    sig_dt = nb_f[:]
-    sig_dE = nb_f[:]
-    sig_singleharmonic_voltage = nb_f
-    sig_singleharmonic_omega_rf = nb_f
-    sig_singleharmonic_phi_rf = nb_f
-    sig_charge = nb_f
-    sig_acceleration_kick = nb_f
-    sig_voltage_multi_harmonic = nb_f[:]
-    sig_omega_rf_multi_harmonic = nb_f[:]
-    sig_phi_rf_multi_harmonic = nb_f[:]
-    sig_n_rf_multi_harmonic = nb_i
+    array_write[:] = np.sum(array_tmp, axis=0)
 
-    sig_t_rev = nb_f
-    sig_T = nb_f
-    sig_eta_0 = nb_f
-    sig_alpha_0 = nb_f
-    sig_higher_alpha = nb_f[:]
-    sig_beta = nb_f
-    sig_energy = nb_f
+with open("fused_kick_drift_profile_glob.ll", "w", encoding="utf-8") as f:
+    llvm = fused_kick_drift_profile_glob.inspect_llvm()
+    f.write(str(next(iter(llvm.values())))) # expect single key
 
-    sig_voltage = nb_f[:]
-    sig_bin_centers = nb_f[:]
+_array_tmp_cache: dict = {}
 
-    # function signatures
-    sig_kick_single_harmonic = void(
-        sig_dt,
-        sig_dE,
-        sig_singleharmonic_voltage,
-        sig_singleharmonic_omega_rf,
-        sig_singleharmonic_phi_rf,
-        sig_charge,
-        sig_acceleration_kick,
+
+def _get_array_tmp(n_threads: int, n_bins: int) -> np.ndarray:
+    key = (n_threads, n_bins)
+    if key not in _array_tmp_cache:
+        _array_tmp_cache[key] = np.empty((n_threads, n_bins), dtype=floattype)
+    return _array_tmp_cache[key]
+
+
+class NumbaSpecials(Specials):  # pragma: no cover
+    @staticmethod
+    @enforce_precision(floattype)
+    @njit(
+        sig_beam_phase,
+        parallel=True,
+        fastmath=True,
+        cache=True,
     )
+    def beam_phase(
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
+    ) -> float:
+        n = len(hist_x)
 
-    sig_kick_multi_harmonic = void(
-        sig_dt,
-        sig_dE,
-        sig_voltage_multi_harmonic,
-        sig_omega_rf_multi_harmonic,
-        sig_phi_rf_multi_harmonic,
-        sig_charge,
-        sig_n_rf_multi_harmonic,
-        sig_acceleration_kick,
+        f_sin = np.zeros_like(hist_x)
+        f_cos = np.zeros_like(hist_x)
+
+        for i in prange(n):
+            exp_term_i = np.exp(alpha * hist_x[i])
+            angle_i = omega_rf * hist_x[i] + phi_rf
+            sin_term = np.sin(angle_i)
+            cos_term = np.cos(angle_i)
+
+            # Prepare the function values for integration
+            val = exp_term_i * hist_y[i]
+            f_sin[i] = val * sin_term
+            f_cos[i] = val * cos_term
+
+        scoeff = 0.0
+        for i in range(n - 1):
+            scoeff += 0.5 * (f_sin[i] + f_sin[i + 1]) * bin_size
+
+        ccoeff = 0.0
+        for i in range(n - 1):
+            ccoeff += 0.5 * (f_cos[i] + f_cos[i + 1]) * bin_size
+
+        return scoeff / ccoeff
+
+    @staticmethod
+    @enforce_precision(floattype)
+    @njit(
+        sig_histogram,
+        parallel=True,
+        fastmath=True,
+        cache=False,
     )
+    def histogram(
+        array_read: NumpyArray,
+        array_write: NumpyArray,
+        start: float,
+        stop: float,
+    ) -> None:
+        n_threads = numba.get_num_threads()  # this prevents caching
+        width = stop - start
+        n_bins = len(array_write)
+        bin_step = width / n_bins
+        inv_bin_step = 1 / bin_step
+        array_tmp = np.zeros((n_threads, n_bins))
+        array_write[:] = 0
+        for i in prange(len(array_read)):
+            curr_thread = numba.get_thread_id()
+            if array_read[i] == stop:
+                array_tmp[curr_thread, -1] += 1
+                continue
+            idx = (array_read[i] - start) * inv_bin_step
+            if idx < 0 or idx >= n_bins:
+                continue
+            else:
+                array_tmp[curr_thread, int(idx)] += 1
+        array_write[:] = np.sum(array_tmp, axis=0)
 
-    sig_drift_simple = void(
-        sig_dt,
-        sig_dE,
-        sig_T,
-        sig_eta_0,
-        sig_beta,
-        sig_energy,
+    @staticmethod
+    @enforce_precision(floattype)
+    @njit(
+        sig_loss_box,
+        parallel=True,
+        fastmath=True,
+        cache=True,
     )
-
-    sig_drift_exact = void(
-        sig_dt,  # dt: NumpyArray,
-        sig_dE,  # dE: NumpyArray,
-        sig_t_rev,  # T: float,
-        sig_alpha_0,  # alpha_0: float,
-        sig_higher_alpha,  # higher_alpha: NumpyArray,
-        sig_beta,  # beta: float,
-        sig_energy,  # energy: float,
-    )
-
-    sig_kick_induced_voltage = void(
-        sig_dt,
-        sig_dE,
-        sig_voltage,
-        sig_bin_centers,
-        sig_charge,
-        sig_acceleration_kick,
-    )
-    sig_array_read = nb_f[:]
-    sig_array_write = nb_f[:]
-    sig_start = nb_f
-    sig_stop = nb_f
-    sig_histogram = (
-        sig_array_read,
-        sig_array_write,
-        sig_start,
-        sig_stop,
-    )
-
-    sig_hist_x = nb_f[:]
-    sig_hist_y = nb_f[:]
-    sig_alpha = nb_f
-    sig_omega_rf = nb_f
-    sig_phi_rf = nb_f
-    sig_bin_size = nb_f
-
-    sig_beam_phase = nb_f(
-        sig_hist_x,
-        sig_hist_y,
-        sig_alpha,
-        sig_omega_rf,
-        sig_phi_rf,
-        sig_bin_size,
-    )
-    # Internal definition, to make `njit` compile with the correct signature,
-    # that is eiter 32 or 64 bit, defined by the backend.
-
-    sig_flag = numba.int32
-    sig_flags = numba.int32[:]
-    sig_ids = nb_i[:]
-    sig_move_flagged_elements_to_end = nb_i(
-        sig_flag,
-        sig_flags,
-        sig_dt,
-        sig_dE,
-        sig_ids,
-    )
-
-    sig_top = nb_f
-    sig_bottom = nb_f
-    sig_left = nb_f
-    sig_right = nb_f
-
-    sig_loss_box = (
-        sig_top,
-        sig_bottom,
-        sig_left,
-        sig_right,
-        sig_dt,
-        sig_dE,
-        sig_flags,
-    )
-
-    _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
-        _move_flagged_elements_to_end_py
-    )
-    _lost = BeamFlags.LOST.value
-
-    class NumbaSpecials(Specials):  # pragma: no cover
-        @staticmethod
-        @enforce_precision(floattype)
-        @njit(
-            sig_beam_phase,
-            parallel=True,
-            fastmath=True,
-            cache=True,
-        )
-        def beam_phase(
-            hist_x: NumpyArray,
-            hist_y: NumpyArray,
-            alpha: float,
-            omega_rf: float,
-            phi_rf: float,
-            bin_size: float,
-        ) -> float:
-            n = len(hist_x)
-
-            f_sin = np.zeros_like(hist_x)
-            f_cos = np.zeros_like(hist_x)
-
-            for i in prange(n):
-                exp_term_i = np.exp(alpha * hist_x[i])
-                angle_i = omega_rf * hist_x[i] + phi_rf
-                sin_term = np.sin(angle_i)
-                cos_term = np.cos(angle_i)
-
-                # Prepare the function values for integration
-                val = exp_term_i * hist_y[i]
-                f_sin[i] = val * sin_term
-                f_cos[i] = val * cos_term
-
-            scoeff = 0.0
-            for i in range(n - 1):
-                scoeff += 0.5 * (f_sin[i] + f_sin[i + 1]) * bin_size
-
-            ccoeff = 0.0
-            for i in range(n - 1):
-                ccoeff += 0.5 * (f_cos[i] + f_cos[i + 1]) * bin_size
-
-            return scoeff / ccoeff
-
-        @staticmethod
-        @enforce_precision(floattype)
-        @njit(
-            sig_histogram,
-            parallel=True,
-            fastmath=True,
-            cache=False,
-        )
-        def histogram(
-            array_read: NumpyArray,
-            array_write: NumpyArray,
-            start: float,
-            stop: float,
-        ) -> None:
-            n_threads = numba.get_num_threads()  # this prevents caching
-            width = stop - start
-            n_bins = len(array_write)
-            bin_step = width / n_bins
-            inv_bin_step = 1 / bin_step
-            array_tmp = np.zeros((n_threads, n_bins))
-            array_write[:] = 0
-            for i in prange(len(array_read)):
-                curr_thread = numba.get_thread_id()
-                if array_read[i] == stop:
-                    array_tmp[curr_thread, -1] += 1
-                    continue
-                idx = (array_read[i] - start) * inv_bin_step
-                if idx < 0 or idx >= n_bins:
-                    continue
-                else:
-                    array_tmp[curr_thread, int(idx)] += 1
-            array_write[:] = np.sum(array_tmp, axis=0)
-
-        @staticmethod
-        @enforce_precision(floattype)
-        @njit(
-            sig_loss_box,
-            parallel=True,
-            fastmath=True,
-            cache=True,
-        )
-        def loss_box(
-            e_max: np.float32 | np.float64,
-            e_min: np.float32 | np.float64,
-            t_min: np.float32 | np.float64,
-            t_max: np.float32 | np.float64,
-            dt: NumpyArray,
-            dE: NumpyArray,
-            flags: NumpyArray,
-        ) -> None:
-            for i in prange(len(dt)):
-                select = (
-                    (dE[i] > e_max)
-                    | (dE[i] < e_min)
-                    | (dt[i] < t_min)
-                    | (dt[i] > t_max)
-                )
-                if select:
-                    flags[i] = _lost
-
-        @staticmethod
-        @enforce_precision(floattype)
-        @njit(
-            sig_kick_single_harmonic,
-            parallel=True,
-            fastmath=True,
-            cache=True,
-        )
-        def kick_single_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
-            voltage: float,
-            omega_rf: float,
-            phi_rf: float,
-            charge: float,
-            acceleration_kick: float,
-        ) -> None:
-            voltage_kick = charge * voltage
-            for i in prange(len(dt)):
-                dE[i] += (
-                    voltage_kick * np.sin(omega_rf * dt[i] + phi_rf)
-                    + acceleration_kick
-                )
-
-        @staticmethod
-        @enforce_precision(floattype)
-        @njit(
-            sig_drift_simple,
-            parallel=True,
-            fastmath=True,
-            cache=True,
-        )
-        def drift_simple(
-            dt: NumpyArray,
-            dE: NumpyArray,
-            T: float,
-            eta_0: float,
-            beta: float,
-            energy: float,
-        ) -> None:
-            """Function to apply drift equation of motion."""
-            # solver_decoded = solver.decode(encoding='utf_8')
-
-            coeff = T * eta_0 / (beta * beta * energy)
-            for i in prange(len(dt)):
-                dt[i] += coeff * dE[i]
-
-        @staticmethod
-        @enforce_precision(floattype)
-        @njit(sig_kick_multi_harmonic, parallel=True, fastmath=False)
-        def kick_multi_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
-            voltage: NumpyArray,
-            omega_rf: NumpyArray,
-            phi_rf: NumpyArray,
-            charge: float,
-            n_rf: int,
-            acceleration_kick: float,
-        ) -> None:
-            for i in prange(len(dt)):
-                dti = dt[i]
-                de_sum = 0.0
-                for j in range(n_rf):
-                    de_sum += (
-                        charge
-                        * voltage[j]
-                        * np.sin(omega_rf[j] * dti + phi_rf[j])
-                    )
-                dE[i] += de_sum + acceleration_kick
-
-        @staticmethod
-        @enforce_precision(floattype)
-        @njit(
-            sig_drift_exact,
-            parallel=True,
-            fastmath=True,
-            cache=True,
-        )
-        def drift_exact(
-            dt: NumpyArray,
-            dE: NumpyArray,
-            T: float,
-            alpha_0: float,
-            higher_alpha: NumpyArray,
-            beta: float,
-            energy: float,
-        ) -> None:
-            inv_beta_sq = 1.0 / (beta * beta)
-            inv_energy = 1.0 / energy
-            inv_energy_sq = inv_energy * inv_energy
-
-            n_alpha = len(higher_alpha)
-
-            for i in prange(len(dt)):
-                dEi = dE[i]
-
-                delta = (
-                    np.sqrt(
-                        1.0
-                        + inv_beta_sq
-                        * (dEi * dEi * inv_energy_sq + 2.0 * dEi * inv_energy)
-                    )
-                    - 1.0
-                )
-
-                poly = 1.0 + alpha_0 * delta
-
-                if n_alpha > 0:
-                    delta_power = delta * delta  # starts at δ²
-
-                    for k in range(n_alpha):
-                        poly += higher_alpha[k] * delta_power
-                        delta_power *= delta  # next power
-
-                dt[i] += T * (
-                    poly * (1.0 + dEi * inv_energy) / (1.0 + delta) - 1.0
-                )
-
-        @staticmethod
-        @enforce_precision(floattype)
-        @njit(
-            sig_kick_induced_voltage,
-            parallel=True,
-            fastmath=True,
-            cache=True,
-        )
-        def kick_induced_voltage(
-            dt: NumpyArray,
-            dE: NumpyArray,
-            voltage: NumpyArray,
-            bin_centers: NumpyArray,
-            charge: float,
-            acceleration_kick: float,
-        ) -> None:
-            dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
-            inv_dx = 1 / dx
-            x_min = bin_centers[0]
-            x_max = bin_centers[-1]
-            for i in prange(len(dE)):
-                x = dt[i]
-
-                if x <= x_min or x >= x_max:
-                    continue
-                else:
-                    idx = int((x - x_min) * inv_dx)
-                    x0 = x_min + idx * dx
-                    # x1 = x0 + dx
-                    y0 = voltage[idx]
-                    y1 = voltage[idx + 1]
-
-                    # Linear interpolation
-                    v = y0 + (y1 - y0) * inv_dx * (x - x0)
-                    dE[i] += charge * v + acceleration_kick
-
-        @staticmethod
-        def move_flagged_elements_to_end(
-            flag: int,
-            flags: NumpyArray | CupyArray,  # also purged
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
-            ids: NumpyArray | CupyArray,
-        ):
-            # TODO parallel version of sorting
-            n_new = _move_flagged_elements_to_end_nb(
-                flag=np.int32(flag),
-                flags=flags,
-                dt=dt,
-                dE=dE,
-                ids=ids,
+    def loss_box(
+        e_max: np.float32 | np.float64,
+        e_min: np.float32 | np.float64,
+        t_min: np.float32 | np.float64,
+        t_max: np.float32 | np.float64,
+        dt: NumpyArray,
+        dE: NumpyArray,
+        flags: NumpyArray,
+    ) -> None:
+        for i in prange(len(dt)):
+            select = (
+                (dE[i] > e_max)
+                | (dE[i] < e_min)
+                | (dt[i] < t_min)
+                | (dt[i] > t_max)
             )
-            return n_new
+            if select:
+                flags[i] = _lost
 
-        @staticmethod
-        @njit(
-            parallel=True,
-            fastmath=True,
-            cache=True,
-        )
-        def fused_kick_drift_profile(
+    @staticmethod
+    @enforce_precision(floattype)
+    @njit(
+        sig_kick_single_harmonic,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
+    def kick_single_harmonic(
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        voltage: float,
+        omega_rf: float,
+        phi_rf: float,
+        charge: float,
+        acceleration_kick: float,
+    ) -> None:
+        voltage_kick = charge * voltage
+        for i in prange(len(dt)):
+            dE[i] += (
+                voltage_kick * np.sin(omega_rf * dt[i] + phi_rf)
+                + acceleration_kick
+            )
 
-                                     dt,
-                                     dE,
-                                     voltage,
-                                     phi_rf,
-                                     omega_rf,
-                                     charge,
-                                     acceleration_kick,
-                                     T,
-                                     eta_0,
-                                     beta,
-                                     energy,
-                                     array_read,
-                                     array_write,
-                                     start,
-                                     stop,
-                                     ):
-            voltage_kick = charge * voltage
+    @staticmethod
+    @enforce_precision(floattype)
+    @njit(
+        sig_drift_simple,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
+    def drift_simple(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        """Function to apply drift equation of motion."""
+        # solver_decoded = solver.decode(encoding='utf_8')
 
-            coeff = T * eta_0 / (beta * beta * energy)
+        coeff = T * eta_0 / (beta * beta * energy)
+        for i in prange(len(dt)):
+            dt[i] += coeff * dE[i]
 
-            n_threads = numba.get_num_threads()  # this prevents caching
-            width = stop - start
-            n_bins = len(array_write)
-            bin_step = width / n_bins
-            inv_bin_step = 1 / bin_step
-            array_tmp = np.zeros((n_threads, n_bins))
-            array_write[:] = 0
-
-            for i in prange(len(dt)):
-                dti = dt[i]
-                dEi = dE[i]
-                dEi += (
-                        voltage_kick * np.sin(omega_rf * dti + phi_rf)
-                        + acceleration_kick
+    @staticmethod
+    @enforce_precision(floattype)
+    @njit(sig_kick_multi_harmonic, parallel=True, fastmath=False)
+    def kick_multi_harmonic(
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        voltage: NumpyArray,
+        omega_rf: NumpyArray,
+        phi_rf: NumpyArray,
+        charge: float,
+        n_rf: int,
+        acceleration_kick: float,
+    ) -> None:
+        for i in prange(len(dt)):
+            dti = dt[i]
+            de_sum = 0.0
+            for j in range(n_rf):
+                de_sum += (
+                    charge * voltage[j] * np.sin(omega_rf[j] * dti + phi_rf[j])
                 )
+            dE[i] += de_sum + acceleration_kick
 
-                dti += coeff * dEi
+    @staticmethod
+    @enforce_precision(floattype)
+    @njit(
+        sig_drift_exact,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
+    def drift_exact(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        T: float,
+        alpha_0: float,
+        higher_alpha: NumpyArray,
+        beta: float,
+        energy: float,
+    ) -> None:
+        inv_beta_sq = 1.0 / (beta * beta)
+        inv_energy = 1.0 / energy
+        inv_energy_sq = inv_energy * inv_energy
 
-                curr_thread = numba.get_thread_id()
-                array_tmp[curr_thread, -1] += 1 * (dti == stop)
-                idx = (dti - start) * inv_bin_step
-                dt[i] = dti
-                dE[i] = dEi
-                if idx < 0 or idx >= n_bins:
-                    continue
-                else:
-                    array_tmp[curr_thread, int(idx)] += 1
+        n_alpha = len(higher_alpha)
 
+        for i in prange(len(dt)):
+            dEi = dE[i]
 
-            array_write[:] = np.sum(array_tmp, axis=0)
+            delta = (
+                np.sqrt(
+                    1.0
+                    + inv_beta_sq
+                    * (dEi * dEi * inv_energy_sq + 2.0 * dEi * inv_energy)
+                )
+                - 1.0
+            )
 
-    return NumbaSpecials
+            poly = 1.0 + alpha_0 * delta
 
+            if n_alpha > 0:
+                delta_power = delta * delta  # starts at δ²
 
-if TYPE_CHECKING:  # pragma: no cover
-    from blond import backend
+                for k in range(n_alpha):
+                    poly += higher_alpha[k] * delta_power
+                    delta_power *= delta  # next power
 
-    NumbaSpecials = recompile_numba_backend(backend.float)
+            dt[i] += T * (
+                poly * (1.0 + dEi * inv_energy) / (1.0 + delta) - 1.0
+            )
+
+    @staticmethod
+    @enforce_precision(floattype)
+    @njit(
+        sig_kick_induced_voltage,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
+    def kick_induced_voltage(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        voltage: NumpyArray,
+        bin_centers: NumpyArray,
+        charge: float,
+        acceleration_kick: float,
+    ) -> None:
+        dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
+        inv_dx = 1 / dx
+        x_min = bin_centers[0]
+        x_max = bin_centers[-1]
+        for i in prange(len(dE)):
+            x = dt[i]
+
+            if x <= x_min or x >= x_max:
+                continue
+            else:
+                idx = int((x - x_min) * inv_dx)
+                x0 = x_min + idx * dx
+                # x1 = x0 + dx
+                y0 = voltage[idx]
+                y1 = voltage[idx + 1]
+
+                # Linear interpolation
+                v = y0 + (y1 - y0) * inv_dx * (x - x0)
+                dE[i] += charge * v + acceleration_kick
+
+    @staticmethod
+    def move_flagged_elements_to_end(
+        flag: int,
+        flags: NumpyArray | CupyArray,  # also purged
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        ids: NumpyArray | CupyArray,
+    ):
+        # TODO parallel version of sorting
+        n_new = _move_flagged_elements_to_end_nb(
+            flag=np.int32(flag),
+            flags=flags,
+            dt=dt,
+            dE=dE,
+            ids=ids,
+        )
+        return n_new
+
+    @staticmethod
+    def fused_kick_drift_profile(**kwargs):
+        n_threads = numba.get_num_threads()
+        n_bins = len(kwargs["array_write"])
+        array_tmp = _get_array_tmp(n_threads, n_bins)
+        return fused_kick_drift_profile_glob(
+            **kwargs, array_tmp=array_tmp, n_threads=n_threads
+        )
