@@ -578,7 +578,6 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     """
 
     def __init__(self):
-        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
         self._wake_function_vals: NumpyArray | None = None
         self._wake_function_time: NumpyArray | None = None
@@ -737,7 +736,6 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     ):
         from collections import deque
 
-        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
 
         self._last_reference_time: float | None = None
