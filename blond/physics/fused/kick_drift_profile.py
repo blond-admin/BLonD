@@ -80,24 +80,24 @@ class KickDriftProfile(SingleHarmonicRFStation, DriftSimple, StaticProfile):
             )
         )
 
-        StaticProfile._track(self, beam=hack)
+        #StaticProfile._track(self, beam=hack)
 
-        kwargs.update(
-            dict(
-                array_write=self._hist_y,
-                start=self.cut_left,
-                stop=self.cut_right,
-            )
-        )
+        #kwargs.update(
+        #    dict(
+        #        array_write=self._hist_y,
+        #        start=self.cut_left,
+        #        stop=self.cut_right,
+        #    )
+        # )
 
         backend.specials.fused_kick_drift_profile(**kwargs)
         for key, val in kwargs.items():
             if isinstance(val, float):
                 kwargs[key] = val
 
-        self.hist_y_to_density_factor = 1.0 / beam.common_array_size
+        #self.hist_y_to_density_factor = 1.0 / beam.common_array_size
 
-        self.invalidate_cache()
+        #self.invalidate_cache()
 
         beam.reference.time = hack.reference.time
         beam.reference.total_energy = hack.reference.total_energy

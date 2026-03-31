@@ -563,9 +563,6 @@ def reload_cuda_backend(  # NOQA: D102
                                      eta_0,
                                      beta,
                                      energy,
-                                     array_write,
-                                     start,
-                                     stop,
                                      ):
             return
             raise NotImplementedError(

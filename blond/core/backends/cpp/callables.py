@@ -448,9 +448,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
             eta_0,
             beta,
             energy,
-            array_write,
-            start,
-            stop,
         ):
             _LIBBLOND.kick_drift_profile(
                 dt.ctypes.data_as(ct.c_void_p),
@@ -463,10 +460,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real((eta_0), floattype),  # const real_t T,
                 c_real((beta), floattype),  # const real_t T
                 c_real((energy), floattype),  # const real_t T
-                array_write.ctypes.data_as(ct.c_void_p),
-                c_real(start, floattype),
-                c_real(stop, floattype),
-                ct.c_int32(len(array_write)),  # n_slices
                 ct.c_int32(len(dt)),  # n_macroparticles
                 c_real(acceleration_kick, floattype),
             )

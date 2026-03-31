@@ -10,18 +10,18 @@
 # pragma: no cover
 
 from __future__ import annotations
-
+import math
 import os
 
-NUMBA_BOUNDSCHECK = os.environ.get("NUMBA_BOUNDSCHECK", None)
-if NUMBA_BOUNDSCHECK is None:
-    os.environ["NUMBA_BOUNDSCHECK"] = "1"
-os.environ["NUMBA_COMPATIBILITY_MODE"] = "0"
+# NUMBA_BOUNDSCHECK = os.environ.get("NUMBA_BOUNDSCHECK", None)
+# if NUMBA_BOUNDSCHECK is None:
+#     os.environ["NUMBA_BOUNDSCHECK"] = "1"
+# os.environ["NUMBA_COMPATIBILITY_MODE"] = "0"
 
 import logging
 from functools import cache, wraps
 from typing import TYPE_CHECKING
-
+from .fastmath import fast_sin
 import numba  # type: ignore
 import numpy as np
 from numba import njit, prange, void
@@ -31,6 +31,7 @@ from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
 )
 from blond.core.beam.flags import BeamFlags
+import math
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -218,11 +219,11 @@ sig_fused_kick_drift_profile = (
     nb_f,
     nb_f,
     nb_f,
-    sig_array_write,
-    sig_start,
-    sig_stop,
-    nb_f[:, :],   # array_tmp  (pre-allocated, n_threads × n_bins)
-    numba.int64,  # n_threads
+    # sig_array_write,
+    # sig_start,
+    # sig_stop,
+    # nb_f[:, :],   # array_tmp  (pre-allocated, n_threads × n_bins)
+    # numba.int64,  # n_threads
 )
 
 _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
@@ -235,10 +236,10 @@ _lost = BeamFlags.LOST.value
     sig_fused_kick_drift_profile,
     parallel=True,
     fastmath=True,
-    cache=True,
+    cache=False,
     boundscheck=False,
 )
-def fused_kick_drift_profile_glob(
+def fused_kick_drift_profile_fused(
     dt,
     dE,
     voltage,
@@ -246,47 +247,34 @@ def fused_kick_drift_profile_glob(
     omega_rf,
     charge,
     acceleration_kick,
+    # array_write,
+    # start,
+    # stop,
     T,
     eta_0,
     beta,
     energy,
-    array_write,
-    start,
-    stop,
-    array_tmp,
-    n_threads,
 ):
     voltage_kick = charge * voltage
-    coeff = T * eta_0 / (beta * beta * energy)
+    coeff = T * eta_0 / (beta**2 * energy)
 
-    n_bins = len(array_write)
-    inv_bin_step = n_bins / (stop - start)
+    # Pre-calculate to help the compiler vectorize
+    n = dt.size
 
-    array_tmp[:] = 0
+    # Use a specific chunk size for better cache utilization
+    for i in prange(n):
+        # Local variables help the compiler reason about aliasing
+        current_dt = dt[i]
+        current_dE = dE[i]
 
-    for i in prange(len(dt)):
-        curr_thread = numba.get_thread_id()
+        new_dE = current_dE + (
+            voltage_kick * math.sin(omega_rf * current_dt + phi_rf)
+            + acceleration_kick
+        )
+        new_dt = current_dt + coeff * new_dE
 
-        dE[i] += voltage_kick * np.sin(omega_rf * dt[i] + phi_rf) + acceleration_kick
-        dt[i] += coeff * dE[i]
-
-        dti = dt[i]
-        if dti == stop:
-            array_tmp[curr_thread, n_bins - 1] += 1
-            continue
-
-        idx = (dti - start) * inv_bin_step
-        if idx < 0 or idx >= n_bins:
-            continue
-        array_tmp[curr_thread, int(idx)] += 1
-
-    array_write[:] = np.sum(array_tmp, axis=0)
-
-with open("fused_kick_drift_profile_glob.ll", "w", encoding="utf-8") as f:
-    llvm = fused_kick_drift_profile_glob.inspect_llvm()
-    f.write(str(next(iter(llvm.values())))) # expect single key
-
-_array_tmp_cache: dict = {}
+        dE[i] = new_dE
+        dt[i] = new_dt
 
 
 def _get_array_tmp(n_threads: int, n_bins: int) -> np.ndarray:
@@ -570,11 +558,32 @@ class NumbaSpecials(Specials):  # pragma: no cover
         )
         return n_new
 
+    # @staticmethod
+
     @staticmethod
-    def fused_kick_drift_profile(**kwargs):
-        n_threads = numba.get_num_threads()
-        n_bins = len(kwargs["array_write"])
-        array_tmp = _get_array_tmp(n_threads, n_bins)
-        return fused_kick_drift_profile_glob(
-            **kwargs, array_tmp=array_tmp, n_threads=n_threads
-        )
+    def fused_kick_drift_profile(
+        dt,
+        dE,
+        voltage,
+        phi_rf,
+        omega_rf,
+        charge,
+        acceleration_kick,
+        T,
+        eta_0,
+        beta,
+        energy,
+    ):
+        return fused_kick_drift_profile_fused(
+            dt,
+            dE,
+            voltage,
+            phi_rf,
+            omega_rf,
+            charge,
+            acceleration_kick,
+            T=T,
+            eta_0=eta_0,
+            beta=beta,
+            energy=energy,
+        )  # faster
