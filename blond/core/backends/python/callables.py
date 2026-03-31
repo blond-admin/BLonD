@@ -431,9 +431,6 @@ class PythonSpecials(Specials):
         eta_0,
         beta,
         energy,
-        array_write,
-        start,
-        stop,
     ):
         voltage_kick = charge * voltage
 
@@ -443,9 +440,3 @@ class PythonSpecials(Specials):
         )
         coeff = eta_0 / (beta * beta * energy)
         dt[:] += T * coeff * dE
-
-        array_write[:], _ = np.histogram(
-            array_read,
-            range=(float(start), float(stop)),
-            bins=len(array_write),
-        )
