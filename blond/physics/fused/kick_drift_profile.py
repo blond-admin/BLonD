@@ -19,7 +19,7 @@ from blond import (
 )
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
-from core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
 
 class KickDriftProfile(SingleHarmonicRFStation, DriftSimple, StaticProfile):
