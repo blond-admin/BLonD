@@ -56,7 +56,7 @@ class KickDriftProfile(SingleHarmonicRFStation, DriftSimple, StaticProfile):
         SingleHarmonicRFStation._track(self, beam=hack)
 
         kwargs = dict(
-            dt=beam.write_partial_dE(),
+            dt=beam.write_partial_dt(),
             dE=beam.write_partial_dE(),
             voltage=copy(self.voltage),
             phi_rf=copy(self.phi_rf),
