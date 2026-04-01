@@ -452,8 +452,9 @@ class PythonSpecials(Specials):
         bucket_index_to_memory_index
             Maps bucket index to memory index.
             For a ``filling_pattern = [1, 0, 0, 1]``
-            ``bucket_index_to_memory_index = [8, 8, 8, 16]`` with
+            ``bucket_index_to_memory_index = [0, 0, 0, 8]`` with
             ``bins_per_profile = 8``.
+            Use `_gen_array_bucket_index_to_memory_index` to generate this.
         """
         out[:] = 0
         for bucket_i, active in enumerate(filling_pattern):
