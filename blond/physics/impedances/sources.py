@@ -289,6 +289,7 @@ class Resonators(
         warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__(is_dynamic=False)
 
+        self.supersampling = 1
         self._shunt_impedances: NumpyArray
         self._center_frequencies: NumpyArray
         self._quality_factors: NumpyArray
@@ -400,12 +401,22 @@ class Resonators(
         wake_impedance
             Wake impedance in frequency domain.
         """
+        dt = (time[1] - time[0]) / self.supersampling
+        f_max = np.max(self._omega) / (2 * np.pi)
+        T_max = 1 / f_max
+        dt_required = T_max / 50  # 25 * Nyquist-Frequenz
+        assert dt <= dt_required
         # Recalculate only if `time` has changed
         hash_ = get_hash(time)
         if hash_ == self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
 
         wake = self.get_wake(time)
+        for i in range(self.supersampling - 1):
+            offset = dt * i
+            wake += self.get_wake(time + offset / 2)
+            wake += self.get_wake(time - offset / 2)
+        wake /= 2 * (self.supersampling - 1) + 1
         wake_impedance = backend.fft.rfft(wake, n=n_fft)
 
         self._cache_wake_impedance_hash = hash_
