@@ -32,7 +32,6 @@ import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
-from blond.generals.warnings_ import NotTestedWarning
 from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,

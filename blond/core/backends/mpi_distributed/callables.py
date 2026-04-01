@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-
 try:
     from mpi4py import MPI
 except Exception as exc:
