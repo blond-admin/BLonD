@@ -402,22 +402,6 @@ real_t trapz_var_delta(const real_t *__restrict__ f,
   return psum / 2.;
 }
 
-real_t trapz_const_delta(const real_t *__restrict__ f, const real_t deltaX,
-                         const int nsub) {
-  // initialize the partial sum to be f(a)+f(b) and
-  // deltaX to be the step size using nsub subdivisions
-  real_t psum = (f[0] + f[nsub - 1]) / 2.; // f(a)+f(b);
-
-// increment the partial sum
-#pragma omp parallel for reduction(+ : psum)
-  for (int i = 1; i < nsub - 1; ++i)
-    psum += f[i];
-
-  // multiply the sum by the constant deltaX/2.0
-  // return approximation
-  return deltaX * psum;
-}
-
 int min_idx(const real_t *__restrict__ a, int size) {
   return (int)(std::min_element(a, a + size) - a);
 }
@@ -596,4 +580,29 @@ void vector_mul_complex128(const std::complex<double> *__restrict__ a,
     res[i] = a[i] * b[i];
   }
 }
+}
+
+extern "C" real_t sum_1d_array(const real_t *__restrict__ array_1,
+                    const int n) {
+real_t acc = 0.0;
+
+#pragma omp parallel for reduction(+:acc)
+  for (int idx = 0; idx < n; ++idx) {
+      acc += array_1[idx];
+  }
+
+  return acc;
+}
+
+extern "C" real_t dot_product_1d_array(const real_t *__restrict__ array_1,
+                    const real_t *__restrict__ array_2,
+                    const int n) {
+real_t acc = 0.0;
+
+#pragma omp parallel for reduction(+:acc)
+  for (int idx = 0; idx < n; ++idx) {
+      acc += array_1[idx] * array_2[idx];
+  }
+
+  return acc;
 }

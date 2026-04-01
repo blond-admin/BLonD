@@ -1040,6 +1040,45 @@ class TestSpecials(unittest.TestCase):
         unchanged = backend.cast_arr_complex_if_needed(target)
         self.assertTrue(target is unchanged)
 
+    @pytest.mark.backend_mutation
+    def test_sum_1d_array(self) -> None:
+        for dtype in (np.float32, np.float64):
+            x = np.random.rand(10_000).astype(dtype)
+            reference_sum = np.sum(x)
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                np.testing.assert_allclose(
+                    backend.specials.sum_1d_array(x),
+                    reference_sum,
+                    rtol=self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_dot_product_1d_array(self) -> None:
+        for dtype in (np.float64, np.float32):
+            x = np.random.rand(10_000).astype(dtype)
+            y = np.random.rand(10_000).astype(dtype)
+            reference_dot = np.dot(x, y)
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                backend_result = backend.specials.dot_product_1d_array(x, y)
+                np.testing.assert_allclose(
+                    backend_result,
+                    reference_dot,
+                    rtol=self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
+                self.assertTrue(type(backend_result) == dtype)
+
     @multi_backend_testcase
     def test_cast_exceptions(self):
         with self.assertRaises(ArrayCastingError):

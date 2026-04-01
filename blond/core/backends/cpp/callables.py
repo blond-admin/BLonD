@@ -155,6 +155,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
         return ct.c_int(len(x))
 
     _LIBBLOND.beam_phase.restype = c_real_t(floattype)
+    _LIBBLOND.sum_1d_array.restype = c_real_t(floattype)
+    _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype)
 
     class CppSpecials(Specials):
         @staticmethod
@@ -177,14 +179,18 @@ def reload_cpp_backend(  # NOQA: PLR0915
             phi_rf = floattype(phi_rf)
             bin_size = floattype(bin_size)
 
-            return _LIBBLOND.beam_phase(
-                hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
-                hist_y.ctypes.data_as(ct.c_void_p),  # profile
-                c_real(alpha, floattype),  # alpha
-                c_real(omega_rf, floattype),  # omega_rf
-                c_real(phi_rf, floattype),  # phi_rf
-                c_real(bin_size, floattype),  # bin_size
-                ct.c_int(len(hist_x)),  # n_bins
+            # requires setting of _LIBBLOND.beam_phase.restype = c_real_t(floattype) in
+            # reload function
+            return floattype(
+                _LIBBLOND.beam_phase(
+                    hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
+                    hist_y.ctypes.data_as(ct.c_void_p),  # profile
+                    c_real(alpha, floattype),  # alpha
+                    c_real(omega_rf, floattype),  # omega_rf
+                    c_real(phi_rf, floattype),  # phi_rf
+                    c_real(bin_size, floattype),  # bin_size
+                    ct.c_int(len(hist_x)),  # n_bins
+                )
             )
 
         @staticmethod
@@ -251,9 +257,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
             e_min: float,
             t_min: float,
             t_max: float,
-            dt: CupyArray,
-            dE: CupyArray,
-            flags: CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
+            flags: NumpyArray,
         ) -> None:
             _LIBBLOND.loss_box(
                 c_real(e_max, floattype),
@@ -268,8 +274,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         @staticmethod
         def kick_single_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: float,
             omega_rf: float,
             phi_rf: float,
@@ -301,8 +307,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         @staticmethod
         def kick_multi_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: NumpyArray,
             omega_rf: NumpyArray,
             phi_rf: NumpyArray,
@@ -335,6 +341,34 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _getPointer(phi_rf),
                 _getLen(dt),
                 c_real(acceleration_kick, floattype),
+            )
+
+        @staticmethod
+        def sum_1d_array(array: NumpyArray) -> float:
+            assert array.dtype == floattype
+            # requires setting of _LIBBLOND.sum_1d_array.restype = c_real_t(floattype) in
+            # reload function
+            return floattype(
+                _LIBBLOND.sum_1d_array(_getPointer(array), _getLen(array))
+            )
+
+        @staticmethod
+        def dot_product_1d_array(
+            array_1: NumpyArray,
+            array_2: NumpyArray,
+        ) -> float:
+            assert array_1.dtype == floattype
+            assert array_2.dtype == floattype
+            assert len(array_1) == len(array_2)
+
+            # requires setting of _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype) in
+            # reload function
+            return floattype(
+                _LIBBLOND.dot_product_1d_array(
+                    _getPointer(array_1),
+                    _getPointer(array_2),
+                    ct.c_int(len(array_2)),
+                )
             )
 
         @staticmethod

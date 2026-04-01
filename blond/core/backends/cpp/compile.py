@@ -30,7 +30,7 @@ cpp_files = [
     "histogram.cpp",
     "drift_exact.cpp",
     # "music_track.cpp",
-    # "blondmath.cpp",
+    "blondmath.cpp",
     # "fast_resonator.cpp",
     "beam_phase.cpp",
     "loss_box.cpp",
