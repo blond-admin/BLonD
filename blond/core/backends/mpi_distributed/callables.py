@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import backend
-
 try:
     from mpi4py import MPI
 except Exception as exc:
@@ -27,6 +25,8 @@ from blond.generals.distributed.helpers import mpi_is_distributed
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.generals.distributed.distributed_array import DistributedArray
+
+from blond.core.backends import backend
 
 
 def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
@@ -45,13 +45,19 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
     rms_emittance
         The Root-Mean-Square emittance in [s eV] of the beam.
     """
-    local_dt_sum = float(backend.sum(dt.array_local))
-    local_dE_sum = float(backend.sum(dE.array_local))
+    local_dt_sum = float(backend.specials.sum_1d_array(dt.array_local))
+    local_dE_sum = float(backend.specials.sum_1d_array(dE.array_local))
 
     # use dot(x,x) for faster calculation of sum(x**2)
-    local_dt_dt_sum = float(backend.dot(dt.array_local, dt.array_local))
-    local_dE_dE_sum = float(backend.dot(dE.array_local, dE.array_local))
-    local_dt_dE_sum = float(backend.dot(dt.array_local, dE.array_local))
+    local_dt_dt_sum = float(
+        backend.specials.dot_product_1d_array(dt.array_local, dt.array_local)
+    )
+    local_dE_dE_sum = float(
+        backend.specials.dot_product_1d_array(dE.array_local, dE.array_local)
+    )
+    local_dt_dE_sum = float(
+        backend.specials.dot_product_1d_array(dt.array_local, dE.array_local)
+    )
     local_count = dt.local_size
 
     if mpi_is_distributed():
