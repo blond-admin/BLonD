@@ -94,23 +94,19 @@ def main():  # NOQA: PLR0915
 
     Zres_low = Resonators(R_S, frequency_R, Q)
     Zres_high = Resonators(R_S, frequency_R, Q)
-    Zres_high.supersampling = 1000
+    Zres_high.supersampling = 10000
 
     wake1 = WakeField(
         sources=(Zres_low,), solver=PeriodicFreqSolver(), profile=beam_profile
     )
     wake1.track_profile = True
-    wake2 = WakeField(
-        sources=(Zres_low,), solver=TimeDomainFftSolver(), profile=beam_profile
-    )
-    wake2.track_profile = True
     wake3 = WakeField(
         sources=(Zres_high,),
         solver=TimeDomainFftSolver(),
         profile=beam_profile,
     )
     wake3.track_profile = True
-    ring.add_elements((drift, rf_station, wake1, wake2, wake3))
+    ring.add_elements((drift, rf_station, wake1, wake3))
     simulation = Simulation(ring=ring, magnetic_cycle=cycle)
     simulation.run_simulation(beams=beam, n_turns=1)
 
@@ -128,12 +124,7 @@ def main():  # NOQA: PLR0915
         "b",
         label="induced_voltage_freq",
     )
-    plt.plot(
-        beam_profile.hist_x * 1e9,
-        wake2.induced_voltage,
-        "r",
-        label="induced_voltage_time (vanilla)",
-    )
+
     plt.plot(
         beam_profile.hist_x * 1e9,
         wake3.induced_voltage,
