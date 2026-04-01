@@ -412,6 +412,12 @@ class TestSimulation(unittest.TestCase):
             beams=(self.beam,),
             stats_lines=20,
         )
+        self.simulation.profiling(
+            start_turn_i=10,
+            n_turns=20,
+            beams=(self.beam,),
+            stats_lines=None,
+        )
 
     def test_ring(self):
         self.assertIsInstance(self.simulation.ring, Ring)
