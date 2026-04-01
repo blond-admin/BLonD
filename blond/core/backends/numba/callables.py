@@ -268,7 +268,7 @@ def fused_kick_drift_profile_fused(
         current_dE = dE[i]
 
         new_dE = current_dE + (
-            voltage_kick * math.sin(omega_rf * current_dt + phi_rf)
+            voltage_kick * fast_sin(omega_rf * current_dt + phi_rf)
             + acceleration_kick
         )
         new_dt = current_dt + coeff * new_dE
@@ -407,7 +407,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         voltage_kick = charge * voltage
         for i in prange(len(dt)):
             dE[i] += (
-                voltage_kick * np.sin(omega_rf * dt[i] + phi_rf)
+                voltage_kick * fast_sin(omega_rf * dt[i] + phi_rf)
                 + acceleration_kick
             )
 
@@ -452,7 +452,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
             de_sum = 0.0
             for j in range(n_rf):
                 de_sum += (
-                    charge * voltage[j] * np.sin(omega_rf[j] * dti + phi_rf[j])
+                    charge * voltage[j] * fast_sin(omega_rf[j] * dti + phi_rf[j])
                 )
             dE[i] += de_sum + acceleration_kick
 

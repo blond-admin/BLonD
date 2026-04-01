@@ -1,6 +1,5 @@
 import math
 
-import numba
 from numba import njit
 
 # ---------------------------------------------------------------------------
@@ -67,4 +66,13 @@ def fast_sin(x: float) -> float:
 
     r2 = r * r
 
-    return r + r * r2 * (_S1 + r2 * (_S2 + r2 * (_S3 + r2 * (_S4 + r2 * (_S5 + r2 * _S6)))))
+    q = k & 3  # k mod 4 (works for negative k via two's-complement)
+
+    if q == 0:
+        return r + r * r2 * (_S1 + r2 * (_S2 + r2 * (_S3 + r2 * (_S4 + r2 * (_S5 + r2 * _S6)))))
+    elif q == 1:
+        return 1.0 + r2 * (_C1 + r2 * (_C2 + r2 * (_C3 + r2 * (_C4 + r2 * (_C5 + r2 * _C6)))))
+    elif q == 2:
+        return -(r + r * r2 * (_S1 + r2 * (_S2 + r2 * (_S3 + r2 * (_S4 + r2 * (_S5 + r2 * _S6))))))
+    else:
+        return -(1.0 + r2 * (_C1 + r2 * (_C2 + r2 * (_C3 + r2 * (_C4 + r2 * (_C5 + r2 * _C6))))))
