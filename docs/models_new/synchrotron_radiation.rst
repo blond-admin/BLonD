@@ -80,13 +80,9 @@ first five **synchrotron radiation integrals** [1-3]:
    required for the damping times, \\
    I_5 &= \oint \frac{\mathcal{H}}{|\rho|^3} \, ds, required for the natural horizontal emittance \\
 
-where:
-
-- :math:`\rho` is the bending radius [m],
-- :math:`D_x` is the horizontal dispersion function [m],
-- :math:`K` is the focusing strength [m\ :sup:`-2`],
-- :math:`\mathcal{H} = \beta_x D_x'^2 + 2\alpha_x D_x D_x' + \gamma_x D_x^2`
-  is the :math:`\mathcal{H}'-function [m].
+where :math:`\rho` is the bending radius [m], :math:`D_x` is the horizontal
+dispersion function [m], :math:`K` is the focusing strength [m\ :sup:`-2`],
+:math:`\mathcal{H} = \beta_x D_x'^2 + 2\alpha_x D_x D_x' + \gamma_x D_x^2` is the :math:`\mathcal{H}'-function [m].
 
 For an **isomagnetic ring** (uniform bending radius :math:`\rho_0`), the
 integrals simplify to:
@@ -97,9 +93,8 @@ integrals simplify to:
    I_2 &= \frac{2\pi}{\rho_0}, \\
    I_3 &= \frac{2\pi}{\rho_0^2}, \\
    I_4 &= \frac{\alpha_c \cdot C}{\rho_0^2},\\
-   I_5 &= 0, for lack of information on :math:'<\mathcal{H}>'',\\
-
-where :math:`\alpha_c` is the momentum compaction factor and :math:`C` is the
+   I_5 &= 0,\\
+for lack of information on :math:'<\mathcal{H}>', and where :math:`\alpha_c` is the momentum compaction factor and :math:`C` is the
 circumference.
 
 Synchrotron motion damping and damping times
@@ -109,13 +104,15 @@ For highly relativistic charged particles, synchrotron radiation is emitted
 along its direction of motion, which recoil induces small perturbation of
 the betatron and synchrotron motion. This effect damps the beam
 amplitudes, with typical damping times.
-The radiation loss around the synchronous particle can be derived as :math:'U
- = U_0 + \frac{dU}{dE}_{E = E_0)} \cdot \Delta E', where :math: 'E_0' and 'U_0'
-  are the energy and energy lost of the
-synchronous particle.
-A particle with an energy :math:'E_0 + \Delta E' circulates on a different
-orbit
-than the synchronous particle, resulting in a different path length :math:'C
+The radiation loss around the synchronous particle can be derived as:
+
+.. math::
+
+U = U_0 + \frac{dU}{dE}_{E = E_0)} \cdot \Delta E,
+
+where :math:'E_0' and :math:'U_0' are the energy and energy lost of the
+synchronous particle. A particle with an energy :math:'E_0 + \Delta E' circulates on a different
+orbit than the synchronous particle, resulting in a different path length :math:'C
 + \Delta C' after a turn, characterised by the momentum compaction factor:
 
 .. :math:
@@ -131,7 +128,7 @@ where :math:'T_0' is the revolution period.
 The full synchrotron motion including damping is described by a harmonic
 oscillator:
 
- .. :math:
+.. :math:
 
     \frac{d^2 \tau}{dt^2} + \frac{2}{\tau_z} \frac{d \tau}{dt} + \omega_s^2
     \tau = 0
@@ -144,7 +141,7 @@ with the **longitudinal damping time**  in seconds is:
 
 Practically, the synchrotron radiation damping times of all planes are
 proportional to the
-inverse of :math: 'U_0 / (2 T_0 E)'. The proportionality
+inverse of :math:'\frac{U_0}{2 T_0 E}'. The proportionality
 coefficient are the **damping partition numbers**, which represent how damping
 is distributed amongst the planes:
 
@@ -155,7 +152,7 @@ is distributed amongst the planes:
    j_z &= 2 + \frac{I_4}{I_2}
 
 assuming no vertical dispersion in the synchrotron. The Robinson damping
-theorem requires :math:`j_x + j_y + j_z = 4`/
+theorem requires :math:`j_x + j_y + j_z = 4`.
 
 Quantum Excitation and Natural Energy Spread
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
