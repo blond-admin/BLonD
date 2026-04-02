@@ -71,18 +71,17 @@ first five **synchrotron radiation integrals** [1-3]:
 
 .. math::
 
-   I_1 &= \oint \frac{D_x}{\rho} \, ds,\, \text{related to the momentum
+   I_1 &= \oint \frac{D_x}{\rho} \, ds,\, \text{related to the momentum\,
    compaction factor}, \\
-   I_2 &= \oint \frac{ds}{\rho^2},\, \text{related to the energy loss per
-   turn},
+   I_2 &= \oint \frac{ds}{\rho^2},\, \text{related to the energy loss per\,
+    turn},
    \\
-   I_3 &= \oint \frac{ds}{|\rho|^3},\, \text{related to the natural energy
-   spread}, \\
+   I_3 &= \oint \frac{ds}{|\rho|^3},\, \text{related to the natural energy\,
+    spread}, \\
    I_4 &= \oint \frac{D_x}{\rho} \left(\frac{1}{\rho^2} + 2 * K\right) \, ds,
-   \, \text{
-   required for the damping times}, \\
-   I_5 &= \oint \frac{\mathcal{H}}{|\rho|^3} \, ds,\, \text{required for the
-   natural horizontal emittance}, \\
+   \, \text{required for the damping times}, \\
+   I_5 &= \oint \frac{\mathcal{H}}{|\rho|^3} \, ds,\, \text{required for the\,
+    natural horizontal emittance}, \\
 
 where :math:`\rho` is the bending radius [m], :math:`D_x` is the horizontal
 dispersion function [m], :math:`K` is the focusing strength [m\ :sup:`-2`],
@@ -112,7 +111,7 @@ The radiation loss around the synchronous particle can be derived as:
 
 .. math::
 
-    U = U_0 + \frac{dU}{dE}_{E = E_0)} \cdot \Delta E,
+    U = U_0 + \frac{dU}{dE}|_{E = E_0} \cdot \Delta E,
 
 where :math:`E_0` and :math:`U_0` are the energy and energy lost of the
 synchronous particle. A particle with an energy :math:`E_0 + \Delta E` circulates on a different
