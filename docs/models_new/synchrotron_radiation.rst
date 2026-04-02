@@ -71,15 +71,17 @@ first five **synchrotron radiation integrals** [1-3]:
 
 .. math::
 
-   I_1 &= \oint \frac{D_x}{\rho} \, ds, related to the momentum compaction factor, \\
+   I_1 &= \oint \frac{D_x}{\rho} \, ds,\, \text{related to the momentum
+   compaction factor}, \\
    I_2 &= \oint \frac{ds}{\rho^2},\, \text{related to the energy loss per
    turn},
    \\
-   I_3 &= \oint \frac{ds}{|\rho|^3}, \, \text{related to the natural energy
+   I_3 &= \oint \frac{ds}{|\rho|^3},\, \text{related to the natural energy
    spread}, \\
-   I_4 &= \oint \frac{D_x}{\rho} \left(\frac{1}{\rho^2} + 2 * K\right) \, ds\, \text{
+   I_4 &= \oint \frac{D_x}{\rho} \left(\frac{1}{\rho^2} + 2 * K\right) \, ds,
+   \, \text{
    required for the damping times}, \\
-   I_5 &= \oint \frac{\mathcal{H}}{|\rho|^3} \, ds\, \text{required for the
+   I_5 &= \oint \frac{\mathcal{H}}{|\rho|^3} \, ds,\, \text{required for the
    natural horizontal emittance}, \\
 
 where :math:`\rho` is the bending radius [m], :math:`D_x` is the horizontal
@@ -148,12 +150,12 @@ is distributed amongst the planes:
 
 .. math::
 
-   j_x &= 1 - \frac{I_4}{I_2} \\
-   j_y &= 1 \\
-   j_z &= 2 + \frac{I_4}{I_2}
+   j_x &= 1 - \frac{I_4}{I_2}, \\
+   j_y &= 1, \\
+   j_z &= 2 + \frac{I_4}{I_2},
 
 assuming no vertical dispersion in the synchrotron. The Robinson damping
-theorem requires :math:`j_x + j_y + j_z = 4`.
+theorem fixes :math:`j_x + j_y + j_z = 4`.
 
 Quantum Excitation and Natural Energy Spread
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -243,8 +245,8 @@ method performs the following steps:
    For each element, the share of radiation integrals is computed
    proportionally to:
 
-   - if all drifts hold this property, use the provided radiation integrals
-   of each drift,
+   - if all drifts hold this property, use the provided radiation integrals of
+   each drift,
    - its orbit length relative to the circumference for drift elements,
    - the section length between each RF cavities relative to the
    circumference,
@@ -269,7 +271,7 @@ method performs the following steps:
         and natural energy spread,
        b. Calculates the energy kick (as described above), including radiation
        damping and quantum excitation,
-      c. Updates the bean relative energy array accordingly.
+       c. Updates the bean relative energy array accordingly.
 
 ---
 
