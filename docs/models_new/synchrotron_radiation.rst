@@ -84,7 +84,7 @@ integrals simplify to:
 .. math::
 
    I_1 &= \alpha_c \cdot C, \\
-   I_2 &= \frac{2\pi}{\rho_0}, \
+   I_2 &= \frac{2\pi}{\rho_0}, \\
    I_3 &= \frac{2\pi}{\rho_0^2}, \\
    I_4 &= \frac{\alpha_c \cdot C}{\rho_0^2},\\
    I_5 &= 0, for lack of information on :math: <\mathcal{H}>,\\
@@ -136,7 +136,7 @@ is distributed amongst the planes:
 
    j_x &= 1 - \frac{I_4}{I_2} \\
    j_y &= 1 \\
-   j_z &= 2 + \frac{I_4}{I_2}'
+   j_z &= 2 + \frac{I_4}{I_2}
 
 assuming no vertical dispersion in the synchrotron. The Robinson damping
 theorem requires :math:`j_x + j_y + j_z = 4`/
@@ -170,8 +170,8 @@ The effective energy kick provided by the synchrotron radiation tracker is:
 .. math::
 
    \Delta E \rightarrow \Delta E \\
-   - U_0 (energy loss per turn)\\
-   - \frac{2}{\tau_z} \Delta E (radiation damping)\\
+   - U_0 \text{(energy loss per turn)}\\
+   - \frac{2}{\tau_z} \Delta E \text{(radiation damping)}\\
    + \sqrt{\frac{2 \sigma_E \E_0}{\tau_z}} \cdot \mathcal{N}(0,1) (quantum
    excitation), \\
 
