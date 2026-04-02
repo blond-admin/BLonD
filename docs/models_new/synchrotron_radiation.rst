@@ -82,7 +82,7 @@ first five **synchrotron radiation integrals** [1-3]:
 
 where :math:`\rho` is the bending radius [m], :math:`D_x` is the horizontal
 dispersion function [m], :math:`K` is the focusing strength [m\ :sup:`-2`],
-:math:`\mathcal{H} = \beta_x D_x'^2 + 2\alpha_x D_x D_x' + \gamma_x D_x^2` is the :math:`\mathcal{H}'-function [m].
+:math:`\mathcal{H} = \beta_x D_x'^2 + 2\alpha_x D_x D_x + \gamma_x D_x^2` is the :math:`\mathcal{H}`-function [m].
 
 For an **isomagnetic ring** (uniform bending radius :math:`\rho_0`), the
 integrals simplify to:
@@ -110,20 +110,20 @@ The radiation loss around the synchronous particle can be derived as:
 
 U = U_0 + \frac{dU}{dE}_{E = E_0)} \cdot \Delta E,
 
-where :math:'E_0' and :math:'U_0' are the energy and energy lost of the
-synchronous particle. A particle with an energy :math:'E_0 + \Delta E' circulates on a different
-orbit than the synchronous particle, resulting in a different path length :math:'C
-+ \Delta C' after a turn, characterised by the momentum compaction factor:
+where :math:`E_0` and :math:`U_0` are the energy and energy lost of the
+synchronous particle. A particle with an energy :math:`E_0 + \Delta E` circulates on a different
+orbit than the synchronous particle, resulting in a different path length :math:`C
++ \Delta C` after a turn, characterised by the momentum compaction factor:
 
 .. :math:
 
     \frac{\Delta C}{C} = \alpha_C \frac{\Delta E }{E_0}
 
 This variation in the path length translates into an arrival time difference
-:math:'\Delta tau =
+:math:`\Delta tau =
 \alpha_C
-\cdot T_0 \codt \frac{\Delta E}{E_0}'.
-where :math:'T_0' is the revolution period.
+\cdot T_0 \codt \frac{\Delta E}{E_0}`.
+where :math:`T_0` is the revolution period.
 
 The full synchrotron motion including damping is described by a harmonic
 oscillator:
@@ -141,7 +141,7 @@ with the **longitudinal damping time**  in seconds is:
 
 Practically, the synchrotron radiation damping times of all planes are
 proportional to the
-inverse of :math:'\frac{U_0}{2 T_0 E}'. The proportionality
+inverse of :math:`\frac{U_0}{2 T_0 E}`. The proportionality
 coefficient are the **damping partition numbers**, which represent how damping
 is distributed amongst the planes:
 
@@ -200,7 +200,7 @@ The synchrotron radiation framework consists of:
 
 **Base Class**
 
-- :class: 'SynchrotronRadiationBaseClass': abstract class holding basic
+- :class:'SynchrotronRadiationBaseClass': abstract class holding basic
 properties for tracking with synchrotron radiation, computes the energy kick
 given to the beam and updates the beam energy accordingly during the
 simulation.
@@ -210,8 +210,8 @@ simulation.
 - :class:`SynchrotronRadiationMaster`:  this object creates and inserts
 synchrotron radiation trackers into the ring.
 
-- :class: '_SynchrotronRadiationTracker': internal tracker called by the
-:class: 'SynchrotronRadiationMaster'. Trackers are inserted before drift
+- :class:'_SynchrotronRadiationTracker': internal tracker called by the
+:class:'SynchrotronRadiationMaster'. Trackers are inserted before drift
 elements and after RF cavities.
 
 Algorithmic Workflow
@@ -227,8 +227,8 @@ method performs the following steps:
    - The ``Ring`` object (if pre-defined),
    - Computed for an isomagnetic ring using ``bending_radius``.
 
-For consistency, the radiation integrals obtained outside the ring will be set
-as a property of the ring.
+    For consistency, the radiation integrals obtained outside the ring will be set
+    as a property of the ring.
 
 2. **Identify tracking locations**
 
@@ -240,7 +240,8 @@ as a property of the ring.
 3. **Calculate local radiation shares**
 
    For each element, the share of radiation integrals is computed
-   proportionally to :
+   proportionally to:
+
    - if all drifts hold this property, use the provided radiation integrals
    of each drift,
    - its orbit length relative to the circumference for drift elements,
@@ -253,21 +254,21 @@ as a property of the ring.
 
 4. **Create and insert trackers**
 
-Then, ``_SynchrotronRadiationTracker`` elements are inserted:
+    Then, ``_SynchrotronRadiationTracker`` elements are inserted:
 
-   - **before** each drift,
-   - **after** each cavity.
+       - **before** each drift,
+       - **after** each cavity.
 
 5. **Runtime tracking**
 
    During the simulation, each tracker's :meth:`track` method:
 
-   a. Computes current synchrotron radiation parameters from current beam
-   energy, namely the estimated energy lost per turn, longitudinal damping time
-    and natural energy spread,
-   b. Calculates the energy kick (as described above), including radiation
-   damping and quantum excitation,
-   c. Updates the bean relative energy array accordingly.
+       a. Computes current synchrotron radiation parameters from current beam
+       energy, namely the estimated energy lost per turn, longitudinal damping time
+        and natural energy spread,
+       b. Calculates the energy kick (as described above), including radiation
+       damping and quantum excitation,
+      c. Updates the bean relative energy array accordingly.
 
 ---
 
@@ -387,21 +388,20 @@ Interpretation of Results
 After running a simulation with synchrotron radiation:
 
 - The **beam energy spread** will converge to the natural energy spread
-:math:`\sigma_E` over a timescale of :math:`\tau_z` turns.
+:math:`\sigma_E` over a timescale of a few damping times, :math:`\tau_z`.
 
 - The **bunch length** will adjust according to the relationship between
   the energy spread and the RF bucket parameters.
 
-- The **synchronous phase** :math:'\phi_s' shifts to account for the mean
-energy loss per turn, according to :math:'\sin(\phi_s) = \frac{U_0}{e \cdot
-V}'.
+- The **synchronous phase** :math:`\phi_s` shifts to account for the mean
+energy loss per turn, according to :math:`\sin(\phi_s) = \frac{U_0}{e \cdot
+V}`.
 
 - For ultra-relativistic electrons and positrons, radiation effects are
 perceivable; From [2], the ratio between radiated power between electrons and
  protons is 1836\ :sup:`4` (estimating proton's classical radius as the
  electron's.). Therefore, for protons and heavier ions, the effect of synchrotron radiation
-is negligible at most energies but becomes relevant in machines like the LHC at
- top energy.
+is negligible at most energies but becomes relevant in machines like the LHC at top energy.
 
 ---
 
