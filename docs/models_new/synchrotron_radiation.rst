@@ -42,9 +42,9 @@ instantaneous radiated power is derived in [2]:
     P_{\gamma} = \frac{c \cdot C_{\gamma}}{2 \pi} \frac{E^4}{\rho *2},
 
 where :math:`C_\gamma = \frac{4 \pi}{3} \frac{r_c}{(m  c^2)^3}` is the
-Sand radiation constant (particle-dependent), :math:'r_c' the classical
-radius, :math:'c' the speed of light, :math:'E' the particle energy,
-:math:'\rho' the bending radius.
+Sand radiation constant (particle-dependent), :math:`r_c` the classical
+radius, :math:`c` the speed of light, :math:`E` the particle energy,
+:math:`\rho` the bending radius.
 
 Integrating the instantaneously radiated power along the synchrotron's
 circumference, we obtain the energy loss per turn due to synchrotron radiation,
@@ -94,7 +94,7 @@ integrals simplify to:
    I_3 &= \frac{2\pi}{\rho_0^2}, \\
    I_4 &= \frac{\alpha_c \cdot C}{\rho_0^2},\\
    I_5 &= 0,\\
-for lack of information on :math:'<\mathcal{H}>', and where :math:`\alpha_c` is the momentum compaction factor and :math:`C` is the
+for lack of information on :math:`<\mathcal{H}>`, and where :math:`\alpha_c` is the momentum compaction factor and :math:`C` is the
 circumference.
 
 Synchrotron motion damping and damping times
@@ -175,9 +175,9 @@ Tracking with synchrotron radiation and quantum excitation
 At each tracking step, the energy deviation :math:`\Delta E` of each particle
 is updated taking into account:
 
-1. the energy lost by the synchronous particle along the turn :math:'U_0',
-2. the effect of radiation damping with :math:'tau_z' the damping time,
-3. the effect of quantum excitation, with :math:'\sigma_E' the natural energy
+1. the energy lost by the synchronous particle along the turn :math:`U_0`,
+2. the effect of radiation damping with :math:`tau_z` the damping time,
+3. the effect of quantum excitation, with :math:`\sigma_E` the natural energy
 spread.
 
 The effective energy kick provided by the synchrotron radiation tracker is:
@@ -200,7 +200,7 @@ The synchrotron radiation framework consists of:
 
 **Base Class**
 
-- :class:'SynchrotronRadiationBaseClass': abstract class holding basic
+- :class:`SynchrotronRadiationBaseClass`: abstract class holding basic
 properties for tracking with synchrotron radiation, computes the energy kick
 given to the beam and updates the beam energy accordingly during the
 simulation.
@@ -210,8 +210,8 @@ simulation.
 - :class:`SynchrotronRadiationMaster`:  this object creates and inserts
 synchrotron radiation trackers into the ring.
 
-- :class:'_SynchrotronRadiationTracker': internal tracker called by the
-:class:'SynchrotronRadiationMaster'. Trackers are inserted before drift
+- :class:`_SynchrotronRadiationTracker`: internal tracker called by the
+:class:`SynchrotronRadiationMaster`. Trackers are inserted before drift
 elements and after RF cavities.
 
 Algorithmic Workflow
