@@ -14,7 +14,6 @@ simulating longitudinal beam dynamics in synchrotrons.
 
 Bending forces applied on relativistic charged particles triggers the emission
  of photons, called **synchrotron radiation**. This emission causes:
-
 1. **Energy loss per turn** -- particles radially lose energy,
 2. **Radiation damping** -- oscillation amplitudes decrease exponentially.
 
@@ -25,6 +24,9 @@ fluctuations of the beam particles.
 The interplay between damping and excitation leads to the natural beam sizes,
 characterized by the **natural energy spread** and **natural
 bunch length** in the longitudinal plane.
+
+Presently, the effect of coherent synchrotron radiation (CSR) on the
+longitudinal dynamics is not implemented.
 ---
 
 Conceptual Background
@@ -39,11 +41,10 @@ instantaneous radiated power is derived in [2]:
 
     P_{\gamma} = \frac{c \cdot C_{\gamma}}{2 \pi} \frac{E^4}{\rho *2},
 
-where :math:`C_\gamma = \frac{4 \pi}{3} \frac{r_c}{(m  c^2)\ :sup:`3`}` is the
-Sands
-radiation constant (particle-dependent), :math: 'r_c' the classical radius,
-:math: 'c' the speed of light, :math: 'E' the particle energy, :math: '\rho'
-the bending radius.
+where :math:`C_\gamma = \frac{4 \pi}{3} \frac{r_c}{(m  c^2)^3}` is the
+Sand radiation constant (particle-dependent), :math:'r_c' the classical
+radius, :math:'c' the speed of light, :math:'E' the particle energy,
+:math:'\rho' the bending radius.
 
 Integrating the instantaneously radiated power along the synchrotron's
 circumference, we obtain the energy loss per turn due to synchrotron radiation,
@@ -52,7 +53,11 @@ to be compensated for beam storage:
 .. math::
 
    U_0 = \frac{C_\gamma}{2\pi} E^4 \oint \frac{ds}{\rho^2} \\
-   or \\
+
+or
+
+.. math::
+
    U_0 = \frac{C_\gamma}{2\pi} E^4 I_2 \\
 
 where :math:`C_\gamma` is the Sands radiation constant [m/(eV)\ :sup:`3`],
@@ -61,8 +66,8 @@ integral.
 
 Synchrotron Radiation Integrals
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The properties of the electron beam in synchrotrons are summarized in the
-**synchrotron radiation integrals** [1-3]:
+The properties of the electron beam in synchrotrons are summarized with the
+first five **synchrotron radiation integrals** [1-3]:
 
 .. math::
 
