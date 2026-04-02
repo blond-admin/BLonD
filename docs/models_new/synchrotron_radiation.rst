@@ -72,13 +72,15 @@ first five **synchrotron radiation integrals** [1-3]:
 .. math::
 
    I_1 &= \oint \frac{D_x}{\rho} \, ds, related to the momentum compaction factor, \\
-   I_2 &= \oint \frac{ds}{\rho^2}, related to the energy loss per turn,
+   I_2 &= \oint \frac{ds}{\rho^2},\, \text{related to the energy loss per
+   turn},
    \\
-   I_3 &= \oint \frac{ds}{|\rho|^3}, related to the natural energy
-   spread, \\
-   I_4 &= \oint \frac{D_x}{\rho} \left(\frac{1}{\rho^2} + 2 * K\right) \, ds,
-   required for the damping times, \\
-   I_5 &= \oint \frac{\mathcal{H}}{|\rho|^3} \, ds, required for the natural horizontal emittance \\
+   I_3 &= \oint \frac{ds}{|\rho|^3}, \, \text{related to the natural energy
+   spread}, \\
+   I_4 &= \oint \frac{D_x}{\rho} \left(\frac{1}{\rho^2} + 2 * K\right) \, ds\, \text{
+   required for the damping times}, \\
+   I_5 &= \oint \frac{\mathcal{H}}{|\rho|^3} \, ds\, \text{required for the
+   natural horizontal emittance}, \\
 
 where :math:`\rho` is the bending radius [m], :math:`D_x` is the horizontal
 dispersion function [m], :math:`K` is the focusing strength [m\ :sup:`-2`],
@@ -108,7 +110,7 @@ The radiation loss around the synchronous particle can be derived as:
 
 .. math::
 
-U = U_0 + \frac{dU}{dE}_{E = E_0)} \cdot \Delta E,
+    U = U_0 + \frac{dU}{dE}_{E = E_0)} \cdot \Delta E,
 
 where :math:`E_0` and :math:`U_0` are the energy and energy lost of the
 synchronous particle. A particle with an energy :math:`E_0 + \Delta E` circulates on a different
@@ -120,10 +122,9 @@ orbit than the synchronous particle, resulting in a different path length :math:
     \frac{\Delta C}{C} = \alpha_C \frac{\Delta E }{E_0}
 
 This variation in the path length translates into an arrival time difference
-:math:`\Delta tau =
-\alpha_C
-\cdot T_0 \codt \frac{\Delta E}{E_0}`.
-where :math:`T_0` is the revolution period.
+:math:`\Delta \tau = \alpha_C \cdot T_0 \cdot \frac{\Delta E}{E_0}`, where
+:math:`T_0` is the
+revolution period.
 
 The full synchrotron motion including damping is described by a harmonic
 oscillator:
@@ -184,11 +185,11 @@ The effective energy kick provided by the synchrotron radiation tracker is:
 
 .. math::
 
-   \Delta E \rightarrow \Delta E \\
-   - U_0 \text{(energy loss per turn)}\\
-   - \frac{2}{\tau_z} \Delta E \text{(radiation damping)}\\
-   + \sqrt{\frac{2 \sigma_E \E_0}{\tau_z}} \cdot \mathcal{N}(0,1) (quantum
-   excitation), \\
+   \Delta E &\rightarrow \Delta E \\
+   &- U_0 \, \text{(energy loss per turn)}\\
+   &- \frac{2}{\tau_z} \Delta E \, \text{(radiation damping)}\\
+   &+ \sqrt{\frac{2 \sigma_E E_0}{\tau_z}} \cdot \mathcal{N}(0,1) \text{
+   (quantum excitation)}, \\
 
 where :math:`\mathcal{N}(0,1)` represents a standard normal random distribution.
 ---
