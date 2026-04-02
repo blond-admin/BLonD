@@ -72,7 +72,7 @@ first five **synchrotron radiation integrals** [1-3]:
 .. math::
 
    I_1 &= \oint \frac{D_x}{\rho} \, ds,\, \text{related to the momentum
-   compaction factor}, \\
+    compaction factor}, \\
    I_2 &= \oint \frac{ds}{\rho^2},\, \text{related to the energy loss per
     turn},
    \\
@@ -111,7 +111,7 @@ The radiation loss around the synchronous particle can be derived as:
 
 .. math::
 
-    U = U_0 + \frac{dU}{dE}\right|_{E = E_0} \cdot \Delta E,
+    U = U_0 + \left.\frac{dU}{dE}\right|_{E = E_0} \cdot \Delta E,
 
 where :math:`E_0` and :math:`U_0` are the energy and energy lost of the
 synchronous particle. A particle with an energy :math:`E_0 + \Delta E` circulates on a different
@@ -244,8 +244,7 @@ method performs the following steps:
    For each element, the share of radiation integrals is computed
    proportionally to:
 
-   - if all drifts hold this property, use the provided radiation integrals of
-   each drift,
+   - if all drifts hold this property, use the provided radiation integrals of each drift,
    - its orbit length relative to the circumference for drift elements,
    - the section length between each RF cavities relative to the
    circumference,
