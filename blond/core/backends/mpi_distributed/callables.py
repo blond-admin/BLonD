@@ -26,7 +26,7 @@ from blond.generals.distributed.helpers import mpi_is_distributed
 if TYPE_CHECKING:  # pragma: no cover
     from blond.generals.distributed.distributed_array import DistributedArray
 
-from blond.core.backends import backend
+from blond.core.backends.backend import backend
 
 
 def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
