@@ -863,7 +863,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_histogram_race_conditions(self) -> None:
-        backend.random.seed(42)
+        backend.random.seed(np.uint64(42))
         array_read = (
             backend.random.random_sample(size=1024) - 0.5
         ) * 20  # common sample data from -10 to 10
