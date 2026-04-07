@@ -26,7 +26,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     calculate_isomagnetic_radiation_integrals,
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import Schedulable
+from blond.core.base import Schedulable, ScheduledArray, ScheduledInterpolation
 from blond.core.beam.base import BeamBaseClass
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
@@ -45,9 +45,6 @@ if TYPE_CHECKING:
     from blond.physics.drifts import DriftBaseClass
 
     T = TypeVar("T")
-
-# TODO allow schedulable synchrotron radiation integrals in the master (e.g.
-# tapering)
 
 
 class SynchrotronRadiationMaster(Schedulable):
@@ -107,6 +104,8 @@ class SynchrotronRadiationMaster(Schedulable):
         )
 
         super().__init__()
+
+        self._add_intended_schedule("radiation_integrals")
 
         if track_before_element_type is not None:
             self.track_before_element_type = track_before_element_type
@@ -544,6 +543,10 @@ class SynchrotronRadiationMaster(Schedulable):
                 f"allowed, but {element_list} was found."
             )
 
+        self.normalized_share_of_synchrotron_integrals = (
+            shares_of_radiation_integrals
+        ) / ring.radiation_integrals
+
     def _insert_radiation_trackers(
         self,
         ring: Ring,
@@ -582,6 +585,41 @@ class SynchrotronRadiationMaster(Schedulable):
                 # between the stored array and the ring elements
             )
             self.generated_children.append(SRClass_child)
+
+    def schedule(
+        self,
+        attribute: str,
+        value: ScheduledArray
+        | ScheduledInterpolation
+        | NumpyArray
+        | tuple[NumpyArray, NumpyArray],
+    ) -> None:
+        """
+        Propagate the scheduled radiation integrals to the trackers.
+
+        Parameters
+        ----------
+        attribute
+            The name of the attribute to be scheduled.
+            Must be an existing attribute of the object.
+        value
+            The schedule definition for the attribute.
+            Can be provided in one of several forms:
+
+            1. **Convenient input options**:
+                - `NumpyArray`: Automatically cast to `ScheduledArray`.
+                - `tuple[NumpyArray, NumpyArray]`: Automatically cast to `ScheduledInterpolation`.
+
+            2. **Explicit scheduling objects**:
+                - `ScheduledArray`: Full control over array-based scheduling.
+                - `ScheduledInterpolation`: Full control over interpolation-based scheduling.
+        """
+        for i, SRClass_child in enumerate(self.generated_children):
+            SRClass_child.schedule(
+                attribute="share_of_radiation_integrals",
+                value=self.normalized_share_of_synchrotron_integrals[i]
+                * value,
+            )
 
     def prepare_ring_for_synchrotron_radiation_tracking(
         self,
