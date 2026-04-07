@@ -345,6 +345,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     n_turns=1,
                     until_section_index=self.until_section_index,
                     show_progressbar=False,
+                    verbose=False,
                 )
 
                 # reset to original value before simulation
