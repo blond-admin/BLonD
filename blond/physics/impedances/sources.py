@@ -267,6 +267,12 @@ class Resonators(
         Quality factors (Q) of the resonances, dimensionless.
     shunt_impedances_counter_rotating : array-like or float or None
         Shunt impedances for counter-rotating mode.
+    supersampling
+        When using `get_wake_impedance`,
+        will create a wake with n-times the time resolution,
+        that is averaged into a single bin.
+        This feature is used to prevent aliasing effects
+        in time domain wake solvers.
 
     Notes
     -----
@@ -285,11 +291,12 @@ class Resonators(
         | float
         | ArrayLike
         | None = None,
+        supersampling=0,
     ):
         warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__(is_dynamic=False)
 
-        self.supersampling = 1
+        self.supersampling = supersampling
         self._shunt_impedances: NumpyArray
         self._center_frequencies: NumpyArray
         self._quality_factors: NumpyArray
@@ -405,7 +412,7 @@ class Resonators(
         T_max = 1 / f_max
         assert (time[1] - time[0]) <= T_max / 2  # Nyquist-Frequenz
         dt_required = T_max / 50  # 25 * Nyquist-Frequenz
-        dt = (time[1] - time[0]) / self.supersampling
+        dt = (time[1] - time[0]) / (self.supersampling + 1)
         assert dt <= dt_required
         # Recalculate only if `time` has changed
         hash_ = get_hash(time)
@@ -413,11 +420,11 @@ class Resonators(
             return self._cache_wake_impedance
 
         wake = self.get_wake(time)
-        for i in range(self.supersampling - 1):
+        for i in range(self.supersampling):
             offset = dt * i
             wake += self.get_wake(time + offset / 2)
             wake += self.get_wake(time - offset / 2)
-        wake /= 2 * (self.supersampling - 1) + 1
+        wake /= 2 * self.supersampling + 1
         wake_impedance = backend.fft.rfft(wake, n=n_fft)
 
         self._cache_wake_impedance_hash = hash_
