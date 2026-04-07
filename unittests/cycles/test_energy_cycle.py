@@ -364,7 +364,6 @@ class TestEnergyCycleByTime(unittest.TestCase):
                     particle_type=cycle.reference_particle, dt=np.ones(5)
                 )
             ),
-            n_turns=cycle._n_turns_max,
         )
         self.assertEqual(cycle._n_turns_max, 13)
 
