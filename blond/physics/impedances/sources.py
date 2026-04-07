@@ -32,6 +32,7 @@ import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
+from blond.generals.formatting_ import si_format
 from blond.generals.warnings_ import NotTestedWarning
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -410,10 +411,16 @@ class Resonators(
         """
         f_max = np.max(self._omega) / (2 * np.pi)
         T_max = 1 / f_max
-        assert (time[1] - time[0]) <= (T_max / 2)  # Nyquist-Frequenz
-        dt_required = T_max / 50  # 25 * Nyquist-Frequenz
-        dt = (time[1] - time[0]) / (self.supersampling + 1)
-        assert dt <= dt_required
+        assert (time[1] - time[0]) <= (T_max / 2), (  # Nyquist-Frequency
+            "The time step is not precise enough to consider the resonators"
+            f"maximum frequency of {si_format(f_max)}Hz."
+        )
+
+        dt_antialias_required = T_max / 50  # 25 * Nyquist-Frequenz
+        dt_antialias = (time[1] - time[0]) / (self.supersampling + 1)
+        assert dt_antialias <= dt_antialias_required, (
+            "Use supersampling to prevent aliasing effects."
+        )
         # Recalculate only if `time` has changed
         hash_ = get_hash(time)
         if hash_ == self._cache_wake_impedance_hash:
@@ -421,7 +428,7 @@ class Resonators(
 
         wake = self.get_wake(time)
         for i in range(self.supersampling):
-            offset = dt * i
+            offset = dt_antialias * i
             wake += self.get_wake(time + offset / 2)
             wake += self.get_wake(time - offset / 2)
         wake /= 2 * self.supersampling + 1
