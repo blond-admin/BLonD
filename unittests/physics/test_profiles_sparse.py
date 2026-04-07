@@ -9,6 +9,7 @@ from blond import EmptyBeam, uranium_29
 from blond.core.beam.beams import ProbeBeam
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+from unittests.physics.impedances.comparisons.mtw import harmonic
 
 
 class TestEquidistantMultiProfile(unittest.TestCase):
@@ -33,6 +34,19 @@ class TestEquidistantMultiProfile(unittest.TestCase):
             dt=dt,
             particle_type=uranium_29,
         )
+
+    def test_init_from_padded_filling_pattern(self):
+        sparse_profile = (
+            EquidistantMultiProfile.init_from_padded_filling_pattern(
+                harmonic=10,
+                filling_pattern=np.array([0, 1]),
+                bins_per_profile=16,
+                offset=-1,
+                section_index=0,
+                name="barney",
+            )
+        )
+        self.assertEqual(len(sparse_profile._filling_pattern), 10)
 
     def test_track_empty(self):
         beam = EmptyBeam(
