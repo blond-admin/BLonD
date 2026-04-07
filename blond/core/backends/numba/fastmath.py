@@ -7,7 +7,6 @@
 # Project website: http://blond.web.cern.ch/
 
 """Fix for machines without Intel SVML."""
-# pragma: no cover
 
 import math
 import struct
