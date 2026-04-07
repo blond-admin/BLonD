@@ -410,7 +410,7 @@ class Resonators(
         """
         f_max = np.max(self._omega) / (2 * np.pi)
         T_max = 1 / f_max
-        assert (time[1] - time[0]) <= T_max / 2  # Nyquist-Frequenz
+        assert (time[1] - time[0]) <= (T_max / 2)  # Nyquist-Frequenz
         dt_required = T_max / 50  # 25 * Nyquist-Frequenz
         dt = (time[1] - time[0]) / (self.supersampling + 1)
         assert dt <= dt_required
