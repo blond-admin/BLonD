@@ -14,6 +14,7 @@ import logging
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
+from unittest import mock
 from unittest.mock import Mock
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -106,13 +107,20 @@ def _find(
     found = set()
     seen = set()
 
-    def _walk(
+    def _walk(  # noqa: PLR0912
         obj: Any,
         skip_list,
         where,
     ):
         if id(obj) in seen:
             return
+        # todo remove no cover when Python11 is the main CI tester.
+        #  in Python10 this line is never hit..
+        if (  # pragma: no cover
+            type(obj) is mock._Call
+        ):  # prevent crash on `hash(obj)` with mocks...
+            return
+
         seen.add(id(obj))
         is_mock = isinstance(obj, Mock)
         if hasattr(obj, "skip_find_instances_attributes") and not is_mock:

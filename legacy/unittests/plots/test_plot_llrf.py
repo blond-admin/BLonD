@@ -14,6 +14,8 @@ from blond.legacy.blond2.plots.plot_llrf import (
     plot_PL_RF_phase,
     plot_RF_phase_error,
     plot_RL_radial_error,
+    plot_noise_spectrum,
+    plot_phase_noise,
 )
 
 

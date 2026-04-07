@@ -44,6 +44,7 @@ from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
+from blond.generals.iterables_ import _as_tuple
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
@@ -74,26 +75,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
     CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]
 
+
 logger = logging.getLogger(__name__)
-
-
-def _single_beam_to_tuple(
-    maybe_beams: BeamBaseClass | tuple[BeamBaseClass, ...],
-) -> tuple[BeamBaseClass, ...]:
-    """
-    Guarantee that the result is a tuple of beams.
-
-    Parameters
-    ----------
-    maybe_beams
-        Single beam instance or multiple beams.
-
-    Returns
-    -------
-    beams
-        Tuple of at leat one beam.
-    """
-    return maybe_beams if isinstance(maybe_beams, Sequence) else (maybe_beams,)
 
 
 class Simulation(Preparable):
@@ -187,6 +170,7 @@ class Simulation(Preparable):
         n_turns: int | float,
         start_turn_i: int = 0,
         sortby: SortKey = SortKey.CUMULATIVE,
+        stats_lines: int | None = None,
     ) -> None:
         """
         Profile the simulation to identify performance bottlenecks.
@@ -211,6 +195,8 @@ class Simulation(Preparable):
             - SortKey.CUMULATIVE: Sort by cumulative time (default, most useful)
             - SortKey.TIME: Sort by internal time
             - SortKey.CALLS: Sort by call count
+        stats_lines
+            Number of lines to print of the statistics.
 
         See Also
         --------
@@ -278,7 +264,10 @@ class Simulation(Preparable):
         pr.disable()
         s = io.StringIO()
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        ps.print_stats()
+        if stats_lines is None:
+            ps.print_stats()
+        else:
+            ps.print_stats(stats_lines)
         print(s.getvalue())
 
     def plot_potential_well_empiric(
@@ -470,7 +459,13 @@ class Simulation(Preparable):
         t1 = probe_bunch.reference.time
         T = t1 - t0
         drift_term = (
-            cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
+            # `copy_to_cpu` because `cumulative_simpson` does not have a
+            # cupy implementation for now.
+            cumulative_simpson(
+                copy_to_cpu(probe_bunch.read_partial_dt()),
+                x=copy_to_cpu(dE),
+                initial=0,
+            )
             / T
         )
         drift_term -= drift_term.min()
@@ -483,6 +478,7 @@ class Simulation(Preparable):
         particle_type: ParticleType,
         subtract_min: bool = True,
         intensity: int = 0,
+        until_section_index: int = -1,
     ) -> tuple[NumpyArray, float, float]:
         """
         Calculate the RF potential well by tracking particles through one turn.
@@ -515,6 +511,8 @@ class Simulation(Preparable):
         intensity
             Beam intensity (number of real particles) to include collective effects.
             Default is 0 (no intensity effects).
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Returns
         -------
@@ -576,6 +574,8 @@ class Simulation(Preparable):
             beams=(probe_bunch,),
             n_turns=1,
             show_progressbar=False,
+            verbose=False,
+            until_section_index=until_section_index,
         )
         # Calculate passed time
         t_1 = probe_bunch.reference.time
@@ -998,7 +998,7 @@ class Simulation(Preparable):
         ...         hamilton_max=1.0                   # Hamiltonian cutoff [eV]
         ...     ),
         ...     internal_grid_shape=(1023, 1023),      # Resolution of phase space grid
-        ...     tolerance=1e-6,                        # Convergence threshold
+        ...     tolerance_potential_well=1e-6,                        # Convergence threshold
         ...     maxiter_intensity_effects=100,         # Max iterations with wakefields
         ...     increment_intensity_effects_until_iteration_i=10,  # Intensity ramp-up steps
         ...     seed=42,                               # For reproducibility
@@ -1019,6 +1019,7 @@ class Simulation(Preparable):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the beam dynamics simulation.
@@ -1045,6 +1046,8 @@ class Simulation(Preparable):
             called can be set by `each_turn_i`.
 
             An example is shown below.
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Notes
         -----
@@ -1059,13 +1062,18 @@ class Simulation(Preparable):
         >>>     ...
         >>> my_callback.each_turn_i = 2
         """
-        beams = _single_beam_to_tuple(beams)
+        beams = _as_tuple(beams)
+        observe = _as_tuple(observe)
+        if callbacks is not None:
+            callbacks = _as_tuple(callbacks)
+
         self.execution_model.mainloop(
             simulation=self,
             beams=beams,
             n_turns=n_turns,
             observe=observe,
             show_progressbar=show_progressbar,
+            until_section_index=until_section_index,
             callbacks=callbacks,
         )
 
@@ -1110,10 +1118,12 @@ class Simulation(Preparable):
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
+        observe: ObservablesOncePerTurnBase
+        | tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
         verbose: bool = True,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the main beam dynamics simulation loop.
@@ -1157,6 +1167,8 @@ class Simulation(Preparable):
             called can be set by `each_turn_i`.
         verbose
             Will print infos if ``True``.
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Raises
         ------
@@ -1240,7 +1252,11 @@ class Simulation(Preparable):
         >>>     ...
         >>> my_callback.each_turn_i = 2
         """
-        beams = _single_beam_to_tuple(beams)
+        beams = _as_tuple(beams)
+        observe = _as_tuple(observe)
+        if callbacks is not None:
+            callbacks = _as_tuple(callbacks)
+
         logger.info(f"Running `run_simulation` with {locals()}")
         n_turns = (
             int_from_float_with_warning(n_turns, warning_stacklevel=2)
@@ -1264,6 +1280,7 @@ class Simulation(Preparable):
             observe=observe,
             show_progressbar=show_progressbar,
             callbacks=callbacks,
+            until_section_index=until_section_index,
         )
 
     def finalize(
@@ -1318,7 +1335,8 @@ class Simulation(Preparable):
           object to allow discovery by the initialization system.
         - Performance warnings are issued if using Python backend with many particles.
         """
-        beams = _single_beam_to_tuple(beams)
+        beams = _as_tuple(beams)
+        observe = _as_tuple(observe)
         if self.execution_model is None:
             self._autoselect_execution_model(beams)
 
