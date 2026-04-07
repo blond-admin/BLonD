@@ -115,7 +115,7 @@ def fast_sin(x: float) -> float:  # pragma: no cover
     SIAM Review, vol. 24, issue 1, 1982.
     .. [2] Gal, Shmuel, "An accurate elementary mathematical library
     for the IEEE floating point standard", ACM Transactions on Mathematical
-    Soware (TOMS), vol. 17, issue, 1991.
+    Software (TOMS), vol. 17, issue, 1991.
     """
     # --- range reduction ---
     k = int(math.floor(x * _2_OVER_PI + 0.5))
