@@ -1071,7 +1071,7 @@ class MagneticCycleByTime(MagneticCycleBase):
 
         n_turns = 0
         failed_within_turn = False
-        while True:
+        while reference.time < self._t_max:
             for e in elements:
                 try:
                     e.track_reference(reference=reference)
@@ -1080,9 +1080,6 @@ class MagneticCycleByTime(MagneticCycleBase):
                     failed_within_turn = True
                     break
             if failed_within_turn:
-                break
-            if reference.time >= self._t_max:
-                n_turns += 1  # range(n_turns=2) = 0,1, which is exclusive
                 break
 
             n_turns += 1
