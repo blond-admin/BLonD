@@ -22,7 +22,6 @@ from blond.core.backends.backend import Specials, backend
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
 
-    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -257,9 +256,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
             e_min: float,
             t_min: float,
             t_max: float,
-            dt: CupyArray,
-            dE: CupyArray,
-            flags: CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
+            flags: NumpyArray,
         ) -> None:
             _LIBBLOND.loss_box(
                 c_real(e_max, floattype),
@@ -274,8 +273,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         @staticmethod
         def kick_single_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: float,
             omega_rf: float,
             phi_rf: float,
@@ -307,8 +306,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         @staticmethod
         def kick_multi_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: NumpyArray,
             omega_rf: NumpyArray,
             phi_rf: NumpyArray,
@@ -443,10 +442,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
         @staticmethod
         def move_flagged_elements_to_end(
             flag: int,
-            flags: NumpyArray | CupyArray,  # also purged
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
-            ids: NumpyArray | CupyArray,
+            flags: NumpyArray,  # also purged
+            dt: NumpyArray,
+            dE: NumpyArray,
+            ids: NumpyArray,
         ):
             assert dt.dtype == floattype
             assert dE.dtype == floattype
