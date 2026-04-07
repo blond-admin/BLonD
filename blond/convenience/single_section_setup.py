@@ -67,7 +67,7 @@ def single_section_simulation(  # noqa: PLR0912
         fixed. Orbit length changes result in timing delays but don't affect
         the RF frequency program.
     cycle_values
-         Value(s) of the cycle in unit `in_unit`.
+         Value(s) of the cycle in unit `cycle_unit`.
          This must be ``n_turns + 1`` values long.
     cycle_unit
         - 'momentum' [eV/c], (no conversion is done)
@@ -79,11 +79,13 @@ def single_section_simulation(  # noqa: PLR0912
     ring_momentum_compaction_factor
         Momentum compaction factor.
     cavity_voltage
-        RF station's effective voltage, in [V].
+        RF station's voltage, in [V].
+        This is the effective voltage including transit time factor,
+        in contrast to the absolute voltage that the cavity operates at.
     cavity_phi_rf
         RF station's design phase, in [rad].
     cavity_harmonic
-        RF station's design harmonic [].
+        RF station's harmonic number [].
     cavity_n_harmonics
         Number of harmonics.
     wakefield_impedance_sources
@@ -93,7 +95,7 @@ def single_section_simulation(  # noqa: PLR0912
     wakefield_cutoff_frequency
         Cutoff frequency of the beam profile, in [Hz].
     cycle_bending_radius
-        To 'bending field' associated bending radius, in [m].
+        Bending radius to convert the cycle into magnetic field, in [m].
 
     Returns
     -------
@@ -145,7 +147,7 @@ def single_section_simulation(  # noqa: PLR0912
     ring = Ring(circumference=ring_circumference)
 
     drift = DriftSimple(
-        orbit_length=ring.closed_orbit_length,
+        orbit_length=ring.circumference,
     )
     if not isinstance(ring_momentum_compaction_factor, ScheduledBaseClass):
         drift.momentum_compaction_factor = ring_momentum_compaction_factor
