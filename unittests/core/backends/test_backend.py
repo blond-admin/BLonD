@@ -479,6 +479,42 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @pytest.mark.backend_mutation
+    def test_kick_induced_voltage_edges(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                dt = backend.linspace(-5, 5, 20, dtype=backend.float)
+                dE = backend.zeros_like(dt, dtype=backend.float)
+                bin_centers = dt.copy()
+                voltage = bin_centers**2
+                charge = backend.float(10)
+                acceleration_kick = backend.float(0.5)
+                backend.specials.kick_induced_voltage(
+                    dt=dt,
+                    dE=dE,
+                    voltage=voltage,
+                    bin_centers=bin_centers,
+                    charge=charge,
+                    acceleration_kick=acceleration_kick,
+                )
+                result = dE
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"Failed test `{special}` with {dtype}",
+                    )
+
+    @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
