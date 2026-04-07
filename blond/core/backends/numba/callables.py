@@ -26,7 +26,6 @@ from blond.core.backends.python.callables import (
 from blond.core.beam.flags import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 logger = logging.getLogger(__name__)
@@ -344,8 +343,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             cache=True,
         )
         def kick_single_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: float,
             omega_rf: float,
             phi_rf: float,
@@ -386,8 +385,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         @enforce_precision(floattype)
         @njit(sig_kick_multi_harmonic, parallel=True, fastmath=False)
         def kick_multi_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: NumpyArray,
             omega_rf: NumpyArray,
             phi_rf: NumpyArray,
@@ -493,10 +492,10 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         @staticmethod
         def move_flagged_elements_to_end(
             flag: int,
-            flags: NumpyArray | CupyArray,  # also purged
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
-            ids: NumpyArray | CupyArray,
+            flags: NumpyArray,  # also purged
+            dt: NumpyArray,
+            dE: NumpyArray,
+            ids: NumpyArray,
         ):
             # TODO parallel version of sorting
             n_new = _move_flagged_elements_to_end_nb(
