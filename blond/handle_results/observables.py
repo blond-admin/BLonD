@@ -305,7 +305,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         self,
         each_turn_i: int,
         folder: str = "",
-        warn: bool =True,
+        warn: bool = True,
     ):
         if warn:
             warnings.warn(
