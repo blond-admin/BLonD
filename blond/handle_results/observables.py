@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
+from blond import backend
 from blond.core.base import MainLoopRelevant
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
@@ -401,7 +402,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         self._reference_total_energy.write(self._beam.reference.total_energy)
 
         if self._beam._dt.local_size < self._dts._memory.shape[1]:
-            mask = np.zeros(self._dts._memory.shape[1], dtype=bool)
+            mask = backend.zeros(self._dts._memory.shape[1], dtype=bool)
             mask[self._beam.read_partial_ids()] = True
         else:
             mask = None

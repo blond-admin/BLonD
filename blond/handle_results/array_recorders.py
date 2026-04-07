@@ -242,6 +242,8 @@ class DenseArrayRecorder(ArrayRecorder):
         if mask is None:
             self._memory[self._write_idx] = newdata
         else:
+            if is_cupy_array(mask):
+                mask = mask.get()
             assert mask.dtype == np.bool, f"{mask.dtype=}"
             self._memory[self._write_idx][mask] = newdata
             self._memory[self._write_idx][~mask] = np.nan

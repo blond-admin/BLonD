@@ -357,25 +357,10 @@ class TestBeamObservation(unittest.TestCase):
         )
         bunch_observation = BeamObservationOncePerTurn(each_turn_i=100)
 
-        def custom_action(
-            simulation: Simulation, beam: Beam
-        ):  # pragma: no cover
-            if simulation.turn_i.value % 10 != 0:
-                return
-
-            plt.scatter(
-                beam.read_partial_dt(),
-                beam.read_partial_dE(),
-            )
-            plt.draw()
-            plt.pause(0.1)
-            plt.clf()
-
         sim.run_simulation(
             beams=(beam1,),
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
-            # callbacks=custom_action,
         )
         plt.plot(phase_observation.phases)
         plt.figure()
