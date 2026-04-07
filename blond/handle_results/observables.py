@@ -399,7 +399,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         self._reference_total_energy.write(self._beam.reference.total_energy)
 
         if self._beam._dt.local_size < self._dts._memory.shape[1]:
-            mask = np.zeros(self._beam._dt.local_size, dtype=bool)
+            mask = np.zeros(self._dts._memory.shape[1], dtype=bool)
             mask[self._beam.read_partial_ids()] = True
         else:
             mask = None
