@@ -99,6 +99,30 @@ def single_section_simulation(  # noqa: PLR0912
     -------
     simulation
         The `Simulation` object ready for beam matching and simulation.
+
+    Examples
+    --------
+    >>> import unittest
+    >>> import numpy as np
+    >>>
+    >>> from blond import Resonators, TimeDomainFftSolver, proton
+    >>> from blond.convenience.single_section_setup import single_section_simulation
+    >>> from blond.core.base import ScheduledArray
+    >>>
+    >>> simulation = single_section_simulation(
+    ...     ring_circumference=26658.883,
+    ...     cycle_values=450e9,
+    ...     cycle_unit="momentum",
+    ...     particle_type=proton,
+    ...     ring_momentum_compaction_factor=0.000321634,
+    ...     cavity_voltage=6e6,
+    ...     cavity_phi_rf=0,
+    ...     cavity_harmonic=35640,
+    ...     cavity_n_harmonics=1,
+    ...     wakefield_impedance_sources=None,
+    ...     wakefield_solver=None,
+    ...     wakefield_cutoff_frequency=None,
+    ... )
     """
     assert cavity_n_harmonics > 0, f"{cavity_n_harmonics=}"
     if isinstance(cycle_values, float):
