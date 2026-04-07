@@ -24,9 +24,11 @@ from numpy import ndarray as NumpyArray
 # avoiding any dependency on the limited accuracy of math.pi/2 for the
 # higher-order remainders.
 # ---------------------------------------------------------------------------
+dps_org = mpmath.mp.dps
 mpmath.mp.dps = 50
 _half_pi = mpmath.pi / 2
 _2_OVER_PI = float(2.0 / mpmath.pi)
+mpmath.mp.dps = dps_org
 
 
 def _zero_low20(x: float | NumpyArray):  # pragma: no cover
