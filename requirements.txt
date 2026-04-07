@@ -5,4 +5,4 @@ matplotlib>=3.9
 numba>=0.60 # simple computing backend that compiles everywhere out of the box
 tqdm>4 # nice loading bar
 mpi4py>=4 # distributed computing
-mpmath>=1.4
+mpmath>=1.4 # for numba fastmath replacement
