@@ -7,6 +7,7 @@
 # Project website: http://blond.web.cern.ch/
 
 """Fix for machines without Intel SVML."""
+# pragma: no cover
 
 import math
 import struct
@@ -30,7 +31,7 @@ mpmath.mp.dps = 50
 _half_pi = mpmath.pi / 2
 
 
-def _zero_low20(x: float | NumpyArray):
+def _zero_low20(x: float | NumpyArray):  # pragma: no cover
     """
     Return the double nearest to x with its low 20 mantissa bits zeroed.
 
@@ -80,7 +81,7 @@ _C6 = 1.0 / math.factorial(12)  #  1/479001600
 
 
 @njit()
-def fast_sin(x: float) -> float:
+def fast_sin(x: float) -> float:  # pragma: no cover
     """
     Fast float64 sin equivalent to Intel SVML vdsin.
 
