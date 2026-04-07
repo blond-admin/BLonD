@@ -154,6 +154,25 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         return self._share_of_radiation_integrals
 
+    @share_of_radiation_integrals.setter
+    def share_of_radiation_integrals(
+        self, share_of_radiation_integrals: NumpyArray
+    ) -> NumpyArray | None:
+        """
+        Synchrotron radiation setter.
+
+        Parameters
+        ----------
+        share_of_radiation_integrals
+            Share of synchrotron radiation integrals.
+
+        Returns
+        -------
+        synchrotron_radiation_integrals_drift
+            Synchrotron radiation integrals of the drift.
+        """
+        self._share_of_radiation_integrals = share_of_radiation_integrals
+
     def _calculate_kick(
         self,
         beam: BeamBaseClass,
