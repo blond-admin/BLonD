@@ -508,7 +508,7 @@ class WakeField(ImpedanceBaseClass):
             # TODO improve induced_voltage calculation data type for speedup
             voltage=induced_voltage.astype(backend.float),
             bin_centers=self.profile.hist_x,  # base for induced voltage
-            charge=beam.particle_type.charge,
+            charge=beam.signed_charge_with_direction(),
             acceleration_kick=0.0,  # TODO was this ever required??
         )
 
