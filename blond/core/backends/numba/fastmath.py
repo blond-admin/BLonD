@@ -16,9 +16,6 @@ import mpmath
 from numba import njit
 from numpy import ndarray as NumpyArray
 
-# 2/π
-_2_OVER_PI = 2.0 / math.pi
-
 # ---------------------------------------------------------------------------
 # Cody-Waite 3-part split of π/2.
 # π/2 is split so that each part has trailing zeros in its IEEE 754
@@ -29,6 +26,7 @@ _2_OVER_PI = 2.0 / math.pi
 # ---------------------------------------------------------------------------
 mpmath.mp.dps = 50
 _half_pi = mpmath.pi / 2
+_2_OVER_PI = float(2.0 / mpmath.pi)
 
 
 def _zero_low20(x: float | NumpyArray):  # pragma: no cover
@@ -109,6 +107,14 @@ def fast_sin(x: float) -> float:  # pragma: no cover
     -------
     sin_x
         Sin(x) calculated with fast-math.
+
+    References
+    ----------
+    .. [1] W. J. Cody, Jr. and W. Waite, "Software Manual for the Elementary Functions",
+    SIAM Review, vol. 24, issue 1, 1982.
+    .. [2] Gal, Shmuel, "An accurate elementary mathematical library
+    for the IEEE floating point standard", ACM Transactions on Mathematical
+    Soware (TOMS), vol. 17, issue, 1991.
     """
     # --- range reduction ---
     k = int(math.floor(x * _2_OVER_PI + 0.5))
