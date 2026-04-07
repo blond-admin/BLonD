@@ -8,7 +8,7 @@
 # Project website: http://blond.web.cern.ch/
 
 """
-Unittest for synchrotron_radiation.synchrotron_radiation.py
+Unittest for synchrotron_radiation.synchrotron_radiation_master.py
 
 :Authors: **Markus Schwarz, Konstantinos Iliakis, Lina Valle**
 """

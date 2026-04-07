@@ -73,6 +73,107 @@ class BeamBaseClass(Preparable, ABC):
             time=0, total_energy=None, particle_type=particle_type
         )
 
+    def signed_charge_with_direction(self):
+        """
+        Return the charge, corrected with the direction of the beam.
+
+        If a particle traverses an electrical field, the directionality is taken into account through the vector of the
+        electrical field. For particles traveling in the opposite direction, this has to be inverted, which is handled
+        through an opposite sign of the charge.
+
+        Field     -->
+        Velocity  -->
+        Acceleration
+
+        Field     -->
+        Velocity  <--
+        Same field, but deceleration for counter-rotating beam.
+
+        Its the most convenient way to include the change via the charge.
+
+        Returns
+        -------
+        signed_charge_with_direction
+            Charge, corrected with the direction of the beam.
+        """
+        return (
+            self.particle_type.charge * -1
+            if self.is_counter_rotating
+            else self.particle_type.charge
+        )
+
+    @property
+    def dE(self) -> DistributedArray:
+        """
+        Beam macro-particle energy coordinates, in [eV].
+
+        Returns
+        -------
+        dE
+            Beam macro-particle energy coordinates, in [eV].
+        """
+        if self._dE is None:
+            raise AttributeError(
+                "Beam is not properly initialized. "
+                "You can sse `setup_beam` or the beam preparation methods.."
+            )
+        return self._dE
+
+    @property
+    def dt(self) -> DistributedArray:
+        """
+        Beam macro-particle time coordinates, in [s].
+
+        Returns
+        -------
+        dt
+            Beam macro-particle time coordinates, in [s].
+        """
+        if self._dt is None:
+            raise AttributeError(
+                "Beam is not properly initialized. "
+                "You can sse `setup_beam` or the beam preparation methods.."
+            )
+        return self._dt
+
+    @property
+    def flags(self) -> DistributedArray:
+        """
+        Beam macro-particle flags.
+
+        Returns
+        -------
+        flags
+            Beam macro-particle flags.
+
+        See Also
+        --------
+        blond.core.beam.base.BeamFlags: The available flags.
+        """
+        if self._flags is None:
+            raise AttributeError(
+                "Beam is not properly initialized. "
+                "You can sse `setup_beam` or the beam preparation methods.."
+            )
+        return self._flags
+
+    @property
+    def ids(self) -> DistributedArray:
+        """
+        The macro-particle ids. Each particle keeps its id, even after losses.
+
+        Returns
+        -------
+        ids
+            The macro-particle ids.
+        """
+        if self._ids is None:
+            raise AttributeError(
+                "Beam is not properly initialized. "
+                "You can sse `setup_beam` or the beam preparation methods.."
+            )
+        return self._ids
+
     @requires(["MagneticCycleBase"])
     def on_run_simulation(
         self,

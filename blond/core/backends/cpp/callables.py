@@ -22,7 +22,6 @@ from blond.core.backends.backend import Specials, backend
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
 
-    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -127,12 +126,26 @@ def reload_cpp_backend(  # NOQA: PLR0915
             _LIBBLOND = load_libblond(precision="double")
         else:
             raise TypeError(floattype)
-    except (OSError, FileNotFoundError) as exc:
-        raise OSError(
-            "`load_libblond` failed. Has the backend been compiled?\n"
-            f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
-            # make PyCharm automatically link the correct file
-        ) from exc
+    except (OSError, FileNotFoundError):
+        from blond.core.backends.cpp.compile import compile_cpp_library
+
+        print(
+            "C++ backend was not found.. Trying to compile parallel backend."
+        )
+        compile_cpp_library(parallel=True)
+        try:
+            if floattype == np.float32:
+                _LIBBLOND = load_libblond(precision="single")
+            elif floattype == np.float64:
+                _LIBBLOND = load_libblond(precision="double")
+            else:
+                raise TypeError(floattype)
+        except (OSError, FileNotFoundError) as exc:
+            raise OSError(
+                "`load_libblond` failed. Has the backend been compiled?\n"
+                f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
+                # make PyCharm automatically link the correct file
+            ) from exc
 
     def _getPointer(x: NumpyArray) -> ct.c_void_p:
         return x.ctypes.data_as(ct.c_void_p)
@@ -237,9 +250,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
             e_min: float,
             t_min: float,
             t_max: float,
-            dt: CupyArray,
-            dE: CupyArray,
-            flags: CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
+            flags: NumpyArray,
         ) -> None:
             _LIBBLOND.loss_box(
                 c_real(e_max, floattype),
@@ -254,8 +267,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         @staticmethod
         def kick_single_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: float,
             omega_rf: float,
             phi_rf: float,
@@ -287,8 +300,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         @staticmethod
         def kick_multi_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: NumpyArray,
             omega_rf: NumpyArray,
             phi_rf: NumpyArray,
@@ -334,6 +347,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
         ) -> None:
             assert dt.dtype == floattype
             assert dE.dtype == floattype
+
             assert dt.flags.c_contiguous
             assert dE.flags.c_contiguous
 
@@ -354,41 +368,50 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
-        def drift_legacy(
-            dt: NumpyArray,
-            dE: NumpyArray,
-            t_rev: float,
-            length_ratio: float,
-            alpha_order,
-            eta_0: float,
-            eta_1: float,
-            eta_2: float,
-            beta: float,
-            energy: float,
-        ):
-            pass
-
-        @staticmethod
         def drift_exact(
             dt: NumpyArray,
             dE: NumpyArray,
-            t_rev: float,
-            length_ratio: float,
+            T: float,
             alpha_0: float,
-            alpha_1: float,
-            alpha_2: float,
+            higher_alpha: NumpyArray,
             beta: float,
             energy: float,
         ):
-            pass
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert higher_alpha.dtype == floattype
+
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert higher_alpha.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            T = floattype(T)
+            beta = floattype(beta)
+            energy = floattype(energy)
+            alpha_0 = floattype(alpha_0)
+
+            _LIBBLOND.drift_exact(
+                _getPointer(dt),  # real_t *__restrict__ beam_dt
+                _getPointer(dE),  # const real_t *__restrict__ beam_dE
+                c_real(T, floattype),  # const real_t T
+                c_real(alpha_0, floattype),  # const real_t alpha_zero
+                _getPointer(
+                    higher_alpha
+                ),  # const real_t *__restrict__ higher_alpha
+                _getLen(higher_alpha),  # const int n_alpha
+                c_real(beta, floattype),  # const real_t beta
+                c_real(energy, floattype),  # const real_t energy
+                _getLen(dt),  # const int n_macroparticles
+            )
 
         @staticmethod
         def move_flagged_elements_to_end(
             flag: int,
-            flags: NumpyArray | CupyArray,  # also purged
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
-            ids: NumpyArray | CupyArray,
+            flags: NumpyArray,  # also purged
+            dt: NumpyArray,
+            dE: NumpyArray,
+            ids: NumpyArray,
         ):
             assert dt.dtype == floattype
             assert dE.dtype == floattype

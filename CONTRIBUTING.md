@@ -21,6 +21,7 @@ Code that is not mature enough to be inside the standard codebase should be deve
 blond/                        BLonD beam dynamics software.
 ├── acc_math/                 Analytical equations.
 ├──── analytic/               Analytical equations for theoretic descriptions.
+├────── synchrotron_radiation/A collection of analytic equations required for synchrotron radiation.
 ├──── empiric/                Analytical equations for empirical observations.
 ├── beam_preparation/         Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
 ├── cycles/                   Module to manage and describe the ramp of the magnets and other cycles.
@@ -44,12 +45,14 @@ blond/                        BLonD beam dynamics software.
 ├──── impedances/             Module to handle the interaction of impedance sources with the beam.
 ├──── feedbacks/              Module to manage and describe the longitudinal feedbacks.
 ├── testing/                  Utilities for testing of BLonD.
+├──── synchrotron_radiation/  Implementations to simulate the effect of synchrotron radiation.
 ├── specifics/                Utility functions for specific accelerators.
 ├──── cern/                   Utility functions for CERN synchrotrons.
 ├────── lhc/                  Utility functions for the CERN Large Hadron Collider.
 ├────── ps/                   Utility functions for the CERN Proton Synchrotron.
 ├────── psb/                  Utility functions for the CERN Proton Synchrotron Booster.
 ├────── sps/                  Utility functions for the CERN Super Proton Synchrotron.
+├──── fccee/                  Accelerator specifics for the future circular collider.
 ├──── muon_collider/          Helper scripts for the muon collider.
 ├── interfaces/               Managing access to other (optional) beam physics software, like XSuite.
 ├──── xsuite/                 Glue code for XSuite.
@@ -106,7 +109,7 @@ Ensure the following tools are installed:
 
 ```bash
 git clone https://gitlab.cern.ch/blond/BLonD/
-cd blond
+cd BLonD
 git checkout blonder  # Current development branch for BLonD3
 ```
 
@@ -122,13 +125,19 @@ source .venv/bin/activate
 For CPU-only development:
 
 ```bash
-pip install --editable .[dev]
+pip install --editable ".[dev]"
 ```
 
-For GPU-enabled development:
+For GPU-enabled development both CUDA12 and CUDA 13 are available:
 
+For CUDA12:
 ```bash
-pip install --editable .[dev, gpu]
+pip install --editable ".[dev, gpu_cuda12]"
+```
+
+For CUDA13:
+```bash
+pip install --editable ".[dev, gpu_cuda12]"
 ```
 
 ### 4. Set Up Pre-Commit Hooks
@@ -171,8 +180,11 @@ backend.set_specials(mode="cpp")  # Activate the C++ backend
 ## Running Tests
 > Automatically done in GitLab CI Pipeline
 ```bash
-python3 -m pytest -v unittests/
+python3 -m pytest -v unittests/ --randomly-seed=$CI_PIPELINE_ID
 ```
+
+The random seed is displayed online in the output terminal of the CI pipeline.
+Replace '$CI_PIPELINE_ID' by the actual pipeline number when executing tests on a local machine.
 
 BLonD provides for marked tests with [PyTest](https://docs.pytest.org/en/stable/how-to/mark.html) via `@pytest.mark.xxx`.
 Following markers are used

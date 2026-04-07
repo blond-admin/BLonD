@@ -17,7 +17,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import Preparable
+from blond.core.base import (
+    Preparable,
+    SimulationElementBase,
+    UnsafeUserElement,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -54,12 +58,16 @@ class Ring(Preparable):
     check_section_indices : bool, optional
         If True, validate section indices during initialization.
         Default is True.
+    radiation_integrals
+            Synchrotron radiation integrals.
+            Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
     """
 
     def __init__(
         self,
         circumference: float,
         check_section_indices: bool = True,
+        radiation_integrals: NumpyArray | None = None,
     ) -> None:
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
@@ -73,6 +81,8 @@ class Ring(Preparable):
             f"`circumference` must be bigger 0, but is {circumference}"
         )
         self._circumference = circumference
+        self._radiation_integrals = radiation_integrals
+        self._momentum_compaction_factor = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -156,6 +166,18 @@ class Ring(Preparable):
         return self._circumference
 
     @property
+    def radiation_integrals(self) -> NumpyArray | None:
+        """
+        Synchrotron radiation integrals of the ring.
+
+        Returns
+        -------
+        radiation_integrals
+            Synchrotron radiation integrals.
+        """
+        return self._radiation_integrals
+
+    @property
     def momentum_compaction_factor(self) -> float:
         r"""
         Calculate the orbit-length weighted average momentum compaction factor.
@@ -178,44 +200,44 @@ class Ring(Preparable):
 
         .. math::
 
-            \\alpha_0 = \\frac{1}{C} \\int_C \\frac{D(s)}{\\rho} \\, ds
+            \alpha_0 = \frac{1}{C} \int_C \frac{D(s)}{\rho} \, ds
 
         where :math:`C` is the total circumference, :math:`D(s)` is the dispersion
-        function, and :math:`\\rho` is the bending radius.
+        function, and :math:`\rho` is the bending radius.
 
         For two sections of length :math:`A` and :math:`B` such that
         :math:`C = A + B`, this becomes
 
         .. math::
 
-            \\alpha_0 = \\frac{1}{C}
-            \\left(
-                \\int_A \\frac{D(s)}{\\rho} \\, ds
+            \alpha_0 = \frac{1}{C}
+            \left(
+                \int_A \frac{D(s)}{\rho} \, ds
                 +
-                \\int_B \\frac{D(s)}{\\rho} \\, ds
-            \\right)
+                \int_B \frac{D(s)}{\rho} \, ds
+            \right)
 
         Introducing the section-averaged momentum compaction factors
 
         .. math::
 
-            \\alpha_A = \\frac{1}{A} \\int_A \\frac{D(s)}{\\rho} \\, ds
+            \alpha_A = \frac{1}{A} \int_A \frac{D(s)}{\rho} \, ds
 
         .. math::
 
-            \\alpha_B = \\frac{1}{B} \\int_B \\frac{D(s)}{\\rho} \\, ds
+            \alpha_B = \frac{1}{B} \int_B \frac{D(s)}{\rho} \, ds
 
         the total momentum compaction factor can be written as
 
         .. math::
 
-            \\alpha_0 =
-            \\frac{1}{C}
-            \\left(
-                A \\, \\alpha_A
+            \alpha_0 =
+            \frac{1}{C}
+            \left(
+                A \, \alpha_A
                 +
-                B \\, \\alpha_B
-            \\right)
+                B \, \alpha_B
+            \right)
 
         i.e. the orbit-length weighted average of the individual drift-section
         momentum compaction factors.
@@ -373,6 +395,59 @@ class Ring(Preparable):
         """
         return self.elements.get_sections_orbit_length()
 
+    def assert_radiation_integrals(
+        self,
+        rtol: float = 1e-5,
+    ):
+        """
+        Verify that the ring radiation integrals match drifts'.
+
+        This method checks that the sum of all drift radiation integrals equals the
+        ring's radiation integrals if all drifts hold radiation integrals.
+        Use this function to validate your ring configuration for synchrotron
+        radiation simulation.
+
+        This function is automatically called by the
+        SynchrotronRadiationMaster class when setting the radiation
+        integrals.
+
+        Parameters
+        ----------
+        rtol
+            The relative tolerance for the comparison.
+            Default is 1e-5.
+
+        Raises
+        ------
+        AssertionError
+            If the ring's radiation integrals differ from the sun of the
+            drifts' radiation integrals.
+        """
+        from blond.physics.drifts import DriftBaseClass
+
+        all_drifts = self.elements.get_elements(
+            DriftBaseClass, recursive=False
+        )
+
+        drift_list_ = (
+            drift.radiation_integrals is not None for drift in all_drifts
+        )
+        drifts_with_radiation_integrals = any(drift_list_)
+        if drifts_with_radiation_integrals:
+            use_radiation_integrals_from_drifts = all(drift_list_)
+            if use_radiation_integrals_from_drifts:
+                total_radiation_integrals_from_drifts = sum(
+                    drift.radiation_integrals for drift in all_drifts
+                )
+                assert np.allclose(
+                    self.radiation_integrals,
+                    total_radiation_integrals_from_drifts,
+                    rtol=rtol,
+                ), (
+                    "Ring radiation integrals do not match the "
+                    "contribution of the drifts."
+                )
+
     def assert_circumference(
         self,
         atol: float = 1e-6,
@@ -512,7 +587,11 @@ class Ring(Preparable):
             element = copy.deepcopy(element)
         if section_index is not None:
             element._section_index = int(section_index)
-        self.elements.add_element(element, reorder=reorder)
+
+        if isinstance(element, SimulationElementBase):
+            self.elements.add_element(element, reorder=reorder)
+        else:
+            self.elements.add_element(UnsafeUserElement(element))
 
         if reorder:
             self.elements.reorder()
