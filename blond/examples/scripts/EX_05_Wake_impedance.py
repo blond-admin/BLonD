@@ -107,7 +107,7 @@ def main():
             / 4620,
         )
         wakefield = WakeField(
-            sources=(Resonators(R_shunt, f_res, Q_factor),),
+            sources=(Resonators(R_shunt, f_res, Q_factor, supersampling=5),),
             solver=wake_solver,
             profile=profile,
         )
@@ -180,8 +180,8 @@ def main():
             profile.hist_x, VindGauss, label="analytical_gaussian_resonator"
         )
     plt.legend()
-    # plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()

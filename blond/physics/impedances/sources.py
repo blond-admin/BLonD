@@ -23,6 +23,7 @@ Simon Lauber
 
 from __future__ import annotations
 
+import math
 import warnings
 from abc import abstractmethod
 from os import PathLike
@@ -292,7 +293,7 @@ class Resonators(
         | float
         | ArrayLike
         | None = None,
-        supersampling=0,
+        supersampling: int = 0,
     ):
         warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__(is_dynamic=False)
@@ -413,13 +414,16 @@ class Resonators(
         T_max = 1 / f_max
         assert (time[1] - time[0]) <= (T_max / 2), (  # Nyquist-Frequency
             "The time step is not precise enough to consider the resonators"
-            f"maximum frequency of {si_format(f_max)}Hz."
+            f" maximum frequency of {si_format(f_max)}Hz."
         )
 
-        dt_antialias_required = T_max / 50  # 25 * Nyquist-Frequenz
-        dt_antialias = (time[1] - time[0]) / (self.supersampling + 1)
+        dt_antialias_required = T_max / 10
+        dt_antialias = (time[1] - time[0]) / (2 * self.supersampling + 1)
+        supersampling_required = int(
+            math.ceil((time[1] - time[0]) / dt_antialias_required)
+        )
         assert dt_antialias <= dt_antialias_required, (
-            "Use supersampling to prevent aliasing effects."
+            f"Use supersampling >= {supersampling_required} to prevent aliasing effects."
         )
         # Recalculate only if `time` has changed
         hash_ = get_hash(time)
@@ -429,8 +433,8 @@ class Resonators(
         wake = self.get_wake(time)
         for i in range(self.supersampling):
             offset = dt_antialias * i
-            wake += self.get_wake(time + offset / 2)
-            wake += self.get_wake(time - offset / 2)
+            wake += self.get_wake(time + offset)
+            wake += self.get_wake(time - offset)
         wake /= 2 * self.supersampling + 1
         wake_impedance = backend.fft.rfft(wake, n=n_fft)
 

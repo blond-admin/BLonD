@@ -475,7 +475,7 @@ class TestResonators(unittest.TestCase):
         )
         hash_before = local_res._cache_wake_impedance_hash
         _ = local_res.get_wake_impedance(
-            time=backend.array([0.5, 1.5]),
+            time=backend.array([0.5e-12, 1.5e-12]),
             n_fft=6,
             simulation=simulation,
             beam=beam,
@@ -483,7 +483,7 @@ class TestResonators(unittest.TestCase):
         assert hash_before != local_res._cache_wake_impedance_hash
         hash_before = local_res._cache_wake_impedance_hash
         _ = local_res.get_wake_impedance(
-            time=backend.array([0.5, 1.5]),
+            time=backend.array([0.5e-12, 1.5e-12]),
             n_fft=6,
             simulation=simulation,
             beam=beam,
@@ -492,7 +492,7 @@ class TestResonators(unittest.TestCase):
 
         hash_before = local_res._cache_wake_impedance_counter_rotation_hash
         _ = local_res.get_wake_impedance_counter_rotation(
-            time=backend.array([0.5, 1.5]),
+            time=backend.array([0.5e-12, 1.5e-12]),
             n_fft=6,
             simulation=simulation,
             beam=beam,
@@ -503,7 +503,7 @@ class TestResonators(unittest.TestCase):
         )
         hash_before = local_res._cache_wake_impedance_counter_rotation_hash
         _ = local_res.get_wake_impedance_counter_rotation(
-            time=backend.array([0.5, 1.5]),
+            time=backend.array([0.5e-12, 1.5e-12]),
             n_fft=6,
             simulation=simulation,
             beam=beam,

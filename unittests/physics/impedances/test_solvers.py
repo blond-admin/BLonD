@@ -194,7 +194,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         dt += 1
 
         beam.setup_beam(
-            dt=dt, dE=backend.linspace(0, 1, 1000, dtype=backend.float)
+            dt=dt * 1e-12, dE=backend.linspace(0, 1, 1000, dtype=backend.float)
         )
         profile = DynamicProfileConstNBins(n_bins=200)
         profile.update_attributes(beam=beam)
