@@ -19,6 +19,7 @@ from blond import (
     WakeField,
     backend,
     momentum_compaction_factor,
+    mu_minus,
     mu_plus,
     proton,
 )
@@ -120,15 +121,24 @@ class TestSimulation(unittest.TestCase):
             )
 
     def test__run_simulation_counterrotating_beam_no_int_effects(self):
-        beam = Beam(intensity=1e9, particle_type=mu_plus)
+        beam = Beam(
+            intensity=1e9, particle_type=mu_plus, is_counter_rotating=False
+        )
         beam.setup_beam(
             dt=np.linspace(-1e-9, 1e-9, 100),
             dE=np.linspace(-10e9, 10e8, 100),
             reference_time=0,
             reference_total_energy=63e9,
         )
-        beam_CR = deepcopy(beam)
-        beam_CR._is_counter_rotating = True
+        beam_CR = Beam(
+            intensity=1e9, particle_type=mu_minus, is_counter_rotating=True
+        )
+        beam_CR.setup_beam(
+            dt=np.linspace(-1e-9, 1e-9, 100),
+            dE=np.linspace(-10e9, 10e8, 100),
+            reference_time=0,
+            reference_total_energy=63e9,
+        )
         n_cavities = 2
 
         circumference = 5990
@@ -401,6 +411,12 @@ class TestSimulation(unittest.TestCase):
             n_turns=20,
             beams=(self.beam,),
             stats_lines=20,
+        )
+        self.simulation.profiling(
+            start_turn_i=10,
+            n_turns=20,
+            beams=(self.beam,),
+            stats_lines=None,
         )
 
     def test_ring(self):

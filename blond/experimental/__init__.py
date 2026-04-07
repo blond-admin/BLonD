@@ -12,6 +12,7 @@ __all__ = [
     "FilamentationMatcher",
     "SemiEmpiricMatcher",
     "VariNoise",
+    "ProfileMatcherAddon",
 ]
 import warnings
 
@@ -20,6 +21,9 @@ from blond.experimental.beam_preparation.filamentation_matcher import (
 )
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
+)
+from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes import (
+    ProfileMatcherAddon,
 )
 from blond.experimental.cycles.noise_generators.vari_noise import (
     VariNoise,
