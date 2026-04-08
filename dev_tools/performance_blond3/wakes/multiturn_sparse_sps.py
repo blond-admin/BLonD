@@ -19,6 +19,7 @@ from blond import (
     SingleHarmonicRFStation,
     WakeField,
     backend,
+    momentum_compaction_factor,
     proton,
 )
 from blond.beam_preparation.helpers import make_multibunch_beam
@@ -190,7 +191,9 @@ _bunch = Beam(
     particle_type=proton,
 )
 drift = DriftSimple(
-    transition_gamma=22.82177322938192,
+    momentum_compaction_factor=momentum_compaction_factor(
+        transition_gamma=22.82177322938192
+    ),
     orbit_length=1.0 * ring.circumference,
 )
 rf_station = SingleHarmonicRFStation(
@@ -334,13 +337,13 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
     plt.pause(0.1)
     if simulation.turn_i.value == 0:
         print("saved histogram")
-        p = profile.profiles[0]
-        np.savez(
-            "/home/slauber/PycharmProjects/deleteme/manyideas"
-            "/linear_runtime_wakes/resources/hist.npz",
-            hist_x=p.hist_x,
-            hist_y=p.hist_y,
-        )
+        # p = profile.profiles[0]
+        # np.savez(
+        #    "/home/slauber/PycharmProjects/deleteme/manyideas"
+        #    "/linear_runtime_wakes/resources/hist.npz",
+        #    hist_x=p.hist_x,
+        #    hist_y=p.hist_y,
+        # )
     # if simulation.turn_i.value == 1:
     #    plt.show()
     # artist.remove()
