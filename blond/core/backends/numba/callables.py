@@ -172,6 +172,18 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         sig_stop,
     )
 
+    sig_histogram_sparse = (
+        sig_array_read,  # x: NumpyArray,
+        sig_array_write,  # out: NumpyArray,
+        nb_f,  # first_left_cut: float,
+        nb_f,  # left_cut_distance: float,
+        nb_f,  # cut_width: float,
+        numba.int32,  # bins_per_profile: int,
+        numba.int32,  # n_profiles: int,
+        numba.bool[:],  # filling_pattern: NumpyArray,
+        numba.int32[:],  # bucket_index_to_memory_index: NumpyArray,
+    )
+
     sig_hist_x = nb_f[:]
     sig_hist_y = nb_f[:]
     sig_alpha = nb_f
@@ -466,7 +478,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             for i in prange(len(dE)):
                 x = dt[i]
 
-                if x <= x_min or x >= x_max:
+                if x < x_min or x >= x_max:
                     continue
                 else:
                     idx = int((x - x_min) * inv_dx)
@@ -496,6 +508,96 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 ids=ids,
             )
             return n_new
+
+        @staticmethod
+        @enforce_precision(floattype)
+        @njit(
+            sig_histogram_sparse,
+            parallel=True,
+            fastmath=True,
+            cache=False,
+        )
+        def histogram_sparse(
+            x: NumpyArray,
+            out: NumpyArray,
+            first_left_cut: float,
+            left_cut_distance: float,
+            cut_width: float,
+            bins_per_profile: int,
+            n_active_profiles: int,
+            filling_pattern: NumpyArray,
+            bucket_index_to_memory_index: NumpyArray,
+        ) -> None:
+            """
+            Sparse histogram with strided memory layout (gaps between profiles).
+
+            Parameters
+            ----------
+            x
+                An array, e.g., the particle ``dt`` values.
+            out
+                Output histogram ``(n_filled_buckets * bins_per_profile)``.
+            first_left_cut
+                Start of the first histogram.
+            left_cut_distance
+                Distance between the start of each histogram.
+            cut_width
+                Distance between left and right edge of the histogram.
+            bins_per_profile
+                Number of bins per bucket.
+            n_active_profiles
+                Number of non-empty buckets.
+            filling_pattern
+                Filling pattern as a boolean array
+                where ``True`` means filled bucket.
+            bucket_index_to_memory_index
+                Maps bucket index to memory index.
+                For a ``filling_pattern = [1, 0, 0, 1]``
+                ``bucket_index_to_memory_index = [0, 0, 0, 8]`` with
+                ``bins_per_profile = 8``.
+                Use `_gen_array_bucket_index_to_memory_index` to generate this.
+            """
+            n_threads = numba.get_num_threads()  # this prevents caching
+            array_tmp = np.zeros((n_threads, len(out)))
+
+            ive_profile_dist = 1 / left_cut_distance
+            inv_bin_step = bins_per_profile / cut_width
+            n_buckets = len(filling_pattern)
+
+            for i in prange(len(x)):
+                thread_i = numba.get_thread_id()
+
+                xi = x[i]
+
+                bucket_i = int((xi - first_left_cut) * ive_profile_dist)
+
+                if bucket_i < 0 or bucket_i >= n_buckets:
+                    continue
+                if not filling_pattern[bucket_i]:
+                    continue
+
+                start_loc = first_left_cut + bucket_i * left_cut_distance
+                stop_loc = start_loc + cut_width
+
+                if xi == stop_loc:
+                    write_idx = (
+                        bucket_index_to_memory_index[bucket_i]
+                        + bins_per_profile
+                        - 1
+                    )
+                    array_tmp[thread_i, write_idx] += 1
+                    continue
+
+                idx = int((xi - start_loc) * inv_bin_step)
+                if idx < 0 or idx >= bins_per_profile:
+                    continue
+                else:
+                    write_idx = int(
+                        bucket_index_to_memory_index[bucket_i] + idx
+                    )
+                    array_tmp[thread_i, write_idx] += 1
+
+            out[:] = np.sum(array_tmp, axis=0)
 
     return NumbaSpecials
 
