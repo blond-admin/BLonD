@@ -80,8 +80,6 @@ def single_section_simulation(  # noqa: PLR0912
         Momentum compaction factor.
     cavity_voltage
         RF station's voltage, in [V].
-        This is the effective voltage including transit time factor,
-        in contrast to the absolute voltage that the cavity operates at.
     cavity_phi_rf
         RF station's design phase, in [rad].
     cavity_harmonic
