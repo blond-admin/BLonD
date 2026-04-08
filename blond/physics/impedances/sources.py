@@ -418,7 +418,7 @@ class Resonators(
         )
 
         dt_antialias_required = T_max / 10
-        dt_antialias = (time[1] - time[0]) / (2 * self.supersampling + 1)
+        dt_antialias = (time[1] - time[0]) / (2 * self.supersampling + 2)
         supersampling_required = int(
             math.ceil((time[1] - time[0]) / dt_antialias_required)
         )
@@ -431,7 +431,7 @@ class Resonators(
             return self._cache_wake_impedance
 
         wake = self.get_wake(time)
-        for i in range(self.supersampling):
+        for i in range(1, self.supersampling + 1):
             offset = dt_antialias * i
             wake += self.get_wake(time + offset)
             wake += self.get_wake(time - offset)
