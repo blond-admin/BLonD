@@ -214,7 +214,7 @@ class TestSpecials(unittest.TestCase):
             "cpp",
             "numba",
         ]
-        if True:
+        if cupy_available:
             self.special_modes.append("cuda")
         set_num_threads(8)
 

@@ -10,7 +10,6 @@ from scipy.signal import fftconvolve
 
 from blond import backend
 from blond.physics.impedances.induced_voltage_with_poles import apply_poles2
-from blond.testing.helpers import pinned_values_helper
 
 
 def get_poles(
