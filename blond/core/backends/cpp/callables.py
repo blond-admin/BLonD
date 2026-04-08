@@ -22,7 +22,6 @@ from blond.core.backends.backend import Specials, backend
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
 
-    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -127,12 +126,26 @@ def reload_cpp_backend(  # NOQA: PLR0915
             _LIBBLOND = load_libblond(precision="double")
         else:
             raise TypeError(floattype)
-    except (OSError, FileNotFoundError) as exc:
-        raise OSError(
-            "`load_libblond` failed. Has the backend been compiled?\n"
-            f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
-            # make PyCharm automatically link the correct file
-        ) from exc
+    except (OSError, FileNotFoundError):
+        from blond.core.backends.cpp.compile import compile_cpp_library
+
+        print(
+            "C++ backend was not found.. Trying to compile parallel backend."
+        )
+        compile_cpp_library(parallel=True)
+        try:
+            if floattype == np.float32:
+                _LIBBLOND = load_libblond(precision="single")
+            elif floattype == np.float64:
+                _LIBBLOND = load_libblond(precision="double")
+            else:
+                raise TypeError(floattype)
+        except (OSError, FileNotFoundError) as exc:
+            raise OSError(
+                "`load_libblond` failed. Has the backend been compiled?\n"
+                f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
+                # make PyCharm automatically link the correct file
+            ) from exc
 
     def _getPointer(x: NumpyArray) -> ct.c_void_p:
         return x.ctypes.data_as(ct.c_void_p)
@@ -237,9 +250,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
             e_min: float,
             t_min: float,
             t_max: float,
-            dt: CupyArray,
-            dE: CupyArray,
-            flags: CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
+            flags: NumpyArray,
         ) -> None:
             _LIBBLOND.loss_box(
                 c_real(e_max, floattype),
@@ -254,8 +267,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         @staticmethod
         def kick_single_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: float,
             omega_rf: float,
             phi_rf: float,
@@ -287,8 +300,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         @staticmethod
         def kick_multi_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: NumpyArray,
             omega_rf: NumpyArray,
             phi_rf: NumpyArray,
@@ -395,10 +408,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
         @staticmethod
         def move_flagged_elements_to_end(
             flag: int,
-            flags: NumpyArray | CupyArray,  # also purged
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
-            ids: NumpyArray | CupyArray,
+            flags: NumpyArray,  # also purged
+            dt: NumpyArray,
+            dE: NumpyArray,
+            ids: NumpyArray,
         ):
             assert dt.dtype == floattype
             assert dE.dtype == floattype
@@ -458,8 +471,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
             bucket_index_to_memory_index
                 Maps bucket index to memory index.
                 For a ``filling_pattern = [1, 0, 0, 1]``
-                ``bucket_index_to_memory_index = [8, 8, 8, 16]`` with
+                ``bucket_index_to_memory_index = [0, 0, 0, 8]`` with
                 ``bins_per_profile = 8``.
+                Use `_gen_array_bucket_index_to_memory_index` to generate this.
             """
             assert x.dtype == floattype
             assert out.dtype == floattype
@@ -485,59 +499,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _getPointer(
                     bucket_index_to_memory_index
                 ),  # bucket_index_to_memory_index
-            )
-
-        @staticmethod
-        def apply_poles2(
-            # read
-            profile,
-            profile_dts,
-            poles,
-            residues,
-            # write
-            states,
-            voltage,
-            voltage_threaded,
-            update_on_bin,
-            factor,
-        ) -> None:
-            complextype = (
-                np.complex64 if floattype == np.float32 else np.complex128
-            )
-
-            assert profile.dtype == floattype
-            assert profile_dts.dtype == floattype
-            assert poles.dtype == complextype
-            assert residues.dtype == complextype
-            assert states.dtype == complextype
-            assert voltage.dtype == floattype
-            assert voltage_threaded.dtype == floattype
-            assert update_on_bin.dtype == np.int32
-
-            assert profile.flags.c_contiguous
-            assert profile_dts.flags.c_contiguous
-            assert poles.flags.c_contiguous
-            assert residues.flags.c_contiguous
-            assert states.flags.c_contiguous
-            assert voltage.flags.c_contiguous
-            assert voltage_threaded.flags.c_contiguous
-            assert update_on_bin.flags.c_contiguous
-
-            _LIBBLOND.apply_poles(
-                _getPointer(profile),
-                _getPointer(profile_dts),
-                _getPointer(poles),
-                _getPointer(residues),
-                _getPointer(states),
-                _getPointer(voltage),
-                _getPointer(voltage_threaded),
-                _getPointer(update_on_bin),
-                c_real(factor, floattype),
-                ct.c_int(len(profile)),  # n_bins
-                ct.c_int(len(poles)),  # n_poles
-                ct.c_int(voltage_threaded.shape[0]),  # n_threads
-                ct.c_int(len(update_on_bin)),  # n_updates
-                ct.c_int(len(profile_dts)),  # n_profile_dts
             )
 
     return CppSpecials

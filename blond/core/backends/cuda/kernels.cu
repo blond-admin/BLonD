@@ -379,16 +379,16 @@ __global__ void histogram_sparse(
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
 
     const real_t cut_left0 = first_left_cut;
-    const real_t inv_hist_dist = real_t(1) / (left_cut_distance);
+    const real_t inv_hist_dist = real_t(1) / left_cut_distance;
     const real_t inv_bin_width =
-        real_t(bins_per_profile) / (cut_width);
+        real_t(bins_per_profile) / cut_width;
 
 
     // Loop through input particles and update histograms in shared memory
     for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-        const real_t a = input[i];
+        const real_t dt = input[i];
 
-        const int bucket_i = (int)((a - cut_left0) * inv_hist_dist);
+        const int bucket_i = (int)((dt - cut_left0) * inv_hist_dist);
         if (bucket_i >= n_buckets || bucket_i < 0)
             continue;
         if (!filling_pattern[bucket_i]){
@@ -398,15 +398,15 @@ __global__ void histogram_sparse(
         const real_t cut_right = cut_left + cut_width;
 
         // Check if the value is within the cut range
-        if (a == cut_right) {
+        if (dt == cut_right) {
             atomicAdd(&output[bucket_index_to_memory_index[bucket_i] + bins_per_profile - 1], 1);
             continue;
         }
-        if (a < cut_left || a >= cut_right)
+        if (dt < cut_left || dt >= cut_right)
             continue;
 
         // Calculate the bin index
-        const int bin = (int)((a - cut_left) * inv_bin_width);
+        const int bin = (int)((dt - cut_left) * inv_bin_width);
         if ((unsigned)bin < (unsigned)bins_per_profile) {
             atomicAdd(&output[bucket_index_to_memory_index[bucket_i] + bin], 1);
         }

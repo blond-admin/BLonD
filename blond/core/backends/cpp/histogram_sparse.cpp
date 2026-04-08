@@ -43,9 +43,9 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
 // ---------------------------------
 #pragma omp for schedule(static)
     for (int i = 0; i < n_macroparticles; ++i) {
-      const real_t a = input[i];
+      const real_t dt = input[i];
 
-      const int bucket_i = (int)((a - cut_left0) * inv_hist_dist);
+      const int bucket_i = (int)((dt - cut_left0) * inv_hist_dist);
       if (bucket_i >= n_buckets || bucket_i < 0)
         continue;
       if (!filling_pattern[bucket_i]) {
@@ -55,18 +55,18 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
       const real_t cut_right = cut_left + cut_width;
 
       // Check if the value is within the cut range
-      if (a == cut_right) {
+      if (dt == cut_right) {
 #pragma omp atomic // the array is big and it is rare that the same index is
                    // written
         output[bucket_index_to_memory_index[bucket_i] + bins_per_profile - 1] +=
             1;
         continue;
       }
-      if (a < cut_left || a >= cut_right)
-        continue;
+        if (dt < cut_left || dt >= cut_right)
+            continue;
 
       // Calculate the bin index
-      const int bin = (int)((a - cut_left) * inv_bin_width);
+      const int bin = (int)((dt - cut_left) * inv_bin_width);
       if ((unsigned)bin < (unsigned)bins_per_profile) {
 #pragma omp atomic // the array is big and it is rare that the same index is
                    // written

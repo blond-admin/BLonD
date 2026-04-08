@@ -37,6 +37,19 @@ class TestEquidistantMultiProfile(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
+    def test_init_from_padded_filling_pattern(self):
+        sparse_profile = (
+            EquidistantMultiProfile.init_from_padded_filling_pattern(
+                harmonic=10,
+                filling_pattern=np.array([0, 1]),
+                bins_per_profile=16,
+                offset=-1,
+                section_index=0,
+                name="barney",
+            )
+        )
+        self.assertEqual(len(sparse_profile._filling_pattern), 10)
+
     def test_track_empty(self):
         beam = EmptyBeam(
             particle_type=uranium_29,

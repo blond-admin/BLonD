@@ -15,6 +15,7 @@ from blond.core.backends.backend import (
     default,
 )
 from blond.core.backends.numba.callables import recompile_numba_backend
+from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     multi_backend_testcase,
     skip_if_no_cupy,
@@ -33,7 +34,7 @@ from numba import set_num_threads
 class TestBackendBaseClass(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
-        backend.change_backend(type(default))
+        backend.change_backend(default)
         backend.set_specials("numba")
 
     def setUp(self) -> None:
@@ -102,6 +103,7 @@ class TestBackendBaseClass(unittest.TestCase):
         some_backend = Numpy32Bit()
         some_backend.change_backend(some_backend)  # shouldnt do anything
 
+    @pytest.mark.backend_mutation
     def test_temporary_specials_mode(self):
         backend_org = type(backend)
         backend.change_backend(Numpy64Bit)
@@ -452,6 +454,42 @@ class TestSpecials(unittest.TestCase):
                 dt = backend.linspace(-5, 5, 20, dtype=backend.float)
                 dE = backend.zeros_like(dt, dtype=backend.float)
                 bin_centers = backend.linspace(-4, 4, 20, dtype=backend.float)
+                voltage = bin_centers**2
+                charge = backend.float(10)
+                acceleration_kick = backend.float(0.5)
+                backend.specials.kick_induced_voltage(
+                    dt=dt,
+                    dE=dE,
+                    voltage=voltage,
+                    bin_centers=bin_centers,
+                    charge=charge,
+                    acceleration_kick=acceleration_kick,
+                )
+                result = dE
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"Failed test `{special}` with {dtype}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_kick_induced_voltage_edges(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                dt = backend.linspace(-5, 5, 20, dtype=backend.float)
+                dE = backend.zeros_like(dt, dtype=backend.float)
+                bin_centers = dt.copy()
                 voltage = bin_centers**2
                 charge = backend.float(10)
                 acceleration_kick = backend.float(0.5)
@@ -961,7 +999,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_histogram_race_conditions(self) -> None:
-        backend.random.seed(42)
+        backend.random.seed(np.uint(42))
         array_read = (
             backend.random.random_sample(size=1024) - 0.5
         ) * 20  # common sample data from -10 to 10
@@ -1138,14 +1176,15 @@ class TestSpecials(unittest.TestCase):
         unchanged = backend.cast_arr_complex_if_needed(target)
         self.assertTrue(target is unchanged)
 
+    @multi_backend_testcase
     def test_cast_exceptions(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed(["a", "b", "c"])
 
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed({1, 2, 3})
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed([[1, 2], 3])
 
     def tearDown(self) -> None:

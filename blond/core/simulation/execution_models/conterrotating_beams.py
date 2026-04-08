@@ -49,6 +49,7 @@ class MainloopCounterRotatingBeams(ExecutionModel):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the beam dynamics simulation for counter-rotating beams.
@@ -75,6 +76,8 @@ class MainloopCounterRotatingBeams(ExecutionModel):
             The callback can be defined as follows.
             The rate at with which this function is
             called can be set by `each_turn_i`.
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Examples
         --------
@@ -101,6 +104,12 @@ class MainloopCounterRotatingBeams(ExecutionModel):
                 stacklevel=2,
             )
 
+        if n_turns != 1 and until_section_index != -1:
+            warnings.warn(
+                f"n_turns is ignored since until_section_index was {until_section_index}",
+                stacklevel=1,
+            )
+
         logger.info("Starting simulation mainloop...")
         iterator = range(n_turns)
         if show_progressbar:
@@ -115,6 +124,9 @@ class MainloopCounterRotatingBeams(ExecutionModel):
             ):
                 simulation.turn_i.value = turn_i
                 simulation.section_i.value = element.section_index
+
+                if simulation.section_i.value >= until_section_index != -1:
+                    return
 
                 if element.is_active_this_turn(turn_i=simulation.turn_i.value):
                     element.track(beams[0])  # [0] is expected to be corotating

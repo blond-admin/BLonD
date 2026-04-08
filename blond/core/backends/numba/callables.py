@@ -26,7 +26,6 @@ from blond.core.backends.python.callables import (
 from blond.core.beam.flags import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 logger = logging.getLogger(__name__)
@@ -344,8 +343,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             cache=True,
         )
         def kick_single_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: float,
             omega_rf: float,
             phi_rf: float,
@@ -386,8 +385,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         @enforce_precision(floattype)
         @njit(sig_kick_multi_harmonic, parallel=True, fastmath=False)
         def kick_multi_harmonic(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
             voltage: NumpyArray,
             omega_rf: NumpyArray,
             phi_rf: NumpyArray,
@@ -477,7 +476,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             for i in prange(len(dE)):
                 x = dt[i]
 
-                if x <= x_min or x >= x_max:
+                if x < x_min or x >= x_max:
                     continue
                 else:
                     idx = int((x - x_min) * inv_dx)
@@ -493,10 +492,10 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         @staticmethod
         def move_flagged_elements_to_end(
             flag: int,
-            flags: NumpyArray | CupyArray,  # also purged
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
-            ids: NumpyArray | CupyArray,
+            flags: NumpyArray,  # also purged
+            dt: NumpyArray,
+            dE: NumpyArray,
+            ids: NumpyArray,
         ):
             # TODO parallel version of sorting
             n_new = _move_flagged_elements_to_end_nb(
@@ -552,24 +551,32 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             bucket_index_to_memory_index
                 Maps bucket index to memory index.
                 For a ``filling_pattern = [1, 0, 0, 1]``
-                ``bucket_index_to_memory_index = [8, 8, 8, 16]`` with
+                ``bucket_index_to_memory_index = [0, 0, 0, 8]`` with
                 ``bins_per_profile = 8``.
+                Use `_gen_array_bucket_index_to_memory_index` to generate this.
             """
             n_threads = numba.get_num_threads()  # this prevents caching
+            array_tmp = np.zeros((n_threads, len(out)))
+
             ive_profile_dist = 1 / left_cut_distance
             inv_bin_step = bins_per_profile / cut_width
-            array_tmp = np.zeros((n_threads, len(out)))
             n_buckets = len(filling_pattern)
+
             for i in prange(len(x)):
                 thread_i = numba.get_thread_id()
+
                 xi = x[i]
+
                 bucket_i = int((xi - first_left_cut) * ive_profile_dist)
+
                 if bucket_i < 0 or bucket_i >= n_buckets:
                     continue
                 if not filling_pattern[bucket_i]:
                     continue
+
                 start_loc = first_left_cut + bucket_i * left_cut_distance
                 stop_loc = start_loc + cut_width
+
                 if xi == stop_loc:
                     write_idx = (
                         bucket_index_to_memory_index[bucket_i]
@@ -578,6 +585,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                     )
                     array_tmp[thread_i, write_idx] += 1
                     continue
+
                 idx = int((xi - start_loc) * inv_bin_step)
                 if idx < 0 or idx >= bins_per_profile:
                     continue
@@ -586,6 +594,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                         bucket_index_to_memory_index[bucket_i] + idx
                     )
                     array_tmp[thread_i, write_idx] += 1
+
             out[:] = np.sum(array_tmp, axis=0)
 
     return NumbaSpecials

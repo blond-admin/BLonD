@@ -74,7 +74,9 @@ def reload_cuda_backend(  # NOQA: D102
         if not os.path.isfile(path):
             from blond.core.backends.cuda.compile import compile_cuda_library
 
+            print("CUDA backend was not found.. Trying to compile.")
             compile_cuda_library()
+
             if not os.path.isfile(path):
                 raise FileNotFoundError(
                     f"The compiled CUDA backend was not found at {path=}.\n"
@@ -594,8 +596,8 @@ def reload_cuda_backend(  # NOQA: D102
                     np.int32(bins_per_profile),  # bins_per_profile
                     np.int32(len(filling_pattern)),  # n_buckets
                     np.int32(len(x)),  # n_macroparticles
-                    filling_pattern,
-                    bucket_index_to_memory_index,
+                    filling_pattern,  # input
+                    bucket_index_to_memory_index,  # input
                 ),
                 block=block_size,
                 grid=grid_size,

@@ -22,7 +22,7 @@ from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy._typing import NDArray as NumpyArray
+    from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
@@ -35,8 +35,8 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
     Parameters
     ----------
     section_index
-            Identifier grouping elements that belong to the same section of the ring.
-            Defaults to 0.
+        Identifier grouping elements that belong to the same section of the ring.
+        Defaults to 0.
     name
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
@@ -62,7 +62,7 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
         simulation
             The `Simulation` context manager that owns this ring.
         """
-        pass
+        pass  # pragma: no cover
 
     def on_run_simulation(
         self,
@@ -189,6 +189,58 @@ class EquidistantMultiProfile(MultiProfile):
         self._continuous_memory_hist_x = None
         self._continuous_memory_hist_y = None
 
+    @staticmethod
+    def init_from_padded_filling_pattern(
+        harmonic: int,
+        filling_pattern: NumpyArray,
+        bins_per_profile: int,
+        offset: float = 0.0,
+        section_index: int = 0,
+        name: str | None = None,
+    ) -> EquidistantMultiProfile:
+        """
+        Initialization method for `EquidistantMultiProfile` with a zero-padded filling pattern.
+
+        Parameters
+        ----------
+        harmonic
+            The harmonic that is used to zero-pad the `filling_pattern`.
+        filling_pattern
+            Filling pattern as a boolean array
+            where ``True`` means filled bucket.
+            For example ``filling_pattern = [1, 0, 0, 1]``,
+            meaning that only the first and last profile are in active use.
+        bins_per_profile
+            Number of bins per profile.
+        offset
+            Offset all profiles by this number.
+        section_index
+            Identifier grouping elements that belong to the same section of the ring.
+            Defaults to 0.
+        name
+            Human-readable name for the element. If not provided, a unique name is
+            automatically generated.
+
+        Returns
+        -------
+        profile
+            The `EquidistantMultiProfile`.
+        """
+        filling_pattern_padded = np.concatenate(
+            (
+                filling_pattern,
+                np.zeros(harmonic - len(filling_pattern)),
+            )
+        )
+        profile = EquidistantMultiProfile(
+            filling_pattern=filling_pattern_padded,
+            bins_per_profile=bins_per_profile,
+            offset=offset,
+            section_index=section_index,
+            name=name,
+        )
+        return profile
+
     @property
     def hist_x(self):
         """
@@ -248,7 +300,7 @@ class EquidistantMultiProfile(MultiProfile):
         name: str | None = None,
     ) -> EquidistantMultiProfile:
         """
-        Make a instance of this class that does not rely on `Simulation`.
+        Make an instance of this class that does not rely on `Simulation`.
 
         Parameters
         ----------
@@ -313,10 +365,7 @@ class EquidistantMultiProfile(MultiProfile):
         # Turn     |-----------|
         # Starts   |---|---|---| # ``n_slots + 1``
         # Used     ^   ^   ^   x
-        starts = (
-            np.linspace(0, t_rev, n_slots + 1, endpoint=True)[:-1]
-            + self._offset
-        )
+        starts = np.linspace(0, t_rev, n_slots, endpoint=False) + self._offset
         self._first_left_cut = starts[0]
         self._left_cut_distance = (
             starts[1] - starts[0]
@@ -354,8 +403,6 @@ class EquidistantMultiProfile(MultiProfile):
         """
         bins_per_profile = self._bins_per_profile
 
-        # Keep one profile space in between each profile
-        # to make convolution on `_continuous_memory_hist_y` possible.
         total = len(self.profiles) * bins_per_profile
 
         self._continuous_memory_hist_x = backend.zeros(
@@ -383,13 +430,13 @@ class EquidistantMultiProfile(MultiProfile):
             self.profiles[i]._hist_x = self._continuous_memory_hist_x[sel]
             self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
 
-    def _get_slice_single_profile(self, i: int):
+    def _get_slice_single_profile(self, index: int) -> slice:
         """
         Get slice indices to select the i-th active profile.
 
         Parameters
         ----------
-        i
+        index
             Activate profile number.
 
         Returns
@@ -398,7 +445,7 @@ class EquidistantMultiProfile(MultiProfile):
             ``slice`` selection of the profile within the memory.
         """
         bins_per_profile = self._bins_per_profile
-        start = i * bins_per_profile
+        start = index * bins_per_profile
         stop = start + bins_per_profile
         sel = slice(start, stop)
         return sel
@@ -431,7 +478,7 @@ class EquidistantMultiProfile(MultiProfile):
             bucket_index_to_memory_index=self._bucket_index_to_memory_index,
         )
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: dict) -> EquidistantMultiProfile:
         """
         Create a deep copy of the instance.
 
