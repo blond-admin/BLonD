@@ -25,7 +25,7 @@ from numpy import ndarray as NumpyArray
 # ---------------------------------------------------------------------------
 dps_org = mpmath.mp.dps
 mpmath.mp.dps = 50
-_half_pi = mpmath.pi / 2
+_HALF_PI = mpmath.pi / 2
 _2_OVER_PI = float(2.0 / mpmath.pi)
 mpmath.mp.dps = dps_org
 
@@ -49,10 +49,10 @@ def _zero_low20(x: float | NumpyArray):  # pragma: no cover
     return struct.unpack("d", struct.pack("Q", bits))[0]
 
 
-_PI2_1 = _zero_low20(_half_pi)  # high 33 bits of π/2
-_PI2_1T = _zero_low20(_half_pi - _PI2_1)  # next 33 bits
-_PI2_2 = _zero_low20(_half_pi - _PI2_1 - _PI2_1T)  # next 33 bits
-_PI2_2T = float(_half_pi - _PI2_1 - _PI2_1T - _PI2_2)  # remainder (~20 bits)
+_PI2_1 = _zero_low20(_HALF_PI)  # high 33 bits of π/2
+_PI2_1T = _zero_low20(_HALF_PI - _PI2_1)  # next 33 bits
+_PI2_2 = _zero_low20(_HALF_PI - _PI2_1 - _PI2_1T)  # next 33 bits
+_PI2_2T = float(_HALF_PI - _PI2_1 - _PI2_1T - _PI2_2)  # remainder (~20 bits)
 
 # ---------------------------------------------------------------------------
 # Taylor series coefficients for sin(r), r ∈ [-π/4, π/4]
@@ -91,11 +91,11 @@ def fast_sin(x: float) -> float:  # pragma: no cover
 
     Methods
     -------
-    1. Cody-Waite range reduction (3-part, ~99-bit π/2):
+    1. Cody-Waite range reduction (3-part, ~99-bit π/2) [1]_:
          k  = round(x · 2/π)
          r  = x - k·(π/2)     |r| ≤ π/4
 
-    2. Select sin or cos polynomial based on k mod 4:
+    2. Select sin or cos polynomial based on k mod 4 [2]_:
          k%4 == 0  →  sin(r)
          k%4 == 1  →  cos(r)
          k%4 == 2  → -sin(r)
