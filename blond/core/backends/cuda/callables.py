@@ -100,6 +100,7 @@ def reload_cuda_backend(  # NOQA: D102
     _gm_linear_interp_kick_help = gpu_module.get_function("lik_only_gm_copy")
     _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
     _loss_box = gpu_module.get_function("loss_box")
+    _histogram_sparse = gpu_module.get_function("histogram_sparse")
 
     default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
     default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -548,6 +549,59 @@ def reload_cuda_backend(  # NOQA: D102
 
             n_new = len(ids) - cp.sum(select)
             return n_new
+
+        @staticmethod
+        def histogram_sparse(
+            x: CupyArray,
+            out: CupyArray,
+            first_left_cut: float,
+            left_cut_distance: float,
+            cut_width: float,
+            bins_per_profile: int,
+            n_active_profiles: int,
+            filling_pattern: CupyArray,
+            bucket_index_to_memory_index: CupyArray,
+        ) -> None:
+            assert x.device != "cpu", (
+                f"Requires Cupy array, but got {type(x)}."
+            )
+            assert out.device != "cpu", (
+                f"Requires Cupy array, but got {type(out)}."
+            )
+            assert filling_pattern.device != "cpu", (
+                f"Requires Cupy array, but got {type(filling_pattern)}."
+            )
+            assert bucket_index_to_memory_index.device != "cpu", (
+                f"Requires Cupy array, but got {type(bucket_index_to_memory_index)}."
+            )
+
+            assert x.dtype == floattype
+            assert out.dtype == floattype
+            assert filling_pattern.dtype == np.bool
+            assert bucket_index_to_memory_index.dtype == np.int32
+
+            assert x.flags.c_contiguous
+            assert out.flags.c_contiguous
+            assert filling_pattern.flags.c_contiguous
+            assert bucket_index_to_memory_index.flags.c_contiguous
+
+            out[:] = 0
+            _histogram_sparse(
+                args=(
+                    x,  # input
+                    out,  # output
+                    floattype(first_left_cut),  # first_left_cut
+                    floattype(left_cut_distance),  # left_cut_distance
+                    floattype(cut_width),  # cut_width
+                    np.int32(bins_per_profile),  # bins_per_profile
+                    np.int32(len(filling_pattern)),  # n_buckets
+                    np.int32(len(x)),  # n_macroparticles
+                    filling_pattern,  # input
+                    bucket_index_to_memory_index,  # input
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
 
     return CudaSpecials
 

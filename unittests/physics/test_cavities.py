@@ -75,6 +75,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         self.beam.read_partial_dt.return_value = self.beam.dt
         self.beam.read_partial_dt.return_value = self.beam.dt
         self.beam.write_partial_dE.return_value = self.beam.dE
+        self.beam.signed_charge_with_direction.return_value = proton._charge
 
         self.beam.common_array_size = len(self.beam.dE)
 
@@ -639,6 +640,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         # delta t in s
         beam.read_partial_dt.return_value = beam.dt
         beam.write_partial_dE.return_value = beam.dE
+        beam.signed_charge_with_direction.return_value = proton._charge
 
         self.beam = beam
 
@@ -957,6 +959,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         )  # delta t in s
         beam.read_partial_dt.return_value = beam.dt
         beam.write_partial_dE.return_value = beam.dE
+        beam.signed_charge_with_direction.return_value = proton._charge
 
         self.beam = beam
 

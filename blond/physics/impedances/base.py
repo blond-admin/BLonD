@@ -535,7 +535,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
                 # TODO improve induced_voltage calculation data type for speedup
                 voltage=voltage,
                 bin_centers=bin_centers,  # base for induced voltage
-                charge=beam.particle_type.charge,
+                charge=beam.signed_charge_with_direction(),
                 acceleration_kick=0.0,
             )
 

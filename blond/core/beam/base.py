@@ -73,6 +73,35 @@ class BeamBaseClass(Preparable, ABC):
             time=0, total_energy=None, particle_type=particle_type
         )
 
+    def signed_charge_with_direction(self):
+        """
+        Return the charge, corrected with the direction of the beam.
+
+        If a particle traverses an electrical field, the directionality is taken into account through the vector of the
+        electrical field. For particles traveling in the opposite direction, this has to be inverted, which is handled
+        through an opposite sign of the charge.
+
+        Field     -->
+        Velocity  -->
+        Acceleration
+
+        Field     -->
+        Velocity  <--
+        Same field, but deceleration for counter-rotating beam.
+
+        Its the most convenient way to include the change via the charge.
+
+        Returns
+        -------
+        signed_charge_with_direction
+            Charge, corrected with the direction of the beam.
+        """
+        return (
+            self.particle_type.charge * -1
+            if self.is_counter_rotating
+            else self.particle_type.charge
+        )
+
     @property
     def dE(self) -> DistributedArray:
         """

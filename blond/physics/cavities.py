@@ -68,7 +68,7 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
-class RFManipulationBaseClass(BeamPhysicsRelevant, ABC):
+class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     """
     Base class to implement beam-rf any interactions in synchrotrons.
 
@@ -130,9 +130,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, ABC):
             )
 
 
-class RFStationBaseClass(
-    RFManipulationBaseClass, Schedulable, AltersReference, ABC
-):
+class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     """
     Base class to implement beam-rf interactions in synchrotrons.
 
@@ -788,9 +786,9 @@ class RFStationBaseClass(
             backend.specials.kick_interpolated(
                 dt=beam.read_partial_dt(),
                 dE=beam.write_partial_dE(),
-                voltage=voltage,
-                bin_centers=time_axis,
-                charge=beam.particle_type.charge,
+                voltage=backend.array(voltage, dtype=backend.float),
+                bin_centers=backend.array(time_axis, dtype=backend.float),
+                charge=beam.signed_charge_with_direction(),
                 acceleration_kick=-reference_energy_change,  # Mind the minus!
             )
 
@@ -1184,7 +1182,7 @@ class SingleHarmonicRFStation(
             voltage=self.voltage,
             phi_rf=self.phi_rf,
             omega_rf=self.omega_rf,
-            charge=beam.particle_type.charge,
+            charge=beam.signed_charge_with_direction(),
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )
 
@@ -1662,7 +1660,7 @@ class MultiHarmonicRFStation(
             voltage=backend.array(self.voltage, dtype=backend.float),
             phi_rf=backend.array(self.phi_rf, dtype=backend.float),
             omega_rf=backend.array(self.omega_rf, dtype=backend.float),
-            charge=beam.particle_type.charge,
+            charge=beam.signed_charge_with_direction(),
             n_rf=self.n_rf,
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )

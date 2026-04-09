@@ -6,10 +6,10 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import Simulation, proton
+from blond import Simulation, mu_plus, proton
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.particle_types import ParticleType
+from blond.core.beam.particle_types import ParticleType, mu_minus
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.distributed_array import DistributedArray
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from cupy.typing import NDArray as CupyArray
-    from numpy._typing import NDArray as NumpyArray
+    from numpy.typing import NDArray as NumpyArray
 
 
 class BeamBaseClassTester(BeamBaseClass):
@@ -113,6 +113,18 @@ class TestBeamBaseClass(unittest.TestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_counter_rotating_charge(self):
+        beam_base_class_corot = BeamBaseClassTester(
+            intensity=1, particle_type=mu_plus, is_counter_rotating=False
+        )
+        beam_base_class_counterrotating = BeamBaseClassTester(
+            intensity=1, particle_type=mu_minus, is_counter_rotating=True
+        )
+        assert (
+            beam_base_class_corot.signed_charge_with_direction()
+            == beam_base_class_counterrotating.signed_charge_with_direction()
+        )
 
     @unittest.skip("Abstract method")
     def test_common_array_size(self):
