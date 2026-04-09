@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import numbers
 import os
 import warnings
 from abc import ABC, abstractmethod
@@ -23,6 +24,7 @@ from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
+    from numbers import Number
     from types import ModuleType
     from typing import TYPE_CHECKING, Any, Literal
 
@@ -635,6 +637,40 @@ class BackendBaseClass(ABC):
             The modified (if needed) array.
         """
         return self._cast_arr_and_dtype(arr, self.complex)
+
+    def interp_if_array(
+        self, new_x: float, value: Number | ArrayLike
+    ) -> Number:
+        """
+        Interpolate if not single valued.
+
+        Interpolate value at new_x if it is a 2-array.  If it is a number,
+        return the same value
+
+        Parameters
+        ----------
+        new_x
+            The new x at which to interpolate.
+        value
+            Either a number or an array to be interpolated.
+
+        Returns
+        -------
+        value
+            The interpolated value.
+        """
+        if not isinstance(value, numbers.Number):
+            # Should be single valued, but cupy.interp can only act on
+            # arrays, so cast it anyway.
+            new_x = self._asarray_if_needed(new_x)
+
+            value = self._asarray_if_needed(value)
+            value = self.interp(new_x, value[0], value[1])
+
+            if value.shape == ():
+                value = value[()]
+
+        return value
 
 
 class NumpyBackend(BackendBaseClass):

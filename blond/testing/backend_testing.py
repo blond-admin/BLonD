@@ -133,13 +133,14 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
                 self.setUp()
                 try:
                     fn(self)
-                except Exception:
+                except Exception as exc:
+                    failed_on = backend.backend.__class__.__name__
                     # If a function call fails, force return to the
                     # initial condition, then re-raise the exception.
                     backend.backend.change_backend(
                         backend.ALL_BACKENDS[init_backend]
                     )
-                    raise
+                    raise RuntimeError(f"Failed with backend {failed_on}") from exc
                 self.tearDown()
             backend.backend.change_backend(backend.ALL_BACKENDS[init_backend])
 

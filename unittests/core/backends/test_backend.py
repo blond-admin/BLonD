@@ -1177,6 +1177,26 @@ class TestSpecials(unittest.TestCase):
         self.assertTrue(target is unchanged)
 
     @multi_backend_testcase
+    def test_interp_if_array(self):
+        value = [[0, 1], [2, 3]]
+
+        for cast in (list, tuple, np.array):
+            interp = backend.interp_if_array(0.5, cast(value))
+            self.assertEqual(interp, 2.5)
+
+        new_x = [0, 0.5, 1]
+        for cast in (list, tuple, np.array):
+            interp = backend.interp_if_array(cast(new_x), cast(value))
+            if isinstance(backend, CupyBackend):
+                interp = interp.get()
+
+            np.testing.assert_array_equal(interp, [2, 2.5, 3])
+
+        value = 0
+        interp = backend.interp_if_array(0, value)
+        self.assertEqual(value, interp)
+
+    @multi_backend_testcase
     def test_cast_exceptions(self):
         with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed(["a", "b", "c"])
