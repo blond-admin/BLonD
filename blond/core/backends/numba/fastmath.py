@@ -16,10 +16,10 @@ from numba import njit
 from numpy import ndarray as NumpyArray
 
 # ---------------------------------------------------------------------------
-# Cody-Waite 3-part split of π/2.
-# π/2 is split so that each part has trailing zeros in its IEEE 754
+# Cody-Waite 3-part split of pi/2.
+# pi/2 is split so that each part has trailing zeros in its IEEE 754
 # representation, making x - k*_PI2_1 exact in floating point.
-# mpmath at 50 decimal digits provides π/2 well beyond double precision,
+# mpmath at 50 decimal digits provides pi/2 well beyond double precision,
 # avoiding any dependency on the limited accuracy of math.pi/2 for the
 # higher-order remainders.
 # ---------------------------------------------------------------------------
@@ -49,14 +49,14 @@ def _zero_low20(x: float | NumpyArray):  # pragma: no cover
     return struct.unpack("d", struct.pack("Q", bits))[0]
 
 
-_PI2_1 = _zero_low20(_HALF_PI)  # high 33 bits of π/2
+_PI2_1 = _zero_low20(_HALF_PI)  # high 33 bits of pi/2
 _PI2_1T = _zero_low20(_HALF_PI - _PI2_1)  # next 33 bits
 _PI2_2 = _zero_low20(_HALF_PI - _PI2_1 - _PI2_1T)  # next 33 bits
 _PI2_2T = float(_HALF_PI - _PI2_1 - _PI2_1T - _PI2_2)  # remainder (~20 bits)
 
 # ---------------------------------------------------------------------------
-# Taylor series coefficients for sin(r), r ∈ [-π/4, π/4]
-# sin(r) ≈ r + r³·(S1 + r²·(S2 + r²·(S3 + r²·(S4 + r²·(S5 + r²·S6)))))
+# Taylor series coefficients for sin(r), r in [-pi/4, pi/4]
+# sin(r) ~ r + r^3*(S1 + r^2*(S2 + r^2*(S3 + r^2*(S4 + r^2*(S5 + r^2*S6)))))
 # S_n = (-1)^n / (2n+1)!  for n = 1..6
 # ---------------------------------------------------------------------------
 _S1 = -1.0 / math.factorial(3)  # -1/6
@@ -67,8 +67,8 @@ _S5 = -1.0 / math.factorial(11)  # -1/39916800
 _S6 = 1.0 / math.factorial(13)  #  1/6227020800
 
 # ---------------------------------------------------------------------------
-# Taylor series coefficients for cos(r), r ∈ [-π/4, π/4]
-# cos(r) ≈ 1 + r²·(C1 + r²·(C2 + r²·(C3 + r²·(C4 + r²·(C5 + r²·C6)))))
+# Taylor series coefficients for cos(r), r in [-pi/4, pi/4]
+# cos(r) ~ 1 + r^2*(C1 + r^2*(C2 + r^2*(C3 + r^2*(C4 + r^2*(C5 + r^2*C6)))))
 # C_n = (-1)^n / (2n)!  for n = 1..6
 # ---------------------------------------------------------------------------
 _C1 = -1.0 / math.factorial(2)  # -1/2
@@ -91,17 +91,17 @@ def fast_sin(x: float) -> float:  # pragma: no cover
 
     Methods
     -------
-    1. Cody-Waite range reduction (3-part, ~99-bit π/2) [1]_:
-         k  = round(x · 2/π)
-         r  = x - k·(π/2)     |r| ≤ π/4
+    1. Cody-Waite range reduction (3-part, ~99-bit pi/2) [1]_:
+         k  = round(x * 2/pi)
+         r  = x - k*(pi/2)     |r| ≤ pi/4
 
     2. Select sin or cos polynomial based on k mod 4 [2]_:
-         k%4 == 0  →  sin(r)
-         k%4 == 1  →  cos(r)
-         k%4 == 2  → -sin(r)
-         k%4 == 3  → -cos(r)
+         k%4 == 0  ->  sin(r)
+         k%4 == 1  ->  cos(r)
+         k%4 == 2  -> -sin(r)
+         k%4 == 3  -> -cos(r)
 
-    Accuracy: < 2 ULP for |x| < 2²⁰.  For larger arguments the
+    Accuracy: < 2 ULP for |x| < 2^20.  For larger arguments the
     3-part Cody-Waite constants lose precision; use math.sin there.
 
     Returns
@@ -133,7 +133,7 @@ def fast_sin(x: float) -> float:  # pragma: no cover
         return 1.0 + r2 * (
             _C1 + r2 * (_C2 + r2 * (_C3 + r2 * (_C4 + r2 * (_C5 + r2 * _C6))))
         )
-    elif q == 2:
+    elif q == 2:  # NOQA: PLR2004
         return -(
             r
             + r
