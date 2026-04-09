@@ -49,13 +49,14 @@ static inline void complex_exp(const real_t exponent_real,
  *
  *   propagator = exp(pole * dt)                      // free decay over one bin
  *   kernel     = (propagator - 1) / (pole * dt)      // maps bin_count → state advance
- *   avg_kernel = (kernel - 1)     / (pole * dt)      // maps bin_count → bin-average state
+ *   int2_kernel = (kernel - 1)     / (pole * dt)      // (propagator - 1 - pole*dt) / (pole*dt)²
+ *                                                      // = (1/dt²) integral_0^dt integral_0^tau exp(p*u) du dtau
  *
  * kernel appears in both formulas because it is both the charge-injection coefficient
  * for the state advance and the decay coefficient for the bin-average:
  *
  *   s_right = propagator * s_left + bin_count * kernel      // state at right edge
- *   <s>     = kernel * s_left     + bin_count * avg_kernel  // time-averaged state
+ *   <s>     = kernel * s_left     + bin_count * int2_kernel  // bin-average state
  *
  * V[i] = 2 * factor * Re(residue * <s>[i])
  *
@@ -112,7 +113,7 @@ extern "C" void apply_poles(
         // Precomputed per-bunch constants (refreshed at each bunch boundary).
         real_t propagator_real = 0, propagator_imag = 0;  // exp(pole * dt)
         real_t kernel_real     = 0, kernel_imag     = 0;  // (propagator - 1) / (pole * dt)
-        real_t avg_kernel_real = 0, avg_kernel_imag = 0;  // (kernel - 1)     / (pole * dt)
+        real_t int2_kernel_real = 0, int2_kernel_imag = 0;  // (kernel - 1) / (pole * dt)  — see Step 1 for derivation
         real_t half_dt = 0;  // dt/2, used only to compute bin-edge timestamps
 
         real_t prev_right_edge = reference_time;
@@ -131,7 +132,7 @@ extern "C" void apply_poles(
 
                 complex_exp(pole_real * dt, pole_imag * dt, propagator_real, propagator_imag);
 
-                // Both kernel and avg_kernel have the form z / (pole * dt).
+                // Both kernel and int2_kernel have the form (z - 1) / (pole * dt).
                 // Complex division: Re(z/w) = (Re(z)*Re(w) + Im(z)*Im(w)) / |w|^2
                 //                   Im(z/w) = (Im(z)*Re(w) - Re(z)*Im(w)) / |w|^2
                 // Here w = pole * dt, so one dt cancels: denominator = pole_norm_squared * dt.
@@ -146,13 +147,13 @@ extern "C" void apply_poles(
 
                     const real_t km1_real = kernel_real - real_t(1);
                     const real_t km1_imag = kernel_imag;
-                    avg_kernel_real = (km1_real * pole_real + km1_imag * pole_imag) / (pole_norm_squared * dt);
-                    avg_kernel_imag = (km1_imag * pole_real - km1_real * pole_imag) / (pole_norm_squared * dt);
+                    int2_kernel_real = (km1_real * pole_real + km1_imag * pole_imag) / (pole_norm_squared * dt);
+                    int2_kernel_imag = (km1_imag * pole_real - km1_real * pole_imag) / (pole_norm_squared * dt);
 
                 } else {
-                    // pole = 0: L'Hopital gives kernel -> 1, avg_kernel -> 1/2
+                    // pole = 0: L'Hopital gives kernel -> 1, int2_kernel -> 1/2 (uniform average)
                     kernel_real     = real_t(1);   kernel_imag     = real_t(0);
-                    avg_kernel_real = real_t(0.5); avg_kernel_imag = real_t(0);
+                    int2_kernel_real = real_t(0.5); int2_kernel_imag = real_t(0);
                 }
 
                 // Free-decay over the inter-bunch gap (zero for equidistant bins).
@@ -174,11 +175,20 @@ extern "C" void apply_poles(
             // ---- Per-bin: compute bin-average voltage, then advance state ----
             const real_t amplitude = profile[bin_index];
 
-            // Step 1 — bin-average state:  <s> = kernel * s_left + amplitude * avg_kernel
+            // Step 1 — bin-average state:  <s> = kernel * s_left + amplitude * int2_kernel
+            //
+            // Derivation: s(tau) = exp(p*tau)*s_left + (q/dt) * integral_0^tau exp(p*(tau-u)) du
+            //             <s>    = (1/dt) * integral_0^dt s(tau) dtau
+            //
+            // The amplitude term picks up two integrals:
+            //   inner: integral_0^tau exp(p*(tau-u)) du  = (exp(p*tau) - 1) / p
+            //   outer: (1/dt^2) * integral_0^dt (exp(p*tau) - 1) / p dtau  = int2_kernel
+            //
+            // int2_kernel = (kernel - 1) / (pole * dt)  = (propagator - 1 - pole*dt) / (pole*dt)^2
             const real_t avg_state_real = kernel_real * state_real - kernel_imag * state_imag
-                                        + amplitude * avg_kernel_real;
+                                        + amplitude * int2_kernel_real;
             const real_t avg_state_imag = kernel_real * state_imag + kernel_imag * state_real
-                                        + amplitude * avg_kernel_imag;
+                                        + amplitude * int2_kernel_imag;
 
             // Step 2 — voltage:  V[i] = 2 * factor * Re(residue * <s>)
             thread_voltage[bin_index] += voltage_scale
