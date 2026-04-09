@@ -89,11 +89,16 @@ def fast_sin(x: float) -> float:  # pragma: no cover
     x
         Input value.
 
-    Methods
+    Returns
     -------
+    sin_x
+        Sin(x) calculated with fast-math.
+
+    Notes
+    -----
     1. Cody-Waite range reduction (3-part, ~99-bit pi/2) [1]_:
          k  = round(x * 2/pi)
-         r  = x - k*(pi/2)     |r| ≤ pi/4
+         r  = x - k*(pi/2)     |r| <= pi/4
 
     2. Select sin or cos polynomial based on k mod 4 [2]_:
          k%4 == 0  ->  sin(r)
@@ -104,18 +109,13 @@ def fast_sin(x: float) -> float:  # pragma: no cover
     Accuracy: < 2 ULP for |x| < 2^20.  For larger arguments the
     3-part Cody-Waite constants lose precision; use math.sin there.
 
-    Returns
-    -------
-    sin_x
-        Sin(x) calculated with fast-math.
-
     References
     ----------
     .. [1] W. J. Cody, Jr. and W. Waite, "Software Manual for the Elementary Functions",
-    SIAM Review, vol. 24, issue 1, 1982.
+       SIAM Review, vol. 24, issue 1, 1982.
     .. [2] Gal, Shmuel, "An accurate elementary mathematical library
-    for the IEEE floating point standard", ACM Transactions on Mathematical
-    Software (TOMS), vol. 17, issue, 1991.
+       for the IEEE floating point standard", ACM Transactions on Mathematical
+       Software (TOMS), vol. 17, issue, 1991.
     """
     # --- range reduction ---
     k = int(math.floor(x * _2_OVER_PI + 0.5))
