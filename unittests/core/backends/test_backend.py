@@ -59,6 +59,7 @@ class TestBackendBaseClass(unittest.TestCase):
         self.backend_base_class.set_specials(mode="numba")
 
     def tearDown(self) -> None:
+        self.backend_base_class.change_backend(Numpy64Bit)
         self.backend_base_class.set_specials(mode="numba")
 
     @pytest.mark.backend_mutation
