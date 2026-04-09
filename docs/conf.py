@@ -264,6 +264,7 @@ suppress_warnings = [
     "ref.python",
     "docutils",
     "python.duplicate_object",
+    "py.duplicate_object",  # Sphinx 6+: inherited members re-documented under child class
 ]  # remove warning for multiple mentions of the same item
 html_static_path = ["_static"]
 html_css_files = ["css/wide.css"]
