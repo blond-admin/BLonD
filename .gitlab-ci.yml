@@ -105,10 +105,17 @@ workflow:
     - pip uninstall -y mpi4py
     - python3 -m pytest
       -v unittests/
-      --import-mode=importlib
       --cov-append
       --cov
       --cov-config=.coveragerc
+    - export BLOND_BACKEND_MODE="cuda"
+    - python3 -m pytest
+      -v unittests/
+      -m "not mpi and not backend_mutation"
+      --cov-append
+      --cov
+      --cov-config=.coveragerc
+    - export BLOND_BACKEND_MODE="numba"
     - pip uninstall -y cupy-cuda12x
     - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
     - python3 -m pytest
