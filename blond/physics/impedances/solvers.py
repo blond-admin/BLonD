@@ -1275,7 +1275,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             dtype=backend.float,
         )
         self._states = np.zeros(len(self._poles) + 1, complex)
-        self._states[-1] = self._profile._continuous_memory_hist_x[0]
+        hist_x = self._profile._continuous_memory_hist_x
+        bin_dt = float(hist_x[1] - hist_x[0])
+        # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
+        # on the first call (C++ now uses edge-based rather than centre-based
+        # state semantics; see poles.cpp for details).
+        self._states[-1] = hist_x[0] - bin_dt / 2.0
 
         self._voltage_threaded = np.zeros(
             ((numba.get_num_threads()), len(self._voltage))

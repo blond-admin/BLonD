@@ -6,8 +6,8 @@
 // submit itself to any jurisdiction.
 // Project website: http://blond.web.cern.ch/
 
-// C++ implementation of induced voltage calculation using pole-residue
-// (vector fitting) models, parallelized with OpenMP over poles.
+// Induced-voltage calculation via pole-residue (vector-fitting) models.
+// Parallelised with OpenMP: each pole is independent and owns its state.
 
 #include <math.h>
 #include <stdlib.h>
@@ -16,155 +16,201 @@
 #include "blond_common.h"
 #include "openmp.h"
 
-// Complex exponential: exp(a + bi) = exp(a) * (cos(b) + i*sin(b))
-static inline void fast_cexp(const real_t re, const real_t im,
-                             real_t &out_re, real_t &out_im) {
-    const real_t e = FAST_EXP(re);
-    out_re = e * FAST_COS(im);
-    out_im = e * FAST_SIN(im);
+static inline void complex_exp(const real_t exponent_real,
+                                const real_t exponent_imag,
+                                real_t &out_real, real_t &out_imag)
+{
+    const real_t magnitude = FAST_EXP(exponent_real);
+    out_real = magnitude * FAST_COS(exponent_imag);
+    out_imag = magnitude * FAST_SIN(exponent_imag);
 }
 
-// Complex multiply: (a + bi) * (c + di)
-static inline void cmul(const real_t a_re, const real_t a_im,
-                        const real_t b_re, const real_t b_im,
-                        real_t &out_re, real_t &out_im) {
-    out_re = a_re * b_re - a_im * b_im;
-    out_im = a_re * b_im + a_im * b_re;
-}
+// ---------------------------------------------------------------------------
 
 /**
- * Apply poles based on the profile to generate voltage.
+ * Compute the induced voltage from a pole-residue impedance model.
  *
- * Complex arrays (poles, residues, states) are interleaved:
- *   [re0, im0, re1, im1, ...]
+ * Physical model
+ * --------------
+ * Each circuit pole p_k with residue c_k satisfies
  *
- * Parameters
- * ----------
- * profile        : Beam profile histogram, length n_bins.
- * profile_dts    : Time step base, length n_profile_dts (>= n_bins + 1).
- * poles          : Complex poles, interleaved, length 2 * n_poles.
- * residues       : Complex residues, interleaved, length 2 * n_poles.
- * states         : Complex state vector, interleaved, length 2 * (n_poles + 1).
- *                  Last complex element stores t_start (real part only).
- * voltage        : Output voltage [V], length n_bins.
- * voltage_threaded : Per-thread voltage buffer, length n_threads * n_bins.
- * update_on_bin  : Bin indices triggering dt update, length n_updates.
- * factor         : Conversion factor (profile to current per bin [A]).
- * n_bins         : Number of bins in profile.
- * n_poles        : Number of poles.
- * n_threads      : Size of first dimension of voltage_threaded (>= omp_get_max_threads()).
- * n_updates      : Length of update_on_bin.
- * n_profile_dts  : Length of profile_dts.
+ *   ds_k/dt = p_k * s_k(t) + I(t),    V(t) = 2 * factor * Re(sum_k c_k * s_k(t))
+ *
+ * where I(t) is the beam current (particle counts; physical conversion via `factor`).
+ *
+ * Per-bin integration
+ * -------------------
+ * The current is assumed uniform over each bin: I = profile[i] / dt.
+ * The ODE then has the exact solution
+ *
+ *   s(t_left + tau) = exp(pole*tau) * s_left + (profile[i]/dt/pole) * (exp(pole*tau) - 1)
+ *
+ * Three per-bunch constants are precomputed from this:
+ *
+ *   propagator = exp(pole * dt)                      // free decay over one bin
+ *   kernel     = (propagator - 1) / (pole * dt)      // maps bin_count → state advance
+ *   avg_kernel = (kernel - 1)     / (pole * dt)      // maps bin_count → bin-average state
+ *
+ * kernel appears in both formulas because it is both the charge-injection coefficient
+ * for the state advance and the decay coefficient for the bin-average:
+ *
+ *   s_right = propagator * s_left + bin_count * kernel      // state at right edge
+ *   <s>     = kernel * s_left     + bin_count * avg_kernel  // time-averaged state
+ *
+ * V[i] = 2 * factor * Re(residue * <s>[i])
+ *
+ * Using the bin-average (rather than a point sample at the bin centre) ensures that
+ * resonators faster than the profile's Nyquist frequency contribute zero net voltage,
+ * consistent with a frequency-domain solver.
+ *
+ * Inter-bunch gaps are bridged by a free-decay step exp(pole * t_jump).
+ *
+ * State semantics
+ * ---------------
+ * states[-1] encodes the reference time:
+ *   on entry  — left edge of the first bin to process
+ *   on return — right edge of the last bin processed
+ * Python initialises it to profile_dts[0] - dt/2 and subtracts the inter-turn
+ * elapsed time before each subsequent call.
+ *
+ * Array layout: all complex arrays are interleaved [re_0, im_0, re_1, im_1, ...].
  */
 extern "C" void apply_poles(
     const real_t *__restrict__ profile,
     const real_t *__restrict__ profile_dts,
     const real_t *__restrict__ poles,
     const real_t *__restrict__ residues,
-    real_t *__restrict__ states,
-    real_t *__restrict__ voltage,
-    real_t *__restrict__ voltage_threaded,
-    const int *__restrict__ update_on_bin,
+    real_t       *__restrict__ states,
+    real_t       *__restrict__ voltage,
+    real_t       *__restrict__ voltage_threaded,
+    const int    *__restrict__ update_on_bin,
     const real_t factor,
-    const int n_bins,
-    const int n_poles,
-    const int n_threads,
-    const int n_updates,
-    const int n_profile_dts)
+    const int    n_bins,
+    const int    n_poles,
+    const int    n_threads,
+    const int    n_updates,
+    const int    n_profile_dts)
 {
-    const real_t two_factor = real_t(2) * factor;
+    const real_t voltage_scale = real_t(2) * factor;
 
-    // Zero voltage and voltage_threaded from previous call
-    memset(voltage, 0, n_bins * sizeof(real_t));
     memset(voltage_threaded, 0, (size_t)n_threads * n_bins * sizeof(real_t));
 
-    // t_start from states[-1] (real part of last complex element)
-    const real_t t_start = states[2 * n_poles];
+    const real_t reference_time = states[2 * n_poles];  // left edge of first bin
 
-    // Parallel over poles: each pole carries sequential state across bins,
-    // but different poles are fully independent.
 #pragma omp parallel for schedule(static)
-    for (int pole_i = 0; pole_i < n_poles; pole_i++) {
-        const int thread_i = omp_get_thread_num();
+    for (int pole_index = 0; pole_index < n_poles; pole_index++) {
+        const int thread_index = omp_get_thread_num();
 
-        const real_t pole_re = poles[2 * pole_i];
-        const real_t pole_im = poles[2 * pole_i + 1];
-        const real_t res_re = residues[2 * pole_i];
-        const real_t res_im = residues[2 * pole_i + 1];
+        const real_t pole_real    = poles    [2 * pole_index    ];
+        const real_t pole_imag    = poles    [2 * pole_index + 1];
+        const real_t residue_real = residues [2 * pole_index    ];
+        const real_t residue_imag = residues [2 * pole_index + 1];
 
-        real_t state_re = states[2 * pole_i];
-        real_t state_im = states[2 * pole_i + 1];
+        real_t state_real = states[2 * pole_index    ];
+        real_t state_imag = states[2 * pole_index + 1];
 
-        int i_update = 0;
-        int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
+        // Precomputed per-bunch constants (refreshed at each bunch boundary).
+        real_t propagator_real = 0, propagator_imag = 0;  // exp(pole * dt)
+        real_t kernel_real     = 0, kernel_imag     = 0;  // (propagator - 1) / (pole * dt)
+        real_t avg_kernel_real = 0, avg_kernel_imag = 0;  // (kernel - 1)     / (pole * dt)
+        real_t half_dt = 0;  // dt/2, used only to compute bin-edge timestamps
 
-        real_t decay_re = 0, decay_im = 0;
-        real_t *__restrict__ vt = voltage_threaded + (size_t)thread_i * n_bins;
+        real_t prev_right_edge = reference_time;
+        int    update_index    = 0;
+        int    next_update_bin = (n_updates > 0) ? update_on_bin[0] : -1;
 
-        for (int bin_i = 0; bin_i < n_bins; bin_i++) {
-            const real_t profile_i_ = real_t(0.5) * profile[bin_i];
+        real_t *__restrict__ thread_voltage = voltage_threaded + (size_t)thread_index * n_bins;
 
-            if (bin_i == update_on_bin_i) {
-                // Compute t_jump (real scalar)
-                real_t t_jump;
-                if (bin_i == 0) {
-                    t_jump = profile_dts[0] - t_start;
+        for (int bin_index = 0; bin_index < n_bins; bin_index++) {
+
+            // ---- Bunch boundary: recompute propagators and bridge the inter-bunch gap ----
+            if (bin_index == next_update_bin) {
+
+                const real_t dt = profile_dts[bin_index + 1] - profile_dts[bin_index];
+                half_dt = dt * real_t(0.5);
+
+                complex_exp(pole_real * dt, pole_imag * dt, propagator_real, propagator_imag);
+
+                // Both kernel and avg_kernel have the form z / (pole * dt).
+                // Complex division: Re(z/w) = (Re(z)*Re(w) + Im(z)*Im(w)) / |w|^2
+                //                   Im(z/w) = (Im(z)*Re(w) - Re(z)*Im(w)) / |w|^2
+                // Here w = pole * dt, so one dt cancels: denominator = pole_norm_squared * dt.
+                const real_t pole_norm_squared = pole_real * pole_real + pole_imag * pole_imag;
+
+                if (pole_norm_squared > real_t(0)) {
+
+                    const real_t pm1_real = propagator_real - real_t(1);
+                    const real_t pm1_imag = propagator_imag;
+                    kernel_real = (pm1_real * pole_real + pm1_imag * pole_imag) / (pole_norm_squared * dt);
+                    kernel_imag = (pm1_imag * pole_real - pm1_real * pole_imag) / (pole_norm_squared * dt);
+
+                    const real_t km1_real = kernel_real - real_t(1);
+                    const real_t km1_imag = kernel_imag;
+                    avg_kernel_real = (km1_real * pole_real + km1_imag * pole_imag) / (pole_norm_squared * dt);
+                    avg_kernel_imag = (km1_imag * pole_real - km1_real * pole_imag) / (pole_norm_squared * dt);
+
                 } else {
-                    t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1];
+                    // pole = 0: L'Hopital gives kernel -> 1, avg_kernel -> 1/2
+                    kernel_real     = real_t(1);   kernel_imag     = real_t(0);
+                    avg_kernel_real = real_t(0.5); avg_kernel_imag = real_t(0);
                 }
 
-                // state *= exp(pole * t_jump)
-                real_t e_re, e_im;
-                fast_cexp(pole_re * t_jump, pole_im * t_jump, e_re, e_im);
-
-                real_t new_re, new_im;
-                cmul(state_re, state_im, e_re, e_im, new_re, new_im);
-                state_re = new_re;
-                state_im = new_im;
-
-                // decay = exp(pole * dt)
-                const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
-                fast_cexp(pole_re * dt, pole_im * dt, decay_re, decay_im);
-
-                i_update++;
-                if (i_update < n_updates) {
-                    update_on_bin_i = update_on_bin[i_update];
+                // Free-decay over the inter-bunch gap (zero for equidistant bins).
+                const real_t t_jump = (profile_dts[bin_index] - half_dt) - prev_right_edge;
+                if (t_jump > real_t(0)) {
+                    real_t jump_real, jump_imag;
+                    complex_exp(pole_real * t_jump, pole_imag * t_jump, jump_real, jump_imag);
+                    const real_t decayed_real = jump_real * state_real - jump_imag * state_imag;
+                    const real_t decayed_imag = jump_real * state_imag + jump_imag * state_real;
+                    state_real = decayed_real;
+                    state_imag = decayed_imag;
                 }
-            } else {
-                // state *= decay
-                real_t new_re, new_im;
-                cmul(state_re, state_im, decay_re, decay_im, new_re, new_im);
-                state_re = new_re;
-                state_im = new_im;
+
+                update_index++;
+                if (update_index < n_updates)
+                    next_update_bin = update_on_bin[update_index];
             }
 
-            // state += profile_i_ (real part only, imag part is zero)
-            state_re += profile_i_;
+            // ---- Per-bin: compute bin-average voltage, then advance state ----
+            const real_t amplitude = profile[bin_index];
 
-            // amp = Re(residue * state)
-            const real_t amp = res_re * state_re - res_im * state_im;
-            vt[bin_i] += two_factor * amp;
+            // Step 1 — bin-average state:  <s> = kernel * s_left + amplitude * avg_kernel
+            const real_t avg_state_real = kernel_real * state_real - kernel_imag * state_imag
+                                        + amplitude * avg_kernel_real;
+            const real_t avg_state_imag = kernel_real * state_imag + kernel_imag * state_real
+                                        + amplitude * avg_kernel_imag;
 
-            // state += profile_i_ (second half of trapezoidal rule)
-            state_re += profile_i_;
+            // Step 2 — voltage:  V[i] = 2 * factor * Re(residue * <s>)
+            thread_voltage[bin_index] += voltage_scale
+                * (residue_real * avg_state_real - residue_imag * avg_state_imag);
+
+            // Step 3 — advance to right edge:  s_right = propagator * s_left + amplitude * kernel
+            const real_t next_state_real = propagator_real * state_real - propagator_imag * state_imag
+                                         + amplitude * kernel_real;
+            const real_t next_state_imag = propagator_real * state_imag + propagator_imag * state_real
+                                         + amplitude * kernel_imag;
+            state_real = next_state_real;
+            state_imag = next_state_imag;
+
+            prev_right_edge = profile_dts[bin_index] + half_dt;  // right edge of this bin
         }
 
-        // Store state back
-        states[2 * pole_i] = state_re;
-        states[2 * pole_i + 1] = state_im;
+        states[2 * pole_index    ] = state_real;
+        states[2 * pole_index + 1] = state_imag;
     }
 
-    // Reduce voltage_threaded into voltage (parallel over bins)
+    // Reduce per-thread voltage buffers into the output array.
 #pragma omp parallel for schedule(static)
-    for (int bin_i = 0; bin_i < n_bins; bin_i++) {
-        real_t sum = 0;
-        for (int t = 0; t < n_threads; t++) {
-            sum += voltage_threaded[(size_t)t * n_bins + bin_i];
-        }
-        voltage[bin_i] = sum;
+    for (int bin_index = 0; bin_index < n_bins; bin_index++) {
+        real_t voltage_sum = real_t(0);
+        for (int thread_index = 0; thread_index < n_threads; thread_index++)
+            voltage_sum += voltage_threaded[(size_t)thread_index * n_bins + bin_index];
+        voltage[bin_index] = voltage_sum;
     }
 
-    // Store last profile_dts value into states[-1] for next call
-    states[2 * n_poles] = profile_dts[n_profile_dts - 1];
-    states[2 * n_poles + 1] = 0;
+    // Store the right edge of the last bin for the next call.
+    const real_t last_half_dt =
+        (profile_dts[n_profile_dts - 1] - profile_dts[n_profile_dts - 2]) * real_t(0.5);
+    states[2 * n_poles    ] = profile_dts[n_profile_dts - 1] + last_half_dt;
+    states[2 * n_poles + 1] = real_t(0);
 }
