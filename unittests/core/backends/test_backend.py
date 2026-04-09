@@ -45,6 +45,10 @@ class TestBackendBaseClass(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     @pytest.mark.backend_mutation
+    def test_autoselect_backend(self) -> None:
+        self.backend_base_class.autoselect_backend()
+
+    @pytest.mark.backend_mutation
     def test_change_backend(self) -> None:
         self.backend_base_class.change_backend(new_backend=Numpy64Bit)
         self.assertEqual(self.backend_base_class.float, np.float64)

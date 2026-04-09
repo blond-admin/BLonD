@@ -360,6 +360,22 @@ class BackendBaseClass(ABC):
             if val is None:
                 raise AttributeError(f"{self.__class__}.{attribute} is None.")
 
+    def autoselect_backend(self) -> None:
+        """Set automatically the fastest backend that is available on the computer."""
+        order = (
+            (Cupy64Bit, "cuda"),
+            (Numpy64Bit, "cpp"),
+            (Numpy64Bit, "numba"),
+            (Numpy64Bit, "python"),
+        )
+        for backend_, mode_ in order:
+            try:
+                self.change_backend(new_backend=backend_)
+                self.set_specials(mode=mode_)
+                return
+            except Exception:
+                pass
+
     def change_backend(
         self,
         new_backend: type[Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit],
