@@ -153,7 +153,7 @@ class Schedulable:
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.intended_for_scheduling = set()
-        self.schedules: dict[str, SchedulerBaseClass] = {}
+        self.schedules: dict[str, ScheduledBaseClass] = {}
         self.schedule_active = False
 
     def _add_intended_schedule(self, *names: str) -> None:
@@ -224,7 +224,7 @@ class Schedulable:
         assert hasattr(self, attribute), (
             f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
-        if isinstance(value, SchedulerBaseClass):
+        if isinstance(value, ScheduledBaseClass):
             # explicit declaration
             self.schedules[attribute] = value
         else:
@@ -622,7 +622,7 @@ class UnsafeUserElement(UserDefinedElement):
         self._element.track(beam)
 
 
-class SchedulerBaseClass(ABC):
+class ScheduledBaseClass(ABC):
     """Base class to create objects used for scheduling of parameters."""
 
     @abstractmethod  # pragma: no cover
@@ -644,7 +644,7 @@ class SchedulerBaseClass(ABC):
         pass
 
 
-class ScheduledArray(SchedulerBaseClass):
+class ScheduledArray(ScheduledBaseClass):
     """
     Schedule values that change per turn.
 
@@ -682,7 +682,7 @@ class ScheduledArray(SchedulerBaseClass):
         return self.values[turn_i]
 
 
-class ScheduledInterpolation(SchedulerBaseClass):
+class ScheduledInterpolation(ScheduledBaseClass):
     """
     Schedule values that change along time.
 
@@ -770,7 +770,7 @@ class ScheduledInterpolation(SchedulerBaseClass):
 
 def get_scheduler(
     value: NumpyArray | tuple[NumpyArray, NumpyArray],
-) -> SchedulerBaseClass:
+) -> ScheduledBaseClass:
     """
     Auto-select the correct class of the schedulers.
 
