@@ -273,6 +273,7 @@ autodoc_default_options = {
     # "imported-members": False,  # breaks import location
     "show-inheritance": True,
     "no-imported-members": True,
+    "inherited-members": True,
 }
 
 show_warning_types = True
