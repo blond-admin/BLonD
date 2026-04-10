@@ -104,7 +104,9 @@ class BarrierGenerator(RFManipulationBaseClass):
         turns: Iterable[int] | None = None,
         times: Iterable[float] | None = None,
         m: int = 1,
-    ) -> tuple[list[int], list[NumpyArray], list[NumpyArray]]:
+    ) -> tuple[
+        list[int], list[NumpyArray | CupyArray], list[NumpyArray | CupyArray]
+    ]:
         """
         Convert the barrier definition into a Fourier series.
 

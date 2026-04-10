@@ -299,6 +299,7 @@ class TestBarrierBucketFunctions(unittest.TestCase):
 
 
 class TestBarrierBucketGenerator(unittest.TestCase):
+    @multi_backend_testcase
     def test_fixed_barrier(self):
         cent = 500e-9
         width = 100e-9
@@ -306,18 +307,28 @@ class TestBarrierBucketGenerator(unittest.TestCase):
 
         generator = bbuck.BarrierGenerator(cent, width, ampl)
         bin_cents = np.linspace(0, 1000e-9, 1000)
-        wave = generator.waveform_at_turn_or_time(
-            turn_i=0, reference_time=1, bin_centers=bin_cents
-        )
 
-        wave_pts = np.where(wave != 0)[0]
-        self.assertAlmostEqual(
-            bin_cents[wave_pts[-1]] - bin_cents[wave_pts[0]], width, places=2
-        )
-        self.assertAlmostEqual(np.mean(bin_cents[wave_pts]), cent, places=2)
+        for inp_cast in ArrayLikeScan():
+            wave = generator.waveform_at_turn_or_time(
+                turn_i=0, reference_time=1, bin_centers=inp_cast(bin_cents)
+            )
 
+            if isinstance(backend, CupyBackend):
+                wave = wave.get()
+
+            wave_pts = np.where(wave != 0)[0]
+            self.assertAlmostEqual(
+                bin_cents[wave_pts[-1]] - bin_cents[wave_pts[0]],
+                width,
+                places=2,
+            )
+            self.assertAlmostEqual(
+                np.mean(bin_cents[wave_pts]), cent, places=2
+            )
+
+    @multi_backend_testcase
     def test_variable_barrier(self):
-        bin_cents = np.linspace(0, 1000e-9, 10000)
+        bin_cents = backend.linspace(0, 1000e-9, 10000)
 
         peak = (np.array([0, 1]), np.array([1e3, 4e3]))
         t_cent = (np.array([0, 1]), np.array([200e-9, 800e-9]))
@@ -332,19 +343,20 @@ class TestBarrierBucketGenerator(unittest.TestCase):
             peak_exp = np.interp(t, peak[0], peak[1])
             cent_exp = np.interp(t, t_cent[0], t_cent[1])
             width_exp = np.interp(t, t_width[0], t_width[1])
+
             wave = generator.waveform_at_turn_or_time(0, t, bin_cents)
 
-            self.assertAlmostEqual(np.max(wave), peak_exp, places=1)
-            self.assertAlmostEqual(np.min(wave), -peak_exp, places=1)
+            self.assertAlmostEqual(float(np.max(wave)), peak_exp, places=1)
+            self.assertAlmostEqual(float(np.min(wave)), -peak_exp, places=1)
 
             wave_pts = np.where(wave != 0)[0]
             self.assertAlmostEqual(
-                bin_cents[wave_pts[-1]] - bin_cents[wave_pts[0]],
+                float(bin_cents[wave_pts[-1]] - bin_cents[wave_pts[0]]),
                 width_exp,
                 places=1,
             )
             self.assertAlmostEqual(
-                np.mean(bin_cents[wave_pts]), cent_exp, places=1
+                float(np.mean(bin_cents[wave_pts])), cent_exp, places=1
             )
 
     def test_to_fourier_series_simple_times_only(self):
