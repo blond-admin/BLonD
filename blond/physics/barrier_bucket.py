@@ -131,8 +131,8 @@ class BarrierGenerator(RFManipulationBaseClass):
         harmonics, voltages, phases
             A tuple containing:
                 The original input harmonics as a list.
-                A list of 2-arrays defining the voltages vs time.
-                A list of 2-arrays defining the phases vs time.
+                A list of arrays defining the voltage at the requested turns/times.
+                A list of arrays defining the phase at the requested turns/times.
 
         Raises
         ------
@@ -172,10 +172,8 @@ class BarrierGenerator(RFManipulationBaseClass):
         harmonics = list(harmonics)
 
         for _ in harmonics:
-            v = backend.zeros([2, len(times)])
-            p = backend.zeros([2, len(times)])
-            v[0] = times
-            p[0] = times
+            v = backend.zeros(len(times))
+            p = backend.zeros(len(times))
             voltages.append(v)
             phases.append(p)
 
@@ -197,8 +195,8 @@ class BarrierGenerator(RFManipulationBaseClass):
             amps /= g_comp
 
             for j in range(len(harmonics)):
-                voltages[j][1, i] = amps[j]
-                phases[j][1, i] = phis[j]
+                voltages[j][i] = amps[j]
+                phases[j][i] = phis[j]
 
         return harmonics, voltages, phases
 

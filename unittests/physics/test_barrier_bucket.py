@@ -261,7 +261,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
                 np.mean(bin_cents[wave_pts]), cent_exp, places=1
             )
 
-    def test_to_fourier_series(self):
+    def test_to_fourier_series_simple_times_only(self):
         cent = 500e-9
         width = 100e-9
         ampl = 1e3
@@ -277,9 +277,12 @@ class TestBarrierBucketGenerator(unittest.TestCase):
             t_rev, harmonics, None, times, m=0
         )
 
+        self.assertEqual(len(harms), len(amps))
+        self.assertEqual(len(harms), len(phases))
+
         for a, p in zip(amps, phases):
-            self.assertListEqual(list(a[0]), list(times))
-            self.assertListEqual(list(p[0]), list(times))
+            self.assertEqual(len(a), len(times))
+            self.assertEqual(len(p), len(times))
         self.assertListEqual(list(harms), list(harmonics))
 
         bin_width = t_rev[0] / (10 * harmonics[-1])
@@ -296,8 +299,143 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         amps_exp /= g_comp
 
         for i, (a, p) in enumerate(zip(amps, phases)):
-            self.assertEqual(a[1, 0], amps_exp[i])
-            self.assertEqual(p[1, 0], phases_exp[i])
+            self.assertEqual(a[0], amps_exp[i])
+            self.assertEqual(p[0], phases_exp[i])
+
+    def test_to_fourier_series_simple_turns_only(self):
+        cent = 500e-9
+        width = 100e-9
+        ampl = 1e3
+
+        generator = bbuck.BarrierGenerator(cent, width, ampl)
+
+        turns = np.arange(10)
+        t_rev = np.zeros_like(turns) + 1000e-9
+        harmonics = np.arange(1, 11)
+
+        # Unfiltered
+        harms, amps, phases = generator.to_fourier_series(
+            t_rev, harmonics, turns, None, m=0
+        )
+
+        self.assertEqual(len(harms), len(amps))
+        self.assertEqual(len(harms), len(phases))
+
+        for a, p in zip(amps, phases):
+            self.assertEqual(len(a), len(turns))
+            self.assertEqual(len(p), len(turns))
+        self.assertListEqual(list(harms), list(harmonics))
+
+        bin_width = t_rev[0] / (10 * harmonics[-1])
+        n_bins = int(t_rev[0] / bin_width)
+        bin_cents = np.linspace(0, t_rev[0], n_bins)
+
+        barrier = bbuck.compute_sin_barrier(cent, width, ampl, bin_cents)
+        amps_exp, phases_exp = bbuck.waveform_to_harmonics(barrier, harmonics)
+
+        g_comp = bbuck._gain_compensation(
+            bin_cents, barrier, harms, amps_exp, phases_exp, t_rev[0]
+        )
+
+        amps_exp /= g_comp
+
+        for i, (a, p) in enumerate(zip(amps, phases)):
+            self.assertEqual(a[0], amps_exp[i])
+            self.assertEqual(p[0], phases_exp[i])
+
+
+    def test_to_fourier_series_simple_turns_times(self):
+        cent = 500e-9
+        width = 100e-9
+        ampl = 1e3
+
+        generator = bbuck.BarrierGenerator(cent, width, ampl)
+
+        turns = np.arange(10)
+        times = np.linspace(0, 1, 10)
+        t_rev = np.zeros_like(turns) + 1000e-9
+        harmonics = np.arange(1, 11)
+
+        # Test exception
+        with self.assertRaises(ValueError):
+            harms, amps, phases = generator.to_fourier_series(
+            t_rev, harmonics, times[:-1], turns, m=0
+        )
+
+        with self.assertRaises(ValueError):
+            harms, amps, phases = generator.to_fourier_series(
+                t_rev, harmonics, None, None, m=0
+            )
+
+        # Unfiltered
+        harms, amps, phases = generator.to_fourier_series(
+            t_rev, harmonics, turns, times, m=0
+        )
+
+        self.assertEqual(len(harms), len(amps))
+        self.assertEqual(len(harms), len(phases))
+
+        for a, p in zip(amps, phases):
+            self.assertEqual(len(a), len(turns))
+            self.assertEqual(len(p), len(turns))
+        self.assertListEqual(list(harms), list(harmonics))
+
+        bin_width = t_rev[0] / (10 * harmonics[-1])
+        n_bins = int(t_rev[0] / bin_width)
+        bin_cents = np.linspace(0, t_rev[0], n_bins)
+
+        barrier = bbuck.compute_sin_barrier(cent, width, ampl, bin_cents)
+        amps_exp, phases_exp = bbuck.waveform_to_harmonics(barrier, harmonics)
+
+        g_comp = bbuck._gain_compensation(
+            bin_cents, barrier, harms, amps_exp, phases_exp, t_rev[0]
+        )
+
+        amps_exp /= g_comp
+
+        for i, (a, p) in enumerate(zip(amps, phases)):
+            self.assertEqual(a[0], amps_exp[i])
+            self.assertEqual(p[0], phases_exp[i])
+
+
+    def test_to_fourier_series_complex(self):
+        turns = np.arange(10, dtype=int)
+        times = np.linspace(0, 1, len(turns))
+
+        cent = (times, np.linspace(450e-9, 550e-9, 10))
+        width = np.linspace(200e-9, 100e-9, len(turns))
+        ampl = np.linspace(1e3, 2e3, len(turns))
+
+        generator = bbuck.BarrierGenerator()
+
+        generator.schedule("t_center", cent)
+        generator.schedule("t_width", width)
+        generator.schedule("peak", ampl)
+
+        t_rev = np.linspace(1000e-9, 900e-9, 10)
+        harmonics = np.arange(1, 21)
+
+        harms, amps, phases = generator.to_fourier_series(
+            t_rev, harmonics, turns, times, m=0
+        )
+
+        self.assertEqual(len(harms), len(amps))
+        self.assertEqual(len(harms), len(phases))
+
+        for c, w, a, t in zip(cent[1], width, ampl, t_rev):
+            bin_width = t / (10 * harmonics[-1])
+            n_bins = int(t / bin_width)
+            bin_cents = np.linspace(0, t_rev[0], n_bins)
+            barrier = bbuck.compute_sin_barrier(c, w, a, bin_cents)
+
+            b_max = np.max(barrier)
+            b_min = np.min(barrier)
+
+            high = int(np.where(barrier == b_max)[0][0])
+            low = int(np.where(barrier == b_min)[0][0])
+
+            self.assertAlmostEqual(bin_cents[high], c + w / 4)
+            self.assertAlmostEqual(bin_cents[low], c - w / 4)
 
 
 if __name__ == "__main__":
