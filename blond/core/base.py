@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+import numbers
 import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
@@ -765,7 +766,13 @@ class ScheduledInterpolation(ScheduledBaseClass):
         value
             The interpolated value for the current time.
         """
-        return self.interpolator(reference_time)
+        value = self.interpolator(reference_time)
+
+        # Guard against 0D arrays being returned by interpolator
+        if not isinstance(value, numbers.Number) and value.shape == ():
+            value = value[()]
+
+        return value
 
 
 def get_scheduler(
