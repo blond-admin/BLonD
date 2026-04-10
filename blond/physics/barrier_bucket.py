@@ -288,6 +288,8 @@ def compute_sin_barrier(
     ValueError: Raises a ValueError if the barrier is longer than
                 the given bin_centers.
     """
+    bin_centers = backend._asarray_if_needed(bin_centers)
+
     barrier_waveform = backend.zeros_like(bin_centers)
 
     t_step = bin_centers[1] - bin_centers[0]
@@ -333,7 +335,7 @@ def harmonics_to_waveform(
     harmonic_amplitudes: Iterable[float],
     harmonic_phases: Iterable[float],
     t_rev: float | None = None,
-) -> NumpyArray:
+) -> NumpyArray | CupyArray:
     """
     Convert a Fourier series to a waveform.
 
@@ -356,6 +358,8 @@ def harmonics_to_waveform(
     waveform
         The reconstructed barrier waveform.
     """
+    bin_centers = backend._asarray_if_needed(bin_centers)
+
     if t_rev is None:
         t_rev = bin_centers[-1] - bin_centers[0]
 
@@ -371,7 +375,7 @@ def harmonics_to_waveform(
 
 
 def waveform_to_harmonics(
-    waveform: NumpyArray | CupyArray, harmonics: Iterable[int] | None = None
+    waveform: ArrayLike, harmonics: Iterable[int] | None = None
 ) -> tuple[tuple[float, ...], tuple[float, ...]]:
     """
     Convert a waveform to a fourier series.
@@ -397,10 +401,12 @@ def waveform_to_harmonics(
         Two tuples of float, length equal to len(harmonics).
         Element 0 is the amplitudes, element 1 is the phases.
     """
-    harm_series = backend.fft.rfft(waveform)
+    harm_series = backend.fft.rfft(backend._asarray_if_needed(waveform))
 
     if harmonics is not None:
-        harm_series = backend.array([harm_series[h] for h in harmonics])
+        harm_series = backend.array(
+            [harm_series[h] for h in backend._asarray_if_needed(harmonics)]
+        )
 
     harm_amps = backend.abs(harm_series) / (len(waveform) / 2)
     harm_phases = (

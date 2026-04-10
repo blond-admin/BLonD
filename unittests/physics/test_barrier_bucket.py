@@ -6,9 +6,12 @@ import numpy.testing as nptest
 
 # BLonD imports
 import blond.physics.barrier_bucket as bbuck
+from blond.core.backends.backend import CupyBackend, backend
+from blond.testing.backend_testing import ArrayLikeScan, multi_backend_testcase
 
 
 class TestBarrierBucketFunctions(unittest.TestCase):
+    @multi_backend_testcase
     def test_simple_barrier(self):
         cent = 500e-9
         width = 100e-9
@@ -16,75 +19,126 @@ class TestBarrierBucketFunctions(unittest.TestCase):
 
         centers = np.linspace(0, 1000e-9, 5000)
 
-        barrier = bbuck.compute_sin_barrier(
-            cent, width, ampl, centers, periodic=False
-        )
+        for inp_cast in ArrayLikeScan():
+            barrier = bbuck.compute_sin_barrier(
+                cent, width, ampl, inp_cast(centers), periodic=False
+            )
 
-        self.assertAlmostEqual(np.max(barrier), 1e3, places=1)
+            self.assertAlmostEqual(float(backend.max(barrier)), 1e3, places=1)
 
-        left_pts = np.where(centers < cent - width / 2)[0]
-        right_pts = np.where(centers > cent + width / 2)[0]
+            left_pts = np.where(centers < cent - width / 2)[0]
+            right_pts = np.where(centers > cent + width / 2)[0]
 
-        self.assertListEqual(
-            list(barrier[left_pts]), list(np.zeros_like(left_pts))
-        )
-        self.assertListEqual(
-            list(barrier[right_pts]), list(np.zeros_like(right_pts))
-        )
+            self.assertListEqual(
+                list(barrier[left_pts]), list(np.zeros_like(left_pts))
+            )
+            self.assertListEqual(
+                list(barrier[right_pts]), list(np.zeros_like(right_pts))
+            )
 
-        self.assertAlmostEqual(
-            np.max(barrier[left_pts[-1] : right_pts[0]]), 1e3, places=1
-        )
-        self.assertAlmostEqual(
-            np.min(barrier[left_pts[-1] : right_pts[0]]), -1e3, places=1
-        )
+            self.assertAlmostEqual(
+                float(backend.max(barrier[left_pts[-1] : right_pts[0]])),
+                1e3,
+                places=1,
+            )
+            self.assertAlmostEqual(
+                float(backend.min(barrier[left_pts[-1] : right_pts[0]])),
+                -1e3,
+                places=1,
+            )
 
-    def test_periodic_barrier(self):
+    @multi_backend_testcase
+    def test_periodic_barrier_right(self):
         cent = 1000e-9
         width = 100e-9
         ampl = 1e3
 
-        centers = np.linspace(0, 1000e-9, 5000)
+        centers = backend.linspace(0, 1000e-9, 20000)
 
         barrier = bbuck.compute_sin_barrier(
             cent, width, ampl, centers, periodic=True
         )
 
-        self.assertAlmostEqual(np.max(barrier), 1e3, places=1)
+        self.assertAlmostEqual(float(backend.max(barrier)), 1e3, places=1)
 
-        left_pts = np.where(centers < centers[0] + width / 2)[0]
-        right_pts = np.where(centers > centers[-1] - width / 2)[0]
+        left_pts = backend.where(centers <= centers[0] + width / 2)[0]
+        right_pts = backend.where(centers >= centers[-1] - width / 2)[0]
 
-        self.assertListEqual(
-            list(barrier[left_pts[-1] : right_pts[0]]),
-            list(barrier[left_pts[-1] : right_pts[0]]),
+        if isinstance(backend, CupyBackend):
+            barrier = barrier.get()
+            left_pts = left_pts.get()
+            right_pts = right_pts.get()
+
+        nptest.assert_array_almost_equal(
+            barrier[: int(left_pts[-1])] / ampl,
+            -barrier[int(right_pts[0]) : -1] / ampl,
+            decimal=2,
         )
 
-        self.assertAlmostEqual(np.max(barrier[left_pts]), 1e3, places=1)
-        self.assertAlmostEqual(np.min(barrier[right_pts]), -1e3, places=1)
+        self.assertAlmostEqual(
+            float(backend.max(barrier[left_pts])), 1e3, places=1
+        )
+        self.assertAlmostEqual(
+            float(backend.min(barrier[right_pts])), -1e3, places=1
+        )
 
+    @multi_backend_testcase
+    def test_periodic_barrier_left(self):
+        cent = 0
+        width = 100e-9
+        ampl = 1e3
+
+        centers = backend.linspace(0, 1000e-9, 20000)
+
+        barrier = bbuck.compute_sin_barrier(
+            cent, width, ampl, centers, periodic=True
+        )
+
+        self.assertAlmostEqual(float(backend.max(barrier)), 1e3, places=1)
+
+        left_pts = backend.where(centers <= centers[0] + width / 2)[0]
+        right_pts = backend.where(centers >= centers[-1] - width / 2)[0]
+
+        if isinstance(backend, CupyBackend):
+            barrier = barrier.get()
+            left_pts = left_pts.get()
+            right_pts = right_pts.get()
+
+        nptest.assert_array_almost_equal(
+            barrier[: int(left_pts[-1])] / ampl,
+            -barrier[int(right_pts[0]) : -1] / ampl,
+            decimal=2,
+        )
+
+        self.assertAlmostEqual(
+            float(backend.max(barrier[left_pts])), 1e3, places=1
+        )
+        self.assertAlmostEqual(
+            float(backend.min(barrier[right_pts])), -1e3, places=1
+        )
+
+    @multi_backend_testcase
     def test_wide_barrier(self):
         cent = 1000e-9
         width = 1100e-9
         ampl = 1e3
 
-        centers = np.linspace(0, 1000e-9, 5000)
+        centers = backend.linspace(0, 1000e-9, 5000)
 
         with self.assertRaises(ValueError):
             bbuck.compute_sin_barrier(cent, width, ampl, centers)
 
+    @multi_backend_testcase
     def test_fourier_series(self):
         cent = 500e-9
         width = 100e-9
         ampl = 1e3
 
-        centers = np.linspace(0, 1000e-9, 5000)
+        centers = backend.linspace(0, 1000e-9, 5000)
 
         barrier = bbuck.compute_sin_barrier(
             cent, width, ampl, centers, periodic=False
         )
-
-        amps, phases = bbuck.waveform_to_harmonics(barrier, np.arange(1, 13))
 
         amps_exp = [
             19.9,
@@ -115,22 +169,28 @@ class TestBarrierBucketFunctions(unittest.TestCase):
             6.28,
         ]
 
-        for a, a_exp, p, p_exp in zip(amps, amps_exp, phases, phases_exp):
-            self.assertAlmostEqual(a, a_exp, places=1)
-            self.assertAlmostEqual(p, p_exp, places=2)
+        for inp_cast in ArrayLikeScan():
+            amps, phases = bbuck.waveform_to_harmonics(
+                inp_cast(barrier), inp_cast(list(range(1, 13)))
+            )
 
+            for a, a_exp, p, p_exp in zip(amps, amps_exp, phases, phases_exp):
+                self.assertAlmostEqual(float(a), a_exp, places=1)
+                self.assertAlmostEqual(float(p), p_exp, places=2)
+
+    @multi_backend_testcase
     def test_sinc_filter(self):
         cent = 500e-9
         width = 100e-9
         ampl = 1e3
 
-        centers = np.linspace(0, 1000e-9, 5000)
+        centers = backend.linspace(0, 1000e-9, 5000)
 
         barrier = bbuck.compute_sin_barrier(
             cent, width, ampl, centers, periodic=False
         )
 
-        amps, _ = bbuck.waveform_to_harmonics(barrier, np.arange(1, 13))
+        amps, _ = bbuck.waveform_to_harmonics(barrier, backend.arange(1, 13))
         amps = bbuck.sinc_filtering(amps, m=1)
 
         amps_exp = [
@@ -148,17 +208,19 @@ class TestBarrierBucketFunctions(unittest.TestCase):
             -18.4,
         ]
 
-        for a, a_exp in zip(amps, amps_exp):
-            self.assertAlmostEqual(a, a_exp, places=1)
+        for inp_cast in ArrayLikeScan():
+            for a, a_exp in zip(inp_cast(amps), amps_exp):
+                self.assertAlmostEqual(float(a), a_exp, places=1)
 
+    @multi_backend_testcase
     def test_waveform_harmonics(self):
         harms = [1, 2, 3, 4, 5, 6, 7]
         set_amps = [4e3, 0, 3e3, 0, 2e3, 0, 1e3]
         set_phases = [0, 0, np.pi, 0, 0, 0, np.pi]
 
         t_rev = 1e-6
-        centers = np.linspace(0, t_rev, 5000)
-        waveform = np.zeros_like(centers)
+        centers = backend.linspace(0, t_rev, 5000)
+        waveform = backend.zeros_like(centers)
 
         for h, a, p in zip(harms, set_amps, set_phases):
             waveform += a * np.sin(2 * np.pi * h * centers / t_rev + p)
@@ -173,32 +235,52 @@ class TestBarrierBucketFunctions(unittest.TestCase):
             if set_amps[i] > 0:
                 # Use sin/cos comparison to avoid issues with 0 != 2pi
                 self.assertAlmostEqual(
-                    np.cos(comp_phases[i]), np.cos(set_phases[i]), places=1
+                    float(backend.cos(comp_phases[i])),
+                    np.cos(set_phases[i]),
+                    places=1,
                 )
                 self.assertAlmostEqual(
-                    np.sin(comp_phases[i]), np.sin(set_phases[i]), places=1
+                    float(backend.sin(comp_phases[i])),
+                    np.sin(set_phases[i]),
+                    places=1,
                 )
 
-        comp_wave = bbuck.harmonics_to_waveform(
-            centers, harms, set_amps, set_phases, t_rev
-        )
+        if isinstance(backend, CupyBackend):
+            waveform = waveform.get()
 
-        nptest.assert_array_almost_equal(waveform, comp_wave, decimal=2)
+        for inp_cast in ArrayLikeScan():
+            comp_wave = bbuck.harmonics_to_waveform(
+                inp_cast(centers), harms, set_amps, set_phases, t_rev
+            )
 
+            if isinstance(backend, CupyBackend):
+                comp_wave = comp_wave.get()
+
+            nptest.assert_array_almost_equal(waveform, comp_wave, decimal=2)
+
+    @multi_backend_testcase
     def test_negative_barrier(self):
         cent = 500e-9
         width = 100e-9
         ampl = 1e3
 
-        centers = np.linspace(0, 1000e-9, 5000)
+        centers = backend.linspace(0, 1000e-9, 5000)
 
         pbarrier = bbuck.compute_sin_barrier(cent, width, ampl, centers)
         nbarrier = bbuck.compute_sin_barrier(cent, width, -ampl, centers)
+
+        if isinstance(backend, CupyBackend):
+            pbarrier = pbarrier.get()
+            nbarrier = nbarrier.get()
 
         nptest.assert_array_equal(pbarrier, -nbarrier)
 
         pamps, pphases = bbuck.waveform_to_harmonics(pbarrier, range(1, 26))
         namps, nphases = bbuck.waveform_to_harmonics(nbarrier, range(1, 26))
+
+        if isinstance(backend, CupyBackend):
+            pamps = pamps.get()
+            namps = namps.get()
 
         nptest.assert_array_equal(pamps, namps)
 
@@ -208,6 +290,10 @@ class TestBarrierBucketFunctions(unittest.TestCase):
         nrecreated = bbuck.harmonics_to_waveform(
             centers, range(1, 26), namps, nphases
         )
+
+        if isinstance(backend, CupyBackend):
+            precreated = precreated.get()
+            nrecreated = nrecreated.get()
 
         nptest.assert_array_almost_equal(precreated, -nrecreated)
 
@@ -343,7 +429,6 @@ class TestBarrierBucketGenerator(unittest.TestCase):
             self.assertEqual(a[0], amps_exp[i])
             self.assertEqual(p[0], phases_exp[i])
 
-
     def test_to_fourier_series_simple_turns_times(self):
         cent = 500e-9
         width = 100e-9
@@ -359,8 +444,8 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         # Test exception
         with self.assertRaises(ValueError):
             harms, amps, phases = generator.to_fourier_series(
-            t_rev, harmonics, times[:-1], turns, m=0
-        )
+                t_rev, harmonics, times[:-1], turns, m=0
+            )
 
         with self.assertRaises(ValueError):
             harms, amps, phases = generator.to_fourier_series(
@@ -397,7 +482,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
             self.assertEqual(a[0], amps_exp[i])
             self.assertEqual(p[0], phases_exp[i])
 
-
+    @multi_backend_testcase
     def test_to_fourier_series_complex(self):
         turns = np.arange(10, dtype=int)
         times = np.linspace(0, 1, len(turns))
