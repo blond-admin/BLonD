@@ -19,13 +19,18 @@ from __future__ import annotations
 
 import os
 import warnings
-from functools import wraps
+from functools import partial, wraps
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond.core.backends import backend
+from blond.generals.cupy import no_cupy_import as no_cupy
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterable
+
+    from numpy.typing import ArrayLike
 
     from blond.core.backends.backend import BackendBaseClass
 
@@ -183,3 +188,49 @@ def skip_if_no_cupy(fn: Callable) -> Callable:
             fn(self)
 
     return func
+
+
+class ArrayLikeScan:
+    """
+    Convenience object to simplify testing different `ArrayLike`s.
+
+    Simplifies the process of iterating over common `ArrayLike` types for
+    testing `ArrayLike` inputs.  When an `iterator` is created from it,
+    the return is a `Generator` that yields casting functions to type
+    cast the input.  By default, it will iterate over list, tuple,
+    np.array and (if cupy is available) cp.array.  If different types
+    are required, they can be given at input when creating the object.
+
+    Parameters
+    ----------
+    array_likes
+        The casting functions to use (e.g. `list`, `tuple`, ...).
+        If None, will be replaced with `[list, tuple, np.array]`,
+        `cp.array` will be appended if cupy is available.
+
+    Examples
+    --------
+    >>> for inp_cast in ArrayLikeScan():
+    ...     np.max(inp_cast([1, 2, 3]))
+    """
+
+    def __init__(self, array_likes: Iterable[type] | None = None):
+        if array_likes is None:
+            array_likes = [list, tuple, np.array]
+            if cupy_available:
+                array_likes.append(cupy.array)
+
+        self.array_likes = array_likes
+
+    def __iter__(self):
+        """A generator to iterate over casting options."""
+        for type_ in self.array_likes:
+            func = partial(self._cast_to, type_)
+
+            yield func
+
+    def _cast_to(self, type_: type, value: ArrayLike) -> ArrayLike:
+        if no_cupy.is_cupy_array(value):
+            value = no_cupy.copy_to_cpu(value)
+
+        return type_(value)

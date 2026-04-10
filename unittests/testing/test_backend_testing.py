@@ -1,6 +1,7 @@
 import os
 import unittest
 
+import numpy as np
 import pytest
 
 import blond.core.backends.backend as backend
@@ -172,3 +173,30 @@ class TestBackendTesting(unittest.TestCase):
             a_test(self)
 
         self.assertTrue(backend.backend.__class__ is test_init_backend)
+
+    def test_array_like_scan(self):
+        types = [list, tuple, np.array]
+        if cupy_available:
+            types.append(cupy.array)
+        scanner = bend_test.ArrayLikeScan(types)
+
+        inp_1 = [1, 2, 3]
+        inp_2 = (1, 2, 3)
+        inp_3 = np.array([1, 2, 3])
+
+        inputs = [inp_1, inp_2, inp_3]
+
+        if cupy_available:
+            inp_4 = cupy.array([1, 2, 3])
+            inputs.append(inp_4)
+
+        for input_array_like in inputs:
+            for i, inp_cast in enumerate(scanner):
+                cast = inp_cast(input_array_like)
+
+                if i < 2:
+                    self.assertIsInstance(cast, types[i])
+                elif i == 2:
+                    self.assertIsInstance(cast, np.ndarray)
+                elif i == 3:
+                    self.assertIsInstance(cast, cupy.ndarray)
