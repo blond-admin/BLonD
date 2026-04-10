@@ -295,7 +295,7 @@ class TestBarrierBucketFunctions(unittest.TestCase):
             precreated = precreated.get()
             nrecreated = nrecreated.get()
 
-        nptest.assert_array_almost_equal(precreated, -nrecreated)
+        nptest.assert_array_almost_equal(precreated, -nrecreated, decimal=3)
 
 
 class TestBarrierBucketGenerator(unittest.TestCase):

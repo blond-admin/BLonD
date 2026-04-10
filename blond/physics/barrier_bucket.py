@@ -220,7 +220,7 @@ class BarrierGenerator(RFManipulationBaseClass):
         circ = self._ring.circumference
 
         t_rev = circ / (beta * cont.c)
-        bins = backend.linspace(0, t_rev, self.n_bins)
+        bins = backend.linspace(0, t_rev, self.n_bins, dtype=backend.float)
 
         waveform = self.waveform_at_turn_or_time(turn, time, bins)
 
@@ -292,7 +292,7 @@ def compute_sin_barrier(
     """
     bin_centers = backend._asarray_if_needed(bin_centers)
 
-    barrier_waveform = backend.zeros_like(bin_centers)
+    barrier_waveform = backend.zeros_like(bin_centers, dtype=backend.float)
 
     t_step = bin_centers[1] - bin_centers[0]
     n_bins = int(width / t_step)
@@ -407,7 +407,8 @@ def waveform_to_harmonics(
 
     if harmonics is not None:
         harm_series = backend.array(
-            [harm_series[h] for h in backend._asarray_if_needed(harmonics)]
+            [harm_series[h] for h in backend._asarray_if_needed(harmonics)],
+            dtype=backend.complex,
         )
 
     harm_amps = backend.abs(harm_series) / (len(waveform) / 2)
@@ -445,7 +446,9 @@ def sinc_filtering(
     filtered_amplitudes
         The modified harmonic amplitudes.
     """
-    filtered_amplitudes = backend.zeros_like(harmonic_amplitudes)
+    filtered_amplitudes = backend.zeros_like(
+        harmonic_amplitudes, dtype=backend.float
+    )
     n_harm = len(harmonic_amplitudes)
 
     for i, a in enumerate(harmonic_amplitudes):
