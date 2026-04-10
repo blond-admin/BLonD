@@ -101,6 +101,40 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         super().on_init_simulation(simulation=simulation)
 
         self._turn_i = simulation.turn_i
+        self._magnetic_cycle = simulation.magnetic_cycle
+        self._ring = simulation.ring
+
+    def track_reference(
+        self,
+        reference: ReferenceCoordinates,
+        is_counter_rotating: bool = False,
+    ) -> float:
+        """
+        Update the coordinates of the reference coordinate system.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+        is_counter_rotating
+            Whether the beam is counter rotating or not.
+
+        Returns
+        -------
+        reference_energy_change
+            Change of reference energy [eV].
+        """
+        target_total_energy = self._magnetic_cycle.get_target_total_energy(
+            turn_i=self._turn_i.value,
+            section_i=self.section_index
+            if not is_counter_rotating
+            else len(self._ring.section_lengths) - self.section_index - 1,
+            reference_time=reference.time,
+            particle_type=reference.particle_type,
+        )
+        reference_energy_change = target_total_energy - reference.total_energy
+        reference.total_energy = target_total_energy
+        return reference_energy_change
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -294,8 +328,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
-        self._magnetic_cycle = simulation.magnetic_cycle
-        self._ring = simulation.ring
 
         if (self.voltage is None) and "voltage" not in self.schedules:
             raise ValueError(
@@ -755,38 +787,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         )
 
         self._dphi_rf_next += phi_increment
-
-    def track_reference(
-        self,
-        reference: ReferenceCoordinates,
-        is_counter_rotating: bool = False,
-    ) -> float:
-        """
-        Update the coordinates of the reference coordinate system.
-
-        Parameters
-        ----------
-        reference
-            The object that holds the reference time [s] and total energy [eV].
-        is_counter_rotating
-            Whether the beam is counter rotating or not.
-
-        Returns
-        -------
-        reference_energy_change
-            Change of reference energy [eV].
-        """
-        target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
-            section_i=self.section_index
-            if not is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
-            reference_time=reference.time,
-            particle_type=reference.particle_type,
-        )
-        reference_energy_change = target_total_energy - reference.total_energy
-        reference.total_energy = target_total_energy
-        return reference_energy_change
 
     def calc_omega_rf_design(
         self,
