@@ -35,7 +35,7 @@ ASSIGNED_CATEGORIES = {
     "MultiHarmonicRFStation": Categories.LATTICE.value,
     "ReferenceEnergyChange": Categories.LATTICE.value,
     "SingleHarmonicRFStation": Categories.LATTICE.value,
-    "BarrierGenerator": Categories.LATTICE.value,
+    "BarrierRF": Categories.LATTICE.value,
     "UserDefinedElement": Categories.LATTICE.value,
     "WakeField": Categories.LATTICE.value,
     "StaticProfile": Categories.LATTICE.value,

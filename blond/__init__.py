@@ -37,7 +37,7 @@ __all__ = [
     "BeamObservationInRingElement",
     "MultiHarmonicRFStation",
     "SingleHarmonicRFStation",
-    "BarrierGenerator",
+    "BarrierRF",
     "DriftSimple",
     "ReferenceEnergyChange",
     "WakeField",
@@ -96,7 +96,7 @@ from blond.handle_results.observables import (
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
 )
-from blond.physics.barrier_bucket import BarrierGenerator
+from blond.physics.barrier_bucket import BarrierRF
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,

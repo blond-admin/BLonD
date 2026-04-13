@@ -27,7 +27,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
 
 
-class BarrierGenerator(RFManipulationBaseClass):
+class BarrierRF(RFManipulationBaseClass):
     """
     Define waveforms for a barrier bucket RF system.
 

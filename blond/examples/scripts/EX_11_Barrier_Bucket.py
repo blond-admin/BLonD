@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import (
-    BarrierGenerator,
+    BarrierRF,
     Beam,
     ConstantMagneticCycle,
     DriftSimple,
@@ -75,9 +75,7 @@ def main(
         value=main_rf_schedule,
     )
 
-    barrier_rf = BarrierGenerator(
-        t_center=t_rev, t_width=barrier_width, n_bins=256
-    )
+    barrier_rf = BarrierRF(t_center=t_rev, t_width=barrier_width, n_bins=256)
     barrier_voltage = np.zeros(target_n_turns)
     barrier_voltage[500:] = barrier_amplitude
     barrier_schedule = ScheduledArray(barrier_voltage)
