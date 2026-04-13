@@ -51,6 +51,8 @@ class BeamObservationInRingElement(
         data is kept in memory. Defaults to ``None``.
     name : str or None, optional
         Optional name for this observation element. Defaults to ``None``.
+    beam : BeamBaseClass or None, optional
+        Beam to be observed by this element.
     """
 
     def __init__(
@@ -58,12 +60,15 @@ class BeamObservationInRingElement(
         each_turn_i: int = 1,
         section_index: int = 0,
         n_turns: int = 1,
-        folder: str | None = None,
+        folder: str = "",
         name: str | None = None,
+        beam: BeamBaseClass | None = None,
     ) -> None:
         super().__init__(section_index=section_index, name=name, folder=folder)
         self.each_turn_i = each_turn_i
         self.n_turns = n_turns
+
+        self._beam_id_filter = None if beam is None else id(beam)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -103,7 +108,15 @@ class BeamObservationInRingElement(
         **kwargs
             Additional keyword arguments.
         """
-        n_entries = n_turns // self.each_turn_i + 2
+        sim_els_else = simulation.ring.elements.get_elements(
+            BeamObservationInRingElement
+        )
+        num_elements_of_myself_in_pipeline = sum(
+            [1 if el == self else 0 for el in sim_els_else]
+        )
+        n_entries = (
+            n_turns * num_elements_of_myself_in_pipeline
+        ) // self.each_turn_i + 2
 
         self._dEs = DenseArrayRecorder(
             self.common_filepath + "_dEs", (n_entries, beam.common_array_size)
@@ -131,11 +144,14 @@ class BeamObservationInRingElement(
         beam
             Beam class to interact with this element.
         """
-        self._dEs.write(beam.read_partial_dE())
-        self._dts.write(beam.read_partial_dt())
-        self._reference_time.write(beam.reference.time)
-        self._reference_total_energy.write(beam.reference.total_energy)
-        self._flags.write(beam.read_partial_flags())
+        if isinstance(beam, ProbeBeam):
+            return
+        if self._beam_id_filter is None or self._beam_id_filter == id(beam):
+            self._dEs.write(beam.read_partial_dE())
+            self._dts.write(beam.read_partial_dt())
+            self._reference_time.write(beam.reference.time)
+            self._reference_total_energy.write(beam.reference.total_energy)
+            self._flags.write(beam.read_partial_flags())
 
     @property  # as readonly attributes
     def reference_time(self):
@@ -411,6 +427,9 @@ class InducedVoltageObservationCR(
         callable each n-th turn.
     wake_field
         Cavity object, which holds the wakefield to report the induced voltage of.
+    section_index : int, optional
+        Index of the pipeline section where this observation element is placed.
+        Defaults to 0.
     folder
         Path to the target folder used for
         saving or loading files.
