@@ -999,9 +999,9 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_histogram_race_conditions(self) -> None:
-        backend.random.seed(np.uint(42))
+        np.random.seed(np.uint(42))
         array_read = (
-            backend.random.random_sample(size=1024) - 0.5
+            np.random.random_sample(size=1024) - 0.5
         ) * 20  # common sample data from -10 to 10
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -1021,7 +1021,6 @@ class TestSpecials(unittest.TestCase):
                     stop=float(8.0),
                 )
                 result = array_write
-                print(result.tolist())
 
                 if special == "cuda":
                     result = result.get()
