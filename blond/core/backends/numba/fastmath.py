@@ -123,7 +123,7 @@ def fast_sin(x: float) -> float:  # pragma: no cover
 
     r2 = r * r
 
-    q = k & 3  # k mod 4 (works for negative k via two's-complement)
+    q = k & 3
 
     if q == 0:
         return r + r * r2 * (
