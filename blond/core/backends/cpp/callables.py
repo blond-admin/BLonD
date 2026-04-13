@@ -61,7 +61,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
         Float type to compile the backend for.
         32 or 64 bit.
     parallel
-        If true, loads the parallel OMP computing backend.
+        If True, loads the parallel OMP computing backend.
 
     Returns
     -------
