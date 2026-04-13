@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import pytest
 
+from blond import Cupy64Bit, Numpy64Bit, backend
 from blond.core.backends.mpi_distributed.callables import (
     rms_emittance,
 )
@@ -57,6 +58,7 @@ class TestCallables(unittest.TestCase):
             import cupy as cp
         except ModuleNotFoundError as exc:
             self.skipTest(str(exc))
+        backend.change_backend(Cupy64Bit)
 
         cp.random.seed(0)
         dt = DistributedArray(cp.random.normal(loc=0, scale=1, size=512))
@@ -74,3 +76,4 @@ class TestCallables(unittest.TestCase):
         self.assertLess(dt.local_size, 512)
         rms = rms_emittance(dt=dt, dE=dE)
         self.assertAlmostEqual(rms_expected, rms)
+        backend.change_backend(Numpy64Bit)

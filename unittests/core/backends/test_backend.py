@@ -4,6 +4,7 @@ import warnings
 import numpy as np
 import pytest
 
+from blond import copy_to_cpu
 from blond.core.backends.backend import (
     Cupy32Bit,
     Cupy64Bit,
@@ -1188,7 +1189,9 @@ class TestSpecials(unittest.TestCase):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 np.testing.assert_allclose(
-                    backend.specials.sum_1d_array(x),
+                    copy_to_cpu(
+                        backend.specials.sum_1d_array(backend.array(x))
+                    ),
                     reference_sum,
                     rtol=self.rtol,
                     err_msg=f"{special=} {dtype=}",
@@ -1206,14 +1209,19 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                backend_result = backend.specials.dot_product_1d_array(x, y)
+                backend_result = backend.specials.dot_product_1d_array(
+                    backend.array(x),
+                    backend.array(y),
+                )
+                backend_result = copy_to_cpu(backend_result)
+
                 np.testing.assert_allclose(
                     backend_result,
                     reference_dot,
                     rtol=self.rtol,
                     err_msg=f"{special=} {dtype=}",
                 )
-                self.assertTrue(type(backend_result) == dtype)
+                self.assertTrue(backend_result.dtype == dtype)
 
     @multi_backend_testcase
     def test_cast_exceptions(self):

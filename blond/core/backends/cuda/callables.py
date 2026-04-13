@@ -268,7 +268,7 @@ def reload_cuda_backend(  # NOQA: D102
             )
 
             """Return the sum of dot product of two 1d arrays."""
-            return cp.sum(array_1, array_2)
+            return cp.dot(array_1, array_2)
 
         @staticmethod
         def drift_simple(
