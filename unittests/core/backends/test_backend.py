@@ -1017,8 +1017,8 @@ class TestSpecials(unittest.TestCase):
                         array_read, dtype=backend.float
                     ),  # casting to correct data type
                     array_write=array_write,
-                    start=float(-12),
-                    stop=float(8.0),
+                    start=backend.float(-12),
+                    stop=backend.float(8.0),
                 )
                 result = array_write
 
