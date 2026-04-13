@@ -8,19 +8,26 @@
 
 """Gives a kick to the beam to update its reference energy."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter
+from blond.core.base import (
+    AltersReference,
+    BeamPhysicsRelevant,
+    DynamicParameter,
+)
 from blond.core.beam.base import BeamBaseClass
 from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond import Ring
+    from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
 
-class ReferenceEnergyChange(BeamPhysicsRelevant):
+class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
     """
     Update beam's `reference.total_energy` and `dE` array, but constant in absolute terms.
 
@@ -108,6 +115,38 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
         """
         pass
 
+    def track_reference(
+        self, reference: ReferenceCoordinates, **kwargs
+    ) -> float:
+        """
+        Update the coordinates of the reference coordinate system.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+        **kwargs
+            Allows more arguments in the method definition outside the
+            abstract class.
+
+        Returns
+        -------
+        change
+            Change of reference time or energy.
+        """
+        target_total_energy = self._magnetic_cycle.get_target_total_energy(
+            turn_i=self._turn_i.value,
+            section_i=self.section_index,
+            reference_time=reference.time,
+            particle_type=reference.particle_type,
+        )
+
+        reference_energy_change = backend.float(
+            target_total_energy - reference.total_energy
+        )
+        reference.total_energy = target_total_energy
+        return reference_energy_change
+
     def _track(self, beam: BeamBaseClass):
         """
         Update reference energy of the beam.
@@ -119,16 +158,8 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
         """
         super()._track(beam=beam)
 
-        target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
-            section_i=self.section_index,
-            reference_time=beam.reference.time,
-            particle_type=beam.particle_type,
-        )
-
-        reference_energy_change = backend.float(
-            target_total_energy - beam.reference.total_energy
+        reference_energy_change = self.track_reference(
+            reference=beam.reference,
         )
         dE = beam.write_partial_dE()
         dE -= reference_energy_change
-        beam.reference.total_energy += reference_energy_change

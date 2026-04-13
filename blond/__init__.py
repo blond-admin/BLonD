@@ -54,6 +54,7 @@ __all__ = [
     "make_multibunch_beam",
     "momentum_compaction_factor",
     "copy_to_cpu",
+    "EquidistantMultiProfile",
 ]
 from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
@@ -116,3 +117,4 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+from blond.physics.profiles_sparse import EquidistantMultiProfile

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from cupy.typing import NDArray as CupyArray
-    from numpy._typing import NDArray as NumpyArray
+    from numpy.typing import NDArray as NumpyArray
 
 
 class BeamBaseClassTester(BeamBaseClass):
