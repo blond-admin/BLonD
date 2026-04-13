@@ -23,8 +23,11 @@ Simon Lauber
 from __future__ import annotations
 
 import warnings
+from collections import deque
+from copy import copy
 from typing import TYPE_CHECKING
 
+import numba
 import numpy as np
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
@@ -50,6 +53,8 @@ from blond.physics.profiles import (
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
+
+    from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
@@ -1207,3 +1212,120 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
             induced_voltage += self._previous_wakes[i][sel_current_profile(i)]
 
         return induced_voltage
+
+
+class MultiPoleSparseSolve(WakeFieldSolver):
+    """
+    Solver that uses an `VectorFittedModel` calculate the induced voltage.
+
+    See Also
+    --------
+    SupportsVectorFittedModel: Wakefield sources can support vector fitting.
+    VectorFittedModel: Basic interface to support vector fitting.
+    """
+
+    def __init__(
+        self,
+    ) -> None:
+        self._poles = None
+        self._residues = None
+        self._profile: EquidistantMultiProfile | None = None
+        self._parent_wakefield = None
+        self._voltage = None
+        self.last_reference_time = None
+
+    def on_wakefield_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
+        """
+        Lateinit method when WakeField is late-initialized.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        parent_wakefield
+            `WakeField` that this solver affiliated to.
+        """
+        self._parent_wakefield = parent_wakefield
+
+        self._profile: EquidistantMultiProfile = parent_wakefield.profile  # type: ignore
+
+    def _finalize_solver(self, beam):
+        poles = []
+        residues = []
+        for source in self._parent_wakefield.sources:
+            # source: TimeDomain  # type hint what the we expect # TODO
+            poles_, residues_ = source.get_vectorfit()
+            try:
+                poles.extend(poles_)
+                residues.extend(residues_)
+            except TypeError:  # if single value instead of iterable
+                poles.append(poles_)
+                residues.append(residues_)
+
+        self._poles = np.array(poles, dtype=complex)
+        self._residues = np.array(residues, dtype=complex)
+
+        self._voltage = backend.zeros(
+            len(self._parent_wakefield.profile._continuous_memory_hist_x),
+            dtype=backend.float,
+        )
+        self._states = np.zeros(len(self._poles) + 1, complex)
+        hist_x = self._profile._continuous_memory_hist_x
+        bin_dt = float(hist_x[1] - hist_x[0])
+        # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
+        # on the first call (C++ now uses edge-based rather than centre-based
+        # state semantics; see poles.cpp for details).
+        self._states[-1] = hist_x[0] - bin_dt / 2.0
+
+        self._voltage_threaded = np.zeros(
+            ((numba.get_num_threads()), len(self._voltage))
+        )
+        self._update_on_bin = np.unique(
+            self._profile._bucket_index_to_memory_index
+        )
+        self.factor = -(1 * beam.particle_type.charge * e) * (
+            beam.intensity * 1.0 / beam.common_array_size
+        )
+
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
+        """
+        Calculate the induced voltage in this turn based on the last profiles.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam.
+
+        Returns
+        -------
+        induced_voltage
+            The induced voltage, in [V].
+        """
+        if self._poles is None:
+            self._finalize_solver(beam=beam)
+            assert self._update_on_bin[0] == 0, "First bib must always update"
+        else:
+            passed_time = beam.reference.time - self.last_reference_time
+            self._states[-1] -= complex(passed_time)
+            assert (
+                self._states[-1].real
+                <= self._profile._continuous_memory_hist_x[0]
+            )
+
+        backend.specials.apply_poles2(
+            profile=self._profile._continuous_memory_hist_y,
+            profile_dts=self._profile._continuous_memory_hist_x,
+            poles=self._poles,
+            residues=self._residues,
+            states=self._states,
+            voltage=self._voltage,
+            voltage_threaded=self._voltage_threaded,
+            update_on_bin=self._update_on_bin,
+            factor=self.factor,
+        )
+        self.last_reference_time = copy(beam.reference.time)
+        return self._voltage

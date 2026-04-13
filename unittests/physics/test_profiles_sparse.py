@@ -5,11 +5,10 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond import EmptyBeam, uranium_29
+from blond import Beam, EmptyBeam, backend, uranium_29
 from blond.core.beam.beams import ProbeBeam
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.profiles_sparse import EquidistantMultiProfile
-from unittests.physics.impedances.comparisons.mtw import harmonic
 
 
 class TestEquidistantMultiProfile(unittest.TestCase):
@@ -34,6 +33,9 @@ class TestEquidistantMultiProfile(unittest.TestCase):
             dt=dt,
             particle_type=uranium_29,
         )
+
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
 
     def test_init_from_padded_filling_pattern(self):
         sparse_profile = (

@@ -29,6 +29,7 @@ from os import PathLike
 from typing import TYPE_CHECKING
 
 import numpy as np
+import skrf as rf
 
 from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
@@ -46,6 +47,67 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+
+
+def fit_poles(
+    freqs: np.ndarray,
+    Z: np.ndarray,
+    n_pole: int,
+    max_iterations: int | None = None,
+    plot_resul: bool = False,
+):
+    """
+    Use vector fitting to get a `VectorFittedModel`.
+
+    Parameters
+    ----------
+    freqs
+        Frequency array to be fitted, in [Hz].
+    Z
+        Impedance array to be fitted, in [Ω].
+    n_pole
+        Number of poles to fit.
+    max_iterations
+        Maximum number of iterations.
+    plot_resul
+        Whether to plot the result (needs ``plt.show()``.
+
+    Returns
+    -------
+    poles
+        Complex poles of an equivalent circuit.
+    residues
+        Complex residues of an equivalent circuit.
+    rms_error
+        Root mean square error of the fit.
+    proportional_coeff
+        Proportional coefficient.
+    constant_coeff
+        Constant coefficient.
+    """
+    freq = rf.Frequency.from_f(freqs, unit="Hz")
+    ntwk = rf.Network(frequency=freq, s=Z.reshape(-1, 1, 1))
+
+    vf = rf.VectorFitting(ntwk)
+    if max_iterations is not None:
+        vf.max_iterations = max_iterations
+    vf.vector_fit(
+        n_poles_real=0,
+        n_poles_cmplx=n_pole,
+        fit_constant=True,
+        fit_proportional=True,
+    )
+
+    poles = vf.poles
+    residues = vf.residues
+    if plot_resul:
+        from matplotlib import pyplot as plt
+
+        vf.plot_s_db()  # overlay fit vs original
+        plt.show()
+    rms_error = vf.get_rms_error()
+
+    return poles, residues, rms_error, vf.proportional_coeff, vf.constant_coeff
 
 
 def get_hash(array1d: NumpyArray | CupyArray) -> int:
@@ -707,6 +769,42 @@ class Resonators(
         self._cache_impedance_hash = hash_
         self._cache_impedance = impedance
         return impedance
+
+    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray]:
+        """
+        Derive the poles and residues as in vector-fitting.
+
+        Returns
+        -------
+        poles
+            The complex poles.
+        residues
+            The complex residues.
+        """
+        warnings.warn(
+            "`get_vectorfit` untested and probably wrong!",
+            UserWarning,
+            stacklevel=1,
+        )
+        Q = self._quality_factors
+        omega = self._omega
+        R_s = self._shunt_impedances
+
+        # Impedances and Wakes in High Energy Particle Accelerators
+        #  Bruno W Zotter and Semyon Kheifets
+        # https://www.worldscientific.com/doi/epdf/10.1142/3068
+        # Page 84 visible (Page 104 with PDF tool)
+        Qbar = Q * np.sqrt(1 - 1 / 4 / Q**2)
+        omega1 = omega / Q * (1j / 2 + Qbar)
+        # omega2 = omega / Q * (1j / 2 - Qbar)
+        residues = R_s * omega1 / (2 * Qbar)
+        # fix to match `VectorFitting`
+        # probalby +- or complex-number problem in equations above
+        poles = 1j * np.real(omega1) - np.imag(omega1)
+        # proportional_coeff = 0
+        # constant_coeff = 0
+
+        return poles, residues
 
 
 class ImpedanceTable(WakeFieldSource):

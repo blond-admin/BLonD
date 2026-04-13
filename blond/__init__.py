@@ -49,6 +49,7 @@ __all__ = [
     "BoxLosses",
     "DynamicProfileConstNBins",
     "StaticProfile",
+    "make_multibunch_beam",
     "DriftObservation",
     "SimulationObservation",
     "make_multibunch_beam",
