@@ -94,7 +94,7 @@ class MainloopCounterRotatingBeams(ExecutionModel):
             False,
             True,
         ), (
-            "First beam must be co-rotating, second beam must be counter-rotating"
+            "First beam must be co-rotating, second beam must be counter-rotating."
         )
         warnings.warn("Untested code", NotTestedWarning, stacklevel=2)
 
