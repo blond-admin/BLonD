@@ -12,15 +12,6 @@ from __future__ import annotations
 
 from typing import Literal
 
-from blond import Cupy64Bit, Numpy64Bit, backend
-
-_options = {  # Intentionally disregard 32 bit backends, as they might be removed in future
-    "python": (Numpy64Bit, "python"),
-    "cpp": (Numpy64Bit, "cpp"),
-    "numba": (Numpy64Bit, "numba"),
-    "cuda": (Cupy64Bit, "cuda"),
-}
-
 
 def setup_backend(
     mode: Literal[
@@ -45,9 +36,19 @@ def setup_backend(
     This should be called at the start of the user input script,
     as it will define the state of all internal arrays.
     """
+    from blond import backend
+
     if mode == "auto":
         backend.autoselect_backend()
+    elif mode == "cuda":
+        from blond import Cupy64Bit
+
+        backend.change_backend(Cupy64Bit)
+        backend.set_specials(mode)
+    elif mode in ("python", "cpp", "numba"):
+        from blond import Numpy64Bit
+
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials(mode)
     else:
-        backend_, mode_ = _options[mode]
-        backend.change_backend(backend_)
-        backend.set_specials(mode_)
+        raise ValueError(mode)
