@@ -318,6 +318,16 @@ def skip_specific_functions(app, what, name, obj, skip, options):
     """
     if name == "_abc_impl":
         return True
+    # Skip private members (single leading underscore, not dunder).
+    if name.startswith("_") and not name.startswith("__"):
+        return True
+    # Skip built-in str methods inherited by str+Enum classes.
+    # sphinx_autodoc_typehints cannot parse their C-level signatures.
+    # Covers both slot wrappers (__objclass__ is str) and staticmethods like maketrans.
+    if getattr(obj, "__objclass__", None) is str:
+        return True
+    if name in vars(str) and getattr(str, name, None) is obj:
+        return True
     return skip
 
 

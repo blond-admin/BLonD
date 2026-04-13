@@ -100,7 +100,7 @@ along its direction of motion, which recoil induces small perturbation of
 the betatron and synchrotron motion. This effect damps the beam
 amplitudes, with typical damping times.
 The radiation loss around the synchronous particle can be derived as :math: 'U
- = U_0 + \frac{dU}{dE}_{E = E_0)} \cdot
+= U_0 + \frac{dU}{dE}_{E = E_0)} \cdot
 \Delta E', where :math: 'E_0' and 'U_0' are the energy and energy lost of the
 synchronous particle.
 A particle with an energy 'E_0 + \Delta E' circulates on a different orbit
