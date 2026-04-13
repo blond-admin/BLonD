@@ -367,10 +367,10 @@ class TestEnergyCycleByTime(unittest.TestCase):
         )
         self.assertEqual(cycle._n_turns_max, 13)
 
-    def test_n_turns_prediction_2(self):
+    def _make_two_section_setup(self):
         ring = Ring(
             circumference=2 * c0, check_section_indices=False
-        )  # so one turn takes ca. 1s.
+        )  # so one turn takes ca. 2s.
         ring.add_elements(
             (
                 DriftSimple(
@@ -396,6 +396,10 @@ class TestEnergyCycleByTime(unittest.TestCase):
             base_time=np.linspace(0, 11.5, 24),
             base_values=np.linspace(1e12, 1e12, 24),
         )
+        return ring, cycle
+
+    def test_n_turns_prediction_2(self):
+        ring, cycle = self._make_two_section_setup()
         sim = Simulation.from_locals(locals())  # so on_init executes
         sim.run_simulation(
             beams=(
@@ -405,7 +409,21 @@ class TestEnergyCycleByTime(unittest.TestCase):
             ),
             n_turns=cycle._n_turns_max,
         )
-        self.assertEqual(cycle._n_turns_max, 6)
+        n_turns_explicit = cycle._n_turns_max
+
+        ring, cycle = self._make_two_section_setup()
+        sim = Simulation.from_locals(locals())  # so on_init executes
+        sim.run_simulation(
+            beams=(
+                ProbeBeam(
+                    particle_type=cycle.reference_particle, dt=np.ones(5)
+                )
+            ),
+        )
+        n_turns_auto = sim.turn_i.value
+
+        self.assertEqual(n_turns_explicit, 6)
+        self.assertEqual(n_turns_explicit, n_turns_auto)
 
 
 class TestBaseFunctions(unittest.TestCase):
