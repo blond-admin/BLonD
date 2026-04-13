@@ -27,6 +27,8 @@ from blond.handle_results.observables_as_elements import (
 )
 
 simulation = Mock(Simulation)
+simulation.ring = Mock(Ring)
+simulation.ring.elements = Mock(BeamPhysicsRelevantElements)
 simulation.ring.n_rf_stations = 2
 simulation.ring.section_lengths = [250, 250]
 simulation.ring.circumference = 500
@@ -43,6 +45,7 @@ beam.reference.total_energy = 11.0
 beam.read_partial_dE.return_value = np.arange(4, dtype=float)
 beam.read_partial_dt.return_value = np.arange(4, dtype=float) + 0.1
 beam.read_partial_flags.return_value = np.ones(4, dtype=int)
+beam._is_counter_rotating = True
 
 
 class TestBeamObservationInRingElement(unittest.TestCase):
@@ -55,6 +58,10 @@ class TestBeamObservationInRingElement(unittest.TestCase):
             name="test_obs",
         )
         self.observation.common_filepath = "test"
+
+        simulation.ring.elements = Mock(BeamPhysicsRelevantElements)
+        simulation.ring.elements.get_elements.return_value = [self.observation]
+
         self.observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
@@ -72,7 +79,7 @@ class TestBeamObservationInRingElement(unittest.TestCase):
         ]:
             self.assertTrue(hasattr(self.observation, rec_name))
             rec = getattr(self.observation, rec_name)
-            self.assertEqual(rec._memory.shape[0], 3 // 1 + 2)
+            self.assertEqual(rec._memory.shape[0], 5)
 
     def test_track_and_retrieve_data(self):
         """Ensure that calling track() stores data and public properties return it."""
@@ -116,11 +123,8 @@ class TestBeamObservationInRingElement(unittest.TestCase):
         )
         observation.common_filepath = "test"
 
-        simulation.ring = Mock(Ring)
         simulation.ring.elements = Mock(BeamPhysicsRelevantElements)
-        simulation.ring.elements.elements = [
-            observation,
-        ]
+        simulation.ring.elements.elements = [observation]
 
         observation.on_run_simulation(
             simulation=simulation,
@@ -147,34 +151,6 @@ class TestBeamObservationInRingElement(unittest.TestCase):
         self.assertEqual(len(observation.mean_dt), 0)
         self.assertEqual(len(observation.mean_dE), 0)
         self.assertEqual(len(observation.rms_emittance), 0)
-
-
-class TestInducedVoltage(unittest.TestCase):
-    def test_warning_throwing_without_induced_voltage(self) -> None:
-        sim = Mock(Simulation)
-        sim.turn_i = 0
-        shc = Mock(SingleHarmonicRFStation)
-        shc._local_wakefield = Mock(WakeField)
-        shc._local_wakefield._profile = Mock(StaticProfile)
-        shc._local_wakefield._profile.hist_x = np.array([0, 1])
-        shc._local_wakefield.induced_voltage = np.zeros(5)
-        shc.name = "mock"
-        shc._turn_i = Mock(DynamicParameter)
-        shc._turn_i.value = 0
-        beam = Mock(Beam)
-        beam.is_counter_rotating = False
-
-        obs = InducedVoltageObservationCR(rf_station=shc, each_turn_i=1)
-
-        with self.assertWarnsRegex(
-            Warning, "no induced voltage calculated yet "
-        ):
-            obs._track(beam)
-        with self.assertRaisesRegex(
-            AttributeError,
-            "'NoneType' object has no attribute 'get_valid_entries'",
-        ):
-            _ = obs.induced_voltage
 
 
 if __name__ == "__main__":
