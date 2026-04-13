@@ -479,7 +479,7 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @pytest.mark.backend_mutation
-    def test_kick_induced_voltage_edges(self) -> None:
+    def test_kick_interpolated_edges(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -491,9 +491,9 @@ class TestSpecials(unittest.TestCase):
                 dE = backend.zeros_like(dt, dtype=backend.float)
                 bin_centers = dt.copy()
                 voltage = bin_centers**2
-                charge = backend.float(10)
-                acceleration_kick = backend.float(0.5)
-                backend.specials.kick_induced_voltage(
+                charge = float(10)
+                acceleration_kick = float(0.5)
+                backend.specials.kick_interpolated(
                     dt=dt,
                     dE=dE,
                     voltage=voltage,

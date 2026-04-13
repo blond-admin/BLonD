@@ -135,11 +135,19 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
 
         try:
             # Update existing entry
-            self._buffer_voltage[key] += voltage
+            self._buffer_voltage[key] += backend.array(
+                voltage, dtype=backend.float
+            )
         except KeyError:
             # Insert new entry
-            self._buffer_voltage[key] = voltage.copy()
-            self._buffer_time_axis[key] = time_axis.copy()
+            self._buffer_voltage[key] = backend.array(
+                voltage.copy(),
+                dtype=backend.float,
+            )
+            self._buffer_time_axis[key] = backend.array(
+                time_axis.copy(),
+                dtype=backend.float,
+            )
 
             # Enforce maxsize
             if len(self._buffer_voltage) > self._maxsize:
