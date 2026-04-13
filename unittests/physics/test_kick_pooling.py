@@ -29,7 +29,7 @@ class TestPooledInterpolationKick(unittest.TestCase):
     def test_register(self):
         for i in range(self.pooled_kick._maxsize + 1):  # intentional overflow
             self.pooled_kick.register(
-                time_axis=np.ones(1) * i,
+                time_axis=np.ones(1) * i + 1,
                 voltage=np.ones(1),
             )
         vals = [v[0] for v in self.pooled_kick._buffer_time_axis.values()]
