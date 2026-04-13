@@ -7,6 +7,7 @@ import numpy.testing as nptest
 # BLonD imports
 import blond.physics.barrier_bucket as bbuck
 from blond.core.backends.backend import CupyBackend, backend
+from blond.generals.exceptions_ import ArrayShapeError
 from blond.testing.backend_testing import ArrayLikeScan, multi_backend_testcase
 
 
@@ -18,6 +19,11 @@ class TestBarrierBucketFunctions(unittest.TestCase):
         ampl = 1e3
 
         centers = np.linspace(0, 1000e-9, 5000)
+
+        with self.assertRaises(ArrayShapeError):
+            bbuck.compute_sin_barrier(
+                cent, width, ampl, [centers], periodic=False
+            )
 
         for inp_cast in ArrayLikeScan():
             barrier = bbuck.compute_sin_barrier(
@@ -191,7 +197,7 @@ class TestBarrierBucketFunctions(unittest.TestCase):
         )
 
         amps, _ = bbuck.waveform_to_harmonics(barrier, backend.arange(1, 13))
-        amps = bbuck.sinc_filtering(amps, m=1)
+        amps = bbuck.sinc_filtering(amps, filter_order=1)
 
         amps_exp = [
             19.4,
@@ -305,7 +311,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         width = 100e-9
         ampl = 1e3
 
-        generator = bbuck.BarrierGenerator(cent, width, ampl)
+        generator = bbuck.BarrierRF(cent, width, ampl)
         bin_cents = np.linspace(0, 1000e-9, 1000)
 
         for inp_cast in ArrayLikeScan():
@@ -334,7 +340,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         t_cent = (np.array([0, 1]), np.array([200e-9, 800e-9]))
         t_width = (np.array([0, 1]), np.array([100e-9, 150e-9]))
 
-        generator = bbuck.BarrierGenerator()
+        generator = bbuck.BarrierRF()
         generator.schedule("t_center", t_cent)
         generator.schedule("t_width", t_width)
         generator.schedule("peak", peak)
@@ -364,7 +370,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         width = 100e-9
         ampl = 1e3
 
-        generator = bbuck.BarrierGenerator(cent, width, ampl)
+        generator = bbuck.BarrierRF(cent, width, ampl)
 
         times = np.linspace(0, 1, 10)
         t_rev = np.zeros_like(times) + 1000e-9
@@ -372,7 +378,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
 
         # Unfiltered
         harms, amps, phases = generator.to_fourier_series(
-            t_rev, harmonics, None, times, m=0
+            t_rev, harmonics, None, times, filter_order=0
         )
 
         self.assertEqual(len(harms), len(amps))
@@ -405,7 +411,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         width = 100e-9
         ampl = 1e3
 
-        generator = bbuck.BarrierGenerator(cent, width, ampl)
+        generator = bbuck.BarrierRF(cent, width, ampl)
 
         turns = np.arange(10)
         t_rev = np.zeros_like(turns) + 1000e-9
@@ -413,7 +419,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
 
         # Unfiltered
         harms, amps, phases = generator.to_fourier_series(
-            t_rev, harmonics, turns, None, m=0
+            t_rev, harmonics, turns, None, filter_order=0
         )
 
         self.assertEqual(len(harms), len(amps))
@@ -446,7 +452,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         width = 100e-9
         ampl = 1e3
 
-        generator = bbuck.BarrierGenerator(cent, width, ampl)
+        generator = bbuck.BarrierRF(cent, width, ampl)
 
         turns = np.arange(10)
         times = np.linspace(0, 1, 10)
@@ -456,17 +462,17 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         # Test exception
         with self.assertRaises(ValueError):
             harms, amps, phases = generator.to_fourier_series(
-                t_rev, harmonics, times[:-1], turns, m=0
+                t_rev, harmonics, times[:-1], turns, filter_order=0
             )
 
         with self.assertRaises(ValueError):
             harms, amps, phases = generator.to_fourier_series(
-                t_rev, harmonics, None, None, m=0
+                t_rev, harmonics, None, None, filter_order=0
             )
 
         # Unfiltered
         harms, amps, phases = generator.to_fourier_series(
-            t_rev, harmonics, turns, times, m=0
+            t_rev, harmonics, turns, times, filter_order=0
         )
 
         self.assertEqual(len(harms), len(amps))
@@ -503,7 +509,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         width = np.linspace(200e-9, 100e-9, len(turns))
         ampl = np.linspace(1e3, 2e3, len(turns))
 
-        generator = bbuck.BarrierGenerator()
+        generator = bbuck.BarrierRF()
 
         generator.schedule("t_center", cent)
         generator.schedule("t_width", width)
@@ -513,7 +519,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         harmonics = np.arange(1, 21)
 
         harms, amps, phases = generator.to_fourier_series(
-            t_rev, harmonics, turns, times, m=0
+            t_rev, harmonics, turns, times, filter_order=0
         )
 
         self.assertEqual(len(harms), len(amps))

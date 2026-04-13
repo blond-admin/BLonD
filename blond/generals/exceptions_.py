@@ -25,3 +25,9 @@ class ArrayCastingError(BLonDException, ValueError, TypeError):
     """Exception raised when automatic array casting fails."""
 
     pass
+
+
+class ArrayShapeError(BLonDException, ValueError):
+    """Exception raised when an array is the wrong shape."""
+
+    pass

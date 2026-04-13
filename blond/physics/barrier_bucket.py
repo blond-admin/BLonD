@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 import scipy.constants as cont
 
 from blond.core.backends.backend import backend
+from blond.generals.exceptions_ import ArrayShapeError
 from blond.physics.cavities import RFManipulationBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -291,6 +292,8 @@ def compute_sin_barrier(
                 the given bin_centers.
     """
     bin_centers = backend._asarray_if_needed(bin_centers)
+    if len(bin_centers.shape) != 1:
+        raise ArrayShapeError("bin_centers array must be 1-dimensional.")
 
     barrier_waveform = backend.zeros_like(bin_centers, dtype=backend.float)
 
