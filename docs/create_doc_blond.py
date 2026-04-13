@@ -11,6 +11,7 @@ API Documentation
    blond.generals
    blond.acc_math
    blond.beam_preparation
+   blond.convenience
    blond.cycles
    blond.examples
    blond.experimental
