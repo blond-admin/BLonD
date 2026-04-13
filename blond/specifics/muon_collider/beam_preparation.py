@@ -46,7 +46,7 @@ def load_beam_coordinates_counterrot_from_file(
     -----
     Both beams will be initialized with the same coordinates.
     """
-    loaded_dict = np.load(filename)
+    loaded_dict = np.load(filename, allow_pickle=True)
     beam.setup_beam(
         dt=loaded_dict["dt"],
         dE=loaded_dict["dE"],

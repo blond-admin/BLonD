@@ -17,9 +17,10 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import StaticProfile, backend
+from blond import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
+from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray

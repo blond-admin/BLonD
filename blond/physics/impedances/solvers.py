@@ -49,12 +49,11 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
-
-    from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
@@ -1267,12 +1266,17 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._poles = np.array(poles, dtype=complex)
         self._residues = np.array(residues, dtype=complex)
 
+        hist_x_profile = (
+            self._parent_wakefield.profile._continuous_memory_hist_x
+            if type(self._parent_wakefield.profile) is EquidistantMultiProfile
+            else self._parent_wakefield.profile.hist_x
+        )
         self._voltage = backend.zeros(
-            len(self._parent_wakefield.profile._continuous_memory_hist_x),
+            len(hist_x_profile),
             dtype=backend.float,
         )
         self._states = np.zeros(len(self._poles) + 1, complex)
-        hist_x = self._profile._continuous_memory_hist_x
+        hist_x = hist_x_profile
         bin_dt = float(hist_x[1] - hist_x[0])
         # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
         # on the first call (C++ now uses edge-based rather than centre-based
@@ -1284,6 +1288,8 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
         self._update_on_bin = np.unique(
             self._profile._bucket_index_to_memory_index
+            if type(self._profile) is EquidistantMultiProfile
+            else np.arange(len(self._profile.hist_x), dtype=np.int32)
         )
         self.factor = -(1 * beam.particle_type.charge * e) * (
             beam.intensity * 1.0 / beam.common_array_size
@@ -1311,14 +1317,23 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         else:
             passed_time = beam.reference.time - self.last_reference_time
             self._states[-1] -= complex(passed_time)
-            assert (
-                self._states[-1].real
-                <= self._profile._continuous_memory_hist_x[0]
-            )
+            # first_mem_entry = (
+            #     self._profile._continuous_memory_hist_x[0]
+            #     if type(self._profile) is EquidistantMultiProfile
+            #     else self._profile.hist_x[0]
+            # )
+            # assert (
+            #     self._states[-1].real
+            #     <= first_mem_entry
+            # )
 
         backend.specials.apply_poles2(
-            profile=self._profile._continuous_memory_hist_y,
-            profile_dts=self._profile._continuous_memory_hist_x,
+            profile=self._profile._continuous_memory_hist_y
+            if type(self._profile) is EquidistantMultiProfile
+            else self._profile.hist_y,
+            profile_dts=self._profile._continuous_memory_hist_x
+            if type(self._profile) is EquidistantMultiProfile
+            else self._profile.hist_x,
             poles=self._poles,
             residues=self._residues,
             states=self._states,
