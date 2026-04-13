@@ -230,6 +230,9 @@ class ArrayLikeScan:
             yield func
 
     def _cast_to(self, type_: type, value: ArrayLike) -> ArrayLike:
+        # Wrapper to ensure cupy arrays are first converted to numpy
+        # arrays, otherwise most conversions raise an error
+        # because automatic convertion (`.get()`) is not possible.
         if no_cupy.is_cupy_array(value):
             value = no_cupy.copy_to_cpu(value)
 

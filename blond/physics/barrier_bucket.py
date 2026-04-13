@@ -34,29 +34,33 @@ class BarrierRF(RFManipulationBaseClass):
     Class to generate barrier bucket RF systems.  Converts parameters
     for a given barrier to suitable inputs for an RFStation object.
 
-    Based on developments of M. Vadai for PS barrier bucket system.
-    https://cds.cern.ch/record/2694233/files/mopts107.pdf
+    Based on developments of M. Vadai for PS barrier bucket system [1].
 
     Parameters
     ----------
     t_center
-        The center time of the barrier in seconds.
+        The center time of the barrier, in [s].
     t_width
-        The width the barrier in seconds.
-    peak
-        The peak amplitude of the barrier in volts.
+        The width the barrier, in [s].
+    peak_voltage
+        The peak amplitude of the barrier, in [V].
     n_bins
         If tracking directly, specifies the number of bins that will
         define the waveform before interpolation.
     section_index
         The section the barrier should be applied to.
+
+    References
+    ----------
+    [1] M. Vadai, et al, "Beam Manipulations With Barrier Buckets in the
+    CERN PS", https://cds.cern.ch/record/2694233/files/mopts107.pdf
     """
 
     def __init__(
         self,
         t_center: float | None = None,
         t_width: float | None = None,
-        peak: float | None = None,
+        peak_voltage: float | None = None,
         n_bins: int | None = None,
         section_index: int = 0,
     ):
@@ -64,10 +68,10 @@ class BarrierRF(RFManipulationBaseClass):
 
         self.t_center: float = t_center
         self.t_width: float = t_width
-        self.peak: float = peak
+        self.peak: float = peak_voltage
         self.n_bins = n_bins
 
-        self._add_intended_schedule("t_center", "t_width", "peak")
+        self._add_intended_schedule("t_center", "t_width", "peak_voltage")
 
     def waveform_at_turn_or_time(
         self, turn_i: int, reference_time: float, bin_centers: ArrayLike
@@ -104,7 +108,7 @@ class BarrierRF(RFManipulationBaseClass):
         harmonics: Iterable[int],
         turns: Iterable[int] | None = None,
         times: Iterable[float] | None = None,
-        m: int = 1,
+        filter_order: int = 1,
     ) -> tuple[
         list[int], list[NumpyArray | CupyArray], list[NumpyArray | CupyArray]
     ]:
@@ -118,14 +122,14 @@ class BarrierRF(RFManipulationBaseClass):
         Parameters
         ----------
         t_rev
-            The revolution time at the times of interest.
+            The revolution time at the times of interest, in [s].
         harmonics
             The RF harmonics used for the Fourier series.
         turns
             The turns at which to construct the Fourier series.
         times
             The times at which to construct the Fourier series.
-        m
+        filter_order
             The order of the sinc filter to be applied.  For details,
             see sinc_filtering function.  Defaults to 1.
 
@@ -134,8 +138,8 @@ class BarrierRF(RFManipulationBaseClass):
         harmonics, voltages, phases
             A tuple containing:
                 The original input harmonics as a list.
-                A list of arrays defining the voltage at the requested turns/times.
-                A list of arrays defining the phase at the requested turns/times.
+                A list of arrays defining the voltage at the requested turns/times, in [V].
+                A list of arrays defining the phase at the requested turns/times, in [rad].
 
         Raises
         ------
@@ -183,13 +187,15 @@ class BarrierRF(RFManipulationBaseClass):
         for i, (tn, tm, tr) in enumerate(
             zip(turns, times, t_rev, strict=False)
         ):
+            # Used 10*max_h to go well above the Nyquist frequency,
+            # exact value not important
             bin_width = tr / (10 * max_h)
             n_bins = int(tr / bin_width)
             bin_cents = backend.linspace(0, tr, n_bins)
             barrier = self.waveform_at_turn_or_time(tn, tm, bin_cents)
 
             amps, phis = waveform_to_harmonics(barrier, harmonics)
-            amps = sinc_filtering(amps, m)
+            amps = sinc_filtering(amps, filter_order)
 
             g_comp = _gain_compensation(
                 bin_cents, barrier, harmonics, amps, phis
@@ -230,6 +236,7 @@ class BarrierRF(RFManipulationBaseClass):
             reference, beam.is_counter_rotating
         )
 
+        # TODO: Integrate with `PooledInterpolationKick`
         backend.specials.kick_induced_voltage(
             beam.write_partial_dt(),
             beam.write_partial_dE(),
@@ -270,16 +277,18 @@ def compute_sin_barrier(
     Parameters
     ----------
     center
-        The time-center of the barrier.
+        The time-center of the barrier, in [S].
     width
-        The width of the barrier.
+        The width of the barrier, in [S].
     amplitude
-        The peak amplitude of the barrier.
+        The peak amplitude of the barrier, in [V].
     bin_centers
-        The bin centers to use.
+        The bin centers to use, in [s].
     periodic
-        Flag to enable barriers to wrap around at the start/end of
-        bin_centers.  Defaults to True.
+        If the barrier voltage extends below `bin_centers[-1]` or above
+        `bin_centers[0]`, the periodic flag wraps it around to the
+        other end of the window.
+        Defaults to True.
 
     Returns
     -------
@@ -288,8 +297,9 @@ def compute_sin_barrier(
 
     Raises
     ------
-    ValueError: Raises a ValueError if the barrier is longer than
-                the given bin_centers.
+    ValueError
+        Raises a ValueError if the barrier is longer than the given
+        bin_centers.
     """
     bin_centers = backend._asarray_if_needed(bin_centers)
     if len(bin_centers.shape) != 1:
@@ -369,11 +379,11 @@ def harmonics_to_waveform(
         t_rev = bin_centers[-1] - bin_centers[0]
 
     waveform = backend.zeros_like(bin_centers, dtype=backend.float)
-    for h, a, p in zip(
+    for harm, amp, phi in zip(
         harmonic_numbers, harmonic_amplitudes, harmonic_phases, strict=False
     ):
-        waveform += a * backend.sin(
-            h * 2 * backend.pi * bin_centers / t_rev + p
+        waveform += amp * backend.sin(
+            harm * 2 * backend.pi * bin_centers / t_rev + phi
         )
 
     return waveform
@@ -383,26 +393,26 @@ def waveform_to_harmonics(
     waveform: ArrayLike, harmonics: Iterable[int] | None = None
 ) -> tuple[tuple[float, ...], tuple[float, ...]]:
     """
-    Convert a waveform to a fourier series.
+    Convert a waveform to a Fourier series.
 
-    Converts an arbitrary waveform to a fourier series in amplitude and
-    phase.  Waveform is assumed to be 1 revolution period in length.
-    the harmonic numbers must be an integer and are used to select the
-    required fourier components.
+    Converts an arbitrary waveform to a Fourier series in amplitude and
+    phase. The waveform is assumed to be one revolution period in
+    length. The harmonic numbers must be integers and are used to
+    select the required Fourier components.
 
-    The input waveform can be reconstructed with a sin function.
+    The input waveform can be reconstructed with a `sin` function.
 
     Parameters
     ----------
     waveform
         Voltage waveform covering a single revolution period.
     harmonics
-        The RF harmonics to be used for the final fourier series.
+        The RF harmonics to be used for the final Fourier series.
         If None, all harmonics are used.
 
     Returns
     -------
-    harm_amps, harm_phases
+    harmonic_amps, harmonic_phases
         Two tuples of float, length equal to len(harmonics).
         Element 0 is the amplitudes, element 1 is the phases.
     """
@@ -423,23 +433,21 @@ def waveform_to_harmonics(
 
 
 def sinc_filtering(
-    harmonic_amplitudes: Iterable[float], m: int = 1
+    harmonic_amplitudes: Iterable[float], filter_order: int = 1
 ) -> NumpyArray:
     """
     Sinc filtering of a Fourier series.
 
-    Filters the fourier components with a sinc function window as
-    described in PhD thesis:
-        Beam Loss Reduction by Barrier Buckets in the CERN Accelerator
-        Complex:  M. Vadai CERN-THESIS-2021-043 (Chapter 3.2.3.2).
+    Filters the Fourier components with a sinc function window as
+    described in [1].
 
     Parameters
     ----------
     harmonic_amplitudes
-        The amplitudes of the fourier series.  Assumed to be
+        The amplitudes of the Fourier series.  Assumed to be
         uniformly spaced in the range 1..n.
-    m
-        Power applied to the sinc function.  Higher values give more
+    filter_order
+        Power applied to the sinc function. Higher values give more
         aggressive filtering, 0 is equivalent to a square window, or
         no filtering.
         Defaults to 1.
@@ -448,6 +456,11 @@ def sinc_filtering(
     -------
     filtered_amplitudes
         The modified harmonic amplitudes.
+
+    References
+    ----------
+    [1] M. Vadai, "Beam Loss Reduction by Barrier Buckets in the CERN
+    Accelerator Complex", CERN-THESIS-2021-043 (Chapter 3.2.3.2).
     """
     filtered_amplitudes = backend.zeros_like(
         harmonic_amplitudes, dtype=backend.float
@@ -456,7 +469,9 @@ def sinc_filtering(
 
     for i, a in enumerate(harmonic_amplitudes):
         filtered_amplitudes[i] = (
-            a * backend.sinc(((i + 1) * backend.pi) / (2 * (n_harm + 1))) ** m
+            a
+            * backend.sinc(((i + 1) * backend.pi) / (2 * (n_harm + 1)))
+            ** filter_order
         )
 
     return filtered_amplitudes
