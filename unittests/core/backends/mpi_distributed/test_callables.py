@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pytest
 
-from blond import Cupy64Bit, Numpy64Bit, backend
+from blond import Cupy64Bit, Numpy64Bit, backend, copy_to_cpu
 from blond.core.backends.mpi_distributed.callables import (
     rms_emittance,
 )
@@ -17,13 +17,12 @@ not_distributed = not is_distributed
 class TestCallables(unittest.TestCase):
     @unittest.skipIf(is_distributed, "Runs only without `mpirun`")
     def test_rms_wo_mpi(self):
-        rng = backend.random.default_rng(0)
         dt = DistributedArray(backend.random.normal(loc=0, scale=1, size=512))
         dE = DistributedArray(backend.random.normal(loc=0, scale=1, size=512))
-        mean_dt = np.mean(dt.array_local)
-        mean_dE = np.mean(dE.array_local)
-        centered_dt = dt.array_local - mean_dt
-        centered_dE = dE.array_local - mean_dE
+        mean_dt = np.mean(copy_to_cpu(dt.array_local))
+        mean_dE = np.mean(copy_to_cpu(dE.array_local))
+        centered_dt = copy_to_cpu(dt.array_local) - mean_dt
+        centered_dE = copy_to_cpu(dE.array_local) - mean_dE
         rms_expected = np.sqrt(
             np.average(centered_dt**2) * np.average(centered_dE**2)
             - (np.average(centered_dt * centered_dE)) ** 2
