@@ -81,6 +81,16 @@ class BeamBaseClass(Preparable, ABC):
         electrical field. For particles traveling in the opposite direction, this has to be inverted, which is handled
         through an opposite sign of the charge.
 
+        Field     -->
+        Velocity  -->
+        Acceleration
+
+        Field     -->
+        Velocity  <--
+        Same field, but deceleration for counter-rotating beam.
+
+        Its the most convenient way to include the change via the charge.
+
         Returns
         -------
         signed_charge_with_direction

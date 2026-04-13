@@ -57,7 +57,7 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
-class RFManipulationBaseClass(BeamPhysicsRelevant, ABC):
+class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     """
     Base class to implement beam-rf any interactions in synchrotrons.
 
@@ -119,9 +119,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, ABC):
             )
 
 
-class RFStationBaseClass(
-    RFManipulationBaseClass, Schedulable, AltersReference, ABC
-):
+class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     """
     Base class to implement beam-rf interactions in synchrotrons.
 

@@ -715,16 +715,16 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
     Attributes
     ----------
-    _wake_function_vals: deque
+    _wake_function_vals
         List of wake function values: 0th entry being from the current pass,
         subsequent entries from previous passes.
-    _wake_function_time: deque
+    _wake_function_time
         time axes corresponding to _wake_function_time.
 
-    _past_profiles: deque
+    _past_profiles
         List of previously passed profiles: 0th entry being from the current pass,
         subsequent entries from previous passes.
-    _past_profile_times: deque
+    _past_profile_times
         time axes corresponding to _past_profiles.
     """
 
@@ -733,6 +733,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         decay_fraction_threshold: float = 0.001,
         allow_delta_t_zero: bool = False,
     ):
+        # This import is here because of sphinx warning
+        # `list assignment index out of range [autodoc]`
         from collections import deque
 
         super().__init__()
@@ -1058,6 +1060,8 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     """
 
     def __init__(self, n_turns: int) -> None:
+        # This import is here because of sphinx warning
+        # `list assignment index out of range [autodoc]`
         from collections import deque
 
         self._n_wakes_full_turn = n_turns

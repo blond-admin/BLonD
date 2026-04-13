@@ -18,7 +18,6 @@ from blond.core.backends.backend import Specials
 from blond.core.beam.flags import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -164,8 +163,8 @@ class PythonSpecials(Specials):
 
     @staticmethod
     def kick_single_harmonic(
-        dt: NumpyArray | CupyArray,
-        dE: NumpyArray | CupyArray,
+        dt: NumpyArray,
+        dE: NumpyArray,
         voltage: float,
         omega_rf: float,
         phi_rf: float,
@@ -412,10 +411,10 @@ class PythonSpecials(Specials):
     @staticmethod
     def move_flagged_elements_to_end(
         flag: int,
-        flags: NumpyArray | CupyArray,  # also purged
-        dt: NumpyArray | CupyArray,
-        dE: NumpyArray | CupyArray,
-        ids: NumpyArray | CupyArray,
+        flags: NumpyArray,  # also purged
+        dt: NumpyArray,
+        dE: NumpyArray,
+        ids: NumpyArray,
     ):
         """
         Reorder entries where ``flags == flag`` to the array end.
@@ -450,3 +449,63 @@ class PythonSpecials(Specials):
             ids=ids,
         )
         return n_new
+
+    @staticmethod
+    def histogram_sparse(
+        x: NumpyArray,
+        out: NumpyArray,
+        first_left_cut: float,
+        left_cut_distance: float,
+        cut_width: float,
+        bins_per_profile: int,
+        n_active_profiles: int,
+        filling_pattern: NumpyArray,
+        bucket_index_to_memory_index: NumpyArray,
+    ) -> None:
+        """
+        Sparse histogram with strided memory layout (gaps between profiles).
+
+        Parameters
+        ----------
+        x
+            An array, e.g., the particle ``dt`` values.
+        out
+            Output histogram ``(n_filled_buckets * bins_per_profile)``.
+        first_left_cut
+            Start of the first histogram.
+        left_cut_distance
+            Distance between the start of each histogram.
+        cut_width
+            Distance between left and right edge of the histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        n_active_profiles
+            Number of non-empty buckets.
+        filling_pattern
+            Filling pattern as a boolean array
+            where ``True`` means filled bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index.
+            For a ``filling_pattern = [1, 0, 0, 1]``
+            ``bucket_index_to_memory_index = [0, 0, 0, 8]`` with
+            ``bins_per_profile = 8``.
+            Use `_gen_array_bucket_index_to_memory_index` to generate this.
+        """
+        out[:] = 0
+        for bucket_i, active in enumerate(filling_pattern):
+            if not active:
+                continue
+            memory_i = bucket_index_to_memory_index[bucket_i]
+            sel = slice(
+                memory_i,
+                memory_i + bins_per_profile,
+            )
+            hist, _ = np.histogram(
+                x,
+                bins=bins_per_profile,
+                range=(
+                    first_left_cut + bucket_i * left_cut_distance,
+                    first_left_cut + bucket_i * left_cut_distance + cut_width,
+                ),
+            )
+            out[sel] = hist
