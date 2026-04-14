@@ -1221,7 +1221,9 @@ class MusicSolver(WakeFieldSolver):
             beam.reference.time - self.last_reference_time
         )
         assert delta_t_last_calculation > 0, "time must go forward"
-        time_difference_0 = beam.dt.array_local[0] + self.t_rev - self.last_dt
+        time_difference_0 = (
+            beam.dt.array_local[0] + delta_t_last_calculation - self.last_dt
+        )
         exp_term = np.exp(-self.alpha * time_difference_0)
         cos_term = np.cos(self.omega_bar * time_difference_0)
         sin_term = np.sin(self.omega_bar * time_difference_0)
