@@ -34,7 +34,6 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
-from blond.generals.warnings_ import NotTestedWarning
 from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,
@@ -578,7 +577,6 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     """
 
     def __init__(self):
-        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
         self._wake_function_vals: NumpyArray | None = None
         self._wake_function_time: NumpyArray | None = None
@@ -739,7 +737,6 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         # `list assignment index out of range [autodoc]`
         from collections import deque
 
-        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
 
         self._last_reference_time: float | None = None
