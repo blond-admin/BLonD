@@ -14,7 +14,7 @@ from typing import Literal
 
 
 def setup_backend(
-    mode: Literal["auto", "python", "cpp", "numba", "cuda"],
+    mode: Literal["auto", "python", "cpp", "numba", "cuda"] = "auto",
 ) -> None:
     """
     Set up the backend to be used.

@@ -25,7 +25,7 @@ class TestCallables(unittest.TestCase):
             self.skipTest("Cupy not available")
         setup_backend("cuda")
 
-    def test_setup_backend(self):
+    def test_setup_backend_fails(self):
         with self.assertRaisesRegex(ValueError, "Unknown backend "):
             setup_backend("unknows")
 
