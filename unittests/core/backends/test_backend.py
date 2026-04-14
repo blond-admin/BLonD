@@ -63,7 +63,7 @@ class TestBackendBaseClass(unittest.TestCase):
     def test_apply_environment_variables(self):
         import os
 
-        backend_modes = ["python", "cpp", "numba", "fail"]
+        backend_modes = ["python", "cpp", "cpp_single_core", "numba", "fail"]
         backend_bits = ["32", "64", "fail"]
         try:
             import cupy
@@ -199,6 +199,13 @@ class TestNumpyBackend(unittest.TestCase):
             self.skipTest("cpp not available!")
 
     @pytest.mark.backend_mutation
+    def test_set_specials_cpp(self) -> None:
+        try:
+            self.numpy_backend.set_specials(mode="cpp_single_core")
+        except FileNotFoundError:
+            self.skipTest("cpp_single_core not available!")
+
+    @pytest.mark.backend_mutation
     def test_set_specials_numba(self) -> None:
         self.numpy_backend.set_specials(mode="numba")
 
@@ -214,6 +221,7 @@ class TestSpecials(unittest.TestCase):
         self.special_modes = [
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
         ]
         if cupy_available:
@@ -225,6 +233,7 @@ class TestSpecials(unittest.TestCase):
         if special_mode in (
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
         ):
             if dtype == np.float32:
