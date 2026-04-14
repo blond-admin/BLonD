@@ -933,15 +933,6 @@ class SingleHarmonicRFStation(
         Additional keyword arguments for method
         resolution order of inheriting elements.
 
-    Attributes
-    ----------
-    voltage
-        RF station's effective voltage, in [V].
-    phi_rf_design
-        RF station's design phase, in [rad].
-    harmonic
-        RF station's design harmonic [].
-
     Examples
     --------
     Parameters can be scheduled along the simulation execution
@@ -1345,15 +1336,6 @@ class MultiHarmonicRFStation(
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
-
-    Attributes
-    ----------
-    voltage
-        RF station's effective voltages (per harmonic) in [V].
-    phi_rf_design
-        RF station's design phases (per harmonic) in [rad].
-    harmonic
-        RF station's design harmonics (per harmonic) [].
 
     Examples
     --------
