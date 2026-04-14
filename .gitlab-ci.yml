@@ -197,6 +197,7 @@ test_py_310_no_cupy:
   extends:
     - .before_no_gpu
     - .main_no_gpu
+  dependencies: []
 
 test_py_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
