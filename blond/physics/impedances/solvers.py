@@ -1039,6 +1039,209 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         return wake_sum
 
 
+class MusicSolver(WakeFieldSolver):
+    def __init__(self) -> None:
+        self._parent_wakefield: WakeField | None = None
+        self._simulation: Simulation | None = None
+
+        self.first_time_called = False
+
+    def on_wakefield_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
+        self._simulation = simulation
+        if parent_wakefield.profile is None:
+            raise ValueError("Parent wakefield needs to have a profile.")
+        self._parent_wakefield = parent_wakefield
+        self._wake_function_vals_needs_update = True
+
+        if (
+            type(self._parent_wakefield.sources[0]) is not Resonators
+            or len(self._parent_wakefield.sources) != 1
+        ):
+            raise RuntimeError(
+                "source needs to be a resonator and single source"
+            )
+
+        if not isinstance(parent_wakefield.profile, StaticProfile):
+            raise RuntimeError(
+                f"Expected `StaticProfile` but got {type(parent_wakefield.profile)=}."
+            )
+
+        self._shunt_impedances: NumpyArray
+        self._center_frequencies: NumpyArray
+        self._quality_factors: NumpyArray
+
+        if len(self._parent_wakefield.sources._shunt_impedances) != 1:
+            warnings.warn("currently only one resonator is supported. ")
+
+        self.R_s = self._parent_wakefield.sources._shunt_impedances[0]
+        self.omega_R = (
+            self._parent_wakefield.sources._center_frequencies[0] * 2 * np.pi
+        )
+        self.Q = self._parent_wakefield.sources._quality_factors[0]
+
+        self.omega_bar = np.sqrt(self.omega_R**2 - self.alpha**2)
+
+        self.const = -e * self.R_S * self.omega_R / self.Q
+
+        self.coeff1 = -self.alpha / self.omega_bar
+        self.coeff2 = -self.R_S * self.omega_R / (self.Q * self.omega_bar)
+        self.coeff3 = self.omega_R * self.Q / (self.R_S * self.omega_bar)
+        self.coeff4 = self.alpha / self.omega_bar
+        self.input_first_component = 1
+        self.input_second_component = 0
+
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
+        self.intensity_factor = beam.intensity / beam.common_array_size
+        if not self.first_time_called:
+            t_rev = simulation.get_t_rev_init()
+            self.last_dt = beam.dt.array_local[-1]
+
+            self.array_parameters = np.array(
+                [
+                    self.input_first_component,
+                    self.input_second_component,
+                    t_rev,
+                    self.last_dt,
+                ]
+            )
+
+            self.induced_voltage = np.zeros(len(beam.dt.array_local))
+            self.induced_voltage[0] = self.const / 2 * self.intensity_factor
+
+            self.track_py(beam=beam)
+            self.first_time_called = True
+
+        else:
+            self.track_py_multi_turn(beam=beam)
+
+    def track_py(self, beam: BeamBaseClass):
+        r"""
+        Voltage in time domain (single-turn) using MuSiC (Python code).
+        Note: this method should also be called at turn number 1 when
+        multi-turn voltage computations are needed.
+
+        Examples
+        --------
+        >>> import impedances.music as musClass
+        >>>
+        >>> music_cpp = musClass.Music(my_beam, [R_S, 2*np.pi*frequency_R, Q],
+        >>>                               n_macroparticles, n_particles, t_rev)
+        >>> music_cpp.track_py()
+
+        """
+        indices_sorted = np.argsort(beam.dt.array_local)
+        beam.dt.array_local = beam.dt.array_local[indices_sorted]
+        beam.dE.array_local = beam.dE.array_local[indices_sorted]
+        beam.dE.array_local[0] += self.induced_voltage[0]
+
+        for i in range(len(beam.dt.array_local) - 1):
+            time_difference = (
+                beam.dt.array_local[i + 1] - beam.dt.array_local[i]
+            )
+
+            exp_term = np.exp(-self.alpha * time_difference)
+            cos_term = np.cos(self.omega_bar * time_difference)
+            sin_term = np.sin(self.omega_bar * time_difference)
+
+            product_first_component = exp_term * (
+                (cos_term + self.coeff1 * sin_term)
+                * self.input_first_component
+                + self.coeff2 * sin_term * self.input_second_component
+            )
+            product_second_component = exp_term * (
+                self.coeff3 * sin_term * self.input_first_component
+                + (cos_term + self.coeff4 * sin_term)
+                * self.input_second_component
+            )
+
+            self.induced_voltage[i + 1] = self.const * self.intensity_factor(
+                0.5 + product_first_component
+            )
+            beam.dE.array_local[i + 1] += self.induced_voltage[i + 1]
+
+            self.input_first_component = product_first_component + 1.0
+            self.input_second_component = product_second_component
+
+        self.last_dt = beam.dt.array_local[-1]
+
+    def track_py_multi_turn(self, beam: BeamBaseClass):
+        r"""
+        Voltage in time domain (multi-turn) using MuSiC (Python code).
+        Note: this method should be called from turn number 2 onwards when
+        multi-turn voltage computations are needed..
+
+        Examples
+        --------
+        >>> import impedances.music as musClass
+        >>>
+        >>> music_cpp = musClass.Music(my_beam, [R_S, 2*np.pi*frequency_R, Q],
+        >>>                               n_macroparticles, n_particles, t_rev)
+        >>> music_cpp.track_py()
+        >>> for i in range(2, n_turns):
+        >>>     music_cpp.track_py_multi_turn()
+
+        """
+        indices_sorted = np.argsort(beam.dt.array_local)
+        beam.dt.array_local = beam.dt.array_local[indices_sorted]
+        beam.dE.array_local = beam.dE.array_local[indices_sorted]
+        time_difference_0 = beam.dt.array_local[0] + self.t_rev - self.last_dt
+        exp_term = np.exp(-self.alpha * time_difference_0)
+        cos_term = np.cos(self.omega_bar * time_difference_0)
+        sin_term = np.sin(self.omega_bar * time_difference_0)
+        product_first_component = exp_term * (
+            (cos_term + self.coeff1 * sin_term) * self.input_first_component
+            + self.coeff2 * sin_term * self.input_second_component
+        )
+        product_second_component = exp_term * (
+            self.coeff3 * sin_term * self.input_first_component
+            + (cos_term + self.coeff4 * sin_term) * self.input_second_component
+        )
+        self.induced_voltage[0] = (
+            self.const
+            * self.intensity_factor
+            * (0.5 + product_first_component)
+        )
+        beam.dE.array_local[0] += self.induced_voltage[0]
+        self.input_first_component = product_first_component + 1.0
+        self.input_second_component = product_second_component
+
+        for i in range(len(beam.dt.array_local) - 1):
+            time_difference = (
+                beam.dt.array_local[i + 1] - beam.dt.array_local[i]
+            )
+
+            exp_term = np.exp(-self.alpha * time_difference)
+            cos_term = np.cos(self.omega_bar * time_difference)
+            sin_term = np.sin(self.omega_bar * time_difference)
+
+            product_first_component = exp_term * (
+                (cos_term + self.coeff1 * sin_term)
+                * self.input_first_component
+                + self.coeff2 * sin_term * self.input_second_component
+            )
+            product_second_component = exp_term * (
+                self.coeff3 * sin_term * self.input_first_component
+                + (cos_term + self.coeff4 * sin_term)
+                * self.input_second_component
+            )
+
+            self.induced_voltage[i + 1] = (
+                self.const
+                * self.intensity_factor
+                * (0.5 + product_first_component)
+            )
+            beam.dE.array_local[i + 1] += self.induced_voltage[i + 1]
+
+            self.input_first_component = product_first_component + 1.0
+            self.input_second_component = product_second_component
+
+        self.last_dt = beam.dt.array_local[-1]
+
+
 class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     """
     A solver for multi-turn wakefields, where the profile spans the entire revolution time.
