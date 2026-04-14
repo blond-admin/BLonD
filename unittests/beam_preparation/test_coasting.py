@@ -62,11 +62,13 @@ class TestCoasting(unittest.TestCase):
 
     @multi_backend_testcase
     @pytest.mark.backend_mutation
-    def test_prepare_beam_dflts(self):
+    def test_prepare_beam_defaults(self):
         bins = np.linspace(-1, 1, 1000)
         dens = -(bins**2) + 1
 
-        coast = coasting.Coasting(1 << 16, bins.tolist(), dens.tolist())
+        coast = coasting.Coasting(
+            1 << 16, bins.tolist(), dens.tolist(), seed=0
+        )
 
         coast.prepare_beam(self.simulation, self.beam)
 
