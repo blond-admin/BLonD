@@ -51,7 +51,13 @@ write_to = 'blond/_version.py' # autogenerates version string using git
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
-optional-dependencies = { all_cuda12 = { file = [
+optional-dependencies = { all_no_cuda = { file = [
+  "requirements.txt",
+  "requirements-dev.txt",
+  "requirements-doc.txt",
+  "blond/interfaces/xsuite/requirements.txt",
+  "requirements-mpi.txt",
+] }, all_cuda12 = { file = [
   "requirements.txt",
   "requirements-gpu-cuda12.txt",
   "requirements-dev.txt",
