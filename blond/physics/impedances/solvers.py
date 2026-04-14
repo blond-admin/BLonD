@@ -1080,11 +1080,6 @@ class MusicSolver(WakeFieldSolver):
                 f"Expected `StaticProfile` but got {type(parent_wakefield.profile)=}."
             )
 
-        if len(self._parent_wakefield.sources[0]._shunt_impedances) != 1:
-            warnings.warn(
-                "currently only one resonator is supported. ", stacklevel=1
-            )
-
         self.n_resonators = len(
             self._parent_wakefield.sources[0]._shunt_impedances
         )
@@ -1145,17 +1140,17 @@ class MusicSolver(WakeFieldSolver):
             #     ]
             # )
 
-            self.last_dt = backend.specials.music_track(
+            backend.specials.music_track(
                 dt=beam.dt.array_local,
                 dE=beam.dE.array_local,
                 induced_voltage=self.induced_voltage,
                 input_first_component=self.input_first_component,
                 input_second_component=self.input_second_component,
                 delta_t=0,  # unused
-                last_dt=self.last_dt,
+                last_dt=0,  # unused
                 n_macroparticles=beam.common_array_size,
                 n_resonators=self.n_resonators,
-                intensity_factor=1.0,
+                intensity_factor=self.intensity_factor,
                 alpha=self.alpha,
                 omega_bar=self.omega_bar,
                 const=self.const,
