@@ -6,6 +6,7 @@ variables:
 stages:
   - precommit
   - doc_build
+  - test_without_gpu
   - test_py310
   - test
   - deploy
@@ -47,6 +48,20 @@ workflow:
     - python3 blond/core/backends/cpp/compile.py --parallel
     - python3 blond/core/backends/cuda/compile.py
 
+.before_no_gpu:
+  before_script:
+    # Verify installation
+    - gcc --version
+    # Create and activate a virtual environment
+    - python3 -m venv ./.venv
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    # Install project with extras
+    - python3 --version && gcc --version && mpirun --version
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install -v -e ${project_root}[all_no_cuda]
+    - cd ${project_root}
+    # Compile C++, CUDA backends
+    - python3 blond/core/backends/cpp/compile.py --parallel
 
 .main:
   variables:
@@ -90,7 +105,23 @@ workflow:
       -v unittests/
       --randomly-seed=$CI_PIPELINE_ID
 
-
+.main_no_gpu:
+  variables:
+    BLOND_BACKEND_MODE: "cpp"     # Set the basic backend to numba. It is most verbose about wrong types
+    BLOND_FORCE_TEST_ALL_BACKENDS: "False"     # Force backend scanning unittests to use all available backends
+    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
+  script:
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    - pip list
+    - cd ${project_root}
+    # Run only MPI unittests. Only the main thread should report.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
+    # Run all unittests + the examples
+    - pip uninstall -y mpi4py
+    - pip uninstall -y cupy-cuda12x
+    - python3 -m pytest
+      -v unittests/
+      --randomly-seed=$CI_PIPELINE_ID
 
 .main_also_no_cupy:
   variables:
@@ -158,6 +189,15 @@ precommit-check:
     paths:
       - .cache/pre-commit
 
+test_py_310_no_cupy:
+  image: gitlab-registry.cern.ch/blond/blond/python310
+  stage: test_without_gpu
+  interruptible: true
+  extends:
+    - .before_no_gpu
+    - .main_no_gpu
+  dependencies: []
+
 test_py_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: test_py310
@@ -165,7 +205,6 @@ test_py_310:
   extends:
     - .before
     - .main_also_no_cupy
-#    - .after
     - .publish
   dependencies: []
   tags:
