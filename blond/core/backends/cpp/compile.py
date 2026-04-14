@@ -29,7 +29,7 @@ cpp_files = [
     "linear_interp_kick.cpp",
     "histogram.cpp",
     "drift_exact.cpp",
-    # "music_track.cpp",
+    "music_track.cpp",
     "blondmath.cpp",
     # "fast_resonator.cpp",
     "histogram_sparse.cpp",
@@ -591,4 +591,4 @@ def main_cli() -> None:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main_cli(force_parallel=True)
+    main_cli()

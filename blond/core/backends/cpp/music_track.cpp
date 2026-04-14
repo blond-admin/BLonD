@@ -112,8 +112,10 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
 }
 
 extern "C" void music_track_multiturn(
-    real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
-    real_t *__restrict__ induced_voltage, real_t *__restrict__ array_parameters,
+    real_t *__restrict__ beam_dt,
+    real_t *__restrict__ beam_dE,
+    real_t *__restrict__ induced_voltage,
+    real_t *__restrict__ array_parameters,
     const int n_macroparticles, const real_t alpha, const real_t omega_bar,
     const real_t cnst, const real_t coeff1, const real_t coeff2,
     const real_t coeff3,

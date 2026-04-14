@@ -1080,21 +1080,20 @@ class MusicSolver(WakeFieldSolver):
                 f"Expected `StaticProfile` but got {type(parent_wakefield.profile)=}."
             )
 
-        self._shunt_impedances: NumpyArray
-        self._center_frequencies: NumpyArray
-        self._quality_factors: NumpyArray
-
-        if len(self._parent_wakefield.sources._shunt_impedances) != 1:
+        if len(self._parent_wakefield.sources[0]._shunt_impedances) != 1:
             warnings.warn(
                 "currently only one resonator is supported. ", stacklevel=1
             )
 
-        self.R_s = self._parent_wakefield.sources._shunt_impedances[0]
+        self.R_S = self._parent_wakefield.sources[0]._shunt_impedances[0]
         self.omega_R = (
-            self._parent_wakefield.sources._center_frequencies[0] * 2 * np.pi
+            self._parent_wakefield.sources[0]._center_frequencies[0]
+            * 2
+            * np.pi
         )
-        self.Q = self._parent_wakefield.sources._quality_factors[0]
+        self.Q = self._parent_wakefield.sources[0]._quality_factors[0]
 
+        self.alpha = self.omega_R / (2 * self.Q)
         self.omega_bar = np.sqrt(self.omega_R**2 - self.alpha**2)
 
         self.const = -e * self.R_S * self.omega_R / self.Q
@@ -1105,6 +1104,17 @@ class MusicSolver(WakeFieldSolver):
         self.coeff4 = self.alpha / self.omega_bar
         self.input_first_component = 1
         self.input_second_component = 0
+
+        # self.array_parameters = np.array(
+        #     [
+        #         self.input_first_component,
+        #         self.input_second_component,
+        #         self.t_rev,
+        #         self.last_dt,
+        #     ]
+        # )
+
+        self.dummy_voltage = np.zeros(self._parent_wakefield.profile.n_bins)
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
@@ -1133,7 +1143,21 @@ class MusicSolver(WakeFieldSolver):
             self.first_time_called = True
 
         else:
+            self.delta_t_last_calculation = (
+                beam.reference.time - self.last_reference_time
+            )
+            assert self.delta_t_last_calculation > 0, "time must go forward"
+            self.array_parameters = np.array(
+                [
+                    self.input_first_component,
+                    self.input_second_component,
+                    self.delta_t_last_calculation,
+                    self.last_dt,
+                ]
+            )
             self.track_py_multi_turn(beam=beam)
+
+        return self.dummy_voltage
 
     def track_py(self, beam: BeamBaseClass):
         r"""
@@ -1181,8 +1205,10 @@ class MusicSolver(WakeFieldSolver):
                 * self.input_second_component
             )
 
-            self.induced_voltage[i + 1] = self.const * self.intensity_factor(
-                0.5 + product_first_component
+            self.induced_voltage[i + 1] = (
+                self.const
+                * self.intensity_factor
+                * (0.5 + product_first_component)
             )
             beam.dE.array_local[i + 1] += self.induced_voltage[i + 1]
 
@@ -1190,6 +1216,7 @@ class MusicSolver(WakeFieldSolver):
             self.input_second_component = product_second_component
 
         self.last_dt = beam.dt.array_local[-1]
+        self.last_reference_time = beam.reference.time
 
     def track_py_multi_turn(self, beam: BeamBaseClass):
         r"""
@@ -1217,12 +1244,11 @@ class MusicSolver(WakeFieldSolver):
         indices_sorted = np.argsort(beam.dt.array_local)
         beam.dt.array_local = beam.dt.array_local[indices_sorted]
         beam.dE.array_local = beam.dE.array_local[indices_sorted]
-        delta_t_last_calculation = (
-            beam.reference.time - self.last_reference_time
-        )
-        assert delta_t_last_calculation > 0, "time must go forward"
+
         time_difference_0 = (
-            beam.dt.array_local[0] + delta_t_last_calculation - self.last_dt
+            beam.dt.array_local[0]
+            + self.delta_t_last_calculation
+            - self.last_dt
         )
         exp_term = np.exp(-self.alpha * time_difference_0)
         cos_term = np.cos(self.omega_bar * time_difference_0)
