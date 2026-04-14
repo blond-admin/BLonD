@@ -13,9 +13,21 @@ class TestCallables(unittest.TestCase):
             "python",
             "cpp",
             "numba",
-            "cuda",
         ]:
             setup_backend(option)
+
+    @pytest.mark.backend_mutation
+    @pytest.mark.cupy
+    def test_setup_backend_gpu(self):
+        try:
+            import cupy as cp
+        except ModuleNotFoundError:
+            self.skipTest("Cupy not available")
+        setup_backend("cuda")
+
+    def test_setup_backend(self):
+        with self.assertRaisesRegex(ValueError, "Unknown backend "):
+            setup_backend("unknows")
 
 
 if __name__ == "__main__":

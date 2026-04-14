@@ -45,4 +45,4 @@ def setup_backend(
         backend.change_backend(Numpy64Bit)
         backend.set_specials(mode)
     else:
-        raise ValueError(mode)
+        raise ValueError(f"Unknown backend {mode=}.")
