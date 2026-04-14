@@ -206,6 +206,7 @@ test_py_310:
     - .before
     - .main_also_no_cupy
     - .publish
+  dependencies: []
   tags:
     - k8s-gpu
 
@@ -217,6 +218,7 @@ test_py_311:
     - .before
     - .main
     # - .publish
+  dependencies: []
   tags:
     - k8s-gpu
   rules:
@@ -234,6 +236,7 @@ test_py_312:
     - .before
     - .main
     # - .publish
+  dependencies: []
   tags:
     - k8s-gpu
   rules:
@@ -251,6 +254,7 @@ test_py_313:
     - .before
     - .main
     # - .publish
+  dependencies: []
   tags:
     - k8s-gpu
   rules:
@@ -268,6 +272,7 @@ test_py_314:
     - .before
     - .main
     # - .publish
+  dependencies: []
   tags:
     - k8s-gpu
   rules:
@@ -283,6 +288,7 @@ test_py_314_only_cupy:
   extends:
     - .before
     - .main_only_cupy
+  dependencies: []
   tags:
     - k8s-gpu
   rules:
@@ -295,6 +301,7 @@ test_minimum:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: test
   interruptible: true
+  dependencies: []
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
 
