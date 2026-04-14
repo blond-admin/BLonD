@@ -1076,7 +1076,12 @@ class MagneticCycleByTime(MagneticCycleBase):
                 try:
                     e.track_reference(reference=reference)
                 except Exception as exc:  # we cant know a priori what the interpolation algorithm might fail with.
-                    warnings.warn(str(exc), UserWarning, stacklevel=1)
+                    warnings.warn(
+                        f"Calculation of maximum number"
+                        f" of turns triggered an exception:\n{exc}",
+                        UserWarning,
+                        stacklevel=1,
+                    )
                     failed_within_turn = True
                     break
             if failed_within_turn:

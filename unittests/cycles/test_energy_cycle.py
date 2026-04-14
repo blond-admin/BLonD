@@ -366,11 +366,12 @@ class TestEnergyCycleByTime(unittest.TestCase):
             ),
         )
         self.assertEqual(cycle._n_turns_max, 13)
+        self.assertEqual(sim.turn_i.value, 13)
 
     def _make_two_section_setup(self):
         ring = Ring(
             circumference=2 * c0, check_section_indices=False
-        )  # so one turn takes ca. 2s.
+        )  # so one turn takes roughly 2s.
         ring.add_elements(
             (
                 DriftSimple(
