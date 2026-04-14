@@ -570,7 +570,7 @@ class TestConversionFunctions(unittest.TestCase):
 
     @multi_backend_testcase
     @pytest.mark.backend_mutation
-    def test_deltcleara_P_delta_E(self):
+    def test_delta_P_delta_E(self):
         momentum = 1e9
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
             0
