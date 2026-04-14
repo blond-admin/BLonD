@@ -5,6 +5,8 @@ variables:
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
 stages:
   - precommit
+  - doc_build
+  - test_py310
   - test
   - deploy
 default:
@@ -158,7 +160,7 @@ precommit-check:
 
 test_py_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
-  stage: test
+  stage: test_py310
   interruptible: true
   extends:
     - .before
@@ -310,6 +312,7 @@ release_sdist_310:
 
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310
+  stage: doc_build
   interruptible: true
   script:
     - cd ${project_root}
