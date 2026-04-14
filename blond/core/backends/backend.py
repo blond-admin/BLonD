@@ -289,6 +289,7 @@ class BackendBaseClass(ABC):
         specials_mode: Literal[
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
             "cuda",
         ],
@@ -448,6 +449,7 @@ class BackendBaseClass(ABC):
         _allowed_backend_modes = (
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
             "cuda",
         )
@@ -455,6 +457,7 @@ class BackendBaseClass(ABC):
             _backend_mode: Literal[
                 "python",
                 "cpp",
+                "cpp_single_core",
                 "numba",
                 "cuda",
             ] = _backend_mode_raw  # type: ignore
@@ -735,6 +738,7 @@ class NumpyBackend(BackendBaseClass):
         mode: Literal[
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
         ],
     ) -> None:
@@ -756,7 +760,12 @@ class NumpyBackend(BackendBaseClass):
         elif mode == "cpp":
             from blond.core.backends.cpp.callables import reload_cpp_backend
 
-            self.specials = reload_cpp_backend(self.float)
+            self.specials = reload_cpp_backend(self.float, parallel=True)
+            self.specials_mode = mode
+        elif mode == "cpp_single_core":
+            from blond.core.backends.cpp.callables import reload_cpp_backend
+
+            self.specials = reload_cpp_backend(self.float, parallel=False)
             self.specials_mode = mode
         elif mode == "numba":
             from blond.core.backends.numba.callables import (
