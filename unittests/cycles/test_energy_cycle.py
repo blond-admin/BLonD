@@ -1,18 +1,24 @@
 from __future__ import annotations
 
 import unittest
+from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
+from mpmath import sec
 from numpy.testing import assert_allclose
 from scipy.constants import speed_of_light as c0
 
 from blond import (
     ConstantMagneticCycle,
+    DriftSimple,
     MagneticCycleByTime,
     MagneticCyclePerTurn,
     MagneticCyclePerTurnAllRFStations,
+    Ring,
+    Simulation,
+    SingleHarmonicRFStation,
     proton,
 )
 from blond.acc_math.analytic.conversions import magnetic_rigidity_to_momentum
@@ -24,6 +30,7 @@ from blond.acc_math.analytic.simple_math import (
     calc_total_energy,
 )
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import ParticleType, uranium_29
 from blond.cycles.magnetic_cycle import (
     MagneticCycleBase,
@@ -332,6 +339,92 @@ class TestEnergyCycleByTime(unittest.TestCase):
         )
         self.assertEqual(e_tot_1, e_tot_2)
         self.assertNotEqual(e_tot_1, e_tot_3)
+
+    def test_n_turns_prediction_1(self):
+        ring = Ring(circumference=c0)  # so one turn takes ca. 1s.
+        ring.add_elements(
+            (
+                DriftSimple(
+                    orbit_length=ring.circumference,
+                    momentum_compaction_factor=1,
+                ),
+                SingleHarmonicRFStation(voltage=1, phi_rf=0, harmonic=1),
+            )
+        )
+        cycle = MagneticCycleByTime(
+            reference_particle=proton,
+            base_time=np.linspace(0, 12.5, 12),
+            base_values=np.linspace(1e12, 1e12, 12),
+        )
+        sim = Simulation.from_locals(locals())  # so on_init executes
+
+        sim.run_simulation(
+            beams=(
+                ProbeBeam(
+                    particle_type=cycle.reference_particle, dt=np.ones(5)
+                )
+            ),
+        )
+        self.assertEqual(cycle._n_turns_max, 13)
+        self.assertEqual(sim.turn_i.value, 13)
+
+    def _make_two_section_setup(self):
+        ring = Ring(
+            circumference=2 * c0, check_section_indices=False
+        )  # so one turn takes roughly 2s.
+        ring.add_elements(
+            (
+                DriftSimple(
+                    orbit_length=ring.circumference / 2,
+                    momentum_compaction_factor=1,
+                    section_index=0,
+                ),
+                SingleHarmonicRFStation(
+                    voltage=1, phi_rf=0, harmonic=1, section_index=0
+                ),
+                DriftSimple(
+                    orbit_length=ring.circumference / 2,
+                    momentum_compaction_factor=1,
+                    section_index=1,
+                ),
+                SingleHarmonicRFStation(
+                    voltage=1, phi_rf=0, harmonic=1, section_index=1
+                ),
+            )
+        )
+        cycle = MagneticCycleByTime(
+            reference_particle=proton,
+            base_time=np.linspace(0, 11.5, 24),
+            base_values=np.linspace(1e12, 1e12, 24),
+        )
+        return ring, cycle
+
+    def test_n_turns_prediction_2(self):
+        ring, cycle = self._make_two_section_setup()
+        sim = Simulation.from_locals(locals())  # so on_init executes
+        sim.run_simulation(
+            beams=(
+                ProbeBeam(
+                    particle_type=cycle.reference_particle, dt=np.ones(5)
+                )
+            ),
+            n_turns=cycle._n_turns_max,
+        )
+        n_turns_explicit = cycle._n_turns_max
+
+        ring, cycle = self._make_two_section_setup()
+        sim = Simulation.from_locals(locals())  # so on_init executes
+        sim.run_simulation(
+            beams=(
+                ProbeBeam(
+                    particle_type=cycle.reference_particle, dt=np.ones(5)
+                )
+            ),
+        )
+        n_turns_auto = sim.turn_i.value
+
+        self.assertEqual(n_turns_explicit, 6)
+        self.assertEqual(n_turns_explicit, n_turns_auto)
 
 
 class TestBaseFunctions(unittest.TestCase):
