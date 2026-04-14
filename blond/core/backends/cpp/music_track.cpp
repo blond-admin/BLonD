@@ -36,8 +36,11 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
                             real_t *__restrict__ beam_dE,
                             real_t *__restrict__ induced_voltage,
                             real_t *__restrict__ array_parameters,
-                            const int n_macroparticles, const real_t alpha,
-                            const real_t omega_bar, const real_t cnst,
+                            const int n_macroparticles,
+                            const real_t intensity_factor,
+                            const real_t alpha,
+                            const real_t omega_bar,
+                            const real_t cnst,
                             const real_t coeff1, const real_t coeff2,
                             const real_t coeff3, const real_t coeff4) {
   /*
@@ -100,7 +103,7 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
         exp_term * (coeff3 * sin_term * input_first_component +
                     (cos_term + coeff4 * sin_term) * input_second_component);
 
-    induced_voltage[i + 1] = cnst * (0.5 + product_first_component);
+    induced_voltage[i + 1] = cnst * intensity_factor * (0.5 + product_first_component);
     beam_dE[i + 1] += induced_voltage[i + 1];
     input_first_component = product_first_component + 1;
     input_second_component = product_second_component;
@@ -116,7 +119,9 @@ extern "C" void music_track_multiturn(
     real_t *__restrict__ beam_dE,
     real_t *__restrict__ induced_voltage,
     real_t *__restrict__ array_parameters,
-    const int n_macroparticles, const real_t alpha, const real_t omega_bar,
+    const int n_macroparticles,
+    const real_t intensity_factor,
+    const real_t alpha, const real_t omega_bar,
     const real_t cnst, const real_t coeff1, const real_t coeff2,
     const real_t coeff3,
     const real_t coeff4) { /*
@@ -156,7 +161,7 @@ extern "C" void music_track_multiturn(
       exp_term * (coeff3 * sin_term * array_parameters[0] +
                   (cos_term + coeff4 * sin_term) * array_parameters[1]);
 
-  induced_voltage[0] = cnst * (0.5 + product_first_component);
+  induced_voltage[0] = cnst * intensity_factor * (0.5 + product_first_component);
   beam_dE[0] += induced_voltage[0];
   real_t input_first_component = product_first_component + 1;
   real_t input_second_component = product_second_component;
@@ -176,7 +181,7 @@ extern "C" void music_track_multiturn(
         exp_term * (coeff3 * sin_term * input_first_component +
                     (cos_term + coeff4 * sin_term) * input_second_component);
 
-    induced_voltage[i + 1] = cnst * (0.5 + product_first_component);
+    induced_voltage[i + 1] = cnst * intensity_factor * (0.5 + product_first_component);
     beam_dE[i + 1] += induced_voltage[i + 1];
     input_first_component = product_first_component + 1;
     input_second_component = product_second_component;

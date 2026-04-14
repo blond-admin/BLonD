@@ -112,6 +112,112 @@ class Specials(ABC):
         )
 
     @staticmethod
+    @abstractmethod
+    def music_track(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        induced_voltage: NumpyArray,
+        array_parameters: NumpyArray,
+        n_macroparticles: int,
+        intensity_factor: float,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+    ):
+        """
+        Calculate and apply induced voltage energy kicks with MUSIC algorithm.
+
+        Parameters
+        ----------
+        dt
+            Time coordinates of the beam.
+        dE
+            Energy coordinates of the beam.
+        induced_voltage
+            State vector.
+        array_parameters
+            Input/Output parameters for states.
+        n_macroparticles
+            Unused in python.
+        intensity_factor
+            Intensity factor for each macroparticle.
+        alpha
+            Calculation variable.
+        omega_bar
+            Calculation variable.
+        const
+            Calculation variable.
+        coeff1
+            Calculation variable.
+        coeff2
+            Calculation variable.
+        coeff3
+            Calculation variable.
+        coeff4
+            Calculation variable.
+        """
+        raise NotImplementedError(
+            "Abstract method `music_track` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod
+    def music_track_multiturn(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        induced_voltage: NumpyArray,
+        array_parameters: NumpyArray,
+        n_macroparticles: int,
+        intensity_factor: float,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+    ):
+        """
+        Calculate and apply induced voltage energy kicks with MUSIC algorithm.
+
+        Parameters
+        ----------
+        dt
+            Time coordinates of the beam.
+        dE
+            Energy coordinates of the beam.
+        induced_voltage
+            State vector.
+        array_parameters
+            Input/Output parameters for states.
+        n_macroparticles
+            Unused in python.
+        intensity_factor
+            Intensity factor for each macroparticle.
+        alpha
+            Calculation variable.
+        omega_bar
+            Calculation variable.
+        const
+            Calculation variable.
+        coeff1
+            Calculation variable.
+        coeff2
+            Calculation variable.
+        coeff3
+            Calculation variable.
+        coeff4
+            Calculation variable.
+        """
+        raise NotImplementedError(
+            "Abstract method `music_track_multiturn` is not implemented."
+        )
+
+    @staticmethod
     @abstractmethod  # pragma: no cover
     def dot_product_1d_array(
         array_1: NumpyArray | CupyArray, array_2: NumpyArray | CupyArray

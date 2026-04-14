@@ -121,7 +121,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     capable of processing the supplied options.
     """
     print("\nTrying to compile C++ backend.")
-    for parallel in (False, True):
+    for parallel in (True,):
         if libname is None:
             from blond.generals.hashing_ import hash_in_folder
 

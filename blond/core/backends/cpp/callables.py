@@ -472,6 +472,72 @@ def reload_cpp_backend(  # NOQA: PLR0915
             return n_new
 
         @staticmethod
+        def music_track(
+            dt: NumpyArray,
+            dE: NumpyArray,
+            induced_voltage: NumpyArray,
+            array_parameters: NumpyArray,
+            n_macroparticles: int,
+            intensity_factor: float,
+            alpha: float,
+            omega_bar: float,
+            const: float,
+            coeff1: float,
+            coeff2: float,
+            coeff3: float,
+            coeff4: float,
+        ):
+            # TODO: add type checking
+            _LIBBLOND.music_track(
+                dt.ctypes.data_as(ct.c_void_p),
+                dE.ctypes.data_as(ct.c_void_p),
+                induced_voltage.ctypes.data_as(ct.c_void_p),
+                array_parameters.ctypes.data_as(ct.c_void_p),
+                n_macroparticles,
+                c_real(intensity_factor, floattype),
+                c_real(alpha, floattype),
+                c_real(omega_bar, floattype),
+                c_real(const, floattype),
+                c_real(coeff1, floattype),
+                c_real(coeff2, floattype),
+                c_real(coeff3, floattype),
+                c_real(coeff4, floattype),
+            )
+
+        @staticmethod
+        def music_track_multiturn(
+            dt: NumpyArray,
+            dE: NumpyArray,
+            induced_voltage: NumpyArray,
+            array_parameters: NumpyArray,
+            n_macroparticles: int,
+            intensity_factor: float,
+            alpha: float,
+            omega_bar: float,
+            const: float,
+            coeff1: float,
+            coeff2: float,
+            coeff3: float,
+            coeff4: float,
+        ):
+            # TODO: add type checking
+            _LIBBLOND.music_track(
+                dt.ctypes.data_as(ct.c_void_p),
+                dE.ctypes.data_as(ct.c_void_p),
+                induced_voltage.ctypes.data_as(ct.c_void_p),
+                array_parameters.ctypes.data_as(ct.c_void_p),
+                n_macroparticles,
+                c_real(intensity_factor, floattype),
+                c_real(alpha, floattype),
+                c_real(omega_bar, floattype),
+                c_real(const, floattype),
+                c_real(coeff1, floattype),
+                c_real(coeff2, floattype),
+                c_real(coeff3, floattype),
+                c_real(coeff4, floattype),
+            )
+
+        @staticmethod
         def histogram_sparse(
             x: NumpyArray,
             out: NumpyArray,

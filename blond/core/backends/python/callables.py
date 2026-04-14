@@ -308,6 +308,194 @@ class PythonSpecials(Specials):
         dt += T * coeff * dE
 
     @staticmethod
+    def music_track(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        induced_voltage: NumpyArray,
+        array_parameters: NumpyArray,
+        n_macroparticles: int,
+        intensity_factor: float,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+    ):
+        """
+        Calculate and apply induced voltage energy kicks with MUSIC algorithm.
+
+        Parameters
+        ----------
+        dt
+            Time coordinates of the beam.
+        dE
+            Energy coordinates of the beam.
+        induced_voltage
+            State vector.
+        array_parameters
+            Input/Output parameters for states.
+        n_macroparticles
+            Unused in python.
+        intensity_factor
+            Intensity factor for each macroparticle.
+        alpha
+            Calculation variable.
+        omega_bar
+            Calculation variable.
+        const
+            Calculation variable.
+        coeff1
+            Calculation variable.
+        coeff2
+            Calculation variable.
+        coeff3
+            Calculation variable.
+        coeff4
+            Calculation variable.
+        """
+        input_first_component = array_parameters[0]
+        input_second_component = array_parameters[1]
+
+        indices_sorted = np.argsort(dt)
+        dt = dt[indices_sorted]
+        dE = dE[indices_sorted]
+        dE[0] += induced_voltage[0]
+
+        for i in range(len(dt) - 1):
+            time_difference = dt[i + 1] - dt[i]
+
+            exp_term = np.exp(-alpha * time_difference)
+            cos_term = np.cos(omega_bar * time_difference)
+            sin_term = np.sin(omega_bar * time_difference)
+
+            product_first_component = exp_term * (
+                (cos_term + coeff1 * sin_term) * input_first_component
+                + coeff2 * sin_term * input_second_component
+            )
+            product_second_component = exp_term * (
+                coeff3 * sin_term * input_first_component
+                + (cos_term + coeff4 * sin_term) * input_second_component
+            )
+
+            induced_voltage[i + 1] = (
+                const * intensity_factor * (0.5 + product_first_component)
+            )
+            dE[i + 1] += induced_voltage[i + 1]
+
+            input_first_component = product_first_component + 1.0
+            input_second_component = product_second_component
+
+        array_parameters[0] = input_first_component
+        array_parameters[1] = input_second_component
+        array_parameters[3] = dt[-1]
+
+    @staticmethod
+    def music_track_multiturn(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        induced_voltage: NumpyArray,
+        array_parameters: NumpyArray,
+        n_macroparticles: int,
+        intensity_factor: float,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+    ):
+        """
+        Calculate and apply induced voltage energy kicks with MUSIC algorithm.
+
+        Parameters
+        ----------
+        dt
+            Time coordinates of the beam.
+        dE
+            Energy coordinates of the beam.
+        induced_voltage
+            State vector.
+        array_parameters
+            Input/Output parameters for states.
+        n_macroparticles
+            Unused in python.
+        intensity_factor
+            Intensity factor for each macroparticle.
+        alpha
+            Calculation variable.
+        omega_bar
+            Calculation variable.
+        const
+            Calculation variable.
+        coeff1
+            Calculation variable.
+        coeff2
+            Calculation variable.
+        coeff3
+            Calculation variable.
+        coeff4
+            Calculation variable.
+        """
+        input_first_component = array_parameters[0]
+        input_second_component = array_parameters[1]
+        delta_t_last_calculation = array_parameters[2]
+        last_dt = array_parameters[3]
+
+        indices_sorted = np.argsort(dt)
+        dt = dt[indices_sorted]
+        dE = dE[indices_sorted]
+
+        time_difference_0 = dt[0] + delta_t_last_calculation - last_dt
+        exp_term = np.exp(-alpha * time_difference_0)
+        cos_term = np.cos(omega_bar * time_difference_0)
+        sin_term = np.sin(omega_bar * time_difference_0)
+        product_first_component = exp_term * (
+            (cos_term + coeff1 * sin_term) * input_first_component
+            + coeff2 * sin_term * input_second_component
+        )
+        product_second_component = exp_term * (
+            coeff3 * sin_term * input_first_component
+            + (cos_term + coeff4 * sin_term) * input_second_component
+        )
+        induced_voltage[0] = (
+            const * intensity_factor * (0.5 + product_first_component)
+        )
+        dE[0] += induced_voltage[0]
+        input_first_component = product_first_component + 1.0
+        input_second_component = product_second_component
+
+        for i in range(len(dt) - 1):
+            time_difference = dt[i + 1] - dt[i]
+
+            exp_term = np.exp(-alpha * time_difference)
+            cos_term = np.cos(omega_bar * time_difference)
+            sin_term = np.sin(omega_bar * time_difference)
+
+            product_first_component = exp_term * (
+                (cos_term + coeff1 * sin_term) * input_first_component
+                + coeff2 * sin_term * input_second_component
+            )
+            product_second_component = exp_term * (
+                coeff3 * sin_term * input_first_component
+                + (cos_term + coeff4 * sin_term) * input_second_component
+            )
+
+            induced_voltage[i + 1] = (
+                const * intensity_factor * (0.5 + product_first_component)
+            )
+            dE[i + 1] += induced_voltage[i + 1]
+
+            input_first_component = product_first_component + 1.0
+            input_second_component = product_second_component
+
+        array_parameters[0] = input_first_component
+        array_parameters[1] = input_second_component
+        array_parameters[3] = dt[-1]
+
+    @staticmethod
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
