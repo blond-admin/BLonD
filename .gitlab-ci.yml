@@ -48,6 +48,20 @@ workflow:
     - python3 blond/core/backends/cpp/compile.py --parallel
     - python3 blond/core/backends/cuda/compile.py
 
+.before_no_gpu:
+  before_script:
+    # Verify installation
+    - gcc --version
+    # Create and activate a virtual environment
+    - python3 -m venv ./.venv
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    # Install project with extras
+    - python3 --version && gcc --version && mpirun --version
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install -v -e ${project_root}[all_no_cuda]
+    - cd ${project_root}
+    # Compile C++, CUDA backends
+    - python3 blond/core/backends/cpp/compile.py --parallel
 
 .main:
   variables:
@@ -91,7 +105,7 @@ workflow:
       -v unittests/
       --randomly-seed=$CI_PIPELINE_ID
 
-.main_no_cupy:
+.main_no_gpu:
   variables:
     BLOND_BACKEND_MODE: "cpp"     # Set the basic backend to numba. It is most verbose about wrong types
     BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
@@ -181,8 +195,8 @@ test_py_310_no_cupy:
   stage: test_without_gpu
   interruptible: true
   extends:
-    - .before
-    - .main_no_cupy
+    - .before_no_gpu
+    - .main_no_gpu
 
 test_py_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
