@@ -1040,6 +1040,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
 
 class MusicSolver(WakeFieldSolver):
+    """Dummy."""
+
     def __init__(self) -> None:
         self._parent_wakefield: WakeField | None = None
         self._simulation: Simulation | None = None
@@ -1049,6 +1051,16 @@ class MusicSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
+        """
+        Dummy.
+
+        Parameters
+        ----------
+        simulation
+            Simulation object.
+        parent_wakefield
+            Dummy.
+        """
         self._simulation = simulation
         if parent_wakefield.profile is None:
             raise ValueError("Parent wakefield needs to have a profile.")
@@ -1073,7 +1085,9 @@ class MusicSolver(WakeFieldSolver):
         self._quality_factors: NumpyArray
 
         if len(self._parent_wakefield.sources._shunt_impedances) != 1:
-            warnings.warn("currently only one resonator is supported. ")
+            warnings.warn(
+                "currently only one resonator is supported. ", stacklevel=1
+            )
 
         self.R_s = self._parent_wakefield.sources._shunt_impedances[0]
         self.omega_R = (
@@ -1095,19 +1109,22 @@ class MusicSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
+        """
+        Dummy.
+
+        Parameters
+        ----------
+        beam
+            Beam for which to calculate the induced voltage.
+
+        Returns
+        -------
+        induced voltage
+            Dummy array.
+        """
         self.intensity_factor = beam.intensity / beam.common_array_size
         if not self.first_time_called:
-            t_rev = simulation.get_t_rev_init()
             self.last_dt = beam.dt.array_local[-1]
-
-            self.array_parameters = np.array(
-                [
-                    self.input_first_component,
-                    self.input_second_component,
-                    t_rev,
-                    self.last_dt,
-                ]
-            )
 
             self.induced_voltage = np.zeros(len(beam.dt.array_local))
             self.induced_voltage[0] = self.const / 2 * self.intensity_factor
@@ -1120,9 +1137,16 @@ class MusicSolver(WakeFieldSolver):
 
     def track_py(self, beam: BeamBaseClass):
         r"""
+        Dummy.
+
         Voltage in time domain (single-turn) using MuSiC (Python code).
         Note: this method should also be called at turn number 1 when
         multi-turn voltage computations are needed.
+
+        Parameters
+        ----------
+        beam
+            Beam for which to calculate the induced voltage.
 
         Examples
         --------
@@ -1131,7 +1155,6 @@ class MusicSolver(WakeFieldSolver):
         >>> music_cpp = musClass.Music(my_beam, [R_S, 2*np.pi*frequency_R, Q],
         >>>                               n_macroparticles, n_particles, t_rev)
         >>> music_cpp.track_py()
-
         """
         indices_sorted = np.argsort(beam.dt.array_local)
         beam.dt.array_local = beam.dt.array_local[indices_sorted]
@@ -1170,9 +1193,16 @@ class MusicSolver(WakeFieldSolver):
 
     def track_py_multi_turn(self, beam: BeamBaseClass):
         r"""
+        Dummy.
+
         Voltage in time domain (multi-turn) using MuSiC (Python code).
         Note: this method should be called from turn number 2 onwards when
-        multi-turn voltage computations are needed..
+        multi-turn voltage computations are needed.
+
+        Parameters
+        ----------
+        beam
+            Dummy.
 
         Examples
         --------
@@ -1183,11 +1213,14 @@ class MusicSolver(WakeFieldSolver):
         >>> music_cpp.track_py()
         >>> for i in range(2, n_turns):
         >>>     music_cpp.track_py_multi_turn()
-
         """
         indices_sorted = np.argsort(beam.dt.array_local)
         beam.dt.array_local = beam.dt.array_local[indices_sorted]
         beam.dE.array_local = beam.dE.array_local[indices_sorted]
+        delta_t_last_calculation = (
+            beam.reference.time - self.last_reference_time
+        )
+        assert delta_t_last_calculation > 0, "time must go forward"
         time_difference_0 = beam.dt.array_local[0] + self.t_rev - self.last_dt
         exp_term = np.exp(-self.alpha * time_difference_0)
         cos_term = np.cos(self.omega_bar * time_difference_0)
@@ -1240,6 +1273,7 @@ class MusicSolver(WakeFieldSolver):
             self.input_second_component = product_second_component
 
         self.last_dt = beam.dt.array_local[-1]
+        self.last_reference_time = beam.reference.time
 
 
 class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
@@ -1492,7 +1526,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._update_on_bin = np.unique(
             self._profile._bucket_index_to_memory_index
             if type(self._profile) is EquidistantMultiProfile
-            else np.arange(len(self._profile.hist_x), dtype=np.int32)
+            else np.array([0], dtype=np.int32)
         )
         self.factor = -(1 * beam.particle_type.charge * e) * (
             beam.intensity * 1.0 / beam.common_array_size
@@ -1520,15 +1554,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         else:
             passed_time = beam.reference.time - self.last_reference_time
             self._states[-1] -= complex(passed_time)
-            # first_mem_entry = (
-            #     self._profile._continuous_memory_hist_x[0]
-            #     if type(self._profile) is EquidistantMultiProfile
-            #     else self._profile.hist_x[0]
-            # )
-            # assert (
-            #     self._states[-1].real
-            #     <= first_mem_entry
-            # )
+            first_mem_entry = (
+                self._profile._continuous_memory_hist_x[0]
+                if type(self._profile) is EquidistantMultiProfile
+                else self._profile.hist_x[0]
+            )
+            assert self._states[-1].real <= first_mem_entry
 
         backend.specials.apply_poles2(
             profile=self._profile._continuous_memory_hist_y
