@@ -480,7 +480,7 @@ def main_cli() -> None:
         description="Script used to compile the C++ libraries needed by BLonD.",
     )
 
-    parser.add_argument(
+    parser.add_argument(  # todo remove everywhere
         "-p",
         "--parallel",
         action="store_true",
@@ -588,4 +588,4 @@ def main_cli() -> None:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main_cli(force_parallel=True)
+    main_cli()
