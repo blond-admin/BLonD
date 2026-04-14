@@ -312,16 +312,20 @@ class PythonSpecials(Specials):
         dt: NumpyArray,
         dE: NumpyArray,
         induced_voltage: NumpyArray,
-        array_parameters: NumpyArray,
+        input_first_component: NumpyArray,
+        input_second_component: NumpyArray,
+        delta_t: float,
+        last_dt: float,
         n_macroparticles: int,
+        n_resonators: int,
         intensity_factor: float,
-        alpha: float,
-        omega_bar: float,
-        const: float,
-        coeff1: float,
-        coeff2: float,
-        coeff3: float,
-        coeff4: float,
+        alpha: NumpyArray,
+        omega_bar: NumpyArray,
+        const: NumpyArray,
+        coeff1: NumpyArray,
+        coeff2: NumpyArray,
+        coeff3: NumpyArray,
+        coeff4: NumpyArray,
     ):
         """
         Calculate and apply induced voltage energy kicks with MUSIC algorithm.
@@ -334,9 +338,17 @@ class PythonSpecials(Specials):
             Energy coordinates of the beam.
         induced_voltage
             State vector.
-        array_parameters
-            Input/Output parameters for states.
+        input_first_component
+            Input state vector for first component.
+        input_second_component
+            Input state vector for second component.
+        delta_t
+            Time difference to last calculation.
+        last_dt
+            Last time coordinate, which was calculated.
         n_macroparticles
+            Unused in python.
+        n_resonators
             Unused in python.
         intensity_factor
             Intensity factor for each macroparticle.
@@ -355,9 +367,6 @@ class PythonSpecials(Specials):
         coeff4
             Calculation variable.
         """
-        input_first_component = array_parameters[0]
-        input_second_component = array_parameters[1]
-
         indices_sorted = np.argsort(dt)
         dt = dt[indices_sorted]
         dE = dE[indices_sorted]
@@ -365,47 +374,55 @@ class PythonSpecials(Specials):
 
         for i in range(len(dt) - 1):
             time_difference = dt[i + 1] - dt[i]
+            for res_ind in range(n_resonators):
+                exp_term = np.exp(-alpha[res_ind] * time_difference)
+                cos_term = np.cos(omega_bar[res_ind] * time_difference)
+                sin_term = np.sin(omega_bar[res_ind] * time_difference)
 
-            exp_term = np.exp(-alpha * time_difference)
-            cos_term = np.cos(omega_bar * time_difference)
-            sin_term = np.sin(omega_bar * time_difference)
+                product_first_component = exp_term * (
+                    (cos_term + coeff1[res_ind] * sin_term)
+                    * input_first_component[res_ind]
+                    + coeff2[res_ind]
+                    * sin_term
+                    * input_second_component[res_ind]
+                )
+                product_second_component = exp_term * (
+                    coeff3[res_ind] * sin_term * input_first_component[res_ind]
+                    + (cos_term + coeff4[res_ind] * sin_term)
+                    * input_second_component[res_ind]
+                )
 
-            product_first_component = exp_term * (
-                (cos_term + coeff1 * sin_term) * input_first_component
-                + coeff2 * sin_term * input_second_component
-            )
-            product_second_component = exp_term * (
-                coeff3 * sin_term * input_first_component
-                + (cos_term + coeff4 * sin_term) * input_second_component
-            )
+                # induced_voltage[i + 1] += (
+                #     const[res_ind] * intensity_factor * (0.5 + product_first_component)
+                # )
+                dE[i + 1] += (
+                    const[res_ind]
+                    * intensity_factor
+                    * (0.5 + product_first_component)
+                )
 
-            induced_voltage[i + 1] = (
-                const * intensity_factor * (0.5 + product_first_component)
-            )
-            dE[i + 1] += induced_voltage[i + 1]
-
-            input_first_component = product_first_component + 1.0
-            input_second_component = product_second_component
-
-        array_parameters[0] = input_first_component
-        array_parameters[1] = input_second_component
-        array_parameters[3] = dt[-1]
+                input_first_component[res_ind] = product_first_component + 1.0
+                input_second_component[res_ind] = product_second_component
 
     @staticmethod
     def music_track_multiturn(
         dt: NumpyArray,
         dE: NumpyArray,
         induced_voltage: NumpyArray,
-        array_parameters: NumpyArray,
+        input_first_component: NumpyArray,
+        input_second_component: NumpyArray,
+        delta_t: float,
+        last_dt: float,
         n_macroparticles: int,
+        n_resonators: int,
         intensity_factor: float,
-        alpha: float,
-        omega_bar: float,
-        const: float,
-        coeff1: float,
-        coeff2: float,
-        coeff3: float,
-        coeff4: float,
+        alpha: NumpyArray,
+        omega_bar: NumpyArray,
+        const: NumpyArray,
+        coeff1: NumpyArray,
+        coeff2: NumpyArray,
+        coeff3: NumpyArray,
+        coeff4: NumpyArray,
     ):
         """
         Calculate and apply induced voltage energy kicks with MUSIC algorithm.
@@ -418,9 +435,17 @@ class PythonSpecials(Specials):
             Energy coordinates of the beam.
         induced_voltage
             State vector.
-        array_parameters
-            Input/Output parameters for states.
+        input_first_component
+            Input state vector for first component.
+        input_second_component
+            Input state vector for second component.
+        delta_t
+            Time difference to last calculation.
+        last_dt
+            Last time coordinate, which was calculated.
         n_macroparticles
+            Unused in python.
+        n_resonators
             Unused in python.
         intensity_factor
             Intensity factor for each macroparticle.
@@ -439,61 +464,66 @@ class PythonSpecials(Specials):
         coeff4
             Calculation variable.
         """
-        input_first_component = array_parameters[0]
-        input_second_component = array_parameters[1]
-        delta_t_last_calculation = array_parameters[2]
-        last_dt = array_parameters[3]
-
         indices_sorted = np.argsort(dt)
         dt = dt[indices_sorted]
         dE = dE[indices_sorted]
 
-        time_difference_0 = dt[0] + delta_t_last_calculation - last_dt
-        exp_term = np.exp(-alpha * time_difference_0)
-        cos_term = np.cos(omega_bar * time_difference_0)
-        sin_term = np.sin(omega_bar * time_difference_0)
-        product_first_component = exp_term * (
-            (cos_term + coeff1 * sin_term) * input_first_component
-            + coeff2 * sin_term * input_second_component
-        )
-        product_second_component = exp_term * (
-            coeff3 * sin_term * input_first_component
-            + (cos_term + coeff4 * sin_term) * input_second_component
-        )
-        induced_voltage[0] = (
-            const * intensity_factor * (0.5 + product_first_component)
-        )
-        dE[0] += induced_voltage[0]
-        input_first_component = product_first_component + 1.0
-        input_second_component = product_second_component
+        time_difference_0 = dt[0] + delta_t - last_dt
+        for res_ind in range(n_resonators):
+            exp_term = np.exp(-alpha[res_ind] * time_difference_0)
+            cos_term = np.cos(omega_bar[res_ind] * time_difference_0)
+            sin_term = np.sin(omega_bar[res_ind] * time_difference_0)
+            product_first_component = exp_term * (
+                (cos_term + coeff1[res_ind] * sin_term)
+                * input_first_component[res_ind]
+                + coeff2[res_ind] * sin_term * input_second_component[res_ind]
+            )
+            product_second_component = exp_term * (
+                coeff3[res_ind] * sin_term * input_first_component[res_ind]
+                + (cos_term + coeff4[res_ind] * sin_term)
+                * input_second_component[res_ind]
+            )
+            induced_voltage[0] = (
+                const[res_ind]
+                * intensity_factor
+                * (0.5 + product_first_component)
+            )
+            dE[0] += induced_voltage[0]
+            input_first_component[res_ind] = product_first_component + 1.0
+            input_second_component[res_ind] = product_second_component
 
         for i in range(len(dt) - 1):
             time_difference = dt[i + 1] - dt[i]
 
-            exp_term = np.exp(-alpha * time_difference)
-            cos_term = np.cos(omega_bar * time_difference)
-            sin_term = np.sin(omega_bar * time_difference)
+            for res_ind in range(n_resonators):
+                exp_term = np.exp(-alpha[res_ind] * time_difference)
+                cos_term = np.cos(omega_bar[res_ind] * time_difference)
+                sin_term = np.sin(omega_bar[res_ind] * time_difference)
 
-            product_first_component = exp_term * (
-                (cos_term + coeff1 * sin_term) * input_first_component
-                + coeff2 * sin_term * input_second_component
-            )
-            product_second_component = exp_term * (
-                coeff3 * sin_term * input_first_component
-                + (cos_term + coeff4 * sin_term) * input_second_component
-            )
+                product_first_component = exp_term * (
+                    (cos_term + coeff1[res_ind] * sin_term)
+                    * input_first_component[res_ind]
+                    + coeff2[res_ind]
+                    * sin_term
+                    * input_second_component[res_ind]
+                )
+                product_second_component = exp_term * (
+                    coeff3[res_ind] * sin_term * input_first_component[res_ind]
+                    + (cos_term + coeff4[res_ind] * sin_term)
+                    * input_second_component[res_ind]
+                )
 
-            induced_voltage[i + 1] = (
-                const * intensity_factor * (0.5 + product_first_component)
-            )
-            dE[i + 1] += induced_voltage[i + 1]
+                # induced_voltage[i + 1] += (
+                #         const[res_ind] * intensity_factor * (0.5 + product_first_component)
+                # )
+                dE[i + 1] += (
+                    const[res_ind]
+                    * intensity_factor
+                    * (0.5 + product_first_component)
+                )
 
-            input_first_component = product_first_component + 1.0
-            input_second_component = product_second_component
-
-        array_parameters[0] = input_first_component
-        array_parameters[1] = input_second_component
-        array_parameters[3] = dt[-1]
+                input_first_component[res_ind] = product_first_component + 1.0
+                input_second_component[res_ind] = product_second_component
 
     @staticmethod
     def drift_exact(

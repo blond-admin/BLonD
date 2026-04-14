@@ -35,14 +35,21 @@ template <typename T> struct particle {
 extern "C" void music_track(real_t *__restrict__ beam_dt,
                             real_t *__restrict__ beam_dE,
                             real_t *__restrict__ induced_voltage,
-                            real_t *__restrict__ array_parameters,
+                            real_t *__restrict__ input_first_component,
+                            real_t *__restrict__ input_second_component,
+                            const real_t delta_t,
+                            real_t last_dt,
                             const int n_macroparticles,
+                            const int n_resonators,
                             const real_t intensity_factor,
-                            const real_t alpha,
-                            const real_t omega_bar,
-                            const real_t cnst,
-                            const real_t coeff1, const real_t coeff2,
-                            const real_t coeff3, const real_t coeff4) {
+                            real_t *__restrict__ alpha,
+                            real_t *__restrict__ omega_bar,
+                            real_t *__restrict__ cnst,
+                            real_t *__restrict__ coeff1,
+                            real_t *__restrict__ coeff2,
+                            real_t *__restrict__ coeff3,
+                            real_t *__restrict__ coeff4,
+                            real_t &last_dt_out) {
   /*
   This function calculates the single-turn induced voltage and updates the
   energies of the particles.
@@ -87,44 +94,49 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
 
   // MuSiC algorithm
   beam_dE[0] += induced_voltage[0];
-  real_t input_first_component = 1;
-  real_t input_second_component = 0;
   for (int i = 0; i < n_macroparticles - 1; i++) {
     const real_t time_difference = beam_dt[i + 1] - beam_dt[i];
-    const real_t exp_term = FAST_EXP(-alpha * time_difference);
-    const real_t cos_term = FAST_COS(omega_bar * time_difference);
-    const real_t sin_term = FAST_SIN(omega_bar * time_difference);
+    for (int res_ind= 0; res_ind < n_resonators; res_ind++) {
+        const real_t exp_term = FAST_EXP(-alpha[res_ind] * time_difference);
+        const real_t cos_term = FAST_COS(omega_bar[res_ind] * time_difference);
+        const real_t sin_term = FAST_SIN(omega_bar[res_ind] * time_difference);
 
-    const real_t product_first_component =
-        exp_term * ((cos_term + coeff1 * sin_term) * input_first_component +
-                    coeff2 * sin_term * input_second_component);
+        const real_t product_first_component =
+            exp_term * ((cos_term + coeff1[res_ind] * sin_term) * input_first_component[res_ind] +
+                        coeff2[res_ind] * sin_term * input_second_component[res_ind]);
 
-    const real_t product_second_component =
-        exp_term * (coeff3 * sin_term * input_first_component +
-                    (cos_term + coeff4 * sin_term) * input_second_component);
+        const real_t product_second_component =
+            exp_term * (coeff3[res_ind] * sin_term * input_first_component[res_ind] +
+                        (cos_term + coeff4[res_ind] * sin_term) * input_second_component[res_ind]);
 
-    induced_voltage[i + 1] = cnst * intensity_factor * (0.5 + product_first_component);
-    beam_dE[i + 1] += induced_voltage[i + 1];
-    input_first_component = product_first_component + 1;
-    input_second_component = product_second_component;
+//        induced_voltage[i + 1] = cnst[res_ind] * intensity_factor * (0.5 + product_first_component);
+        beam_dE[i + 1] += cnst[res_ind] * intensity_factor * (0.5 + product_first_component);
+        input_first_component[res_ind] = product_first_component + 1;
+        input_second_component[res_ind] = product_second_component;
+       }
   }
 
-  array_parameters[0] = input_first_component;
-  array_parameters[1] = input_second_component;
-  array_parameters[3] = beam_dt[n_macroparticles - 1];
+//  last_dt_out = beam_dt[n_macroparticles - 1];
 }
 
 extern "C" void music_track_multiturn(
     real_t *__restrict__ beam_dt,
     real_t *__restrict__ beam_dE,
     real_t *__restrict__ induced_voltage,
-    real_t *__restrict__ array_parameters,
+    real_t *__restrict__ input_first_component,
+    real_t *__restrict__ input_second_component,
+    const real_t delta_t,
+    real_t last_dt,
     const int n_macroparticles,
+    const int n_resonators,
     const real_t intensity_factor,
-    const real_t alpha, const real_t omega_bar,
-    const real_t cnst, const real_t coeff1, const real_t coeff2,
-    const real_t coeff3,
-    const real_t coeff4) { /*
+    real_t *__restrict__ alpha,
+    real_t *__restrict__ omega_bar,
+    real_t *__restrict__ cnst,
+    real_t *__restrict__ coeff1,
+    real_t *__restrict__ coeff2,
+    real_t *__restrict__ coeff3,
+    real_t *__restrict__ coeff4) { /*
                            This function calculates the multi-turn induced
                            voltage and updates the energies of the particles.
                            Parameters and Returns as for music_track.
@@ -148,46 +160,47 @@ extern "C" void music_track_multiturn(
   // First computation of MuSiC relative to the voltage coming from the
   // previous turn
   const real_t time_difference_0 =
-      beam_dt[0] + array_parameters[2] - array_parameters[3];
-  const real_t exp_term = FAST_EXP(-alpha * time_difference_0);
-  const real_t cos_term = FAST_COS(omega_bar * time_difference_0);
-  const real_t sin_term = FAST_SIN(omega_bar * time_difference_0);
+      beam_dt[0] + delta_t - last_dt;
+    for (int res_ind= 0; res_ind < n_resonators; res_ind++) {
+      const real_t exp_term = FAST_EXP(-alpha[res_ind] * time_difference_0);
+      const real_t cos_term = FAST_COS(omega_bar[res_ind] * time_difference_0);
+      const real_t sin_term = FAST_SIN(omega_bar[res_ind] * time_difference_0);
 
-  const real_t product_first_component =
-      exp_term * ((cos_term + coeff1 * sin_term) * array_parameters[0] +
-                  coeff2 * sin_term * array_parameters[1]);
+      const real_t product_first_component =
+          exp_term * ((cos_term + coeff1[res_ind] * sin_term) * input_first_component[res_ind] +
+                      coeff2[res_ind] * sin_term * input_second_component[res_ind]);
 
-  const real_t product_second_component =
-      exp_term * (coeff3 * sin_term * array_parameters[0] +
-                  (cos_term + coeff4 * sin_term) * array_parameters[1]);
+      const real_t product_second_component =
+          exp_term * (coeff3[res_ind] * sin_term * input_first_component[res_ind] +
+                      (cos_term + coeff4[res_ind] * sin_term) * input_second_component[res_ind]);
 
-  induced_voltage[0] = cnst * intensity_factor * (0.5 + product_first_component);
-  beam_dE[0] += induced_voltage[0];
-  real_t input_first_component = product_first_component + 1;
-  real_t input_second_component = product_second_component;
+      induced_voltage[0] = cnst[res_ind] * intensity_factor * (0.5 + product_first_component);
+      beam_dE[0] += induced_voltage[0];
+      input_first_component[res_ind] = product_first_component + 1;
+      input_second_component[res_ind] = product_second_component;
+     }
 
   // MuSiC algorithm for the current turn
   for (int i = 0; i < n_macroparticles - 1; i++) {
     const real_t time_difference = beam_dt[i + 1] - beam_dt[i];
-    const real_t exp_term = FAST_EXP(-alpha * time_difference);
-    const real_t cos_term = FAST_COS(omega_bar * time_difference);
-    const real_t sin_term = FAST_SIN(omega_bar * time_difference);
+        for (int res_ind= 0; res_ind < n_resonators; res_ind++) {
 
-    const real_t product_first_component =
-        exp_term * ((cos_term + coeff1 * sin_term) * input_first_component +
-                    coeff2 * sin_term * input_second_component);
+            const real_t exp_term = FAST_EXP(-alpha[res_ind] * time_difference);
+            const real_t cos_term = FAST_COS(omega_bar[res_ind] * time_difference);
+            const real_t sin_term = FAST_SIN(omega_bar[res_ind] * time_difference);
 
-    const real_t product_second_component =
-        exp_term * (coeff3 * sin_term * input_first_component +
-                    (cos_term + coeff4 * sin_term) * input_second_component);
+            const real_t product_first_component =
+                exp_term * ((cos_term + coeff1[res_ind] * sin_term) * input_first_component[res_ind] +
+                            coeff2[res_ind] * sin_term * input_second_component[res_ind]);
 
-    induced_voltage[i + 1] = cnst * intensity_factor * (0.5 + product_first_component);
-    beam_dE[i + 1] += induced_voltage[i + 1];
-    input_first_component = product_first_component + 1;
-    input_second_component = product_second_component;
+            const real_t product_second_component =
+                exp_term * (coeff3[res_ind] * sin_term * input_first_component[res_ind] +
+                            (cos_term + coeff4[res_ind] * sin_term) * input_second_component[res_ind]);
+
+//            induced_voltage[i + 1] = cnst[res_ind] * intensity_factor * (0.5 + product_first_component);
+            beam_dE[i + 1] += cnst[res_ind] * intensity_factor * (0.5 + product_first_component);
+            input_first_component[res_ind] = product_first_component + 1;
+            input_second_component[res_ind] = product_second_component;
+    }
   }
-
-  array_parameters[0] = input_first_component;
-  array_parameters[1] = input_second_component;
-  array_parameters[3] = beam_dt[n_macroparticles - 1];
 }

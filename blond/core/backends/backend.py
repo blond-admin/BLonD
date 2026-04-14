@@ -117,16 +117,20 @@ class Specials(ABC):
         dt: NumpyArray,
         dE: NumpyArray,
         induced_voltage: NumpyArray,
-        array_parameters: NumpyArray,
+        input_first_component: NumpyArray,
+        input_second_component: NumpyArray,
+        delta_t: float,
+        last_dt: float,
         n_macroparticles: int,
+        n_resonators: int,
         intensity_factor: float,
-        alpha: float,
-        omega_bar: float,
-        const: float,
-        coeff1: float,
-        coeff2: float,
-        coeff3: float,
-        coeff4: float,
+        alpha: NumpyArray,
+        omega_bar: NumpyArray,
+        const: NumpyArray,
+        coeff1: NumpyArray,
+        coeff2: NumpyArray,
+        coeff3: NumpyArray,
+        coeff4: NumpyArray,
     ):
         """
         Calculate and apply induced voltage energy kicks with MUSIC algorithm.
@@ -139,9 +143,17 @@ class Specials(ABC):
             Energy coordinates of the beam.
         induced_voltage
             State vector.
-        array_parameters
-            Input/Output parameters for states.
+        input_first_component
+            Input state vector for first component.
+        input_second_component
+            Input state vector for second component.
+        delta_t
+            Time difference to last calculation.
+        last_dt
+            Last time coordinate, which was calculated.
         n_macroparticles
+            Unused in python.
+        n_resonators
             Unused in python.
         intensity_factor
             Intensity factor for each macroparticle.
@@ -170,16 +182,20 @@ class Specials(ABC):
         dt: NumpyArray,
         dE: NumpyArray,
         induced_voltage: NumpyArray,
-        array_parameters: NumpyArray,
+        input_first_component: NumpyArray,
+        input_second_component: NumpyArray,
+        delta_t: float,
+        last_dt: float,
         n_macroparticles: int,
+        n_resonators: int,
         intensity_factor: float,
-        alpha: float,
-        omega_bar: float,
-        const: float,
-        coeff1: float,
-        coeff2: float,
-        coeff3: float,
-        coeff4: float,
+        alpha: NumpyArray,
+        omega_bar: NumpyArray,
+        const: NumpyArray,
+        coeff1: NumpyArray,
+        coeff2: NumpyArray,
+        coeff3: NumpyArray,
+        coeff4: NumpyArray,
     ):
         """
         Calculate and apply induced voltage energy kicks with MUSIC algorithm.
@@ -192,9 +208,17 @@ class Specials(ABC):
             Energy coordinates of the beam.
         induced_voltage
             State vector.
-        array_parameters
-            Input/Output parameters for states.
+        input_first_component
+            Input state vector for first component.
+        input_second_component
+            Input state vector for second component.
+        delta_t
+            Time difference to last calculation.
+        last_dt
+            Last time coordinate, which was calculated.
         n_macroparticles
+            Unused in python.
+        n_resonators
             Unused in python.
         intensity_factor
             Intensity factor for each macroparticle.

@@ -1085,13 +1085,15 @@ class MusicSolver(WakeFieldSolver):
                 "currently only one resonator is supported. ", stacklevel=1
             )
 
-        self.R_S = self._parent_wakefield.sources[0]._shunt_impedances[0]
-        self.omega_R = (
-            self._parent_wakefield.sources[0]._center_frequencies[0]
-            * 2
-            * np.pi
+        self.n_resonators = len(
+            self._parent_wakefield.sources[0]._shunt_impedances
         )
-        self.Q = self._parent_wakefield.sources[0]._quality_factors[0]
+
+        self.R_S = self._parent_wakefield.sources[0]._shunt_impedances
+        self.omega_R = (
+            self._parent_wakefield.sources[0]._center_frequencies * 2 * np.pi
+        )
+        self.Q = self._parent_wakefield.sources[0]._quality_factors
 
         self.alpha = self.omega_R / (2 * self.Q)
         self.omega_bar = np.sqrt(self.omega_R**2 - self.alpha**2)
@@ -1102,8 +1104,8 @@ class MusicSolver(WakeFieldSolver):
         self.coeff2 = -self.R_S * self.omega_R / (self.Q * self.omega_bar)
         self.coeff3 = self.omega_R * self.Q / (self.R_S * self.omega_bar)
         self.coeff4 = self.alpha / self.omega_bar
-        self.input_first_component = 1
-        self.input_second_component = 0
+        self.input_first_component = np.ones(self.n_resonators)
+        self.input_second_component = np.zeros(self.n_resonators)
 
         self.dummy_voltage = np.zeros(self._parent_wakefield.profile.n_bins)
 
@@ -1128,25 +1130,31 @@ class MusicSolver(WakeFieldSolver):
             self.last_dt = beam.dt.array_local[-1]
 
             self.induced_voltage = np.zeros(len(beam.dt.array_local))
-            self.induced_voltage[0] = self.const / 2 * self.intensity_factor
+            self.induced_voltage[0] = (
+                np.sum(self.const) / 2 * self.intensity_factor
+            )
 
             self.first_time_called = True
 
-            self.array_parameters = np.array(
-                [
-                    self.input_first_component,
-                    self.input_second_component,
-                    0,  # dummy, not used
-                    0,  # dummy, not used
-                ]
-            )
+            # self.array_parameters = np.array(
+            #     [
+            #         self.input_first_component,
+            #         self.input_second_component,
+            #         0,  # dummy, not used
+            #         0,  # dummy, not used
+            #     ]
+            # )
 
-            backend.specials.music_track(
+            self.last_dt = backend.specials.music_track(
                 dt=beam.dt.array_local,
                 dE=beam.dE.array_local,
                 induced_voltage=self.induced_voltage,
-                array_parameters=self.array_parameters,
+                input_first_component=self.input_first_component,
+                input_second_component=self.input_second_component,
+                delta_t=0,  # unused
+                last_dt=self.last_dt,
                 n_macroparticles=beam.common_array_size,
+                n_resonators=self.n_resonators,
                 intensity_factor=1.0,
                 alpha=self.alpha,
                 omega_bar=self.omega_bar,
@@ -1157,26 +1165,31 @@ class MusicSolver(WakeFieldSolver):
                 coeff4=self.coeff4,
             )
             self.last_reference_time = beam.reference.time
+            self.last_dt = beam.dt.array_local[-1]
 
         else:
             self.delta_t_last_calculation = (
                 beam.reference.time - self.last_reference_time
             )
             assert self.delta_t_last_calculation > 0, "time must go forward"
-            self.array_parameters = np.array(
-                [
-                    self.input_first_component,
-                    self.input_second_component,
-                    self.delta_t_last_calculation,
-                    self.last_dt,
-                ]
-            )
+            # self.array_parameters = np.array(
+            #     [
+            #         self.input_first_component,
+            #         self.input_second_component,
+            #         self.delta_t_last_calculation,
+            #         self.last_dt,
+            #     ]
+            # )
             backend.specials.music_track_multiturn(
                 dt=beam.dt.array_local,
                 dE=beam.dE.array_local,
                 induced_voltage=self.induced_voltage,
-                array_parameters=self.array_parameters,
+                input_first_component=self.input_first_component,
+                input_second_component=self.input_second_component,
+                delta_t=self.delta_t_last_calculation,
+                last_dt=self.last_dt,
                 n_macroparticles=beam.common_array_size,
+                n_resonators=self.n_resonators,
                 intensity_factor=self.intensity_factor,
                 alpha=self.alpha,
                 omega_bar=self.omega_bar,
@@ -1186,6 +1199,8 @@ class MusicSolver(WakeFieldSolver):
                 coeff3=self.coeff3,
                 coeff4=self.coeff4,
             )
+
+            self.last_dt = beam.dt.array_local[-1]
 
             self.last_reference_time = beam.reference.time
 
