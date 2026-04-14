@@ -90,7 +90,7 @@ workflow:
 
 
 
-.main_also_no_cupy:
+.main_many_environments:
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
     BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
@@ -169,7 +169,7 @@ test_py_310:
   interruptible: true
   extends:
     - .before
-    - .main_also_no_cupy
+    - .main_many_environments
 #    - .after
     - .publish
   tags:

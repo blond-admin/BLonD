@@ -30,12 +30,15 @@ except ModuleNotFoundError:
 
 from numba import set_num_threads
 
+backend_org = backend.__class__
+backend_specials_mode_org = backend.specials_mode
+
 
 class TestBackendBaseClass(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
-        backend.change_backend(default)
-        backend.set_specials("numba")
+        backend.change_backend(backend_org)
+        backend.set_specials(backend_specials_mode_org)
 
     def setUp(self) -> None:
         self.backend_base_class = Numpy32Bit()
@@ -217,6 +220,12 @@ class TestSpecials(unittest.TestCase):
         if cupy_available:
             self.special_modes.append("cuda")
         set_num_threads(8)
+        self.original_backend = type(backend)
+        self.original_backend_specials_mode = backend.specials_mode
+
+    def tearDown(self) -> None:
+        backend.change_backend(self.original_backend)
+        backend.set_specials(self.original_backend_specials_mode)
 
     @pytest.mark.backend_mutation
     def _setUp(self, dtype, special_mode) -> None:
@@ -999,9 +1008,9 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_histogram_race_conditions(self) -> None:
-        backend.random.seed(np.uint(42))
+        np.random.seed(np.uint(42))
         array_read = (
-            backend.random.random_sample(size=1024) - 0.5
+            np.random.random_sample(size=1024) - 0.5
         ) * 20  # common sample data from -10 to 10
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -1037,6 +1046,7 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    @pytest.mark.backend_mutation
     def test_cast_float_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.float)
 
@@ -1063,6 +1073,7 @@ class TestSpecials(unittest.TestCase):
 
     @skip_if_no_cupy
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_cast_float_arr_full(self):
         for in_type in (tuple, list, np.array, cp.array):
             # Recreate the target for each loop, avoids issues with
@@ -1107,6 +1118,7 @@ class TestSpecials(unittest.TestCase):
         self.assertTrue(target is unchanged)
 
     @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    @pytest.mark.backend_mutation
     def test_cast_complex_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.complex)
         for in_type in (tuple, list, np.array):
@@ -1133,6 +1145,7 @@ class TestSpecials(unittest.TestCase):
 
     @skip_if_no_cupy
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_cast_complex_arr_full(self):
         for in_type in (tuple, list, np.array, cp.array):
             # Recreate the target for each loop, avoids issues with
@@ -1177,6 +1190,7 @@ class TestSpecials(unittest.TestCase):
         self.assertTrue(target is unchanged)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_cast_exceptions(self):
         with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed(["a", "b", "c"])
@@ -1186,10 +1200,6 @@ class TestSpecials(unittest.TestCase):
 
         with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed([[1, 2], 3])
-
-    def tearDown(self) -> None:
-        backend.change_backend(Numpy32Bit)
-        backend.set_specials("numba")
 
     def test_import(self):
         from blond.core.backends import backend  # see if import works
