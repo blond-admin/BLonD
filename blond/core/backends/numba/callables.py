@@ -25,6 +25,8 @@ from blond.core.backends.python.callables import (
 )
 from blond.core.beam.flags import BeamFlags
 
+from .fastmath import fast_sin
+
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
@@ -372,7 +374,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             voltage_kick = charge * voltage
             for i in prange(len(dt)):
                 dE[i] += (
-                    voltage_kick * np.sin(omega_rf * dt[i] + phi_rf)
+                    voltage_kick * fast_sin(omega_rf * dt[i] + phi_rf)
                     + acceleration_kick
                 )
 
@@ -419,7 +421,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                     de_sum += (
                         charge
                         * voltage[j]
-                        * np.sin(omega_rf[j] * dti + phi_rf[j])
+                        * fast_sin(omega_rf[j] * dti + phi_rf[j])
                     )
                 dE[i] += de_sum + acceleration_kick
 

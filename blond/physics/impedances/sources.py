@@ -32,7 +32,6 @@ import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
-from blond.generals.warnings_ import NotTestedWarning
 from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,
@@ -286,7 +285,6 @@ class Resonators(
         | ArrayLike
         | None = None,
     ):
-        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__(is_dynamic=False)
 
         self._shunt_impedances: NumpyArray

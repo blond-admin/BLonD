@@ -50,7 +50,7 @@ def c_real_t(
 
 
 def reload_cpp_backend(  # NOQA: PLR0915
-    floattype: type[np.float32] | type[np.float64],
+    floattype: type[np.float32] | type[np.float64], parallel: bool = True
 ) -> CppSpecials:
     """
     Load and link the according C++ backend.
@@ -60,6 +60,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
     floattype
         Float type to compile the backend for.
         32 or 64 bit.
+    parallel
+        If True, loads the parallel OMP computing backend.
 
     Returns
     -------
@@ -67,6 +69,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
         The `CppSpecials` class.
 
     """
+    parallel_suffix = "" if parallel else "_noOMP"
 
     def load_libblond(precision: str = "single") -> CDLL:
         """
@@ -96,7 +99,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 libblond_path = os.path.abspath(libblond_path_)
             else:
                 libblond_path = os.path.join(
-                    basepath, f"libblond_{precision}.so"
+                    basepath, f"libblond_{precision}{parallel_suffix}.so"
                 )
             _LIBBLOND = ct.CDLL(str(libblond_path))
         elif "win" in sys.platform:
@@ -104,7 +107,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 libblond_path = os.path.abspath(libblond_path_)
             else:
                 libblond_path = os.path.join(
-                    basepath, f"libblond_{precision}.dll"
+                    basepath, f"libblond_{precision}{parallel_suffix}.dll"
                 )
 
             if hasattr(os, "add_dll_directory"):
