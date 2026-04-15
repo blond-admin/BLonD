@@ -1131,15 +1131,6 @@ class MusicSolver(WakeFieldSolver):
 
             self.first_time_called = True
 
-            # self.array_parameters = np.array(
-            #     [
-            #         self.input_first_component,
-            #         self.input_second_component,
-            #         0,  # dummy, not used
-            #         0,  # dummy, not used
-            #     ]
-            # )
-
             backend.specials.music_track(
                 dt=beam.dt.array_local,
                 dE=beam.dE.array_local,
@@ -1167,14 +1158,7 @@ class MusicSolver(WakeFieldSolver):
                 beam.reference.time - self.last_reference_time
             )
             assert self.delta_t_last_calculation > 0, "time must go forward"
-            # self.array_parameters = np.array(
-            #     [
-            #         self.input_first_component,
-            #         self.input_second_component,
-            #         self.delta_t_last_calculation,
-            #         self.last_dt,
-            #     ]
-            # )
+
             backend.specials.music_track_multiturn(
                 dt=beam.dt.array_local,
                 dE=beam.dE.array_local,
