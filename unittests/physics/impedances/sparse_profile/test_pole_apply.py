@@ -10,7 +10,8 @@ from scipy.signal import fftconvolve
 
 from blond import backend
 from blond.handle_results.helpers import callers_relative_path
-from blond.physics.impedances.induced_voltage_with_poles import apply_poles2
+
+backend.set_specials("numba")
 
 
 def get_poles(
@@ -132,7 +133,7 @@ class TestPole(unittest.TestCase):
         voltage = np.zeros_like(hist_y, dtype=float)
         state = np.zeros(len(poles) + 1, dtype=complex)
         state[-1] -= dt
-        apply_poles2(
+        backend.specials.apply_poles2(
             profile=hist_y,
             profile_dts=centers,
             poles=poles,
@@ -156,7 +157,7 @@ class TestPole(unittest.TestCase):
         mask = np.ones(len(hist_y), bool)
         mask[sel] = False
         voltage_masked = voltage[mask]
-        apply_poles2(
+        backend.specials.apply_poles2(
             profile=hist_y[mask],
             profile_dts=centers[mask],
             poles=poles,

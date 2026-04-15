@@ -518,6 +518,33 @@ def reload_cpp_backend(  # NOQA: PLR0915
             update_on_bin,
             factor,
         ) -> None:
+            """
+            Apply poles based on the `profile` to generate `voltage`.
+
+            Parameters
+            ----------
+            profile
+                Beam profile histogram.
+            profile_dts
+                Base for time step, connected to `update_on_bin`.
+            poles
+                Complex poles of an equivalent circuit.
+            residues
+                Complex residues of an equivalent circuit.
+            states
+                Complex state vector, initially ``(0 + 0j)``.
+            voltage
+                Output voltage, in [V].
+            voltage_threaded
+                Cached `voltage` array per thread. For speedup.
+            update_on_bin
+                Index when to trigger an update of dt. For speedup.
+                E.g. For profile No.: `0,0,0,1,1,1,1,2,2,2`
+                one needs `update_on_bin = [0,3,7]`.
+
+            factor
+                To convert `profile` to current per bin [A].
+            """
             complextype = (
                 np.complex64 if floattype == np.float32 else np.complex128
             )
