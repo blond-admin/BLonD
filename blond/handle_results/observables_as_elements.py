@@ -112,7 +112,7 @@ class BeamObservationInRingElement(
             simulation.ring.elements.get_elements(BeamObservationInRingElement)
         )
         num_elements_of_own_instance_in_pipeline = sum(
-            [1 if el == self else 0 for el in own_class_in_simulation_elements]
+            [1 if el is self else 0 for el in own_class_in_simulation_elements]
         )
         n_entries = (
             n_turns * num_elements_of_own_instance_in_pipeline
