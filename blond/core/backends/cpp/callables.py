@@ -135,7 +135,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
         print(
             "C++ backend was not found.. Trying to compile parallel backend."
         )
-        compile_cpp_library(parallel=True)
+        compile_cpp_library()
         try:
             if floattype == np.float32:
                 _LIBBLOND = load_libblond(precision="single")
