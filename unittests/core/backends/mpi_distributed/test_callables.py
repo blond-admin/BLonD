@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pytest
 
-from blond import Cupy64Bit, Numpy64Bit, backend, copy_to_cpu
+from blond import Cupy64Bit, Numpy32Bit, Numpy64Bit, backend, copy_to_cpu
 from blond.core.backends.mpi_distributed.callables import (
     rms_emittance,
 )
@@ -27,11 +27,11 @@ class TestCallables(unittest.TestCase):
                 backend.float
             )
         )
-        mean_dt = np.mean(copy_to_cpu(dt.array_local))
-        mean_dE = np.mean(copy_to_cpu(dE.array_local))
+        mean_dt = np.mean(copy_to_cpu(dt.array_local), dtype=float)
+        mean_dE = np.mean(copy_to_cpu(dE.array_local), dtype=float)
         centered_dt = copy_to_cpu(dt.array_local) - mean_dt
         centered_dE = copy_to_cpu(dE.array_local) - mean_dE
-        rms_expected = backend.float(
+        rms_expected = float(
             np.sqrt(
                 np.average(centered_dt**2) * np.average(centered_dE**2)
                 - (np.average(centered_dt * centered_dE)) ** 2
