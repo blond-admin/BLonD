@@ -9,8 +9,10 @@ from blond import (
     Beam,
     BiGaussian,
     ConstantMagneticCycle,
+    Cupy64Bit,
     DriftSimple,
     MagneticCyclePerTurn,
+    Numpy64Bit,
     Resonators,
     Ring,
     Simulation,
@@ -231,7 +233,10 @@ class TestMultiPoleSparseMultiBunch(unittest.TestCase):
     full turn).
     """
 
+    @pytest.mark.backend_mutation
     def test_induced_voltage_matches_reference(self):
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp")
         filling_pattern = np.zeros(HARMONIC, bool)
         filling_pattern[::BUNCH_SPACING] = 1
 
@@ -276,7 +281,10 @@ class TestMultiPoleSparseSingleBunch(unittest.TestCase):
     regime, compared to a TimeDomainFftSolver on a single-bucket StaticProfile.
     """
 
+    @pytest.mark.backend_mutation
     def test_induced_voltage_matches_reference(self):
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp")
         filling_pattern = np.zeros(HARMONIC, bool)
         filling_pattern[::BUNCH_SPACING] = 1
 
@@ -325,7 +333,10 @@ class TestMultiPoleSparseMultiBunchMultiTurn(unittest.TestCase):
 
     N_TURNS = 2
 
+    @pytest.mark.backend_mutation
     def test_sparse_multibunch_multiturn(self):
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp")
         filling_pattern = np.zeros(HARMONIC, bool)
         filling_pattern[::BUNCH_SPACING] = 1
 
