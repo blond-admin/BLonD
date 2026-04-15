@@ -74,7 +74,7 @@ def apply_poles2(
         one needs `update_on_bin = [0,3,7]`.
 
     factor
-        To convert `profile` to current per bun [A].
+        To convert `profile` to current per bin [A].
     """
     n_poles = len(poles)
     two_factor = 2 * factor
