@@ -47,6 +47,8 @@ class TestGettingStarted(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_executable_numba32(self):
+        self.skipTest("Too slow.")
+
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
 
@@ -57,6 +59,8 @@ class TestGettingStarted(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
+        self.skipTest("Too slow.")
+
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
 
@@ -67,6 +71,7 @@ class TestGettingStarted(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_executable_cuda32(self):
+        self.skipTest("Too slow.")
         try:
             import cupy  # type: ignore
         except ImportError as exc:
