@@ -205,7 +205,7 @@ test_py_310_no_cupy:
     - .main_no_gpu
   dependencies: []
 
-test_py_310:
+test_py_310_main_many_environments:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: test_py310
   interruptible: true
