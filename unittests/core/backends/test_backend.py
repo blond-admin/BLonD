@@ -1039,7 +1039,6 @@ class TestSpecials(unittest.TestCase):
                     stop=backend.float(8.0),
                 )
                 result = array_write
-                print(result.tolist())
 
                 if special == "cuda":
                     result = result.get()
