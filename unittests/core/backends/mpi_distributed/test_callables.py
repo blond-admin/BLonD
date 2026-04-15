@@ -31,9 +31,11 @@ class TestCallables(unittest.TestCase):
         mean_dE = np.mean(copy_to_cpu(dE.array_local))
         centered_dt = copy_to_cpu(dt.array_local) - mean_dt
         centered_dE = copy_to_cpu(dE.array_local) - mean_dE
-        rms_expected = np.sqrt(
-            np.average(centered_dt**2) * np.average(centered_dE**2)
-            - (np.average(centered_dt * centered_dE)) ** 2
+        rms_expected = backend.float(
+            np.sqrt(
+                np.average(centered_dt**2) * np.average(centered_dE**2)
+                - (np.average(centered_dt * centered_dE)) ** 2
+            )
         )
         rms = rms_emittance(dt=dt, dE=dE)
         self.assertAlmostEqual(rms_expected, rms)
