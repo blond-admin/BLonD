@@ -140,10 +140,14 @@ class LxplusJob:
         )
         code_str = proc.stdout.strip()
         if code_str and code_str != "0":
-            raise RuntimeError(
-                f"LXPlus job {self.cluster_id} exited with code {code_str}.\n"
-                f"Inspect {self.remote_workdir}/job.err for details."
+            stderr_proc = self._run_ssh(
+                f"cat {self.remote_workdir}/job.err 2>/dev/null"
             )
+            stderr = stderr_proc.stdout.strip()
+            msg = f"LXPlus job {self.cluster_id} exited with code {code_str}."
+            if stderr:
+                msg += f"\n--- job.err ---\n{stderr}"
+            raise RuntimeError(msg)
 
     def _fetch_result(self) -> Any:
         # Try JSON first (scalars and dicts)
