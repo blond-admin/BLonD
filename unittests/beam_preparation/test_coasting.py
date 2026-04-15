@@ -2,6 +2,7 @@ import unittest
 import unittest.mock as mock
 
 import numpy as np
+import pytest
 
 from blond.beam_preparation import coasting
 from blond.core.beam import beams
@@ -34,6 +35,7 @@ class TestCoasting(unittest.TestCase):
         )
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_init(self):
         kwargs = {
             "energy_bins": np.array([1, 2, 3]),
@@ -59,6 +61,7 @@ class TestCoasting(unittest.TestCase):
             coasting.Coasting(0, [], [], start_time=1, stop_time=0)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_prepare_beam_defaults(self):
         bins = np.linspace(-1, 1, 1000)
         dens = -(bins**2) + 1
@@ -84,6 +87,7 @@ class TestCoasting(unittest.TestCase):
         )
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_prepare_beam_custom(self):
         bins = np.linspace(-1, 1, 1000)
         dens = -(bins**2) + 1
