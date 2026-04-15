@@ -181,7 +181,9 @@ class LxplusJob:
 
 
 def run_on_lxplus(
-    filepath: str, kwargs: dict[str, int | float | str | list]
+    filepath: str,
+    kwargs: dict[str, int | float | str | list],
+    python: str = "python3.12",
 ) -> LxplusJob:
     """Submit a Python script to HTCondor on LXPlus.
 
@@ -204,6 +206,10 @@ def run_on_lxplus(
     kwargs
         Keyword arguments forwarded to the script as ``--key value``
         command-line flags.
+    python
+        Python interpreter to use on the batch node for both
+        ``pip install`` and script execution.  Defaults to
+        ``"python3.12"``.
 
     Returns
     -------
@@ -241,6 +247,7 @@ def run_on_lxplus(
         commit=commit,
         script_rel=script_rel,
         kwargs=kwargs,
+        python=python,
     )
 
     proc = subprocess.run(
@@ -317,6 +324,7 @@ def _build_submission_command(
     commit: str,
     script_rel: str,
     kwargs: dict,
+    python: str = "python3.12",
 ) -> str:
     """Build the shell command executed on LXPlus to submit the HTCondor job.
 
@@ -338,8 +346,8 @@ export BLOND_JOB_TMPDIR="{remote_workdir}"
 SCRATCH=$(mktemp -d)
 git clone --quiet '{remote_url}' "$SCRATCH/repo"
 git -C "$SCRATCH/repo" checkout --quiet '{commit}'
-pip install --quiet --user "$SCRATCH/repo"
-python "$SCRATCH/repo/{script_rel}" {args_str}
+{python} -m pip install --quiet --user "$SCRATCH/repo"
+{python} "$SCRATCH/repo/{script_rel}" {args_str}
 WRAPPER_EOF
 chmod +x {remote_workdir}/wrapper.sh
 
