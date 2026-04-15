@@ -3,6 +3,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 import blond
 from blond import (
@@ -37,6 +38,7 @@ Q_factor = resonator_data[:, 1]
 
 
 class TestSparsePorifleIntegration(unittest.TestCase):
+    @pytest.mark.backend_mutation
     def test_compare_both_profiles(self):
         backend.change_backend(Numpy64Bit)
         DEV_DRAW = False
