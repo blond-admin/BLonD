@@ -415,9 +415,8 @@ class InducedVoltageObservationCR(
     """
     Observation object for induced voltages in counterrotation.
 
-    Observation object for induced voltages in counterrotation. A data recording is only performed
-    if the induced voltage is non-zero and different from the last recorded value, removing
-    double recordings from the induced voltage. It is expected, that the observation object is
+    Observation object for induced voltages in counterrotation.
+    It is expected, that the observation object is
     placed both behind and in-front of the cavity object.
 
     Parameters
@@ -569,6 +568,12 @@ class InducedVoltageObservationCR(
             self.beam_state != beam._is_counter_rotating
             or self.last_turn != self.turn_i.value
         ):
+            # First passage of the beam should not be recorded.
+            # The architecture in the pipeline is generally OBS CAV OBS, meaning,
+            # that the observation will be hit first without the
+            # voltage having been calculated yet for the passing beam.
+            # For the next beam passing, it will be the other way around but
+            # with a different beam state.
             self.beam_state = beam._is_counter_rotating
             self.last_turn = self.turn_i.value
             return
