@@ -489,7 +489,7 @@ class SynchrotronRadiationMaster(Schedulable):
         ring either:
         - before the drifts if track_before_element_type is ``None``
           or `DriftBaseClass`. In that case, `_SynchrotronRadiationDrift`
-         trackers will be inserted in the ring before each drift.
+          trackers will be inserted in the ring before each drift.
         - after the RF cavities if track_before_element_type is `RFStationBaseClass`.
           In that case, `_SynchrotronRadiationSection` trackers will be
           inserted in the ring.
