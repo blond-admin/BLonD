@@ -3,6 +3,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 import blond
 from blond import (
