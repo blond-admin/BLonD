@@ -71,7 +71,7 @@ def apply_poles2(
     update_on_bin
         Index when to trigger an update of dt. For speedup.
     factor
-        To convert `profile` to current per bun [A].
+        To convert `profile` to current per bin [A].
     """
     n_poles = len(poles)
     two_factor = 2 * factor
