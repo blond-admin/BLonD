@@ -3,15 +3,15 @@ import unittest
 
 import numba
 import numpy as np
+import pytest
 import skrf as rf
 from matplotlib import pyplot as plt
 from numba import complex128, float64
 from scipy.signal import fftconvolve
 
-from blond import backend
+import blond
+from blond import Numpy64Bit, backend
 from blond.handle_results.helpers import callers_relative_path
-
-backend.set_specials("numba")
 
 
 def get_poles(
@@ -108,7 +108,11 @@ def get_test_data():
 
 
 class TestPole(unittest.TestCase):
+    @pytest.mark.backend_mutation
     def test_pole(self):
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("numba")
+
         from blond.legacy.blond2.impedances.impedance_sources import Resonators
 
         freq = np.linspace(0, 1e9, 10000)
@@ -220,7 +224,10 @@ class TestPole(unittest.TestCase):
             plt.plot(centers, voltage - ref, "--", label="difference")
             plt.show()
 
+    @pytest.mark.backend_mutation
     def test_instable_pole(self):
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("numba")
         n = int(256)
         hist_y = np.zeros(n, float)
         voltage = np.zeros(n, float)
@@ -277,7 +284,7 @@ class TestPole(unittest.TestCase):
         )
 
         state = np.zeros((len(poles) + 1), complex)
-        apply_poles2(
+        backend.specials.apply_poles2(
             profile=hist_y,
             profile_dts=centers,
             poles=poles,
