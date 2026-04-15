@@ -19,6 +19,9 @@ class TestEX_09_Semi_empiric_matcher(unittest.TestCase):
         from blond.examples.scripts import EX_09_Semi_empiric_matcher
 
         # full script. just checking if it crashes
+        (
+            EX_09_Semi_empiric_matcher.increment_intensity_effects_until_iteration_i
+        ) = 2
         EX_09_Semi_empiric_matcher.main()
 
     @pytest.mark.backend_mutation
@@ -28,6 +31,9 @@ class TestEX_09_Semi_empiric_matcher(unittest.TestCase):
         from blond.examples.scripts import EX_09_Semi_empiric_matcher
 
         # full script. just checking if it crashes
+        (
+            EX_09_Semi_empiric_matcher.increment_intensity_effects_until_iteration_i
+        ) = 2
         EX_09_Semi_empiric_matcher.main()
 
     @pytest.mark.backend_mutation
@@ -43,6 +49,9 @@ class TestEX_09_Semi_empiric_matcher(unittest.TestCase):
 
         # full script. just checking if it crashes
 
+        (
+            EX_09_Semi_empiric_matcher.increment_intensity_effects_until_iteration_i
+        ) = 2
         EX_09_Semi_empiric_matcher.main()
         backend.zeros(100)
 
@@ -58,5 +67,8 @@ class TestEX_09_Semi_empiric_matcher(unittest.TestCase):
         from blond.examples.scripts import EX_09_Semi_empiric_matcher
 
         # full script. just checking if it crashes
+        (
+            EX_09_Semi_empiric_matcher.increment_intensity_effects_until_iteration_i
+        ) = 2
         EX_09_Semi_empiric_matcher.main()
         backend.zeros(100)
