@@ -123,7 +123,7 @@ workflow:
       -v unittests/
       --randomly-seed=$CI_PIPELINE_ID
 
-.main_also_no_cupy:
+.main_many_environments:
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
     BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
@@ -138,10 +138,17 @@ workflow:
     - pip uninstall -y mpi4py
     - python3 -m pytest
       -v unittests/
-      --import-mode=importlib
       --cov-append
       --cov
       --cov-config=.coveragerc
+    - export BLOND_BACKEND_MODE="cuda"
+    - python3 -m pytest
+      -v unittests/
+      -m "not mpi and not backend_mutation"
+      --cov-append
+      --cov
+      --cov-config=.coveragerc
+    - export BLOND_BACKEND_MODE="numba"
     - pip uninstall -y cupy-cuda12x
     - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
     - python3 -m pytest
@@ -198,13 +205,13 @@ test_py_310_no_cupy:
     - .main_no_gpu
   dependencies: []
 
-test_py_310:
+test_py_310_main_many_environments:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: test_py310
   interruptible: true
   extends:
     - .before
-    - .main_also_no_cupy
+    - .main_many_environments
     - .publish
   dependencies: []
   tags:
