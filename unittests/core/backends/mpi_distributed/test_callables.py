@@ -17,8 +17,16 @@ not_distributed = not is_distributed
 class TestCallables(unittest.TestCase):
     @unittest.skipIf(is_distributed, "Runs only without `mpirun`")
     def test_rms_wo_mpi(self):
-        dt = DistributedArray(backend.random.normal(loc=0, scale=1, size=512))
-        dE = DistributedArray(backend.random.normal(loc=0, scale=1, size=512))
+        dt = DistributedArray(
+            backend.random.normal(loc=0, scale=1, size=512).astype(
+                backend.float
+            )
+        )
+        dE = DistributedArray(
+            backend.random.normal(loc=0, scale=1, size=512).astype(
+                backend.float
+            )
+        )
         mean_dt = np.mean(copy_to_cpu(dt.array_local))
         mean_dE = np.mean(copy_to_cpu(dE.array_local))
         centered_dt = copy_to_cpu(dt.array_local) - mean_dt
