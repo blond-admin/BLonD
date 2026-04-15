@@ -356,7 +356,16 @@ class TestBeamObservation(unittest.TestCase):
             rf_station=rf_station,
         )
         bunch_observation = BeamObservationOncePerTurn(each_turn_i=100)
-
+        beam1._is_distributed = True
+        with self.assertRaisesRegex(
+            NotImplementedError, "This needs to be implement"
+        ):
+            sim.run_simulation(
+                beams=(beam1,),
+                n_turns=N_TURNS,
+                observe=(phase_observation, bunch_observation),
+            )
+        beam1._is_distributed = False
         sim.run_simulation(
             beams=(beam1,),
             n_turns=N_TURNS,
