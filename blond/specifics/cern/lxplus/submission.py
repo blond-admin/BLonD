@@ -544,6 +544,7 @@ log                   = {remote_workdir}/job.log
 should_transfer_files = NO
 getenv                = True
 +JobFlavour           = "espresso"
++AccountingGroup      = batch-u-abp-ext-rf
 queue
 SUB_EOF
 
