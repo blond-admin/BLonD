@@ -125,6 +125,7 @@ class LxplusJob:
         self.stdout_path = f"{remote_workdir}/job.out"
         self.stderr_path = f"{remote_workdir}/job.err"
         self.condor_log_path = f"{remote_workdir}/job.log"
+        self._stdout_lines_seen = 0
 
     def wait(self, poll_interval: int = 30) -> Any:
         """Block until the job finishes and return its result.
@@ -176,6 +177,8 @@ class LxplusJob:
                 last_status = status
                 t0 = time.time()
 
+            self._log_new_stdout()
+
             if status in ("Held", "Removed"):
                 self._raise_stuck(status)
 
@@ -187,6 +190,7 @@ class LxplusJob:
                 )
             time.sleep(poll_interval)
         logger.info(f"Job {self.cluster_id} left the queue.")
+        self._log_new_stdout()
         self._raise_on_failure()
         return self._fetch_result()
 
@@ -237,6 +241,29 @@ class LxplusJob:
             return None
         code = lines[0]
         return _CONDOR_STATUS.get(code, f"JobStatus={code}")
+
+    def _log_new_stdout(self) -> None:
+        """Log any lines appended to the remote ``job.out`` since last call.
+
+        Tails complete (newline-terminated) lines so partial writes are
+        re-read on the next poll once finished.  Silently no-ops when
+        the file does not yet exist (job hasn't started).
+        """
+        proc = self._run_ssh(
+            f"tail -n +{self._stdout_lines_seen + 1} {self.stdout_path} "
+            f"2>/dev/null"
+        )
+        if proc.returncode != 0 or not proc.stdout:
+            return
+        text = proc.stdout
+        lines = text.splitlines()
+        if lines and not text.endswith("\n"):
+            lines = lines[:-1]
+        if not lines:
+            return
+        self._stdout_lines_seen += len(lines)
+        for line in lines:
+            logger.info(f"[job {self.cluster_id} stdout] {line}")
 
     def _raise_stuck(self, status: str) -> None:
         """Raise RuntimeError for a ``Held`` or ``Removed`` job.
@@ -362,6 +389,8 @@ def run_on_lxplus(
         tomorrow     = 1 day
         testmatch    = 3 days
         nextweek     = 1 week
+    accounting_group
+        Should remain unchanged for BLonD users.
 
     Returns
     -------
