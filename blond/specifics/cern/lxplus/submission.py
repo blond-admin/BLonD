@@ -237,6 +237,7 @@ def run_on_lxplus(
     """
     filepath = Path(filepath).resolve()
     git_root = _find_git_root(filepath)
+    _assert_git_clean(git_root)
     remote_url, commit = _get_git_info(git_root)
     script_rel = str(filepath.relative_to(git_root))
 
@@ -278,6 +279,42 @@ def _find_git_root(path: Path) -> Path:
     )
 
 
+def _assert_git_clean(git_root: Path) -> None:
+    dirty = subprocess.check_output(
+        ["git", "status", "--porcelain"],
+        cwd=git_root,
+        text=True,
+    ).strip()
+    if dirty:
+        raise RuntimeError(
+            "Uncommitted local changes detected.  "
+            "Commit or stash them before submitting to LXPlus, "
+            "otherwise the batch node (which clones from the remote) "
+            "will run a different version.\n"
+            f"Changed files:\n{dirty}"
+        )
+
+    unpushed_proc = subprocess.run(
+        ["git", "rev-list", "@{u}..HEAD"],
+        check=False, cwd=git_root,
+        capture_output=True,
+        text=True,
+    )
+    if unpushed_proc.returncode != 0:
+        raise RuntimeError(
+            "Could not determine whether local commits are pushed "
+            "(no upstream branch configured).  "
+            "Set a tracking branch with "
+            "'git push --set-upstream origin <branch>' first."
+        )
+    if unpushed_proc.stdout.strip():
+        raise RuntimeError(
+            "Local commits have not been pushed to the remote.  "
+            "Push them before submitting to LXPlus.\n"
+            f"Unpushed commits:\n{unpushed_proc.stdout.strip()}"
+        )
+
+
 def _get_git_info(git_root: Path) -> tuple[str, str]:
     remote_url = subprocess.check_output(
         ["git", "remote", "get-url", "origin"],
@@ -294,13 +331,13 @@ def _get_git_info(git_root: Path) -> tuple[str, str]:
 
 def _make_remote_workdir() -> str:
     """Return a unique job directory path under ``~/blond_jobs/`` on LXPlus."""
-    home_proc = subprocess.run(
+    proc = subprocess.run(
         ["ssh", LXPLUS_HOST, "echo $HOME"],
         capture_output=True,
         text=True,
         check=True,
     )
-    home = home_proc.stdout.strip()
+    home = proc.stdout.strip()
     token = uuid.uuid4().hex[:12]
     return f"{home}/blond_jobs/job_{token}"
 
@@ -357,6 +394,7 @@ output                = {remote_workdir}/job.out
 error                 = {remote_workdir}/job.err
 log                   = {remote_workdir}/job.log
 should_transfer_files = NO
+getenv                = True
 queue
 SUB_EOF
 
