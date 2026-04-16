@@ -60,6 +60,96 @@ def on_htcondor() -> bool:
     return tmpdir is not None
 
 
+def results_to_eos(
+    source_local: str | os.PathLike,
+    target_eos: str | None = None,
+    verbose: bool = True,
+) -> str:
+    """Copy a file or directory from the worker node to EOS via ``eos cp``.
+
+    Intended to be called from within a batch job to persist results
+    that would otherwise vanish when the worker's scratch disk is
+    cleaned up.
+
+    Parameters
+    ----------
+    source_local
+        Path (file or directory) on the worker node.
+    target_eos
+        Destination on EOS (must start with ``/eos/``).  When *None*,
+        defaults to
+        ``/eos/user/<u>/<user>/blond_results/<basename(source_local)>``,
+        with ``<user>`` taken from ``$USER``.
+    verbose
+        When *True* (default), print the resolved source/target, the
+        ``eos`` commands being executed, and the size of the payload.
+        Output goes to stdout so it ends up in the job's ``job.out``.
+
+    Returns
+    -------
+    target_eos : str
+        The resolved destination path on EOS.
+
+    Raises
+    ------
+    FileNotFoundError
+        If *source_local* does not exist.
+    subprocess.CalledProcessError
+        If the underlying ``eos`` command exits non-zero.
+    """
+    src = Path(source_local)
+    if not src.exists():
+        raise FileNotFoundError(f"Source path does not exist: {src}")
+
+    if target_eos is None:
+        user = os.environ["USER"]
+        target_eos = f"/eos/user/{user[0]}/{user}/blond_results/{src.name}"
+
+    if verbose:
+        kind = "directory" if src.is_dir() else "file"
+        nbytes = (
+            sum(p.stat().st_size for p in src.rglob("*") if p.is_file())
+            if src.is_dir()
+            else src.stat().st_size
+        )
+        print(
+            f"[results_to_eos] copying {kind} {src} ({nbytes / 1024:.1f} KiB) "
+            f"-> {target_eos}"
+        )
+
+    parent = str(Path(target_eos).parent)
+    mkdir_cmd = ["eos", "mkdir", "-p", parent]
+    if verbose:
+        print(f"[results_to_eos] $ {' '.join(mkdir_cmd)}")
+    subprocess.run(mkdir_cmd, check=True)
+
+    cp_cmd = ["eos", "cp"]
+    if src.is_dir():
+        cp_cmd.append("-r")
+    cp_cmd.extend([str(src), target_eos])
+    if verbose:
+        print(f"[results_to_eos] $ {' '.join(cp_cmd)}")
+    t0 = time.time()
+    subprocess.run(cp_cmd, check=True)
+    if verbose:
+        print(
+            f"[results_to_eos] done in {time.time() - t0:.1f}s -> {target_eos}"
+        )
+
+    return target_eos
+
+
+def save_args(args, target_dir):
+    # args from parser.parse_args()
+    # Convert argparse Namespace to dict
+    args_dict = vars(args)
+
+    # Dump to JSON file
+    output_path = os.path.join(target_dir, "args.json")
+    with open(output_path, "w") as f:
+        json.dump(args_dict, f, indent=4)
+
+
 def set_result(value: Any) -> None:
     """Write a result value from within a batch job.
 
