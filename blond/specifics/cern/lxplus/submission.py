@@ -380,12 +380,25 @@ mkdir -p {remote_workdir}
 
 cat > {remote_workdir}/wrapper.sh << 'WRAPPER_EOF'
 #!/bin/bash
+# Exit immediately if any command fails (safer for automation/scripts)
 set -e
+
+# Set a temporary working directory variable
 export BLOND_JOB_TMPDIR="{remote_workdir}"
+
+# Create a temporary scratch directory and store its path
 SCRATCH=$(mktemp -d)
+
+# Clone the remote repository into the scratch directory (quiet mode suppresses output)
 git clone --quiet '{remote_url}' "$SCRATCH/repo"
+
+# Check out a specific commit inside the cloned repository (ensures reproducibility)
 git -C "$SCRATCH/repo" checkout --quiet '{commit}'
+
+# Install the repository as a Python package in user space (no system-wide changes)
 {python} -m pip install --quiet --user "$SCRATCH/repo"
+
+# Run the target Python script from the repository with provided arguments
 {python} "$SCRATCH/repo/{script_rel}" {args_str}
 WRAPPER_EOF
 chmod +x {remote_workdir}/wrapper.sh
