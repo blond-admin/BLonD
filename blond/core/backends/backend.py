@@ -93,6 +93,50 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
+    def sum_1d_array(array: NumpyArray | CupyArray) -> float:
+        """
+        Return the sum of an 1d array.
+
+        Parameters
+        ----------
+        array
+            Input array 1.
+
+        Returns
+        -------
+        sum_1d_array
+            Sum of a 1d arrays.
+        """
+        raise NotImplementedError(
+            "Abstract method `sum_1d_array` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def dot_product_1d_array(
+        array_1: NumpyArray | CupyArray, array_2: NumpyArray | CupyArray
+    ) -> float:
+        """
+        Return the sum of dot product of two 1d arrays.
+
+        Parameters
+        ----------
+        array_1
+            Input array 1.
+        array_2
+            Input array 2.
+
+        Returns
+        -------
+        dot_product_1d_array
+            Dot product of two 1d arrays.
+        """
+        raise NotImplementedError(
+            "Abstract method `dot_product_1d_array` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
     def drift_simple(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
@@ -168,7 +212,7 @@ class Specials(ABC):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
-    ):
+    ) -> None:
         """
         Reorder entries where ``flags == flag`` to the array end.
 
