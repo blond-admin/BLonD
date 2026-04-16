@@ -31,6 +31,18 @@ _RESULT_JSON = "blond_result.json"
 _RESULT_NPY = "blond_result.npy"
 _ENV_JOB_TMPDIR = "BLOND_JOB_TMPDIR"
 
+# HTCondor JobStatus codes (see condor_q -long / JobStatus attribute).
+_CONDOR_STATUS = {
+    "0": "Unexpanded",
+    "1": "Idle",
+    "2": "Running",
+    "3": "Removed",
+    "4": "Completed",
+    "5": "Held",
+    "6": "Transferring Output",
+    "7": "Suspended",
+}
+
 
 def set_result(value: Any) -> None:
     """Write a result value from within a batch job.
@@ -78,6 +90,24 @@ class LxplusJob:
         Absolute AFS path on LXPlus where job outputs are written.
     ssh_host
         SSH host to connect to.  Defaults to ``lxplus.cern.ch``.
+
+    Attributes
+    ----------
+    cluster_id : str
+        HTCondor cluster identifier.
+    remote_workdir : str
+        Remote directory containing all job artefacts.
+    ssh_host : str
+        SSH host used for polling and fetching results.
+    stdout_path : str
+        Remote path of the job's stdout file (``job.out``).  Fetch with
+        e.g. ``scp <ssh_host>:<stdout_path> .`` to debug a running or
+        failed job.
+    stderr_path : str
+        Remote path of the job's stderr file (``job.err``).
+    condor_log_path : str
+        Remote path of HTCondor's own log (``job.log``); useful for
+        queue events, exit codes and hold reasons.
     """
 
     def __init__(
@@ -86,10 +116,15 @@ class LxplusJob:
         remote_workdir: str,
         ssh_host: str = LXPLUS_HOST,
     ) -> None:
-        logger.info(f"Created LxplusJob(**{locals()})")
+        logger.info(
+            f"Created LxplusJob({cluster_id=}, {remote_workdir=}, {ssh_host=})"
+        )
         self.cluster_id = cluster_id
         self.remote_workdir = remote_workdir
         self.ssh_host = ssh_host
+        self.stdout_path = f"{remote_workdir}/job.out"
+        self.stderr_path = f"{remote_workdir}/job.err"
+        self.condor_log_path = f"{remote_workdir}/job.log"
 
     def wait(self, poll_interval: int = 30) -> Any:
         """Block until the job finishes and return its result.
@@ -112,11 +147,43 @@ class LxplusJob:
         Raises
         ------
         RuntimeError
-            If the job exits with a non-zero status code or is held.
+            If the job exits with a non-zero status code, enters the
+            ``Held`` state, or is removed from the queue.
         """
-        while self._job_in_queue():
-            logger.info(f"Waiting for {poll_interval}s result...")
+        last_status: str | None = None
+        while True:
+            try:
+                status = self._job_status()
+            except RuntimeError as exc:
+                logger.warning(
+                    f"Failed to poll job {self.cluster_id}: {exc}. "
+                    f"Retrying in {poll_interval}s."
+                )
+                time.sleep(poll_interval)
+                continue
+
+            if status is None:
+                break
+
+            status_changed = status != last_status
+            if status_changed:
+                logger.info(
+                    f"Job {self.cluster_id} status: {status} "
+                    f"(stdout: {self.ssh_host}:{self.stdout_path}, "
+                    f"condor log: {self.ssh_host}:{self.condor_log_path})"
+                )
+                last_status = status
+
+            if status in ("Held", "Removed"):
+                self._raise_stuck(status)
+
+            if not status_changed:
+                logger.info(
+                    f"Job {self.cluster_id} still {status}; "
+                    f"polling again in {poll_interval}s."
+                )
             time.sleep(poll_interval)
+        logger.info(f"Job {self.cluster_id} left the queue.")
         self._raise_on_failure()
         return self._fetch_result()
 
@@ -132,12 +199,66 @@ class LxplusJob:
             text=True,
         )
 
-    def _job_in_queue(self) -> bool:
-        """Return True while the job is still present in condor_q."""
+    def _job_status(self) -> str | None:
+        """Return the HTCondor JobStatus as a human-readable string.
+
+        Returns ``None`` once the job has left the queue (``condor_q``
+        reports no matching cluster with a successful exit code).
+        Otherwise returns one of ``"Idle"``, ``"Running"``, ``"Held"``
+        etc.  Unknown numeric codes are returned verbatim as
+        ``"JobStatus=<n>"``.
+
+        For multi-proc clusters (``queue N > 1``), the status of the
+        first proc is reported.
+
+        Raises
+        ------
+        RuntimeError
+            If the ``ssh`` / ``condor_q`` call exits non-zero (e.g.
+            connection failure, schedd unreachable).  Callers are
+            expected to treat this as transient and retry.
+        """
         proc = self._run_ssh(
-            f"condor_q {self.cluster_id} -format '%d\\n' ClusterId 2>/dev/null"
+            f"condor_q {self.cluster_id} -format '%d\\n' JobStatus 2>/dev/null"
         )
-        return bool(proc.stdout.strip())
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"condor_q on {self.ssh_host} failed for cluster "
+                f"{self.cluster_id} (rc={proc.returncode}): "
+                f"{proc.stderr.strip() or '(no stderr)'}"
+            )
+        lines = [
+            line.strip() for line in proc.stdout.splitlines() if line.strip()
+        ]
+        if not lines:
+            return None
+        code = lines[0]
+        return _CONDOR_STATUS.get(code, f"JobStatus={code}")
+
+    def _raise_stuck(self, status: str) -> None:
+        """Raise RuntimeError for a ``Held`` or ``Removed`` job.
+
+        Includes the ``HoldReason`` (when available) and remote paths to
+        the job's stdout, stderr, and condor log so the caller can
+        debug.
+        """
+        reason = ""
+        reason_proc = self._run_ssh(
+            f"condor_q {self.cluster_id} "
+            f"-format '%s\\n' HoldReason 2>/dev/null"
+        )
+        if reason_proc.returncode == 0 and reason_proc.stdout.strip():
+            reason = reason_proc.stdout.strip().splitlines()[0].strip()
+        msg = (
+            f"LXPlus job {self.cluster_id} is {status} and will not "
+            f"complete."
+            f"\nstdout: {self.ssh_host}:{self.stdout_path}"
+            f"\nstderr: {self.ssh_host}:{self.stderr_path}"
+            f"\ncondor log: {self.ssh_host}:{self.condor_log_path}"
+        )
+        if reason:
+            msg += f"\nHoldReason: {reason}"
+        raise RuntimeError(msg)
 
     def _raise_on_failure(self) -> None:
         proc = self._run_ssh(
@@ -146,11 +267,14 @@ class LxplusJob:
         )
         code_str = proc.stdout.strip()
         if code_str and code_str != "0":
-            stderr_proc = self._run_ssh(
-                f"cat {self.remote_workdir}/job.err 2>/dev/null"
-            )
+            stderr_proc = self._run_ssh(f"cat {self.stderr_path} 2>/dev/null")
             stderr = stderr_proc.stdout.strip()
-            msg = f"LXPlus job {self.cluster_id} exited with code {code_str}."
+            msg = (
+                f"LXPlus job {self.cluster_id} exited with code {code_str}."
+                f"\nstdout: {self.ssh_host}:{self.stdout_path}"
+                f"\nstderr: {self.ssh_host}:{self.stderr_path}"
+                f"\ncondor log: {self.ssh_host}:{self.condor_log_path}"
+            )
             if stderr:
                 msg += f"\n--- job.err ---\n{stderr}"
             raise RuntimeError(msg)
