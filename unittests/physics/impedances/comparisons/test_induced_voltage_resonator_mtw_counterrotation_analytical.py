@@ -176,7 +176,7 @@ class InducedVoltageResonatorPhysicsCR(unittest.TestCase):
             )
             cav_obs_list.append(
                 InducedVoltageObservationCR(
-                    rf_station=shc_list[-1], each_turn_i=1
+                    wake_field=shc_list[-1]._local_wakefield, each_turn_i=1
                 )
             )
 
