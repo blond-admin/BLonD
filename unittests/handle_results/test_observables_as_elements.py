@@ -6,6 +6,7 @@ import numpy as np
 
 from blond import (
     Beam,
+    Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -24,6 +25,9 @@ from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
     BunchObservationMetaParams,
     InducedVoltageObservationCR,
+)
+from blond.physics.impedances.solvers import (
+    SingleTurnResonatorConvolutionSolver,
 )
 
 simulation = Mock(Simulation)
@@ -117,6 +121,49 @@ class TestBeamObservationInRingElement(unittest.TestCase):
         )
 
     def test_ignores_probe_beam(self):
+        observation = BeamObservationInRingElement(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+        observation.common_filepath = "test"
+
+        simulation.ring.elements = Mock(BeamPhysicsRelevantElements)
+        simulation.ring.elements.elements = [observation]
+        simulation.ring.elements.get_elements.return_value = [observation]
+
+        observation.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=3,
+        )
+
+        probe_beam = Mock(spec=ProbeBeam)
+        probe_beam.reference = Mock(ReferenceCoordinates)
+        probe_beam.common_array_size = 4
+        probe_beam.reference.time = 0.8
+        probe_beam.reference.total_energy = 11.0
+        probe_beam.read_partial_dE.return_value = np.arange(4, dtype=float)
+        probe_beam.read_partial_dt.return_value = (
+            np.arange(4, dtype=float) + 0.1
+        )
+        probe_beam.read_partial_flags.return_value = np.ones(4, dtype=int)
+
+        for _ in range(3):
+            observation.track(probe_beam)
+
+        self.assertEqual(len(observation._dEs.get_valid_entries()), 0)
+        self.assertEqual(len(observation._dts.get_valid_entries()), 0)
+        self.assertEqual(
+            len(observation._reference_time.get_valid_entries()), 0
+        )
+        self.assertEqual(
+            len(observation._reference_total_energy.get_valid_entries()), 0
+        )
+        self.assertEqual(len(observation._flags.get_valid_entries()), 0)
+
+
+class TestBunchObservationMetaParams(unittest.TestCase):
+    def test_ignores_probe_beam(self):
         observation = BunchObservationMetaParams(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
@@ -151,6 +198,60 @@ class TestBeamObservationInRingElement(unittest.TestCase):
         self.assertEqual(len(observation.mean_dt), 0)
         self.assertEqual(len(observation.mean_dE), 0)
         self.assertEqual(len(observation.rms_emittance), 0)
+
+
+class TestInducedVoltageObservationCR(unittest.TestCase):
+    def test_no_induced_voltage(self):
+        wakefield = WakeField(
+            solver=SingleTurnResonatorConvolutionSolver(),
+            sources=(
+                Resonators(
+                    center_frequencies=1, shunt_impedances=1, quality_factors=1
+                ),
+            ),
+        )
+        wakefield._profile = Mock(StaticProfile)
+        wakefield._profile.hist_x = np.arange(3)
+
+        observation = InducedVoltageObservationCR(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+            wake_field=wakefield,
+        )
+        observation.common_filepath = "test"
+
+        simulation.ring.elements = Mock(BeamPhysicsRelevantElements)
+        simulation.ring.elements.elements = [observation]
+
+        observation.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=3,
+        )
+
+        probe_beam = Mock(spec=ProbeBeam)
+        probe_beam.reference = Mock(ReferenceCoordinates)
+        probe_beam.common_array_size = 4
+        probe_beam.reference.time = 0.8
+        probe_beam.reference.total_energy = 11.0
+        probe_beam.read_partial_dE.return_value = np.arange(4, dtype=float)
+        probe_beam.read_partial_dt.return_value = (
+            np.arange(4, dtype=float) + 0.1
+        )
+        probe_beam.read_partial_flags.return_value = np.ones(4, dtype=int)
+        probe_beam._is_counter_rotating = True
+
+        for _ in range(3):
+            observation.track(probe_beam)
+
+        # no observation due to attribute error
+        self.assertEqual(
+            len(observation._induced_voltage.get_valid_entries()), 0
+        )
+        self.assertEqual(
+            len(observation._beam_reference_time.get_valid_entries()), 0
+        )
+        self.assertEqual(len(observation._beam_profile.get_valid_entries()), 0)
 
 
 if __name__ == "__main__":
