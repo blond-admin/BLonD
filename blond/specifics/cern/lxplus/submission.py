@@ -19,7 +19,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -151,6 +151,7 @@ class LxplusJob:
             ``Held`` state, or is removed from the queue.
         """
         last_status: str | None = None
+        t0 = time.time()
         while True:
             try:
                 status = self._job_status()
@@ -173,14 +174,16 @@ class LxplusJob:
                     f"condor log: {self.ssh_host}:{self.condor_log_path})"
                 )
                 last_status = status
+                t0 = time.time()
 
             if status in ("Held", "Removed"):
                 self._raise_stuck(status)
 
             if not status_changed:
                 logger.info(
-                    f"Job {self.cluster_id} still {status}; "
-                    f"polling again in {poll_interval}s."
+                    f"Job {self.cluster_id} still {status}"
+                    f" since {int((time.time() - t0) / 60)} minutes; "
+                    f" polling again in {poll_interval}s."
                 )
             time.sleep(poll_interval)
         logger.info(f"Job {self.cluster_id} left the queue.")
@@ -315,6 +318,16 @@ def run_on_lxplus(
     filepath: str,
     kwargs: dict[str, int | float | str | list],
     python: str = "python3.11",
+    job_flavour: Literal[
+        "espresso",
+        "microcentury",
+        "longlunch",
+        "workday",
+        "tomorrow",
+        "testmatch",
+        "nextweek",
+    ] = "espresso",
+    accounting_group="batch-u-abp-ext-rf",
 ) -> LxplusJob:
     """Submit a Python script to HTCondor on LXPlus.
 
@@ -341,6 +354,14 @@ def run_on_lxplus(
         Python interpreter to use on the batch node for both
         ``pip install`` and script execution.  Defaults to
         ``"python3.12"``.
+    job_flavour
+        espresso     = 20 minutes
+        microcentury = 1 hour
+        longlunch    = 2 hours
+        workday      = 8 hours
+        tomorrow     = 1 day
+        testmatch    = 3 days
+        nextweek     = 1 week
 
     Returns
     -------
@@ -381,6 +402,8 @@ def run_on_lxplus(
         script_rel=script_rel,
         kwargs=kwargs,
         python=python,
+        job_flavour=job_flavour,
+        accounting_group=accounting_group,
     )
 
     proc = subprocess.run(
@@ -495,6 +518,8 @@ def _build_submission_command(
     script_rel: str,
     kwargs: dict,
     python: str = "python3.11",
+    job_flavour=None,
+    accounting_group=None,
 ) -> str:
     """Build the shell command executed on LXPlus to submit the HTCondor job.
 
@@ -505,6 +530,7 @@ def _build_submission_command(
     before the command is transmitted over SSH.
     """
     args_str = _kwargs_to_cli(kwargs)
+
     return f"""\
 set -e
 mkdir -p {remote_workdir}
@@ -543,8 +569,9 @@ error                 = {remote_workdir}/job.err
 log                   = {remote_workdir}/job.log
 should_transfer_files = NO
 getenv                = True
-+JobFlavour           = "espresso"
-+AccountingGroup      = batch-u-abp-ext-rf
++JobFlavour           = {job_flavour}
+{f"+AccountingGroup      = {accounting_group}" if accounting_group else ""}
+
 queue
 SUB_EOF
 
