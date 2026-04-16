@@ -235,7 +235,8 @@ def run_on_lxplus(
     ...     ).wait()
     ...     optimizer.update(result)
     """
-    filepath = Path(filepath).resolve(strict=True)
+    filepath = Path(filepath).resolve()
+    assert filepath.exists(), f"{filepath} does not exist."
     git_root = _find_git_root(filepath)
     _assert_git_clean(git_root)
     remote_url, commit = _get_git_info(git_root)
