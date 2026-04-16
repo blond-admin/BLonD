@@ -1380,6 +1380,8 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._voltage = None
         self.last_reference_time = None
 
+        self.counter_rotation_pole_flip = None
+
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
@@ -1400,15 +1402,34 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     def _finalize_solver(self, beam):
         poles = []
         residues = []
+        counter_rotation_pole_flip = []
         for source in self._parent_wakefield.sources:
             # source: TimeDomain  # type hint what the we expect # TODO
+            # source has to be resonator source  # TODO
             poles_, residues_ = source.get_vectorfit()
             try:
                 poles.extend(poles_)
                 residues.extend(residues_)
+                if (
+                    source._shunt_impedances_counter_rotating is not None
+                ):  # prevent that one source has it and another one doesnt --> do we ever need multiple sources in the first place?
+                    counter_rotation_pole_flip.extend(
+                        source._shunt_impedances_counter_rotating
+                    )
             except TypeError:  # if single value instead of iterable
                 poles.append(poles_)
                 residues.append(residues_)
+                if source._shunt_impedances_counter_rotating is not None:
+                    counter_rotation_pole_flip.append(
+                        source._shunt_impedances_counter_rotating
+                    )
+
+        if len(counter_rotation_pole_flip) == 0:
+            self._counter_rotation_pole_flip = np.ones_like(poles)
+        else:
+            self._counter_rotation_pole_flip = np.array(
+                counter_rotation_pole_flip
+            )
 
         self._poles = np.array(poles, dtype=complex)
         self._residues = np.array(residues, dtype=complex)
@@ -1471,15 +1492,24 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             )
             assert self._states[-1].real <= first_mem_entry
 
+        hist_x_profile = (
+            self._profile._continuous_memory_hist_y
+            if type(self._profile) is EquidistantMultiProfile
+            else self._profile.hist_y
+        )
+        profile_dts = (
+            self._profile._continuous_memory_hist_x
+            if type(self._profile) is EquidistantMultiProfile
+            else self._profile.hist_x
+        )
+
         backend.specials.apply_poles2(
-            profile=self._profile._continuous_memory_hist_y
-            if type(self._profile) is EquidistantMultiProfile
-            else self._profile.hist_y,
-            profile_dts=self._profile._continuous_memory_hist_x
-            if type(self._profile) is EquidistantMultiProfile
-            else self._profile.hist_x,
+            profile=hist_x_profile,
+            profile_dts=profile_dts,
             poles=self._poles,
             residues=self._residues,
+            beam_cr=beam.is_counter_rotating,
+            cr_pole_list=self.counter_rotation_pole_flip,
             states=self._states,
             voltage=self._voltage,
             voltage_threaded=self._voltage_threaded,
