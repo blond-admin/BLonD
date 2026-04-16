@@ -788,5 +788,122 @@ class TestSimulation(unittest.TestCase):
             plt.show()
 
 
+class TestSimulationSaveLoad(unittest.TestCase):
+    """Pickle-based, version-checked save/load for ``Simulation``."""
+
+    def _build_sim(self, n_turns: int = 50, n_macroparticles: int = 200):
+        """Build a minimal, fully-configured simulation and return (sim, beam)."""
+        ring = Ring(circumference=26658.883)
+        cavity1 = SingleHarmonicRFStation()
+        cavity1.harmonic = 35640
+        cavity1.voltage = 6e6
+        cavity1.phi_rf_design = 0
+        magnetic_cycle_ = MagneticCyclePerTurn(
+            value_init=450e9,
+            values_after_turn=np.linspace(450e9, 460e9, n_turns),
+            reference_particle=proton,
+        )
+        drift1 = DriftSimple(orbit_length=26658.883)
+        drift1.momentum_compaction_factor = momentum_compaction_factor(
+            transition_gamma=55.759505
+        )
+        beam1 = Beam(intensity=1e9, particle_type=proton)
+        rng = np.random.default_rng(42)
+        beam1.setup_beam(
+            dt=rng.normal(0, 1e-10, n_macroparticles),
+            dE=rng.normal(0, 1e6, n_macroparticles),
+            reference_time=0,
+            reference_total_energy=450e9,
+        )
+        sim = Simulation.from_locals(locals())
+        return sim, beam1
+
+    def test_save_and_load_roundtrip(self):
+        """Saved and loaded simulation preserves ring / cycle / turn state."""
+        import os
+        import tempfile
+
+        sim, _beam = self._build_sim(n_turns=10, n_macroparticles=32)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "sim.pkl")
+            sim.save(path)
+            sim_loaded = Simulation.load(path)
+
+        self.assertEqual(sim.ring.circumference, sim_loaded.ring.circumference)
+        self.assertEqual(
+            sim.ring.elements.n_elements,
+            sim_loaded.ring.elements.n_elements,
+        )
+        self.assertEqual(sim.turn_i.value, sim_loaded.turn_i.value)
+        self.assertIsNotNone(sim_loaded.intensity_effect_manager)
+
+    def test_load_rejects_mismatched_schema_version(self):
+        """Loading a pickle with an unknown schema version raises ValueError."""
+        import os
+        import pickle
+        import tempfile
+
+        sim, _beam = self._build_sim(n_turns=10, n_macroparticles=8)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "sim.pkl")
+            with open(path, "wb") as fh:
+                pickle.dump(
+                    {"schema_version": 9999, "simulation": sim},
+                    fh,
+                    protocol=pickle.HIGHEST_PROTOCOL,
+                )
+            with self.assertRaises(ValueError):
+                Simulation.load(path)
+
+    def test_load_rejects_unrecognized_payload(self):
+        """A pickle without the expected envelope raises ValueError."""
+        import os
+        import pickle
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "not_a_sim.pkl")
+            with open(path, "wb") as fh:
+                pickle.dump({"foo": "bar"}, fh)
+            with self.assertRaises(ValueError):
+                Simulation.load(path)
+
+    def test_save_load_preserves_simulation_result(self):
+        """Running the loaded sim yields the same beam as running straight through."""
+        import os
+        import pickle
+        import tempfile
+
+        # Reference: run all turns in one process.
+        sim_ref, beam_ref = self._build_sim(n_turns=50, n_macroparticles=100)
+        sim_ref.run_simulation(
+            beams=(beam_ref,),
+            n_turns=50,
+            show_progressbar=False,
+            verbose=False,
+        )
+        dt_ref = beam_ref.read_partial_dt().copy()
+        dE_ref = beam_ref.read_partial_dE().copy()
+
+        # Save-then-run: simulate "ship to cluster, run there, ship back".
+        # Beam is not attached to ``Simulation``, so bundle both.
+        sim_a, beam_a = self._build_sim(n_turns=50, n_macroparticles=100)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "job.pkl")
+            with open(path, "wb") as fh:
+                pickle.dump((sim_a, beam_a), fh)
+            with open(path, "rb") as fh:
+                sim_b, beam_b = pickle.load(fh)
+
+        sim_b.run_simulation(
+            beams=(beam_b,),
+            n_turns=50,
+            show_progressbar=False,
+            verbose=False,
+        )
+        np.testing.assert_array_equal(dt_ref, beam_b.read_partial_dt())
+        np.testing.assert_array_equal(dE_ref, beam_b.read_partial_dE())
+
+
 if __name__ == "__main__":
     unittest.main()

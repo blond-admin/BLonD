@@ -60,6 +60,43 @@ class DistributedArray:
 
         self._histogram_local_cache: dict[int, NumpyArray | CupyArray] = {}
 
+    def __getstate__(self) -> NumpyArray:
+        """
+        Return a picklable representation of the array.
+
+        Pickling is only supported for single-rank (non-distributed) arrays.
+        The array is moved to CPU so the pickled stream does not depend on
+        CuPy being available on the receiving host.
+
+        Returns
+        -------
+        array
+            The local array as a NumPy array.
+
+        Raises
+        ------
+        AssertionError
+            If the array is distributed across multiple MPI ranks.
+        """
+        assert not self._is_distributed, (
+            "Pickling a distributed DistributedArray is not supported."
+        )
+        return copy_to_cpu(self.array_local)
+
+    def __setstate__(self, array: NumpyArray) -> None:
+        """
+        Restore state after unpickling by re-running ``__init__``.
+
+        The array is re-promoted to the currently active backend (e.g. a CuPy
+        array if the receiving host uses the Cupy backend).
+
+        Parameters
+        ----------
+        array
+            The NumPy array produced by ``__getstate__``.
+        """
+        self.__init__(backend.array(array))
+
     def copy_as_numpy(self) -> NumpyArray:
         """
         Get a copy of the local array, guaranteed to be in the CPU-RAM.

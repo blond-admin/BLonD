@@ -10,17 +10,26 @@
 
 from __future__ import annotations
 
+import json
 import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from blond.core.base import Preparable
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
+
+# Schema version for the on-disk ``.npz`` beam format.
+# Bump on any breaking change to ``save`` / ``load``.
+_BEAM_SCHEMA_VERSION = 1
 
 if TYPE_CHECKING:  # pragma: no cover
+    from os import PathLike
     from typing import Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -72,6 +81,150 @@ class BeamBaseClass(Preparable, ABC):
         self.reference = ReferenceCoordinates(
             time=0, total_energy=None, particle_type=particle_type
         )
+
+    def save(self, path: str | PathLike) -> None:
+        """
+        Serialize the beam to disk in a portable, version-checked format.
+
+        The file is a NumPy ``.npz`` archive (a zip of ``.npy`` files) containing:
+
+        - ``dt``, ``dE``, ``flags``, ``ids``: the particle coordinate arrays
+        - ``metadata``: a 0-D array holding a JSON string with the schema
+          version, intensity, particle-type physical constants, reference
+          coordinates and counter-rotation flag.
+
+        Unlike pickle, this format is explicit and robust to Python / BLonD
+        version changes: ``load`` checks the schema version and fails loudly
+        when the on-disk format is incompatible, rather than silently
+        reconstructing a broken object.
+
+        Parameters
+        ----------
+        path
+            Destination file path. A ``.npz`` suffix is appended automatically
+            by ``numpy.savez`` if not already present.
+
+        See Also
+        --------
+        load : Deserialize a beam from disk.
+
+        Notes
+        -----
+        - Only single-rank (non-distributed) beams are supported; distributed
+          beams raise an ``AssertionError``.
+        - CuPy (GPU) arrays are moved to CPU memory before writing so the file
+          is portable to non-GPU hosts. They are re-promoted to the active
+          backend on load.
+        """
+        assert self._dt is not None, "Beam is not initialized."
+        assert self._dE is not None, "Beam is not initialized."
+        assert self._flags is not None, "Beam is not initialized."
+        assert self._ids is not None, "Beam is not initialized."
+        assert not self._is_distributed, (
+            "Saving a distributed beam is not supported."
+        )
+
+        metadata = {
+            "schema_version": _BEAM_SCHEMA_VERSION,
+            "class": type(self).__name__,
+            "intensity": float(self.intensity),
+            "is_counter_rotating": bool(self._is_counter_rotating),
+            "particle_type": {
+                "mass": float(self.particle_type.mass),
+                "charge": float(self.particle_type.charge),
+                "user_decay_rate": float(self.particle_type.user_decay_rate),
+            },
+            "reference": {
+                "time": float(self.reference.time),
+                "total_energy": (
+                    None
+                    if self.reference._total_energy is None
+                    else float(self.reference._total_energy)
+                ),
+            },
+        }
+
+        np.savez(
+            path,
+            metadata=np.array(json.dumps(metadata)),
+            dt=copy_to_cpu(self._dt.array_local),
+            dE=copy_to_cpu(self._dE.array_local),
+            flags=copy_to_cpu(self._flags.array_local),
+            ids=copy_to_cpu(self._ids.array_local),
+        )
+
+    @staticmethod
+    def load(path: str | PathLike) -> BeamBaseClass:
+        """
+        Deserialize a beam that was written with ``save``.
+
+        The schema version embedded in the file is checked against the
+        in-memory ``_BEAM_SCHEMA_VERSION`` constant; a ``ValueError`` is
+        raised if they do not match.
+
+        Parameters
+        ----------
+        path
+            Source file path.
+
+        Returns
+        -------
+        beam
+            The restored beam. Particle coordinates are promoted to the
+            currently active backend.
+
+        Raises
+        ------
+        ValueError
+            If the file's schema version is not supported.
+
+        See Also
+        --------
+        save : Serialize the beam state to disk.
+        """
+        # Local imports to avoid cyclic imports at module load time.
+        from blond.core.beam.beams import Beam
+        from blond.core.beam.particle_types import ParticleType
+
+        with np.load(path, allow_pickle=False) as archive:
+            metadata = json.loads(str(archive["metadata"]))
+            dt = archive["dt"]
+            dE = archive["dE"]
+            flags = archive["flags"]
+            ids = archive["ids"]
+
+        schema_version = metadata.get("schema_version")
+        if schema_version != _BEAM_SCHEMA_VERSION:
+            raise ValueError(
+                f"Unsupported beam schema version {schema_version!r}; "
+                f"this BLonD installation expects version "
+                f"{_BEAM_SCHEMA_VERSION}."
+            )
+
+        particle_type = ParticleType(
+            mass=metadata["particle_type"]["mass"],
+            charge=metadata["particle_type"]["charge"],
+            user_decay_rate=metadata["particle_type"]["user_decay_rate"],
+        )
+
+        beam = Beam(
+            intensity=metadata["intensity"],
+            particle_type=particle_type,
+            is_counter_rotating=metadata["is_counter_rotating"],
+        )
+        beam.setup_beam(
+            dt=dt,
+            dE=dE,
+            flags=flags,
+            reference_time=metadata["reference"]["time"],
+            reference_total_energy=metadata["reference"]["total_energy"],
+        )
+        # ``setup_beam`` assigns fresh ids via ``arange``; overwrite with the
+        # stored ids so particle identification is preserved across saves.
+        from blond.core.backends.backend import backend
+
+        beam._ids.array_local = backend.array(ids, dtype=np.int32)
+        return beam
 
     def signed_charge_with_direction(self):
         """

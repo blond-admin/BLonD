@@ -19,11 +19,19 @@ L. Thiele
 from __future__ import annotations
 
 import logging
+import pickle
 import warnings
 from collections.abc import Callable, Sequence
 from copy import copy, deepcopy
+from os import PathLike
 from pstats import SortKey
 from typing import TYPE_CHECKING
+
+# Schema version for the on-disk pickle format of `Simulation`.
+# Bump deliberately when a change to simulation-tree classes would make
+# previously-saved files incompatible, so that `load` can detect it and
+# raise a clear error instead of silently reconstructing a broken object.
+_SIMULATION_SCHEMA_VERSION = 1
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1456,6 +1464,116 @@ class Simulation(Preparable):
                 callback.each_turn_i = 1  # each turn by default
             sanitised_callbacks.append(callback)
         return sanitised_callbacks
+
+    def save(self, path: str | PathLike) -> None:
+        """
+        Serialize the full simulation state to disk via ``pickle``.
+
+        JSON is not practical for ``Simulation`` because the ring is a
+        polymorphic tree of user-extensible element classes (RF stations,
+        drifts, wakefields, intensity effects, magnetic cycles, execution
+        models), each carrying their own state. Pickle is used instead, and
+        the file carries an explicit schema version so that cross-version
+        loads fail loudly on mismatch rather than silently reconstructing a
+        broken object.
+
+        Typical cluster workflow:
+
+        1. On the local machine: configure the simulation and call
+           ``sim.save(path)``.
+        2. Ship the file to the cluster, call ``Simulation.load(path)``, run
+           ``sim.run_simulation(...)``, call ``sim.save(result_path)``.
+        3. Ship the result back and call ``Simulation.load(result_path)``.
+
+        Parameters
+        ----------
+        path
+            Destination file path. Any path accepted by ``open(path, "wb")``.
+
+        See Also
+        --------
+        load : Deserialize a simulation from disk.
+        blond.core.beam.base.BeamBaseClass.save : Save a Beam in a versioned
+            JSON + ``.npz`` format (portable across BLonD versions).
+        save_results : Save only observable data (different purpose).
+
+        Notes
+        -----
+        - Schema version: the on-disk format version is stored in
+          ``_SIMULATION_SCHEMA_VERSION``. Bump it when making incompatible
+          changes to simulation-tree classes.
+        - Prefer shipping a Python *construction script* + saved ``Beam``
+          files when robustness across BLonD versions matters; the script is
+          version-controlled in a way a pickle file cannot be.
+        - MPI communicators, backend handles, and ``DynamicParameter``
+          observer callbacks are stripped on save and re-initialized on load.
+        - User-supplied callbacks passed to ``run_simulation`` are not saved.
+        - Do not load files from untrusted sources; ``pickle`` executes
+          arbitrary code during load.
+        """
+        payload = {
+            "schema_version": _SIMULATION_SCHEMA_VERSION,
+            "simulation": self,
+        }
+        with open(path, "wb") as fh:
+            pickle.dump(payload, fh, protocol=pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load(path: str | PathLike) -> Simulation:
+        """
+        Deserialize a simulation written by ``save``.
+
+        The schema version embedded in the file is checked against the
+        in-memory ``_SIMULATION_SCHEMA_VERSION``; a ``ValueError`` is raised
+        on mismatch so that cross-version loads fail loudly.
+
+        Parameters
+        ----------
+        path
+            Source file path.
+
+        Returns
+        -------
+        simulation
+            The restored ``Simulation``, ready to resume or inspect.
+
+        Raises
+        ------
+        ValueError
+            If the file's schema version is not supported by this BLonD
+            installation, or if the payload is not a recognized simulation
+            pickle.
+        TypeError
+            If the payload exists but does not contain a ``Simulation``.
+
+        See Also
+        --------
+        save : Serialize the full simulation state to disk.
+
+        Notes
+        -----
+        Do not load pickle files from untrusted sources.
+        """
+        with open(path, "rb") as fh:
+            payload = pickle.load(fh)
+        if not isinstance(payload, dict) or "schema_version" not in payload:
+            raise ValueError(
+                "File is not a recognized Simulation save file (missing "
+                "schema_version)."
+            )
+        schema_version = payload["schema_version"]
+        if schema_version != _SIMULATION_SCHEMA_VERSION:
+            raise ValueError(
+                f"Unsupported simulation schema version {schema_version!r}; "
+                f"this BLonD installation expects version "
+                f"{_SIMULATION_SCHEMA_VERSION}."
+            )
+        sim = payload["simulation"]
+        if not isinstance(sim, Simulation):
+            raise TypeError(
+                f"Expected a pickled Simulation, got {type(sim).__name__}."
+            )
+        return sim
 
     def save_results(
         self,

@@ -200,5 +200,39 @@ class TestDistributedArrayNoMPI(unittest.TestCase):
             self.assertEqual(distributed_array._size, 1)
 
 
+class TestDistributedArrayPickle(unittest.TestCase):
+    def test_pickle_roundtrip_preserves_values(self):
+        import pickle
+
+        rng = np.random.default_rng(0)
+        array = rng.normal(loc=0, scale=1.0, size=64).astype(backend.float)
+        original = DistributedArray(backend.array(array.copy()))
+
+        restored = pickle.loads(pickle.dumps(original))
+
+        self.assertTrue(
+            np.array_equal(
+                copy_to_cpu(original.array_local),
+                copy_to_cpu(restored.array_local),
+            )
+        )
+        # After unpickling, ``__init__`` was re-run so all MPI attributes are
+        # freshly populated.
+        self.assertFalse(restored._is_distributed)
+        self.assertEqual(restored._rank, original._rank)
+        self.assertEqual(restored._size, original._size)
+
+    def test_pickle_rejects_distributed_array(self):
+        import pickle
+        from unittest.mock import patch
+
+        rng = np.random.default_rng(0)
+        array = rng.normal(loc=0, scale=1.0, size=64).astype(backend.float)
+        original = DistributedArray(backend.array(array.copy()))
+        with patch.object(original, "_is_distributed", True):
+            with self.assertRaises(AssertionError):
+                pickle.dumps(original)
+
+
 if __name__ == "__main__":
     unittest.main()

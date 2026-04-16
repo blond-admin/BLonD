@@ -807,6 +807,24 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
         self._value = value_init
         self._observers: list[Callable[[Any], None]] = []
 
+    def __getstate__(self) -> dict:
+        """
+        Return a picklable dictionary of the state.
+
+        User-provided observer callbacks may contain closures, lambdas, or
+        frame references that cannot be pickled. They are dropped here;
+        callers that need observers on the receiving side must re-register
+        them after unpickling.
+
+        Returns
+        -------
+        state
+            Dictionary of the state, without observer callbacks.
+        """
+        assert self._observers == []
+        state = self.__dict__.copy()
+        return state
+
     def on_change(self, callback: Callable[[Any], None]) -> None:
         """
         Subscribe to changes on a specific parameter.

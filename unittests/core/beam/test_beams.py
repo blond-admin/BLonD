@@ -344,5 +344,92 @@ class TestWeightenedBeam(unittest.TestCase):
         )
 
 
+class TestBeamSaveLoad(unittest.TestCase):
+    """JSON + ``.npz`` save/load round-trip tests for ``Beam``."""
+
+    def _build_beam(self) -> Beam:
+        beam = Beam(
+            intensity=1e12,
+            particle_type=proton,
+            is_counter_rotating=False,
+        )
+        rng = np.random.default_rng(0)
+        beam.setup_beam(
+            dt=rng.normal(0, 1e-10, 64),
+            dE=rng.normal(0, 1e6, 64),
+            reference_time=0.0,
+            reference_total_energy=450e9,
+        )
+        return beam
+
+    def test_save_and_load_roundtrip(self):
+        import os
+        import tempfile
+
+        original = self._build_beam()
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "beam.npz")
+            original.save(path)
+            restored = Beam.load(path)
+
+        self.assertEqual(original.intensity, restored.intensity)
+        self.assertEqual(
+            original.is_counter_rotating, restored.is_counter_rotating
+        )
+        self.assertEqual(
+            original.reference.total_energy, restored.reference.total_energy
+        )
+        self.assertEqual(
+            original.particle_type.mass, restored.particle_type.mass
+        )
+        self.assertEqual(
+            original.particle_type.charge, restored.particle_type.charge
+        )
+        np.testing.assert_array_equal(
+            original.read_partial_dt(), restored.read_partial_dt()
+        )
+        np.testing.assert_array_equal(
+            original.read_partial_dE(), restored.read_partial_dE()
+        )
+        np.testing.assert_array_equal(
+            original.read_partial_flags(), restored.read_partial_flags()
+        )
+        np.testing.assert_array_equal(
+            original.read_partial_ids(), restored.read_partial_ids()
+        )
+
+    def test_load_rejects_mismatched_schema_version(self):
+        """Loading a file with a wrong schema version should raise ValueError."""
+        import json
+        import os
+        import tempfile
+
+        original = self._build_beam()
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "beam.npz")
+            original.save(path)
+
+            # Rewrite the file with a bumped schema version to simulate a
+            # newer (or corrupted) BLonD format.
+            with np.load(path, allow_pickle=False) as archive:
+                metadata = json.loads(str(archive["metadata"]))
+                dt = archive["dt"]
+                dE = archive["dE"]
+                flags = archive["flags"]
+                ids = archive["ids"]
+            metadata["schema_version"] = 9999
+            np.savez(
+                path,
+                metadata=np.array(json.dumps(metadata)),
+                dt=dt,
+                dE=dE,
+                flags=flags,
+                ids=ids,
+            )
+
+            with self.assertRaises(ValueError):
+                Beam.load(path)
+
+
 if __name__ == "__main__":
     unittest.main()
