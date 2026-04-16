@@ -183,7 +183,7 @@ class LxplusJob:
 def run_on_lxplus(
     filepath: str,
     kwargs: dict[str, int | float | str | list],
-    python: str = "python3.12",
+    python: str = "python3.11",
 ) -> LxplusJob:
     """Submit a Python script to HTCondor on LXPlus.
 
@@ -296,7 +296,8 @@ def _assert_git_clean(git_root: Path) -> None:
 
     unpushed_proc = subprocess.run(
         ["git", "rev-list", "@{u}..HEAD"],
-        check=False, cwd=git_root,
+        check=False,
+        cwd=git_root,
         capture_output=True,
         text=True,
     )
@@ -361,7 +362,7 @@ def _build_submission_command(
     commit: str,
     script_rel: str,
     kwargs: dict,
-    python: str = "python3.12",
+    python: str = "python3.11",
 ) -> str:
     """Build the shell command executed on LXPlus to submit the HTCondor job.
 
