@@ -58,6 +58,19 @@ def enforce_precision(dtype):
     return decorator
 
 
+def enforce_return_precision(dtype):
+    """Decorator to convert float outputs to a consistent precision."""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return dtype(func(*args, **kwargs))
+
+        return wrapper
+
+    return decorator
+
+
 @cache  # or set a limit like maxsize=128
 def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     floattype: type[np.float32 | np.float64],
@@ -133,6 +146,10 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         sig_n_rf_multi_harmonic,
         sig_acceleration_kick,
     )
+
+    sig_sum_1d_array = nb_f(nb_f[:])
+
+    sig_dot_product_1d_array = nb_f(nb_f[:], nb_f[:])
 
     sig_drift_simple = void(
         sig_dt,
@@ -236,6 +253,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     class NumbaSpecials(Specials):  # pragma: no cover
         @staticmethod
         @enforce_precision(floattype)
+        @enforce_return_precision(floattype)
         @njit(
             sig_beam_phase,
             parallel=True,
@@ -406,6 +424,30 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                         * fast_sin(omega_rf[j] * dti + phi_rf[j])
                     )
                 dE[i] += de_sum + acceleration_kick
+
+        @staticmethod
+        @enforce_precision(floattype)
+        @enforce_return_precision(floattype)
+        @njit(sig_sum_1d_array, parallel=True, cache=False, fastmath=True)
+        def sum_1d_array(
+            array_1: NumpyArray,
+        ):
+            acc = floattype(0.0)
+            for idx in prange(array_1.shape[0]):
+                acc += array_1[idx]
+            return acc
+
+        @staticmethod
+        @enforce_precision(floattype)
+        @enforce_return_precision(floattype)
+        @njit(
+            sig_dot_product_1d_array, parallel=True, cache=False, fastmath=True
+        )
+        def dot_product_1d_array(array_1: NumpyArray, array_2: NumpyArray):
+            acc = floattype(0.0)
+            for idx in prange(array_1.shape[0]):
+                acc += array_1[idx] * array_2[idx]
+            return acc
 
         @staticmethod
         @enforce_precision(floattype)

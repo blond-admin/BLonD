@@ -14,21 +14,17 @@ Cannot be used with from_locals.
 
 from __future__ import annotations
 
-import logging
-import warnings
 from typing import Any
 
-import numpy as np
-
 from blond import copy_to_cpu
-from blond.core.base import BeamObservationElement
+from blond.core.base import BeamObservationElement, DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesBaseClass
-from blond.physics.cavities import RFStationBaseClass
+from blond.physics.impedances.base import WakeField
 
 
 class BeamObservationInRingElement(
@@ -55,6 +51,8 @@ class BeamObservationInRingElement(
         data is kept in memory. Defaults to ``None``.
     name : str or None, optional
         Optional name for this observation element. Defaults to ``None``.
+    beam : BeamBaseClass or None, optional
+        Beam to be observed by this element.
     """
 
     def __init__(
@@ -62,12 +60,15 @@ class BeamObservationInRingElement(
         each_turn_i: int = 1,
         section_index: int = 0,
         n_turns: int = 1,
-        folder: str | None = None,
+        folder: str = "",
         name: str | None = None,
+        beam: BeamBaseClass | None = None,
     ) -> None:
         super().__init__(section_index=section_index, name=name, folder=folder)
         self.each_turn_i = each_turn_i
         self.n_turns = n_turns
+
+        self._beam_id_filter = None if beam is None else id(beam)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -107,7 +108,15 @@ class BeamObservationInRingElement(
         **kwargs
             Additional keyword arguments.
         """
-        n_entries = n_turns // self.each_turn_i + 2
+        own_class_in_simulation_elements = (
+            simulation.ring.elements.get_elements(BeamObservationInRingElement)
+        )
+        num_elements_of_own_instance_in_pipeline = sum(
+            [1 if el is self else 0 for el in own_class_in_simulation_elements]
+        )
+        n_entries = (
+            n_turns * num_elements_of_own_instance_in_pipeline
+        ) // self.each_turn_i + 2
 
         self._dEs = DenseArrayRecorder(
             self.common_filepath + "_dEs", (n_entries, beam.common_array_size)
@@ -135,11 +144,14 @@ class BeamObservationInRingElement(
         beam
             Beam class to interact with this element.
         """
-        self._dEs.write(beam.read_partial_dE())
-        self._dts.write(beam.read_partial_dt())
-        self._reference_time.write(beam.reference.time)
-        self._reference_total_energy.write(beam.reference.total_energy)
-        self._flags.write(beam.read_partial_flags())
+        if isinstance(beam, ProbeBeam):
+            return
+        if self._beam_id_filter is None or self._beam_id_filter == id(beam):
+            self._dEs.write(beam.read_partial_dE())
+            self._dts.write(beam.read_partial_dt())
+            self._reference_time.write(beam.reference.time)
+            self._reference_total_energy.write(beam.reference.total_energy)
+            self._flags.write(beam.read_partial_flags())
 
     @property  # as readonly attributes
     def reference_time(self):
@@ -403,9 +415,8 @@ class InducedVoltageObservationCR(
     """
     Observation object for induced voltages in counterrotation.
 
-    Observation object for induced voltages in counterrotation. A data recording is only performed
-    if the induced voltage is non-zero and different from the last recorded value, removing
-    double recordings from the induced voltage. It is expected, that the observation object is
+    Observation object for induced voltages in counterrotation.
+    It is expected, that the observation object is
     placed both behind and in-front of the cavity object.
 
     Parameters
@@ -413,8 +424,11 @@ class InducedVoltageObservationCR(
     each_turn_i
         Value to control that the element is
         callable each n-th turn.
-    rf_station
+    wake_field
         Cavity object, which holds the wakefield to report the induced voltage of.
+    section_index : int, optional
+        Index of the pipeline section where this observation element is placed.
+        Defaults to 0.
     folder
         Path to the target folder used for
         saving or loading files.
@@ -423,16 +437,22 @@ class InducedVoltageObservationCR(
     def __init__(
         self,
         each_turn_i: int,
-        rf_station: RFStationBaseClass,
+        wake_field: WakeField,
+        section_index: int = 0,
         folder: str = "",
     ):
-        super().__init__(folder=folder)
+        super().__init__(folder=folder, section_index=section_index)
 
         self.each_turn_i = each_turn_i
 
         self._induced_voltage: DenseArrayRecorder | None = None
         self._beam_reference_time: DenseArrayRecorder | None = None
-        self._rf_station = rf_station
+        self._beam_profile: DenseArrayRecorder | None = None
+        self._wake_field = wake_field
+
+        self.beam_state: bool | None = None
+        self.last_turn: int | None = None
+        self.turn_i: DynamicParameter | None = None
 
     @requires(["RFStationBaseClass"])
     def on_run_simulation(
@@ -461,10 +481,11 @@ class InducedVoltageObservationCR(
             beam=beam,
             n_turns=n_turns,
         )
+        self.turn_i = simulation.turn_i
 
         count = 2  # 2 beams
 
-        ind_volt_len = len(self._rf_station._local_wakefield._profile.hist_x)
+        ind_volt_len = len(self._wake_field._profile.hist_x)
 
         n_entries = int(n_turns * count // self.each_turn_i)
         shape = (n_entries, ind_volt_len)
@@ -474,8 +495,13 @@ class InducedVoltageObservationCR(
             shape,
         )
 
+        self._beam_profile = DenseArrayRecorder(
+            f"{self.common_filepath}_beam_profile",
+            shape,
+        )
+
         self._beam_reference_time = DenseArrayRecorder(
-            f"{self.common_filepath}_induced_voltage",
+            f"{self.common_filepath}_beam_reference_time",
             n_entries,
         )
 
@@ -514,6 +540,18 @@ class InducedVoltageObservationCR(
         """
         return self._beam_reference_time.get_valid_entries()
 
+    @property  # as readonly attributes
+    def beam_profile(self):
+        """
+        Beam profile, the wakefield was calculated with.
+
+        Returns
+        -------
+        beam_profile
+            Beam profile array.
+        """
+        return self._beam_profile.get_valid_entries()
+
     def _track(
         self,
         beam: BeamBaseClass,
@@ -526,32 +564,23 @@ class InducedVoltageObservationCR(
         beam
             Beam class to interact with this element.
         """
+        if (
+            self.beam_state != beam._is_counter_rotating
+            or self.last_turn != self.turn_i.value
+        ):
+            # First passage of the beam should not be recorded.
+            # The architecture in the pipeline is generally OBS CAV OBS, meaning,
+            # that the observation will be hit first without the
+            # voltage having been calculated yet for the passing beam.
+            # For the next beam passing, it will be the other way around but
+            # with a different beam state.
+            self.beam_state = beam._is_counter_rotating
+            self.last_turn = self.turn_i.value
+            return
         try:
-            if np.all(self._rf_station._local_wakefield.induced_voltage == 0):
-                warnings.warn(
-                    f"no induced voltage calculated yet CR {beam.is_counter_rotating} "
-                    f"in turn {self._rf_station._turn_i.value} for {self._rf_station.name}",
-                    stacklevel=1,
-                )
-                return
-        except AttributeError as orig_exception:
-            if "Use `calc_induced_voltage` first!" in orig_exception.args[0]:
-                warnings.warn(
-                    f"not calculated yet CR {beam.is_counter_rotating} in turn "
-                    f"{self._rf_station._turn_i.value} for {self._rf_station.name}",
-                    stacklevel=1,
-                )
-                return
-            else:
-                raise orig_exception  # pragma: no cover
-        last_recorded = self._induced_voltage._memory[
-            self._induced_voltage._write_idx - 1, :
-        ]
-        current_recorded = copy_to_cpu(
-            self._rf_station._local_wakefield.induced_voltage
-        )
-        if all(current_recorded == last_recorded):
-            logging.debug(f"data was equivalent {beam.is_counter_rotating}")
-            return  # return early on duplicate data
+            current_recorded = copy_to_cpu(self._wake_field.induced_voltage)
+        except AttributeError:
+            return
         self._induced_voltage.write(current_recorded)
         self._beam_reference_time.write(beam.reference.time)
+        self._beam_profile.write(self._wake_field.profile.hist_y)
