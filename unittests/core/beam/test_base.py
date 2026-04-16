@@ -9,6 +9,7 @@ import numpy as np
 from blond import Simulation, mu_plus, proton
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.flags import BeamFlags
 from blond.core.beam.particle_types import ParticleType, mu_minus
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.distributed_array import DistributedArray
@@ -95,8 +96,9 @@ class BeamBaseClassTester(BeamBaseClass):
     def dE_min(self) -> float:
         pass
 
+    @property
     def common_array_size(self) -> int:
-        pass
+        return self._dt.global_size
 
     def rms_emittance(self):
         pass
@@ -230,6 +232,266 @@ class TestBeamBaseClass(unittest.TestCase):
         mask[select] = False
         ids_after = copy_to_cpu(self.beam_base_class._ids.array_local)
         np.testing.assert_equal(np.sort(ids_before[mask]), np.sort(ids_after))
+
+    def test_add_coordinates(self):
+        dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
+        dE_1 = backend.linspace(-1e6, 0, 10, dtype=backend.float)
+        flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
+        ids_1 = backend.arange(len(dE_1), dtype=np.int32)
+
+        dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
+        dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
+        flags_2 = backend.zeros_like(dE_2, dtype=np.int32)
+        ids_2 = backend.arange(len(dE_2), dtype=np.int32)
+
+        beam_1 = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=proton,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        beam_1._dt = DistributedArray(dt_1)
+        beam_1._dE = DistributedArray(dE_1)
+        beam_1._flags = DistributedArray(flags_1)
+        beam_1._ids = DistributedArray(ids_1)
+
+        dist_dt = DistributedArray(dt_2)
+        dist_dE = DistributedArray(dE_2)
+        dist_flags = DistributedArray(flags_2)
+        dist_ids = DistributedArray(ids_2)
+
+        beam_1._add_coordinates(dist_dt, dist_dE, dist_flags, dist_ids)
+
+        np.testing.assert_array_equal(
+            beam_1._dt.array_local, np.concatenate((dt_1, dt_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._dE.array_local, np.concatenate((dE_1, dE_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._flags.array_local, np.concatenate((flags_1, flags_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._ids.array_local, np.concatenate((ids_1, ids_2))
+        )
+
+        self.assertEqual(beam_1.intensity, 2e12)
+
+    def test_add_particles(self):
+        dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
+        dE_1 = backend.linspace(-1e6, 0, 10, dtype=backend.float)
+        flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
+        ids_1 = backend.arange(len(dE_1), dtype=np.int32)
+
+        dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
+        dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
+        flags_2 = (
+            backend.zeros_like(dE_2, dtype=np.int32) + BeamFlags.ACTIVE.value
+        )
+        ids_2 = backend.arange(len(dE_2), dtype=np.int32) + len(dt_1)
+
+        beam_1 = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=proton,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        beam_1._dt = DistributedArray(dt_1)
+        beam_1._dE = DistributedArray(dE_1)
+        beam_1._flags = DistributedArray(flags_1)
+        beam_1._ids = DistributedArray(ids_1)
+
+        dist_dt = DistributedArray(dt_2)
+        dist_dE = DistributedArray(dE_2)
+
+        beam_1.add_particles(dist_dt, dist_dE)
+
+        np.testing.assert_array_equal(
+            beam_1._dt.array_local, np.concatenate((dt_1, dt_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._dE.array_local, np.concatenate((dE_1, dE_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._flags.array_local, np.concatenate((flags_1, flags_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._ids.array_local, np.concatenate((ids_1, ids_2))
+        )
+
+        self.assertEqual(beam_1.intensity, 2e12)
+
+        dist_dt = DistributedArray(dt_2[1:])
+        dist_dE = DistributedArray(dE_2)
+
+        with self.assertRaisesRegex(ValueError, "The dt and dE array sizes"):
+            beam_1.add_particles(dist_dt, dist_dE)
+
+    def test_add_beam_valid(self):
+        dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
+        dE_1 = backend.linspace(-1e6, 0, 10, dtype=backend.float)
+        flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
+        ids_1 = backend.arange(len(dE_1), dtype=np.int32)
+
+        dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
+        dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
+        flags_2 = backend.zeros_like(dE_2, dtype=np.int32)
+        ids_2 = backend.arange(len(dE_2), dtype=np.int32)
+
+        beam_1 = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=proton,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        beam_2 = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=proton,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        beam_1._dt = DistributedArray(dt_1)
+        beam_1._dE = DistributedArray(dE_1)
+        beam_1._flags = DistributedArray(flags_1)
+        beam_1._ids = DistributedArray(ids_1)
+
+        beam_2._dt = DistributedArray(dt_2)
+        beam_2._dE = DistributedArray(dE_2)
+        beam_2._flags = DistributedArray(flags_2)
+        beam_2._ids = DistributedArray(ids_2)
+
+        beam_1.add_beam(beam_2)
+
+        np.testing.assert_array_equal(
+            beam_1._dt.array_local, np.concatenate((dt_1, dt_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._dE.array_local, np.concatenate((dE_1, dE_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._flags.array_local, np.concatenate((flags_1, flags_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._ids.array_local, np.arange(2 * len(dt_1), dtype=np.int32)
+        )
+
+        self.assertEqual(beam_1.intensity, 2 * beam_2.intensity)
+        self.assertEqual(beam_1.ratio, beam_2.ratio)
+        self.assertEqual(
+            beam_1.common_array_size, 2 * beam_2.common_array_size
+        )
+
+    def test_add_beam_errors(self):
+        dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
+        dE_1 = backend.linspace(-1e6, 0, 10, dtype=backend.float)
+        flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
+        ids_1 = backend.arange(len(dE_1), dtype=np.int32)
+
+        dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
+        dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
+        flags_2 = backend.zeros_like(dE_2, dtype=np.int32)
+        ids_2 = backend.arange(len(dE_2), dtype=np.int32)
+
+        beam_1 = BeamBaseClassTester(
+            intensity=20,
+            particle_type=proton,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        beam_2 = BeamBaseClassTester(
+            intensity=10,
+            particle_type=proton,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        beam_1._dt = DistributedArray(dt_1)
+        beam_1._dE = DistributedArray(dE_1)
+        beam_1._flags = DistributedArray(flags_1)
+        beam_1._ids = DistributedArray(ids_1)
+
+        beam_2._dt = DistributedArray(dt_2)
+        beam_2._dE = DistributedArray(dE_2)
+        beam_2._flags = DistributedArray(flags_2)
+        beam_2._ids = DistributedArray(ids_2)
+
+        beam_1._is_distributed = True
+        with self.assertRaisesRegex(
+            RuntimeError, "A non-distributed beam cannot"
+        ):
+            beam_1.add_beam(beam_2)
+
+        beam_1._is_distributed = False
+        with self.assertRaisesRegex(ValueError, "Beams can only be added"):
+            beam_1.add_beam(beam_2)
+
+        beam_2.intensity = 20
+        beam_2.reference._particle_type = mu_plus
+        with self.assertRaisesRegex(
+            ValueError, "Cannot add beams with mismatched"
+        ):
+            beam_1.add_beam(beam_2)
+
+    def test_iadd(self):
+        dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
+        dE_1 = backend.linspace(-1e6, 0, 10, dtype=backend.float)
+        flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
+        ids_1 = backend.arange(len(dE_1), dtype=np.int32)
+
+        dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
+        dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
+        flags_2 = backend.zeros_like(dE_2, dtype=np.int32)
+        ids_2 = backend.arange(len(dE_2), dtype=np.int32)
+
+        beam_1 = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=proton,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        beam_2 = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=proton,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        beam_1._dt = DistributedArray(dt_1)
+        beam_1._dE = DistributedArray(dE_1)
+        beam_1._flags = DistributedArray(flags_1)
+        beam_1._ids = DistributedArray(ids_1)
+
+        beam_2._dt = DistributedArray(dt_2)
+        beam_2._dE = DistributedArray(dE_2)
+        beam_2._flags = DistributedArray(flags_2)
+        beam_2._ids = DistributedArray(ids_2)
+
+        beam_1 += beam_2
+
+        np.testing.assert_array_equal(
+            beam_1._dt.array_local, np.concatenate((dt_1, dt_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._dE.array_local, np.concatenate((dE_1, dE_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._flags.array_local, np.concatenate((flags_1, flags_2))
+        )
+        np.testing.assert_array_equal(
+            beam_1._ids.array_local, np.arange(2 * len(dt_1), dtype=np.int32)
+        )
+
+        self.assertEqual(beam_1.intensity, 2 * beam_2.intensity)
+        self.assertEqual(beam_1.ratio, beam_2.ratio)
+        self.assertEqual(
+            beam_1.common_array_size, 2 * beam_2.common_array_size
+        )
 
 
 if __name__ == "__main__":

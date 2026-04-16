@@ -14,14 +14,18 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond.core.base import Preparable
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
+from blond.generals.distributed import distributed_array
+from blond.generals.distributed import helpers as dist_help
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Literal
+    from typing import Any, Literal, Self
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
@@ -72,6 +76,66 @@ class BeamBaseClass(Preparable, ABC):
         self.reference = ReferenceCoordinates(
             time=0, total_energy=None, particle_type=particle_type
         )
+
+    def __iadd__(self, other: Self):
+        self.add_beam(other)
+        return self
+
+    def add_beam(self, other: Self):
+        if self.is_distributed != other.is_distributed:
+            raise RuntimeError(
+                "A non-distributed beam cannot be added to a distributed beam."
+                f"{self.is_distributed=}, {other.is_distributed=}"
+            )
+
+        if self.ratio != other.ratio:
+            raise ValueError(
+                "Beams can only be added if they have the same ratio."
+                f"{self.ratio=}, {other.ratio=}"
+            )
+
+        if self.particle_type != other.particle_type:
+            raise ValueError(
+                "Cannot add beams with mismatched particle types."
+                f"{self.particle_type=}, {other.particle_type=}"
+            )
+
+        new_ids = other._ids.array_local + int(self._ids.max()) + 1
+
+        self._add_coordinates(
+            other._dt,
+            other._dE,
+            other._flags,
+            distributed_array.DistributedArray(new_ids),
+        )
+
+    def add_particles(self, dt: DistributedArray, dE: DistributedArray):
+        id_max = np.int32(self._ids.max())
+        local_size = self._dt.local_size
+
+        new_ids = dist_help.distributed_arange(local_size, np.int32)
+        new_ids.array_local += id_max + 1
+
+        new_flags = dist_help.distributed_zeros(local_size, np.int32)
+        new_flags.array_local += np.int32(BeamFlags.ACTIVE.value)
+
+        self._add_coordinates(dt, dE, new_flags, new_ids)
+
+    def _add_coordinates(
+        self,
+        new_dt: DistributedArray,
+        new_dE: DistributedArray,
+        new_flags: DistributedArray,
+        new_ids: DistributedArray,
+    ):
+        ratio = self.ratio
+
+        self._dt = distributed_array.concatenate(self._dt, new_dt)
+        self._dE = distributed_array.concatenate(self._dE, new_dE)
+        self._flags = distributed_array.concatenate(self._flags, new_flags)
+        self._ids = distributed_array.concatenate(self._ids, new_ids)
+
+        self.intensity = ratio * self.common_array_size
 
     def signed_charge_with_direction(self):
         """
