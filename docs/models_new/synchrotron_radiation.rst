@@ -110,7 +110,6 @@ amplitudes, with typical damping times.
 The radiation loss around the synchronous particle can be derived as:
 
 .. math::
-
     U = U_0 + \left.\frac{dU}{dE}\right|_{E = E_0} \cdot \Delta E,
 
 where :math:`E_0` and :math:`U_0` are the energy and energy lost of the
@@ -118,8 +117,7 @@ synchronous particle. A particle with an energy :math:`E_0 + \Delta E` circulate
 orbit than the synchronous particle, resulting in a different path length :math:`C
 + \Delta C` after a turn, characterised by the momentum compaction factor:
 
-.. :math:
-
+.. math::
     \frac{\Delta C}{C} = \alpha_C \frac{\Delta E }{E_0}
 
 This variation in the path length translates into an arrival time difference

@@ -11,8 +11,7 @@ Collection to include synchrotron radiation and quantum excitation effects.
 
 Notes
 -----
-Authors:
-L. Valle
+Author: L. Valle
 """
 
 from __future__ import annotations

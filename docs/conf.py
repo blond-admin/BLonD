@@ -264,6 +264,7 @@ suppress_warnings = [
     "ref.python",
     "docutils",
     "python.duplicate_object",
+    "py.duplicate_object",  # Sphinx 6+: inherited members re-documented under child class
 ]  # remove warning for multiple mentions of the same item
 html_static_path = ["_static"]
 html_css_files = ["css/wide.css"]
@@ -273,6 +274,7 @@ autodoc_default_options = {
     # "imported-members": False,  # breaks import location
     "show-inheritance": True,
     "no-imported-members": True,
+    "inherited-members": True,
 }
 
 show_warning_types = True
@@ -315,6 +317,16 @@ def skip_specific_functions(app, what, name, obj, skip, options):
         skipped.
     """
     if name == "_abc_impl":
+        return True
+    # Skip private members (single leading underscore, not dunder).
+    if name.startswith("_") and not name.startswith("__"):
+        return True
+    # Skip built-in str methods inherited by str+Enum classes.
+    # sphinx_autodoc_typehints cannot parse their C-level signatures.
+    # Covers both slot wrappers (__objclass__ is str) and staticmethods like maketrans.
+    if getattr(obj, "__objclass__", None) is str:
+        return True
+    if name in vars(str) and getattr(str, name, None) is obj:
         return True
     return skip
 
