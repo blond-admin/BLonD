@@ -89,8 +89,8 @@ extern "C" void apply_poles(
     for (int pole_i = 0; pole_i < n_poles; pole_i++) {
         const int thread_i = omp_get_thread_num();
 
-        const real_t cr_pole_flip = 1;
-        if (beam_counter_rotation_flag && cr_pole_flip_flags[pole_index]) {
+        real_t cr_pole_flip = 1;
+        if (beam_counter_rotation_flag && cr_pole_flip_flags[pole_i]) {
             cr_pole_flip = -1;
         }
 
