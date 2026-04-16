@@ -38,7 +38,7 @@ class TestCallables(unittest.TestCase):
             )
         )
         rms = rms_emittance(dt=dt, dE=dE)
-        self.assertAlmostEqual(rms_expected, rms, rtol=1e-7)
+        self.assertAlmostEqual(rms_expected, rms, places=6)
 
     @pytest.mark.mpi
     @unittest.skipIf(not_distributed, "Runs only with `mpirun`")
