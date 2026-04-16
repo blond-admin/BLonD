@@ -25,3 +25,7 @@ class ArrayCastingError(BLonDException, ValueError, TypeError):
     """Exception raised when automatic array casting fails."""
 
     pass
+
+
+class ArrayPrecisionError(BLonDException, TypeError):
+    """Exception raised when array precision is invalid."""

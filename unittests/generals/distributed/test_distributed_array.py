@@ -9,8 +9,11 @@ from blond import backend, copy_to_cpu
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.generals.distributed.distributed_array import (
     DistributedArray,
+    concatenate,
 )
 from blond.generals.distributed.helpers import mpi_barrier, mpi_is_distributed
+from blond.generals.exceptions_ import ArrayPrecisionError
+from blond.testing.backend_testing import skip_if_no_cupy
 
 
 @pytest.mark.mpi
@@ -178,6 +181,41 @@ class TestDistributedArray(unittest.TestCase):
 
             np.testing.assert_allclose(result_direct, expected_combined)
             np.testing.assert_allclose(result_indirect, expected_combined)
+
+    def test_concatenate(self):
+        mpi_active = mpi_is_distributed()
+
+        if mpi_active:
+            array_1 = DistributedArray(backend.array([1, 2, 3, 4, 5, 6]))
+            array_2 = DistributedArray(backend.array([7, 8, 9, 10, 11, 12]))
+            array_1.mpi_scatter()
+            array_2.mpi_scatter()
+
+            array_3 = concatenate(array_1, array_2)
+
+            self.assertEqual(array_3.global_size, 12)
+            self.assertEqual(array_3.min(), 1)
+            self.assertEqual(array_3.max(), 12)
+
+    @skip_if_no_cupy
+    def test_concatenate_errors(self):
+        array_1 = DistributedArray(
+            np.array([1, 2, 3, 4, 5, 6], dtype=np.float32)
+        )
+        array_2 = DistributedArray(
+            np.array([7, 8, 9, 10, 11, 12], dtype=np.float64)
+        )
+
+        with self.assertRaises(ArrayPrecisionError):
+            concatenate(array_1, array_2)
+
+        import cupy as cp
+
+        array_1 = DistributedArray(cp.array([1, 2, 3, 4, 5, 6]))
+        array_2 = DistributedArray(np.array([7, 8, 9, 10, 11, 12]))
+
+        with self.assertRaises(TypeError):
+            concatenate(array_1, array_2)
 
 
 @pytest.mark.mpi
