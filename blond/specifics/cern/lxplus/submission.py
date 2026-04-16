@@ -526,11 +526,13 @@ git clone --quiet '{remote_url}' "$SCRATCH/repo"
 # Check out a specific commit inside the cloned repository (ensures reproducibility)
 git -C "$SCRATCH/repo" checkout --quiet '{commit}'
 
-# Install the repository as a Python package in user space (no system-wide changes)
-{python} -m pip install --quiet --user "$SCRATCH/repo"
+# Install into a venv on local scratch. Installing to $HOME/.local (AFS)
+# is slow and flakes with transient I/O errors on the batch nodes.
+{python} -m venv "$SCRATCH/venv"
+"$SCRATCH/venv/bin/pip" install --quiet "$SCRATCH/repo"
 
 # Run the target Python script from the repository with provided arguments
-{python} "$SCRATCH/repo/{script_rel}" {args_str}
+"$SCRATCH/venv/bin/python" "$SCRATCH/repo/{script_rel}" {args_str}
 WRAPPER_EOF
 chmod +x {remote_workdir}/wrapper.sh
 
@@ -541,6 +543,7 @@ error                 = {remote_workdir}/job.err
 log                   = {remote_workdir}/job.log
 should_transfer_files = NO
 getenv                = True
++JobFlavour           = "espresso"
 queue
 SUB_EOF
 
