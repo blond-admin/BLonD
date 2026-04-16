@@ -43,6 +43,22 @@ _CONDOR_STATUS = {
     "7": "Suspended",
 }
 
+_JOB_FALVOURS = (
+    "espresso",
+    "microcentury",
+    "longlunch",
+    "workday",
+    "tomorrow",
+    "testmatch",
+    "nextweek",
+)
+
+
+def on_htcondor() -> bool:
+    """Check whether the current program is executed on HTCondor."""
+    tmpdir = os.environ.get(_ENV_JOB_TMPDIR)
+    return tmpdir is not None
+
 
 def set_result(value: Any) -> None:
     """Write a result value from within a batch job.
@@ -66,9 +82,10 @@ def set_result(value: Any) -> None:
     >>> set_result({'dt': 0.4e-6, 'dE': 25e6})   # dict
     >>> set_result(obs.dts[-1])                   # 1-D ndarray
     """
-    tmpdir = os.environ.get(_ENV_JOB_TMPDIR)
-    if tmpdir is None:
+    if not on_htcondor():
         return
+
+    tmpdir = os.environ.get(_ENV_JOB_TMPDIR)
     if isinstance(value, np.ndarray):
         np.save(os.path.join(tmpdir, _RESULT_NPY), value)
     else:
@@ -170,7 +187,7 @@ class LxplusJob:
             status_changed = status != last_status
             if status_changed:
                 logger.info(
-                    f"Job {self.cluster_id} status: {status} "
+                    f"[Job {self.cluster_id} status] {status} "
                     f"(stdout: {self.ssh_host}:{self.stdout_path}, "
                     f"condor log: {self.ssh_host}:{self.condor_log_path})"
                 )
@@ -184,12 +201,12 @@ class LxplusJob:
 
             if not status_changed:
                 logger.info(
-                    f"Job {self.cluster_id} still {status}"
+                    f"[Job {self.cluster_id} status] still {status}"
                     f" since {int((time.time() - t0) / 60)} minutes; "
                     f" polling again in {poll_interval}s."
                 )
             time.sleep(poll_interval)
-        logger.info(f"Job {self.cluster_id} left the queue.")
+        logger.info(f"[Job {self.cluster_id} status] left the queue.")
         self._log_new_stdout()
         self._raise_on_failure()
         return self._fetch_result()
@@ -263,7 +280,7 @@ class LxplusJob:
             return
         self._stdout_lines_seen += len(lines)
         for line in lines:
-            logger.info(f"[job {self.cluster_id} stdout] {line}")
+            logger.info(f"[Job {self.cluster_id} stdout] {line}")
 
     def _raise_stuck(self, status: str) -> None:
         """Raise RuntimeError for a ``Held`` or ``Removed`` job.
@@ -416,6 +433,9 @@ def run_on_lxplus(
     ...     ).wait()
     ...     optimizer.update(result)
     """
+    assert job_flavour in _JOB_FALVOURS, (
+        f"{job_flavour=}, but must be in {_JOB_FALVOURS}."
+    )
     filepath = Path(filepath).resolve()
     assert filepath.exists(), f"{filepath} does not exist."
     git_root = _find_git_root(filepath)
@@ -434,6 +454,8 @@ def run_on_lxplus(
         job_flavour=job_flavour,
         accounting_group=accounting_group,
     )
+
+    logger.info(f"Submitting {submission_cmd}")
 
     proc = subprocess.run(
         ["ssh", LXPLUS_HOST, submission_cmd],
