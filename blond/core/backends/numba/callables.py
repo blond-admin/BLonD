@@ -649,6 +649,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 nb_f[:],
                 complex128[:],
                 complex128[:],
+                bool,
+                nb_f[:],
                 complex128[:],
                 nb_f[:],
                 nb_f[:, :],
@@ -665,6 +667,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             profile_dts,
             poles,
             residues,
+            beam_counter_rotation_flag,
+            cr_pole_flip_flags,
             # write
             states,
             voltage,
@@ -685,6 +689,10 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 Complex poles of an equivalent circuit.
             residues
                 Complex residues of an equivalent circuit.
+            beam_counter_rotation_flag
+                Counter rotation flag of the current beam.
+            cr_pole_flip_flags
+                Pole flip flags for all modes.
             states
                 Complex state vector, initially ``(0 + 0j)``.
             voltage
@@ -709,6 +717,10 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 raise Exception
             for pole_i in prange(n_poles):
                 thread_i = numba.get_thread_id()
+
+                cr_pole_flip = 1
+                if beam_counter_rotation_flag and cr_pole_flip_flags[pole_i]:
+                    cr_pole_flip = -1
 
                 # y[n] = profile[n] + exp(p * dt) * y[n-1]
                 # V[n] = 2 * Re(r * y[n])
@@ -743,10 +755,12 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                             update_on_bin_i = update_on_bin[i_update]
                     else:
                         state *= decay
-                    state += profile_i_half
+                    state += cr_pole_flip * profile_i_half
                     amp = float(np.real(residue * state))
-                    voltage_threaded[thread_i, bin_i] += two_factor * amp
-                    state += profile_i_half
+                    voltage_threaded[thread_i, bin_i] += (
+                        cr_pole_flip * two_factor * amp
+                    )
+                    state += cr_pole_flip * profile_i_half
                 states[pole_i] = state
 
             for thread_i in prange(numba.get_num_threads()):

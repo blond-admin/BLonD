@@ -627,6 +627,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             profile_dts,
             poles,
             residues,
+            beam_counter_rotation_flag,
+            cr_pole_flip_flags,
             # write
             states,
             voltage,
@@ -669,6 +671,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert profile_dts.dtype == floattype
             assert poles.dtype == complextype
             assert residues.dtype == complextype
+            assert cr_pole_flip_flags.dtype == floattype
             assert states.dtype == complextype
             assert voltage.dtype == floattype
             assert voltage_threaded.dtype == floattype
@@ -678,6 +681,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert profile_dts.flags.c_contiguous
             assert poles.flags.c_contiguous
             assert residues.flags.c_contiguous
+            assert cr_pole_flip_flags.flags.c_contiguous
             assert states.flags.c_contiguous
             assert voltage.flags.c_contiguous
             assert voltage_threaded.flags.c_contiguous
@@ -688,6 +692,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _getPointer(profile_dts),
                 _getPointer(poles),
                 _getPointer(residues),
+                ct.c_bool(beam_counter_rotation_flag),
+                _getPointer(cr_pole_flip_flags),
                 _getPointer(states),
                 _getPointer(voltage),
                 _getPointer(voltage_threaded),

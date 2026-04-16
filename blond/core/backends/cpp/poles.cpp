@@ -61,6 +61,8 @@ extern "C" void apply_poles(
     const real_t *__restrict__ profile_dts,
     const real_t *__restrict__ poles,
     const real_t *__restrict__ residues,
+    const bool beam_counter_rotation_flag,
+    const real_t *__restrict__ cr_pole_flip_flags,
     real_t *__restrict__ states,
     real_t *__restrict__ voltage,
     real_t *__restrict__ voltage_threaded,
@@ -86,6 +88,11 @@ extern "C" void apply_poles(
 #pragma omp parallel for schedule(static)
     for (int pole_i = 0; pole_i < n_poles; pole_i++) {
         const int thread_i = omp_get_thread_num();
+
+        const real_t cr_pole_flip = 1;
+        if (beam_counter_rotation_flag && cr_pole_flip_flags[pole_index]) {
+            cr_pole_flip = -1;
+        }
 
         const real_t pole_re = poles[2 * pole_i];
         const real_t pole_im = poles[2 * pole_i + 1];
@@ -139,14 +146,14 @@ extern "C" void apply_poles(
             }
 
             // state += profile_i_ (real part only, imag part is zero)
-            state_re += profile_i_;
+            state_re += cr_pole_flip * profile_i_;
 
             // amp = Re(residue * state)
             const real_t amp = res_re * state_re - res_im * state_im;
-            vt[bin_i] += two_factor * amp;
+            vt[bin_i] += cr_pole_flip * two_factor * amp;
 
             // state += profile_i_ (second half of trapezoidal rule)
-            state_re += profile_i_;
+            state_re += cr_pole_flip * profile_i_;
         }
 
         // Store state back
