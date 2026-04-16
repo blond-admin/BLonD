@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shlex
 import subprocess
@@ -21,6 +22,9 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
+
 
 LXPLUS_HOST = "lxplus.cern.ch"
 _RESULT_JSON = "blond_result.json"
@@ -82,6 +86,7 @@ class LxplusJob:
         remote_workdir: str,
         ssh_host: str = LXPLUS_HOST,
     ) -> None:
+        logger.info(f"Created LxplusJob(**{locals()})")
         self.cluster_id = cluster_id
         self.remote_workdir = remote_workdir
         self.ssh_host = ssh_host
@@ -110,6 +115,7 @@ class LxplusJob:
             If the job exits with a non-zero status code or is held.
         """
         while self._job_in_queue():
+            logger.info(f"Waiting for {poll_interval}s result...")
             time.sleep(poll_interval)
         self._raise_on_failure()
         return self._fetch_result()
@@ -154,6 +160,7 @@ class LxplusJob:
         proc = self._run_ssh(
             f"cat {self.remote_workdir}/{_RESULT_JSON} 2>/dev/null"
         )
+        logger.debug(f"{proc.stdout=}")
         if proc.returncode == 0 and proc.stdout.strip():
             return json.loads(proc.stdout)
 
