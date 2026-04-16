@@ -1425,10 +1425,10 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                     )
 
         if len(counter_rotation_pole_flip) == 0:
-            self._counter_rotation_pole_flip = np.ones_like(poles)
+            self.counter_rotation_pole_flip = np.ones_like(poles)
         else:
-            self._counter_rotation_pole_flip = np.array(
-                counter_rotation_pole_flip
+            self.counter_rotation_pole_flip = np.array(
+                -np.sign(counter_rotation_pole_flip)  # TODO: with -?
             )
 
         self._poles = np.array(poles, dtype=complex)

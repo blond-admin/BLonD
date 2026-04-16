@@ -111,135 +111,135 @@ class Specials(ABC):
             "Abstract method `sum_1d_array` is not implemented."
         )
 
-    @staticmethod
-    @abstractmethod
-    def music_track(
-        dt: NumpyArray,
-        dE: NumpyArray,
-        induced_voltage: NumpyArray,
-        input_first_component: NumpyArray,
-        input_second_component: NumpyArray,
-        delta_t: float,
-        last_dt: float,
-        n_macroparticles: int,
-        n_resonators: int,
-        intensity_factor: float,
-        alpha: NumpyArray,
-        omega_bar: NumpyArray,
-        const: NumpyArray,
-        coeff1: NumpyArray,
-        coeff2: NumpyArray,
-        coeff3: NumpyArray,
-        coeff4: NumpyArray,
-    ):
-        """
-        Calculate and apply induced voltage energy kicks with MUSIC algorithm.
-
-        Parameters
-        ----------
-        dt
-            Time coordinates of the beam.
-        dE
-            Energy coordinates of the beam.
-        induced_voltage
-            State vector.
-        input_first_component
-            Input state vector for first component.
-        input_second_component
-            Input state vector for second component.
-        delta_t
-            Time difference to last calculation.
-        last_dt
-            Last time coordinate, which was calculated.
-        n_macroparticles
-            Unused in python.
-        n_resonators
-            Unused in python.
-        intensity_factor
-            Intensity factor for each macroparticle.
-        alpha
-            Calculation variable.
-        omega_bar
-            Calculation variable.
-        const
-            Calculation variable.
-        coeff1
-            Calculation variable.
-        coeff2
-            Calculation variable.
-        coeff3
-            Calculation variable.
-        coeff4
-            Calculation variable.
-        """
-        raise NotImplementedError(
-            "Abstract method `music_track` is not implemented."
-        )
-
-    @staticmethod
-    @abstractmethod
-    def music_track_multiturn(
-        dt: NumpyArray,
-        dE: NumpyArray,
-        induced_voltage: NumpyArray,
-        input_first_component: NumpyArray,
-        input_second_component: NumpyArray,
-        delta_t: float,
-        last_dt: float,
-        n_macroparticles: int,
-        n_resonators: int,
-        intensity_factor: float,
-        alpha: NumpyArray,
-        omega_bar: NumpyArray,
-        const: NumpyArray,
-        coeff1: NumpyArray,
-        coeff2: NumpyArray,
-        coeff3: NumpyArray,
-        coeff4: NumpyArray,
-    ):
-        """
-        Calculate and apply induced voltage energy kicks with MUSIC algorithm.
-
-        Parameters
-        ----------
-        dt
-            Time coordinates of the beam.
-        dE
-            Energy coordinates of the beam.
-        induced_voltage
-            State vector.
-        input_first_component
-            Input state vector for first component.
-        input_second_component
-            Input state vector for second component.
-        delta_t
-            Time difference to last calculation.
-        last_dt
-            Last time coordinate, which was calculated.
-        n_macroparticles
-            Unused in python.
-        n_resonators
-            Unused in python.
-        intensity_factor
-            Intensity factor for each macroparticle.
-        alpha
-            Calculation variable.
-        omega_bar
-            Calculation variable.
-        const
-            Calculation variable.
-        coeff1
-            Calculation variable.
-        coeff2
-            Calculation variable.
-        coeff3
-            Calculation variable.
-        coeff4
-            Calculation variable.
-        """
-        raise NotImplementedError(
-            "Abstract method `music_track_multiturn` is not implemented."
-        )
+    # @staticmethod
+    # @abstractmethod
+    # def music_track(
+    #     dt: NumpyArray,
+    #     dE: NumpyArray,
+    #     induced_voltage: NumpyArray,
+    #     input_first_component: NumpyArray,
+    #     input_second_component: NumpyArray,
+    #     delta_t: float,
+    #     last_dt: float,
+    #     n_macroparticles: int,
+    #     n_resonators: int,
+    #     intensity_factor: float,
+    #     alpha: NumpyArray,
+    #     omega_bar: NumpyArray,
+    #     const: NumpyArray,
+    #     coeff1: NumpyArray,
+    #     coeff2: NumpyArray,
+    #     coeff3: NumpyArray,
+    #     coeff4: NumpyArray,
+    # ):
+    #     """
+    #     Calculate and apply induced voltage energy kicks with MUSIC algorithm.
+    #
+    #     Parameters
+    #     ----------
+    #     dt
+    #         Time coordinates of the beam.
+    #     dE
+    #         Energy coordinates of the beam.
+    #     induced_voltage
+    #         State vector.
+    #     input_first_component
+    #         Input state vector for first component.
+    #     input_second_component
+    #         Input state vector for second component.
+    #     delta_t
+    #         Time difference to last calculation.
+    #     last_dt
+    #         Last time coordinate, which was calculated.
+    #     n_macroparticles
+    #         Unused in python.
+    #     n_resonators
+    #         Unused in python.
+    #     intensity_factor
+    #         Intensity factor for each macroparticle.
+    #     alpha
+    #         Calculation variable.
+    #     omega_bar
+    #         Calculation variable.
+    #     const
+    #         Calculation variable.
+    #     coeff1
+    #         Calculation variable.
+    #     coeff2
+    #         Calculation variable.
+    #     coeff3
+    #         Calculation variable.
+    #     coeff4
+    #         Calculation variable.
+    #     """
+    #     raise NotImplementedError(
+    #         "Abstract method `music_track` is not implemented."
+    #     )
+    #
+    # @staticmethod
+    # @abstractmethod
+    # def music_track_multiturn(
+    #     dt: NumpyArray,
+    #     dE: NumpyArray,
+    #     induced_voltage: NumpyArray,
+    #     input_first_component: NumpyArray,
+    #     input_second_component: NumpyArray,
+    #     delta_t: float,
+    #     last_dt: float,
+    #     n_macroparticles: int,
+    #     n_resonators: int,
+    #     intensity_factor: float,
+    #     alpha: NumpyArray,
+    #     omega_bar: NumpyArray,
+    #     const: NumpyArray,
+    #     coeff1: NumpyArray,
+    #     coeff2: NumpyArray,
+    #     coeff3: NumpyArray,
+    #     coeff4: NumpyArray,
+    # ):
+    #     """
+    #     Calculate and apply induced voltage energy kicks with MUSIC algorithm.
+    #
+    #     Parameters
+    #     ----------
+    #     dt
+    #         Time coordinates of the beam.
+    #     dE
+    #         Energy coordinates of the beam.
+    #     induced_voltage
+    #         State vector.
+    #     input_first_component
+    #         Input state vector for first component.
+    #     input_second_component
+    #         Input state vector for second component.
+    #     delta_t
+    #         Time difference to last calculation.
+    #     last_dt
+    #         Last time coordinate, which was calculated.
+    #     n_macroparticles
+    #         Unused in python.
+    #     n_resonators
+    #         Unused in python.
+    #     intensity_factor
+    #         Intensity factor for each macroparticle.
+    #     alpha
+    #         Calculation variable.
+    #     omega_bar
+    #         Calculation variable.
+    #     const
+    #         Calculation variable.
+    #     coeff1
+    #         Calculation variable.
+    #     coeff2
+    #         Calculation variable.
+    #     coeff3
+    #         Calculation variable.
+    #     coeff4
+    #         Calculation variable.
+    #     """
+    #     raise NotImplementedError(
+    #         "Abstract method `music_track_multiturn` is not implemented."
+    #     )
 
     @staticmethod
     @abstractmethod  # pragma: no cover

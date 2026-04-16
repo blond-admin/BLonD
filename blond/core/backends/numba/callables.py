@@ -641,6 +641,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
 
             out[:] = np.sum(array_tmp, axis=0)
 
+        from numba import boolean
+
         @staticmethod
         @enforce_precision(floattype)
         @njit(
@@ -649,7 +651,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 nb_f[:],
                 complex128[:],
                 complex128[:],
-                bool,
+                boolean,
                 nb_f[:],
                 complex128[:],
                 nb_f[:],
@@ -719,8 +721,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 thread_i = numba.get_thread_id()
 
                 cr_pole_flip = 1
-                if beam_counter_rotation_flag and cr_pole_flip_flags[pole_i]:
-                    cr_pole_flip = -1
+                if beam_counter_rotation_flag:
+                    cr_pole_flip = cr_pole_flip_flags[pole_i]
 
                 # y[n] = profile[n] + exp(p * dt) * y[n-1]
                 # V[n] = 2 * Re(r * y[n])
