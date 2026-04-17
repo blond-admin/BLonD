@@ -68,6 +68,7 @@ def main():
             "./results/",
             stacklevel=1,
         ),
+        beam=beam1,
     )
 
     one_turn_execution_order = (
