@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import copy
 import unittest
 from random import random
 from unittest.mock import Mock
 
 import numpy as np
+from scipy.constants import speed_of_light as c0
 
 from blond import (
     Ring,
@@ -12,7 +15,9 @@ from blond import (
     positron,
 )
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import ParticleType, electron
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
 )
@@ -22,6 +27,110 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
     _SynchrotronRadiationTracker,
 )
+
+
+class BeamBaseClassTester(BeamBaseClass):
+    def __init__(
+        self,
+        intensity: int | float,
+        particle_type: ParticleType,
+        is_counter_rotating: bool = False,
+        is_distributed=False,
+    ):
+        super().__init__(
+            intensity=intensity,
+            particle_type=particle_type,
+            is_counter_rotating=is_counter_rotating,
+            is_distributed=is_distributed,
+        )
+        # self.reference = Mock(ReferenceCoordinates)
+        self.reference._particle_type = particle_type
+        self.reference.time = 0
+        self.reference_beta = 0.99
+        self.reference_velocity = self.reference_beta * c0
+        self.reference_gamma = np.sqrt(1 - 0.99**2)  # beta**2
+        self.reference_total_energy = 20e9
+        self.reference.total_energy = 20e9
+        self._dE = DistributedArray(
+            np.linspace(-1e6, 1e6, 10, dtype=backend.float)
+        )  #
+        # delta E
+        # in eV
+        self._dt = DistributedArray(
+            np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
+        )  # delta t
+        # in s
+        self._flags = np.zeros(10, dtype=np.int32)
+        self._ids = np.arange(10, dtype=np.int32)
+
+    def ratio(self) -> float:
+        return self.intensity / self.common_array_size
+
+    def setup_beam(
+        self,
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        flags: NumpyArray | CupyArray = None,
+        reference_time: float | None = None,
+        reference_total_energy: float | None = None,
+        mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        **kwargs,
+    ) -> None:
+        """Sets beam array attributes for simulation
+
+        Parameters
+        ----------
+        mpi_mode
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        flags
+            Macro-particle flags
+        reference_time
+            Time of the reference frame (global time), in [s]
+        reference_total_energy
+            Time of the reference frame (global total energy), in [eV]
+        mpi_mode
+            Specifies how the particle data is distributed across multiple ranks (processing
+            units) in a parallel environment:
+
+            - "root-distributes": The root node (rank 0) holds the full array and splits it
+              into smaller chunks, which are then distributed to all ranks, including rank 0.
+              Each rank stores its own chunk of the data. This mode is useful when loading
+              large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
+              across ranks.
+
+            - "all-ranks": Each rank independently generates and stores a full copy of the data.
+              While this mode uses more memory, it can be simpler to implement in scenarios where
+              each rank needs to work with its own independent data (e.g., generating separate
+              random distributions with `np.random.randn()`).
+        **kwargs
+            Keyword arguments to make the non-abstract implementation
+            extendable.
+        """
+        pass
+
+    def plot_hist2d(self):
+        pass
+
+    def dE_max(self) -> float:
+        pass
+
+    def dt_min(self) -> float:
+        pass
+
+    def dt_max(self) -> float:
+        pass
+
+    def dE_min(self) -> float:
+        pass
+
+    def common_array_size(self) -> int:
+        pass
+
+    def rms_emittance(self) -> int:
+        pass
 
 
 class TestSynchrotronRadiationMaster(unittest.TestCase):
@@ -704,3 +813,70 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 + f"Natural energy spread: {0.00016759685785477585}"
             ),
         )
+
+    def test_schedule(self):
+        SRM = SynchrotronRadiationMaster()
+        radiation_integrals = np.array(
+            [
+                0.646747216157,
+                0.0005936549319,
+                5.6814536525e-08,
+                5.92870407301e-09,
+                1.71368060083e-11,
+            ]
+        )
+        ring = Ring(
+            circumference=90.65874532 * 1e3,
+            radiation_integrals=radiation_integrals,
+        )
+        momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+
+        number_of_sections = 4
+        number_of_turns = 10
+        for i in range(number_of_sections):
+            rf_station = SingleHarmonicRFStation(section_index=i)
+            rf_station.harmonic = 242400
+            rf_station.voltage = 50.1e6
+            rf_station.phi_rf_design = 0
+            ring.add_element(rf_station)
+            drift = DriftSimple(
+                name=f"drift{i + 1}",
+                orbit_length=ring.circumference / number_of_sections,
+                momentum_compaction_factor=momentum_compaction_factor
+                / number_of_sections,
+                section_index=i,
+            )
+            ring.add_element(drift, section_index=i)
+        SRM.prepare_ring_for_synchrotron_radiation_tracking(
+            ring=ring, radiation_integrals=radiation_integrals
+        )
+        SRM.schedule(
+            attribute="share_of_radiation_integrals",
+            value=np.array(
+                [
+                    radiation_integrals * 1 / (k + 1)
+                    for k in range(number_of_turns)
+                ]
+            ),
+        )
+        beam = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=electron,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+        for i, SRClass_child in enumerate(SRM.generated_children):
+            self.assertTrue(
+                "share_of_radiation_integrals"
+                in SRClass_child.intended_for_scheduling
+            )
+            for k in range(number_of_turns):
+                SRClass_child.apply_schedules(
+                    turn_i=k,
+                    reference_time=float(beam.reference.time),
+                )
+                np.testing.assert_array_almost_equal(
+                    SRClass_child.share_of_radiation_integrals,
+                    1 / (k + 1) * radiation_integrals / number_of_sections,
+                    decimal=self.decimal,
+                )
