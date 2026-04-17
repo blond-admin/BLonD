@@ -256,7 +256,7 @@ def reload_cuda_backend(  # NOQA: D102
             assert array.device != "cpu", (
                 f"Requires Cupy array, but got {type(array)}."
             )
-            return np.sum(array)
+            return cp.sum(array)
 
         @staticmethod
         def dot_product_1d_array(array_1: CupyArray, array_2: CupyArray):
@@ -268,7 +268,7 @@ def reload_cuda_backend(  # NOQA: D102
             )
 
             """Return the sum of dot product of two 1d arrays."""
-            return cp.sum(array_1, array_2)
+            return cp.dot(array_1, array_2)
 
         @staticmethod
         def drift_simple(

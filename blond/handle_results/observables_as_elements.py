@@ -108,14 +108,14 @@ class BeamObservationInRingElement(
         **kwargs
             Additional keyword arguments.
         """
-        sim_els_else = simulation.ring.elements.get_elements(
-            BeamObservationInRingElement
+        own_class_in_simulation_elements = (
+            simulation.ring.elements.get_elements(BeamObservationInRingElement)
         )
-        num_elements_of_myself_in_pipeline = sum(
-            [1 if el == self else 0 for el in sim_els_else]
+        num_elements_of_own_instance_in_pipeline = sum(
+            [1 if el is self else 0 for el in own_class_in_simulation_elements]
         )
         n_entries = (
-            n_turns * num_elements_of_myself_in_pipeline
+            n_turns * num_elements_of_own_instance_in_pipeline
         ) // self.each_turn_i + 2
 
         self._dEs = DenseArrayRecorder(
@@ -415,9 +415,8 @@ class InducedVoltageObservationCR(
     """
     Observation object for induced voltages in counterrotation.
 
-    Observation object for induced voltages in counterrotation. A data recording is only performed
-    if the induced voltage is non-zero and different from the last recorded value, removing
-    double recordings from the induced voltage. It is expected, that the observation object is
+    Observation object for induced voltages in counterrotation.
+    It is expected, that the observation object is
     placed both behind and in-front of the cavity object.
 
     Parameters
@@ -501,6 +500,11 @@ class InducedVoltageObservationCR(
             shape,
         )
 
+        self._beam_profile = DenseArrayRecorder(
+            f"{self.common_filepath}_beam_profile",
+            shape,
+        )
+
         self._beam_reference_time = DenseArrayRecorder(
             f"{self.common_filepath}_beam_reference_time",
             n_entries,
@@ -565,31 +569,23 @@ class InducedVoltageObservationCR(
         beam
             Beam class to interact with this element.
         """
-        # try:
-        #     self._wake_field.induced_voltage[0]
-        # except AttributeError:
-        #     return
-        # first_turn = self.beam_state == None and self.last_turn == None
-        # if first_turn:
-        #
-        # # if not first_turn:
         if (
             self.beam_state != beam._is_counter_rotating
             or self.last_turn != self.turn_i.value
         ):
+            # First passage of the beam should not be recorded.
+            # The architecture in the pipeline is generally OBS CAV OBS, meaning,
+            # that the observation will be hit first without the
+            # voltage having been calculated yet for the passing beam.
+            # For the next beam passing, it will be the other way around but
+            # with a different beam state.
             self.beam_state = beam._is_counter_rotating
             self.last_turn = self.turn_i.value
             return
-        # last_recorded = self._induced_voltage._memory[
-        #     self._induced_voltage._write_idx - 1, :
-        # ]
         try:
             current_recorded = copy_to_cpu(self._wake_field.induced_voltage)
         except AttributeError:
             return
-        # if self.section_index == 0:
-        #     print(f"writing for CR {beam._is_counter_rotating} in turn {self.turn_i.value}")
-        #     print(f"profile_max = {np.max(self._wake_field.profile.hist_y)}")
         self._induced_voltage.write(current_recorded)
         self._beam_reference_time.write(beam.reference.time)
         self._beam_profile.write(self._wake_field.profile.hist_y)

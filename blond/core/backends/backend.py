@@ -342,7 +342,7 @@ class Specials(ABC):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
-    ):
+    ) -> None:
         """
         Reorder entries where ``flags == flag`` to the array end.
 
