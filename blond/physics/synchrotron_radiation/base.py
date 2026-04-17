@@ -145,12 +145,12 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     @property
     def share_of_radiation_integrals(self) -> NumpyArray | None:
         """
-        Synchrotron radiation integrals of the drift.
+        Synchrotron radiation integrals of the tracker.
 
         Returns
         -------
-        synchrotron_radiation_integrals_drift
-            Synchrotron radiation integrals of the drift.
+        synchrotron_radiation_integrals
+            Synchrotron radiation integrals of the tracker.
         """
         return self._share_of_radiation_integrals
 
@@ -168,8 +168,8 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
         Returns
         -------
-        synchrotron_radiation_integrals_drift
-            Synchrotron radiation integrals of the drift.
+        synchrotron_radiation_integrals
+            Synchrotron radiation integrals of the tracker.
         """
         self._share_of_radiation_integrals = share_of_radiation_integrals
 
