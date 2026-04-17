@@ -27,12 +27,6 @@ from os import PathLike
 from pstats import SortKey
 from typing import TYPE_CHECKING
 
-# Schema version for the on-disk pickle format of `Simulation`.
-# Bump deliberately when a change to simulation-tree classes would make
-# previously-saved files incompatible, so that `load` can detect it and
-# raise a clear error instead of silently reconstructing a broken object.
-_SIMULATION_SCHEMA_VERSION = 1
-
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
@@ -57,6 +51,13 @@ from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
+
+# Schema version for the on-disk pickle format of `Simulation`.
+# Bump deliberately when a change to simulation-tree classes would make
+# previously-saved files incompatible, so that `load` can detect it and
+# raise a clear error instead of silently reconstructing a broken object.
+_SIMULATION_SCHEMA_VERSION = 1
+
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
