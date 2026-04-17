@@ -93,13 +93,14 @@ class MainloopCounterRotatingBeams(ExecutionModel):
         ) == (
             False,
             True,
-        ), "First beam must be normal, second beam must be counter-rotating"
+        ), (
+            "First beam must be co-rotating, second beam must be counter-rotating."
+        )
         warnings.warn("Untested code", NotTestedWarning, stacklevel=2)
 
         if callbacks is not None:
             warnings.warn(
-                "Callbacks are currently not supported for simulations"
-                " with counter-rotating beams.",
+                "Callbacks are only called once per turn and receive the first beam as an argument.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -149,6 +150,4 @@ class MainloopCounterRotatingBeams(ExecutionModel):
 
             for callback in callbacks:
                 if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
-                    callback(
-                        simulation, beams[0]
-                    )  # TODO hand over multiple beams or beam_cr ?
+                    callback(simulation, beams[0])

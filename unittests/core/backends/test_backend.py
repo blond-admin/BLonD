@@ -48,6 +48,10 @@ class TestBackendBaseClass(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     @pytest.mark.backend_mutation
+    def test_autoselect_backend(self) -> None:
+        self.backend_base_class.autoselect_backend()
+
+    @pytest.mark.backend_mutation
     def test_change_backend(self) -> None:
         self.backend_base_class.change_backend(new_backend=Numpy64Bit)
         self.assertEqual(self.backend_base_class.float, np.float64)
@@ -58,6 +62,7 @@ class TestBackendBaseClass(unittest.TestCase):
         self.backend_base_class.set_specials(mode="numba")
 
     def tearDown(self) -> None:
+        self.backend_base_class.change_backend(Numpy64Bit)
         self.backend_base_class.set_specials(mode="cpp")
 
     @pytest.mark.backend_mutation
@@ -1039,7 +1044,6 @@ class TestSpecials(unittest.TestCase):
                     stop=backend.float(8.0),
                 )
                 result = array_write
-                print(result.tolist())
 
                 if special == "cuda":
                     result = result.get()
