@@ -93,6 +93,50 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
+    def sum_1d_array(array: NumpyArray | CupyArray) -> float:
+        """
+        Return the sum of an 1d array.
+
+        Parameters
+        ----------
+        array
+            Input array 1.
+
+        Returns
+        -------
+        sum_1d_array
+            Sum of a 1d arrays.
+        """
+        raise NotImplementedError(
+            "Abstract method `sum_1d_array` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def dot_product_1d_array(
+        array_1: NumpyArray | CupyArray, array_2: NumpyArray | CupyArray
+    ) -> float:
+        """
+        Return the sum of dot product of two 1d arrays.
+
+        Parameters
+        ----------
+        array_1
+            Input array 1.
+        array_2
+            Input array 2.
+
+        Returns
+        -------
+        dot_product_1d_array
+            Dot product of two 1d arrays.
+        """
+        raise NotImplementedError(
+            "Abstract method `dot_product_1d_array` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
     def drift_simple(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
@@ -168,7 +212,7 @@ class Specials(ABC):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
-    ):
+    ) -> None:
         """
         Reorder entries where ``flags == flag`` to the array end.
 
@@ -190,6 +234,49 @@ class Specials(ABC):
         raise NotImplementedError(
             "The backend for `move_flagged_elements_to_end` is missing."
         )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def histogram_sparse(
+        x: NumpyArray,
+        out: NumpyArray,
+        first_left_cut: float,
+        left_cut_distance: float,
+        cut_width: float,
+        bins_per_profile: int,
+        n_active_profiles: int,
+        filling_pattern: NumpyArray,
+        bucket_index_to_memory_index: NumpyArray,
+    ) -> None:
+        """
+        Sparse histogram with strided memory layout (gaps between profiles).
+
+        Parameters
+        ----------
+        x
+            An array, e.g., the particle ``dt`` values.
+        out
+            Output histogram ``(n_filled_buckets * bins_per_profile)``.
+        first_left_cut
+            Start of the first histogram.
+        left_cut_distance
+            Distance between the start of each histogram.
+        cut_width
+            Distance between left and right edge of the histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        n_active_profiles
+            Number of non-empty buckets.
+        filling_pattern
+            Filling pattern as a boolean array
+            where ``True`` means filled bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index.
+            For a ``filling_pattern = [1, 0, 0, 1]``
+            ``bucket_index_to_memory_index = [0, 0, 0, 8]`` with
+            ``bins_per_profile = 8``.
+            Use `_gen_array_bucket_index_to_memory_index` to generate this.
+        """
 
 
 class _ModeSwitchHelper:
@@ -246,6 +333,7 @@ class BackendBaseClass(ABC):
         specials_mode: Literal[
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
             "cuda",
         ],
@@ -316,6 +404,22 @@ class BackendBaseClass(ABC):
         for attribute, val in self.__dict__.items():
             if val is None:
                 raise AttributeError(f"{self.__class__}.{attribute} is None.")
+
+    def autoselect_backend(self) -> None:
+        """Set automatically the fastest backend that is available on the computer."""
+        order = (
+            (Cupy64Bit, "cuda"),
+            (Numpy64Bit, "cpp"),
+            (Numpy64Bit, "numba"),
+            (Numpy64Bit, "python"),
+        )
+        for backend_, mode_ in order:
+            try:
+                self.change_backend(new_backend=backend_)
+                self.set_specials(mode=mode_)
+                return
+            except Exception:
+                pass
 
     def change_backend(
         self,
@@ -389,6 +493,7 @@ class BackendBaseClass(ABC):
         _allowed_backend_modes = (
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
             "cuda",
         )
@@ -396,6 +501,7 @@ class BackendBaseClass(ABC):
             _backend_mode: Literal[
                 "python",
                 "cpp",
+                "cpp_single_core",
                 "numba",
                 "cuda",
             ] = _backend_mode_raw  # type: ignore
@@ -676,6 +782,7 @@ class NumpyBackend(BackendBaseClass):
         mode: Literal[
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
         ],
     ) -> None:
@@ -697,7 +804,12 @@ class NumpyBackend(BackendBaseClass):
         elif mode == "cpp":
             from blond.core.backends.cpp.callables import reload_cpp_backend
 
-            self.specials = reload_cpp_backend(self.float)
+            self.specials = reload_cpp_backend(self.float, parallel=True)
+            self.specials_mode = mode
+        elif mode == "cpp_single_core":
+            from blond.core.backends.cpp.callables import reload_cpp_backend
+
+            self.specials = reload_cpp_backend(self.float, parallel=False)
             self.specials_mode = mode
         elif mode == "numba":
             from blond.core.backends.numba.callables import (
