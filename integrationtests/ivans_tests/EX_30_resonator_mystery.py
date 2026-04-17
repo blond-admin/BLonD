@@ -68,7 +68,6 @@ def main():  # NOQA: PLR0915
     bucket_length = t_rf
 
     # DEFINE BEAM------------------------------------------------------------------
-    # beam = Beam(ring, n_macroparticles, n_particles)
     beam = Beam.simple_gaussian(
         n_macroparticles=n_macroparticles,
         intensity=n_particles,
