@@ -68,7 +68,6 @@ def main():  # NOQA: PLR0915
     bucket_length = t_rf
 
     # DEFINE BEAM------------------------------------------------------------------
-    # beam = Beam(ring, n_macroparticles, n_particles)
     beam = Beam.simple_gaussian(
         n_macroparticles=n_macroparticles,
         intensity=n_particles,
@@ -135,19 +134,7 @@ def main():  # NOQA: PLR0915
     plt.ylabel("Induced voltage (V)")
     plt.legend()
 
-    plt.figure("impedance real part")
-    # plt.plot(
-    #    np.real(ind_volt_freq.total_impedance), "b", label="induced_voltage_freq"
-    # )
-    # plt.plot(
-    #    np.real(ind_volt_time.total_impedance), "r", label="induced_voltage_time"
-    # )
-    plt.xlabel("Maybe frequency (arb. units)")
-    plt.ylabel("BLonD2 impedance (arb. units)")
-    plt.legend()
-
-    plt.show()
-
 
 if __name__ == "__main__":
     main()
+    plt.show()
