@@ -52,7 +52,9 @@ class TestTutorialSemiEmpiricMatcher(unittest.TestCase):
         backend.set_specials("numba")
 
         # this file is only created by `setUpClass` and deleted by `tearDownClass`
-        from blond.examples.notebooks import tutorial_SemiEmpiricMatcher  # NOQA
+        from blond.examples.notebooks import (
+            tutorial_SemiEmpiricMatcher,  # NOQA
+        )
 
         importlib.reload(
             tutorial_SemiEmpiricMatcher
@@ -64,7 +66,9 @@ class TestTutorialSemiEmpiricMatcher(unittest.TestCase):
         backend.set_specials("numba")
 
         # this file is only created by `setUpClass` and deleted by `tearDownClass`
-        from blond.examples.notebooks import tutorial_SemiEmpiricMatcher  # NOQA
+        from blond.examples.notebooks import (
+            tutorial_SemiEmpiricMatcher,  # NOQA
+        )
 
         importlib.reload(
             tutorial_SemiEmpiricMatcher
@@ -82,7 +86,9 @@ class TestTutorialSemiEmpiricMatcher(unittest.TestCase):
         backend.set_specials("cuda")
 
         # this file is only created by `setUpClass` and deleted by `tearDownClass`
-        from blond.examples.notebooks import tutorial_SemiEmpiricMatcher  # NOQA
+        from blond.examples.notebooks import (
+            tutorial_SemiEmpiricMatcher,  # NOQA
+        )
 
         importlib.reload(
             tutorial_SemiEmpiricMatcher
@@ -100,7 +106,9 @@ class TestTutorialSemiEmpiricMatcher(unittest.TestCase):
         backend.set_specials("cuda")
 
         # this file is only created by `setUpClass` and deleted by `tearDownClass`tearDownClass`
-        from blond.examples.notebooks import tutorial_SemiEmpiricMatcher  # NOQA
+        from blond.examples.notebooks import (
+            tutorial_SemiEmpiricMatcher,  # NOQA
+        )
 
         importlib.reload(
             tutorial_SemiEmpiricMatcher
