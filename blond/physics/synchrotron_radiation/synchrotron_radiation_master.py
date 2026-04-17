@@ -616,7 +616,7 @@ class SynchrotronRadiationMaster(Schedulable):
         """
         for i, SRClass_child in enumerate(self.generated_children):
             SRClass_child.schedule(
-                attribute="share_of_radiation_integrals",
+                attribute=attribute,
                 value=self.normalized_share_of_synchrotron_integrals[i]
                 * value,
             )
@@ -714,23 +714,11 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
 
         Returns
         -------
-        energy_lost_due_to_synchrotron_radiation_drift
-            Energy lost due to synchrotron radiation along the drift,
+        energy_lost_due_to_synchrotron_radiation_tracker
+            Energy lost due to synchrotron radiation along the tracker,
             in [eV per turn].
         """
         return self._energy_lost_due_to_synchrotron_radiation
-
-    @property
-    def share_of_radiation_integrals(self) -> NumpyArray | None:
-        """
-        Share of radiation integrals.
-
-        Returns
-        -------
-        share_of_radiation_integrals
-            Synchrotron radiation integrals of the tracker.
-        """
-        return self._share_of_radiation_integrals
 
     @property
     def radiation_integrals_tracker(self) -> NumpyArray | None:
