@@ -102,8 +102,7 @@ def results_to_eos(
         raise FileNotFoundError(f"Source path does not exist: {src}")
 
     if target_eos is None:
-        user = os.environ["USER"]
-        target_eos = f"/eos/user/{user[0]}/{user}/blond_results/{src.name}"
+        target_eos = get_eos_target(source_local)
 
     if verbose:
         kind = "directory" if src.is_dir() else "file"
@@ -120,7 +119,14 @@ def results_to_eos(
     # Worker nodes don't auto-discover the MGM the way lxplus login nodes do.
     env = {**os.environ, "EOS_MGM_URL": "root://eosuser.cern.ch"}
 
+    # `eos cp -r src dest` drops src *inside* dest, so we target the parent
+    # and rely on the source's basename to land at target_eos.
     parent = str(Path(target_eos).parent)
+    if Path(target_eos).name != src.name:
+        raise ValueError(
+            f"target_eos basename ({Path(target_eos).name!r}) must match "
+            f"source basename ({src.name!r})"
+        )
     mkdir_cmd = ["eos", "mkdir", "-p", parent]
     if verbose:
         print(f"[results_to_eos] $ {' '.join(mkdir_cmd)}")
@@ -129,7 +135,7 @@ def results_to_eos(
     cp_cmd = ["eos", "cp"]
     if src.is_dir():
         cp_cmd.append("-r")
-    cp_cmd.extend([str(src), target_eos])
+    cp_cmd.extend([str(src), parent + "/"])
     if verbose:
         print(f"[results_to_eos] $ {' '.join(cp_cmd)}")
     t0 = time.time()
@@ -139,6 +145,20 @@ def results_to_eos(
             f"[results_to_eos] done in {time.time() - t0:.1f}s -> {target_eos}"
         )
 
+    return target_eos
+
+
+def get_eos_target(
+    source_local: str | os.PathLike,
+) -> str:
+    src = Path(source_local)
+
+    user = os.environ["USER"]
+    job_dir = os.environ.get(_ENV_JOB_TMPDIR)
+    job_id = Path(job_dir).name if job_dir else "local"
+    target_eos = (
+        f"/eos/user/{user[0]}/{user}/blond_results/{job_id}/{src.name}"
+    )
     return target_eos
 
 
