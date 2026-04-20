@@ -167,10 +167,72 @@ def save_args(args, target_dir):
     # Convert argparse Namespace to dict
     args_dict = vars(args)
 
+    os.makedirs(target_dir, exist_ok=True)
+
     # Dump to JSON file
     output_path = os.path.join(target_dir, "args.json")
     with open(output_path, "w") as f:
         json.dump(args_dict, f, indent=4)
+
+
+def write_manifest(target_dir: str | os.PathLike) -> str:
+    """Write a ``manifest.json`` describing the current run.
+
+    Captures provenance (commit, repo URL, submission time) and
+    runtime context (hostname, start time, Python/BLonD versions,
+    condor cluster, scratch dir) so that the produced results folder
+    is self-describing once copied to EOS.
+
+    Parameters
+    ----------
+    target_dir
+        Directory the manifest is written into. Created if missing.
+
+    Returns
+    -------
+    str
+        Path to the written ``manifest.json``.
+    """
+    import platform
+    import socket
+    import sys
+    from datetime import datetime, timezone
+
+    target = Path(target_dir)
+    target.mkdir(parents=True, exist_ok=True)
+
+    try:
+        import blond
+
+        blond_version = getattr(blond, "__version__", None)
+    except ImportError:
+        blond_version = None
+
+    manifest = {
+        "submitted_at": os.environ.get("BLOND_JOB_SUBMITTED_AT"),
+        "started_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "commit": os.environ.get("BLOND_JOB_COMMIT"),
+        "remote_url": os.environ.get("BLOND_JOB_REMOTE_URL"),
+        "job_tmpdir": os.environ.get(_ENV_JOB_TMPDIR),
+        "job_id": (
+            Path(os.environ[_ENV_JOB_TMPDIR]).name
+            if os.environ.get(_ENV_JOB_TMPDIR)
+            else None
+        ),
+        "condor_cluster": os.environ.get("_CONDOR_CLUSTER"),
+        "condor_proc": os.environ.get("_CONDOR_PROCNO"),
+        "hostname": socket.gethostname(),
+        "user": os.environ.get("USER"),
+        "python_version": sys.version,
+        "platform": platform.platform(),
+        "blond_version": blond_version,
+        "argv": sys.argv,
+    }
+
+    output_path = target / "manifest.json"
+    with open(output_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+    return str(output_path)
 
 
 def set_result(value: Any) -> None:
@@ -693,7 +755,10 @@ def _build_submission_command(
     Python f-string interpolation (``{remote_workdir}`` etc.) takes place
     before the command is transmitted over SSH.
     """
+    from datetime import datetime, timezone
+
     args_str = _kwargs_to_cli(kwargs)
+    submitted_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     return f"""\
 set -e
@@ -706,6 +771,11 @@ set -e
 
 # Set a temporary working directory variable
 export BLOND_JOB_TMPDIR="{remote_workdir}"
+
+# Propagate provenance info to the job so it can write a manifest.
+export BLOND_JOB_COMMIT="{commit}"
+export BLOND_JOB_REMOTE_URL="{remote_url}"
+export BLOND_JOB_SUBMITTED_AT="{submitted_at}"
 
 # Create a temporary scratch directory and store its path
 SCRATCH=$(mktemp -d)
