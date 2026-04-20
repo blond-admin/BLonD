@@ -132,14 +132,14 @@ def results_to_eos(
         print(f"[results_to_eos] $ {' '.join(mkdir_cmd)}")
     subprocess.run(mkdir_cmd, check=True, env=env)
 
-    cp_cmd = ["eos", "cp"]
+    copy_cmd = ["eos", "cp"]
     if src.is_dir():
-        cp_cmd.append("-r")
-    cp_cmd.extend([str(src), parent + "/"])
+        copy_cmd.append("-r")
+    copy_cmd.extend([str(src), parent + "/"])
     if verbose:
-        print(f"[results_to_eos] $ {' '.join(cp_cmd)}")
+        print(f"[results_to_eos] $ {' '.join(copy_cmd)}")
     t0 = time.time()
-    subprocess.run(cp_cmd, check=True, env=env)
+    subprocess.run(copy_cmd, check=True, env=env)
     if verbose:
         print(
             f"[results_to_eos] done in {time.time() - t0:.1f}s -> {target_eos}"
@@ -407,10 +407,6 @@ class LxplusJob:
                 self._cleanup_afs()
         return result
 
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
     def _run_ssh(self, cmd: str) -> subprocess.CompletedProcess:
         return subprocess.run(
             ["ssh", self.ssh_host, cmd],
@@ -619,7 +615,7 @@ def run_on_lxplus(
         "testmatch",
         "nextweek",
     ] = "espresso",
-    accounting_group="batch-u-abp-ext-rf",
+    accounting_group="group_u_BE.ABP.normal",
     request_gpus: int | None = None,
 ) -> LxplusJob:
     """Submit a Python script to HTCondor on LXPlus.
@@ -890,7 +886,7 @@ getenv                = True
 
 
 +JobFlavour           = {job_flavour}
-{f"+AccountingGroup      = {accounting_group}" if accounting_group else ""}
+{f'+AccountingGroup      = "{accounting_group}"' if accounting_group else ""}
 
 queue
 SUB_EOF
