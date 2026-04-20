@@ -117,11 +117,14 @@ def results_to_eos(
             f"-> {target_eos}"
         )
 
+    # Worker nodes don't auto-discover the MGM the way lxplus login nodes do.
+    env = {**os.environ, "EOS_MGM_URL": "root://eosuser.cern.ch"}
+
     parent = str(Path(target_eos).parent)
     mkdir_cmd = ["eos", "mkdir", "-p", parent]
     if verbose:
         print(f"[results_to_eos] $ {' '.join(mkdir_cmd)}")
-    subprocess.run(mkdir_cmd, check=True)
+    subprocess.run(mkdir_cmd, check=True, env=env)
 
     cp_cmd = ["eos", "cp"]
     if src.is_dir():
@@ -130,7 +133,7 @@ def results_to_eos(
     if verbose:
         print(f"[results_to_eos] $ {' '.join(cp_cmd)}")
     t0 = time.time()
-    subprocess.run(cp_cmd, check=True)
+    subprocess.run(cp_cmd, check=True, env=env)
     if verbose:
         print(
             f"[results_to_eos] done in {time.time() - t0:.1f}s -> {target_eos}"
