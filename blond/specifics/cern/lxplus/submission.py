@@ -210,7 +210,9 @@ def write_manifest(target_dir: str | os.PathLike) -> str:
 
     manifest = {
         "submitted_at": os.environ.get("BLOND_JOB_SUBMITTED_AT"),
-        "started_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "started_at": datetime.now(timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        ),
         "commit": os.environ.get("BLOND_JOB_COMMIT"),
         "remote_url": os.environ.get("BLOND_JOB_REMOTE_URL"),
         "job_tmpdir": os.environ.get(_ENV_JOB_TMPDIR),
@@ -319,7 +321,12 @@ class LxplusJob:
         self.condor_log_path = f"{remote_workdir}/job.log"
         self._stdout_lines_seen = 0
 
-    def wait(self, poll_interval: int = 30) -> Any:
+    def wait(
+        self,
+        poll_interval: int = 30,
+        archive_to_eos: bool = True,
+        cleanup_afs: bool = True,
+    ) -> Any:
         """Block until the job finishes and return its result.
 
         Polls HTCondor every *poll_interval* seconds until the job leaves
@@ -330,6 +337,15 @@ class LxplusJob:
         ----------
         poll_interval
             Seconds between ``condor_q`` polls.  Defaults to 30.
+        archive_to_eos
+            After the job succeeds, copy the AFS workdir (wrapper.sh,
+            job.sub, job.out, job.err, job.log, result files) to
+            ``/eos/user/<u>/<user>/blond_results/<job_id>/submission/``
+            so the full run context is persisted alongside the results.
+        cleanup_afs
+            After a successful archive, ``rm -rf`` the AFS workdir to
+            keep AFS quota free.  Ignored if *archive_to_eos* is False
+            or the archive step fails.
 
         Returns
         -------
@@ -384,7 +400,12 @@ class LxplusJob:
         logger.info(f"[Job {self.cluster_id} status] left the queue.")
         self._log_new_stdout()
         self._raise_on_failure()
-        return self._fetch_result()
+        result = self._fetch_result()
+        if archive_to_eos:
+            archived = self._archive_submission_to_eos()
+            if archived and cleanup_afs:
+                self._cleanup_afs()
+        return result
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -500,6 +521,55 @@ class LxplusJob:
             if stderr:
                 msg += f"\n--- job.err ---\n{stderr}"
             raise RuntimeError(msg)
+
+    def _archive_submission_to_eos(self) -> str | None:
+        """Copy the AFS workdir to EOS using ``eos cp``.
+
+        Runs on the lxplus login node (which auto-discovers the MGM, so
+        no ``EOS_MGM_URL`` needed). FUSE ``/eos`` is avoided because it
+        is known to silently drop data under load; ``eos cp`` is the
+        CERN-recommended path for reliable writes. Files are copied
+        individually to sidestep ``eos cp -r``'s "copy into" nesting.
+        Returns the EOS target path on success, *None* on failure
+        (logged as a warning; non-fatal).
+        """
+        job_id = Path(self.remote_workdir).name
+        target_tpl = (
+            f"/eos/user/${{USER:0:1}}/$USER/blond_results/{job_id}/submission"
+        )
+        remote_cmd = (
+            "set -e; "
+            f'target="{target_tpl}"; '
+            'eos mkdir -p "$target"; '
+            f"for f in {self.remote_workdir}/*; do "
+            '  [ -f "$f" ] || continue; '
+            '  eos cp "$f" "$target/"; '
+            "done; "
+            'echo "$target"'
+        )
+        proc = self._run_ssh(remote_cmd)
+        if proc.returncode != 0:
+            logger.warning(
+                f"[Job {self.cluster_id}] archive to EOS failed: "
+                f"{proc.stderr.strip() or '(no stderr)'}"
+            )
+            return None
+        target = proc.stdout.strip().splitlines()[-1]
+        logger.info(f"[Job {self.cluster_id}] archived submission to {target}")
+        return target
+
+    def _cleanup_afs(self) -> None:
+        """Remove the AFS workdir after a successful archive."""
+        proc = self._run_ssh(f"rm -rf -- {shlex.quote(self.remote_workdir)}")
+        if proc.returncode != 0:
+            logger.warning(
+                f"[Job {self.cluster_id}] AFS cleanup failed: "
+                f"{proc.stderr.strip() or '(no stderr)'}"
+            )
+            return
+        logger.info(
+            f"[Job {self.cluster_id}] removed AFS workdir {self.remote_workdir}"
+        )
 
     def _fetch_result(self) -> Any:
         # Try JSON first (scalars and dicts)
