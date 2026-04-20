@@ -55,7 +55,14 @@ _JOB_FALVOURS = (
 
 
 def on_htcondor() -> bool:
-    """Check whether the current program is executed on HTCondor."""
+    """
+    Check whether the current program is executed on HTCondor.
+
+    Returns
+    -------
+    bool
+        True when running inside an HTCondor batch job.
+    """
     tmpdir = os.environ.get(_ENV_JOB_TMPDIR)
     return tmpdir is not None
 
@@ -65,7 +72,8 @@ def results_to_eos(
     target_eos: str | None = None,
     verbose: bool = True,
 ) -> str:
-    """Copy a file or directory from the worker node to EOS via ``eos cp``.
+    """
+    Copy a file or directory from the worker node to EOS via ``eos cp``.
 
     Intended to be called from within a batch job to persist results
     that would otherwise vanish when the worker's scratch disk is
@@ -87,7 +95,7 @@ def results_to_eos(
 
     Returns
     -------
-    target_eos : str
+    str
         The resolved destination path on EOS.
 
     Raises
@@ -151,6 +159,24 @@ def results_to_eos(
 def get_eos_target(
     source_local: str | os.PathLike,
 ) -> str:
+    """
+    Build the default EOS destination for a per-job result directory.
+
+    Produces
+    ``/eos/user/<u>/<user>/blond_results/<job_id>/<basename(source_local)>``
+    where ``<job_id>`` is taken from ``BLOND_JOB_TMPDIR`` (or ``"local"``
+    when running outside a batch job).
+
+    Parameters
+    ----------
+    source_local
+        Local path whose basename is reused as the final path component.
+
+    Returns
+    -------
+    str
+        The resolved EOS destination path.
+    """
     src = Path(source_local)
 
     user = os.environ["USER"]
@@ -163,6 +189,16 @@ def get_eos_target(
 
 
 def save_args(args, target_dir):
+    """
+    Dump an ``argparse`` namespace as ``args.json`` in *target_dir*.
+
+    Parameters
+    ----------
+    args
+        An ``argparse.Namespace`` (as returned by ``parser.parse_args()``).
+    target_dir
+        Directory the JSON file is written into. Created if missing.
+    """
     # args from parser.parse_args()
     # Convert argparse Namespace to dict
     args_dict = vars(args)
@@ -176,7 +212,8 @@ def save_args(args, target_dir):
 
 
 def write_manifest(target_dir: str | os.PathLike) -> str:
-    """Write a ``manifest.json`` describing the current run.
+    """
+    Write a ``manifest.json`` describing the current run.
 
     Captures provenance (commit, repo URL, submission time) and
     runtime context (hostname, start time, Python/BLonD versions,
@@ -238,7 +275,8 @@ def write_manifest(target_dir: str | os.PathLike) -> str:
 
 
 def set_result(value: Any) -> None:
-    """Write a result value from within a batch job.
+    """
+    Write a result value from within a batch job.
 
     Serialises *value* to the job's result directory so that
     :meth:`LxplusJob.wait` can retrieve it after the job finishes.
@@ -271,7 +309,8 @@ def set_result(value: Any) -> None:
 
 
 class LxplusJob:
-    """Handle for a job submitted to HTCondor on LXPlus.
+    """
+    Handle for a job submitted to HTCondor on LXPlus.
 
     Instances are returned by :func:`run_on_lxplus`; callers normally
     do not construct this class directly.
@@ -327,7 +366,8 @@ class LxplusJob:
         archive_to_eos: bool = True,
         cleanup_afs: bool = True,
     ) -> Any:
-        """Block until the job finishes and return its result.
+        """
+        Block until the job finishes and return its result.
 
         Polls HTCondor every *poll_interval* seconds until the job leaves
         the queue, then retrieves the value written by :func:`set_result`
@@ -416,16 +456,19 @@ class LxplusJob:
         )
 
     def _job_status(self) -> str | None:
-        """Return the HTCondor JobStatus as a human-readable string.
+        """
+        Return the HTCondor JobStatus as a human-readable string.
 
-        Returns ``None`` once the job has left the queue (``condor_q``
-        reports no matching cluster with a successful exit code).
-        Otherwise returns one of ``"Idle"``, ``"Running"``, ``"Held"``
-        etc.  Unknown numeric codes are returned verbatim as
-        ``"JobStatus=<n>"``.
+        Unknown numeric codes are returned verbatim as
+        ``"JobStatus=<n>"``.  For multi-proc clusters (``queue N > 1``),
+        the status of the first proc is reported.
 
-        For multi-proc clusters (``queue N > 1``), the status of the
-        first proc is reported.
+        Returns
+        -------
+        str or None
+            ``None`` once the job has left the queue (``condor_q``
+            reports no matching cluster with a successful exit code),
+            otherwise one of ``"Idle"``, ``"Running"``, ``"Held"``, etc.
 
         Raises
         ------
@@ -452,7 +495,8 @@ class LxplusJob:
         return _CONDOR_STATUS.get(code, f"JobStatus={code}")
 
     def _log_new_stdout(self) -> None:
-        """Log any lines appended to the remote ``job.out`` since last call.
+        """
+        Log any lines appended to the remote ``job.out`` since last call.
 
         Tails complete (newline-terminated) lines so partial writes are
         re-read on the next poll once finished.  Silently no-ops when
@@ -475,11 +519,18 @@ class LxplusJob:
             logger.info(f"[Job {self.cluster_id} stdout] {line}")
 
     def _raise_stuck(self, status: str) -> None:
-        """Raise RuntimeError for a ``Held`` or ``Removed`` job.
+        """
+        Raise RuntimeError for a ``Held`` or ``Removed`` job.
 
         Includes the ``HoldReason`` (when available) and remote paths to
         the job's stdout, stderr, and condor log so the caller can
         debug.
+
+        Parameters
+        ----------
+        status
+            The observed condor status (``"Held"`` or ``"Removed"``),
+            included in the raised error message.
         """
         reason = ""
         reason_proc = self._run_ssh(
@@ -519,7 +570,8 @@ class LxplusJob:
             raise RuntimeError(msg)
 
     def _archive_submission_to_eos(self) -> str | None:
-        """Copy the AFS workdir to EOS using ``eos cp``.
+        """
+        Copy the AFS workdir to EOS using ``eos cp``.
 
         Runs on the lxplus login node. Over non-interactive SSH the
         login profile is not sourced, so ``EOS_MGM_URL`` is set
@@ -527,9 +579,13 @@ class LxplusJob:
         FUSE ``/eos`` is avoided because it is known to silently drop
         data under load; ``eos cp`` is the CERN-recommended path for
         reliable writes. Files are copied individually to sidestep
-        ``eos cp -r``'s "copy into" nesting. Returns the EOS target
-        path on success, *None* on failure (logged as a warning;
-        non-fatal).
+        ``eos cp -r``'s "copy into" nesting.
+
+        Returns
+        -------
+        str or None
+            The EOS target path on success, or ``None`` on failure
+            (logged as a warning; non-fatal).
         """
         job_id = Path(self.remote_workdir).name
         target_tpl = (
@@ -618,7 +674,8 @@ def run_on_lxplus(
     accounting_group="group_u_BE.ABP.normal",
     request_gpus: int | None = None,
 ) -> LxplusJob:
-    """Submit a Python script to HTCondor on LXPlus.
+    """
+    Submit a Python script to HTCondor on LXPlus.
 
     The script at *filepath* must:
 
@@ -644,13 +701,10 @@ def run_on_lxplus(
         ``pip install`` and script execution.  Defaults to
         ``"python3.12"``.
     job_flavour
-        espresso     = 20 minutes
-        microcentury = 1 hour
-        longlunch    = 2 hours
-        workday      = 8 hours
-        tomorrow     = 1 day
-        testmatch    = 3 days
-        nextweek     = 1 week
+        Condor queue flavour selecting the job's max wall time.
+        Allowed values: ``espresso`` (20 min), ``microcentury``
+        (1 h), ``longlunch`` (2 h), ``workday`` (8 h), ``tomorrow``
+        (1 day), ``testmatch`` (3 days), ``nextweek`` (1 week).
     accounting_group
         Should remain unchanged for BLonD users.
     request_gpus
@@ -786,7 +840,14 @@ def _get_git_info(git_root: Path) -> tuple[str, str]:
 
 
 def _make_remote_workdir() -> str:
-    """Return a unique job directory path under ``~/blond_jobs/`` on LXPlus."""
+    """
+    Return a unique job directory path under ``~/blond_jobs/`` on LXPlus.
+
+    Returns
+    -------
+    str
+        Absolute AFS path of a per-job working directory on LXPlus.
+    """
     proc = subprocess.run(
         ["ssh", LXPLUS_HOST, "echo $HOME"],
         capture_output=True,
@@ -799,7 +860,20 @@ def _make_remote_workdir() -> str:
 
 
 def _kwargs_to_cli(kwargs: dict) -> str:
-    """Convert a kwargs dict to a shell-safe CLI argument string."""
+    """
+    Convert a kwargs dict to a shell-safe CLI argument string.
+
+    Parameters
+    ----------
+    kwargs
+        Mapping of flag names to values. List values are expanded as
+        ``--key v1 v2 ...``; scalar values as ``--key value``.
+
+    Returns
+    -------
+    str
+        A single shell-safe string suitable for appending to a command.
+    """
     parts: list[str] = []
     for key, val in kwargs.items():
         if isinstance(val, list):
@@ -822,13 +896,42 @@ def _build_submission_command(
     accounting_group=None,
     request_gpus: int | None = None,
 ) -> str:
-    """Build the shell command executed on LXPlus to submit the HTCondor job.
+    """
+    Build the shell command executed on LXPlus to submit the HTCondor job.
 
     Uses single-quoted heredocs so that ``$SCRATCH`` and other shell
     variables are written *literally* into the generated scripts and
     expanded only when those scripts execute on the batch node.
     Python f-string interpolation (``{remote_workdir}`` etc.) takes place
     before the command is transmitted over SSH.
+
+    Parameters
+    ----------
+    remote_workdir
+        Absolute AFS path on LXPlus where the wrapper and job.sub
+        files are written and HTCondor writes its logs.
+    remote_url
+        Git remote URL cloned on the batch node.
+    commit
+        Git commit SHA checked out on the batch node for reproducibility.
+    script_rel
+        Path to the target Python script relative to the git root.
+    kwargs
+        Script arguments, forwarded as ``--key value`` CLI flags.
+    python
+        Python interpreter used on the batch node.
+    job_flavour
+        Condor ``+JobFlavour`` value controlling max wall time.
+    accounting_group
+        Value for ``+AccountingGroup``. Omitted from the submit file
+        when falsy.
+    request_gpus
+        When set, emits ``request_gpus = N`` into the submit file.
+
+    Returns
+    -------
+    str
+        The complete shell command to be executed over SSH on LXPlus.
     """
     from datetime import datetime, timezone
 
@@ -896,7 +999,19 @@ condor_submit {remote_workdir}/job.sub
 
 
 def _parse_cluster_id(condor_output: str) -> str:
-    """Extract the cluster ID from ``condor_submit`` stdout."""
+    """
+    Extract the cluster ID from ``condor_submit`` stdout.
+
+    Parameters
+    ----------
+    condor_output
+        The stdout produced by ``condor_submit``.
+
+    Returns
+    -------
+    str
+        The cluster ID reported by HTCondor.
+    """
     for line in condor_output.splitlines():
         if "submitted to cluster" in line:
             # "1 job(s) submitted to cluster 12345."
