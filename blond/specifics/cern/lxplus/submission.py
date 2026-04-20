@@ -525,13 +525,15 @@ class LxplusJob:
     def _archive_submission_to_eos(self) -> str | None:
         """Copy the AFS workdir to EOS using ``eos cp``.
 
-        Runs on the lxplus login node (which auto-discovers the MGM, so
-        no ``EOS_MGM_URL`` needed). FUSE ``/eos`` is avoided because it
-        is known to silently drop data under load; ``eos cp`` is the
-        CERN-recommended path for reliable writes. Files are copied
-        individually to sidestep ``eos cp -r``'s "copy into" nesting.
-        Returns the EOS target path on success, *None* on failure
-        (logged as a warning; non-fatal).
+        Runs on the lxplus login node. Over non-interactive SSH the
+        login profile is not sourced, so ``EOS_MGM_URL`` is set
+        explicitly (otherwise ``eos`` defaults to ``root://localhost``).
+        FUSE ``/eos`` is avoided because it is known to silently drop
+        data under load; ``eos cp`` is the CERN-recommended path for
+        reliable writes. Files are copied individually to sidestep
+        ``eos cp -r``'s "copy into" nesting. Returns the EOS target
+        path on success, *None* on failure (logged as a warning;
+        non-fatal).
         """
         job_id = Path(self.remote_workdir).name
         target_tpl = (
@@ -539,6 +541,7 @@ class LxplusJob:
         )
         remote_cmd = (
             "set -e; "
+            "export EOS_MGM_URL=root://eosuser.cern.ch; "
             f'target="{target_tpl}"; '
             'eos mkdir -p "$target"; '
             f"for f in {self.remote_workdir}/*; do "
