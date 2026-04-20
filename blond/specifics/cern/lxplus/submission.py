@@ -620,6 +620,7 @@ def run_on_lxplus(
         "nextweek",
     ] = "espresso",
     accounting_group="batch-u-abp-ext-rf",
+    request_gpus: int | None = None,
 ) -> LxplusJob:
     """Submit a Python script to HTCondor on LXPlus.
 
@@ -656,6 +657,9 @@ def run_on_lxplus(
         nextweek     = 1 week
     accounting_group
         Should remain unchanged for BLonD users.
+    request_gpus
+        If set, adds ``request_gpus = N`` to the submit file so the job
+        is matched to a GPU-equipped worker. Defaults to *None* (CPU).
 
     Returns
     -------
@@ -701,6 +705,7 @@ def run_on_lxplus(
         python=python,
         job_flavour=job_flavour,
         accounting_group=accounting_group,
+        request_gpus=request_gpus,
     )
 
     logger.info(f"Submitting {submission_cmd}")
@@ -819,6 +824,7 @@ def _build_submission_command(
     python: str = "python3.11",
     job_flavour=None,
     accounting_group=None,
+    request_gpus: int | None = None,
 ) -> str:
     """Build the shell command executed on LXPlus to submit the HTCondor job.
 
@@ -870,12 +876,19 @@ WRAPPER_EOF
 chmod +x {remote_workdir}/wrapper.sh
 
 cat > {remote_workdir}/job.sub << 'SUB_EOF'
+
+{f"request_gpus          = {request_gpus}" if request_gpus else ""}
+
 executable            = {remote_workdir}/wrapper.sh
 output                = {remote_workdir}/job.out
 error                 = {remote_workdir}/job.err
 log                   = {remote_workdir}/job.log
+
+
 should_transfer_files = NO
 getenv                = True
+
+
 +JobFlavour           = {job_flavour}
 {f"+AccountingGroup      = {accounting_group}" if accounting_group else ""}
 
