@@ -341,6 +341,27 @@ class LxplusJob:
     condor_log_path : str
         Remote path of HTCondor's own log (``job.log``); useful for
         queue events, exit codes and hold reasons.
+
+    Examples
+    --------
+    >>> import logging
+    >>> from pathlib import Path
+    >>>
+    >>> from blond.specifics.cern.lxplus import run_on_lxplus
+    >>>
+    >>> logging.basicConfig(level=logging.DEBUG)
+    >>>
+    >>> future_results = []
+    >>> for i in range(1):
+    ...     future = run_on_lxplus(
+    ...         filepath=str(Path(__file__).parent / "main.py"),
+    ...         kwargs=dict(count=i),
+    ...     )
+    ...     future_results.append(future)
+    >>>
+    >>> for future in future_results:
+    ...     result = future.wait()
+    ...     print(f"{result=}")
     """
 
     def __init__(
