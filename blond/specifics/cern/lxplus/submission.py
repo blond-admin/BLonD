@@ -990,6 +990,7 @@ git -C "$SCRATCH/repo" checkout --quiet '{commit}'
 # is slow and flakes with transient I/O errors on the batch nodes.
 {python} -m venv "$SCRATCH/venv"
 "$SCRATCH/venv/bin/pip" install --quiet "$SCRATCH/repo"
+{'"$SCRATCH/venv/bin/pip" install --quiet cupy-cuda12x' if request_gpus else ""}
 
 # Run the target Python script from the repository with provided arguments
 "$SCRATCH/venv/bin/python" "$SCRATCH/repo/{script_rel}" {args_str}
