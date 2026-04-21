@@ -19,6 +19,7 @@ L. Thiele
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
@@ -47,6 +48,7 @@ class MainloopSingleBeam(ExecutionModel):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam.
@@ -78,6 +80,8 @@ class MainloopSingleBeam(ExecutionModel):
             >>>     ...
             >>> my_callback.each_turn_i = 2
             .
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Notes
         -----
@@ -85,6 +89,13 @@ class MainloopSingleBeam(ExecutionModel):
         before.
         """
         assert len(beams) == 1, f"{beams=}"
+
+        if n_turns != 1 and until_section_index != -1:
+            warnings.warn(
+                f"n_turns is ignored since until_section_index was {until_section_index}",
+                stacklevel=1,
+            )
+
         beam = beams[0]
         logger.info("Starting simulation mainloop...")
         callbacks = simulation._sanitize_callbacks(callbacks)
@@ -108,6 +119,8 @@ class MainloopSingleBeam(ExecutionModel):
             simulation._calculate_current_t_rev(reference=beam.reference)
             for element in simulation._ring.elements.elements:
                 simulation.section_i.value = element.section_index
+                if simulation.section_i.value >= until_section_index != -1:
+                    return
                 if element.is_active_this_turn(turn_i=simulation.turn_i.value):
                     element.track(beam=beam)
             for observable in observe:

@@ -5,6 +5,9 @@ variables:
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
 stages:
   - precommit
+  - doc_build
+  - test_without_gpu
+  - test_py310
   - test
   - deploy
 default:
@@ -39,12 +42,26 @@ workflow:
     # Install project with extras
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
-    - python3 -m pip install -v -e ${project_root}[all]
+    - python3 -m pip install -v -e ${project_root}[all_cuda12]
     - cd ${project_root}
     # Compile C++, CUDA backends
     - python3 blond/core/backends/cpp/compile.py --parallel
     - python3 blond/core/backends/cuda/compile.py
 
+.before_no_gpu:
+  before_script:
+    # Verify installation
+    - gcc --version
+    # Create and activate a virtual environment
+    - python3 -m venv ./.venv
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    # Install project with extras
+    - python3 --version && gcc --version && mpirun --version
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install -v -e ${project_root}[all_no_cuda]
+    - cd ${project_root}
+    # Compile C++, CUDA backends
+    - python3 blond/core/backends/cpp/compile.py --parallel
 
 .main:
   variables:
@@ -56,12 +73,12 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib; fi'
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
       -v unittests/
-      --import-mode=importlib
+      --randomly-seed=$CI_PIPELINE_ID
       --cov-append
       --cov
       --cov-config=.coveragerc
@@ -70,12 +87,12 @@ workflow:
       --junitxml=junit-report.xml
     - COV=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
     - echo "XML_COVERAGE=$COV"
-  coverage: '/XML_COVERAGE=(\d+\.\d+)/'
+  # coverage: '/XML_COVERAGE=(\d+\.\d+)/'
 
 
 .main_only_cupy:
   variables:
-    BLOND_BACKEND_MODE: "cuda"     # Set the basic backend to numba. It is most verbose about wrong types
+    BLOND_BACKEND_MODE: "cuda"     # Set the basic backend to CUDA.
     BLOND_FORCE_TEST_ALL_BACKENDS: "False"     # Force backend scanning unittests to use all available backends
     MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
   script:
@@ -83,12 +100,30 @@ workflow:
     - pip list
     - cd ${project_root}
     - python3 -m pytest
+      -m "not backend_mutation and not mpi"
       -m "not backend_mutation"
       -v unittests/
+      --randomly-seed=$CI_PIPELINE_ID
 
+.main_no_gpu:
+  variables:
+    BLOND_BACKEND_MODE: "cpp"     # Set the basic backend to numba. It is most verbose about wrong types
+    BLOND_FORCE_TEST_ALL_BACKENDS: "False"     # Force backend scanning unittests to use all available backends
+    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
+  script:
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    - pip list
+    - cd ${project_root}
+    # Run only MPI unittests. Only the main thread should report.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
+    # Run all unittests + the examples
+    - pip uninstall -y mpi4py
+    - pip uninstall -y cupy-cuda12x
+    - python3 -m pytest
+      -v unittests/
+      --randomly-seed=$CI_PIPELINE_ID
 
-
-.main_also_no_cupy:
+.main_many_environments:
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
     BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
@@ -98,20 +133,27 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --import-mode=importlib; fi'
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
       -v unittests/
-      --import-mode=importlib
       --cov-append
       --cov
       --cov-config=.coveragerc
+    - export BLOND_BACKEND_MODE="cuda"
+    - python3 -m pytest
+      -v unittests/
+      -m "not mpi and not backend_mutation"
+      --cov-append
+      --cov
+      --cov-config=.coveragerc
+    - export BLOND_BACKEND_MODE="numba"
     - pip uninstall -y cupy-cuda12x
     - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
     - python3 -m pytest
       -v unittests/
-      --import-mode=importlib
+      --randomly-seed=$CI_PIPELINE_ID
       --cov-append
       --cov
       --cov-config=.coveragerc
@@ -155,15 +197,24 @@ precommit-check:
     paths:
       - .cache/pre-commit
 
-test_py_310:
+test_py_310_no_cupy:
   image: gitlab-registry.cern.ch/blond/blond/python310
-  stage: test
+  stage: test_without_gpu
+  interruptible: true
+  extends:
+    - .before_no_gpu
+    - .main_no_gpu
+  dependencies: []
+
+test_py_310_main_many_environments:
+  image: gitlab-registry.cern.ch/blond/blond/python310
+  stage: test_py310
   interruptible: true
   extends:
     - .before
-    - .main_also_no_cupy
-#    - .after
+    - .main_many_environments
     - .publish
+  dependencies: []
   tags:
     - k8s-gpu
 
@@ -175,6 +226,7 @@ test_py_311:
     - .before
     - .main
     # - .publish
+  dependencies: []
   tags:
     - k8s-gpu
   rules:
@@ -192,6 +244,7 @@ test_py_312:
     - .before
     - .main
     # - .publish
+  dependencies: []
   tags:
     - k8s-gpu
   rules:
@@ -209,6 +262,7 @@ test_py_313:
     - .before
     - .main
     # - .publish
+  dependencies: []
   tags:
     - k8s-gpu
   rules:
@@ -226,6 +280,7 @@ test_py_314:
     - .before
     - .main
     # - .publish
+  dependencies: []
   tags:
     - k8s-gpu
   rules:
@@ -241,13 +296,20 @@ test_py_314_only_cupy:
   extends:
     - .before
     - .main_only_cupy
+  dependencies: []
   tags:
     - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+    # ALSO run in merge requests targeting blonder
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 test_minimum:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: test
   interruptible: true
+  dependencies: []
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
 
@@ -258,7 +320,7 @@ test_minimum:
     - . .venv/bin/activate
     # Install uv
     - python -m pip install uv
-    - python -m uv pip install --resolution lowest-direct ${project_root}[all]
+    - python -m uv pip install --resolution lowest-direct ${project_root}[all_cuda12]
     - cd ${project_root}
     # Compile C++, CUDA, Fortran backends
     - python blond/core/backends/cpp/compile.py --parallel
@@ -304,6 +366,7 @@ release_sdist_310:
 
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310
+  stage: doc_build
   interruptible: true
   script:
     - cd ${project_root}

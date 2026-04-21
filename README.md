@@ -39,14 +39,20 @@ BLonD also features **parallel backends** for efficient execution on both **CPUs
 ```bash
 pip install blond
 ```
-or if a GPU is available
+or if a GPU is available, either CUDA12 or CUDA13 can be used
 ```bash
-pip install blond[gpu]
+pip install blond[gpu_cuda12]
+```
+```bash
+pip install blond[gpu_cuda13]
 ```
 
 ### Configuration
 Optional backends can be compiled after installation using the commands `blond-compile-cpp --parallel` or `blond-compile-cuda`
 for improved performance. The backend can be selected in Python using ```backend.set_specials(...)```.
+
+NB: check your cuda version with `nvidia-smi`, to ensure you select the correct optional dependency.
+
 
 ## Documentation
 See full documentation [here](https://blond-code.docs.cern.ch/).

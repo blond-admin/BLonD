@@ -496,9 +496,17 @@ class RFStation:
                 eta += eta_i * (delta**i)
             return eta
 
-    def bucket_center(self, bucket_number, n_h=0):
+    def bucket_center(self, bucket_number: int, n_h: int = 0) -> float:
         '''
         Computes the center of a given RF bucket in time relative to the start of the turn.
+
+        Parameters
+        ----------
+        bucket_number : int
+            The bucket number to take the phase of
+        n_h : int
+            Default = 0
+            The number of the RF system to use
         '''
         # The edge of the bucket in time
         dt_bucket = 2 * np.pi * bucket_number / self.omega_rf[n_h, self.counter[0]]
@@ -510,7 +518,6 @@ class RFStation:
             dt_bucket -= self.phi_rf[n_h, self.counter[0]] / self.omega_rf[n_h, self.counter[0]]
 
         return dt_bucket
-
 
     def compute_voltage_waveform(
         self,

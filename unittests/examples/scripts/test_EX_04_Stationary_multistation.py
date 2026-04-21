@@ -21,7 +21,7 @@ class TestEX_04_Stationary_multistation(unittest.TestCase):
         )
 
         # full script. just checking if it crashes
-        EX_04_Stationary_multistation.main()
+        EX_04_Stationary_multistation.main(n_turns=10)
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
@@ -32,7 +32,7 @@ class TestEX_04_Stationary_multistation(unittest.TestCase):
         )
 
         # full script. just checking if it crashes
-        EX_04_Stationary_multistation.main()
+        EX_04_Stationary_multistation.main(n_turns=10)
 
     @pytest.mark.backend_mutation
     def test_executable_cuda32(self):
@@ -49,7 +49,7 @@ class TestEX_04_Stationary_multistation(unittest.TestCase):
 
         # full script. just checking if it crashes
 
-        EX_04_Stationary_multistation.main()
+        EX_04_Stationary_multistation.main(n_turns=10)
         backend.zeros(100)
 
     @pytest.mark.backend_mutation
@@ -66,5 +66,5 @@ class TestEX_04_Stationary_multistation(unittest.TestCase):
         )
 
         # full script. just checking if it crashes
-        EX_04_Stationary_multistation.main()
+        EX_04_Stationary_multistation.main(n_turns=10)
         backend.zeros(100)

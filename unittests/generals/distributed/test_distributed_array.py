@@ -7,6 +7,9 @@ import pytest
 
 from blond import backend, copy_to_cpu
 from blond.generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.generals.distributed.helpers import mpi_barrier, mpi_is_distributed
 
 
@@ -21,7 +24,9 @@ class TestDistributedArray(unittest.TestCase):
         self.array = np.astype(
             rng.normal(loc=0, scale=1.0, size=128), backend.float
         )
-        self.distributed_array = DistributedArray(self.array.copy())
+        self.distributed_array = DistributedArray(
+            backend.array(self.array.copy())
+        )
 
     def test_local_size(self):
         mpi_active = mpi_is_distributed()
@@ -60,7 +65,11 @@ class TestDistributedArray(unittest.TestCase):
         if mpi_active:
             self.distributed_array.mpi_scatter()
         actual = getattr(self.distributed_array, func_name)()
-        np.testing.assert_almost_equal(expected, actual)
+        np.testing.assert_almost_equal(
+            actual, expected, decimal=5 if backend.float == np.float32 else 11
+        )
+        if mpi_active:
+            self.distributed_array.mpi_scatter()
 
     def test_min(self):
         self._call_test(np.min, "min")
@@ -75,7 +84,7 @@ class TestDistributedArray(unittest.TestCase):
         self._call_test(np.std, "std")
 
     def test_sum(self):
-        self._call_test(np.sum, "sum")
+        self._call_test(lambda x: float(np.sum(x)), "sum")
 
     def test_histogram(self):
         mpi_active = mpi_is_distributed()
@@ -94,7 +103,7 @@ class TestDistributedArray(unittest.TestCase):
         expected, _ = np.histogram(self.array, bins=8)
         if mpi_active:
             self.distributed_array.mpi_scatter()
-        actual = np.zeros_like(expected, dtype=backend.float)
+        actual = backend.zeros_like(expected, dtype=backend.float)
         self.distributed_array.histogram(bins=8, out=actual)
         np.testing.assert_allclose(expected, copy_to_cpu(actual))
 
@@ -109,6 +118,66 @@ class TestDistributedArray(unittest.TestCase):
             self.assertEqual(
                 self.distributed_array.global_size, 2 * 64
             )  # assumes `mpirun -n 2`
+
+    def test_histogram_sparse_left_edged(self) -> None:
+        mpi_active = mpi_is_distributed()
+
+        if mpi_active:
+            particles_x = []
+            # mark all left and right edges, left edge should result 2, right 1
+            for left_edge in (-12, -12 + 2 * 8, -12 + 4 * 8):
+                for _ in range(2):  # so hist_y counts two
+                    particles_x.append(left_edge)
+            for right_edge in (-12 + 4, -12 + 2 * 8 + 4, -12 + 4 * 8 + 4):
+                for _ in range(1):  # so hist_y counts one
+                    particles_x.append(right_edge)
+            da = DistributedArray(np.array(particles_x, float))
+            mpi_barrier()
+
+            bins_per_profile = 4
+            n_profiles = 3
+            array_write = np.ones(bins_per_profile * n_profiles, dtype=float)
+            filling_pattern = np.array([1, 0, 1, 0, 1, 0], dtype=bool)
+            bucket_index_to_memory_index = np.array(
+                [0, 0, 4, 4, 8, 8],
+                dtype=np.int32,
+            )
+
+            for _ in range(
+                10  # not 1 to see if result is accumulated (shouldn't be)
+            ):
+                result_direct = da.histogram_sparse(
+                    out=array_write,
+                    first_left_cut=-12,
+                    left_cut_distance=8,
+                    cut_width=4,
+                    bins_per_profile=bins_per_profile,
+                    n_active_profiles=n_profiles,
+                    filling_pattern=filling_pattern,
+                    bucket_index_to_memory_index=bucket_index_to_memory_index,
+                )
+            result_indirect = array_write
+            expected_single_node = np.array(
+                [
+                    2.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    2.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    2.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                ]
+            )
+            mpi_nodes = 2  # expect `mpirun -n 2`
+            expected_combined = mpi_nodes * expected_single_node
+
+            np.testing.assert_allclose(result_direct, expected_combined)
+            np.testing.assert_allclose(result_indirect, expected_combined)
 
 
 @pytest.mark.mpi

@@ -114,8 +114,9 @@ def _find(
     ):
         if id(obj) in seen:
             return
-
-        if (
+        # todo remove no cover when Python11 is the main CI tester.
+        #  in Python10 this line is never hit..
+        if (  # pragma: no cover
             type(obj) is mock._Call
         ):  # prevent crash on `hash(obj)` with mocks...
             return

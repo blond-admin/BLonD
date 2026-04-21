@@ -214,17 +214,10 @@ class CavityFeedback:
         self.V_corr /= self.rf_station.voltage[
             self.n_h, self.rf_station.counter[0]
         ]
-        # self.phi_corr = self.alpha_sum - np.angle(
-        #     np.interp(
-        #         self.profile.bin_centers,
-        #         self.rf_centers,
-        #         self.V_SET[-self.n_coarse :],
-        #     )
-        # )
 
-        #TODO: new below, old above
-
-        self.phi_corr = self.alpha_sum - np.mean(np.angle(self.V_SET[-self.n_coarse :]))
+        self.phi_corr = self.alpha_sum - np.mean(
+            np.angle(self.V_SET[-self.n_coarse :])
+        )  # TODO: this  used to be an interpolation
 
         self.gap_voltage_phase = np.angle(
             self.V_ANT_COARSE[-self.n_coarse :] / self.V_SET[-self.n_coarse :]
@@ -270,7 +263,10 @@ class CavityFeedback:
         r"""Computes the setpoint in I/Q based on the RF voltage"""
 
         V_set = polar_to_cartesian(
-            self.rf_station.voltage[self.n_h, self.counter] / self.n_cavities * amplitude_modulation, phase_modulation
+            self.rf_station.voltage[self.n_h, self.counter]
+            / self.n_cavities
+            * amplitude_modulation,
+            phase_modulation,
         )
 
         return V_set
@@ -292,7 +288,14 @@ class CavityFeedback:
         self.T_s_prev = self.T_s
         self.T_s = self.n_s * 2 * np.pi / self.omega_rf
 
-        self.n_coarse = round(self.rf_station.harmonic[self.n_h, self.counter] / self.n_s)
+        # The number of samples is locked to the harmonic to ensure array compatibility
+        # The resulting shift between the actual and the design is handled through
+        # shifting by dT, which is in-turn dependant no the shift from phi_rf
+        # which is performed in the tracker. This will cause the time-array to slowly shift
+        # out of the current turn.
+        self.n_coarse = round(
+            self.rf_station.harmonic[self.n_h, self.counter] / self.n_s
+        )
 
         # Present coarse grid and save previous turn coarse grid
         self.rf_centers_prev = np.copy(self.rf_centers)
@@ -1180,10 +1183,11 @@ class SPSCavityFeedback:
         post_LS2: bool = True,
         V_part: Optional[float] = None,
         df: list[float] = 0,
-        commissioning: Optional[list | SPSCavityLoopCommissioning] = SPSCavityLoopCommissioning(),
+        commissioning: Optional[
+            list | SPSCavityLoopCommissioning
+        ] = SPSCavityLoopCommissioning(),
         n_h: int = 0,
     ):
-
         self.rf_station = rf_station
 
         # Parse input for gains
@@ -1359,18 +1363,19 @@ class SPSCavityFeedback:
         self.V_corr /= self.rf_station.voltage[
             self.OTFB_1.n_h, self.rf_station.counter[0]
         ]
-        # self.phi_corr = self.alpha_sum - np.angle(
-        #     np.interp(
-        #         self.OTFB_1.profile.bin_centers,
-        #         self.OTFB_1.rf_centers,
-        #         self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :],
-        #     )
-        # )
 
-        self.phi_corr = self.alpha_sum - np.angle(np.mean(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :]))
+        self.phi_corr = self.alpha_sum - np.angle(
+            np.mean(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :])
+        )  # TODO: this  used to be an interpolation
 
-        cav_sum = self.OTFB_1.V_ANT_COARSE[-self.OTFB_1.n_coarse:] + self.OTFB_2.V_ANT_COARSE[-self.OTFB_2.n_coarse:]
-        cav_sum_ref = self.OTFB_1.V_SET[-self.OTFB_1.n_coarse:] + self.OTFB_2.V_SET[-self.OTFB_2.n_coarse:]
+        cav_sum = (
+            self.OTFB_1.V_ANT_COARSE[-self.OTFB_1.n_coarse :]
+            + self.OTFB_2.V_ANT_COARSE[-self.OTFB_2.n_coarse :]
+        )
+        cav_sum_ref = (
+            self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :]
+            + self.OTFB_2.V_SET[-self.OTFB_2.n_coarse :]
+        )
 
         self.gap_voltage_phase = np.angle(cav_sum / cav_sum_ref)
 
@@ -1433,7 +1438,7 @@ class SPSCavityFeedback:
                 self.OTFB_1.rf_centers,
                 self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :],
             )
-        )
+        )  # TODO: this is not an interpolation in all other occurences
 
 
 class LHCCavityLoop(CavityFeedback):
@@ -1593,7 +1598,10 @@ class LHCCavityLoop(CavityFeedback):
         # Bandwidth of klystron
         num_taps = round(2 * self.tau_loop / self.T_s + 1)
         self.klystron_fir = scipy.signal.firwin(
-            num_taps, self.RFFB.klystron_bw, fs=1/self.T_s, pass_zero='lowpass'
+            num_taps,
+            self.RFFB.klystron_bw,
+            fs=1 / self.T_s,
+            pass_zero="lowpass",
         )
 
         # Pre-track without beam
@@ -1732,10 +1740,12 @@ class LHCCavityLoop(CavityFeedback):
 
         # FIR filter
         if self.enable_klystron:
-            self.I_GEN_COARSE[self.ind] = self.klystron_fir[0] * self.I_GEN_GAIN[self.ind]
+            self.I_GEN_COARSE[self.ind] = (
+                self.klystron_fir[0] * self.I_GEN_GAIN[self.ind]
+            )
             for k in range(1, len(self.klystron_fir)):
                 self.I_GEN_COARSE[self.ind] += (
-                        self.klystron_fir[k] * self.I_GEN_GAIN[self.ind - k]
+                    self.klystron_fir[k] * self.I_GEN_GAIN[self.ind - k]
                 )
         else:
             self.I_GEN_COARSE[self.ind] = self.I_GEN_GAIN[self.ind]
@@ -1831,43 +1841,48 @@ class LHCCavityLoop(CavityFeedback):
         r"""
         Updates the set point for the next turn based on the design RF
         voltage."""
-        # coeff = np.polyfit(
-        #     [0, self.n_coarse + 1],
-        #     [self.V_SET[-self.n_coarse], self.set_point_from_rfstation()[0]],
-        #     1,
-        # )
-        # poly = np.poly1d(coeff)
-        # v_set_prev = poly(np.linspace(0, self.n_coarse, self.n_coarse))
-        #
-        # self.V_SET = np.concatenate(
-        #     (v_set_prev, self.set_point_from_rfstation())
-        # )
-
-        self.V_SET = np.concatenate((  # TODO: update of math, double check
-            self.V_SET[-self.n_coarse:],
-            self.set_point_modulated(
-                self.PHASE_MODULATION[-self.n_coarse:],
-                self.AMPLITUDE_MODULATION[-self.n_coarse:]  # TODO: this is not written anywhere?
+        self.V_SET = np.concatenate(
+            (
+                self.V_SET[-self.n_coarse :],
+                self.set_point_modulated(
+                    self.PHASE_MODULATION[-self.n_coarse :],
+                    self.AMPLITUDE_MODULATION[-self.n_coarse :],
+                ),
             )
-        ))
+        )  # TODO: this used to be a polyfit
 
     def full_detuning_phase_modulation(self):
-        error_func = self.fd_alpha * (self.Q_L / self.omega_rf) * np.imag(
-            self.I_GEN_COARSE[:self.n_coarse] * np.conj(
-            self.V_ANT_COARSE[:self.n_coarse]
-        ))
+        error_func = (
+            self.fd_alpha
+            * (self.Q_L / self.omega_rf)
+            * np.imag(
+                self.I_GEN_COARSE[: self.n_coarse]
+                * np.conj(self.V_ANT_COARSE[: self.n_coarse])
+            )
+        )
 
         error_func = error_func - np.mean(error_func)
 
-        self.ADAPTIVE_PHASE_DERIVATIVE[self.n_coarse:] = self.ADAPTIVE_PHASE_DERIVATIVE[-self.n_coarse:]
-        self.ADAPTIVE_PHASE_DERIVATIVE[-self.n_coarse:] = self.ADAPTIVE_PHASE_DERIVATIVE[self.n_coarse:] + error_func
+        self.ADAPTIVE_PHASE_DERIVATIVE[self.n_coarse :] = (
+            self.ADAPTIVE_PHASE_DERIVATIVE[-self.n_coarse :]
+        )
+        self.ADAPTIVE_PHASE_DERIVATIVE[-self.n_coarse :] = (
+            self.ADAPTIVE_PHASE_DERIVATIVE[self.n_coarse :] + error_func
+        )
 
-        integrated_phase = moving_average(self.ADAPTIVE_PHASE_DERIVATIVE, self.n_coarse)[-self.n_coarse:] \
-                           * self.n_coarse * self.T_s
+        integrated_phase = (
+            moving_average(self.ADAPTIVE_PHASE_DERIVATIVE, self.n_coarse)[
+                -self.n_coarse :
+            ]
+            * self.n_coarse
+            * self.T_s
+        )
         integrated_phase = integrated_phase - np.mean(integrated_phase)
 
-        self.PHASE_MODULATION[:self.n_coarse] = self.PHASE_MODULATION[-self.n_coarse:]
-        self.PHASE_MODULATION[-self.n_coarse:] = integrated_phase
+        self.PHASE_MODULATION[: self.n_coarse] = self.PHASE_MODULATION[
+            -self.n_coarse :
+        ]
+        self.PHASE_MODULATION[-self.n_coarse :] = integrated_phase
 
     def swap(self):
         r"""Model of the Switch and Protect module: clamping of the output
