@@ -16,7 +16,6 @@ import os
 import platform
 import subprocess
 import sys
-import warnings
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
@@ -224,39 +223,6 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
 
         print("Compiler flags: ", " ".join(cflags))
         print("Extra libraries: ", " ".join(libs_))
-
-        command = (
-            [compiler]
-            + cflags
-            + ["-DUSEFLOAT"]
-            + cpp_files
-            + libs_
-            + ["-o", libname_single]
-        )
-        print("\nCompiling the single-precision (32-bit) C++ library")
-        if with_fftw:
-            msg = (
-                "The FFTW Library is only compiled for  double-precision (64-bit)."
-                " For single-precision, the FFTW Library is ignored."
-            )
-            warnings.warn(msg, stacklevel=1)
-        ret = run_compile(command, libname_single)
-        if ret != 0:
-            print("There was a compilation error.")
-        else:
-            # Verify that the libraries have been compiled
-            try:
-                if ("win" in sys.platform) and hasattr(
-                    os, "add_dll_directory"
-                ):
-                    _ = ctypes.CDLL(libname_single, winmode=0)
-                else:
-                    _ = ctypes.CDLL(libname_single)
-                print("Compiled successfully.")
-            except Exception as exception:
-                print("Compilation failed.")
-                print(exception)
-
         command = (
             [compiler]
             + cflags

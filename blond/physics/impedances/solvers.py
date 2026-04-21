@@ -1505,6 +1505,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             else self._profile.hist_x
         )
 
+        self.factor = (
+            -(1 * beam.particle_type.charge * e)
+            * beam.intensity
+            * self._parent_wakefield.profile.hist_y_to_density_factor
+        )
+
         backend.specials.apply_poles2(
             profile=hist_x_profile,
             profile_dts=profile_dts,
@@ -1516,6 +1522,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             voltage=self._voltage,
             voltage_threaded=self._voltage_threaded,
             update_on_bin=self._update_on_bin,
+            charge=beam.particle_type.charge,
             factor=self.factor,
         )
         self.last_reference_time = copy(beam.reference.time)

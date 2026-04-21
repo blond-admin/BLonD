@@ -64,7 +64,7 @@ def nonperiodic_wake(time_array, f0, R, Q):
     return wake
 
 
-DEBUG_PLOTTING = False
+DEBUG_PLOTTING = True
 
 
 class InducedVoltageResonatorPhysicsCR(unittest.TestCase):

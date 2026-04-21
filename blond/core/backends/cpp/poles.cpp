@@ -50,6 +50,7 @@ static inline void cmul(const real_t a_re, const real_t a_im,
  * voltage_threaded : Per-thread voltage buffer, length n_threads * n_bins.
  * update_on_bin  : Bin indices triggering dt update, length n_updates.
  * factor         : Conversion factor (profile to current per bin [A]).
+ * charge         : Charge of the particle.
  * n_bins         : Number of bins in profile.
  * n_poles        : Number of poles.
  * n_threads      : Size of first dimension of voltage_threaded (>= omp_get_max_threads()).
@@ -68,13 +69,18 @@ extern "C" void apply_poles(
     real_t *__restrict__ voltage_threaded,
     const int *__restrict__ update_on_bin,
     const real_t factor,
+    const real_t charge,
     const int n_bins,
     const int n_poles,
     const int n_threads,
     const int n_updates,
     const int n_profile_dts)
 {
-    const real_t two_factor = real_t(2) * factor;
+    real_t sign_charge = 1;
+    if (charge < 0) {
+        sign_charge = -1;
+    }
+    const real_t two_factor = real_t(2) * factor * sign_charge;
 
     // Zero voltage and voltage_threaded from previous call
     memset(voltage, 0, n_bins * sizeof(real_t));
@@ -109,7 +115,6 @@ extern "C" void apply_poles(
         real_t *__restrict__ vt = voltage_threaded + (size_t)thread_i * n_bins;
 
         for (int bin_i = 0; bin_i < n_bins; bin_i++) {
-            const real_t profile_i_ = real_t(0.5) * profile[bin_i];
 
             if (bin_i == update_on_bin_i) {
                 // Compute t_jump (real scalar)
@@ -144,6 +149,8 @@ extern "C" void apply_poles(
                 state_re = new_re;
                 state_im = new_im;
             }
+
+            const real_t profile_i_ = real_t(0.5) * profile[bin_i] * sign_charge;
 
             // state += profile_i_ (real part only, imag part is zero)
             state_re += cr_pole_flip * profile_i_;
