@@ -345,24 +345,89 @@ class LxplusJob:
 
     Examples
     --------
+    You need two files, 'launch_lxplus.py' and 'main.py'.
+    They must sit within a pip-installable project
+    that is available via `git clone`.
+    An example project is available via https://gitlab.cern.ch/slauber/lxplussubmissiondemo
+
+    'launch_lxplus.py'
+    >>> # 'launch_lxplus.py'
     >>> import logging
     >>> from pathlib import Path
     >>>
-    >>> from blond.specifics.cern.lxplus import run_on_htcondor
+    >>> from blond.specifics.cern.lxplus.submission import run_on_htcondor
     >>>
     >>> logging.basicConfig(level=logging.DEBUG)
     >>>
-    >>> future_results = []
-    >>> for i in range(1):
-    ...     future = run_on_htcondor(
-    ...         filepath=str(Path(__file__).parent / "main.py"),
-    ...         kwargs=dict(count=i),
-    ...     )
-    ...     future_results.append(future)
+    >>> future = run_on_htcondor(
+    ...     filepath=str(Path(__file__).parent / "main.py"),
+    ...     kwargs=dict(count=1),
+    ...     request_gpus=1,
+    ... )
+    >>> result = future.wait()
+
+    'main.py'
+    >>> # main.py
+    >>> import blond
+    >>> import matplotlib.pyplot as plt
+    >>> import numpy as np
+    >>> from blond import setup_backend
+    >>> from blond.handle_results.helpers import callers_relative_path
+    >>> from blond.specifics.cern.lxplus.submission import (
+    ...     on_htcondor,
+    ...     results_to_eos,
+    ...     write_manifest,
+    ...     load_args,
+    ...     send_results_to_host,
+    ...     save_args,
+    ... )
+    >>> from blond.testing.simulation import SimulationTwoRFStations
     >>>
-    >>> for future in future_results:
-    ...     result = future.wait()
-    ...     print(f"{result=}")
+    >>> REMOTE_RESULTS = (
+    ...     "/home/slauber/cernbox/blond_results/job_9d78f490dc58/results/"
+    ... )
+    >>>
+    >>> if on_htcondor():
+    ...     args = load_args()
+    >>> else:
+    ...     args = load_args(REMOTE_RESULTS)
+    >>>
+    >>> setup_backend("auto")
+    >>>
+    >>> RESULTS_LOCAL = callers_relative_path("results/", stacklevel=1)
+    >>>
+    >>> print(f"{blond=}")
+    >>> print(f"{args.count}")
+    >>>
+    >>> helper = SimulationTwoRFStations()
+    >>> sim = helper.simulation
+    >>> helper.beam1.setup_beam(
+    ...     dt=np.linspace(1e-3, 2e-3),
+    ...     dE=np.linspace(1e-3, 2e-3),
+    ... )
+    >>> bunch_obs = blond.BeamObservationOncePerTurn(each_turn_i=1)
+    >>> observables = (bunch_obs,)
+    >>>
+    >>> if on_htcondor():
+    ...     sim.run_simulation(beams=helper.beam1, n_turns=2, observe=observables)
+    ...
+    ...     sim.save_results(
+    ...         observe=observables,
+    ...         common_name=RESULTS_LOCAL,
+    ...     )
+    ...     write_manifest(target_dir=RESULTS_LOCAL)
+    ...     save_args(args=args, target_dir=RESULTS_LOCAL)
+    ...     target_eos = results_to_eos(source_local=RESULTS_LOCAL)
+    ...     send_results_to_host(123)
+    ... else:
+    ...     sim.load_results(
+    ...         beams=helper.beam1,
+    ...         n_turns=2,
+    ...         observe=observables,
+    ...         common_name=REMOTE_RESULTS,
+    ...     )
+    ... plt.scatter(bunch_obs.dts, bunch_obs.dEs)
+    ... plt.show()
     """
 
     def __init__(
