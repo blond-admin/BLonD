@@ -311,11 +311,11 @@ def send_results_to_host(value: Any) -> None:
             json.dump(value, f)
 
 
-class LxplusJob:
+class HTCondorJob:
     """
     Handle for a job submitted to HTCondor on LXPlus.
 
-    Instances are returned by :func:`run_is_on_htcondor`; callers normally
+    Instances are returned by :func:`run_on_htcondor`; callers normally
     do not construct this class directly.
 
     Parameters
@@ -357,11 +357,11 @@ class LxplusJob:
     >>> import logging
     >>> from pathlib import Path
     >>>
-    >>> from blond.specifics.cern.lxplus.submission import run_is_on_htcondor
+    >>> from blond.specifics.cern.lxplus.submission import run_on_htcondor
     >>>
     >>> logging.basicConfig(level=logging.DEBUG)
     >>>
-    >>> future = run_is_on_htcondor(
+    >>> future = run_on_htcondor(
     ...     filepath=str(Path(__file__).parent / "main.py"),
     ...     kwargs=dict(count=1),
     ...     request_gpus=1,
@@ -800,7 +800,7 @@ class LxplusJob:
         return None
 
 
-def run_is_on_htcondor(
+def run_on_htcondor(
     filepath: str,
     kwargs: dict[str, int | float | str | list],
     python: str = "python3.11",
@@ -815,7 +815,7 @@ def run_is_on_htcondor(
     ] = "espresso",
     accounting_group="group_u_BE.ABP.normal",
     request_gpus: int | None = None,
-) -> LxplusJob:
+) -> HTCondorJob:
     """
     Submit a Python script to HTCondor on LXPlus.
 
@@ -871,7 +871,7 @@ def run_is_on_htcondor(
     Examples
     --------
     >>> for step in range(10):
-    ...     result = run_is_on_htcondor(
+    ...     result = run_on_htcondor(
     ...         'kickdrift_test.py',
     ...         kwargs={'voltage': optimizer.suggest(),
     ...                 'output_dir': f'/eos/.../step{step}/'}
@@ -913,7 +913,7 @@ def run_is_on_htcondor(
         raise RuntimeError(f"LXPlus submission failed:\n{proc.stderr}")
 
     cluster_id = _parse_cluster_id(proc.stdout)
-    return LxplusJob(cluster_id=cluster_id, remote_workdir=remote_workdir)
+    return HTCondorJob(cluster_id=cluster_id, remote_workdir=remote_workdir)
 
 
 # ---------------------------------------------------------------------------
@@ -1011,7 +1011,7 @@ def load_args(location: str | os.PathLike | None = None) -> Namespace:
     location
         Directory containing an ``args.json`` file. When *None* (the
         default), the directory is taken from ``$BLOND_JOB_TMPDIR``,
-        which :func:`run_is_on_htcondor` sets on the batch node to point
+        which :func:`run_on_htcondor` sets on the batch node to point
         at the job's workdir.
 
     Returns
@@ -1026,7 +1026,7 @@ def load_args(location: str | os.PathLike | None = None) -> Namespace:
             raise RuntimeError(
                 f"load_args() called without a location and "
                 f"${_ENV_JOB_TMPDIR} is not set. Either run under "
-                f"run_is_on_htcondor (which sets it) or pass an explicit "
+                f"run_on_htcondor (which sets it) or pass an explicit "
                 f"directory."
             )
     with open(os.path.join(location, "args.json")) as f:
