@@ -55,7 +55,7 @@ _JOB_FALVOURS = (
 )
 
 
-def on_htcondor() -> bool:
+def is_on_htcondor() -> bool:
     """
     Check whether the current program is executed on HTCondor.
 
@@ -68,7 +68,7 @@ def on_htcondor() -> bool:
     return tmpdir is not None
 
 
-def results_to_eos(
+def move_results_to_eos(
     source_local: str | os.PathLike,
     target_eos: str | None = None,
     verbose: bool = True,
@@ -121,7 +121,7 @@ def results_to_eos(
             else src.stat().st_size
         )
         print(
-            f"[results_to_eos] copying {kind} {src} ({nbytes / 1024:.1f} KiB) "
+            f"[move_results_to_eos] copying {kind} {src} ({nbytes / 1024:.1f} KiB) "
             f"-> {target_eos}"
         )
 
@@ -138,7 +138,7 @@ def results_to_eos(
         )
     mkdir_cmd = ["eos", "mkdir", "-p", parent]
     if verbose:
-        print(f"[results_to_eos] $ {' '.join(mkdir_cmd)}")
+        print(f"[move_results_to_eos] $ {' '.join(mkdir_cmd)}")
     subprocess.run(mkdir_cmd, check=True, env=env)
 
     copy_cmd = ["eos", "cp"]
@@ -146,12 +146,12 @@ def results_to_eos(
         copy_cmd.append("-r")
     copy_cmd.extend([str(src), parent + "/"])
     if verbose:
-        print(f"[results_to_eos] $ {' '.join(copy_cmd)}")
+        print(f"[move_results_to_eos] $ {' '.join(copy_cmd)}")
     t0 = time.time()
     subprocess.run(copy_cmd, check=True, env=env)
     if verbose:
         print(
-            f"[results_to_eos] done in {time.time() - t0:.1f}s -> {target_eos}"
+            f"[move_results_to_eos] done in {time.time() - t0:.1f}s -> {target_eos}"
         )
 
     return target_eos
@@ -298,7 +298,7 @@ def send_results_to_host(value: Any) -> None:
     >>> send_results_to_host({'dt': 0.4e-6, 'dE': 25e6})   # dict
     >>> send_results_to_host(obs.dts[-1])                   # 1-D ndarray
     """
-    if not on_htcondor():
+    if not is_on_htcondor():
         return
 
     tmpdir = os.environ.get(_ENV_JOB_TMPDIR)
@@ -313,7 +313,7 @@ class LxplusJob:
     """
     Handle for a job submitted to HTCondor on LXPlus.
 
-    Instances are returned by :func:`run_on_htcondor`; callers normally
+    Instances are returned by :func:`run_is_on_htcondor`; callers normally
     do not construct this class directly.
 
     Parameters
@@ -355,11 +355,11 @@ class LxplusJob:
     >>> import logging
     >>> from pathlib import Path
     >>>
-    >>> from blond.specifics.cern.lxplus.submission import run_on_htcondor
+    >>> from blond.specifics.cern.lxplus.submission import run_is_on_htcondor
     >>>
     >>> logging.basicConfig(level=logging.DEBUG)
     >>>
-    >>> future = run_on_htcondor(
+    >>> future = run_is_on_htcondor(
     ...     filepath=str(Path(__file__).parent / "main.py"),
     ...     kwargs=dict(count=1),
     ...     request_gpus=1,
@@ -374,8 +374,8 @@ class LxplusJob:
     >>> from blond import setup_backend
     >>> from blond.handle_results.helpers import callers_relative_path
     >>> from blond.specifics.cern.lxplus.submission import (
-    ...     on_htcondor,
-    ...     results_to_eos,
+    ...     is_on_htcondor,
+    ...     move_results_to_eos,
     ...     write_manifest,
     ...     load_args,
     ...     send_results_to_host,
@@ -387,7 +387,7 @@ class LxplusJob:
     ...     "/home/slauber/cernbox/blond_results/job_9d78f490dc58/results/"
     ... )
     >>>
-    >>> if on_htcondor():
+    >>> if is_on_htcondor():
     ...     args = load_args()
     >>> else:
     ...     args = load_args(REMOTE_RESULTS)
@@ -408,7 +408,7 @@ class LxplusJob:
     >>> bunch_obs = blond.BeamObservationOncePerTurn(each_turn_i=1)
     >>> observables = (bunch_obs,)
     >>>
-    >>> if on_htcondor():
+    >>> if is_on_htcondor():
     ...     sim.run_simulation(beams=helper.beam1, n_turns=2, observe=observables)
     ...
     ...     sim.save_results(
@@ -417,7 +417,7 @@ class LxplusJob:
     ...     )
     ...     write_manifest(target_dir=RESULTS_LOCAL)
     ...     save_args(args=args, target_dir=RESULTS_LOCAL)
-    ...     target_eos = results_to_eos(source_local=RESULTS_LOCAL)
+    ...     target_eos = move_results_to_eos(source_local=RESULTS_LOCAL)
     ...     send_results_to_host(123)
     ... else:
     ...     sim.load_results(
@@ -779,7 +779,7 @@ class LxplusJob:
         return None
 
 
-def run_on_htcondor(
+def run_is_on_htcondor(
     filepath: str,
     kwargs: dict[str, int | float | str | list],
     python: str = "python3.11",
@@ -850,7 +850,7 @@ def run_on_htcondor(
     Examples
     --------
     >>> for step in range(10):
-    ...     result = run_on_htcondor(
+    ...     result = run_is_on_htcondor(
     ...         'kickdrift_test.py',
     ...         kwargs={'voltage': optimizer.suggest(),
     ...                 'output_dir': f'/eos/.../step{step}/'}
@@ -990,7 +990,7 @@ def load_args(location: str | os.PathLike | None = None) -> Namespace:
     location
         Directory containing an ``args.json`` file. When *None* (the
         default), the directory is taken from ``$BLOND_JOB_TMPDIR``,
-        which :func:`run_on_htcondor` sets on the batch node to point
+        which :func:`run_is_on_htcondor` sets on the batch node to point
         at the job's workdir.
 
     Returns
@@ -1005,7 +1005,7 @@ def load_args(location: str | os.PathLike | None = None) -> Namespace:
             raise RuntimeError(
                 f"load_args() called without a location and "
                 f"${_ENV_JOB_TMPDIR} is not set. Either run under "
-                f"run_on_htcondor (which sets it) or pass an explicit "
+                f"run_is_on_htcondor (which sets it) or pass an explicit "
                 f"directory."
             )
     with open(os.path.join(location, "args.json")) as f:

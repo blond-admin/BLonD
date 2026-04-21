@@ -22,8 +22,8 @@ from blond.specifics.cern.lxplus.submission import (
     _build_submission_command,
     _parse_cluster_id,
     get_eos_target,
-    on_htcondor,
-    results_to_eos,
+    is_on_htcondor,
+    move_results_to_eos,
     save_args,
     send_results_to_host,
     write_manifest,
@@ -51,11 +51,11 @@ class TestParseClusterId:
 class TestOnHtcondor:
     def test_true_when_env_set(self, monkeypatch, tmp_path):
         monkeypatch.setenv("BLOND_JOB_TMPDIR", str(tmp_path))
-        assert on_htcondor() is True
+        assert is_on_htcondor() is True
 
     def test_false_when_env_missing(self, monkeypatch):
         monkeypatch.delenv("BLOND_JOB_TMPDIR", raising=False)
-        assert on_htcondor() is False
+        assert is_on_htcondor() is False
 
 
 class TestGetEosTarget:
@@ -159,7 +159,7 @@ class TestResultsToEos:
 
         monkeypatch.setattr(submission.subprocess, "run", fake_run)
 
-        result = results_to_eos(src, verbose=False)
+        result = move_results_to_eos(src, verbose=False)
 
         assert result == "/eos/user/a/alice/blond_results/job_abc/results"
         # Two subprocess calls: mkdir -p, then cp -r.
@@ -183,11 +183,13 @@ class TestResultsToEos:
             lambda *a, **kw: subprocess.CompletedProcess(a, 0),
         )
         with pytest.raises(ValueError, match="basename"):
-            results_to_eos(src, target_eos="/eos/user/a/alice/different_name")
+            move_results_to_eos(
+                src, target_eos="/eos/user/a/alice/different_name"
+            )
 
     def test_raises_when_source_missing(self, tmp_path):
         with pytest.raises(FileNotFoundError):
-            results_to_eos(tmp_path / "does_not_exist")
+            move_results_to_eos(tmp_path / "does_not_exist")
 
 
 # ---------------------------------------------------------------------------
