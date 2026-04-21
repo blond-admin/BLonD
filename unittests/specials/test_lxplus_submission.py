@@ -20,40 +20,18 @@ import pytest
 from blond.specifics.cern.lxplus import submission
 from blond.specifics.cern.lxplus.submission import (
     _build_submission_command,
-    _kwargs_to_cli,
     _parse_cluster_id,
     get_eos_target,
     on_htcondor,
     results_to_eos,
     save_args,
-    set_result,
+    send_results_to_host,
     write_manifest,
 )
 
 # ---------------------------------------------------------------------------
 # Layer 1: pure-function unit tests
 # ---------------------------------------------------------------------------
-
-
-class TestKwargsToCli:
-    def test_scalar(self):
-        assert _kwargs_to_cli({"count": 3}) == "--count 3"
-
-    def test_string_with_spaces_is_quoted(self):
-        out = _kwargs_to_cli({"name": "hello world"})
-        assert out == "--name 'hello world'"
-
-    def test_list_expands_to_multiple_values(self):
-        out = _kwargs_to_cli({"vals": [1, 2, 3]})
-        assert out == "--vals 1 2 3"
-
-    def test_multiple_flags(self):
-        out = _kwargs_to_cli({"a": 1, "b": "x"})
-        assert "--a 1" in out
-        assert "--b x" in out
-
-    def test_empty(self):
-        assert _kwargs_to_cli({}) == ""
 
 
 class TestParseClusterId:
@@ -139,17 +117,19 @@ class TestWriteManifest:
 class TestSetResult:
     def test_noop_off_htcondor(self, tmp_path, monkeypatch):
         monkeypatch.delenv("BLOND_JOB_TMPDIR", raising=False)
-        set_result({"dt": 0.4e-6})  # Should not raise, not write anywhere.
+        send_results_to_host(
+            {"dt": 0.4e-6}
+        )  # Should not raise, not write anywhere.
 
     def test_writes_json_for_scalar(self, tmp_path, monkeypatch):
         monkeypatch.setenv("BLOND_JOB_TMPDIR", str(tmp_path))
-        set_result(0.4e-6)
+        send_results_to_host(0.4e-6)
         assert json.loads((tmp_path / "blond_result.json").read_text()) == 4e-7
 
     def test_writes_json_for_dict(self, tmp_path, monkeypatch):
         monkeypatch.setenv("BLOND_JOB_TMPDIR", str(tmp_path))
         payload = {"dt": 0.4e-6, "dE": 25e6}
-        set_result(payload)
+        send_results_to_host(payload)
         assert (
             json.loads((tmp_path / "blond_result.json").read_text()) == payload
         )
@@ -157,7 +137,7 @@ class TestSetResult:
     def test_writes_npy_for_ndarray(self, tmp_path, monkeypatch):
         monkeypatch.setenv("BLOND_JOB_TMPDIR", str(tmp_path))
         arr = np.array([1.0, 2.0, 3.0])
-        set_result(arr)
+        send_results_to_host(arr)
         loaded = np.load(tmp_path / "blond_result.npy")
         np.testing.assert_array_equal(loaded, arr)
 
@@ -289,11 +269,20 @@ class TestBuildSubmissionCommand:
         assert "export BLOND_JOB_SUBMITTED_AT=" in wrapper
         assert 'export BLOND_JOB_TMPDIR="/afs/cern.ch/user/a/alice' in wrapper
 
-    def test_args_are_shell_quoted(self, base_build_kwargs):
+    def test_args_are_written_as_json(self, base_build_kwargs):
+        script = _build_submission_command(**base_build_kwargs)
+        args_body = _extract_heredoc(script, "ARGS_EOF")
+        assert json.loads(args_body) == base_build_kwargs["kwargs"]
+
+    def test_script_is_invoked_without_cli_args(self, base_build_kwargs):
         script = _build_submission_command(**base_build_kwargs)
         wrapper = _extract_heredoc(script, "WRAPPER_EOF")
-        # The string "hello world" must be quoted, not injected raw.
-        assert "--label 'hello world'" in wrapper
+        assert (
+            '"$SCRATCH/venv/bin/python" "$SCRATCH/repo/proj/main.py"\n'
+            in wrapper + "\n"
+        )
+        assert "--label" not in wrapper
+        assert "--count" not in wrapper
 
     def test_job_flavour_line_present(self, base_build_kwargs):
         script = _build_submission_command(**base_build_kwargs)

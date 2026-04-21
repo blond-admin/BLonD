@@ -7,11 +7,3 @@
 # Project website: http://blond.web.cern.ch/
 
 """LXPlus HTCondor submission helpers for BLonD simulations."""
-
-from blond.specifics.cern.lxplus.submission import (
-    LxplusJob,
-    run_on_lxplus,
-    set_result,
-)
-
-__all__ = ["LxplusJob", "run_on_lxplus", "set_result"]

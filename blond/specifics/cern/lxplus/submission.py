@@ -705,8 +705,8 @@ def run_on_htcondor(
       (e.g. on ``gitlab.cern.ch``).
     * Declare its dependencies in a ``pyproject.toml`` so the project can
       be installed with ``pip install``.
-    * Accept its parameters as ``argparse`` flags matching the keys in
-      *kwargs*.
+    * Read its parameters with :func:`load_args` (which deserialises
+      ``args.json`` from ``$BLOND_JOB_TMPDIR``).
 
     Results are communicated back by calling :func:`send_results_to_host`
     inside the remote script.
@@ -716,8 +716,9 @@ def run_on_htcondor(
     filepath
         Path to the Python script to run on the batch node.
     kwargs
-        Keyword arguments forwarded to the script as ``--key value``
-        command-line flags.
+        Keyword arguments serialised to ``args.json`` in the job's
+        remote working directory; the script loads them with
+        :func:`load_args`.
     python
         Python interpreter to use on the batch node for both
         ``pip install`` and script execution.  Defaults to
@@ -881,14 +882,17 @@ def _make_remote_workdir() -> str:
     return f"{home}/blond_jobs/job_{token}"
 
 
-def load_args(location: str | os.PathLike) -> Namespace:
+def load_args(location: str | os.PathLike | None = None) -> Namespace:
     """
     Load an ``args.json`` file previously written by :func:`save_args`.
 
     Parameters
     ----------
     location
-        Directory containing an ``args.json`` file.
+        Directory containing an ``args.json`` file. When *None* (the
+        default), the directory is taken from ``$BLOND_JOB_TMPDIR``,
+        which :func:`run_on_htcondor` sets on the batch node to point
+        at the job's workdir.
 
     Returns
     -------
@@ -896,35 +900,18 @@ def load_args(location: str | os.PathLike) -> Namespace:
         An ``argparse.Namespace`` reconstructed from the JSON contents,
         suitable for drop-in use in place of ``parser.parse_args()``.
     """
+    if location is None:
+        location = os.environ.get(_ENV_JOB_TMPDIR)
+        if location is None:
+            raise RuntimeError(
+                f"load_args() called without a location and "
+                f"${_ENV_JOB_TMPDIR} is not set. Either run under "
+                f"run_on_htcondor (which sets it) or pass an explicit "
+                f"directory."
+            )
     with open(os.path.join(location, "args.json")) as f:
         args = json.load(f)
     return Namespace(**args)
-
-
-def _kwargs_to_cli(kwargs: dict) -> str:
-    """
-    Convert a kwargs dict to a shell-safe CLI argument string.
-
-    Parameters
-    ----------
-    kwargs
-        Mapping of flag names to values. List values are expanded as
-        ``--key v1 v2 ...``; scalar values as ``--key value``.
-
-    Returns
-    -------
-    str
-        A single shell-safe string suitable for appending to a command.
-    """
-    parts: list[str] = []
-    for key, val in kwargs.items():
-        if isinstance(val, list):
-            parts.append(f"--{key}")
-            parts.extend(shlex.quote(str(v)) for v in val)
-        else:
-            parts.append(f"--{key}")
-            parts.append(shlex.quote(str(val)))
-    return " ".join(parts)
 
 
 def _build_submission_command(
@@ -959,7 +946,9 @@ def _build_submission_command(
     script_rel
         Path to the target Python script relative to the git root.
     kwargs
-        Script arguments, forwarded as ``--key value`` CLI flags.
+        Script arguments, serialised to ``args.json`` in
+        *remote_workdir* so the batch script can load them with
+        :func:`load_args`.
     python
         Python interpreter used on the batch node.
     job_flavour
@@ -977,12 +966,16 @@ def _build_submission_command(
     """
     from datetime import datetime, timezone
 
-    args_str = _kwargs_to_cli(kwargs)
+    args_json = json.dumps(kwargs, indent=2)
     submitted_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     return f"""\
 set -e
 mkdir -p {remote_workdir}
+
+cat > {remote_workdir}/args.json << 'ARGS_EOF'
+{args_json}
+ARGS_EOF
 
 cat > {remote_workdir}/wrapper.sh << 'WRAPPER_EOF'
 #!/bin/bash
@@ -1013,8 +1006,9 @@ git -C "$SCRATCH/repo" checkout --quiet '{commit}'
 "$SCRATCH/venv/bin/pip" install --quiet "$SCRATCH/repo"
 {'"$SCRATCH/venv/bin/pip" install --quiet cupy-cuda12x' if request_gpus else ""}
 
-# Run the target Python script from the repository with provided arguments
-"$SCRATCH/venv/bin/python" "$SCRATCH/repo/{script_rel}" {args_str}
+# Run the target Python script from the repository; the script reads
+# its parameters from args.json via blond.specifics.cern.lxplus.load_args.
+"$SCRATCH/venv/bin/python" "$SCRATCH/repo/{script_rel}"
 WRAPPER_EOF
 chmod +x {remote_workdir}/wrapper.sh
 
