@@ -975,6 +975,7 @@ export BLOND_JOB_TMPDIR="{remote_workdir}"
 export BLOND_JOB_COMMIT="{commit}"
 export BLOND_JOB_REMOTE_URL="{remote_url}"
 export BLOND_JOB_SUBMITTED_AT="{submitted_at}"
+{'export BLOND_BACKEND_MODE="cuda"' if request_gpus else ""}
 
 # Create a temporary scratch directory and store its path
 SCRATCH=$(mktemp -d)
