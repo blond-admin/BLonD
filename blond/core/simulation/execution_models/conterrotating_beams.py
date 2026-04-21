@@ -93,13 +93,14 @@ class MainloopCounterRotatingBeams(ExecutionModel):
         ) == (
             False,
             True,
-        ), "First beam must be normal, second beam must be counter-rotating"
+        ), (
+            "First beam must be co-rotating, second beam must be counter-rotating."
+        )
         warnings.warn("Untested code", NotTestedWarning, stacklevel=2)
 
         if callbacks is not None:
             warnings.warn(
-                "Callbacks are currently not supported for simulations"
-                " with counter-rotating beams.",
+                "Callbacks are only called once per turn and receive the first beam as an argument.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -115,6 +116,8 @@ class MainloopCounterRotatingBeams(ExecutionModel):
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
         simulation.turn_i.value = 0
+
+        callbacks = simulation._sanitize_callbacks(callbacks)
 
         num_elements = len(simulation._ring.elements.elements)
 
@@ -144,3 +147,7 @@ class MainloopCounterRotatingBeams(ExecutionModel):
                     turn_i=simulation.turn_i.value
                 ):
                     observable.update()
+
+            for callback in callbacks:
+                if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
+                    callback(simulation, beams[0])
