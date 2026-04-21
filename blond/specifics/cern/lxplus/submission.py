@@ -14,8 +14,10 @@ import json
 import logging
 import os
 import shlex
+import signal
 import subprocess
 import tempfile
+import threading
 import time
 import uuid
 from argparse import Namespace
@@ -558,11 +560,30 @@ class LxplusJob:
         """
         Remove this cluster from the HTCondor queue via ``condor_rm``.
 
+        SIGINT is ignored for the duration of the SSH call so a second
+        Ctrl-C (e.g. the user hammering the IDE stop button) cannot
+        abort cleanup and leave the job orphaned in the queue.
+
         Failures are logged (warning) but not raised: this is called
         from an interrupt handler where re-raising a secondary error
         would mask the original ``KeyboardInterrupt``.
         """
-        proc = self._run_ssh(f"condor_rm {self.cluster_id}")
+        # Only safe to swap signal handlers from the main thread;
+        # if we're on a worker thread, skip the guard and accept
+        # that a second interrupt may abort cleanup.
+        can_block_sigint = (
+            threading.current_thread() is threading.main_thread()
+        )
+        prev_handler = (
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
+            if can_block_sigint
+            else None
+        )
+        try:
+            proc = self._run_ssh(f"condor_rm {self.cluster_id}")
+        finally:
+            if can_block_sigint:
+                signal.signal(signal.SIGINT, prev_handler)
         if proc.returncode != 0:
             logger.warning(
                 f"[Job {self.cluster_id}] condor_rm failed "
