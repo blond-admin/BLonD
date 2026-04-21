@@ -485,45 +485,57 @@ class LxplusJob:
         RuntimeError
             If the job exits with a non-zero status code, enters the
             ``Held`` state, or is removed from the queue.
+        KeyboardInterrupt
+            Re-raised after ``condor_rm`` is issued so that a local
+            interrupt (e.g. PyCharm stop button) also tears down the
+            remote job instead of leaving it orphaned in the queue.
         """
         last_status: str | None = None
         t0 = time.time()
-        while True:
-            try:
-                status = self._job_status()
-            except RuntimeError as exc:
-                logger.warning(
-                    f"Failed to poll job {self.cluster_id}: {exc}. "
-                    f"Retrying in {poll_interval}s."
-                )
+        try:
+            while True:
+                try:
+                    status = self._job_status()
+                except RuntimeError as exc:
+                    logger.warning(
+                        f"Failed to poll job {self.cluster_id}: {exc}. "
+                        f"Retrying in {poll_interval}s."
+                    )
+                    time.sleep(poll_interval)
+                    continue
+
+                if status is None:
+                    break
+
+                status_changed = status != last_status
+                if status_changed:
+                    logger.info(
+                        f"[Job {self.cluster_id} status] {status} "
+                        f"(stdout: {self.ssh_host}:{self.stdout_path}, "
+                        f"condor log: {self.ssh_host}:{self.condor_log_path})"
+                    )
+                    last_status = status
+                    t0 = time.time()
+
+                self._log_new_stdout()
+
+                if status in ("Held", "Removed"):
+                    self._raise_stuck(status)
+
+                if not status_changed:
+                    logger.info(
+                        f"[Job {self.cluster_id} status] still {status}"
+                        f" since {int((time.time() - t0) / 60)} minutes; "
+                        f" polling again in {poll_interval}s."
+                    )
                 time.sleep(poll_interval)
-                continue
-
-            if status is None:
-                break
-
-            status_changed = status != last_status
-            if status_changed:
-                logger.info(
-                    f"[Job {self.cluster_id} status] {status} "
-                    f"(stdout: {self.ssh_host}:{self.stdout_path}, "
-                    f"condor log: {self.ssh_host}:{self.condor_log_path})"
-                )
-                last_status = status
-                t0 = time.time()
-
-            self._log_new_stdout()
-
-            if status in ("Held", "Removed"):
-                self._raise_stuck(status)
-
-            if not status_changed:
-                logger.info(
-                    f"[Job {self.cluster_id} status] still {status}"
-                    f" since {int((time.time() - t0) / 60)} minutes; "
-                    f" polling again in {poll_interval}s."
-                )
-            time.sleep(poll_interval)
+        except KeyboardInterrupt:
+            logger.warning(
+                f"[Job {self.cluster_id}] KeyboardInterrupt received while "
+                f"polling; issuing condor_rm to kill the remote job."
+            )
+            self._condor_rm()
+            raise
         logger.info(f"[Job {self.cluster_id} status] left the queue.")
         self._log_new_stdout()
         self._raise_on_failure()
@@ -540,6 +552,28 @@ class LxplusJob:
             check=False,
             capture_output=True,
             text=True,
+        )
+
+    def _condor_rm(self) -> None:
+        """
+        Remove this cluster from the HTCondor queue via ``condor_rm``.
+
+        Failures are logged (warning) but not raised: this is called
+        from an interrupt handler where re-raising a secondary error
+        would mask the original ``KeyboardInterrupt``.
+        """
+        proc = self._run_ssh(f"condor_rm {self.cluster_id}")
+        if proc.returncode != 0:
+            logger.warning(
+                f"[Job {self.cluster_id}] condor_rm failed "
+                f"(rc={proc.returncode}): "
+                f"{proc.stderr.strip() or '(no stderr)'}. "
+                f"Check the queue manually on {self.ssh_host}."
+            )
+            return
+        logger.info(
+            f"[Job {self.cluster_id}] condor_rm issued: "
+            f"{proc.stdout.strip() or '(no stdout)'}"
         )
 
     def _job_status(self) -> str | None:
@@ -1054,6 +1088,9 @@ export BLOND_JOB_TMPDIR="{remote_workdir}"
 export BLOND_JOB_COMMIT="{commit}"
 export BLOND_JOB_REMOTE_URL="{remote_url}"
 export BLOND_JOB_SUBMITTED_AT="{submitted_at}"
+# Force matplotlib to a non-interactive backend on the headless worker,
+# so any plt.show() in user code is a no-op instead of blocking.
+export MPLBACKEND="agg"
 {'export BLOND_BACKEND_MODE="cuda"' if request_gpus else ""}
 
 # Create a temporary scratch directory and store its path
