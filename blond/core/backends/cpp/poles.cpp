@@ -91,8 +91,10 @@ extern "C" void apply_poles(
         const int thread_i = omp_get_thread_num();
 
         real_t cr_pole_flip = 1;
-        if (beam_counter_rotation_flag && cr_pole_flip_flags[pole_i]) {
-            cr_pole_flip = -1;
+        if (beam_counter_rotation_flag) {
+            if (cr_pole_flip_flags[pole_i] == -1) {
+                cr_pole_flip = -1;
+            }
         }
 
         const real_t pole_re = poles[2 * pole_i];
@@ -152,7 +154,7 @@ extern "C" void apply_poles(
 
             // amp = Re(residue * state)
             const real_t amp = res_re * state_re - res_im * state_im;
-            vt[bin_i] += cr_pole_flip * amp;
+            vt[bin_i] += cr_pole_flip * amp; //cr_pole_flip
 
             // state += profile_i_ (second half of trapezoidal rule)
             state_re += cr_pole_flip * profile_i_ * two_factor;

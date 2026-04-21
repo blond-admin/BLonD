@@ -1381,6 +1381,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self.last_reference_time = None
 
         self.counter_rotation_pole_flip = None
+        self._charge_per_macroparticle = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -1428,7 +1429,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             self.counter_rotation_pole_flip = np.ones_like(poles)
         else:
             self.counter_rotation_pole_flip = np.array(
-                -np.sign(counter_rotation_pole_flip)  # TODO: with -?
+                np.sign(counter_rotation_pole_flip)
             )
 
         self._poles = np.array(poles, dtype=complex)
@@ -1458,11 +1459,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             self._profile._bucket_index_to_memory_index
             if type(self._profile) is EquidistantMultiProfile
             else np.array([0], dtype=np.int32)
-        )
-        self.factor = (
-            -(1 * beam.particle_type.charge * e)
-            * (beam.intensity)
-            * self._parent_wakefield.profile.hist_y_to_density_factor
         )
 
     def calc_induced_voltage(
@@ -1505,7 +1501,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             else self._profile.hist_x
         )
 
-        self.factor = (
+        self._charge_per_macroparticle = (
             -(1 * beam.particle_type.charge * e)
             * beam.intensity
             * self._parent_wakefield.profile.hist_y_to_density_factor
@@ -1522,7 +1518,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             voltage=self._voltage,
             voltage_threaded=self._voltage_threaded,
             update_on_bin=self._update_on_bin,
-            factor=self.factor,
+            factor=self._charge_per_macroparticle,
         )
         self.last_reference_time = copy(beam.reference.time)
         return self._voltage

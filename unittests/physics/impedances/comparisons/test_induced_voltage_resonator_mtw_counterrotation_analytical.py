@@ -165,7 +165,7 @@ class InducedVoltageResonatorPhysicsCR(unittest.TestCase):
                 center_frequencies=1 / self.t_rf,
                 quality_factors=self.Q_factor,
                 shunt_impedances=self.R_shunt,
-                shunt_impedances_counter_rotating=-self.R_shunt
+                shunt_impedances_counter_rotating=self.R_shunt
                 if counterrot
                 else self.R_shunt,  # charge will invert additionally
             )
