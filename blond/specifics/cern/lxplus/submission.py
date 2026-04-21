@@ -18,6 +18,7 @@ import subprocess
 import tempfile
 import time
 import uuid
+from argparse import Namespace
 from pathlib import Path
 from typing import Any, Literal
 
@@ -274,7 +275,7 @@ def write_manifest(target_dir: str | os.PathLike) -> str:
     return str(output_path)
 
 
-def set_result(value: Any) -> None:
+def send_results_to_host(value: Any) -> None:
     """
     Write a result value from within a batch job.
 
@@ -293,9 +294,9 @@ def set_result(value: Any) -> None:
 
     Examples
     --------
-    >>> set_result(0.4e-6)                        # float
-    >>> set_result({'dt': 0.4e-6, 'dE': 25e6})   # dict
-    >>> set_result(obs.dts[-1])                   # 1-D ndarray
+    >>> send_results_to_host(0.4e-6)                        # float
+    >>> send_results_to_host({'dt': 0.4e-6, 'dE': 25e6})   # dict
+    >>> send_results_to_host(obs.dts[-1])                   # 1-D ndarray
     """
     if not on_htcondor():
         return
@@ -312,7 +313,7 @@ class LxplusJob:
     """
     Handle for a job submitted to HTCondor on LXPlus.
 
-    Instances are returned by :func:`run_on_lxplus`; callers normally
+    Instances are returned by :func:`run_on_htcondor`; callers normally
     do not construct this class directly.
 
     Parameters
@@ -347,13 +348,13 @@ class LxplusJob:
     >>> import logging
     >>> from pathlib import Path
     >>>
-    >>> from blond.specifics.cern.lxplus import run_on_lxplus
+    >>> from blond.specifics.cern.lxplus import run_on_htcondor
     >>>
     >>> logging.basicConfig(level=logging.DEBUG)
     >>>
     >>> future_results = []
     >>> for i in range(1):
-    ...     future = run_on_lxplus(
+    ...     future = run_on_htcondor(
     ...         filepath=str(Path(__file__).parent / "main.py"),
     ...         kwargs=dict(count=i),
     ...     )
@@ -391,8 +392,8 @@ class LxplusJob:
         Block until the job finishes and return its result.
 
         Polls HTCondor every *poll_interval* seconds until the job leaves
-        the queue, then retrieves the value written by :func:`set_result`
-        in the remote script.
+        the queue, then retrieves the value written by
+        :func:`send_results_to_host` in the remote script.
 
         Parameters
         ----------
@@ -411,7 +412,7 @@ class LxplusJob:
         Returns
         -------
         result
-            The value passed to :func:`set_result` on the batch node,
+            The value passed to :func:`send_results_to_host` on the batch node,
             or ``None`` if the script did not call that function.
 
         Raises
@@ -679,7 +680,7 @@ class LxplusJob:
         return None
 
 
-def run_on_lxplus(
+def run_on_htcondor(
     filepath: str,
     kwargs: dict[str, int | float | str | list],
     python: str = "python3.11",
@@ -707,8 +708,8 @@ def run_on_lxplus(
     * Accept its parameters as ``argparse`` flags matching the keys in
       *kwargs*.
 
-    Results are communicated back by calling :func:`set_result` inside
-    the remote script.
+    Results are communicated back by calling :func:`send_results_to_host`
+    inside the remote script.
 
     Parameters
     ----------
@@ -737,7 +738,7 @@ def run_on_lxplus(
     job
         A :class:`LxplusJob` whose :meth:`~LxplusJob.wait` method blocks
         until the job finishes and returns the value set by
-        :func:`set_result`.
+        :func:`send_results_to_host`.
 
     Notes
     -----
@@ -749,7 +750,7 @@ def run_on_lxplus(
     Examples
     --------
     >>> for step in range(10):
-    ...     result = run_on_lxplus(
+    ...     result = run_on_htcondor(
     ...         'kickdrift_test.py',
     ...         kwargs={'voltage': optimizer.suggest(),
     ...                 'output_dir': f'/eos/.../step{step}/'}
@@ -878,6 +879,26 @@ def _make_remote_workdir() -> str:
     home = proc.stdout.strip()
     token = uuid.uuid4().hex[:12]
     return f"{home}/blond_jobs/job_{token}"
+
+
+def load_args(location: str | os.PathLike) -> Namespace:
+    """
+    Load an ``args.json`` file previously written by :func:`save_args`.
+
+    Parameters
+    ----------
+    location
+        Directory containing an ``args.json`` file.
+
+    Returns
+    -------
+    Namespace
+        An ``argparse.Namespace`` reconstructed from the JSON contents,
+        suitable for drop-in use in place of ``parser.parse_args()``.
+    """
+    with open(os.path.join(location, "args.json")) as f:
+        args = json.load(f)
+    return Namespace(**args)
 
 
 def _kwargs_to_cli(kwargs: dict) -> str:
