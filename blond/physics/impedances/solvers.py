@@ -1459,8 +1459,10 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             if type(self._profile) is EquidistantMultiProfile
             else np.array([0], dtype=np.int32)
         )
-        self.factor = -(1 * beam.particle_type.charge * e) * (
-            beam.intensity * 1.0 / beam.common_array_size
+        self.factor = (
+            -(1 * beam.particle_type.charge * e)
+            * (beam.intensity)
+            * self._parent_wakefield.profile.hist_y_to_density_factor
         )
 
     def calc_induced_voltage(
