@@ -634,7 +634,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
             voltage,
             voltage_threaded,
             update_on_bin,
-            charge,
             factor,
         ) -> None:
             """
@@ -660,8 +659,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 Index when to trigger an update of dt. For speedup.
                 E.g. For profile No.: `0,0,0,1,1,1,1,2,2,2`
                 one needs `update_on_bin = [0,3,7]`.
-            # charge
-            #     Dummy.
             factor
                 To convert `profile` to current per bin [A].
             """
@@ -701,7 +698,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _getPointer(voltage_threaded),
                 _getPointer(update_on_bin),
                 c_real(factor, floattype),
-                c_real(charge, floattype),
                 ct.c_int(len(profile)),  # n_bins
                 ct.c_int(len(poles)),  # n_poles
                 ct.c_int(voltage_threaded.shape[0]),  # n_threads

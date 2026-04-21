@@ -1522,7 +1522,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             voltage=self._voltage,
             voltage_threaded=self._voltage_threaded,
             update_on_bin=self._update_on_bin,
-            charge=beam.particle_type.charge,
             factor=self.factor,
         )
         self.last_reference_time = copy(beam.reference.time)

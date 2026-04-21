@@ -69,18 +69,13 @@ extern "C" void apply_poles(
     real_t *__restrict__ voltage_threaded,
     const int *__restrict__ update_on_bin,
     const real_t factor,
-    const real_t charge,
     const int n_bins,
     const int n_poles,
     const int n_threads,
     const int n_updates,
     const int n_profile_dts)
 {
-    real_t sign_charge = 1;
-    if (charge < 0) {
-        sign_charge = -1;
-    }
-    const real_t two_factor = real_t(2) * factor * sign_charge;
+    const real_t two_factor = real_t(2) * factor;
 
     // Zero voltage and voltage_threaded from previous call
     memset(voltage, 0, n_bins * sizeof(real_t));
@@ -150,17 +145,17 @@ extern "C" void apply_poles(
                 state_im = new_im;
             }
 
-            const real_t profile_i_ = real_t(0.5) * profile[bin_i] * sign_charge;
+            const real_t profile_i_ = real_t(0.5) * profile[bin_i];
 
             // state += profile_i_ (real part only, imag part is zero)
-            state_re += cr_pole_flip * profile_i_;
+            state_re += cr_pole_flip * profile_i_ * two_factor;
 
             // amp = Re(residue * state)
             const real_t amp = res_re * state_re - res_im * state_im;
-            vt[bin_i] += cr_pole_flip * two_factor * amp;
+            vt[bin_i] += cr_pole_flip * amp;
 
             // state += profile_i_ (second half of trapezoidal rule)
-            state_re += cr_pole_flip * profile_i_;
+            state_re += cr_pole_flip * profile_i_ * two_factor;
         }
 
         // Store state back
