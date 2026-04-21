@@ -241,11 +241,13 @@ def write_manifest(target_dir: str | os.PathLike) -> str:
     target = Path(target_dir)
     target.mkdir(parents=True, exist_ok=True)
 
-    try:
-        import blond
+    # `import blond; blond.__version__` is unreliable — the top-level
+    # module doesn't expose it. Read from installed package metadata.
+    from importlib.metadata import PackageNotFoundError, version
 
-        blond_version = getattr(blond, "__version__", None)
-    except ImportError:
+    try:
+        blond_version = version("blond")
+    except PackageNotFoundError:
         blond_version = None
 
     manifest = {
@@ -261,8 +263,11 @@ def write_manifest(target_dir: str | os.PathLike) -> str:
             if os.environ.get(_ENV_JOB_TMPDIR)
             else None
         ),
-        "condor_cluster": os.environ.get("_CONDOR_CLUSTER"),
-        "condor_proc": os.environ.get("_CONDOR_PROCNO"),
+        # HTCondor doesn't export ClusterId/ProcId into the job env by
+        # default; run_on_htcondor propagates them via the submit file's
+        # `environment = ...` line.
+        "condor_cluster": os.environ.get("CONDOR_CLUSTER_ID"),
+        "condor_proc": os.environ.get("CONDOR_PROC_ID"),
         "hostname": socket.gethostname(),
         "user": os.environ.get("USER"),
         "python_version": sys.version,
@@ -1147,6 +1152,10 @@ log                   = {remote_workdir}/job.log
 
 should_transfer_files = NO
 getenv                = True
+
+# HTCondor doesn't put ClusterId/ProcId in the job's env by default;
+# expose them so the job can include them in its manifest.
+environment           = "CONDOR_CLUSTER_ID=$(ClusterId) CONDOR_PROC_ID=$(ProcId)"
 
 
 +JobFlavour           = {job_flavour}
