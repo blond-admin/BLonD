@@ -445,7 +445,7 @@ class BackendBaseClass(ABC):
         if self.__class__ == new_backend.__class__:
             return
         if self.verbose:
-            print(f"Changing backend to `{new_backend.__name__}`")  # ty:ignore[unresolved-attribute]
+            print(f"Changing backend to `{new_backend.__name__}`")
         _new_backend = new_backend()  # ty:ignore[missing-argument]
         # transfer variables that should be kept when changing backend.
 
@@ -551,7 +551,7 @@ class BackendBaseClass(ABC):
                 # because of `_backend_bits_raw in _allowed_backend_bits_flag`
                 # Anyways its beter to write if, elif, else explicitly
                 raise ValueError(_backend_bits)  # pragma: no cover
-            self.set_specials(mode=_backend_mode)  # type: ignore
+            self.set_specials(mode=_backend_mode)
         else:
             if _backend_bits == "32":
                 self.change_backend(Numpy32Bit)
@@ -562,7 +562,7 @@ class BackendBaseClass(ABC):
                 # because of `_backend_bits_raw in _allowed_backend_bits_flag`
                 # Anyways its beter to write if, elif, else explicitly
                 raise ValueError(_backend_bits)  # pragma: no cover
-            self.set_specials(mode=_backend_mode)  # type: ignore
+            self.set_specials(mode=_backend_mode)
 
     def temporary_specials_mode(self, mode: str):
         """
@@ -592,13 +592,16 @@ class BackendBaseClass(ABC):
         if isinstance(arr, self.ndarray):
             return arr
 
+        # Duck-typed cupy detection: `.device` and `.get()` are cupy-specific
+        # attributes not present on the `ArrayLike` union.  The try/except
+        # handles the runtime case where the attributes are absent.
         try:
-            gpu_arr = arr.device != "cpu"
+            gpu_arr = arr.device != "cpu"  # ty: ignore[unresolved-attribute]
         except AttributeError:
             gpu_arr = False
 
         if gpu_arr:
-            arr = arr.get()
+            arr = arr.get()  # ty: ignore[unresolved-attribute]
 
         return self.array(arr)
 
@@ -891,7 +894,9 @@ class CupyBackend(BackendBaseClass):
                 category=FutureWarning,
                 message="cupyx.jit.rawkernel is experimental. The interface can change in the future.",
             )
-            from cupyx.scipy.signal import fftconvolve
+            from cupyx.scipy.signal import (
+                fftconvolve,  # ty: ignore[unresolved-import]
+            )
 
         self.array = cp.array
         self.gradient = cp.gradient
