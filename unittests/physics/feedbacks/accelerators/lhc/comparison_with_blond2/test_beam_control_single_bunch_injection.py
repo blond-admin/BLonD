@@ -229,7 +229,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
                 rftracker.track()
 
                 beam_loop_error[i] = beam_loop.dphi * 180 / np.pi
-                synchro_loop_error[i] = rfstation.dphi_rf * 180 / np.pi
+                synchro_loop_error[i] = rfstation.dphi_rf[0] * 180 / np.pi
                 omega_rf[i] = rfstation.omega_rf[0, i]
                 phi_rf[i] = rfstation.phi_rf[0, i]
 
