@@ -50,6 +50,23 @@ class TestCallablesWithMPI(unittest.TestCase):
                 err_msg=f"{da._rank=} {da._size=}",
             )
 
+    def test_distributed_zeros(self):
+        from blond.generals.distributed.helpers import distributed_zeros
+
+        da = distributed_zeros(12, dtype=np.int32)
+        if da._rank == 0:
+            np.testing.assert_array_equal(
+                da.copy_as_numpy(),
+                np.zeros(12),
+                err_msg=f"{da._rank=} {da._size=}",
+            )
+        elif da._rank == 1:
+            np.testing.assert_array_equal(
+                da.copy_as_numpy(),
+                np.zeros(12),
+                err_msg=f"{da._rank=} {da._size=}",
+            )
+
     def test_mpi_is_root(self):
         da = distributed_arange(12, dtype=np.int32)
         if da._rank == 0:
