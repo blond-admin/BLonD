@@ -880,16 +880,19 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
         )
         if time_to_next_falling_edge_zero < 0:
-            time_to_next_falling_edge_zero += (
-                t_rf * self.n_rf_periods_per_coarse_grid
-            )
-
-        # TODO: first center is on wrong location --> must be corrected for with correct frequency (partial from last turn, partial from current turn
+            time_to_next_falling_edge_zero += t_rf
 
         step_width_rf_centers = t_rf * self.n_rf_periods_per_coarse_grid
-        # if self.residual_taps_last_rf_centers_calculation != 0 and self.n_rf_periods_per_coarse_grid != 1:
-        #     # while time_to_next_falling_edge_zero + self.residual_time_last_rf_centers_calculation < step_width_rf_centers:
-        #     time_to_next_falling_edge_zero += t_rf * (self.n_rf_periods_per_coarse_grid - int(self.residual_taps_last_rf_centers_calculation) - 1)
+        if (
+            self.residual_taps_last_rf_centers_calculation != 0
+            and self.n_rf_periods_per_coarse_grid != 1
+        ):
+            # while time_to_next_falling_edge_zero + self.residual_time_last_rf_centers_calculation < step_width_rf_centers:
+            time_to_next_falling_edge_zero += t_rf * (
+                self.n_rf_periods_per_coarse_grid
+                - int(self.residual_taps_last_rf_centers_calculation)
+                - 1
+            )
         rf_centers = np.arange(
             time_to_next_falling_edge_zero,
             # if self.residual_time_last_rf_centers_calculation == 0
