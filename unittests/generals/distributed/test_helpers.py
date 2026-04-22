@@ -122,4 +122,3 @@ class TestCallablesNoMPI(unittest.TestCase):
         ):
             result = mpi_is_distributed()
         self.assertIsNone(result)
-
