@@ -17,6 +17,7 @@ S. Albright
 
 from __future__ import annotations
 
+import numbers
 import warnings
 from typing import TYPE_CHECKING
 
@@ -116,8 +117,8 @@ class Coasting(base.BeamPreparationRoutine):
         self.start_time = start_time
         self.stop_time = stop_time
 
-        if isinstance(energy_offset, float):
-            self.energy_offset = float(energy_offset)
+        if isinstance(energy_offset, numbers.Number):
+            self.energy_offset = energy_offset
         else:
             self.energy_offset = np.array(copy_to_cpu(energy_offset))
 
@@ -174,9 +175,9 @@ class Coasting(base.BeamPreparationRoutine):
             size=self._n_macroparticles_local,
         )
 
-        if isinstance(self.energy_offset, float):
-            dE += self.energy_offset
-        else:
+        if isinstance(self.energy_offset, np.ndarray):
             dE += np.interp(dt, self.energy_offset[0], self.energy_offset[1])
+        else:
+            dE += self.energy_offset
 
         beam.setup_beam(dt=dt, dE=dE, mpi_mode="all-ranks")

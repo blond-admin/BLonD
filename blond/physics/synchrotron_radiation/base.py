@@ -79,8 +79,6 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
     energy_kick
         Energy kick induced by synchrotron radiation and quantum excitation.
     """
-    if random_generator is None:
-        random_generator = np.random.default_rng(seed=0)
     if disable_quantum_excitation:
         energy_kick = (
             -energy_lost
@@ -88,6 +86,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
         )
     else:
         assert natural_energy_spread is not None
+        assert random_generator is not None
 
         energy_kick = (
             -energy_lost
