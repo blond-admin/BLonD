@@ -19,8 +19,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
+from blond import backend
 from blond.core.base import MainLoopRelevant
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.physics.drifts import DriftSimple
 
@@ -272,6 +274,8 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+    warn
+        If ``True``, emits a warning about the performance impact.
 
     Examples
     --------
@@ -301,7 +305,17 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         self,
         each_turn_i: int,
         folder: str = "",
+        warn: bool = True,
     ):
+        if warn:
+            warnings.warn(
+                "`BeamObservationOncePerTurn` will significantly"
+                " degrade your performance, use with caution."
+                " To deactivate this message,"
+                " set ``BeamObservationOncePerTurn(..., warn=False)``.",
+                PerformanceWarning,
+                stacklevel=2,
+            )
         super().__init__(
             each_turn_i=each_turn_i,
             folder=folder,
@@ -341,6 +355,11 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
+        if beam.is_distributed:
+            raise NotImplementedError(
+                "This needs to be implemented."
+                " Contact the devs if you need it."
+            )
         self._beam = beam
         n_entries = self._calc_n_entries(n_turns)
         n_macroparticles = int(beam._dt.local_size)
@@ -378,11 +397,19 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     def _update(self) -> None:
         """Update memory with new values."""
         # TODO allow several bunches
+
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
-        self._dts.write(self._beam.read_partial_dt())
-        self._dEs.write(self._beam.read_partial_dE())
-        self._flags.write(self._beam.read_partial_flags())
+
+        if self._beam._dt.local_size < self._dts._memory.shape[1]:
+            mask = backend.zeros(self._dts._memory.shape[1], dtype=bool)
+            mask[self._beam.read_partial_ids()] = True
+        else:
+            mask = None
+
+        self._dts.write(self._beam.read_partial_dt(), mask=mask)
+        self._dEs.write(self._beam.read_partial_dE(), mask=mask)
+        self._flags.write(self._beam.read_partial_flags(), mask=mask)
 
     @property  # as readonly attributes
     def reference_time(self):
@@ -544,9 +571,10 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         """Update memory with new values."""
         # TODO allow several bunches
 
-        self._bunch_position.write(np.average(self._beam.read_partial_dt()))
-        self._energy_spread.write(np.std(self._beam.read_partial_dE()))
-        self._bunch_length.write(np.std(self._beam.read_partial_dt()))
+        # MPI capable
+        self._bunch_position.write(self._beam._dt.mean())
+        self._energy_spread.write(self._beam._dE.std())
+        self._bunch_length.write(self._beam._dt.std())
 
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
