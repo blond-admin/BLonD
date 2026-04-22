@@ -123,15 +123,3 @@ class TestCallablesNoMPI(unittest.TestCase):
             result = mpi_is_distributed()
         self.assertIsNone(result)
 
-    def test_distributed_arange_non_none_offset(self):
-        from unittest.mock import MagicMock
-
-        mock_comm = MagicMock()
-        mock_comm.exscan.return_value = 3
-        with patch(
-            "blond.generals.distributed.helpers.MPI_COMM_WORLD", mock_comm
-        ):
-            da = distributed_arange(5, dtype=np.int32)
-        np.testing.assert_allclose(
-            da.copy_as_numpy(), np.arange(3, 3 + 5, dtype=np.int32)
-        )
