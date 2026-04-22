@@ -218,7 +218,7 @@ class TestIQCavityFeedbackTimingClass:
         timestep_end = (
             2
             * np.pi
-            / self.rf_station.omega_rf
+            / self.rf_station.omega_rf_design
             * cav_fdbk_timing.n_rf_periods_per_coarse_grid
         )
         for ind in range(3, len(voltage_array) - 1):
