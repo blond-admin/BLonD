@@ -4,7 +4,6 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from libcst import Assert
 from matplotlib import pyplot as plt
 from numpy import ndarray as NumpyArray
 from scipy.constants import speed_of_light as c0
