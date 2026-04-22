@@ -82,7 +82,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
         return self._radiation_integrals
 
     @abc.abstractmethod  # pragma: no cover
-    def eta_0(self, gamma: float) -> backend.float:
+    def eta_0(self, gamma: float) -> float:
         """
         Drift in arc parameter eta for one turn in synchrotron.
 

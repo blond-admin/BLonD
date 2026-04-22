@@ -26,11 +26,12 @@ from blond.core.backends import backend
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Any
 
     from blond.core.backends.backend import BackendBaseClass
 
 try:
-    import cupy  # noqa: F401
+    import cupy  # noqa: F401  # ty: ignore[unresolved-import]
 except ImportError:
     cupy_available = False
 else:
@@ -50,7 +51,7 @@ def _set_forcing() -> bool:
 FORCE_ALL_BACKENDS = _set_forcing()
 
 
-def _backend_selection(*args: tuple[str]) -> dict[str, BackendBaseClass]:
+def _backend_selection(*args: str) -> list[type[BackendBaseClass]]:
     if FORCE_ALL_BACKENDS:
         # If FORCE_ALL_BACKENDS is True, the requested backends will all
         # be used, whether or not they can be initialised.  For backends
@@ -77,7 +78,7 @@ def _backend_selection(*args: tuple[str]) -> dict[str, BackendBaseClass]:
     return backends
 
 
-def multi_backend_testcase(*args: tuple[str]) -> Callable:
+def multi_backend_testcase(*args: Any) -> Callable:
     """
     Decorator to run a unittest testcase with multiple backends.
 

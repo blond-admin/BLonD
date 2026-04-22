@@ -15,7 +15,7 @@ import logging
 from functools import cache, wraps
 from typing import TYPE_CHECKING
 
-import numba  # type: ignore
+import numba
 import numpy as np
 from numba import njit, prange, void
 

@@ -109,13 +109,13 @@ class PythonSpecials(Specials):
         beam_phase
             # TODO ported from blond2, was undocumented.
         """
-        scoeff = np.trapezoid(  # type: ignore
+        scoeff = np.trapezoid(
             np.exp(alpha * hist_x)
             * np.sin(omega_rf * hist_x + phi_rf)
             * hist_y,
             dx=bin_size,
         )
-        ccoeff = np.trapezoid(  # type: ignore
+        ccoeff = np.trapezoid(
             np.exp(alpha * hist_x)
             * np.cos(omega_rf * hist_x + phi_rf)
             * hist_y,

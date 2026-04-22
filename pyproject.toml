@@ -87,6 +87,24 @@ optional-dependencies = { all_no_cuda = { file = [
 include = ["blond"]
 exclude = ["blond/legacy"]
 
+[[tool.ty.overrides]]
+# Backend implementation files do deliberate low-level type coercion
+# (floattype casts, ctypes, numba JIT, cuda kernels) that ty cannot model:
+#   - invalid-method-override: concrete signatures use `float` where the base
+#     Specials class accepts `float | np.floating[Any]` — intentional narrowing
+#   - invalid-assignment / invalid-return-type: `floattype(x)` re-assigns a
+#     float-typed local to a numpy scalar, valid at runtime
+#   - invalid-argument-type: ctypes wrappers receive numpy integer scalars
+#   - not-iterable: numba's `prange` is a valid `range` drop-in inside @njit
+include = [
+  "blond/core/backends/cpp/callables.py",
+  "blond/core/backends/cuda/callables.py",
+  "blond/core/backends/numba/callables.py",
+  "blond/core/backends/python/callables.py",
+  "blond/core/backends/mpi_distributed/callables.py",
+]
+rules = { invalid-method-override = "ignore", invalid-assignment = "ignore", invalid-return-type = "ignore", invalid-argument-type = "ignore", not-iterable = "ignore" }
+
 [tool.ruff]
 src = ["blond"]                                                       # Source directories
 line-length = 79
