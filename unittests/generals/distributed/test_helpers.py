@@ -121,4 +121,4 @@ class TestCallablesNoMPI(unittest.TestCase):
             "blond.generals.distributed.helpers.MPI_COMM_WORLD", mock_comm
         ):
             result = mpi_is_distributed()
-        self.assertIsNone(result)
+        self.assertFalse(result)
