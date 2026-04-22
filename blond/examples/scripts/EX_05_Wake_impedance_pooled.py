@@ -48,7 +48,7 @@ from blond import (
 from blond.experimental import PooledInterpolationKick
 from blond.handle_results.helpers import callers_relative_path
 
-pooling = False
+pooling = True
 
 
 def main(n_turns=1000):

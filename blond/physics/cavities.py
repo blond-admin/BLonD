@@ -234,10 +234,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """Harmonic number, relating the rf frequency/ies to the revolution frequency."""
 
         self._delayed_kick = delayed_kick
-        if (
-            self._delayed_kick is not None
-            and self.cavity_feedback_list is None
-        ):
+        if self._delayed_kick is not None and not self.any_feedback_not_none:
             assert delayed_kick_time_axis is not None
         self._delayed_kick_time_axis = delayed_kick_time_axis
 
@@ -977,7 +974,7 @@ class SingleHarmonicRFStation(
         self._dphi_rf_next: float = 0.0
 
         if self._delayed_kick is not None and self.any_feedback_not_none:
-            assert delayed_kick_time_axis is not None, (
+            assert delayed_kick_time_axis is None, (
                 f"Got {delayed_kick_time_axis=}"
             )
         self._delayed_kick_time_axis = delayed_kick_time_axis
@@ -1111,13 +1108,10 @@ class SingleHarmonicRFStation(
                 )
                 time_axis = self.cavity_feedback_list[0].profile.hist_x
                 if self._delayed_kick is not None:
-                    if self._delayed_kick_time_axis is not None:
-                        warnings.warn(
-                            "`delayed_kick_time_axis` is ignored with "
-                            "feedbacks. Set to `None` to silence this warning.",
-                            UserWarning,
-                            stacklevel=1,
-                        )
+                    assert (
+                        self._delayed_kick_time_axis is None
+                    )  # in principle checked at init
+
                     self._delayed_kick.register(
                         time_axis=time_axis,
                         voltage=voltage - reference_energy_change,
@@ -1260,6 +1254,11 @@ class SingleHarmonicRFStation(
 
         ring = Mock(Ring)
         ring.circumference = circumference
+        ring.section_lengths = np.array(
+            [
+                circumference,
+            ]
+        )
 
         energy_cycle = Mock(ConstantMagneticCycle)
         energy_cycle.get_target_total_energy.return_value = total_energy
@@ -1410,7 +1409,7 @@ class MultiHarmonicRFStation(
         self._dphi_rf_next: NumpyArray = np.zeros(n_harmonics)
 
         if self._delayed_kick is not None and self.any_feedback_not_none:
-            assert delayed_kick_time_axis is not None, (
+            assert delayed_kick_time_axis is None, (
                 f"Got {delayed_kick_time_axis=}."
             )
         self._delayed_kick_time_axis = delayed_kick_time_axis
@@ -1577,13 +1576,9 @@ class MultiHarmonicRFStation(
                 )
                 time_axis = self.cavity_feedback_list[0].profile.hist_x
                 if self._delayed_kick is not None:
-                    if self._delayed_kick_time_axis is not None:
-                        warnings.warn(
-                            "`delayed_kick_time_axis` is ignored with "
-                            "feedbacks. Set to `None` to silence this warning.",
-                            UserWarning,
-                            stacklevel=1,
-                        )
+                    assert (
+                        self._delayed_kick_time_axis is None
+                    )  # in principle checked at init
                     self._delayed_kick.register(
                         time_axis=time_axis,
                         voltage=voltage - reference_energy_change,
@@ -1717,6 +1712,11 @@ class MultiHarmonicRFStation(
 
         ring = Mock(Ring)
         ring.circumference = circumference
+        ring.section_lengths = np.array(
+            [
+                circumference,
+            ]
+        )
 
         energy_cycle = Mock(ConstantMagneticCycle)
         energy_cycle.get_target_total_energy.return_value = total_energy

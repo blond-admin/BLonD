@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+from libcst import Assert
 from matplotlib import pyplot as plt
 from numpy import ndarray as NumpyArray
 from scipy.constants import speed_of_light as c0
@@ -661,6 +662,88 @@ class TestMultiHarmonicCavity(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
+    def test_delayed_kick_with_feedback_requires_time_axis(self):
+        cavity_feedback = Mock(spec=LocalFeedback)
+        with self.assertRaises(AssertionError):
+            MultiHarmonicRFStation.headless(
+                section_index=0,
+                voltage=np.array([1e6], dtype=float),
+                phi_rf=np.array([0.1 * np.pi], dtype=float),
+                harmonic=np.array([1], dtype=float),
+                circumference=456,
+                local_wakefield=None,
+                cavity_feedback=cavity_feedback,  # trigger
+                total_energy=939,
+                main_harmonic_idx=0,
+                beam_reference_beta=1,
+                delayed_kick=Mock(PooledInterpolationKick),  # trigger
+                # trigger because it shouldn't coexist with cavity feedback
+                delayed_kick_time_axis=np.linspace(1, 2, 10),
+            )
+
+    def test_delayed_kick_without_feedback_list_requires_time_axis2(self):
+        with self.assertRaises(
+            AssertionError,
+        ):
+            self.multi_harmonic_cavity = MultiHarmonicRFStation.headless(
+                section_index=0,
+                voltage=np.array([1e6, 2e6], dtype=float),
+                phi_rf=np.array([0.1 * np.pi, np.pi], dtype=float),
+                harmonic=np.array([1, 5], dtype=float),
+                circumference=456,
+                local_wakefield=None,
+                cavity_feedback=None,
+                total_energy=939,
+                main_harmonic_idx=0,
+                beam_reference_beta=1,
+                delayed_kick=Mock(PooledInterpolationKick),
+                delayed_kick_time_axis=None,  # trigger Exception
+            )
+
+    def test_delayed_kick_registers(self):
+        delayed_kick_mock = Mock(PooledInterpolationKick)
+        multi_harmonic_cavity = MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([1e6, 2e6], dtype=float),
+            phi_rf=np.array([0.1 * np.pi, np.pi], dtype=float),
+            harmonic=np.array([1, 5], dtype=float),
+            circumference=456,
+            local_wakefield=None,
+            cavity_feedback=None,
+            total_energy=939,
+            main_harmonic_idx=0,
+            beam_reference_beta=1,
+            delayed_kick=delayed_kick_mock,
+            delayed_kick_time_axis=np.linspace(1, 2, 10),  # trigger Exception
+        )
+        multi_harmonic_cavity.track(self.beam)
+        self.assertTrue(delayed_kick_mock.register.called)
+
+    def test_delayed_kick_with_feedback(self):
+        delayed_kick_mock = Mock(PooledInterpolationKick)
+        cavity_feedback = Mock(spec=LocalFeedback)
+        cavity_feedback.profile = Mock(spec=StaticProfile)
+        cavity_feedback.profile.n_bins = 10
+        cavity_feedback.profile.hist_x = np.linspace(1, 2, 10)
+        cavity_feedback.relative_voltage_correction = np.linspace(1, 2, 10)
+        cavity_feedback.phase_correction = np.linspace(1, 2, 10)
+        multi_harmonic_cavity = MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([1e6, 2e6], dtype=float),
+            phi_rf=np.array([0.1 * np.pi, np.pi], dtype=float),
+            harmonic=np.array([1, 5], dtype=float),
+            circumference=456,
+            local_wakefield=None,
+            cavity_feedback=[cavity_feedback, None],
+            total_energy=939,
+            main_harmonic_idx=0,
+            beam_reference_beta=1,
+            delayed_kick=delayed_kick_mock,
+            delayed_kick_time_axis=None,
+        )
+        multi_harmonic_cavity.track(self.beam)
+        self.assertTrue(delayed_kick_mock.register.called)
+
     def test_track_increments(self) -> None:
         self.multi_harmonic_cavity
         self.multi_harmonic_cavity.delta_omega_rf = (
@@ -987,6 +1070,84 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_delayed_kick_with_feedback_requires_time_axis(self):
+        cavity_feedback = Mock(spec=LocalFeedback)
+        with self.assertRaises(AssertionError):
+            SingleHarmonicRFStation.headless(
+                section_index=0,
+                voltage=1e6,
+                phi_rf=0.1 * np.pi,
+                harmonic=1,
+                circumference=456,
+                local_wakefield=None,
+                cavity_feedback=cavity_feedback,  # trigger
+                total_energy=939,
+                beam_reference_beta=1,
+                delayed_kick=Mock(PooledInterpolationKick),  # trigger
+                # trigger because it shouldn't coexist with cavity feedback
+                delayed_kick_time_axis=np.linspace(1, 2, 10),
+            )
+
+    def test_delayed_kick_without_feedback_list_requires_time_axis2(self):
+        with self.assertRaises(
+            AssertionError,
+        ):
+            self.multi_harmonic_cavity = SingleHarmonicRFStation.headless(
+                section_index=0,
+                voltage=1e6,
+                phi_rf=0.1,
+                harmonic=5,
+                circumference=456,
+                local_wakefield=None,
+                cavity_feedback=None,
+                total_energy=939,
+                beam_reference_beta=1,
+                delayed_kick=Mock(PooledInterpolationKick),
+                delayed_kick_time_axis=None,  # trigger Exception
+            )
+
+    def test_delayed_kick_registers(self):
+        delayed_kick_mock = Mock(PooledInterpolationKick)
+        multi_harmonic_cavity = SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=1e6,
+            phi_rf=0.1,
+            harmonic=5,
+            circumference=456,
+            local_wakefield=None,
+            cavity_feedback=None,
+            total_energy=939,
+            beam_reference_beta=1,
+            delayed_kick=delayed_kick_mock,
+            delayed_kick_time_axis=np.linspace(1, 2, 10),  # trigger Exception
+        )
+        multi_harmonic_cavity.track(self.beam)
+        self.assertTrue(delayed_kick_mock.register.called)
+
+    def test_delayed_kick_with_feedback(self):
+        delayed_kick_mock = Mock(PooledInterpolationKick)
+        cavity_feedback = Mock(spec=LocalFeedback)
+        cavity_feedback.profile = Mock(spec=StaticProfile)
+        cavity_feedback.profile.n_bins = 10
+        cavity_feedback.profile.hist_x = np.linspace(1, 2, 10)
+        cavity_feedback.relative_voltage_correction = np.linspace(1, 2, 10)
+        cavity_feedback.phase_correction = np.linspace(1, 2, 10)
+        multi_harmonic_cavity = SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=1e6,
+            phi_rf=0.1,
+            harmonic=5,
+            circumference=456,
+            local_wakefield=None,
+            cavity_feedback=cavity_feedback,
+            total_energy=939,
+            beam_reference_beta=1,
+            delayed_kick=delayed_kick_mock,
+            delayed_kick_time_axis=None,
+        )
+        multi_harmonic_cavity.track(self.beam)
+        self.assertTrue(delayed_kick_mock.register.called)
 
     def test_track(self) -> None:
         self.single_harmonic_cavity.track(beam=self.beam)
