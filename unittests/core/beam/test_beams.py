@@ -25,7 +25,7 @@ class TestBeam(unittest.TestCase):
         self.beam.setup_beam(
             dE=np.linspace(1, 10, 10), dt=np.linspace(20, 30, 10)
         )
-    
+
     def test_id_raises(self) -> None:
         beam = Beam(
             intensity=1e12, particle_type=proton, is_counter_rotating=False
