@@ -19,6 +19,7 @@ import numpy as np
 
 from blond.core.base import (
     Preparable,
+    SimulationElementBase,
     UnsafeUserElement,
 )
 
@@ -30,7 +31,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     NumpyArray = NDArray[Any]
 
-    from blond.core.base import SimulationElementBase
     from blond.core.beam.base import BeamBaseClass
     from blond.core.ring.beam_physics_relevant_elements import (
         BeamPhysicsRelevantElements,
