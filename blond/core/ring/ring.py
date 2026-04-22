@@ -201,44 +201,44 @@ class Ring(Preparable):
 
         .. math::
 
-            \\alpha_0 = \\frac{1}{C} \\int_C \\frac{D(s)}{\\rho} \\, ds
+            \alpha_0 = \frac{1}{C} \int_C \frac{D(s)}{\rho} \, ds
 
         where :math:`C` is the total circumference, :math:`D(s)` is the dispersion
-        function, and :math:`\\rho` is the bending radius.
+        function, and :math:`\rho` is the bending radius.
 
         For two sections of length :math:`A` and :math:`B` such that
         :math:`C = A + B`, this becomes
 
         .. math::
 
-            \\alpha_0 = \\frac{1}{C}
-            \\left(
-                \\int_A \\frac{D(s)}{\\rho} \\, ds
+            \alpha_0 = \frac{1}{C}
+            \left(
+                \int_A \frac{D(s)}{\rho} \, ds
                 +
-                \\int_B \\frac{D(s)}{\\rho} \\, ds
-            \\right)
+                \int_B \frac{D(s)}{\rho} \, ds
+            \right)
 
         Introducing the section-averaged momentum compaction factors
 
         .. math::
 
-            \\alpha_A = \\frac{1}{A} \\int_A \\frac{D(s)}{\\rho} \\, ds
+            \alpha_A = \frac{1}{A} \int_A \frac{D(s)}{\rho} \, ds
 
         .. math::
 
-            \\alpha_B = \\frac{1}{B} \\int_B \\frac{D(s)}{\\rho} \\, ds
+            \alpha_B = \frac{1}{B} \int_B \frac{D(s)}{\rho} \, ds
 
         the total momentum compaction factor can be written as
 
         .. math::
 
-            \\alpha_0 =
-            \\frac{1}{C}
-            \\left(
-                A \\, \\alpha_A
+            \alpha_0 =
+            \frac{1}{C}
+            \left(
+                A \, \alpha_A
                 +
-                B \\, \\alpha_B
-            \\right)
+                B \, \alpha_B
+            \right)
 
         i.e. the orbit-length weighted average of the individual drift-section
         momentum compaction factors.

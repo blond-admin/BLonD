@@ -67,7 +67,6 @@ class LocalFeedback(FeedbackBaseClass):
     """
     Baseclass for implementation of local feedback elements.
 
-    Baseclass for implementation of local feedback elements.
     This will be attached to a specific multi- or single-harmonic
     cavity, which will act on the beam.
 
@@ -77,16 +76,6 @@ class LocalFeedback(FeedbackBaseClass):
         Profile the feedback should act on.
     name
         Name of the feedback.
-
-    Attributes
-    ----------
-    phase_correction
-        Correction to the rf phase, has to be defined on the
-        profile time grid.
-    relative_voltage_correction
-        Relative correction to the setpoint voltage
-        stemming from the feedback,
-        has to be defined on the profile time grid.
     """
 
     def __init__(
@@ -102,7 +91,9 @@ class LocalFeedback(FeedbackBaseClass):
         ) = None
 
         self.relative_voltage_correction: NumpyArray | None = None
+        """Relative correction to the setpoint voltage stemming from the feedback, has to be defined on the profile time grid."""
         self.phase_correction: NumpyArray | None = None
+        """Correction to the rf phase, has to be defined on the profile time grid."""
 
         self.profile = profile
 

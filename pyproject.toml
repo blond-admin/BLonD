@@ -51,18 +51,30 @@ write_to = 'blond/_version.py' # autogenerates version string using git
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
-optional-dependencies = { all = { file = [
+optional-dependencies = { all_no_cuda = { file = [
   "requirements.txt",
-  "requirements-gpu.txt",
   "requirements-dev.txt",
-  "requirements-fortran.txt",
   "requirements-doc.txt",
   "blond/interfaces/xsuite/requirements.txt",
   "requirements-mpi.txt",
-] }, gpu = { file = [
-  "requirements-gpu.txt",
-] }, fortran = { file = [
-  "requirements-fortran.txt",
+] }, all_cuda12 = { file = [
+  "requirements.txt",
+  "requirements-gpu-cuda12.txt",
+  "requirements-dev.txt",
+  "requirements-doc.txt",
+  "blond/interfaces/xsuite/requirements.txt",
+  "requirements-mpi.txt",
+] }, all_cuda13 = { file = [
+  "requirements.txt",
+  "requirements-gpu-cuda13.txt",
+  "requirements-dev.txt",
+  "requirements-doc.txt",
+  "blond/interfaces/xsuite/requirements.txt",
+  "requirements-mpi.txt",
+] }, gpu_cuda12 = { file = [
+  "requirements-gpu-cuda12.txt",
+] }, gpu_cuda13 = { file = [
+  "requirements-gpu-cuda13.txt",
 ] }, dev = { file = [
   "requirements-dev.txt",
 ] }, mpi = { file = [
@@ -140,7 +152,6 @@ exclude_files = [ # don't process filepaths that match these regex
   '^legacy/.*',
   '^unittests/.*',
   '^blond/legacy/.*',
-  '^blond/core/backends/fortran/callables.py',
   '^blond/core/backends/cpp/callables.py',
   '^blond/core/backends/cuda/callables.py',
   '^blond/core/backends/numba/callables.py',

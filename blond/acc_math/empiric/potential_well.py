@@ -6,7 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holder the `PotentialWellHelper`."""
+"""Holder of the `PotentialWellHelper`."""
 
 from __future__ import annotations
 
@@ -82,20 +82,24 @@ class PotentialWellHelper:
             Array of shape (N, 2) containing `(start_time, stop_time)`
             tuples for each detected bucket.
         """
-        y = self.voltage_axis
-        x = self.time_axis
+        voltage_axis = self.voltage_axis
+        time_axis = self.time_axis
 
-        maxima_indices, _ = find_peaks(y)
+        maxima_indices, _ = find_peaks(voltage_axis)
 
         if len(maxima_indices) == 0:
-            buckets = self._find_single_partial_bucket(x, y)
+            buckets = self._find_single_partial_bucket(time_axis, voltage_axis)
         else:
-            buckets = self._find_n_complete_buckets(maxima_indices, x, y)
-            buckets = self._handle_border(maxima_indices, x, y, buckets)
+            buckets = self._find_n_complete_buckets(
+                maxima_indices, time_axis, voltage_axis
+            )
+            buckets = self._handle_border(
+                maxima_indices, time_axis, voltage_axis, buckets
+            )
         return np.array(buckets)
 
     def _find_single_partial_bucket(
-        self, x: NumpyArray, y: NumpyArray
+        self, time_axis: NumpyArray, voltage_axis: NumpyArray
     ) -> list[tuple[float, float]]:
         """
         Identify a single partial bucket.
@@ -108,9 +112,9 @@ class PotentialWellHelper:
 
         Parameters
         ----------
-        x : NumpyArray
+        time_axis : NumpyArray
             Array of x-coordinates corresponding to the `y` values.
-        y : NumpyArray
+        voltage_axis : NumpyArray
             Array of y-coordinates representing the signal or data.
 
         Returns
@@ -128,23 +132,26 @@ class PotentialWellHelper:
           at the boundary.
         """
         buckets = []
-        minima_indices, _ = find_peaks(-y)
+        minima_indices, _ = find_peaks(-voltage_axis)
 
-        thershold = min(float(y[0]), float(y[-1]))
-        mask = y <= thershold
+        threshold = min(float(voltage_axis[0]), float(voltage_axis[-1]))
+        mask = voltage_axis <= threshold
         if len(minima_indices) == 1:
             start = int(np.argmax(mask))
-            stop = int(len(x) - np.argmax(mask[::-1])) - 1
+            stop = int(len(time_axis) - np.argmax(mask[::-1])) - 1
             buckets.append(
                 (
-                    x[min(start, stop)],
-                    x[max(start, stop)],
+                    time_axis[min(start, stop)],
+                    time_axis[max(start, stop)],
                 )
             )
         return buckets
 
     def _find_n_complete_buckets(
-        self, maxima_indices: NumpyArray, x: NumpyArray, y: NumpyArray
+        self,
+        maxima_indices: NumpyArray,
+        time_axis: NumpyArray,
+        voltage_axis: NumpyArray,
     ) -> list[tuple[float, float]]:
         """
         Identify buckets around local maxima in the `y` data.
@@ -159,9 +166,9 @@ class PotentialWellHelper:
         ----------
         maxima_indices : NumpyArray
             Array of indices corresponding to local maxima in `y`.
-        x : NumpyArray
+        time_axis : NumpyArray
             Array of x-coordinates corresponding to the `y` values.
-        y : NumpyArray
+        voltage_axis : NumpyArray
             Array of y-coordinates representing the signal or data from which
             maxima are identified.
 
@@ -180,23 +187,26 @@ class PotentialWellHelper:
         - The function assumes `x` and `y` are 1-dimensional arrays of the same length.
         """
         buckets = []
-        epsilon = 0.1 / 100 * (np.max(y) - np.min(y))
+        epsilon = 0.1 / 100 * (np.max(voltage_axis) - np.min(voltage_axis))
 
         for nth_maximum in range(len(maxima_indices)):  # type: ignore
             max_idx: int = maxima_indices[nth_maximum]  # type: ignore
 
-            threshold_y = float(y[max_idx])
+            threshold_y = float(voltage_axis[max_idx])
             for direction, range_args in zip(
                 (1, -1),
-                ((max_idx + 1, len(y) - 1, +1), (max_idx + -1, 1, -1)),
+                (
+                    (max_idx + 1, len(voltage_axis) - 1, +1),
+                    (max_idx + -1, 1, -1),
+                ),
                 strict=False,
             ):
                 inside_local_region = True
 
                 # Search to the left of the maximum
                 for j in range(range_args[0], range_args[1], range_args[2]):
-                    current_y = y[j]
-                    next_y = y[j + direction]
+                    current_y = voltage_axis[j]
+                    next_y = voltage_axis[j + direction]
                     if (current_y > (threshold_y + epsilon)) or (
                         current_y < (threshold_y - epsilon)
                     ):
@@ -207,13 +217,13 @@ class PotentialWellHelper:
                     if (
                         not inside_local_region
                         and above_threshold
-                        and (next_falling)
+                        and next_falling
                     ) or (not inside_local_region and next_above):
                         second_anchor_index = j
                         buckets.append(
                             (
-                                x[min(max_idx, second_anchor_index)],
-                                x[max(max_idx, second_anchor_index)],
+                                time_axis[min(max_idx, second_anchor_index)],
+                                time_axis[max(max_idx, second_anchor_index)],
                             )
                         )
                         break
@@ -222,8 +232,8 @@ class PotentialWellHelper:
     def _handle_border(
         self,
         maxima_indices: NumpyArray,
-        x: NumpyArray,
-        y: NumpyArray,
+        time_axis: NumpyArray,
+        voltage_axis: NumpyArray,
         buckets: list[tuple[float, float]],
     ) -> list[tuple[float, float]]:
         """
@@ -239,9 +249,9 @@ class PotentialWellHelper:
         ----------
         maxima_indices : NumpyArray
             Array of indices corresponding to local maxima in `y`.
-        x : NumpyArray
+        time_axis : NumpyArray
             Array of x-coordinates corresponding to the `y` values.
-        y : NumpyArray
+        voltage_axis : NumpyArray
             Array of y-coordinates representing the signal or data from which
             maxima are identified.
         buckets : list of tuple of float
@@ -264,16 +274,20 @@ class PotentialWellHelper:
         start = 0
         stop = maxima_indices[0] + 1
         sel = slice(start, stop)
-        bucket = self._find_single_partial_bucket(x[sel], y[sel])
+        bucket = self._find_single_partial_bucket(
+            time_axis[sel], voltage_axis[sel]
+        )
         if len(bucket) > 0:
             # prepend
             buckets = bucket + buckets
 
         # right
         start = maxima_indices[-1]
-        stop = len(x)
+        stop = len(time_axis)
         sel = slice(start, stop)
-        bucket = self._find_single_partial_bucket(x[sel], y[sel])
+        bucket = self._find_single_partial_bucket(
+            time_axis[sel], voltage_axis[sel]
+        )
         if len(bucket) > 0:
             b = bucket[0]
             bucket = [
@@ -293,15 +307,15 @@ class PotentialWellHelper:
         Each bucket is visualized as a shaded vertical region spanning
         the full voltage range.
         """
-        y = self.voltage_axis
-        x = self.time_axis
-        plt.plot(x, y)
+        voltage_axis = self.voltage_axis
+        time_axis = self.time_axis
+        plt.plot(time_axis, voltage_axis)
         plt.ylim(*plt.ylim())
         for _i, bucket in enumerate(self.bucket_list):  # type: ignore
             x1 = bucket[0]
             x2 = bucket[1]
-            y1 = y[np.argmin(np.abs(x - x1))]
-            y2 = y[np.argmin(np.abs(x - x2))]
+            y1 = voltage_axis[np.argmin(np.abs(time_axis - x1))]
+            y2 = voltage_axis[np.argmin(np.abs(time_axis - x2))]
             plt.plot([x1, x2], [y1, y2])
 
     def get_in_bucket_mask(self) -> NumpyArray:
@@ -372,21 +386,25 @@ class PotentialWellHelper:
         bucket_list_clean
             The cleaned bucket list with ``([t_start, t_stop], ...)``.
         """
-        x = np.asarray(self.time_axis)
-        b = np.asarray(bucket_list)
+        time_axis = np.asarray(self.time_axis)
+        bucket_list = np.asarray(bucket_list)
         N_BUCKETS_MIN = 2
-        if len(b) < N_BUCKETS_MIN:
+        if len(bucket_list) < N_BUCKETS_MIN:
             return bucket_list
 
         # nearest index in x for each border value
-        left_idx = np.abs(x[:, None] - b[:, 0]).argmin(axis=0)
-        right_idx = np.abs(x[:, None] - b[:, 1]).argmin(axis=0)
+        left_idx = np.abs(time_axis[:, None] - bucket_list[:, 0]).argmin(
+            axis=0
+        )
+        right_idx = np.abs(time_axis[:, None] - bucket_list[:, 1]).argmin(
+            axis=0
+        )
 
         idx = np.column_stack((left_idx, right_idx))
         canon = idx // 2
         _, keep = np.unique(canon, axis=0, return_index=True)
         filtered_idx = idx[np.sort(keep)]
         filtered_borders = np.column_stack(
-            (x[filtered_idx[:, 0]], x[filtered_idx[:, 1]])
+            (time_axis[filtered_idx[:, 0]], time_axis[filtered_idx[:, 1]])
         )
         return filtered_borders

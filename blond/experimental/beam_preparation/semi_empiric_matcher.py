@@ -19,6 +19,9 @@ from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
 from blond.beam_preparation.helpers import populate_beam
 from blond.core.helpers import int_from_float_with_warning
+from blond.experimental.beam_preparation.bucket_filler_functions import (
+    hamilton_to_density_by_max,
+)
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 # Oversampling factor for potential well calculation
@@ -37,95 +40,6 @@ if TYPE_CHECKING:  # pragma: no cover
         Simulation,
     )
     from blond.core.beam.base import BeamBaseClass
-
-
-def hamilton_to_density_by_max(
-    time_grid: NumpyArray | CupyArray,
-    deltaE_grid: NumpyArray | CupyArray,
-    hamilton_2D: NumpyArray | CupyArray,
-    density_modifier: float,
-    hamilton_max: float,
-) -> NumpyArray | CupyArray:
-    """
-    Converts a 2D Hamilton 2D array into a density distribution.
-
-    This function normalizes the input Hamilton by a specified maximum value,
-    inverts it to represent particle density (i.e., lower energy = higher density),
-    and optionally adjusts the shape of the distribution using a power-law modifier.
-
-    Notes
-    -----
-    - The density is highest in regions with the lowest Hamilton values.
-    - Values in `hamilton_2D` greater than `hamilton_max` are clipped before processing.
-    - The function preserves the array type (NumPy or CuPy) of the input.
-
-    Parameters
-    ----------
-    deltaE_grid
-        The time coordinates corresponding to `hamilton_2D`, in [eV].
-    time_grid
-        The time coordinates corresponding to `hamilton_2D`, in [s].
-    hamilton_2D
-        A 2D array representing the spatial Hamilton field.
-    density_modifier
-        Exponent applied to the normalized and inverted Hamilton values
-        to shape the final density distribution.
-        Higher values exaggerate differences in density.
-    hamilton_max
-        The maximum reference value for normalizing the Hamilton.
-        Values above this threshold are truncated.
-
-    Returns
-    -------
-    density : NumpyArray or CupyArray
-        A 2D array of the same shape as `hamilton_2D`, representing the
-        computed density distribution. Values are scaled between 0 and 1.
-
-    Examples
-    --------
-    Defining a custom function to convert between hamilton and particle
-    density.
-    >>> import numpy as np
-    >>>
-    >>> def custom_density_function(
-    ...         time_grid, deltaE_grid, hamilton_2D, # required arguments
-    ...         custom_param, hamilton_max # your custom arguments
-    ...    ):
-    ...    '''Example custom density mapping with exponential falloff.'''
-    ...    normalized_H = hamilton_2D / hamilton_max
-    ...    normalized_H[normalized_H > 1] = 1
-    ...    density = np.exp(-custom_param * normalized_H)
-    ...    return density / density.max()  # Normalize to [0, 1]
-    >>>
-    >>> matcher = SemiEmpiricMatcher(
-    ...    time_limit=(-2e-9, 2e-9),
-    ...    n_macroparticles=100_000,
-    ...    hamilton_to_density_function=custom_density_function,
-    ...    hamilton_to_density_kwargs=dict(
-    ...        custom_param=5.0,
-    ...        hamilton_max=1.0
-    ...    ),
-    ...    internal_grid_shape=(1023, 1023),
-    ...    tolerance=1e-6,
-    ...    verbose=True,
-    ... )
-    >>> matcher.prepare_beam(...)
-
-    """
-    _density = hamilton_2D.copy()  # So the changes stay in this scope
-
-    _density /= hamilton_max
-    # Now 1 representing the limit between particles/no-particles.
-    # Smaller 1 means there should be particles.
-
-    _density[_density > 1] = 1  # Truncate
-    # Flip max with min
-    _density *= -1
-    _density -= _density.min()
-
-    # Modify of the density to be more/less dense in different regions.
-    _density **= density_modifier
-    return _density
 
 
 def get_hamilton_semi_analytic(
@@ -181,6 +95,11 @@ def get_hamilton_semi_analytic(
         2D array representing the semi-analytic Hamiltonian evaluated on a grid of
         time vs. energy difference [eV]. Uses the same device (NumPy or CuPy) as the inputs.
     """
+    # from here only CPU code, because `populate_beam` can only
+    # handle numpy arrays
+    potential_well = copy_to_cpu(potential_well)
+    ts = copy_to_cpu(ts)
+
     assert len(ts) == len(potential_well), (
         f"{len(ts)=}, but {len(potential_well)=}"
     )
@@ -220,6 +139,17 @@ def get_hamilton_semi_analytic(
     hamilton_2D = 0.5 * drift_term * np.square(deltaE_grid) + V  # [eV]
 
     return deltaE_grid, time_grid, hamilton_2D
+
+
+class DebuggingEndpoints:
+    """
+    Helper to expose variables when debugging `SemiEmpiricMatcher`.
+    """
+
+    def __init__(self):
+        self.last_potential_well = None
+        self.last_density = None
+        self.last_hamilton_2D = None
 
 
 class SemiEmpiricMatcher(MatchingRoutine):
@@ -262,11 +192,15 @@ class SemiEmpiricMatcher(MatchingRoutine):
         Runs with the same seed will produce identical distributions.
     animate : bool, default=False
         If ``True``, draws a plot using ``matplotlib.pyplot.draw()`` at each iteration.
-    tolerance : float, optional
+    tolerance_potential_well : float, optional
         Convergence threshold. The matching process stops when the error
         falls below this tolerance.
     verbose : bool, default=False
         If ``True``, prints convergence and status messages to the console.
+    debug
+        If ``True``, variables are saved into the `debug_helper` attribute.
+    until_section_index
+        Section index until which to run the simulation. Default is -1.
 
     Notes
     -----
@@ -279,14 +213,18 @@ class SemiEmpiricMatcher(MatchingRoutine):
         time_limit: tuple[float, float],
         n_macroparticles: int | float,
         hamilton_to_density_kwargs: dict[str, Any],
-        hamilton_to_density_function: Callable = hamilton_to_density_by_max,
+        hamilton_to_density_function: Callable[
+            ..., NumpyArray
+        ] = hamilton_to_density_by_max,
         internal_grid_shape: tuple[int, int] = (1023, 1023),
         seed: int | None = 0,
-        tolerance: float = 1e-6,
+        tolerance_potential_well: float = 1e-6,
         maxiter_intensity_effects=1000,
         increment_intensity_effects_until_iteration_i: int = 0,
         animate: bool = False,
         verbose: bool = True,
+        debug=False,
+        until_section_index: int = -1,
     ) -> None:
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
@@ -316,13 +254,18 @@ class SemiEmpiricMatcher(MatchingRoutine):
         assert callable(hamilton_to_density_function)
         self.hamilton_to_density_function = hamilton_to_density_function
         self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
+        self.until_section_index = until_section_index
         self.animate = animate
-        self.tolerance = tolerance
+        self.tolerance_potential_well = tolerance_potential_well
         self.verbose = verbose
 
         # For error calculation and plotting during `prepare_beam`
         self._last_potential_well: NumpyArray | CupyArray | None = None
         self._prelast_potential_well: NumpyArray | CupyArray | None = None
+        self.debug_helper: DebuggingEndpoints | None = None
+
+        if debug:
+            self.debug_helper = DebuggingEndpoints()
 
     def prepare_beam(
         self,
@@ -338,6 +281,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         beam
             Simulation beam object
         """
+
         super().prepare_beam(
             simulation=simulation,
             beam=beam,
@@ -360,7 +304,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
         # Get decimal places from the tolerance (e.g., 1e-6 → 6)
         tolerance_decimal_places = abs(
-            int(math.floor(math.log10(self.tolerance)))
+            int(math.floor(math.log10(self.tolerance_potential_well)))
         )
         if self.animate:
             plt.figure("SemiEmpiricMatcher")
@@ -373,6 +317,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             simulation.intensity_effect_manager.set_wakefields(active=True)
             for i_intensity in range(self.maxiter_intensity_effects):
                 sim_tmp = deepcopy(simulation)  # prevent side effects
+
                 # Change the strength of intensity effects to allow
                 # convergence to a stable solution (if there is any?)
                 if (
@@ -394,23 +339,25 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 # this might get changed by the simulation
                 beam_reference_time = beam.reference.time
                 beam_reference_total_energy = beam.reference.total_energy
-                turn_i = sim_tmp.turn_i.value
-                section_i = sim_tmp.section_i.value
+                turn_i_org = int(simulation.turn_i.value)
+                section_i_org = int(simulation.section_i.value)
 
                 sim_tmp.run_simulation(
                     beams=(beam,),
                     n_turns=1,
+                    until_section_index=self.until_section_index,
                     show_progressbar=False,
+                    verbose=False,
                 )
+
                 # reset to original value before simulation
                 beam.reference.time = beam_reference_time
                 beam.reference.total_energy = beam_reference_total_energy
-                sim_tmp.turn_i.value = turn_i
-                sim_tmp.section_i.value = section_i
+                sim_tmp.turn_i.value = turn_i_org
+                sim_tmp.section_i.value = section_i_org
 
                 # Prevent the profiles from updating.
                 sim_tmp.intensity_effect_manager.set_profiles(active=False)
-
                 # This is intended as override, so that the line density
                 # inside `_match_beam` experiences the forces from the
                 # previously run with the full beam
@@ -445,7 +392,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                             f" | Error: {error:.{tolerance_decimal_places}f}"
                         )
                     if (
-                        error < self.tolerance
+                        error < self.tolerance_potential_well
                         and i_intensity
                         > self.increment_intensity_effects_until_iteration_i
                     ):
@@ -479,6 +426,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
+        assert simulation.turn_i.value == 0
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
                 dt=np.linspace(
@@ -488,6 +436,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 ),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
+                until_section_index=self.until_section_index,
             )
         )
         potential_well = (
@@ -517,6 +466,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
             hamilton_2D=hamilton_2D,
             **self.hamilton_to_density_kwargs,
         )  # type: ignore
+
+        if self.debug_helper is not None:
+            self.debug_helper.last_potential_well = avg_pot_well
+            self.debug_helper.last_density = density
+            self.debug_helper.last_hamilton_2D = hamilton_2D
 
         populate_beam(
             beam=beam,

@@ -28,7 +28,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from matplotlib.lines import Line2D
     from numpy.typing import NDArray
 
     NumpyArray = NDArray[Any]
@@ -105,7 +104,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         assert self._hist_y is not None
         self.invalidate_cache()
 
-    def plot(self, **kwargs_plot: dict[str, Any]) -> list[Line2D]:
+    def plot(self, **kwargs_plot: dict[str, Any]) -> list[Any]:
         """
         Plot the current histogram.
 
@@ -427,7 +426,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
         no_array_buffer = n_fft not in self._beam_spectrum_buffer
         if no_array_buffer:
-            self._beam_spectrum_buffer[n_fft] = np.fft.rfft(
+            self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
                 self._hist_y,  # type: ignore
                 n_fft,
             )

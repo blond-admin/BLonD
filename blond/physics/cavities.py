@@ -121,9 +121,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             )
 
 
-class RFStationBaseClass(
-    RFManipulationBaseClass, Schedulable, AltersReference, ABC
-):
+class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     """
     Base class to implement beam-rf interactions in synchrotrons.
 
@@ -148,21 +146,6 @@ class RFStationBaseClass(
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
-
-    Attributes
-    ----------
-    omega_rf_design
-        Design angular frequency relating to the harmonic numbers, in [rad/s].
-    delta_omega_rf
-        Correction term to omega_rf_design, used by feedbacks, in [rad/s].
-    phi_rf_design
-        Design angular phase, in [rad].
-    delta_phi_rf
-        Correction term for phi_rf_design, used by feedbacks, in [rad].
-    voltage
-        Voltage/s, in [V].
-    harmonic
-        Harmonic number, relating the rf frequency/ies to the revolution frequency.
     """
 
     def __init__(
@@ -211,10 +194,16 @@ class RFStationBaseClass(
         self._ring: Ring | None = None
 
         self.omega_rf_design: NumpyArray | float | None = None
+        """Design angular frequency relating to the harmonic numbers, in [rad/s]."""
+
         self.delta_omega_rf: NumpyArray | float | None = None
+        """Correction term to omega_rf_design, used by feedbacks, in [rad/s]."""
 
         self.phi_rf_design: NumpyArray | float | None = None
+        """Design angular phase, in [rad]."""
+
         self.delta_phi_rf: NumpyArray | float | None = None
+        """Correction term for phi_rf_design, used by feedbacks, in [rad]."""
 
         # `_dphi_rf_next` is used to apply
         # the phase shift that was caused in
@@ -223,7 +212,9 @@ class RFStationBaseClass(
         self._dphi_rf_next: NumpyArray | float | None = None
 
         self.voltage: NumpyArray | float | None = None
+        """Voltage/s, in [V]."""
         self.harmonic: NumpyArray | float | None = None
+        """Harmonic number, relating the rf frequency/ies to the revolution frequency."""
 
     @property
     def any_feedback_not_none(self) -> bool:
@@ -474,7 +465,7 @@ class RFStationBaseClass(
             * voltage_correction_factors
             * np.sin(omega_rf * ts + phi_rf + phase_offsets)
         )
-        return gap_voltage
+        return backend.array(gap_voltage, backend.float)
 
     def calc_main_harmonic_t_rf(
         self, beam_beta: float, ring_circumference: float
@@ -884,15 +875,6 @@ class SingleHarmonicRFStation(
         Additional keyword arguments for method
         resolution order of inheriting elements.
 
-    Attributes
-    ----------
-    voltage
-        RF station's effective voltage, in [V].
-    phi_rf_design
-        RF station's design phase, in [rad].
-    harmonic
-        RF station's design harmonic [].
-
     Examples
     --------
     Parameters can be scheduled along the simulation execution
@@ -1039,7 +1021,7 @@ class SingleHarmonicRFStation(
                     dE=beam.write_partial_dE(),
                     voltage=backend.array(gap_voltage, dtype=backend.float),
                     bin_centers=self.cavity_feedback_list[0].profile.hist_x,
-                    charge=beam.particle_type.charge,
+                    charge=beam.signed_charge_with_direction(),
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
             else:
@@ -1049,7 +1031,7 @@ class SingleHarmonicRFStation(
                     voltage=self.voltage,
                     phi_rf=self.phi_rf,
                     omega_rf=self.omega_rf,
-                    charge=beam.particle_type.charge,
+                    charge=beam.signed_charge_with_direction(),
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
 
@@ -1194,15 +1176,6 @@ class MultiHarmonicRFStation(RFStationBaseClass):
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
-
-    Attributes
-    ----------
-    voltage
-        RF station's effective voltages (per harmonic) in [V].
-    phi_rf_design
-        RF station's design phases (per harmonic) in [rad].
-    harmonic
-        RF station's design harmonics (per harmonic) [].
 
     Examples
     --------
@@ -1411,7 +1384,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                     dE=beam.write_partial_dE(),
                     voltage=backend.array(gap_voltage, dtype=backend.float),
                     bin_centers=self.cavity_feedback_list[0].profile.hist_x,
-                    charge=beam.particle_type.charge,
+                    charge=beam.signed_charge_with_direction(),
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
             else:
@@ -1421,7 +1394,7 @@ class MultiHarmonicRFStation(RFStationBaseClass):
                     voltage=backend.array(self.voltage, dtype=backend.float),
                     phi_rf=backend.array(self.phi_rf, dtype=backend.float),
                     omega_rf=backend.array(self.omega_rf, dtype=backend.float),
-                    charge=beam.particle_type.charge,
+                    charge=beam.signed_charge_with_direction(),
                     n_rf=self.n_rf,
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )

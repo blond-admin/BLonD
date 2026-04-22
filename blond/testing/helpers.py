@@ -13,6 +13,10 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+import numpy as np
+
+from blond import Cupy64Bit, Numpy64Bit, backend
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
@@ -68,3 +72,49 @@ def pytest_active():
         return False
     else:
         return bool(testing)
+
+
+def allclose_tolerances(
+    expected: NumpyArray,
+    rtol_32bit: float = 1e-6,
+) -> dict[str, float]:
+    """
+    Generate keyword-arguments for the tolerances of `np.testing.assert_allclose`.
+
+    Parameters
+    ----------
+    expected
+        Expected array of `np.testing.assert_allclose`.
+    rtol_32bit
+        Relative tolerance for 32 bit backend.
+        The 64-bit tolerance is double, e.g. `1e-6` and `1e-12`.
+
+    Returns
+    -------
+    kwargs
+        The `rtol` and `atol` keyword arguments.
+
+    Examples
+    --------
+    >>> np.testing.assert_allclose(
+    ...     actual,
+    ...     expected,
+    ...     **allclose_tolerances(expected),
+    ... )
+    """
+    amplitude = float(np.max(expected) - np.min(expected))
+    rtol = rtol_32bit if backend.float == np.float32 else (rtol_32bit**2)
+    kwargs = {
+        "rtol": 0,  # intentional 0, it makes problems at arrays that cross 0.
+        "atol": amplitude * rtol,
+    }
+    return kwargs
+
+
+def enforce_64_bit_backend():
+    """Enforce 64-bit backend, GPU is taken into account."""
+    if backend.float == np.float32:
+        if backend.is_gpu:
+            backend.change_backend(Cupy64Bit)
+        else:
+            backend.change_backend(Numpy64Bit)

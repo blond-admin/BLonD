@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 
 from blond import Beam, make_multibunch_beam, uranium_29
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 
 class TestCallables(unittest.TestCase):

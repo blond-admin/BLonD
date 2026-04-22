@@ -23,7 +23,9 @@ Simon Lauber
 
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
+from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -33,9 +35,11 @@ from scipy.interpolate import interp1d
 
 from blond.acc_math.analytic import conversions
 from blond.acc_math.analytic.simple_math import calc_total_energy
-from blond.core.base import HasPropertyCache
+from blond.core.base import AltersReference, HasPropertyCache
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType, proton
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.core.ring.helpers import requires
 from blond.cycles.base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -1002,10 +1006,16 @@ class MagneticCycleByTime(MagneticCycleBase):
             base_magnetic_rigidity[:],
             **kwargs,
         )
+        self._t_max = base_time.max()
         self._base_values = base_values[:]  # only for debugging
         self._in_unit = in_unit  # only for debugging
         self._bending_radius = bending_radius  # only for debugging
 
+    @requires(
+        [
+            "AltersReference",  # required for pre-tracking in `_calc_n_turns_max`
+        ]
+    )
     def on_init_simulation(
         self,
         simulation: Simulation,
@@ -1026,6 +1036,63 @@ class MagneticCycleByTime(MagneticCycleBase):
             n_turns_max=None,
             **kwargs,
         )
+        try:
+            self._calc_n_turns_max(simulation)
+        except Exception as exc:  # Allow mocking and testing, `headless()`.
+            warnings.warn(
+                f"Failed to calculate `n_turns_max` with exception {str(exc)}.",
+                RuntimeWarning,
+                stacklevel=1,
+            )
+
+    def _calc_n_turns_max(self, simulation: Simulation):
+        """
+        Derive the maximum number of turns.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        """
+        sim_tmp = deepcopy(simulation)
+
+        particle_type = sim_tmp.magnetic_cycle.reference_particle
+        reference = ReferenceCoordinates(
+            time=0,
+            total_energy=sim_tmp.magnetic_cycle.get_total_energy_init(
+                particle_type=particle_type
+            ),
+            particle_type=particle_type,
+        )
+
+        elements = tuple(
+            e
+            for e in sim_tmp.ring.elements.elements
+            if isinstance(e, AltersReference)
+        )
+
+        n_turns = 0
+        failed_within_turn = False
+        while reference.time < self._t_max:
+            for e in elements:
+                try:
+                    e.track_reference(reference=reference)
+                except Exception as exc:  # we cant know a priori what the interpolation algorithm might fail with.
+                    warnings.warn(
+                        f"Calculation of maximum number"
+                        f" of turns triggered an exception:\n{exc}",
+                        UserWarning,
+                        stacklevel=1,
+                    )
+                    failed_within_turn = True
+                    break
+            if failed_within_turn:
+                break
+
+            n_turns += 1
+
+        assert n_turns > 0, f"{n_turns=}"
+        self._n_turns_max = n_turns
 
     def get_target_total_energy(
         self,
