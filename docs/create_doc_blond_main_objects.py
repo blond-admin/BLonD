@@ -39,6 +39,7 @@ ASSIGNED_CATEGORIES = {
     "WakeField": Categories.LATTICE.value,
     "StaticProfile": Categories.LATTICE.value,
     "DynamicProfileConstNBins": Categories.LATTICE.value,
+    "EquidistantMultiProfile": Categories.LATTICE.value,
     # Wakes
     "InductiveImpedance": Categories.WAKE.value,
     "PeriodicFreqSolver": Categories.WAKE.value,
