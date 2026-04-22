@@ -421,7 +421,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             return self._parent_rf_station.phi_rf[self.harmonic_index]
 
     cached_props = (
-        "t_rf_actual",
+        "t_rf",
         "omega_carrier",
         "sampling_time",
         "residual_phase_from_last_turn",
@@ -435,7 +435,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
         Returns
         -------
-        t_rf_actual
+        t_rf
             Actual RF period of the parent cavity at harmonic_index.
         """
         return 1 / (self.omega_rf / (2 * np.pi))
@@ -557,6 +557,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.forward_tracking_omega_rf: float | None = None
         self.forward_tracking_time: float | None = None
         self.tracked_forward_until_element: AltersReference | None = None
+        self.last_forward_tracking_freq: float | None = None
+        self.residual_taps_last_rf_centers_calculation: int = 0
 
         self.reverse_tracking_time_array: NumpyArray | None = None
         self.reverse_tracking_omega_list: NumpyArray | None = None
@@ -637,7 +639,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         found = False
         for el_ind, element in enumerate(
             self.reference_altering_elements[
-                self.own_index_in_reference_list :
+                self.own_index_in_reference_list + 1 :
+                # TODO: this was appearently altered, beam is now tracked before the feedback, adjustments for beam feedback might be necessary
                 # beam is tracked after the feedback, therefore we have to track the current element
                 # the schedules are applied correctly though as this is done in the RFCavityBaseClass._track, which was already called
             ]
@@ -646,7 +649,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 found = True
                 next_reference_altering_element_index = (
                     el_ind
-                    + self.own_index_in_reference_list  # This will be the next element
+                    + self.own_index_in_reference_list
+                    + 1  # This will be the next element
                 )
                 self.reference_turn_offset = -1
                 break
@@ -655,30 +659,34 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             element.track_reference(dummy_reference)
 
         if not found:
-            for el_ind, element in enumerate(
-                self.reference_altering_elements[
-                    : self.own_index_in_reference_list
-                ]
-            ):  # iterate through initial next turn
-                element: AltersReference
+            if self.own_index_in_reference_list != 0:
+                for el_ind, element in enumerate(
+                    self.reference_altering_elements[
+                        : self.own_index_in_reference_list
+                    ]
+                ):  # iterate through initial next turn
+                    element: AltersReference
 
-                if not isinstance(element, RFStationBaseClass):
-                    element.track_reference(dummy_reference)
-                else:
-                    next_reference_altering_element_index = (
-                        el_ind
-                        + len(
-                            self.reference_altering_elements
-                        )  # This will be the next element
-                    )
-                    self.reference_turn_offset = 0
-                    break
+                    if not isinstance(element, RFStationBaseClass):
+                        element.track_reference(dummy_reference)
+                    else:
+                        next_reference_altering_element_index = (
+                            el_ind
+                            + len(
+                                self.reference_altering_elements
+                            )  # This will be the next element
+                        )
+                        self.reference_turn_offset = 0
+                        break
+            else:
+                next_reference_altering_element_index = -1
+
         self.forward_tracking_time = dummy_reference.time - start_time
-        self.forward_tracking_omega_rf = (
-            self._parent_rf_station.calc_omega_rf_design(
-                dummy_reference.beta, self.ring.circumference
-            )  # TODO: this should probably be omega_rf as here we have the correct one, but this will cause a discrepancy elsewhere
-        )
+        self.forward_tracking_omega_rf = self.omega_rf  # (
+        #     self._parent_rf_station.calc_omega_rf_design(
+        #         dummy_reference.beta, self.ring.circumference
+        #     )  # TODO: this should probably be omega_rf as here we have the correct one, but this will cause a discrepancy elsewhere
+        # ) + self._parent_rf_station.delta_omega_rf  # TODO: assume same delta as current
         self.tracked_forward_until_element = (
             self.reference_altering_elements[
                 next_reference_altering_element_index
@@ -698,7 +706,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 # either none were found or it is around two turns
                 self.current_slice_elements_forward = (
                     self.reference_altering_elements[
-                        self.own_index_in_reference_list :
+                        self.own_index_in_reference_list + 1 :
                     ]
                 )
                 self.current_slice_elements_forward += (
@@ -708,9 +716,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     ]
                 )
             else:  # element is in the same turn
-                self.current_slice_elements_forward = self.reference_altering_elements[
-                    self.own_index_in_reference_list : next_reference_altering_element_index
-                ]
+                self.current_slice_elements_forward = (
+                    self.reference_altering_elements[
+                        self.own_index_in_reference_list
+                        + 1 : next_reference_altering_element_index
+                    ]
+                )
 
     def get_time_omega_array_reverse_direction(self, beam: BeamBaseClass):
         """
@@ -873,18 +884,24 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 t_rf * self.n_rf_periods_per_coarse_grid
             )
 
+        # TODO: first center is on wrong location --> must be corrected for with correct frequency (partial from last turn, partial from current turn
+
         step_width_rf_centers = t_rf * self.n_rf_periods_per_coarse_grid
+        # if self.residual_taps_last_rf_centers_calculation != 0 and self.n_rf_periods_per_coarse_grid != 1:
+        #     # while time_to_next_falling_edge_zero + self.residual_time_last_rf_centers_calculation < step_width_rf_centers:
+        #     time_to_next_falling_edge_zero += t_rf * (self.n_rf_periods_per_coarse_grid - int(self.residual_taps_last_rf_centers_calculation) - 1)
         rf_centers = np.arange(
-            time_to_next_falling_edge_zero
-            if self.residual_time_last_rf_centers_calculation == 0
-            else -self.residual_time_last_rf_centers_calculation,
+            time_to_next_falling_edge_zero,
+            # if self.residual_time_last_rf_centers_calculation == 0
+            # else -self.residual_time_last_rf_centers_calculation,
+            # TODO: if this is created and then removed anywat, this does not matter, removes need for decentering of first element
             until_time,
             step=step_width_rf_centers,
         )
 
         # This element was already done in the last iteration
-        if self.residual_time_last_rf_centers_calculation != 0:
-            rf_centers = rf_centers[1:]
+        # if self.residual_time_last_rf_centers_calculation != 0:
+        #     rf_centers = rf_centers[1:]
 
         if len(rf_centers) == 0:
             warnings.warn(
@@ -897,6 +914,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.residual_time_last_rf_centers_calculation = (
             until_time - rf_centers[-1]
         )
+        self.residual_taps_last_rf_centers_calculation = (
+            self.residual_time_last_rf_centers_calculation / t_rf
+        )
+        self.last_forward_tracking_freq = self.omega_rf
         return rf_centers
 
     def calculate_rf_centers_for_forward_direction(
@@ -914,8 +935,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.rf_centers = np.append(
             self.rf_centers,
             self._generate_rf_centers(
-                t_rf=(2 * np.pi / self.forward_tracking_omega_rf),
-                omega_rf=self.forward_tracking_omega_rf,
+                t_rf=(2 * np.pi / self.omega_rf),
+                omega_rf=self.omega_rf,
                 phi_rf=self.phi_rf,
                 until_time=self.forward_tracking_time,
             ),

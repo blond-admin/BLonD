@@ -117,6 +117,15 @@ class TestIQCavityFeedbackTimingClass:
         (1, 0, 2),
         (1, 0.13, 2),
         (1, -0.13, 2),
+        (0, 0, 3),
+        (0, 0.13, 3),
+        (0, -0.13, 3),
+        (-1, 0, 3),
+        (-1, 0.13, 3),
+        (-1, -0.13, 3),
+        (1, 0, 3),
+        (1, 0.13, 3),
+        (1, -0.13, 3),
     ]
 
     @pytest.mark.backend_mutation
@@ -462,16 +471,16 @@ class TestIQCavityFeedbackTimingClass:
             rf_centers_list = []
             for fdbk in timing_fdbk_list:
                 fdbk: IQCavityFeedbackTimingClass
-                if (
-                    fdbk._parent_rf_station
-                    not in fdbk.current_slice_elements_forward
-                ):
+                # if (
+                #     fdbk._parent_rf_station
+                #     not in fdbk.current_slice_elements_forward
+                # ):
+                #     pytest.fail(
+                #         f"parent rf station not in current_slice element list in turn {simulation.turn_i.value} section {fdbk.section_index}"
+                #     )
+                if len(fdbk.current_slice_elements_forward) != 2:
                     pytest.fail(
-                        f"parent rf station not in current_slice element list in turn {simulation.turn_i.value} section {fdbk.section_index}"
-                    )
-                if len(fdbk.current_slice_elements_forward) != 3:
-                    pytest.fail(
-                        f"{len(fdbk.current_slice_elements_forward)} != 3 in turn {simulation.turn_i.value} section {fdbk.section_index}"
+                        f"{len(fdbk.current_slice_elements_forward)} != 2 in turn {simulation.turn_i.value} section {fdbk.section_index}"
                     )
                 time_passed_list.append(fdbk.forward_tracking_time)
                 omega_list.append(fdbk.forward_tracking_omega_rf)
@@ -484,10 +493,12 @@ class TestIQCavityFeedbackTimingClass:
                 assert (
                     fdbk.tracked_forward_until_element
                     is fdbk.reference_altering_elements[
-                        (fdbk.own_index_in_reference_list + 3)
+                        (
+                            fdbk.own_index_in_reference_list + 3
+                        )  # first element is skipped, since its the cavity itself
                         % len(fdbk.reference_altering_elements)
                     ]
-                )  # 3 elements between two cavities
+                )  # 2 elements between two cavities
 
             np.testing.assert_allclose(
                 time_passed_list, time_passed_list[0]
@@ -606,7 +617,7 @@ class TestIQCavityFeedbackTimingClass:
         )
 
     @pytest.mark.backend_mutation
-    @pytest.mark.parametrize("n_sections", [4])  # [1, 4, 20]
+    @pytest.mark.parametrize("n_sections", [1, 4, 20])  #
     def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse(
         self, n_sections: int
     ):
