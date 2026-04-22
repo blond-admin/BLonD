@@ -702,6 +702,16 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
             folder=callers_relative_path("results/", stacklevel=1),
         )
 
+    def test_init_sort_profiles_by_section_false(self) -> None:
+        obs = StaticMultiProfileObservation(
+            each_turn_i=1,
+            profiles=[self.profile_2, self.profile],
+            folder=callers_relative_path("results/", stacklevel=1),
+            sort_profiles_by_section=False,
+        )
+        assert obs._profiles[0] is self.profile_2
+        assert obs._profiles[1] is self.profile
+
     def test__error_throwing_wrong_length(self) -> None:
         wrong_profile = deepcopy(self.profile_2)
         wrong_profile.n_bins += 1
