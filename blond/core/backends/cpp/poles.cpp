@@ -95,7 +95,7 @@ extern "C" void apply_poles(
                 cr_pole_flip = -1;
             }
         }
-        const pole_n = 2 * pole_i;
+        const int pole_n = 2 * pole_i;
         const real_t pole_re = poles[pole_n];
         const real_t pole_im = poles[pole_n + 1];
         const real_t res_re = residues[pole_n];

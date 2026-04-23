@@ -31,6 +31,7 @@ cpp_files = [
     "drift_exact.cpp",
     # "music_track.cpp",
     # "blondmath.cpp",
+    "blondmath_new.cpp",
     # "fast_resonator.cpp",
     "histogram_sparse.cpp",
     "beam_phase.cpp",
