@@ -61,6 +61,8 @@ extern "C" void apply_poles(
     const real_t *__restrict__ profile_dts,
     const real_t *__restrict__ poles,
     const real_t *__restrict__ residues,
+    const bool beam_counter_rotation_flag,
+    const real_t *__restrict__ cr_pole_flip_flags,
     real_t *__restrict__ states,
     real_t *__restrict__ voltage,
     real_t *__restrict__ voltage_threaded,
@@ -87,6 +89,13 @@ extern "C" void apply_poles(
     for (int pole_i = 0; pole_i < n_poles; pole_i++) {
         const int thread_i = omp_get_thread_num();
 
+        real_t cr_pole_flip = 1;
+        if (beam_counter_rotation_flag) {
+            if (cr_pole_flip_flags[pole_i] == -1) {
+                cr_pole_flip = -1;
+            }
+        }
+
         const real_t pole_re = poles[2 * pole_i];
         const real_t pole_im = poles[2 * pole_i + 1];
         const real_t res_re = residues[2 * pole_i];
@@ -102,7 +111,6 @@ extern "C" void apply_poles(
         real_t *__restrict__ vt = voltage_threaded + (size_t)thread_i * n_bins;
 
         for (int bin_i = 0; bin_i < n_bins; bin_i++) {
-            const real_t profile_i_ = real_t(0.5) * profile[bin_i];
 
             if (bin_i == update_on_bin_i) {
                 // Compute t_jump (real scalar)
@@ -138,15 +146,17 @@ extern "C" void apply_poles(
                 state_im = new_im;
             }
 
-            // state += profile_i_ (real part only, imag part is zero)
-            state_re += profile_i_;
+            const real_t profile_i_half = real_t(0.5) * profile[bin_i];
+
+            // real part only, imag part is zero
+            state_re += cr_pole_flip * profile_i_half * two_factor;
 
             // amp = Re(residue * state)
             const real_t amp = res_re * state_re - res_im * state_im;
-            vt[bin_i] += two_factor * amp;
+            vt[bin_i] += cr_pole_flip * amp;
 
-            // state += profile_i_ (second half of trapezoidal rule)
-            state_re += profile_i_;
+            // second half of trapezoidal rule
+            state_re += cr_pole_flip * profile_i_half * two_factor;
         }
 
         // Store state back
