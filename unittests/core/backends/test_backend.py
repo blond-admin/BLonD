@@ -1249,6 +1249,164 @@ class TestSpecials(unittest.TestCase):
                 )
                 self.assertTrue(backend_result.dtype == dtype)
 
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue(self) -> None:
+        """Cross-backend parity for `wake_from_pole_residue` voltage output.
+
+        Scoped to float64: numba's kernel signature is hard-coded to
+        ``complex128``, and the real caller in ``solvers.py`` always
+        allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
+        ``float64`` the only precision all backends consistently accept.
+        """
+        import numba as _nb
+
+        n_bins = 64
+        n_poles = 3
+        dt_val = 1e-9
+
+        # Reference inputs; each backend builds its own arrays from these.
+        profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
+        profile_dts_np = np.linspace(0, n_bins * dt_val, n_bins + 1)
+        # Stable poles (Re < 0); decay magnitude per bin exp(Re*dt) in (0, 1).
+        poles_np = np.array(
+            [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j],
+            dtype=np.complex128,
+        )
+        residues_np = np.array(
+            [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j],
+            dtype=np.complex128,
+        )
+        update_on_bin_np = np.array([0], dtype=np.int32)
+
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            profile = backend.array(profile_np, dtype=backend.float)
+            profile_dts = backend.array(profile_dts_np, dtype=backend.float)
+            poles = backend.array(poles_np, dtype=np.complex128)
+            residues = backend.array(residues_np, dtype=np.complex128)
+            cr_flags = backend.ones(n_poles, dtype=backend.float)
+            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            voltage = backend.zeros(n_bins, dtype=backend.float)
+            voltage_threaded = backend.zeros(
+                (_nb.get_num_threads(), n_bins), dtype=backend.float
+            )
+            update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
+
+            # Positional args: backends disagree on kwarg names
+            # (cpp: is_counterrotating_beam / counterrotating_pole_signs;
+            # numba/python/cuda: beam_counter_rotation_flag /
+            # cr_pole_flip_flags). The parameter *order* is consistent.
+            backend.specials.wake_from_pole_residue(
+                profile,
+                profile_dts,
+                poles,
+                residues,
+                False,
+                cr_flags,
+                states,
+                voltage,
+                voltage_threaded,
+                update_on_bin,
+                backend.float(1.0),
+            )
+
+            result = np.asarray(copy_to_cpu(voltage))
+
+            if i == 0:
+                result_reference = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_reference,
+                    rtol=1e-10,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_cr_flip_invariance(self) -> None:
+        """Voltage is invariant under ``cr_pole_flip`` sign flips.
+
+        For a flipped pole the internal state picks up an overall ``-1``
+        by induction, but the output voltage multiplies the state by that
+        same ``cr_flip`` — the two sign flips cancel in ``Re(res * state)``.
+        Starting from zero state, the per-backend voltage must therefore
+        be identical with and without flipped poles.
+        """
+        import numba as _nb
+
+        n_bins = 64
+        n_poles = 3
+        dt_val = 1e-9
+
+        profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
+        profile_dts_np = np.linspace(0, n_bins * dt_val, n_bins + 1)
+        poles_np = np.array(
+            [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j],
+            dtype=np.complex128,
+        )
+        residues_np = np.array(
+            [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j],
+            dtype=np.complex128,
+        )
+        update_on_bin_np = np.array([0], dtype=np.int32)
+        flipped_signs_np = np.array([1.0, -1.0, 1.0])
+
+        def _run(flag: bool, flags_np: np.ndarray) -> np.ndarray:
+            profile = backend.array(profile_np, dtype=backend.float)
+            profile_dts = backend.array(profile_dts_np, dtype=backend.float)
+            poles = backend.array(poles_np, dtype=np.complex128)
+            residues = backend.array(residues_np, dtype=np.complex128)
+            cr_flags = backend.array(flags_np, dtype=backend.float)
+            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            voltage = backend.zeros(n_bins, dtype=backend.float)
+            voltage_threaded = backend.zeros(
+                (_nb.get_num_threads(), n_bins), dtype=backend.float
+            )
+            update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
+
+            # Positional args: see note in `test_wake_from_pole_residue`.
+            backend.specials.wake_from_pole_residue(
+                profile,
+                profile_dts,
+                poles,
+                residues,
+                flag,
+                cr_flags,
+                states,
+                voltage,
+                voltage_threaded,
+                update_on_bin,
+                backend.float(1.0),
+            )
+            return np.asarray(copy_to_cpu(voltage)).copy()
+
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            voltage_baseline = _run(flag=False, flags_np=np.ones(n_poles))
+            voltage_flipped = _run(flag=True, flags_np=flipped_signs_np)
+
+            np.testing.assert_allclose(
+                voltage_flipped,
+                voltage_baseline,
+                rtol=1e-10,
+                err_msg=(
+                    "cr_pole_flip must leave voltage invariant "
+                    f"(`{special}` with {dtype})"
+                ),
+            )
+
     @multi_backend_testcase
     @pytest.mark.backend_mutation
     def test_cast_exceptions(self):
