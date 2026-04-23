@@ -709,8 +709,8 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
             folder=callers_relative_path("results/", stacklevel=1),
             sort_profiles_by_section=False,
         )
-        assert obs._profiles[0] is self.profile_2
-        assert obs._profiles[1] is self.profile
+        self.assertIs(obs._profiles[0], self.profile_2)
+        self.assertIs(obs._profiles[1], self.profile)
 
     def test__error_throwing_wrong_length(self) -> None:
         wrong_profile = deepcopy(self.profile_2)

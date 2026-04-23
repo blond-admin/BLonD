@@ -3567,11 +3567,6 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
-    def test_on_wakefield_init_simulation_no_warn_when_expect_flags_already_true(
-        self,
-    ):
-        pass  # covered by TestPeriodicFreqSolverBranches below
-
 
 class TestPeriodicFreqSolverBranches(unittest.TestCase):
     def test_on_wakefield_init_simulation_no_warn_expect_already_true(self):
