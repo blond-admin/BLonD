@@ -720,9 +720,11 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 thread_i = numba.get_thread_id()
 
                 cr_pole_flip = 1.0
-                if beam_counter_rotation_flag:
-                    if cr_pole_flip_flags[pole_i] == -1:
-                        cr_pole_flip = -1.0
+                if (
+                    beam_counter_rotation_flag
+                    and cr_pole_flip_flags[pole_i] == -1
+                ):
+                    cr_pole_flip = -1.0
 
                 # y[n] = profile[n] + exp(p * dt) * y[n-1]
                 # V[n] = 2 * Re(r * y[n])

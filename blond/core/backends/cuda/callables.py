@@ -745,7 +745,8 @@ def reload_cuda_backend(  # NOQA: D102
 
             # One thread per pole. Each thread runs the full n_bins-long state
             # recurrence sequentially; there is no benefit from oversubscribing.
-            threads_per_block = 128 if n_poles >= 128 else 32
+            MAX_POLES = 128
+            threads_per_block = MAX_POLES if n_poles >= MAX_POLES else 32
             blocks_poles = (
                 n_poles + threads_per_block - 1
             ) // threads_per_block

@@ -569,9 +569,8 @@ class PythonSpecials(Specials):
 
         for pole_i in range(n_poles):
             cr_pole_flip = 1.0
-            if beam_counter_rotation_flag:
-                if cr_pole_flip_flags[pole_i] == -1:
-                    cr_pole_flip = -1.0
+            if beam_counter_rotation_flag and cr_pole_flip_flags[pole_i] == -1:
+                cr_pole_flip = -1.0
 
             i_update = 0
             update_on_bin_i = update_on_bin[i_update]
@@ -589,9 +588,7 @@ class PythonSpecials(Specials):
                         t_jump = profile_dts[0] - t_start + 0j
                     else:
                         t_jump = (
-                            profile_dts[bin_i]
-                            - profile_dts[bin_i - 1]
-                            + 0j
+                            profile_dts[bin_i] - profile_dts[bin_i - 1] + 0j
                         )
                     state *= np.exp(pole * t_jump)
                     dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
