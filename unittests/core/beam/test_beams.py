@@ -161,6 +161,14 @@ class TestBeam(unittest.TestCase):
         Beam.plot_scatter(beam)
         plt.gcf().clf()
 
+    def test_plot_scatter_with_explicit_ax(self) -> None:
+        beam = Mock(Beam)
+        beam._dE = DistributedArray(np.ones(10))
+        beam._dt = DistributedArray(np.ones(10))
+        fig, ax = plt.subplots()
+        Beam.plot_scatter(beam, ax=ax)
+        plt.close(fig)
+
     def test_plot_hist_raises(self) -> None:
         beam = Mock(Beam)
         beam._dE = None

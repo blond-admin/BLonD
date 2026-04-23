@@ -158,6 +158,15 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
                 + 1,
             )
 
+    def test_insert_at_last_position(self):
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 1
+        n = len(self.beam_physics_relevant_elements.elements)
+        self.beam_physics_relevant_elements.insert(
+            element=element, insert_at=n
+        )
+        assert self.beam_physics_relevant_elements.elements[-1] is element
+
     def test_count(self):
         assert (
             self.beam_physics_relevant_elements.count(
