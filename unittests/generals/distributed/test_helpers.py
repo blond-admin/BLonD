@@ -111,3 +111,14 @@ class TestCallablesNoMPI(unittest.TestCase):
 
             da = distributed_arange(12, dtype=np.int32)
             np.testing.assert_allclose(da.copy_as_numpy(), np.arange(0, 12))
+
+    def test_mpi_is_distributed_size_one(self):
+        from unittest.mock import MagicMock
+
+        mock_comm = MagicMock()
+        mock_comm.Get_size.return_value = 1
+        with patch(
+            "blond.generals.distributed.helpers.MPI_COMM_WORLD", mock_comm
+        ):
+            result = mpi_is_distributed()
+        self.assertFalse(result)

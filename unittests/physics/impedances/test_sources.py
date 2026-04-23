@@ -1,4 +1,5 @@
 import unittest
+import warnings
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -130,6 +131,27 @@ class TestImpedanceTableTime(unittest.TestCase):
                 copy_to_cpu(wake_impedance3) != copy_to_cpu(wake_impedance2)
             )
         )
+
+    def test_get_wake_impedance_within_bounds_no_warning(self):
+        impedance_table = ImpedanceTableTime.from_file(
+            filepath=callers_relative_path(
+                "resources/example_impedance_table.csv", stacklevel=1
+            ),
+            reader=CsvReader(delimiter=","),
+        )
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        # _wake_x is [1,2,3,4,5]; time within bounds triggers neither warning
+        time = backend.linspace(2, 4, 10)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            impedance_table.get_wake_impedance(
+                time=time, simulation=simulation, beam=beam, n_fft=len(time)
+            )
+        boundary_warnings = [
+            x for x in w if "outside boundaries" in str(x.message)
+        ]
+        self.assertEqual(len(boundary_warnings), 0)
 
     def test_hashing(self):
         simulation = Mock(Simulation)

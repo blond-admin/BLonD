@@ -8,6 +8,7 @@ from blond.acc_math.analytic.hamilton import (
     calc_synchrotron_tune_single_harmonic,
     phase_modulo_above_transition,
     phase_modulo_below_transition,
+    single_rf_sin_hamiltonian,
 )
 
 
@@ -95,6 +96,27 @@ class TestSynchrotronTune(unittest.TestCase):
             )
             == 0.00489862554460765
         )
+
+
+class TestSingleRfSinHamiltonian(unittest.TestCase):
+    def test_eta0_zero_skips_phase_modulo(self):
+        # When etas[0] == 0, neither phase_modulo branch is entered.
+        # Result should still be a finite number.
+        result = single_rf_sin_hamiltonian(
+            charge=1,
+            harmonic=1,
+            voltage=1e6,
+            omega_rf=2 * np.pi * 400e6,
+            phi_rf_d=0.0,
+            phi_s=0.0,
+            etas=[0.0],
+            beta=0.9,
+            total_energy=450e9,
+            ring_circumference=26659.0,
+            dt=0.0,
+            dE=0.0,
+        )
+        self.assertTrue(np.isfinite(result))
 
 
 if __name__ == "__main__":
