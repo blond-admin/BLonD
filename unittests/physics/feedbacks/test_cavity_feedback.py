@@ -881,6 +881,10 @@ class TestIQCavityFeedbackTimingClass:
                 if (
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
+                    assert (
+                        len(fdbk.rf_centers) == 20,
+                        f"failed in {simulation.turn_i.value} {idx} {len(fdbk.rf_centers)}",  # 15 from reverse and 5 from frwrd
+                    )
                     msk = fdbk.reverse_tracking_time_array != 0
                     used_time_array = np.array(
                         fdbk.reverse_tracking_time_array

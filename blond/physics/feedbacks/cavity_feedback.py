@@ -744,7 +744,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             start_index = 0
         time_list = []
         omega_list = []
-
+        start_time = self.reference_state_until_tracked.time
         found = False
         for element in self.reference_altering_elements[
             start_index:
@@ -814,7 +814,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         if len(time_list) > 1:
             self.reverse_tracking_time_array = np.append(
-                np.array(time_list[0]), np.diff(time_list)
+                np.array(time_list[0] - start_time), np.diff(time_list)
             )
             self.reverse_tracking_omega_list = np.array(omega_list)
         else:
