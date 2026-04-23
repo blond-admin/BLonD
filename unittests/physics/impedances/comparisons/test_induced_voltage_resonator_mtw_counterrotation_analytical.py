@@ -64,10 +64,10 @@ def nonperiodic_wake(time_array, f0, R, Q):
     return wake
 
 
-DEBUG_PLOTTING = True
+DEBUG_PLOTTING = False
 
 
-class InducedVoltageResonatorPhysicsCR(unittest.TestCase):
+class TestInducedVoltageResonatorPhysics(unittest.TestCase):
     def setUp(self):
         self.n_slices = 2**12
         self.cut_left = 0
@@ -296,11 +296,11 @@ class InducedVoltageResonatorPhysicsCR(unittest.TestCase):
                         ]
                     )
                     * 1e-12,
-                    rtol=1e99,  # problem with close to 0 values --> 1e-38 vs 1e-9
+                    rtol=0,  # problem with close to 0 values --> 1e-38 vs 1e-9
                 )
 
     @pytest.mark.backend_mutation
-    def test_blond3_mtw(self):
+    def test_blond3_mtw_no_counterrot(self):
         cav_obs_list, t_rev, profile = self.run_sim(
             counterrot=False, solver="Convolution"
         )
