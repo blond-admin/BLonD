@@ -101,6 +101,7 @@ def reload_cuda_backend(  # NOQA: D102
     _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
     _loss_box = gpu_module.get_function("loss_box")
     _histogram_sparse = gpu_module.get_function("histogram_sparse")
+    _apply_poles = gpu_module.get_function("apply_poles")
 
     default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
     default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -621,6 +622,153 @@ def reload_cuda_backend(  # NOQA: D102
                 ),
                 block=block_size,
                 grid=grid_size,
+            )
+
+        @staticmethod
+        def wake_from_pole_residue(
+            # read
+            profile: CupyArray,
+            profile_dts: CupyArray,
+            poles: CupyArray,
+            residues: CupyArray,
+            beam_counter_rotation_flag: bool,
+            cr_pole_flip_flags: CupyArray,
+            # write
+            states: CupyArray,
+            voltage: CupyArray,
+            voltage_threaded: CupyArray,
+            update_on_bin: CupyArray,
+            factor: float,
+        ) -> None:
+            """
+            Apply poles based on the `profile` to generate `voltage`.
+
+            Parameters
+            ----------
+            profile
+                Beam profile histogram.
+            profile_dts
+                Base for time step, connected to `update_on_bin`.
+            poles
+                Complex poles of an equivalent circuit.
+            residues
+                Complex residues of an equivalent circuit.
+            beam_counter_rotation_flag
+                If true, the current beam is counter-rotating.
+            cr_pole_flip_flags
+                Array per pole, -1 if the sign of the impedance is flipped
+                for a counter-rotating beam.
+            states
+                Complex state vector, length ``n_poles + 1``.
+                The last element stores ``t_start`` in its real part.
+            voltage
+                Output voltage, in [V].
+            voltage_threaded
+                Unused on the CUDA backend (kept for API parity with CPU
+                backends); pole contributions are reduced into `voltage`
+                directly via atomic adds.
+            update_on_bin
+                Index when to trigger an update of dt. For speedup.
+                E.g. For profile No.: ``0,0,0,1,1,1,1,2,2,2``
+                one needs ``update_on_bin = [0,3,7]``.
+            factor
+                To convert `profile` to current per bin [A].
+            """
+            assert profile.device != "cpu", (
+                f"Requires Cupy array, but got {type(profile)}."
+            )
+            assert profile_dts.device != "cpu", (
+                f"Requires Cupy array, but got {type(profile_dts)}."
+            )
+            assert poles.device != "cpu", (
+                f"Requires Cupy array, but got {type(poles)}."
+            )
+            assert residues.device != "cpu", (
+                f"Requires Cupy array, but got {type(residues)}."
+            )
+            assert cr_pole_flip_flags.device != "cpu", (
+                f"Requires Cupy array, but got {type(cr_pole_flip_flags)}."
+            )
+            assert states.device != "cpu", (
+                f"Requires Cupy array, but got {type(states)}."
+            )
+            assert voltage.device != "cpu", (
+                f"Requires Cupy array, but got {type(voltage)}."
+            )
+            assert update_on_bin.device != "cpu", (
+                f"Requires Cupy array, but got {type(update_on_bin)}."
+            )
+
+            complex_dtype = (
+                np.complex64 if floattype == np.float32 else np.complex128
+            )
+            assert profile.dtype == floattype
+            assert profile_dts.dtype == floattype
+            assert voltage.dtype == floattype
+            assert cr_pole_flip_flags.dtype == floattype
+            assert poles.dtype == complex_dtype
+            assert residues.dtype == complex_dtype
+            assert states.dtype == complex_dtype
+            assert update_on_bin.dtype == np.int32
+
+            assert profile.flags.c_contiguous
+            assert profile_dts.flags.c_contiguous
+            assert poles.flags.c_contiguous
+            assert residues.flags.c_contiguous
+            assert cr_pole_flip_flags.flags.c_contiguous
+            assert states.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert update_on_bin.flags.c_contiguous
+
+            n_bins = int(profile.shape[0])
+            n_poles = int(poles.shape[0])
+            n_updates = int(update_on_bin.shape[0])
+            n_profile_dts = int(profile_dts.shape[0])
+
+            # states has length n_poles + 1; last entry stores t_start.
+            assert states.shape[0] == n_poles + 1
+            assert residues.shape[0] == n_poles
+            assert cr_pole_flip_flags.shape[0] == n_poles
+            assert voltage.shape[0] == n_bins
+
+            # Output is reduced across poles via atomicAdd; must start at zero.
+            voltage.fill(0)
+
+            if n_poles == 0 or n_bins == 0:
+                return
+
+            # View complex arrays as interleaved real/imag float arrays without
+            # copying. A C-contiguous complex array maps 1:1 to 2*N reals.
+            poles_r = poles.view(floattype)
+            residues_r = residues.view(floattype)
+            states_r = states.view(floattype)
+
+            # One thread per pole. Each thread runs the full n_bins-long state
+            # recurrence sequentially; there is no benefit from oversubscribing.
+            threads_per_block = 128 if n_poles >= 128 else 32
+            blocks_poles = (
+                n_poles + threads_per_block - 1
+            ) // threads_per_block
+
+            _apply_poles(
+                args=(
+                    profile,
+                    profile_dts,
+                    poles_r,
+                    residues_r,
+                    np.int32(1 if beam_counter_rotation_flag else 0),
+                    cr_pole_flip_flags,
+                    states_r,
+                    voltage,
+                    update_on_bin,
+                    floattype(factor),
+                    np.int32(n_bins),
+                    np.int32(n_poles),
+                    np.int32(n_updates),
+                    np.int32(n_profile_dts),
+                ),
+                block=(threads_per_block, 1, 1),
+                grid=(blocks_poles, 1, 1),
             )
 
     return CudaSpecials

@@ -415,3 +415,120 @@ __global__ void histogram_sparse(
 
 
 }
+
+
+// Apply pole-residue (vector fitting) model to a beam profile to generate
+// induced voltage. Mirrors the CPU/OpenMP implementation in cpp/poles.cpp but
+// is parallelized one thread per pole. The per-pole state evolution is
+// sequential across bins; different poles are fully independent and contend
+// only on the output `voltage` buffer via atomicAdd.
+//
+// Complex arrays (poles, residues, states) are stored as interleaved real/imag:
+//   [re0, im0, re1, im1, ...]
+// The last complex element of `states` stores t_start in its real part.
+extern "C" __global__ void apply_poles(
+    const real_t * __restrict__ profile,
+    const real_t * __restrict__ profile_dts,
+    const real_t * __restrict__ poles,
+    const real_t * __restrict__ residues,
+    const int is_counterrotating_beam,
+    const real_t * __restrict__ cr_pole_signs,
+    real_t * __restrict__ states,
+    real_t * __restrict__ voltage,
+    const int * __restrict__ update_on_bin,
+    const real_t factor,
+    const int n_bins,
+    const int n_poles,
+    const int n_updates,
+    const int n_profile_dts)
+{
+    const int pole_i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pole_i >= n_poles) return;
+
+    const real_t two_factor = real_t(2) * factor;
+    const real_t t_start = states[2 * n_poles];
+
+    real_t cr_pole_flip = real_t(1);
+    if (is_counterrotating_beam && cr_pole_signs[pole_i] == real_t(-1)) {
+        cr_pole_flip = real_t(-1);
+    }
+
+    const int pole_n = 2 * pole_i;
+    const real_t pole_re = poles[pole_n];
+    const real_t pole_im = poles[pole_n + 1];
+    const real_t res_re  = residues[pole_n];
+    const real_t res_im  = residues[pole_n + 1];
+
+    real_t state_re = states[pole_n];
+    real_t state_im = states[pole_n + 1];
+
+    int i_update = 0;
+    int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
+
+    real_t decay_re = real_t(0);
+    real_t decay_im = real_t(0);
+
+    for (int bin_i = 0; bin_i < n_bins; ++bin_i) {
+        if (bin_i == update_on_bin_i) {
+            const real_t t_jump = (bin_i == 0)
+                ? (profile_dts[0] - t_start)
+                : (profile_dts[bin_i] - profile_dts[bin_i - 1]);
+
+            // state *= exp(pole * t_jump)
+            {
+                const real_t e_mag = exp(pole_re * t_jump);
+                const real_t c     = cos(pole_im * t_jump);
+                const real_t s     = sin(pole_im * t_jump);
+                const real_t e_re  = e_mag * c;
+                const real_t e_im  = e_mag * s;
+                const real_t nr    = state_re * e_re - state_im * e_im;
+                const real_t ni    = state_re * e_im + state_im * e_re;
+                state_re = nr;
+                state_im = ni;
+            }
+
+            // decay = exp(pole * dt)
+            const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
+            {
+                const real_t e_mag = exp(pole_re * dt);
+                const real_t c     = cos(pole_im * dt);
+                const real_t s     = sin(pole_im * dt);
+                decay_re = e_mag * c;
+                decay_im = e_mag * s;
+            }
+
+            ++i_update;
+            if (i_update < n_updates) {
+                update_on_bin_i = update_on_bin[i_update];
+            }
+        } else {
+            // state *= decay
+            const real_t nr = state_re * decay_re - state_im * decay_im;
+            const real_t ni = state_re * decay_im + state_im * decay_re;
+            state_re = nr;
+            state_im = ni;
+        }
+
+        const real_t half_step = cr_pole_flip * (real_t(0.5) * profile[bin_i]) * two_factor;
+
+        // First half of the trapezoidal rule.
+        state_re += half_step;
+
+        // amp = Re(residue * state)
+        const real_t amp = res_re * state_re - res_im * state_im;
+        atomicAdd(&voltage[bin_i], cr_pole_flip * amp);
+
+        // Second half of the trapezoidal rule.
+        state_re += half_step;
+    }
+
+    // Persist state for the next call.
+    states[pole_n]     = state_re;
+    states[pole_n + 1] = state_im;
+
+    // Only one thread writes t_start for the next call.
+    if (pole_i == 0) {
+        states[2 * n_poles]     = profile_dts[n_profile_dts - 1];
+        states[2 * n_poles + 1] = real_t(0);
+    }
+}
