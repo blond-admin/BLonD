@@ -509,3 +509,103 @@ class PythonSpecials(Specials):
                 ),
             )
             out[sel] = hist
+
+    @staticmethod
+    def wake_from_pole_residue(
+        # read
+        profile,
+        profile_dts,
+        poles,
+        residues,
+        beam_counter_rotation_flag,
+        cr_pole_flip_flags,
+        # write
+        states,
+        voltage,
+        voltage_threaded,
+        update_on_bin,
+        factor,
+    ) -> None:
+        """
+        Apply poles based on the `profile` to generate `voltage`.
+
+        Parameters
+        ----------
+        profile
+            Beam profile histogram.
+        profile_dts
+            Base for time step, connected to `update_on_bin`.
+        poles
+            Complex poles of an equivalent circuit.
+        residues
+            Complex residues of an equivalent circuit.
+        beam_counter_rotation_flag
+            If true, the current beam is counter-rotating.
+        cr_pole_flip_flags
+            Array per pole, -1 if the sign of the impedance is flipped
+            for a counter-rotating beam.
+        states
+            Complex state vector, initially ``(0 + 0j)``.
+        voltage
+            Output voltage, in [V].
+        voltage_threaded
+            Cached `voltage` array per thread. For speedup.
+        update_on_bin
+            Index when to trigger an update of dt. For speedup.
+            E.g. For profile No.: `0,0,0,1,1,1,1,2,2,2`
+            one needs `update_on_bin = [0,3,7]`.
+
+        factor
+            To convert `profile` to current per bin [A].
+        """
+        n_poles = len(poles)
+        two_factor = 2 * factor
+        n_bins = len(profile)
+
+        voltage[:] = 0
+        voltage_threaded[:, :] = 0
+
+        t_start = states[-1]
+
+        for pole_i in range(n_poles):
+            cr_pole_flip = 1.0
+            if beam_counter_rotation_flag:
+                if cr_pole_flip_flags[pole_i] == -1:
+                    cr_pole_flip = -1.0
+
+            i_update = 0
+            update_on_bin_i = update_on_bin[i_update]
+
+            pole = complex(poles[pole_i])
+            residue = complex(residues[pole_i])
+            state = complex(states[pole_i])
+
+            decay = 0.0 + 0j
+            for bin_i in range(n_bins):
+                profile_i_half = complex(0.5 * profile[bin_i])
+
+                if bin_i == update_on_bin_i:
+                    if bin_i == 0:
+                        t_jump = profile_dts[0] - t_start + 0j
+                    else:
+                        t_jump = (
+                            profile_dts[bin_i]
+                            - profile_dts[bin_i - 1]
+                            + 0j
+                        )
+                    state *= np.exp(pole * t_jump)
+                    dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
+                    decay = np.exp(pole * dt)
+
+                    i_update += 1
+                    if i_update < len(update_on_bin):
+                        update_on_bin_i = update_on_bin[i_update]
+                else:
+                    state *= decay
+                state += cr_pole_flip * profile_i_half
+                amp = float(np.real(residue * state))
+                voltage[bin_i] += cr_pole_flip * two_factor * amp
+                state += cr_pole_flip * profile_i_half
+            states[pole_i] = state
+
+        states[-1] = profile_dts[-1]

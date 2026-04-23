@@ -277,6 +277,62 @@ class Specials(ABC):
             ``bins_per_profile = 8``.
             Use `_gen_array_bucket_index_to_memory_index` to generate this.
         """
+        raise NotImplementedError(
+            "The backend for `histogram_sparse` is missing."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def wake_from_pole_residue(
+        # read
+        profile,
+        profile_dts,
+        poles,
+        residues,
+        beam_counter_rotation_flag,
+        cr_pole_flip_flags,
+        # write
+        states,
+        voltage,
+        voltage_threaded,
+        update_on_bin,
+        factor,
+    ) -> None:
+        """
+        Apply poles based on the `profile` to generate `voltage`.
+
+        Parameters
+        ----------
+        profile
+            Beam profile histogram.
+        profile_dts
+            Base for time step, connected to `update_on_bin`.
+        poles
+            Complex poles of an equivalent circuit.
+        residues
+            Complex residues of an equivalent circuit.
+        beam_counter_rotation_flag
+            If true, the current beam is counter-rotating.
+        cr_pole_flip_flags
+            Array per pole, -1 if the sign of the impedance is flipped
+            for a counter-rotating beam.
+        states
+            Complex state vector, initially ``(0 + 0j)``.
+        voltage
+            Output voltage, in [V].
+        voltage_threaded
+            Cached `voltage` array per thread. For speedup.
+        update_on_bin
+            Index when to trigger an update of dt. For speedup.
+            E.g. For profile No.: `0,0,0,1,1,1,1,2,2,2`
+            one needs `update_on_bin = [0,3,7]`.
+
+        factor
+            To convert `profile` to current per bin [A].
+        """
+        raise NotImplementedError(
+            "The backend for `wake_from_pole_residue` is missing."
+        )
 
 
 class _ModeSwitchHelper:
