@@ -9,7 +9,6 @@ from matplotlib import pyplot as plt
 from numba import complex128, float64
 from scipy.signal import fftconvolve
 
-import blond
 from blond import Numpy64Bit, backend
 from blond.handle_results.helpers import callers_relative_path
 
@@ -137,7 +136,7 @@ class TestPole(unittest.TestCase):
         voltage = np.zeros_like(hist_y, dtype=float)
         state = np.zeros(len(poles) + 1, dtype=complex)
         state[-1] -= dt
-        backend.specials.apply_poles2(
+        backend.specials.wake_from_pole_residue(
             profile=hist_y,
             profile_dts=centers,
             poles=poles,
@@ -163,7 +162,7 @@ class TestPole(unittest.TestCase):
         mask = np.ones(len(hist_y), bool)
         mask[sel] = False
         voltage_masked = voltage[mask]
-        backend.specials.apply_poles2(
+        backend.specials.wake_from_pole_residue(
             profile=hist_y[mask],
             profile_dts=centers[mask],
             poles=poles,
@@ -203,14 +202,14 @@ class TestPole(unittest.TestCase):
             ref,
             rtol=0.05,
             atol=atol,
-            err_msg="non-masked apply_poles2 must match fftconvolve reference",
+            err_msg="non-masked wake_from_pole_residue must match fftconvolve reference",
         )
         np.testing.assert_allclose(
             voltage[mask],
             ref[mask],
             rtol=0.05,
             atol=atol,
-            err_msg="masked apply_poles2 must match fftconvolve reference in unmasked region",
+            err_msg="masked wake_from_pole_residue must match fftconvolve reference in unmasked region",
         )
 
         DEV_DRAW = False
@@ -288,7 +287,7 @@ class TestPole(unittest.TestCase):
         )
 
         state = np.zeros((len(poles) + 1), complex)
-        backend.specials.apply_poles2(
+        backend.specials.wake_from_pole_residue(
             profile=hist_y,
             profile_dts=centers,
             poles=poles,
