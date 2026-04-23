@@ -1002,6 +1002,9 @@ class TestIQCavityFeedbackTimingClass:
                 if trn_ind < 2:  # after this acceleration starts
                     continue
                 # shift and then do something else
+                # TESTS:
+                # test equality of segment distances, which are overlapping
+                # test that last backward element is not same as frwrd element
                 np.testing.assert_allclose(
                     rf_center_list[fdbk_ind].flatten()[:-harm_per_section],
                     rf_center_list[fdbk_ind - 1].flatten()[harm_per_section:],
