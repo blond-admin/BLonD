@@ -661,7 +661,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             fastmath=True,
             cache=False,
         )
-        def apply_poles2(
+        def wake_from_pole_residue(
             # read
             profile,
             profile_dts,

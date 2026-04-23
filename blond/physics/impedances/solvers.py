@@ -1357,7 +1357,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             * self._parent_wakefield.profile.hist_y_to_density_factor
         )
 
-        backend.specials.apply_poles2(
+        backend.specials.wake_from_pole_residue(
             profile=hist_x_profile,
             profile_dts=profile_dts,
             poles=self._poles,

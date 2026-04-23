@@ -95,14 +95,14 @@ extern "C" void apply_poles(
                 cr_pole_flip = -1;
             }
         }
+        const pole_n = 2 * pole_i;
+        const real_t pole_re = poles[pole_n];
+        const real_t pole_im = poles[pole_n + 1];
+        const real_t res_re = residues[pole_n];
+        const real_t res_im = residues[pole_n + 1];
 
-        const real_t pole_re = poles[2 * pole_i];
-        const real_t pole_im = poles[2 * pole_i + 1];
-        const real_t res_re = residues[2 * pole_i];
-        const real_t res_im = residues[2 * pole_i + 1];
-
-        real_t state_re = states[2 * pole_i];
-        real_t state_im = states[2 * pole_i + 1];
+        real_t state_re = states[pole_n];
+        real_t state_im = states[pole_n + 1];
 
         int i_update = 0;
         int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;

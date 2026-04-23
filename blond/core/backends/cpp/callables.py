@@ -539,7 +539,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
-        def apply_poles2(
+        def wake_from_pole_residue(
             # read
             profile,
             profile_dts,
