@@ -77,11 +77,53 @@ class BeamBaseClass(Preparable, ABC):
             time=0, total_energy=None, particle_type=particle_type
         )
 
-    def __iadd__(self, other: Self):
+    def __iadd__(self, other: Self) -> Self:
+        """
+        In place addition of another beam to this one.
+
+        See `add_beam` for full documentation.
+
+        Parameters
+        ----------
+        other
+            The beam object to be added to this one.
+
+        Returns
+        -------
+        self
+            Self with the contents of other beam added.
+        """
         self.add_beam(other)
         return self
 
     def add_beam(self, other: Self):
+        """
+        Add another beam to this one, mutates this beam.
+
+        The particles from the other beam will be concatenated with the
+        particles of this one.  The MPI distribution status, intensity
+        ratio and particle types must match.
+
+        The ids of the added beam will be incremented by the maximum id
+        of the current beam plus one.  E.g.:
+            `self.ids = [0, 2, 4]`
+            `other.ids = [0, 1, 2, 3, 4]`
+        After addition:
+            `self.ids = [0, 2, 4, 5, 6, 7, 8, 9]`
+
+        Parameters
+        ----------
+        other
+            The beam object to be added to this one.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if one beam is distributed and one is not.
+        ValueError
+            Raised if the ratio values are not exactly equal.
+            Raised if the particle types are not equal.
+        """
         if self.is_distributed != other.is_distributed:
             raise RuntimeError(
                 "A non-distributed beam cannot be added to a distributed beam."
@@ -110,6 +152,36 @@ class BeamBaseClass(Preparable, ABC):
         )
 
     def add_particles(self, dt: DistributedArray, dE: DistributedArray):
+        """
+        Add a new set of particle coordinates to the beam.
+
+        The particle coordinates given by input `dt` and `dE` will be
+        added to the beam object.  The intensity per macroparticle of
+        the added particles will be set to match the existing beam and
+        all particles will be flagged as active.
+
+        Parameters
+        ----------
+        dt
+            The time coordinates of the new particles.
+        dE
+            The energy coordinates of the new particles.
+
+        Raises
+        ------
+        ValueError
+            Raised if the local or global sizes of the `dt` and `dE`
+            arrays do not match.
+        """
+        if (dt.local_size != dE.local_size) or (
+            dt.global_size != dE.global_size
+        ):
+            raise ValueError(
+                "The dt and dE array sizes are mismatched"
+                f"{dt.local_size=}, {dE.local_size=}"
+                f"{dt.global_size=}, {dE.global_size=}"
+            )
+
         id_max = np.int32(self._ids.max())
         local_size = self._dt.local_size
 
@@ -128,6 +200,20 @@ class BeamBaseClass(Preparable, ABC):
         new_flags: DistributedArray,
         new_ids: DistributedArray,
     ):
+        """
+        Protected function to add new coordinates to the beam.
+
+        Parameters
+        ----------
+        new_dt
+            The new dt coordinates.
+        new_dE
+            The new dE coordinates.
+        new_flags
+            The new particle flags.
+        new_ids
+            The new particle ids.
+        """
         ratio = self.ratio
 
         self._dt = distributed_array.concatenate(self._dt, new_dt)

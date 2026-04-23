@@ -24,9 +24,10 @@ from scipy.constants import (  # type: ignore[import-untyped]
     physical_constants,
 )
 
+import blond.generals.formatting_ as format
+
 m_mu = physical_constants["muon mass"][0]
 
-import blond.generals.formatting_ as format
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -68,7 +69,14 @@ class ParticleType:
         self._quantum_radiation_constant = c_q
 
     def __repr__(self) -> str:
-        """String representation of the particle."""
+        """
+        String representation of the particle.
+
+        Returns
+        -------
+        string
+            The string representation.
+        """
         string = (
             f"Mass: {format.si_format(self._mass)}eV, charge: {self._charge}e, "
             f"decay rate: {self._user_decay_rate}s^-1"
