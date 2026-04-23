@@ -142,6 +142,8 @@ class TestPole(unittest.TestCase):
             profile_dts=centers,
             poles=poles,
             residues=residues,
+            beam_counter_rotation_flag=False,
+            cr_pole_flip_flags=backend.ones_like(poles, dtype=backend.float),
             states=state,
             voltage=voltage,
             voltage_threaded=np.zeros(
@@ -166,6 +168,8 @@ class TestPole(unittest.TestCase):
             profile_dts=centers[mask],
             poles=poles,
             residues=residues,
+            beam_counter_rotation_flag=False,
+            cr_pole_flip_flags=backend.ones_like(poles, dtype=backend.float),
             states=state,
             voltage=voltage_masked,
             voltage_threaded=np.zeros(
@@ -289,6 +293,8 @@ class TestPole(unittest.TestCase):
             profile_dts=centers,
             poles=poles,
             residues=residues,
+            beam_counter_rotation_flag=False,
+            cr_pole_flip_flags=backend.ones_like(poles, dtype=backend.float),
             states=state,
             voltage=voltage,
             voltage_threaded=np.zeros(

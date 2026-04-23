@@ -1233,8 +1233,8 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._voltage = None
         self.last_reference_time = None
 
-        self.counter_rotation_pole_flip = None
-        self._charge_per_macroparticle = None
+        self.counter_rotation_pole_flip: NumpyArray | CupyArray | None = None
+        self._charge_per_macroparticle: float | None = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -1279,10 +1279,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                     )
 
         if len(counter_rotation_pole_flip) == 0:
-            self.counter_rotation_pole_flip = np.ones_like(poles)
+            self.counter_rotation_pole_flip = backend.ones_like(
+                poles, dtype=backend.float
+            )
         else:
-            self.counter_rotation_pole_flip = np.array(
-                np.sign(counter_rotation_pole_flip)
+            self.counter_rotation_pole_flip = backend.array(
+                np.sign(counter_rotation_pole_flip), dtype=backend.float
             )
 
         self._poles = np.array(poles, dtype=complex)

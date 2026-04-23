@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import numba  # type: ignore
 import numpy as np
-from numba import complex128, int32, njit, prange, void
+from numba import boolean, complex128, int32, njit, prange, void
 
 from blond.core.backends.backend import Specials
 from blond.core.backends.python.callables import (
@@ -649,6 +649,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 nb_f[:],
                 complex128[:],
                 complex128[:],
+                boolean,
+                nb_f[:],
                 complex128[:],
                 nb_f[:],
                 nb_f[:, :],
@@ -665,6 +667,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             profile_dts,
             poles,
             residues,
+            beam_counter_rotation_flag,
+            cr_pole_flip_flags,
             # write
             states,
             voltage,
