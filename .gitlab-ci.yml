@@ -364,7 +364,7 @@ release_sdist_310:
       dist/*.tar.gz
 
 test_documentation_building:
-  image: gitlab-registry.cern.ch/blond/blond/python310
+  image: gitlab-registry.cern.ch/blond/blond/python314
   stage: doc_build
   interruptible: true
   script:
