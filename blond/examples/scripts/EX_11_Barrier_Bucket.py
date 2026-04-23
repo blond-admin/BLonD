@@ -104,9 +104,10 @@ def main(
 
     sim = Simulation(ring, energy_cycle)
 
-    n_turns = 3000
-
-    time_limit = [0.5 * t_rev / 16, 15.5 * t_rev / 16]
+    time_limit = [
+        0.5 * t_rev / main_rf.harmonic,
+        (main_rf.harmonic - 0.5) * t_rev / main_rf.harmonic,
+    ]
 
     preparation_routine = SemiEmpiricMatcher(
         time_limit,
