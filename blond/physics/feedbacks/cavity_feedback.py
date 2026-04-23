@@ -991,6 +991,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam object to receive the reference frame.
         """
+        if (
+            self.own_index_in_reference_list == 0
+            and self.tracked_forward_until_element is None
+        ):
+            return
+
         self.get_time_omega_array_reverse_direction(beam=beam)
 
         for time_ind, time in enumerate(self.reverse_tracking_time_array):
