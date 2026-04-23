@@ -797,7 +797,9 @@ class TestIQCavityFeedbackTimingClass:
     def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse_rf_centers(
         self, n_sections: int
     ):
+        backend.set_specials("cpp")
         backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp")
         self.harmonic = 20
         self.setup_simulation()
 
@@ -868,6 +870,11 @@ class TestIQCavityFeedbackTimingClass:
 
         def callback(simulation: Simulation, beam: Beam):
             if simulation.turn_i.value == 0:  # TODO: and not CR
+                for idx, fdbk in enumerate(timing_fdbk_list):
+                    fdbk: IQCavityFeedbackTimingClass
+                    assert (
+                        len(fdbk.rf_centers) == 2 + fdbk.section_index * 5 + 5
+                    )  # 5 are forward, 5 per full drift and 2 for the inital drift, which is half length
                 return
             for idx, fdbk in enumerate(timing_fdbk_list):
                 fdbk: IQCavityFeedbackTimingClass
@@ -977,7 +984,17 @@ class TestIQCavityFeedbackTimingClass:
         harm_per_section = self.harmonic // n_sections
         rf_center_list = np.array(rf_center_list)
         for fdbk_ind in range(1, n_sections):
-            for trn_ind in range(0, n_turns_to_simulate):
+            for trn_ind in range(1, n_turns_to_simulate):
+                # if trn_ind == 0:
+                #     for fdbk_ind in range(1, n_sections):
+                if trn_ind == 1:
+                    if fdbk_ind == 1 or fdbk_ind == n_sections - 1:
+                        np.testing.assert_allclose(
+                            rf_center_list[fdbk_ind][
+                                trn_ind
+                            ],  # no acceleration in first two turns
+                            rf_center_list[fdbk_ind][trn_ind - 1],
+                        )
                 if trn_ind < 2:  # after this acceleration starts
                     continue
                 # shift and then do something else

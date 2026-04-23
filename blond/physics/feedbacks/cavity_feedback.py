@@ -622,6 +622,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
         )
 
+        self.reference_state_until_tracked = deepcopy(beam.reference)
+
     def get_passed_time_forward_direction(self, beam: BeamBaseClass):
         """
         Determine the slice of elements, which should be tracked in the forward direction.
@@ -723,7 +725,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     self.own_index_in_reference_list : next_reference_altering_element_index
                 ]
 
-    def get_time_omega_array_reverse_direction(self, beam: BeamBaseClass):
+    def get_time_omega_array_reverse_direction(self, beam: BeamBaseClass):  # noqa: PLR0912
         """
         Determine the slice of elements, which should be tracked in the reverse direction.
 
@@ -734,9 +736,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam object to receive the reference frame.
         """
-        start_index = self.reference_altering_elements.index(
-            self.tracked_forward_until_element
-        )
+        if self.tracked_forward_until_element is not None:
+            start_index = self.reference_altering_elements.index(
+                self.tracked_forward_until_element
+            )
+        else:
+            start_index = 0
         time_list = []
         omega_list = []
 
@@ -779,6 +784,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
             if isclose or is_above:  # counterrotation should break earlier
                 if is_above:
+                    raise RuntimeError("yorak")
                     warnings.warn(
                         "inconsistency with references", stacklevel=1
                     )
@@ -806,8 +812,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 ):  # counterrotation should break earlier
                     break
 
-        self.reverse_tracking_time_array = np.diff(time_list)
-        self.reverse_tracking_omega_list = np.array(omega_list[1:])
+        if len(time_list) > 1:
+            self.reverse_tracking_time_array = np.append(
+                np.array(time_list[0]), np.diff(time_list)
+            )
+            self.reverse_tracking_omega_list = np.array(omega_list)
+        else:
+            self.reverse_tracking_time_array = np.array(time_list)
+            self.reverse_tracking_omega_list = np.array(omega_list)
 
         # if not self.debug:
         self._unify_same_frequency_time_points_reverse()
@@ -949,20 +961,23 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         # TODO: inconsistency here, this will only take the current turn into account
 
     def _unify_same_frequency_time_points_reverse(self):
-        time_arr_to_use = np.copy(self.reverse_tracking_time_array)
-        omega_array_to_use = np.copy(self.reverse_tracking_omega_list)
+        if len(self.reverse_tracking_time_array) > 1:
+            time_arr_to_use = np.copy(self.reverse_tracking_time_array)
+            omega_array_to_use = np.copy(self.reverse_tracking_omega_list)
 
-        for omega_ind in range(1, len(omega_array_to_use)):
-            if (
-                omega_array_to_use[omega_ind - 1]
-                == omega_array_to_use[omega_ind]
-            ):
-                time_arr_to_use[omega_ind] += time_arr_to_use[omega_ind - 1]
-                time_arr_to_use[omega_ind - 1] = 0
+            for omega_ind in range(1, len(omega_array_to_use)):
+                if (
+                    omega_array_to_use[omega_ind - 1]
+                    == omega_array_to_use[omega_ind]
+                ):
+                    time_arr_to_use[omega_ind] += time_arr_to_use[
+                        omega_ind - 1
+                    ]
+                    time_arr_to_use[omega_ind - 1] = 0
 
-        mask = time_arr_to_use != 0
-        self.reverse_tracking_time_array = time_arr_to_use[mask]
-        self.reverse_tracking_omega_list = omega_array_to_use[mask]
+            mask = time_arr_to_use != 0
+            self.reverse_tracking_time_array = time_arr_to_use[mask]
+            self.reverse_tracking_omega_list = omega_array_to_use[mask]
 
     def calculate_rf_centers_for_reverse_direction(
         self, beam: BeamBaseClass
@@ -1023,6 +1038,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 is not self._parent_rf_station
             ):  # otherwise, the full turn was already tracked
                 self.calculate_rf_centers_for_reverse_direction(beam=beam)
+        elif self._parent_rf_station._turn_i.value == 0:
+            self.calculate_rf_centers_for_reverse_direction(beam=beam)
 
         self.calculate_rf_centers_for_forward_direction(beam=beam)
         self.relative_voltage_correction = np.ones_like(self.profile.hist_x)
