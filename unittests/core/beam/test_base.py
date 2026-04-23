@@ -264,16 +264,20 @@ class TestBeamBaseClass(unittest.TestCase):
         beam_1._add_coordinates(dist_dt, dist_dE, dist_flags, dist_ids)
 
         np.testing.assert_array_equal(
-            beam_1._dt.array_local, np.concatenate((dt_1, dt_2))
+            copy_to_cpu(beam_1._dt.array_local),
+            copy_to_cpu(np.concatenate((dt_1, dt_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._dE.array_local, np.concatenate((dE_1, dE_2))
+            copy_to_cpu(beam_1._dE.array_local),
+            copy_to_cpu(np.concatenate((dE_1, dE_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._flags.array_local, np.concatenate((flags_1, flags_2))
+            copy_to_cpu(beam_1._flags.array_local),
+            copy_to_cpu(np.concatenate((flags_1, flags_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._ids.array_local, np.concatenate((ids_1, ids_2))
+            copy_to_cpu(beam_1._ids.array_local),
+            copy_to_cpu(np.concatenate((ids_1, ids_2))),
         )
 
         self.assertEqual(beam_1.intensity, 2e12)
@@ -309,16 +313,20 @@ class TestBeamBaseClass(unittest.TestCase):
         beam_1.add_particles(dist_dt, dist_dE)
 
         np.testing.assert_array_equal(
-            beam_1._dt.array_local, np.concatenate((dt_1, dt_2))
+            copy_to_cpu(beam_1._dt.array_local),
+            copy_to_cpu(np.concatenate((dt_1, dt_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._dE.array_local, np.concatenate((dE_1, dE_2))
+            copy_to_cpu(beam_1._dE.array_local),
+            copy_to_cpu(np.concatenate((dE_1, dE_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._flags.array_local, np.concatenate((flags_1, flags_2))
+            copy_to_cpu(beam_1._flags.array_local),
+            copy_to_cpu(np.concatenate((flags_1, flags_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._ids.array_local, np.concatenate((ids_1, ids_2))
+            copy_to_cpu(beam_1._ids.array_local),
+            copy_to_cpu(np.concatenate((ids_1, ids_2))),
         )
 
         self.assertEqual(beam_1.intensity, 2e12)
@@ -367,16 +375,20 @@ class TestBeamBaseClass(unittest.TestCase):
         beam_1.add_beam(beam_2)
 
         np.testing.assert_array_equal(
-            beam_1._dt.array_local, np.concatenate((dt_1, dt_2))
+            copy_to_cpu(beam_1._dt.array_local),
+            copy_to_cpu(np.concatenate((dt_1, dt_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._dE.array_local, np.concatenate((dE_1, dE_2))
+            copy_to_cpu(beam_1._dE.array_local),
+            copy_to_cpu(np.concatenate((dE_1, dE_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._flags.array_local, np.concatenate((flags_1, flags_2))
+            copy_to_cpu(beam_1._flags.array_local),
+            copy_to_cpu(np.concatenate((flags_1, flags_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._ids.array_local, np.arange(2 * len(dt_1), dtype=np.int32)
+            copy_to_cpu(beam_1._ids.array_local),
+            copy_to_cpu(np.arange(2 * len(dt_1), dtype=np.int32)),
         )
 
         self.assertEqual(beam_1.intensity, 2 * beam_2.intensity)
@@ -475,16 +487,20 @@ class TestBeamBaseClass(unittest.TestCase):
         beam_1 += beam_2
 
         np.testing.assert_array_equal(
-            beam_1._dt.array_local, np.concatenate((dt_1, dt_2))
+            copy_to_cpu(beam_1._dt.array_local),
+            copy_to_cpu(np.concatenate((dt_1, dt_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._dE.array_local, np.concatenate((dE_1, dE_2))
+            copy_to_cpu(beam_1._dE.array_local),
+            copy_to_cpu(np.concatenate((dE_1, dE_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._flags.array_local, np.concatenate((flags_1, flags_2))
+            copy_to_cpu(beam_1._flags.array_local),
+            copy_to_cpu(np.concatenate((flags_1, flags_2))),
         )
         np.testing.assert_array_equal(
-            beam_1._ids.array_local, np.arange(2 * len(dt_1), dtype=np.int32)
+            copy_to_cpu(beam_1._ids.array_local),
+            copy_to_cpu(np.arange(2 * len(dt_1), dtype=np.int32)),
         )
 
         self.assertEqual(beam_1.intensity, 2 * beam_2.intensity)
