@@ -506,9 +506,17 @@ class TestIQCavityFeedbackTimingClass:
             np.testing.assert_allclose(
                 omega_list, omega_list[0]
             )  # with no acceleration, this has to be true (all omegas are the same)
+            last_x_indices = (
+                0
+                if simulation.turn_i.value > 0
+                else -int(self.harmonic / n_sections)
+            )
+            # this is necessary since the arrays have different lengths in the first turn
+            # every cavity has a different amount of tracking before it gets passed by the beam
             [
                 np.testing.assert_allclose(
-                    rf_centers_list_entry, rf_centers_list[0]
+                    rf_centers_list_entry[last_x_indices:],
+                    rf_centers_list[0][last_x_indices:],
                 )
                 for rf_centers_list_entry in rf_centers_list
             ]  # with no acceleration, this has to be true (all RF centers are the same)
