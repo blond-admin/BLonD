@@ -49,12 +49,11 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
-
-    from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
@@ -1234,6 +1233,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._voltage = None
         self.last_reference_time = None
 
+        self.counter_rotation_pole_flip = None
+        self._charge_per_macroparticle = None
+
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
@@ -1254,25 +1256,49 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     def _finalize_solver(self, beam):
         poles = []
         residues = []
+        counter_rotation_pole_flip = []
         for source in self._parent_wakefield.sources:
             # source: TimeDomain  # type hint what the we expect # TODO
+            # source has to be resonator source  # TODO
             poles_, residues_ = source.get_vectorfit()
             try:
                 poles.extend(poles_)
                 residues.extend(residues_)
+                if (
+                    source._shunt_impedances_counter_rotating is not None
+                ):  # prevent that one source has it and another one doesnt --> do we ever need multiple sources in the first place?
+                    counter_rotation_pole_flip.extend(
+                        source._shunt_impedances_counter_rotating
+                    )
             except TypeError:  # if single value instead of iterable
                 poles.append(poles_)
                 residues.append(residues_)
+                if source._shunt_impedances_counter_rotating is not None:
+                    counter_rotation_pole_flip.append(
+                        source._shunt_impedances_counter_rotating
+                    )
+
+        if len(counter_rotation_pole_flip) == 0:
+            self.counter_rotation_pole_flip = np.ones_like(poles)
+        else:
+            self.counter_rotation_pole_flip = np.array(
+                np.sign(counter_rotation_pole_flip)
+            )
 
         self._poles = np.array(poles, dtype=complex)
         self._residues = np.array(residues, dtype=complex)
 
+        hist_x_profile = (
+            self._parent_wakefield.profile._continuous_memory_hist_x
+            if type(self._parent_wakefield.profile) is EquidistantMultiProfile
+            else self._parent_wakefield.profile.hist_x
+        )
         self._voltage = backend.zeros(
-            len(self._parent_wakefield.profile._continuous_memory_hist_x),
+            len(hist_x_profile),
             dtype=backend.float,
         )
         self._states = np.zeros(len(self._poles) + 1, complex)
-        hist_x = self._profile._continuous_memory_hist_x
+        hist_x = hist_x_profile
         bin_dt = float(hist_x[1] - hist_x[0])
         # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
         # on the first call (C++ now uses edge-based rather than centre-based
@@ -1284,9 +1310,8 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
         self._update_on_bin = np.unique(
             self._profile._bucket_index_to_memory_index
-        )
-        self.factor = -(1 * beam.particle_type.charge * e) * (
-            beam.intensity * 1.0 / beam.common_array_size
+            if type(self._profile) is EquidistantMultiProfile
+            else np.array([0], dtype=np.int32)
         )
 
     def calc_induced_voltage(
@@ -1305,27 +1330,43 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         induced_voltage
             The induced voltage, in [V].
         """
+        hist_x_profile = (  # TODO: remove when assert linspace is implemented in other locations and api is same for both
+            self._profile._continuous_memory_hist_y
+            if type(self._profile) is EquidistantMultiProfile
+            else self._profile.hist_y
+        )
+        profile_dts = (
+            self._profile._continuous_memory_hist_x
+            if type(self._profile) is EquidistantMultiProfile
+            else self._profile.hist_x
+        )
+
         if self._poles is None:
             self._finalize_solver(beam=beam)
-            assert self._update_on_bin[0] == 0, "First bib must always update"
+            assert self._update_on_bin[0] == 0, "First bin must always update."
         else:
             passed_time = beam.reference.time - self.last_reference_time
             self._states[-1] -= complex(passed_time)
-            assert (
-                self._states[-1].real
-                <= self._profile._continuous_memory_hist_x[0]
-            )
+            assert self._states[-1].real <= hist_x_profile[0]
+
+        self._charge_per_macroparticle = (
+            -(1 * beam.particle_type.charge * e)
+            * beam.intensity
+            * self._parent_wakefield.profile.hist_y_to_density_factor
+        )
 
         backend.specials.apply_poles2(
-            profile=self._profile._continuous_memory_hist_y,
-            profile_dts=self._profile._continuous_memory_hist_x,
+            profile=hist_x_profile,
+            profile_dts=profile_dts,
             poles=self._poles,
             residues=self._residues,
+            beam_counter_rotation_flag=beam.is_counter_rotating,
+            cr_pole_flip_flags=self.counter_rotation_pole_flip,
             states=self._states,
             voltage=self._voltage,
             voltage_threaded=self._voltage_threaded,
             update_on_bin=self._update_on_bin,
-            factor=self.factor,
+            factor=self._charge_per_macroparticle,
         )
         self.last_reference_time = copy(beam.reference.time)
         return self._voltage
