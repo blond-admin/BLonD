@@ -1219,7 +1219,8 @@ class TestSpecials(unittest.TestCase):
                         backend.specials.sum_1d_array(backend.array(x))
                     ),
                     reference_sum,
-                    rtol=self.rtol,
+                    # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
+                    rtol=self.rtol * 8 if dtype == np.float32 else self.rtol,
                     err_msg=f"{special=} {dtype=}",
                 )
 
@@ -1244,7 +1245,8 @@ class TestSpecials(unittest.TestCase):
                 np.testing.assert_allclose(
                     backend_result,
                     reference_dot,
-                    rtol=self.rtol,
+                    # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
+                    rtol=self.rtol * 8 if dtype == np.float32 else self.rtol,
                     err_msg=f"{special=} {dtype=}",
                 )
                 self.assertTrue(backend_result.dtype == dtype)
