@@ -384,6 +384,31 @@ class DistributedArray:
 def concatenate(
     array_1: DistributedArray, array_2: DistributedArray
 ) -> DistributedArray:
+    """
+    Concatenate two distributed arrays, return the result.
+
+    Parameters
+    ----------
+    array_1
+        The first array.
+    array_2
+        The second array, will be concatenated to the end of the first.
+
+    Returns
+    -------
+    concatenated array
+        The concatenated array.
+
+    Raises
+    ------
+    RuntimeError
+        Raised if the `is_distributed` flags of the two arrays do not
+        match.
+    ArrayPrecisionError
+        Raised if the `dtype`s of the local arrays do not match.
+    TypeError
+        Raised if the `type`s of the local arrays do not match.
+    """
     # Check both distributed, mismatch probably not possible
     if array_1.is_distributed != array_2.is_distributed:  # pragma: no cover
         raise RuntimeError(
