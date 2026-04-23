@@ -689,6 +689,11 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 Complex poles of an equivalent circuit.
             residues
                 Complex residues of an equivalent circuit.
+            beam_counter_rotation_flag
+                If true, the current beam is counter-rotating.
+            cr_pole_flip_flags
+                Array per pole, -1 if the sign of the impedance is flipped
+                for a counter-rotating beam.
             states
                 Complex state vector, initially ``(0 + 0j)``.
             voltage

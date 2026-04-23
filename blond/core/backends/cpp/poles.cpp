@@ -61,8 +61,8 @@ extern "C" void apply_poles(
     const real_t *__restrict__ profile_dts,
     const real_t *__restrict__ poles,
     const real_t *__restrict__ residues,
-    const bool beam_counter_rotation_flag,
-    const real_t *__restrict__ cr_pole_flip_flags,
+    const bool is_counterrotating_beam,
+    const real_t *__restrict__ counterrotating_pole_signs,
     real_t *__restrict__ states,
     real_t *__restrict__ voltage,
     real_t *__restrict__ voltage_threaded,
@@ -90,8 +90,8 @@ extern "C" void apply_poles(
         const int thread_i = omp_get_thread_num();
 
         real_t cr_pole_flip = 1;
-        if (beam_counter_rotation_flag) {
-            if (cr_pole_flip_flags[pole_i] == -1) {
+        if (is_counterrotating_beam) {
+            if (counterrotating_pole_signs[pole_i] == -1) {
                 cr_pole_flip = -1;
             }
         }

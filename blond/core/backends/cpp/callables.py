@@ -545,8 +545,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             profile_dts,
             poles,
             residues,
-            beam_counter_rotation_flag,
-            cr_pole_flip_flags,
+            is_counterrotating_beam,
+            counterrotating_pole_signs,
             # write
             states,
             voltage,
@@ -567,6 +567,11 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 Complex poles of an equivalent circuit.
             residues
                 Complex residues of an equivalent circuit.
+            is_counterrotating_beam
+                If true, the current beam is counter-rotating.
+            counterrotating_pole_signs
+                Array per pole, -1 if the sign of the impedance is flipped
+                for a counter-rotating beam.
             states
                 Complex state vector, initially ``(0 + 0j)``.
             voltage
@@ -588,7 +593,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert profile_dts.dtype == floattype
             assert poles.dtype == complextype
             assert residues.dtype == complextype
-            assert cr_pole_flip_flags.dtype == floattype
+            assert counterrotating_pole_signs.dtype == floattype
             assert states.dtype == complextype
             assert voltage.dtype == floattype
             assert voltage_threaded.dtype == floattype
@@ -598,7 +603,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert profile_dts.flags.c_contiguous
             assert poles.flags.c_contiguous
             assert residues.flags.c_contiguous
-            assert cr_pole_flip_flags.flags.c_contiguous
+            assert counterrotating_pole_signs.flags.c_contiguous
             assert states.flags.c_contiguous
             assert voltage.flags.c_contiguous
             assert voltage_threaded.flags.c_contiguous
@@ -609,8 +614,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _getPointer(profile_dts),
                 _getPointer(poles),
                 _getPointer(residues),
-                ct.c_bool(beam_counter_rotation_flag),
-                _getPointer(cr_pole_flip_flags),
+                ct.c_bool(is_counterrotating_beam),
+                _getPointer(counterrotating_pole_signs),
                 _getPointer(states),
                 _getPointer(voltage),
                 _getPointer(voltage_threaded),
