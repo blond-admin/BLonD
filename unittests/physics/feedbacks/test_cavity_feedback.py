@@ -987,30 +987,65 @@ class TestIQCavityFeedbackTimingClass:
                 )
         harm_per_section = self.harmonic // n_sections
         rf_center_list = np.array(rf_center_list)
-        for fdbk_ind in range(1, n_sections):
-            for trn_ind in range(1, n_turns_to_simulate):
-                # if trn_ind == 0:
-                #     for fdbk_ind in range(1, n_sections):
-                if trn_ind == 1:
-                    if fdbk_ind == 1 or fdbk_ind == n_sections - 1:
-                        np.testing.assert_allclose(
-                            rf_center_list[fdbk_ind][
-                                trn_ind
-                            ],  # no acceleration in first two turns
-                            rf_center_list[fdbk_ind][trn_ind - 1],
-                        )
-                if trn_ind < 2:  # after this acceleration starts
-                    continue
-                # shift and then do something else
-                # TESTS:
-                # test equality of segment distances, which are overlapping
-                # test that last backward element is not same as frwrd element
-                np.testing.assert_allclose(
-                    rf_center_list[fdbk_ind].flatten()[:-harm_per_section],
-                    rf_center_list[fdbk_ind - 1].flatten()[harm_per_section:],
-                    atol=0,
-                    rtol=1e-12,
-                    err_msg=f"problem in trn {trn_ind} in fdbk {fdbk_ind}",
-                )
+        for trn_ind in range(
+            0, n_turns_to_simulate - 1
+        ):  # first turn is not recorded
+            if (
+                trn_ind == 0
+            ):  # first recorded turn --> no acceleration, should all be equal
+                for fdbk_ind in range(1, len(timing_fdbk_list)):
+                    np.testing.assert_allclose(
+                        rf_center_list[fdbk_ind][trn_ind],
+                        rf_center_list[fdbk_ind - 1][trn_ind],
+                    )
+            if trn_ind == 1:
+                for fdbk_ind in range(
+                    1, len(timing_fdbk_list) - 1
+                ):  # last one won't have any overlap --> only tracks within 2nd turn
+                    overlapping_elements = (
+                        len(timing_fdbk_list) - fdbk_ind - 1
+                    ) * harm_per_section
+                    np.testing.assert_allclose(
+                        rf_center_list[fdbk_ind][trn_ind][
+                            0:overlapping_elements
+                        ],
+                        rf_center_list[fdbk_ind - 1][trn_ind][
+                            0:overlapping_elements
+                        ],
+                    )
+                for fdbk_ind in range(
+                    1, len(timing_fdbk_list)
+                ):  # last elements of previous should be inside current
+                    np.testing.assert_allclose(
+                        rf_center_list[fdbk_ind][trn_ind][
+                            -2 * harm_per_section : -harm_per_section
+                        ],
+                        rf_center_list[fdbk_ind - 1][trn_ind][
+                            -harm_per_section:
+                        ],
+                    )
+            if trn_ind >= 2:  # const acceleration
+                for fdbk_ind in range(1, len(timing_fdbk_list)):
+                    np.testing.assert_allclose(
+                        rf_center_list[fdbk_ind][trn_ind][0:-harm_per_section],
+                        rf_center_list[fdbk_ind - 1][trn_ind][
+                            harm_per_section:
+                        ],
+                    )
+            # Test of last backward and forward not overlapping
+            # this should never be the case, as these are either lumped or have different frequencies.
+            for fdbk_ind in range(
+                1, len(timing_fdbk_list)
+            ):  # last elements of previous should be inside current
+                assert not any(
+                    np.isclose(
+                        rf_center_list[fdbk_ind][trn_ind][
+                            -2 * harm_per_section : -harm_per_section
+                        ],
+                        rf_center_list[fdbk_ind][trn_ind][-harm_per_section:],
+                        atol=0,
+                        rtol=1e-12,
+                    )
+                ), f"{fdbk_ind}, {trn_ind}"  # type: ignore
 
         pass
