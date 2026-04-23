@@ -682,7 +682,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 next_reference_altering_element_index = -1
 
         self.forward_tracking_time = dummy_reference.time - start_time
-        self.forward_tracking_omega_rf = self.omega_rf  # (
+        # self.forward_tracking_omega_rf = self.omega_rf  # (
         #     self._parent_rf_station.calc_omega_rf_design(
         #         dummy_reference.beta, self.ring.circumference
         #     )  # TODO: this should probably be omega_rf as here we have the correct one, but this will cause a discrepancy elsewhere
@@ -691,7 +691,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             self._parent_rf_station.calc_omega_rf_design(
                 dummy_reference.beta, self.ring.circumference
             )
-        )
+        ) + self._parent_rf_station.delta_omega_rf
         self.tracked_forward_until_element = (
             self.reference_altering_elements[
                 next_reference_altering_element_index
@@ -948,18 +948,23 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             Beam object to receive the reference frame.
         """
         self.get_passed_time_forward_direction(beam=beam)
+        # phase_offset_frwrd =  (
+        #     2.0
+        #     * np.pi
+        #     * self._parent_rf_station.harmonic
+        #     * self._parent_rf_station.delta_omega_rf
+        #     / (self.forward_tracking_omega_rf)) # this was added before
         self.rf_centers = np.append(
             self.rf_centers,
             self._generate_rf_centers(
                 t_rf=(2 * np.pi / self.forward_tracking_omega_rf),
                 # TODO: this is indeed necessary for the multi-section acceleration tracking, delta_omega hast to be applied somewhere else if applicable
                 omega_rf=self.forward_tracking_omega_rf,
-                phi_rf=self.phi_rf,
+                phi_rf=self.phi_rf,  # + phase_offset_frwrd,
                 until_time=self.forward_tracking_time,
             ),
         )
         pass
-        # TODO: inconsistency here, this will only take the current turn into account
 
     def _unify_same_frequency_time_points_reverse(self):
         if len(self.reverse_tracking_time_array) > 1:

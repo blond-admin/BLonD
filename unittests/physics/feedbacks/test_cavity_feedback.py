@@ -29,7 +29,7 @@ from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 
-DEBUG_PLOTTING = False
+DEBUG_PLOTTING = True
 
 
 class IQFDBKTester(IQCavityFeedback):
@@ -83,10 +83,10 @@ class TestIQCavityFeedbackTimingClass:
         self.rf_station = SingleHarmonicRFStation(
             phi_rf=0.0, harmonic=self.harmonic, voltage=5e6
         )
-        circumference = 5
-        drift = DriftSimple(circumference, momentum_compaction_factor=0)
+        self.circumference = 5
+        drift = DriftSimple(self.circumference, momentum_compaction_factor=0)
         self.ring = Ring(
-            circumference=circumference, check_section_indices=False
+            circumference=self.circumference, check_section_indices=False
         )
         self.ring.add_elements([self.rf_station, drift])
 
@@ -100,8 +100,8 @@ class TestIQCavityFeedbackTimingClass:
 
     test_data_discontinuity = [
         (0, 0, 1),
-        (0, 0.13, 1),
-        (0, -0.13, 1),
+        (0, 0.1, 1),
+        (0, -0.1, 1),
         (-1, 0, 1),
         (-1, 0.13, 1),
         (-1, -0.13, 1),
@@ -289,6 +289,7 @@ class TestIQCavityFeedbackTimingClass:
         self.t_rf_init = 0
 
         def callback(simulation: Simulation, beam: Beam):
+            # self.rf_station.omega_rf_design = self.rf_station.calc_omega_rf_design(beam.reference.beta, ring_circumference=self.circumference)
             time_array.append(
                 np.linspace(
                     0,
@@ -304,10 +305,11 @@ class TestIQCavityFeedbackTimingClass:
                 np.sin(
                     cav_fdbk_timing._parent_rf_station.omega_rf
                     * time_array[-1]
-                    + cav_fdbk_timing._parent_rf_station.phi_rf
+                    + cav_fdbk_timing._parent_rf_station.phi_rf  # - cav_fdbk_timing._parent_rf_station.phase_correction_frequency_offset - np.pi
                 )
             )
             rf_centers_array.append(cav_fdbk_timing.rf_centers)
+            # omega_rf_save.append(cav_fdbk_timing.forward_tracking_omega_rf)
             omega_rf_save.append(cav_fdbk_timing.omega_rf)
             if simulation.turn_i.value == 0:
                 self.t_rf_init = 2 * np.pi / self.rf_station.omega_rf_design
