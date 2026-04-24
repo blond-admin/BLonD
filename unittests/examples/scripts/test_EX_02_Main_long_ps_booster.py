@@ -9,6 +9,7 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
+from blond.testing.helpers import assert_runtime_below_threshold
 
 
 class TestEX_02_Main_long_ps_booster(unittest.TestCase):
@@ -19,7 +20,7 @@ class TestEX_02_Main_long_ps_booster(unittest.TestCase):
         from blond.examples.scripts import EX_02_Main_long_ps_booster
 
         # full script. just checking if it crashes
-        EX_02_Main_long_ps_booster.main()
+        assert_runtime_below_threshold(EX_02_Main_long_ps_booster.main, 50)
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
@@ -28,7 +29,7 @@ class TestEX_02_Main_long_ps_booster(unittest.TestCase):
         from blond.examples.scripts import EX_02_Main_long_ps_booster
 
         # full script. just checking if it crashes
-        EX_02_Main_long_ps_booster.main()
+        assert_runtime_below_threshold(EX_02_Main_long_ps_booster.main, 50)
 
     @pytest.mark.backend_mutation
     def test_executable_cuda32(self):
@@ -43,7 +44,7 @@ class TestEX_02_Main_long_ps_booster(unittest.TestCase):
 
         # full script. just checking if it crashes
 
-        EX_02_Main_long_ps_booster.main()
+        assert_runtime_below_threshold(EX_02_Main_long_ps_booster.main, 30)
         backend.zeros(100)
 
     @pytest.mark.backend_mutation
@@ -58,5 +59,5 @@ class TestEX_02_Main_long_ps_booster(unittest.TestCase):
         from blond.examples.scripts import EX_02_Main_long_ps_booster
 
         # full script. just checking if it crashes
-        EX_02_Main_long_ps_booster.main()
+        assert_runtime_below_threshold(EX_02_Main_long_ps_booster.main, 30)
         backend.zeros(100)
