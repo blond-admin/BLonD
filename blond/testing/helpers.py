@@ -141,7 +141,7 @@ def assert_runtime_below_threshold(func: Callable, threshold: float, **kwargs):
     of multiplying 2 1024x1024 matrices.
     """
     # Calculating reference time
-    rng = np.random.default_rng()
+    rng = backend.random.default_rng()
     ref_A = rng.random((1024, 1024))
     ref_B = rng.random((1024, 1024))
     ref_start_time = timer()
