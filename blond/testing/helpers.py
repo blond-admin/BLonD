@@ -154,12 +154,14 @@ def assert_runtime_below_threshold(func: Callable, threshold: float, **kwargs):
     fun_start = timer()
     func(**kwargs)
     fun_end = timer()
-    funt_time = fun_end - fun_start
+    fun_time = fun_end - fun_start
 
-    assert funt_time <= ref_time * threshold, (
+    assert fun_time <= ref_time * threshold, (
         f"Function {func.__module__}"
         f".{func.__name__} "
-        f"takes too long to execute."
+        f"takes {fun_time} to execute,"
+        f" while the reference is {ref_time}*"
+        f"{threshold}={ref_time * threshold}."
     )
 
 
