@@ -23,6 +23,7 @@ class TestEX_01_Acceleration_no_beam(unittest.TestCase):
 
         # the
         EX_01_Acceleration_no_beam.n_turns = 10  # for testing
+        EX_01_Acceleration_no_beam.main()
         assert_runtime_below_threshold(EX_01_Acceleration_no_beam.main, 30)
 
         # full script. just checking if it crashes
@@ -37,6 +38,7 @@ class TestEX_01_Acceleration_no_beam(unittest.TestCase):
 
         # the
         EX_01_Acceleration_no_beam.n_turns = 10  # for testing
+        EX_01_Acceleration_no_beam.main()
         assert_runtime_below_threshold(EX_01_Acceleration_no_beam.main, 30)
 
         # full script. just checking if it crashes

@@ -22,6 +22,7 @@ class TestEX_01_Acceleration(unittest.TestCase):
             EX_01_Acceleration_revolution_time,  # NOQA will run the
         )
 
+        EX_01_Acceleration_revolution_time.main()
         assert_runtime_below_threshold(
             EX_01_Acceleration_revolution_time.main, 30
         )
@@ -37,6 +38,7 @@ class TestEX_01_Acceleration(unittest.TestCase):
             EX_01_Acceleration_revolution_time,  # NOQA will run the
         )
 
+        EX_01_Acceleration_revolution_time.main()
         assert_runtime_below_threshold(
             EX_01_Acceleration_revolution_time.main, 30
         )

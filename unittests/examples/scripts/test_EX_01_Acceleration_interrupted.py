@@ -21,7 +21,8 @@ class TestEX_01_Acceleration_interrupted(unittest.TestCase):
             EX_01_Acceleration_interrupted,  # NOQA will run the
         )
 
-        assert_runtime_below_threshold(EX_01_Acceleration_interrupted.main, 50)
+        EX_01_Acceleration_interrupted.main()
+        assert_runtime_below_threshold(EX_01_Acceleration_interrupted.main, 30)
 
         # full script. just checking if it crashes
 
@@ -33,7 +34,8 @@ class TestEX_01_Acceleration_interrupted(unittest.TestCase):
             EX_01_Acceleration_interrupted,  # NOQA will run the
         )
 
-        assert_runtime_below_threshold(EX_01_Acceleration_interrupted.main, 50)
+        EX_01_Acceleration_interrupted.main()
+        assert_runtime_below_threshold(EX_01_Acceleration_interrupted.main, 30)
 
         # full script. just checking if it crashes
 

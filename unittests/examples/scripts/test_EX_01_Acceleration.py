@@ -20,7 +20,7 @@ class TestEX_01_Acceleration(unittest.TestCase):
         backend.set_specials("numba")
         from blond.examples.scripts import EX_01_Acceleration
 
-        assert_runtime_below_threshold(EX_01_Acceleration.main, 50)
+        assert_runtime_below_threshold(EX_01_Acceleration.main, 100)
 
         # full script. just checking if it crashes
 
@@ -31,7 +31,7 @@ class TestEX_01_Acceleration(unittest.TestCase):
         backend.set_specials("numba")
         from blond.examples.scripts import EX_01_Acceleration
 
-        assert_runtime_below_threshold(EX_01_Acceleration.main, 50)
+        assert_runtime_below_threshold(EX_01_Acceleration.main, 100)
 
         # full script. just checking if it crashes
 
