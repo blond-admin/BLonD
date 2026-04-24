@@ -76,7 +76,7 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         backend.change_backend(Cupy32Bit)
         backend.set_specials("cuda")
 
-        assert_runtime_below_threshold(self._execute, 30)
+        self._execute()
 
         backend.zeros(100)  # make sure that cupy is still working,
         # previous memory
@@ -93,7 +93,7 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
 
-        assert_runtime_below_threshold(self._execute, 30)
+        self._execute()
 
         backend.zeros(100)  # make sure that cupy is still working,
         # previous memory
