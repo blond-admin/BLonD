@@ -20,7 +20,7 @@ class TestEX_02_Main_long_ps_booster(unittest.TestCase):
         from blond.examples.scripts import EX_02_Main_long_ps_booster
 
         # full script. just checking if it crashes
-        assert_runtime_below_threshold(EX_02_Main_long_ps_booster.main, 50)
+        assert_runtime_below_threshold(EX_02_Main_long_ps_booster.main, 30)
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
@@ -29,7 +29,7 @@ class TestEX_02_Main_long_ps_booster(unittest.TestCase):
         from blond.examples.scripts import EX_02_Main_long_ps_booster
 
         # full script. just checking if it crashes
-        assert_runtime_below_threshold(EX_02_Main_long_ps_booster.main, 50)
+        assert_runtime_below_threshold(EX_02_Main_long_ps_booster.main, 30)
 
     @pytest.mark.backend_mutation
     def test_executable_cuda32(self):

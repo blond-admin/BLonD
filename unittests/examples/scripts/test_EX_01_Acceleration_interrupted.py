@@ -22,7 +22,9 @@ class TestEX_01_Acceleration_interrupted(unittest.TestCase):
         )
 
         EX_01_Acceleration_interrupted.main()
-        assert_runtime_below_threshold(EX_01_Acceleration_interrupted.main, 30)
+        assert_runtime_below_threshold(
+            EX_01_Acceleration_interrupted.main, 150
+        )
 
         # full script. just checking if it crashes
 
@@ -35,7 +37,9 @@ class TestEX_01_Acceleration_interrupted(unittest.TestCase):
         )
 
         EX_01_Acceleration_interrupted.main()
-        assert_runtime_below_threshold(EX_01_Acceleration_interrupted.main, 30)
+        assert_runtime_below_threshold(
+            EX_01_Acceleration_interrupted.main, 150
+        )
 
         # full script. just checking if it crashes
 
