@@ -179,13 +179,24 @@ class TestRuntime(unittest.TestCase):
         _ = ref_end_time - ref_start_time
         assert True
 
-    def test_runtime_2D(self):
+    def test_runtime_2D_matrix(self):
         """Test runtime."""
         rng = backend.random.default_rng()
         ref_A = rng.random((1024, 1024))
         ref_B = rng.random((1024, 1024))
         ref_start_time = timer()
         _ = ref_A @ ref_B
+        ref_end_time = timer()
+        _ = ref_end_time - ref_start_time
+        assert True
+
+    def test_runtime_2D_elementwise(self):
+        """Test runtime."""
+        rng = backend.random.default_rng()
+        ref_A = rng.random((1024, 1024))
+        ref_B = rng.random((1024, 1024))
+        ref_start_time = timer()
+        _ = ref_A * ref_B
         ref_end_time = timer()
         _ = ref_end_time - ref_start_time
         assert True
