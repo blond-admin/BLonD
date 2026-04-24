@@ -865,6 +865,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         current_time
             Simulation time at the moment of calling, has to be > self._last_reference_time.
         """
+        if (
+            not self._parent_wakefield.profile.active
+        ):  # conformity with semi empiric matcher
+            return
         delta_t = current_time - self._last_reference_time
         assert (delta_t > 0) or self._allow_delta_t_zero, (
             f"delta t was not > 0({delta_t})"
@@ -962,28 +966,31 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._update_past_profile_times_wake_times(beam.reference.time)
         self._remove_fully_decayed_wake_profiles()
 
-        if len(self._past_profiles) != 0:  # ensure same time axis for profiles
-            past_hist_step = float(self._past_profile_times[-1][1]) - float(
-                self._past_profile_times[-1][0]
-            )
-            # TODO: big time jumps lead to problematic casting --> do we care about this?
-            new_hist_step = float(
-                self._parent_wakefield.profile.hist_x[1]
-            ) - float(self._parent_wakefield.profile.hist_x[0])
+        if self._parent_wakefield.profile.active:
+            if (
+                len(self._past_profiles) != 0
+            ):  # ensure same time axis for profiles
+                past_hist_step = float(
+                    self._past_profile_times[-1][1]
+                ) - float(self._past_profile_times[-1][0])
+                # TODO: big time jumps lead to problematic casting --> do we care about this?
+                new_hist_step = float(
+                    self._parent_wakefield.profile.hist_x[1]
+                ) - float(self._parent_wakefield.profile.hist_x[0])
 
-            assert np.isclose(new_hist_step, past_hist_step, atol=0), (
-                "Profile bin size needs to be constant: hist_step might be too small with casting to delta_t precision."
-                f"{new_hist_step=} {past_hist_step=}"
+                assert np.isclose(new_hist_step, past_hist_step, atol=0), (
+                    "Profile bin size needs to be constant: hist_step might be too small with casting to delta_t precision."
+                    f"{new_hist_step=} {past_hist_step=}"
+                )
+            self._past_profile_times.appendleft(
+                backend.copy(self._parent_wakefield.profile.hist_x)
             )
-        self._past_profile_times.appendleft(
-            backend.copy(self._parent_wakefield.profile.hist_x)
-        )
-        self._past_profiles.appendleft(
-            backend.copy(self._parent_wakefield.profile.hist_y)
-        )
-        self._past_profiles_counter_rotation_flag.appendleft(
-            beam.is_counter_rotating
-        )
+            self._past_profiles.appendleft(
+                backend.copy(self._parent_wakefield.profile.hist_y)
+            )
+            self._past_profiles_counter_rotation_flag.appendleft(
+                beam.is_counter_rotating
+            )
 
         self._update_past_profile_wake_functions()
 
