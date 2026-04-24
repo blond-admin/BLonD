@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import os
+from timeit import default_timer as timer
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -18,6 +19,7 @@ import numpy as np
 from blond import Cupy64Bit, Numpy64Bit, backend
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable
     from typing import Any
 
     from numpy.typing import NDArray
@@ -118,3 +120,43 @@ def enforce_64_bit_backend():
             backend.change_backend(Cupy64Bit)
         else:
             backend.change_backend(Numpy64Bit)
+
+
+def assert_runtime_below_threshold(func: Callable, threshold: float, **kwargs):
+    """
+    Checking if the runtime of a function is below a limit.
+
+    Parameters
+    ----------
+    func
+        The function to be tested.
+    threshold
+        The threshold to compare.
+    **kwargs
+        Keyword arguments to the function.
+
+    Notes
+    -----
+    The threshold is normalized to a matrix multiplication problem
+    of multiplying 2 1024x1024 matrices.
+    """
+    # Calculating reference time
+    rng = np.random.default_rng()
+    ref_A = rng.random((1024, 1024))
+    ref_B = rng.random((1024, 1024))
+    ref_start_time = timer()
+    _ = ref_A @ ref_B
+    ref_end_time = timer()
+    ref_time = ref_end_time - ref_start_time
+
+    # Caluating function runtime
+    fun_start = timer()
+    func(**kwargs)
+    fun_end = timer()
+    funt_time = fun_end - fun_start
+
+    assert funt_time <= ref_time * threshold, (
+        f"Function {func.__module__}"
+        f".{func.__name__} "
+        f"takes too long to execute."
+    )
