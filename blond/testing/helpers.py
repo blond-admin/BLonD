@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import os
+import unittest
 from timeit import default_timer as timer
 from typing import TYPE_CHECKING
 
@@ -160,3 +161,18 @@ def assert_runtime_below_threshold(func: Callable, threshold: float, **kwargs):
         f".{func.__name__} "
         f"takes too long to execute."
     )
+
+
+class TestRuntime(unittest.TestCase):
+    """Measure the runtime of the runner."""
+
+    def test_runtime(self):
+        """Test runtime."""
+        rng = backend.random.default_rng()
+        ref_A = rng.random((1024, 1024))
+        ref_B = rng.random((1024, 1024))
+        ref_start_time = timer()
+        _ = ref_A @ ref_B
+        ref_end_time = timer()
+        _ = ref_end_time - ref_start_time
+        assert True

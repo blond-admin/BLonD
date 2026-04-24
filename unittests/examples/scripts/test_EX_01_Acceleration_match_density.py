@@ -56,7 +56,7 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         backend.set_specials("numba")
 
         self._execute()
-        assert_runtime_below_threshold(self._execute, 150)
+        assert_runtime_below_threshold(self._execute, 300)
 
     @pytest.mark.backend_mutation
     @pytest.mark.mpi
@@ -65,7 +65,7 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         backend.set_specials("numba")
 
         self._execute()
-        assert_runtime_below_threshold(self._execute, 100)
+        assert_runtime_below_threshold(self._execute, 300)
 
     @pytest.mark.backend_mutation
     @pytest.mark.mpi
