@@ -11,6 +11,7 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
+from blond.testing.helpers import assert_runtime_below_threshold
 
 
 class TestEX_01_Acceleration_match_density(unittest.TestCase):
@@ -55,13 +56,16 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         backend.set_specials("numba")
 
         self._execute()
+        assert_runtime_below_threshold(self._execute, 150)
 
     @pytest.mark.backend_mutation
     @pytest.mark.mpi
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
+
         self._execute()
+        assert_runtime_below_threshold(self._execute, 100)
 
     @pytest.mark.backend_mutation
     @pytest.mark.mpi
@@ -74,7 +78,7 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         backend.change_backend(Cupy32Bit)
         backend.set_specials("cuda")
 
-        self._execute()
+        assert_runtime_below_threshold(self._execute, 30)
 
         backend.zeros(100)  # make sure that cupy is still working,
         # previous memory
@@ -91,7 +95,7 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
 
-        self._execute()
+        assert_runtime_below_threshold(self._execute, 30)
 
         backend.zeros(100)  # make sure that cupy is still working,
         # previous memory

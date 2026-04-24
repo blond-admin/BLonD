@@ -9,6 +9,7 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
+from blond.testing.helpers import assert_runtime_below_threshold
 
 
 class TestEX_01_Acceleration(unittest.TestCase):
@@ -21,7 +22,9 @@ class TestEX_01_Acceleration(unittest.TestCase):
             EX_01_Acceleration_revolution_time,  # NOQA will run the
         )
 
-        EX_01_Acceleration_revolution_time.main()
+        assert_runtime_below_threshold(
+            EX_01_Acceleration_revolution_time.main, 30
+        )
 
         # full script. just checking if it crashes
 
@@ -34,7 +37,9 @@ class TestEX_01_Acceleration(unittest.TestCase):
             EX_01_Acceleration_revolution_time,  # NOQA will run the
         )
 
-        EX_01_Acceleration_revolution_time.main()
+        assert_runtime_below_threshold(
+            EX_01_Acceleration_revolution_time.main, 30
+        )
 
         # full script. just checking if it crashes
 
@@ -52,7 +57,9 @@ class TestEX_01_Acceleration(unittest.TestCase):
             EX_01_Acceleration_revolution_time,  # NOQA will run the
         )
 
-        EX_01_Acceleration_revolution_time.main()
+        assert_runtime_below_threshold(
+            EX_01_Acceleration_revolution_time.main, 30
+        )
         backend.zeros(100)
 
         # full script. just checking if it crashes
@@ -71,7 +78,9 @@ class TestEX_01_Acceleration(unittest.TestCase):
             EX_01_Acceleration_revolution_time,  # NOQA will run the
         )
 
-        EX_01_Acceleration_revolution_time.main()
+        assert_runtime_below_threshold(
+            EX_01_Acceleration_revolution_time.main, 30
+        )
         backend.zeros(100)
 
         # full script. just checking if it crashes
