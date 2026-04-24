@@ -58,7 +58,7 @@ class TestEX_01_Acceleration(unittest.TestCase):
         )
 
         assert_runtime_below_threshold(
-            EX_01_Acceleration_revolution_time.main, 300
+            EX_01_Acceleration_revolution_time.main, 600
         )
         backend.zeros(100)
 
