@@ -168,13 +168,48 @@ def assert_runtime_below_threshold(func: Callable, threshold: float, **kwargs):
 class TestRuntime(unittest.TestCase):
     """Measure the runtime of the runner."""
 
-    def test_runtime(self):
+    def test_runtime_1D(self):
+        """Test runtime."""
+        rng = backend.random.default_rng()
+        ref_A = rng.random((1024 * 1024,))
+        ref_B = rng.random((1024 * 1024,))
+        ref_start_time = timer()
+        _ = ref_A * ref_B
+        ref_end_time = timer()
+        _ = ref_end_time - ref_start_time
+        assert True
+
+    def test_runtime_2D(self):
         """Test runtime."""
         rng = backend.random.default_rng()
         ref_A = rng.random((1024, 1024))
         ref_B = rng.random((1024, 1024))
         ref_start_time = timer()
         _ = ref_A @ ref_B
+        ref_end_time = timer()
+        _ = ref_end_time - ref_start_time
+        assert True
+
+    def test_runtime_arithmetic_1D(self):
+        """Test runtime."""
+        rng = backend.random.default_rng()
+        ref_A = rng.random((1024 * 1024,))
+        ref_B = rng.random((1024 * 1024,))
+        ref_start_time = timer()
+        _ = ref_A**2 - 15 * (ref_B**3 - 53 + backend.sqrt(ref_A)) * ref_B
+        _ = ref_B * ref_A * 0.5 + 125 * ref_A**2 - 225.4 * ref_B**3
+        ref_end_time = timer()
+        _ = ref_end_time - ref_start_time
+        assert True
+
+    def test_runtime_arithmetic_2D(self):
+        """Test runtime."""
+        rng = backend.random.default_rng()
+        ref_A = rng.random((1024, 1024))
+        ref_B = rng.random((1024, 1024))
+        ref_start_time = timer()
+        _ = ref_A**2 - 15 * (ref_B**3 - 53 + backend.sqrt(ref_A)) * ref_B
+        _ = ref_B * ref_A * 0.5 + 125 * ref_A**2 - 225.4 * ref_B**3
         ref_end_time = timer()
         _ = ref_end_time - ref_start_time
         assert True
