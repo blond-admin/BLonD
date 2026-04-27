@@ -28,4 +28,4 @@ class ArrayCastingError(BLonDException, ValueError, TypeError):
 
 
 class ArrayPrecisionError(BLonDException, TypeError):
-    """Exception raised when array precision is invalid."""
+    """Exception raised when array dtype is invalid."""

@@ -92,6 +92,12 @@ class BeamBaseClass(Preparable, ABC):
         -------
         self
             Self with the contents of other beam added.
+
+        Examples
+        --------
+        >>> beam_1 = Beam([..])
+        >>> beam_2 = Beam([..])
+        >>> beam_1 += beam_2
         """
         self.add_beam(other)
         return self
@@ -104,12 +110,12 @@ class BeamBaseClass(Preparable, ABC):
         particles of this one.  The MPI distribution status, intensity
         ratio and particle types must match.
 
-        The ids of the added beam will be incremented by the maximum id
+        The ``ids`` of the added beam will be incremented by the maximum id
         of the current beam plus one.  E.g.:
-            `self.ids = [0, 2, 4]`
-            `other.ids = [0, 1, 2, 3, 4]`
+            ``self.ids = [0, 2, 4]``
+            ``other.ids = [0, 1, 2, 3, 4]``
         After addition:
-            `self.ids = [0, 2, 4, 5, 6, 7, 8, 9]`
+            ``self.ids = [0, 2, 4, 5, 6, 7, 8, 9]``
 
         Parameters
         ----------
