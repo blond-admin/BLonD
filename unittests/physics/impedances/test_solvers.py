@@ -2075,6 +2075,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         beam = deepcopy(self.beam)
         beam.reference.time = 0
         ind_volt_init = local_res.calc_induced_voltage(beam=beam)
+        orig = deepcopy(local_res)
 
         t_rf = 1 / resonators._center_frequencies[0]
         delay_time = (
@@ -2109,6 +2110,14 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         # ensure perfect addition of in-phase component
         assert np.allclose(ind_volt, ind_volt_init)
         assert np.argmax(ind_volt) == np.argmax(ind_volt_init)
+
+        beam = deepcopy(self.beam)
+        beam.reference.time = 0
+        orig._parent_wakefield.profile.active = False
+        ind_volt_non_changed = orig.calc_induced_voltage(beam=beam)
+
+        # should not have been called due to profile active false
+        np.testing.assert_allclose(ind_volt_non_changed, ind_volt_init)
 
     def test_on_wakefield_init_simulation_wrong_source(self):
         src = ImpedanceTableFreq(
