@@ -195,7 +195,7 @@ class BeamBaseClass(Preparable, ABC):
         new_ids.array_local += id_max + 1
 
         new_flags = dist_help.distributed_zeros(local_size, np.int32)
-        new_flags.array_local += np.int32(BeamFlags.ACTIVE.value)
+        new_flags.array_local[:] = np.int32(BeamFlags.ACTIVE.value)
 
         self._add_coordinates(dt, dE, new_flags, new_ids)
 
