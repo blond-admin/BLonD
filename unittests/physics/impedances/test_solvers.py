@@ -2074,7 +2074,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
         beam = deepcopy(self.beam)
         beam.reference.time = 0
-        ind_volt_init = local_res.calc_induced_voltage(beam=beam)
+        ind_volt_init = copy_to_cpu(local_res.calc_induced_voltage(beam=beam))
         orig = deepcopy(local_res)
 
         t_rf = 1 / resonators._center_frequencies[0]
@@ -2084,7 +2084,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         beam = deepcopy(self.beam)
         beam.reference.time = delay_time
 
-        ind_volt = local_res.calc_induced_voltage(beam=beam)
+        ind_volt = copy_to_cpu(local_res.calc_induced_voltage(beam=beam))
 
         # ensure perfect addition of in-phase component
         assert not np.allclose(ind_volt, ind_volt_init)
@@ -2105,7 +2105,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         beam = deepcopy(self.beam)
         beam.reference.time = delay_time
-        ind_volt = local_res.calc_induced_voltage(beam=beam)
+        ind_volt = copy_to_cpu(local_res.calc_induced_voltage(beam=beam))
 
         # ensure perfect addition of in-phase component
         assert np.allclose(ind_volt, ind_volt_init)
@@ -2114,7 +2114,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         beam = deepcopy(self.beam)
         beam.reference.time = 0
         orig._parent_wakefield.profile.active = False
-        ind_volt_non_changed = orig.calc_induced_voltage(beam=beam)
+        ind_volt_non_changed = copy_to_cpu(
+            orig.calc_induced_voltage(beam=beam)
+        )
 
         # should not have been called due to profile active false
         np.testing.assert_allclose(ind_volt_non_changed, ind_volt_init)
