@@ -156,7 +156,7 @@ class Schedulable:
     >>> def __init__(self, attribute_to_be_scheduled)
     >>>     self._add_intended_schedule("attribute_to_be_scheduled")
     - in the tracking method:
-    >>> def __track(self, beam: BeamBaseClass, **kwargs):
+    >>> def _track(self, beam: BeamBaseClass, **kwargs):
     >>>     if self.schedule_active:
     >>>         self.apply_schedules(
     >>>            turn_i=self._turn_i.value,
