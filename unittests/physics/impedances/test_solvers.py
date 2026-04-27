@@ -1110,6 +1110,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._parent_wakefield.profile = Mock(
             StaticProfile
         )
+        self.multi_pass_resonator_solver._parent_wakefield.profile.active = (
+            True
+        )
         self.multi_pass_resonator_solver._parent_wakefield.profile.hist_step = self.hist_step
         self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x = (
             self.hist_x
@@ -2052,6 +2055,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         local_res._parent_wakefield = Mock(WakeField)
         local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
+        local_res._parent_wakefield.profile.active = True
         local_res._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
         )
@@ -2157,6 +2161,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
             local_res._parent_wakefield = Mock(WakeField)
             local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
+            local_res._parent_wakefield.profile.active = True
             local_res._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
             )
