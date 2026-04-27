@@ -123,7 +123,13 @@ def enforce_64_bit_backend():
             backend.change_backend(Numpy64Bit)
 
 
-def assert_runtime_below_threshold(func: Callable, threshold: float, **kwargs):
+def assert_runtime_below_threshold(
+    func: Callable,
+    threshold: float,
+    repeat: int = 1,
+    matrix_size: tuple = (2**12, 2**12),
+    **kwargs,
+):
     """
     Checking if the runtime of a function is below a limit.
 
@@ -133,6 +139,10 @@ def assert_runtime_below_threshold(func: Callable, threshold: float, **kwargs):
         The function to be tested.
     threshold
         The threshold to compare.
+    repeat
+        The numer of times the multiplication is calulated.
+    matrix_size
+        The shape of the matrices to multiply.
     **kwargs
         Keyword arguments to the function.
 
@@ -143,10 +153,11 @@ def assert_runtime_below_threshold(func: Callable, threshold: float, **kwargs):
     """
     # Calculating reference time
     rng = backend.random.default_rng()
-    ref_A = rng.random((2**12, 2**12))
-    ref_B = rng.random((2**12, 2**12))
     ref_start_time = timer()
-    _ = ref_A * ref_B
+    for _ in range(repeat):
+        ref_A = rng.random(matrix_size)
+        ref_B = rng.random(matrix_size)
+        _ = ref_A * ref_B
     ref_end_time = timer()
     ref_time = ref_end_time - ref_start_time
 

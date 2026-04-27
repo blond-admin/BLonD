@@ -47,7 +47,12 @@ class TestEX_01_Acceleration(unittest.TestCase):
         backend.set_specials("cuda")
         from blond.examples.scripts import EX_01_Acceleration
 
-        assert_runtime_below_threshold(EX_01_Acceleration.main, 2000)
+        assert_runtime_below_threshold(
+            EX_01_Acceleration.main,
+            2000,
+            repeat=10,
+            matrix_size=(2**13, 2**13),
+        )
         backend.zeros(100)
 
         # full script. just checking if it crashes
@@ -64,7 +69,12 @@ class TestEX_01_Acceleration(unittest.TestCase):
         backend.set_specials("cuda")
         from blond.examples.scripts import EX_01_Acceleration
 
-        assert_runtime_below_threshold(EX_01_Acceleration.main, 2000)
+        assert_runtime_below_threshold(
+            EX_01_Acceleration.main,
+            2000,
+            repeat=10,
+            matrix_size=(2**13, 2**13),
+        )
         backend.zeros(100)
 
         # full script. just checking if it crashes
