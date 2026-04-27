@@ -44,7 +44,12 @@ class TestEX_02_Main_long_ps_booster(unittest.TestCase):
 
         # full script. just checking if it crashes
 
-        assert_runtime_below_threshold(EX_02_Main_long_ps_booster.main, 30)
+        assert_runtime_below_threshold(
+            EX_02_Main_long_ps_booster.main,
+            threshold=30,
+            repeat=10,
+            matrix_size=(2**13, 2**13),
+        )
         backend.zeros(100)
 
     @pytest.mark.backend_mutation
@@ -59,5 +64,10 @@ class TestEX_02_Main_long_ps_booster(unittest.TestCase):
         from blond.examples.scripts import EX_02_Main_long_ps_booster
 
         # full script. just checking if it crashes
-        assert_runtime_below_threshold(EX_02_Main_long_ps_booster.main, 30)
+        assert_runtime_below_threshold(
+            EX_02_Main_long_ps_booster.main,
+            threshold=30,
+            repeat=10,
+            matrix_size=(2**13, 2**13),
+        )
         backend.zeros(100)

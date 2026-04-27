@@ -58,7 +58,12 @@ class TestEX_01_Acceleration_no_beam(unittest.TestCase):
 
         # the
         EX_01_Acceleration_no_beam.n_turns = 10  # for testing
-        assert_runtime_below_threshold(EX_01_Acceleration_no_beam.main, 30)
+        assert_runtime_below_threshold(
+            EX_01_Acceleration_no_beam.main,
+            threshold=30,
+            repeat=10,
+            matrix_size=(2**13, 2**13),
+        )
         backend.zeros(100)
 
         # full script. just checking if it crashes
@@ -78,7 +83,12 @@ class TestEX_01_Acceleration_no_beam(unittest.TestCase):
 
         # the
         EX_01_Acceleration_no_beam.n_turns = 10  # for testing
-        assert_runtime_below_threshold(EX_01_Acceleration_no_beam.main, 30)
+        assert_runtime_below_threshold(
+            EX_01_Acceleration_no_beam.main,
+            threshold=30,
+            repeat=10,
+            matrix_size=(2**13, 2**13),
+        )
         backend.zeros(100)
 
         # full script. just checking if it crashes
