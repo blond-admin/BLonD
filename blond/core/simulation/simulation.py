@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
 
+from blond import WakeField
 from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
@@ -570,7 +571,17 @@ class Simulation(Preparable):
         )
         bunch_before = deepcopy(probe_bunch)
         t_0 = probe_bunch.reference.time
-        deepcopy(self).run_simulation(
+
+        sim_tmp = deepcopy(self)
+
+        wakefields = sim_tmp.ring.elements.get_elements(
+            WakeField, recursive=True
+        )
+        for wakefield in wakefields:
+            wakefield.update_induced_voltage = False
+            wakefield.profile.active = False
+
+        sim_tmp.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             show_progressbar=False,
