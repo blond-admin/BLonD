@@ -741,24 +741,26 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             self._local_wakefield.track(beam=beam)
 
         if np.any(self.delta_omega_rf != 0):
-            self._update_delta_phi_rf_from_beam_feedback()
+            self._update_delta_phi_rf_from_beam_feedback(beam=beam)
 
-    def _update_delta_phi_rf_from_beam_feedback(self):
+    def _update_delta_phi_rf_from_beam_feedback(self) -> None:
         """
         Update the phase slip for the next turn depending on the frequency change from the beam feedback.
 
         Update the RF phase of all systems for the next turn
         Accumulated phase offset due to beam phase loop or frequency offset.
         """
-        phi_increment = (
-            2.0
-            * np.pi
-            * self.harmonic
-            * self.delta_omega_rf
-            / self.omega_rf_design
-        )
+        # phi_increment = (
+        #     2.0
+        #     * np.pi
+        #     * self.harmonic
+        #     * self.delta_omega_rf
+        #     # /self.omega_rf_design
+        #     / self.calc_omega_rf_design(beam.reference.beta, self._ring.circumference)
+        #     # TODO: this is wrong, beam is not yet tracked, i.e. reference is too low
+        # )
 
-        self.phase_correction_frequency_offset += phi_increment
+        self.phase_correction_frequency_offset += 0
 
     def track_reference(
         self,

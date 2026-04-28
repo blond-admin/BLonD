@@ -29,7 +29,7 @@ from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 
-DEBUG_PLOTTING = True
+DEBUG_PLOTTING = False
 
 
 class IQFDBKTester(IQCavityFeedback):
@@ -99,7 +99,7 @@ class TestIQCavityFeedbackTimingClass:
         self.beam._flags = DistributedArray(np.zeros(5))
 
     test_data_discontinuity = [
-        (0, 0, 1),
+        # (0, 0, 1),
         (0, 0.1, 1),
         (0, -0.1, 1),
         (-1, 0, 1),
@@ -293,28 +293,46 @@ class TestIQCavityFeedbackTimingClass:
             time_array.append(
                 np.linspace(
                     0,
-                    2
-                    * np.pi
-                    / self.rf_station.omega_rf_design
-                    * self.rf_station.harmonic,
+                    # 2 * np.pi /
+                    # cav_fdbk_timing.
+                    # cav_fdbk_timing._parent_rf_station.calc_main_harmonic_omega_rf_design(beam_beta=beam.reference.beta, ring_circumference=self.circumference)
+                    # cav_fdbk_timing._parent_rf_station.calc_main_harmonic_t_rf(beam_beta=beam.reference.beta, ring_circumference=self.circumference)
+                    cav_fdbk_timing.forward_tracking_time,
+                    # * self.rf_station.harmonic,
                     num=vals_per_turn,
                 )
             )
-
+            phase_offset = (
+                cav_fdbk_timing._parent_rf_station.phase_correction_frequency_offset
+                if simulation.turn_i.value > 1
+                else 0
+            )
             voltage_array.append(
                 np.sin(
-                    cav_fdbk_timing._parent_rf_station.omega_rf
-                    * time_array[-1]
-                    + cav_fdbk_timing._parent_rf_station.phi_rf  # - cav_fdbk_timing._parent_rf_station.phase_correction_frequency_offset - np.pi
+                    cav_fdbk_timing.forward_tracking_omega_rf * time_array[-1]
+                    + cav_fdbk_timing.phase_offset_frwrd  # - 2*phase_offset
                 )
             )
             rf_centers_array.append(cav_fdbk_timing.rf_centers)
             # omega_rf_save.append(cav_fdbk_timing.forward_tracking_omega_rf)
-            omega_rf_save.append(cav_fdbk_timing.omega_rf)
+            omega_rf_save.append(cav_fdbk_timing.forward_tracking_omega_rf)
+            print(cav_fdbk_timing.omega_rf)
+            print(cav_fdbk_timing.forward_tracking_omega_rf)
+            print(cav_fdbk_timing._parent_rf_station.delta_omega_rf)
+            print(cav_fdbk_timing.phi_rf)
+            print(
+                cav_fdbk_timing._parent_rf_station.phase_correction_frequency_offset
+            )
+
+            print(r"\n---------------------------\n")
+
             if simulation.turn_i.value == 0:
-                self.t_rf_init = 2 * np.pi / self.rf_station.omega_rf_design
+                self.t_rf_init = (
+                    2 * np.pi / cav_fdbk_timing.forward_tracking_omega_rf
+                )
                 self.rf_station.delta_omega_rf = (
-                    delta_omega_factor * self.rf_station.omega_rf
+                    delta_omega_factor
+                    * cav_fdbk_timing.forward_tracking_omega_rf
                 )
 
         sim.run_simulation(

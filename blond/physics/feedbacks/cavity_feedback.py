@@ -623,6 +623,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         )
 
         self.reference_state_until_tracked = deepcopy(beam.reference)
+        self.phase_offset_frwrd_next = 0
+        self.phase_offset_frwrd = 0
 
     def get_passed_time_forward_direction(self, beam: BeamBaseClass):
         """
@@ -933,7 +935,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.residual_taps_last_rf_centers_calculation = (
             self.residual_time_last_rf_centers_calculation / t_rf
         )
-        self.last_forward_tracking_freq = self.omega_rf
+        self.last_forward_tracking_freq = omega_rf
         return rf_centers
 
     def calculate_rf_centers_for_forward_direction(
@@ -948,19 +950,26 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             Beam object to receive the reference frame.
         """
         self.get_passed_time_forward_direction(beam=beam)
-        # phase_offset_frwrd =  (
-        #     2.0
-        #     * np.pi
-        #     * self._parent_rf_station.harmonic
-        #     * self._parent_rf_station.delta_omega_rf
-        #     / (self.forward_tracking_omega_rf)) # this was added before
+        self.phase_offset_frwrd += self.phase_offset_frwrd_next
+        self.phase_offset_frwrd_next = (
+            2.0
+            * np.pi
+            * self._parent_rf_station.harmonic
+            * self._parent_rf_station.delta_omega_rf
+            / self._parent_rf_station.calc_omega_rf_design(
+                beam_beta=self.reference_state_until_tracked.beta,
+                ring_circumference=self.ring.circumference,
+            )
+        )  # this was added before
+
+        print(f"{self.phase_offset_frwrd=}")
         self.rf_centers = np.append(
             self.rf_centers,
             self._generate_rf_centers(
                 t_rf=(2 * np.pi / self.forward_tracking_omega_rf),
                 # TODO: this is indeed necessary for the multi-section acceleration tracking, delta_omega hast to be applied somewhere else if applicable
                 omega_rf=self.forward_tracking_omega_rf,
-                phi_rf=self.phi_rf,  # + phase_offset_frwrd,
+                phi_rf=self.phase_offset_frwrd,  # phase_offset_frwrd,
                 until_time=self.forward_tracking_time,
             ),
         )
