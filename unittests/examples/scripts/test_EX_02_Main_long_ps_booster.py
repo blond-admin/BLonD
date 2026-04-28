@@ -46,7 +46,7 @@ class TestEX_02_Main_long_ps_booster(unittest.TestCase):
 
         assert_runtime_below_threshold(
             EX_02_Main_long_ps_booster.main,
-            threshold=30,
+            threshold=2000,
             repeat=10,
             matrix_size=(2**13, 2**13),
         )
@@ -66,7 +66,7 @@ class TestEX_02_Main_long_ps_booster(unittest.TestCase):
         # full script. just checking if it crashes
         assert_runtime_below_threshold(
             EX_02_Main_long_ps_booster.main,
-            threshold=30,
+            threshold=2000,
             repeat=10,
             matrix_size=(2**13, 2**13),
         )

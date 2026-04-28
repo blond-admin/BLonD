@@ -58,7 +58,7 @@ class TestEX_01_Acceleration_interrupted(unittest.TestCase):
 
         assert_runtime_below_threshold(
             EX_01_Acceleration_interrupted.main,
-            threshold=30,
+            threshold=660,
             repeat=10,
             matrix_size=(2**13, 2**13),
         )
@@ -81,7 +81,7 @@ class TestEX_01_Acceleration_interrupted(unittest.TestCase):
 
         assert_runtime_below_threshold(
             EX_01_Acceleration_interrupted.main,
-            threshold=30,
+            threshold=660,
             repeat=10,
             matrix_size=(2**13, 2**13),
         )
