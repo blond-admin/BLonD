@@ -55,15 +55,19 @@ def test_blond_xsuite_interface():
         dz = []
         dp = []
         for i in range(n_turns):
-            dz.append(zeta_blond[0, i] - zeta_xsuite[0, i])
-            dp.append(delta_blond[0, i] - delta_xsuite[0, i])
+            dz.append(
+                (zeta_blond[0, i] - zeta_xsuite[0, i]) / zeta_xsuite[0, i]
+            )  # shape (n_particles, n_turns)
+            dp.append(
+                (delta_blond[0, i] - delta_xsuite[0, i]) / delta_xsuite[0, i]
+            )
         dz = np.array(dz)
         dp = np.array(dp)
 
         plt.plot(dz, marker="o", linestyle="-", label=r" $|\Delta\zeta|$")
-        plt.plot(dp, marker="o", linestyle="-", label=r" $|\delta |$")
+        plt.plot(dp, marker="o", linestyle="-", label=r" $|\Delta\delta |$")
         plt.xlabel("Turn")
-        plt.ylabel("Difference")
+        plt.ylabel("Relative Difference")
         plt.legend()
         plt.grid(True)
         plt.tight_layout()

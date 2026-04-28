@@ -6,4 +6,91 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Check off by one in ramp error."""
+"""Check off by one in ramp error, in case the ramp has a discontinuity."""
+
+import numpy as np
+from matplotlib import pyplot as plt
+
+from blond.testing.helpers import allclose_tolerances
+
+from .ramp_blond_xsuite_lhc_map_error import run_simulation as run_blond
+from .ramp_xsuite_lhc_map_error import run_simulation as run_xsuite
+
+
+def test_blond_interface_xsuite():
+    """Run xsuite + blond element simulation."""
+    n_turns = 5
+    PLOT = True
+
+    init_dist, zeta_xsuite, delta_xsuite = run_xsuite(n_turns=n_turns)
+    (
+        zeta_blond,
+        delta_blond,
+    ) = run_blond(n_turns=n_turns, init_distribution=init_dist)
+
+    assert zeta_blond.shape == zeta_xsuite.shape
+    assert delta_blond.shape == delta_xsuite.shape
+
+    if PLOT:
+        plt.scatter(
+            zeta_blond[:, 0], delta_blond[:, 0], label="xsuite + BLonD"
+        )
+        plt.scatter(
+            zeta_xsuite[:, 0], delta_xsuite[:, 0], marker="x", label="xsuite"
+        )
+        plt.title("After 0 turns")
+        plt.xlabel("$\zeta$ [m]")
+        plt.ylabel(r"$delta$")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+        plt.scatter(
+            zeta_blond[:, -1], delta_blond[:, -1], label="xsuite + BLonD"
+        )
+        plt.scatter(
+            zeta_xsuite[:, -1], delta_xsuite[:, -1], marker="x", label="xsuite"
+        )
+        plt.title(f"After {n_turns} turns")
+        plt.xlabel("$\zeta$ [m]")
+        plt.ylabel(r"$p_{\tau}$")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+        dz = []
+        dp = []
+        for i in range(n_turns):
+            dz.append(
+                (zeta_blond[0, i] - zeta_xsuite[0, i]) / zeta_xsuite[0, i]
+            )  # shape (n_particles, n_turns)
+            dp.append(
+                (delta_blond[0, i] - delta_xsuite[0, i]) / delta_xsuite[0, i]
+            )
+
+        plt.plot(dz, marker="o", linestyle="-", label=r" $|\Delta\zeta|$")
+        plt.plot(dp, marker="o", linestyle="-", label=r" $|\Delta\delta |$")
+        plt.xlabel("Turn")
+        plt.ylabel("Relative Difference")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+    np.testing.assert_allclose(
+        zeta_blond,
+        zeta_xsuite,
+        **allclose_tolerances(
+            zeta_xsuite,
+            rtol_32bit=1e-5,
+        ),
+    )
+
+    np.testing.assert_allclose(
+        delta_blond,
+        delta_xsuite,
+        **allclose_tolerances(
+            delta_xsuite,
+            rtol_32bit=1e-5,
+        ),
+    )

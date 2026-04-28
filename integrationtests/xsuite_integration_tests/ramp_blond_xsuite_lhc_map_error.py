@@ -8,19 +8,19 @@
 
 """Ramp Blond Xsuite LHC Map Integration Tests."""
 
-
-# pragma: no cover
-
-from copy import deepcopy
-
 import numpy as np
 import xpart as xp
 import xtrack as xt
+
+# pragma: no cover
 from scipy.constants import c
 
+from blond import SingleHarmonicRFStation
+from blond.interfaces.xsuite import BLonD3Cavity
 
-def run_simulation(n_turns: int):
-    """Xsuite only ramp."""
+
+def run_simulation(n_turns: int, init_distribution: dict):
+    """Xsuite and BLonD ramp."""
     circumference = 26658.8832
     synchronous_momentum = 450e9
     alpha = 0.00034849575112251314  # First order mom. comp. factor [-]
@@ -34,7 +34,7 @@ def run_simulation(n_turns: int):
         qy=1.2,
         betx=1.0,
         bety=1.0,
-        voltage_rf=0,  # why dont we just add it here???
+        voltage_rf=0,
         frequency_rf=0,
         lag_rf=0,
         momentum_compaction_factor=alpha,
@@ -44,57 +44,62 @@ def run_simulation(n_turns: int):
     # Create line
     line = xt.Line(elements=[matrix], element_names={"matrix"})
 
+    # calculate real t_rev
     t_rev = 26658.8832 / c
-    p0c_ramp = np.linspace(450e9, 450.1e9, n_turns)
+
     t_s = np.linspace(0, t_rev * n_turns, n_turns)
+
+    # linear ramp over first (n_turns - 1)
+    p0c_ramp = np.array([450e9, 450.001e9, 450.002e9, 450.003e9, 450e9])
 
     line.particle_ref = xp.Particles(
         p0c=synchronous_momentum, mass0=xp.PROTON_MASS_EV, q0=1.0
     )
-    line.energy_program = xt.EnergyProgram(t_s=t_s, p0c=p0c_ramp)
 
-    xsuite_cavity = xt.Cavity(
-        voltage=rf_voltage, frequency=400788731.3867354, lag=180
+    tw = line.twiss(method="4d")
+    alpha_0 = tw["momentum_compaction_factor"]
+
+    line.energy_program = xt.EnergyProgram(
+        t_s=t_s, p0c=p0c_ramp
+    )  # make it more relativistic?
+
+    # --- BLonD3Element  --- #
+
+    cavity1 = SingleHarmonicRFStation.headless(
+        section_index=1,
+        voltage=rf_voltage,
+        harmonic=harmonic,
+        phi_rf=0,
+        circumference=circumference,
+        total_energy=None,
+        is_below_transition=None,
+        beam_reference_beta=float(line.particle_ref.beta0[0]),
     )
-
-    line.insert_element(index=0, element=xsuite_cavity, name="xsuite_cavity")
-
-    # link rf cavity to the ramp
-    t_rf = np.linspace(0, t_rev * n_turns, n_turns)
-    f_rev = line.energy_program.get_frev_at_t_s(t_rf)
-    h_rf = harmonic
-    f_rf = h_rf * f_rev
-
-    n_part = 400
-    rng = np.random.default_rng()
 
     particles = line.build_particles(
-        x=rng.uniform(low=-1e-3, high=1e-3, size=n_part),
-        px=rng.uniform(-1e-5, 1e-5, n_part),
-        y=rng.uniform(-2e-3, 2e-3, n_part),
-        py=rng.uniform(-3e-5, 3e-5, n_part),
-        zeta=np.linspace(-1.5, 1.5, n_part),
-        delta=np.linspace(-1e-4, 1e-4, n_part),
+        x=init_distribution["x"],
+        px=init_distribution["px"],
+        y=init_distribution["y"],
+        py=init_distribution["py"],
+        zeta=init_distribution["zeta"],
+        delta=init_distribution["delta"],
     )
 
-    # return initial distribution for the next simulation
-    init_distribution = {
-        "x": deepcopy(particles.x),
-        "px": deepcopy(particles.px),
-        "y": deepcopy(particles.y),
-        "py": deepcopy(particles.py),
-        "zeta": deepcopy(particles.zeta),
-        "delta": deepcopy(particles.delta),
-    }
-
-    line.functions["fun_f_rf"] = xt.FunctionPieceWiseLinear(x=t_rf, y=f_rf)
-    line["xsuite_cavity"].frequency = line.functions["fun_f_rf"](
-        line.ref["t_turn_s"]
+    blond_cavity = BLonD3Cavity(
+        cavity=cavity1,
+        particles=particles,
+        line=line,
+        initial_intensity=1e6,
+        momentum_compaction_factor=alpha_0,
     )
+
+    phi_s = cavity1.calc_phi_s_main_harmonic(beam=blond_cavity._beam)
+    print("phi_s", phi_s)
+
+    line.insert_element(index=0, element=blond_cavity, name="xsuite_cavity")
 
     line.enable_time_dependent_vars = True
     line.build_tracker()
-    # the reference energy is updated by xsuite, we should now check the reference energy in BLonD
 
     line.track(
         particles=particles,
@@ -104,7 +109,6 @@ def run_simulation(n_turns: int):
     )
 
     return (
-        init_distribution,
         line.record_last_track.zeta.copy(),
         line.record_last_track.delta.copy(),
     )

@@ -45,8 +45,13 @@ def run_simulation(n_turns: int):
     line = xt.Line(elements=[matrix], element_names={"matrix"})
 
     t_rev = 26658.8832 / c
-    p0c_ramp = np.linspace(450e9, 450.1e9, n_turns)
+
     t_s = np.linspace(0, t_rev * n_turns, n_turns)
+
+    # last turn = discontinuity
+    p0c_ramp = np.array([450e9, 450.001e9, 450.002e9, 450.003e9, 450e9])
+
+    print("ramp length", len(p0c_ramp))
 
     line.particle_ref = xp.Particles(
         p0c=synchronous_momentum, mass0=xp.PROTON_MASS_EV, q0=1.0
@@ -61,6 +66,7 @@ def run_simulation(n_turns: int):
 
     # link rf cavity to the ramp
     t_rf = np.linspace(0, t_rev * n_turns, n_turns)
+
     f_rev = line.energy_program.get_frev_at_t_s(t_rf)
     h_rf = harmonic
     f_rf = h_rf * f_rev
@@ -102,6 +108,8 @@ def run_simulation(n_turns: int):
         turn_by_turn_monitor=True,
         with_progress=True,
     )
+    # but is it updated at each element, or at each RF station?
+    # if it is not smooth, then it will not work
 
     return (
         init_distribution,
