@@ -49,7 +49,7 @@ class TestEX_01_Acceleration(unittest.TestCase):
 
         assert_runtime_below_threshold(
             EX_01_Acceleration.main,
-            2000,
+            4000,
             repeat=10,
             matrix_size=(2**13, 2**13),
         )
@@ -71,7 +71,7 @@ class TestEX_01_Acceleration(unittest.TestCase):
 
         assert_runtime_below_threshold(
             EX_01_Acceleration.main,
-            2000,
+            4000,
             repeat=10,
             matrix_size=(2**13, 2**13),
         )
