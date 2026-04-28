@@ -409,8 +409,6 @@ class BLonD3Cavity:
 
         beam.purge_flagged_entries()
 
-
-
     # TODO test backward forward consistent with losses..
     def blond_to_xsuite_transform_particles(
         self, particles: XSuiteParticles, beam: BeamBaseClass
@@ -430,7 +428,6 @@ class BLonD3Cavity:
         """
         # Relative energy deviation
 
-
         dE = beam.read_partial_dE()
 
         particles.ptau[self._previous_active_mask] = dE.ravel() / (
@@ -441,7 +438,9 @@ class BLonD3Cavity:
         # Longitudinal position
         dt = beam.read_partial_dt()
 
-        assert not np.any(np.isnan(particles.beta0[self._previous_active_mask]))
+        assert not np.any(
+            np.isnan(particles.beta0[self._previous_active_mask])
+        )
         assert not np.isnan(self._dt_shift)
 
         particles.zeta[self._previous_active_mask] = (

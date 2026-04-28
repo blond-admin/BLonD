@@ -52,9 +52,7 @@ def run_simulation(n_turns: int, init_distribution: dict):
         p0c=synchronous_momentum, mass0=xp.PROTON_MASS_EV, q0=1.0
     )
 
-    tw = line.twiss(
-        method="4d"
-    )
+    tw = line.twiss(method="4d")
     alpha_0 = tw["momentum_compaction_factor"]
 
     line.energy_program = xt.EnergyProgram(

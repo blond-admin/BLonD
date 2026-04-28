@@ -42,7 +42,9 @@ def test_blond_xsuite_interface():
         plt.scatter(
             zeta_blond[:, -1], delta_blond[:, -1], label="xsuite + BLonD"
         )
-        plt.scatter(zeta_xsuite[:, -1], delta_xsuite[:, -1], marker='x', label="xsuite")
+        plt.scatter(
+            zeta_xsuite[:, -1], delta_xsuite[:, -1], marker="x", label="xsuite"
+        )
         plt.title(f"After {n_turns} turns")
         plt.xlabel("$\zeta$ [m]")
         plt.ylabel(r"$\delta$")

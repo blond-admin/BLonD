@@ -12,6 +12,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from blond.testing.helpers import allclose_tolerances
+
 from .simple_xsuite_blond_map import run_simulation as run_blond
 from .simple_xsuite_map import run_simulation as run_xsuite
 
@@ -72,12 +73,17 @@ def test_blond_interface_xsuite():
     np.testing.assert_allclose(
         zeta_blond,
         zeta_xsuite,
-        **allclose_tolerances(zeta_xsuite,rtol_32bit = 1e-5,),
+        **allclose_tolerances(
+            zeta_xsuite,
+            rtol_32bit=1e-5,
+        ),
     )
 
     np.testing.assert_allclose(
         delta_blond,
         delta_xsuite,
-        **allclose_tolerances(delta_xsuite,rtol_32bit = 1e-5,
-)
+        **allclose_tolerances(
+            delta_xsuite,
+            rtol_32bit=1e-5,
+        ),
     )
