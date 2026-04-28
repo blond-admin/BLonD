@@ -589,8 +589,7 @@ class SynchrotronRadiationMaster(Schedulable):
     def schedule(
         self,
         attribute: str,
-        value: ScheduledArray
-        | ScheduledInterpolation
+        value: SchedulerBaseClass
         | NumpyArray
         | tuple[NumpyArray, NumpyArray],
     ) -> None:
