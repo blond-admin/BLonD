@@ -95,6 +95,15 @@ class TestDistributedArray(unittest.TestCase):
         actual = self.distributed_array.histogram(bins=8)
         np.testing.assert_allclose(expected, copy_to_cpu(actual))
 
+    def test_histogram_cache_hit(self):
+        mpi_active = mpi_is_distributed()
+        if mpi_active:
+            self.distributed_array.mpi_scatter()
+        self.distributed_array.histogram(bins=8)  # cache miss
+        actual = self.distributed_array.histogram(bins=8)  # cache hit
+        expected, _ = np.histogram(self.array, bins=8)
+        np.testing.assert_allclose(expected, copy_to_cpu(actual))
+
     def test_histogram_with_out(self):
         from blond import backend
 
