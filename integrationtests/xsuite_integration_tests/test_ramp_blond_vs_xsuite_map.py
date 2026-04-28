@@ -11,13 +11,14 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
+from blond.testing.helpers import allclose_tolerances
 from .ramp_blond_xsuite_lhc_map import run_simulation as run_blond
 from .ramp_xsuite_lhc_map import run_simulation as run_xsuite
 
 
 def test_blond_interface_xsuite():
     """Run xsuite + blond element simulation."""
-    n_turns = 10
+    n_turns = 1000
     PLOT = True
 
     init_dist, zeta_xsuite, delta_xsuite = run_xsuite(n_turns=n_turns)
@@ -72,13 +73,11 @@ def test_blond_interface_xsuite():
     np.testing.assert_allclose(
         zeta_blond,
         zeta_xsuite,
-        rtol=1e-8,
-        atol=1e-8,
+        **allclose_tolerances(zeta_xsuite, rtol_32bit = 1e-5,),
     )
 
     np.testing.assert_allclose(
         delta_blond,
         delta_xsuite,
-        rtol=1e-8,
-        atol=1e-8,
+        **allclose_tolerances(delta_xsuite, rtol_32bit = 1e-5,),
     )
