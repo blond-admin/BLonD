@@ -60,7 +60,7 @@ class TestEX_01_Acceleration_interrupted(unittest.TestCase):
             EX_01_Acceleration_interrupted.main,
             threshold=660,
             repeat=10,
-            matrix_size=(2**13, 2**13),
+            matrix_size=(2**14 + 1, 2**14 - 1),
         )
         backend.zeros(100)
 
@@ -83,7 +83,7 @@ class TestEX_01_Acceleration_interrupted(unittest.TestCase):
             EX_01_Acceleration_interrupted.main,
             threshold=660,
             repeat=10,
-            matrix_size=(2**13, 2**13),
+            matrix_size=(2**14 + 1, 2**14 - 1),
         )
         backend.zeros(100)
 
