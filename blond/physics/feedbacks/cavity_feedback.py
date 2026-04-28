@@ -764,10 +764,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 element, RFStationBaseClass
             ):  # and element == self.tracked_forward_until_element:
                 element._turn_i._value -= self.reference_turn_offset
-            # if (
-            #     isinstance(element, SingleHarmonicRFStation) and not self.debug
-            # ):  # does not alter time coordinate
-            #     continue  # TODO: does this work with breaking? --> rework
+
             omega_list.append(
                 self._parent_rf_station.calc_omega_rf_design(
                     self.reference_state_until_tracked.beta,
@@ -877,9 +874,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 f"Unknown cavity type {type(self._parent_rf_station)}"
             )
 
-    # def get_t_until_next_energy_change(self, beam: BeamBaseClass):
-    #     for
-
     @staticmethod
     def _get_time_to_next_rising_edge_zero(
         phi: float, frequency: float
@@ -894,7 +888,11 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 omega_rf,
             )
         )
-        if time_to_next_falling_edge_zero < 0:
+
+        # 2nd part of if: floating precision would miss this in the last turn, hence has to be done this turn
+        if time_to_next_falling_edge_zero <= 0 and not np.isclose(
+            self.residual_taps_last_rf_centers_calculation, 1
+        ):
             time_to_next_falling_edge_zero += t_rf
 
         step_width_rf_centers = t_rf * self.n_rf_periods_per_coarse_grid
@@ -913,10 +911,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             stop=until_time,  # ensure that the last value is taken even with float precision
             step=step_width_rf_centers,
         )
-
-        # This element was already done in the last iteration
-        # if self.residual_time_last_rf_centers_calculation != 0:
-        #     rf_centers = rf_centers[1:]
 
         if len(rf_centers) == 0:
             warnings.warn(

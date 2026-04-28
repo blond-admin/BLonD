@@ -99,15 +99,24 @@ class TestIQCavityFeedbackTimingClass:
         self.beam._flags = DistributedArray(np.zeros(5))
 
     test_data_discontinuity = [
-        # (0, 0, 1),
-        (0, 0.1, 1),
-        (0, -0.1, 1),
+        (0, 0, 1),
+        (0, 0.13, 1),
+        (0, -0.13, 1),
         (-1, 0, 1),
         (-1, 0.13, 1),
         (-1, -0.13, 1),
         (1, 0, 1),
         (1, 0.13, 1),
         (1, -0.13, 1),
+        (0, 0, 1),
+        (0, 0.1, 1),
+        (0, -0.1, 1),
+        (-1, 0, 1),
+        (-1, 0.1, 1),
+        (-1, -0.1, 1),
+        (1, 0, 1),
+        (1, 0.1, 1),
+        (1, -0.1, 1),
         (0, 0, 2),
         (0, 0.13, 2),
         (0, -0.13, 2),
@@ -171,9 +180,8 @@ class TestIQCavityFeedbackTimingClass:
 
             voltage_array.append(
                 np.sin(
-                    cav_fdbk_timing._parent_rf_station.omega_rf
-                    * time_array[-1]
-                    + cav_fdbk_timing._parent_rf_station.phi_rf
+                    cav_fdbk_timing.forward_tracking_omega_rf * time_array[-1]
+                    + cav_fdbk_timing.phase_offset_frwrd
                 )
             )
             rf_centers_array.append(cav_fdbk_timing.rf_centers)
@@ -237,7 +245,7 @@ class TestIQCavityFeedbackTimingClass:
                 timestep_end,
                 atol=timestep_end * 1e-7,
             ), (
-                f"{rf_centers_array[ind][0] - rf_centers_array[ind - 1][-1]} , {timestep_end}"
+                f"{rf_centers_array[ind][0] - rf_centers_array[ind - 1][-1]} , {timestep_end}, {ind=}"
             )
 
             np.testing.assert_allclose(
@@ -1075,5 +1083,3 @@ class TestIQCavityFeedbackTimingClass:
                         rtol=1e-12,
                     )
                 ), f"{fdbk_ind}, {trn_ind}"  # type: ignore
-
-        pass
