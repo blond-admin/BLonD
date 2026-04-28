@@ -574,6 +574,9 @@ class Simulation(Preparable):
 
         sim_tmp = deepcopy(self)
 
+        # Deactivate all updates of wake fields.
+        # They need to be previously calculated by a successful run with an
+        # actual line density, as the probe beam has no line density.
         wakefields = sim_tmp.ring.elements.get_elements(
             WakeField, recursive=True
         )
