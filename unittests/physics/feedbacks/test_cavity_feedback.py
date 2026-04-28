@@ -653,7 +653,7 @@ class TestIQCavityFeedbackTimingClass:
         )
 
     @pytest.mark.backend_mutation
-    @pytest.mark.parametrize("n_sections", [2])  #
+    @pytest.mark.parametrize("n_sections", [1, 2, 10])  #
     def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse(
         self, n_sections: int
     ):
@@ -829,7 +829,7 @@ class TestIQCavityFeedbackTimingClass:
                 )  # shifted by one, but otherwise equal
 
     @pytest.mark.backend_mutation
-    @pytest.mark.parametrize("n_sections", [4])  # [1, 4, 20]
+    @pytest.mark.parametrize("n_sections", [1, 4, 10])  # [1, 4, 20]
     def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse_rf_centers(
         self, n_sections: int
     ):
@@ -904,13 +904,18 @@ class TestIQCavityFeedbackTimingClass:
             for _ in range(n_sections)
         ]
 
+        harm_per_half_drift = self.harmonic / n_sections / 2
+        harm_per_full_drift = harm_per_half_drift * 2
+
         def callback(simulation: Simulation, beam: Beam):
             if simulation.turn_i.value == 0:  # TODO: and not CR
                 for idx, fdbk in enumerate(timing_fdbk_list):
                     fdbk: IQCavityFeedbackTimingClass
-                    assert (
-                        len(fdbk.rf_centers) == 2 + fdbk.section_index * 5 + 5
-                    )  # 5 are forward, 5 per full drift and 2 for the inital drift, which is half length
+                    assert len(fdbk.rf_centers) == int(
+                        np.floor(harm_per_half_drift)
+                        + fdbk.section_index * harm_per_full_drift
+                        + harm_per_full_drift
+                    )
                 return
             for idx, fdbk in enumerate(timing_fdbk_list):
                 fdbk: IQCavityFeedbackTimingClass
