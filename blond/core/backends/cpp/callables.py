@@ -609,7 +609,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert voltage_threaded.flags.c_contiguous
             assert update_on_bin.flags.c_contiguous
 
-            _LIBBLOND.apply_poles(
+            _LIBBLOND.wake_from_pole_residue(
                 _getPointer(profile),
                 _getPointer(profile_dts),
                 _getPointer(poles),

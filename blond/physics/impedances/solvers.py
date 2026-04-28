@@ -1294,6 +1294,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             self._parent_wakefield.profile._continuous_memory_hist_x
             if type(self._parent_wakefield.profile) is EquidistantMultiProfile
             else self._parent_wakefield.profile.hist_x
+            # todo unify profile
+            #  and sparse profile once the `assert_linspace`
+            #  is added
         )
         self._voltage = backend.zeros(
             len(hist_x_profile),

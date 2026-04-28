@@ -426,7 +426,7 @@ __global__ void histogram_sparse(
 // Complex arrays (poles, residues, states) are stored as interleaved real/imag:
 //   [re0, im0, re1, im1, ...]
 // The last complex element of `states` stores t_start in its real part.
-extern "C" __global__ void apply_poles(
+extern "C" __global__ void wake_from_pole_residue(
     const real_t * __restrict__ profile,
     const real_t * __restrict__ profile_dts,
     const real_t * __restrict__ poles,
@@ -476,25 +476,25 @@ extern "C" __global__ void apply_poles(
 
             // state *= exp(pole * t_jump)
             {
-                const real_t e_mag = exp(pole_re * t_jump);
-                const real_t c     = cos(pole_im * t_jump);
-                const real_t s     = sin(pole_im * t_jump);
-                const real_t e_re  = e_mag * c;
-                const real_t e_im  = e_mag * s;
-                const real_t nr    = state_re * e_re - state_im * e_im;
-                const real_t ni    = state_re * e_im + state_im * e_re;
-                state_re = nr;
-                state_im = ni;
+                const real_t decay_abs   = exp(pole_re * t_jump);
+                const real_t cos_tmp     = cos(pole_im * t_jump);
+                const real_t sin_tmp     = sin(pole_im * t_jump);
+                const real_t decay_re  = decay_abs * cos_tmp;
+                const real_t decay_im  = decay_abs * sin_tmp;
+                const real_t new_state_re    = state_re * decay_re - state_im * decay_im;
+                const real_t new_state_imag    = state_re * decay_im + state_im * decay_re;
+                state_re = new_state_re;
+                state_im = new_state_imag;
             }
 
             // decay = exp(pole * dt)
             const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
             {
-                const real_t e_mag = exp(pole_re * dt);
-                const real_t c     = cos(pole_im * dt);
-                const real_t s     = sin(pole_im * dt);
-                decay_re = e_mag * c;
-                decay_im = e_mag * s;
+                const real_t decay_abs   = exp(pole_re * dt);
+                const real_t cos_tmp     = cos(pole_im * dt);
+                const real_t sin_tmp     = sin(pole_im * dt);
+                decay_re = decay_abs * cos_tmp;
+                decay_im = decay_abs * sin_tmp;
             }
 
             ++i_update;
@@ -503,10 +503,10 @@ extern "C" __global__ void apply_poles(
             }
         } else {
             // state *= decay
-            const real_t nr = state_re * decay_re - state_im * decay_im;
-            const real_t ni = state_re * decay_im + state_im * decay_re;
-            state_re = nr;
-            state_im = ni;
+            const real_t new_state_re = state_re * decay_re - state_im * decay_im;
+            const real_t new_state_imag = state_re * decay_im + state_im * decay_re;
+            state_re = new_state_re;
+            state_im = new_state_imag;
         }
 
         const real_t half_step = cr_pole_flip * (real_t(0.5) * profile[bin_i]) * two_factor;

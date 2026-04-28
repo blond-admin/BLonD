@@ -60,6 +60,8 @@ def compile_cuda_library(  # NOQA: PLR0915
         The compute capability of your GPU,
         see https://developer.nvidia.com/cuda-gpus.
     """
+    from blond.generals.hashing_ import hash_in_folder
+
     print("\nTrying to compile CUDA backend.")
 
     cuda_files = [
@@ -72,8 +74,6 @@ def compile_cuda_library(  # NOQA: PLR0915
         "-maxrregcount",
         "32",
     ]
-
-    from blond.generals.hashing_ import hash_in_folder
 
     folder = os.path.dirname(os.path.abspath(__file__))
 

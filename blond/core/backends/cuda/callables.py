@@ -101,7 +101,7 @@ def reload_cuda_backend(  # NOQA: D102
     _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
     _loss_box = gpu_module.get_function("loss_box")
     _histogram_sparse = gpu_module.get_function("histogram_sparse")
-    _apply_poles = gpu_module.get_function("apply_poles")
+    _wake_from_pole_residue = gpu_module.get_function("wake_from_pole_residue")
 
     default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
     default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -751,7 +751,7 @@ def reload_cuda_backend(  # NOQA: D102
                 n_poles + threads_per_block - 1
             ) // threads_per_block
 
-            _apply_poles(
+            _wake_from_pole_residue(
                 args=(
                     profile,
                     profile_dts,

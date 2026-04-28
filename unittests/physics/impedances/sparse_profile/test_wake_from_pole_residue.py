@@ -81,7 +81,7 @@ def apply_single_pole(
     float64[:](float64[:], float64, complex128[:], complex128[:]),
     fastmath=True,
 )
-def apply_poles(profile, dt, poles, residues):
+def wake_from_pole_residue(profile, dt, poles, residues):
     voltage = np.zeros(len(profile))
     for i in range(len(residues)):
         apply_single_pole(profile, dt, poles[i], residues[i], voltage)
@@ -132,7 +132,7 @@ class TestPole(unittest.TestCase):
         if len(residues.shape) == 2:
             assert residues.shape[0] == 1
             residues = residues[0, :]
-        # apply_poles(hist_y, dt, poles, residues)
+        # wake_from_pole_residue(hist_y, dt, poles, residues)
         voltage = np.zeros_like(hist_y, dtype=float)
         state = np.zeros(len(poles) + 1, dtype=complex)
         state[-1] -= dt
@@ -180,7 +180,7 @@ class TestPole(unittest.TestCase):
         voltage[mask] = voltage_masked
 
         t0 = time.time()
-        # voltage = apply_poles(hist_y, dt, poles, residues)
+        # voltage = wake_from_pole_residue(hist_y, dt, poles, residues)
         t1 = time.time()
         print()
         t_ploish = t1 - t0

@@ -44,6 +44,9 @@ static inline void cmul(const real_t a_re, const real_t a_im,
  * profile_dts    : Time step base, length n_profile_dts (>= n_bins + 1).
  * poles          : Complex poles, interleaved, length 2 * n_poles.
  * residues       : Complex residues, interleaved, length 2 * n_poles.
+ * is_counterrotating_beam : If true, the current beam is counter-rotating.
+ * counterrotating_pole_signs :  Array per pole, -1 if the sign of the
+ *                               impedance is flipped for a counter-rotating beam.
  * states         : Complex state vector, interleaved, length 2 * (n_poles + 1).
  *                  Last complex element stores t_start (real part only).
  * voltage        : Output voltage [V], length n_bins.
@@ -56,7 +59,7 @@ static inline void cmul(const real_t a_re, const real_t a_im,
  * n_updates      : Length of update_on_bin.
  * n_profile_dts  : Length of profile_dts.
  */
-extern "C" void apply_poles(
+extern "C" void wake_from_pole_residue(
     const real_t *__restrict__ profile,
     const real_t *__restrict__ profile_dts,
     const real_t *__restrict__ poles,
@@ -146,17 +149,17 @@ extern "C" void apply_poles(
                 state_im = new_im;
             }
 
-            const real_t profile_i_half = real_t(0.5) * profile[bin_i];
+            const real_t profile_i_half = cr_pole_flip * real_t(0.5) * profile[bin_i] * two_factor;
 
             // real part only, imag part is zero
-            state_re += cr_pole_flip * profile_i_half * two_factor;
+            state_re +=  profile_i_half ;
 
             // amp = Re(residue * state)
             const real_t amp = res_re * state_re - res_im * state_im;
             vt[bin_i] += cr_pole_flip * amp;
 
             // second half of trapezoidal rule
-            state_re += cr_pole_flip * profile_i_half * two_factor;
+            state_re += profile_i_half;
         }
 
         // Store state back
