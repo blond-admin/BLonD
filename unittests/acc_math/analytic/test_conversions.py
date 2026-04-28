@@ -4,6 +4,7 @@ import unittest
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pytest
 import scipy.constants as cont
 
 from blond.acc_math.analytic import conversions as conv
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 
 class TestConversionFunctions(unittest.TestCase):
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_magnetic_rigidity_to_momentum(self):
         rigidity = 1
         charge = 1
@@ -41,6 +43,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_equal(momentum, target)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_beta_to_gamma(self):
         beta = 0
         gamma = conv.beta_to_gamma(beta)
@@ -61,6 +64,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_equal(gamma, target)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_gamma_to_beta(self):
         gamma = 1
         beta = conv.gamma_to_beta(gamma)
@@ -81,6 +85,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_equal(beta, target)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_frev_to_beta(self):
         circ = 1e3
         frev = 100e3
@@ -100,6 +105,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_equal(beta, target)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_beta_to_frev(self):
         circ = 1e3
         beta = 1
@@ -119,6 +125,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_equal(frev, target)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_beta_to_trev(self):
         circ = 1e3
         beta = 1
@@ -138,6 +145,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_equal(trev, target)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_momentum_to_beta(self):
         proton_mass = cont.physical_constants[
             "proton mass energy equivalent in MeV"
@@ -173,6 +181,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_equal(beta_lead, target_lead)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_momentum_to_gamma(self):
         proton_mass = cont.physical_constants[
             "proton mass energy equivalent in MeV"
@@ -230,6 +239,7 @@ class TestConversionFunctions(unittest.TestCase):
         )
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_momentum_to_frev_trev(self):
         beta = 0.5
         gamma = conv.beta_to_gamma(beta)
@@ -274,6 +284,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_almost_equal(f_rev_target, f_rev)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_momentum_energy_relations(self):
         momentum = 1e9
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
@@ -303,6 +314,7 @@ class TestConversionFunctions(unittest.TestCase):
         )
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_momentum_to_magnetic_field(self):
         momentum = 1e9
         bend_rad = 100
@@ -325,6 +337,7 @@ class TestConversionFunctions(unittest.TestCase):
         )
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_total_energy_energy_momentum_relations(self):
         total_energy = 1e12
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
@@ -357,6 +370,7 @@ class TestConversionFunctions(unittest.TestCase):
         )
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_total_energy_to_magnetic_field(self):
         total_energy = 1e12
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
@@ -393,6 +407,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_almost_equal(field, target_field)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_total_energy_beta_gamma_relations(self):
         total_energy = 1e12
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
@@ -430,6 +445,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_almost_equal(gamma, target_gamma, decimal=5)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_kinetic_energy_momentum_energy_relations(self):
         kinetic_energy = 1e9
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
@@ -465,6 +481,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_almost_equal(total_energy, target_total_energy)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_kinetic_energy_to_magnetic_field(self):
         kinetic_energy = 1e9
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
@@ -501,6 +518,7 @@ class TestConversionFunctions(unittest.TestCase):
         np.testing.assert_array_almost_equal(field, target_field)
 
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_field_momentum_energy_relations(self):
         field = 1
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
@@ -551,7 +569,8 @@ class TestConversionFunctions(unittest.TestCase):
         )
 
     @multi_backend_testcase
-    def test_delta_P_delta_E(self):
+    @pytest.mark.backend_mutation
+    def test_deltcleara_P_delta_E(self):
         momentum = 1e9
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
             0

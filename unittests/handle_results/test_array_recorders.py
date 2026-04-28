@@ -91,6 +91,42 @@ class TestDenseArrayRecorder(unittest.TestCase):
             self.dense_array_recorder.get_valid_entries()[0, :], newdata
         )
 
+    def test_write_with_numpy_mask(self):
+        mask = np.array(
+            [True, False, True, False, True, False, True, False, True, False],
+            dtype=bool,
+        )
+        newdata = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)
+        self.dense_array_recorder.write(newdata, mask=mask)
+        result = self.dense_array_recorder.get_valid_entries()[0]
+        np.testing.assert_array_equal(result[mask], newdata)
+        self.assertTrue(np.all(np.isnan(result[~mask])))
+
+    def test_write_with_cupy_mask(self):
+        numpy_mask = np.array(
+            [True, False, True, False, True, False, True, False, True, False],
+            dtype=bool,
+        )
+
+        class _MockCupyArray:
+            device = "cuda:0"
+
+            def __init__(self, arr):
+                self._arr = arr
+
+            def get(self):
+                return self._arr
+
+        cupy_mask = _MockCupyArray(numpy_mask)
+        newdata = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)
+        self.dense_array_recorder.write(newdata, mask=cupy_mask)
+
+        result = self.dense_array_recorder.get_valid_entries()[0]
+
+        np.testing.assert_array_equal(result[numpy_mask], newdata)
+
+        self.assertTrue(np.all(np.isnan(result[~numpy_mask])))
+
     def test_overwrite(self):
         rec1 = DenseArrayRecorder(
             filepath=callers_relative_path("deleteme2", 1),

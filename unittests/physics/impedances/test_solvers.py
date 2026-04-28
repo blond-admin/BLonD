@@ -5,7 +5,7 @@ import warnings
 from collections import deque
 from copy import deepcopy
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 import pytest
@@ -45,6 +45,8 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+from blond.testing.backend_testing import skip_if_no_cupy
+from blond.testing.helpers import enforce_64_bit_backend
 
 
 class TestTimeDomainFftSolver(unittest.TestCase):
@@ -173,6 +175,29 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             self.time_domain_fft_solver.on_wakefield_init_simulation(
                 simulation=simulation, parent_wakefield=parent_wakefield
             )
+
+    def test_on_wakefield_init_simulation_no_warn_impedance_already_true(self):
+        simulation = Mock(Simulation)
+        parent_wakefield = Mock(WakeField)
+        profile = Mock(StaticProfile)
+        profile.n_bins = 10
+        parent_wakefield.profile = profile
+        parent_wakefield.profile.hist_step = 1
+
+        dynamic_source = Mock(Resonators)
+        dynamic_source.is_dynamic = True
+        dynamic_source.get_impedance.return_value = backend.linspace(1, 2, 6)
+        parent_wakefield.sources = (dynamic_source,)
+
+        self.time_domain_fft_solver.expect_impedance_change = True
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            self.time_domain_fft_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+        perf_warnings = [x for x in w if "Because" in str(x.message)]
+        self.assertEqual(len(perf_warnings), 0)
 
     def test_dynamic_profile_integration(self):
         beam = Beam(
@@ -329,7 +354,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
             -9.179795916267638e-07,
         ]
         np.testing.assert_allclose(
-            induced_voltage,
+            copy_to_cpu(induced_voltage),
             induced_voltage_pinned,
             rtol=1e-6 if backend.float == np.float32 else 1e-12,
         )
@@ -700,6 +725,23 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
+    def test_warns_on_edge_bins(self):
+        with self.assertWarnsRegex(
+            Warning, "particle detected in trailing edge bin"
+        ):
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y[
+                -1
+            ] = 2
+            self.single_turn_resonator_convolution_solver._update_potential_sources()
+        with self.assertWarnsRegex(
+            Warning, "particle detected in leading edge bin"
+        ):
+            self.single_turn_resonator_convolution_solver._wake_function_vals_needs_update = True
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y[
+                0
+            ] = 2
+            self.single_turn_resonator_convolution_solver._update_potential_sources()
+
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
@@ -1050,11 +1092,8 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 @pytest.mark.backend_mutation
 class TestMultiPassResonatorSolver(unittest.TestCase):
     def setUp(self):
+        enforce_64_bit_backend()
         # the histogram step is to tiny and would result in hist_step = 0
-        if isinstance(backend, Numpy32Bit):
-            backend.change_backend(Numpy64Bit)
-        elif isinstance(backend, Cupy32Bit):
-            backend.change_backend(Cupy64Bit)
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
             center_frequencies=np.array([500e6, 750e6, 1.5e9]),
@@ -1136,6 +1175,33 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             local_solv._parent_wakefield = None
             local_solv._determine_storage_time()
+
+    @skip_if_no_cupy
+    def test_start_with_32_bit_backend_gpu(self):
+        backend.change_backend(Cupy32Bit)
+
+        simulation = Mock(Simulation)
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "MultiPassResonatorSolver does only run with 64 bit backends.",
+        ):
+            self.multi_pass_resonator_solver.on_wakefield_init_simulation(
+                simulation=simulation,
+                parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
+            )
+
+    @pytest.mark.backend_mutation
+    def test_start_with_32_bit_backend_cpu(self):
+        backend.change_backend(Numpy32Bit)
+        simulation = Mock(Simulation)
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "MultiPassResonatorSolver does only run with 64 bit backends.",
+        ):
+            self.multi_pass_resonator_solver.on_wakefield_init_simulation(
+                simulation=simulation,
+                parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
+            )
 
     def test_determine_storage_time_multi_res(self):
         # Check for mixing with multiple resonators
@@ -1543,6 +1609,27 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
                 - delta_t
             )
 
+    def test__update_past_profile_warns_edges(self):
+        self.multi_pass_resonator_solver._past_profiles.append(np.array([0]))
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag.append(
+            False
+        )
+        with self.assertWarnsRegex(
+            Warning, "particle detected in trailing edge bin"
+        ):
+            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y[
+                -1
+            ] = 2
+            self.multi_pass_resonator_solver._update_past_profile_wake_functions()
+        with self.assertWarnsRegex(
+            Warning, "particle detected in leading edge bin"
+        ):
+            self.multi_pass_resonator_solver._wake_function_vals_needs_update = True
+            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y[
+                0
+            ] = 2
+            self.multi_pass_resonator_solver._update_past_profile_wake_functions()
+
     def test__update_past_profile_potentials_new_arr_init(self):
         sim = Mock(Simulation)
 
@@ -1639,6 +1726,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         """
         Test presence of arrays and correct shifting of timing
         """
+        print(f"{backend=}")
+        print(f"{backend.specials_mode=}")
+        print(f"{backend.float=}")
         sim = Mock(Simulation)
 
         local_res = deepcopy(self.multi_pass_resonator_solver)
@@ -3476,3 +3566,30 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             copy_to_cpu(wf_single.induced_voltage[-128:] + offset),
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
+
+
+class TestPeriodicFreqSolverBranches(unittest.TestCase):
+    def test_on_wakefield_init_simulation_no_warn_expect_already_true(self):
+        solver = PeriodicFreqSolver(t_periodicity=1e-6)
+        solver.expect_profile_change = True
+        solver.expect_impedance_change = True
+
+        simulation = Mock(Simulation)
+        parent_wakefield = Mock(WakeField)
+        profile = Mock(DynamicProfileConstNBins)
+        profile.n_bins = 128
+        parent_wakefield.profile = profile
+
+        dynamic_source = Mock()
+        dynamic_source.is_dynamic = True
+        parent_wakefield.sources = (dynamic_source,)
+
+        with patch.object(solver, "_update_internal_data"):
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                solver.on_wakefield_init_simulation(
+                    simulation=simulation, parent_wakefield=parent_wakefield
+                )
+
+        perf_warnings = [x for x in w if "Because" in str(x.message)]
+        self.assertEqual(len(perf_warnings), 0)

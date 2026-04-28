@@ -11,14 +11,15 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
-    momentum_compaction_factor,
     mu_plus,
 )
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.handle_results.observables import (
-    BunchObservationMetaParams,
     StaticProfileObservation,
     WakeFieldObservation,
+)
+from blond.handle_results.observables_as_elements import (
+    BunchObservationMetaParams,
 )
 from blond.legacy.blond2.beam.beam import Beam as beam_b2
 from blond.legacy.blond2.beam.beam import MuPlus as mu_plus_b2
@@ -47,22 +48,25 @@ from blond.legacy.blond2.trackers.tracker import (
     FullRingAndRF,
     RingAndRFTracker,
 )
+from blond.legacy.blond2.utils import bmath as bm
 from blond.physics.impedances.solvers import (
     MultiPassResonatorSolver,
     SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
 from blond.specifics.muon_collider.beam_preparation import (
-    load_beam_data_counterrot_from_file,
+    load_beam_coordinates_counterrot_from_file,
 )
+
+bm.use_numba()
 
 backend.change_backend(Numpy64Bit)
 backend.set_specials("numba")
 
 # RCS2
-phi_s = 170 * pi / 180  # deg
-inj_energy = 313.83e9
-ejection_energy = 750e9
+phi_s = 145 * pi / 180  # deg
+inj_energy = 313.83e8  #  313.83e12
+ejection_energy = inj_energy + 436.17e9
 n_turns = 56
 alpha_p = 8.986e-4
 Q_factor = 1.76e6
@@ -70,36 +74,37 @@ bunch_intensity = 2.4e12
 station_downscale = 40
 circumference = 5990
 harmonic = 25920
-voltage_per_cavity = 31140000.0
-cut_left = 1e-10
+voltage_per_cavity = 31140000.0 * 1e-2
+cut_left = -0e-10
 cut_right = 7e-10
 
-n_slices_profile = 2**6
-mtw = True
+n_slices_profile = 2**10
+mtw = False
 
 energy_gain_per_turn = (
     (ejection_energy - inj_energy) / n_turns / station_downscale
 )
 
-n_turns_downscale = 1000
+n_turns_downscale = 50
 ejection_energy = inj_energy + n_turns_downscale * energy_gain_per_turn
 total_voltage = energy_gain_per_turn / np.sin(phi_s)
 voltage_per_station = total_voltage
 n_cavities = int(np.ceil(total_voltage / voltage_per_cavity))
 cav_per_station = n_cavities / station_downscale
 
-R_over_Q = 100
-gamma_transition = 1 / np.sqrt(alpha_p)
+R_over_Q = 51800
 
 emittance = 0.025 * 4 * np.pi
 n_macroparticles = int(1e6)
 
-decay_fraction_threshold = 0.01
+decay_fraction_threshold = 1e-12
 
 from blond.legacy.blond2.utils import bmath as bm
 
 bm.use_numba()
 bm.use_precision("double")
+# energy_gain_per_turn = 0
+# ejection_energy = inj_energy
 
 
 def setup_and_run_blond3(multi_turn_wake: bool = False):
@@ -123,7 +128,7 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
         / harmonic
     )
     prof = StaticProfile.from_rad(
-        cut_left * 2 * np.pi / t_rf,
+        0,
         cut_right * 2 * np.pi / t_rf,
         n_slices_profile,
         t_rf,
@@ -143,6 +148,20 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
         else SingleTurnResonatorConvolutionSolver(),
         profile=prof,
     )
+
+    beam = Beam(
+        intensity=bunch_intensity,
+        particle_type=mu_plus,
+        is_counter_rotating=False,
+    )
+    beam_CR = Beam(
+        intensity=bunch_intensity,
+        particle_type=mu_plus,
+        is_counter_rotating=True,
+    )
+
+    bunch_observation = BunchObservationMetaParams(each_turn_i=1, beam=beam)
+
     one_turn_model.extend(
         [
             prof,
@@ -154,49 +173,33 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
                 section_index=0,
             ),
             DriftSimple(
-                momentum_compaction_factor=momentum_compaction_factor(
-                    -gamma_transition
-                ),
+                momentum_compaction_factor=alpha_p,
                 orbit_length=circumference,
                 section_index=0,
             ),
+            bunch_observation,
         ]
     )
     ring.add_elements(one_turn_model, reorder=False)
     ####################################################################
-    beam = Beam(
-        intensity=bunch_intensity,
-        particle_type=mu_plus,
-        is_counter_rotating=False,
-    )
-    beam_CR = Beam(
-        intensity=bunch_intensity,
-        particle_type=mu_plus,
-        is_counter_rotating=True,
-    )
     sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
     # sim.print_one_turn_execution_order()
     load_filename = "initial_beam.npz"
-    load_beam_data_counterrot_from_file(
+    load_beam_coordinates_counterrot_from_file(
         load_filename,
         beam,
         beam_CR,
     )
 
-    bunch_observation = BunchObservationMetaParams(
-        each_turn_i=1, obs_per_turn=1, beam=beam
-    )
-    profile_observation = StaticProfileObservation(
-        each_turn_i=1, obs_per_turn=1, profile=prof
-    )
+    profile_observation = StaticProfileObservation(each_turn_i=1, profile=prof)
     wf_observation = WakeFieldObservation(
-        wakefield=wf, each_turn_i=1, obs_per_turn=1
+        wakefield=wf,
+        each_turn_i=1,
     )
     sim.run_simulation(
-        beams=([beam]),
+        beams=(beam,),
         n_turns=n_turns_downscale,
         observe=(
-            bunch_observation,
             profile_observation,
             wf_observation,
         ),
@@ -231,7 +234,9 @@ def setup_and_run_blond2(mtw=False):
         n_slices=n_slices_profile,
     )
 
-    profile = profile_b2(beam, cut_options=cut_options)
+    profile = profile_b2(
+        beam, cut_options=cut_options
+    )  # TODO: try with mocked profile
     profile.track()
     profile.fwhm()
 
@@ -240,15 +245,21 @@ def setup_and_run_blond2(mtw=False):
         rf_station.omega_rf[0, 0] / 2 / np.pi,
         Q_factor,
     )
+    # station_time_distances = np.zeros(n_turns_downscale, len([rf_station]))
+    # for trn in range(n_turns_downscale):
+    #     for stat in range(len([rf_station])):
+    #         station_time_distances[trn, stat] = rf_station.t_rev[]
 
     ind_volt_res = ind_volt_res_b2(
         beam,
         profile,
         res_fund,
         rf_station=rf_station,
+        rf_station_list=[rf_station],
         multi_turn_wake=mtw,
         mtw_mode="time",
         time_decay_factor=decay_fraction_threshold,
+        old_time_array_impl=False,
     )
 
     # frequency_resolution_input = 0.5 * ring.f_rev[0] / 1 * harmonic
@@ -313,6 +324,9 @@ def setup_and_run_blond2(mtw=False):
     save_ind_volt = np.zeros(
         (ring.n_turns, len(total_ind_volt.induced_voltage))
     )
+    save_profile = np.zeros(
+        (ring.n_turns, len(total_ind_volt.induced_voltage))
+    )
 
     from tqdm import tqdm
 
@@ -329,6 +343,7 @@ def setup_and_run_blond2(mtw=False):
 
         # statistics
         save_ind_volt[trn, :] = total_ind_volt.induced_voltage
+        save_profile[trn, :] = total_ind_volt.profile.n_macroparticles
         save_bunch_centroid.append(np.mean(beam.dt))
         save_energy_centroid.append(np.mean(beam.dE))
 
@@ -336,13 +351,17 @@ def setup_and_run_blond2(mtw=False):
         np.array(save_bunch_centroid),
         np.array(save_energy_centroid),
         np.array(save_ind_volt),
+        np.array(save_profile),
     )
 
 
 def plot_and_compare():
-    bunch_centroid_b2, energy_centroid_b2, save_ind_volt_b2 = (
-        setup_and_run_blond2(mtw=mtw)
-    )
+    (
+        bunch_centroid_b2,
+        energy_centroid_b2,
+        save_ind_volt_b2,
+        save_profile_b2,
+    ) = setup_and_run_blond2(mtw=mtw)
 
     bunch_observation, profile_observation, ind_volt_obs = (
         setup_and_run_blond3(multi_turn_wake=mtw)
@@ -350,6 +369,7 @@ def plot_and_compare():
 
     DEBUG_PLOTTING = True
     if DEBUG_PLOTTING:
+        plt.clf()
         plt.title("bunch centroid")
         plt.plot(bunch_observation.mean_dt * 1e9)
         plt.plot(bunch_centroid_b2 * 1e9, label="blond2", ls="--")
@@ -357,6 +377,7 @@ def plot_and_compare():
         plt.legend()
         plt.show()
 
+        plt.clf()
         plt.title("last induced_voltage")
         plt.plot(ind_volt_obs.induced_voltage[-1] / 1e6)
         plt.plot(save_ind_volt_b2[-1] / 1e6, label="blond2", ls="--")
@@ -364,11 +385,28 @@ def plot_and_compare():
         plt.legend()
         plt.show()
 
+        # ind = 49
+        # plt.clf()
+        # plt.title(f"{ind} induced_voltage")
+        # plt.plot(ind_volt_obs.induced_voltage[ind + 1] / 1e6)
+        # plt.plot(save_ind_volt_b2[ind] / 1e6, label="blond2", ls="--")
+        # plt.ylabel("induced voltage [MV]")
+        # plt.legend()
+        # plt.show()
+
+        plt.clf()
         plt.title("energy centroid")
         plt.plot(bunch_observation.mean_dE)
         plt.plot(energy_centroid_b2, label="blond2", ls="--")
         plt.legend()
         plt.show()
+
+        # plt.clf()
+        # plt.title(f"{ind} profile")
+        # plt.plot(profile_observation.hist_y[ind + 1])
+        # plt.plot(save_profile_b2[ind], label="blond2", ls="--")
+        # plt.legend()
+        # plt.show()
 
     np.testing.assert_allclose(
         energy_centroid_b2, bunch_observation.mean_dE, rtol=1e-4

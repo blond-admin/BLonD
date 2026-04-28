@@ -4,6 +4,7 @@ import warnings
 import numpy as np
 import pytest
 
+from blond import copy_to_cpu
 from blond.core.backends.backend import (
     Cupy32Bit,
     Cupy64Bit,
@@ -15,6 +16,7 @@ from blond.core.backends.backend import (
     default,
 )
 from blond.core.backends.numba.callables import recompile_numba_backend
+from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     multi_backend_testcase,
     skip_if_no_cupy,
@@ -29,12 +31,15 @@ except ModuleNotFoundError:
 
 from numba import set_num_threads
 
+backend_org = backend.__class__
+backend_specials_mode_org = backend.specials_mode
+
 
 class TestBackendBaseClass(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
-        backend.change_backend(type(default))
-        backend.set_specials("numba")
+        backend.change_backend(backend_org)
+        backend.set_specials(backend_specials_mode_org)
 
     def setUp(self) -> None:
         self.backend_base_class = Numpy32Bit()
@@ -42,6 +47,10 @@ class TestBackendBaseClass(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    @pytest.mark.backend_mutation
+    def test_autoselect_backend(self) -> None:
+        self.backend_base_class.autoselect_backend()
 
     @pytest.mark.backend_mutation
     def test_change_backend(self) -> None:
@@ -54,13 +63,14 @@ class TestBackendBaseClass(unittest.TestCase):
         self.backend_base_class.set_specials(mode="numba")
 
     def tearDown(self) -> None:
-        self.backend_base_class.set_specials(mode="numba")
+        self.backend_base_class.change_backend(Numpy64Bit)
+        self.backend_base_class.set_specials(mode="cpp")
 
     @pytest.mark.backend_mutation
     def test_apply_environment_variables(self):
         import os
 
-        backend_modes = ["python", "cpp", "numba", "fail"]
+        backend_modes = ["python", "cpp", "cpp_single_core", "numba", "fail"]
         backend_bits = ["32", "64", "fail"]
         try:
             import cupy
@@ -196,6 +206,13 @@ class TestNumpyBackend(unittest.TestCase):
             self.skipTest("cpp not available!")
 
     @pytest.mark.backend_mutation
+    def test_set_specials_cpp(self) -> None:
+        try:
+            self.numpy_backend.set_specials(mode="cpp_single_core")
+        except FileNotFoundError:
+            self.skipTest("cpp_single_core not available!")
+
+    @pytest.mark.backend_mutation
     def test_set_specials_numba(self) -> None:
         self.numpy_backend.set_specials(mode="numba")
 
@@ -211,17 +228,25 @@ class TestSpecials(unittest.TestCase):
         self.special_modes = [
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
         ]
         if cupy_available:
             self.special_modes.append("cuda")
         set_num_threads(8)
+        self.original_backend = type(backend)
+        self.original_backend_specials_mode = backend.specials_mode
+
+    def tearDown(self) -> None:
+        backend.change_backend(self.original_backend)
+        backend.set_specials(self.original_backend_specials_mode)
 
     @pytest.mark.backend_mutation
     def _setUp(self, dtype, special_mode) -> None:
         if special_mode in (
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
         ):
             if dtype == np.float32:
@@ -453,6 +478,42 @@ class TestSpecials(unittest.TestCase):
                 dt = backend.linspace(-5, 5, 20, dtype=backend.float)
                 dE = backend.zeros_like(dt, dtype=backend.float)
                 bin_centers = backend.linspace(-4, 4, 20, dtype=backend.float)
+                voltage = bin_centers**2
+                charge = backend.float(10)
+                acceleration_kick = backend.float(0.5)
+                backend.specials.kick_induced_voltage(
+                    dt=dt,
+                    dE=dE,
+                    voltage=voltage,
+                    bin_centers=bin_centers,
+                    charge=charge,
+                    acceleration_kick=acceleration_kick,
+                )
+                result = dE
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"Failed test `{special}` with {dtype}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_kick_induced_voltage_edges(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                dt = backend.linspace(-5, 5, 20, dtype=backend.float)
+                dE = backend.zeros_like(dt, dtype=backend.float)
+                bin_centers = dt.copy()
                 voltage = bin_centers**2
                 charge = backend.float(10)
                 acceleration_kick = backend.float(0.5)
@@ -795,6 +856,106 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @pytest.mark.backend_mutation
+    def test_histogram_sparse(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                bins_per_profile = 3
+                n_profiles = 3
+                array_write = backend.ones(
+                    bins_per_profile * n_profiles, dtype=backend.float
+                )
+                filling_pattern = backend.array([1, 0, 1, 0, 1, 0], dtype=bool)
+                bucket_index_to_memory_index = backend.array(
+                    [0, 0, 3, 3, 6, 6],
+                    dtype=np.int32,
+                )
+                for _ in range(2):
+                    backend.specials.histogram_sparse(
+                        x=backend.linspace(-10, 10, 21, dtype=backend.float),
+                        out=array_write,
+                        first_left_cut=-12,
+                        left_cut_distance=8,
+                        cut_width=4,
+                        bins_per_profile=bins_per_profile,
+                        n_active_profiles=n_profiles,
+                        filling_pattern=filling_pattern,
+                        bucket_index_to_memory_index=bucket_index_to_memory_index,
+                    )
+                result = array_write
+
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_sparse_left_edged(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                bins_per_profile = 4
+                n_profiles = 3
+                array_write = backend.ones(
+                    bins_per_profile * n_profiles, dtype=backend.float
+                )
+                filling_pattern = backend.array([1, 0, 1, 0, 1, 0], dtype=bool)
+                bucket_index_to_memory_index = backend.array(
+                    [0, 0, 4, 4, 8, 8],
+                    dtype=np.int32,
+                )
+                particles_x = []
+                # mark all left and right edges
+                for left_edge in (-12, -12 + 2 * 8, -12 + 4 * 8):
+                    for _ in range(2):
+                        particles_x.append(left_edge)
+                for right_edge in (-12 + 4, -12 + 2 * 8 + 4, -12 + 4 * 8 + 4):
+                    for _ in range(1):
+                        particles_x.append(right_edge)
+                particles_x = backend.array(particles_x, backend.float)
+                for _ in range(2):
+                    backend.specials.histogram_sparse(
+                        x=particles_x,
+                        out=array_write,
+                        first_left_cut=-12,
+                        left_cut_distance=8,
+                        cut_width=4,
+                        bins_per_profile=bins_per_profile,
+                        n_active_profiles=n_profiles,
+                        filling_pattern=filling_pattern,
+                        bucket_index_to_memory_index=bucket_index_to_memory_index,
+                    )
+                print(backend.specials_mode, array_write)
+                result = array_write
+
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    @pytest.mark.backend_mutation
     def test_histogram_long_profiles(self) -> None:
         """Specifically to test edge effects at beginning and end."""
         for dtype in (np.float32, np.float64):
@@ -862,9 +1023,9 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_histogram_race_conditions(self) -> None:
-        backend.random.seed(42)
+        np.random.seed(np.uint(42))
         array_read = (
-            backend.random.random_sample(size=1024) - 0.5
+            np.random.random_sample(size=1024) - 0.5
         ) * 20  # common sample data from -10 to 10
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -884,7 +1045,6 @@ class TestSpecials(unittest.TestCase):
                     stop=backend.float(8.0),
                 )
                 result = array_write
-                print(result.tolist())
 
                 if special == "cuda":
                     result = result.get()
@@ -900,6 +1060,7 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    @pytest.mark.backend_mutation
     def test_cast_float_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.float)
 
@@ -926,6 +1087,7 @@ class TestSpecials(unittest.TestCase):
 
     @skip_if_no_cupy
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_cast_float_arr_full(self):
         for in_type in (tuple, list, np.array, cp.array):
             # Recreate the target for each loop, avoids issues with
@@ -970,6 +1132,7 @@ class TestSpecials(unittest.TestCase):
         self.assertTrue(target is unchanged)
 
     @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    @pytest.mark.backend_mutation
     def test_cast_complex_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.complex)
         for in_type in (tuple, list, np.array):
@@ -996,6 +1159,7 @@ class TestSpecials(unittest.TestCase):
 
     @skip_if_no_cupy
     @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_cast_complex_arr_full(self):
         for in_type in (tuple, list, np.array, cp.array):
             # Recreate the target for each loop, avoids issues with
@@ -1039,19 +1203,65 @@ class TestSpecials(unittest.TestCase):
         unchanged = backend.cast_arr_complex_if_needed(target)
         self.assertTrue(target is unchanged)
 
+    @pytest.mark.backend_mutation
+    def test_sum_1d_array(self) -> None:
+        for dtype in (np.float32, np.float64):
+            x = np.random.rand(10_000).astype(dtype)
+            reference_sum = np.sum(x)
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                np.testing.assert_allclose(
+                    copy_to_cpu(
+                        backend.specials.sum_1d_array(backend.array(x))
+                    ),
+                    reference_sum,
+                    # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
+                    rtol=self.rtol * 8 if dtype == np.float32 else self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_dot_product_1d_array(self) -> None:
+        for dtype in (np.float64, np.float32):
+            x = np.random.rand(10_000).astype(dtype)
+            y = np.random.rand(10_000).astype(dtype)
+            reference_dot = np.dot(x, y)
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                backend_result = backend.specials.dot_product_1d_array(
+                    backend.array(x),
+                    backend.array(y),
+                )
+                backend_result = copy_to_cpu(backend_result)
+
+                np.testing.assert_allclose(
+                    backend_result,
+                    reference_dot,
+                    # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
+                    rtol=self.rtol * 8 if dtype == np.float32 else self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
+                self.assertTrue(backend_result.dtype == dtype)
+
+    @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_cast_exceptions(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed(["a", "b", "c"])
 
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed({1, 2, 3})
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ArrayCastingError):
             backend.cast_arr_float_if_needed([[1, 2], 3])
-
-    def tearDown(self) -> None:
-        backend.change_backend(Numpy32Bit)
-        backend.set_specials("numba")
 
     def test_import(self):
         from blond.core.backends import backend  # see if import works
