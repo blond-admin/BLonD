@@ -54,12 +54,12 @@ def run_simulation(n_turns: int, init_distribution: dict):
 
     tw = line.twiss(
         method="4d"
-    )  # there is an issue here, if there is an energy ramp we cannot twiss.
+    )
     alpha_0 = tw["momentum_compaction_factor"]
 
     line.energy_program = xt.EnergyProgram(
         t_s=t_s, p0c=p0c_ramp
-    )  # make it more relativisitc?
+    )  # make it more relativistic?
 
     # --- BLonD3Element  --- #
 

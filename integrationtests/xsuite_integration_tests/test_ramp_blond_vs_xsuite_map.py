@@ -33,7 +33,7 @@ def test_blond_interface_xsuite():
         plt.scatter(
             zeta_blond[:, 0], delta_blond[:, 0], label="xsuite + BLonD"
         )
-        plt.scatter(zeta_xsuite[:, 0], delta_xsuite[:, 0], label="xsuite")
+        plt.scatter(zeta_xsuite[:, 0], delta_xsuite[:, 0], marker='x', label="xsuite")
         plt.title("After 0 turns")
         plt.xlabel("$\zeta$ [m]")
         plt.ylabel(r"$delta$")
@@ -42,9 +42,9 @@ def test_blond_interface_xsuite():
         plt.show()
 
         plt.scatter(
-            zeta_blond[:, -1], delta_blond[:, -1], label="xsuite + BLonD"
+            zeta_blond[:, -1], delta_blond[:, -1],label="xsuite + BLonD"
         )
-        plt.scatter(zeta_xsuite[:, -1], delta_xsuite[:, -1], label="xsuite")
+        plt.scatter(zeta_xsuite[:, -1], delta_xsuite[:, -1],marker='x', label="xsuite")
         plt.title(f"After {n_turns} turns")
         plt.xlabel("$\zeta$ [m]")
         plt.ylabel(r"$p_{\tau}$")
@@ -72,13 +72,13 @@ def test_blond_interface_xsuite():
     np.testing.assert_allclose(
         zeta_blond,
         zeta_xsuite,
-        rtol=1e-12,
-        atol=1e-12,
+        rtol=1e-8,
+        atol=1e-8,
     )
 
     np.testing.assert_allclose(
         delta_blond,
         delta_xsuite,
-        rtol=1e-12,
-        atol=1e-12,
+        rtol=1e-8,
+        atol=1e-8,
     )

@@ -62,7 +62,7 @@ def run_simulation(n_turns: int, init_distribution: dict):
         circumference=line.get_length(),
         total_energy=None,  # todo dynamically set the energy
         is_below_transition=None,
-        beam_reference_beta=line.particle_ref.beta0,
+        beam_reference_beta=line.particle_ref.beta0[0],
     )
 
     cavity = BLonD3Cavity(

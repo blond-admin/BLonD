@@ -74,7 +74,7 @@ def run_simulation(n_turns: int):
         y=rng.uniform(-2e-3, 2e-3, n_part),
         py=rng.uniform(-3e-5, 3e-5, n_part),
         zeta=np.linspace(-1.5, 1.5, n_part),
-        delta=np.linspace(-1e-4, 1e-4, n_part) * 0,
+        delta=np.linspace(-1e-4, 1e-4, n_part),
     )
 
     # return initial distribution for the next simulation

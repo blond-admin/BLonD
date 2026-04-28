@@ -58,8 +58,13 @@ def xsuite_to_blond_transform(
     dE
         Energy deviation with respect to the reference energy [eV].
     """
+    assert beta0 >= 0, f"{beta0=}"
+    assert omega_rf >= 0, f"{omega_rf=}"
+    assert energy0 >= 0, f"{energy0=}"
+
     dE = ptau * beta0 * energy0
     dt = -zeta / (beta0 * c) + phi_s / omega_rf
+
     return dt, dE
 
 
@@ -197,6 +202,9 @@ class BLonD3Cavity:
             / float(line.get_length())
         )
 
+        assert not np.any(np.isnan(particles.zeta))
+        assert not np.any(np.isnan(particles.ptau))
+
         # performance critical
         # performance could be improved here in future..
         dt, dE = xsuite_to_blond_transform(
@@ -211,6 +219,9 @@ class BLonD3Cavity:
             intensity=float(initial_intensity),
             particle_type=particle_type,
         )
+
+        assert not np.any(np.isnan(dt))
+        assert not np.any(np.isnan(dE))
 
         beam.setup_beam(
             dt=dt,
@@ -246,6 +257,11 @@ class BLonD3Cavity:
         )
         phi_s = float(self._cavity.calc_phi_s_main_harmonic(beam=self._beam))
 
+        if np.isnan(phi_s):
+            raise ValueError("phi_s cannot be NaN.")
+
+        assert not np.isnan(omega_rf)
+
         self._dt_shift = phi_s / omega_rf  # differs to BLonD 2
 
     # For XSuite
@@ -264,7 +280,11 @@ class BLonD3Cavity:
             Xsuite particles to be tracked.
         """
         reference_total_energy = float(self._line.particle_ref.energy0[0])
+        assert reference_total_energy > 0
         self._beam.reference.total_energy = float(reference_total_energy)
+        self._cavity._magnetic_cycle.get_target_total_energy.return_value = (
+            float(reference_total_energy)
+        )
 
         # Convert xsuite -> blond
         # update time shift
@@ -273,6 +293,9 @@ class BLonD3Cavity:
         eta = self._momentum_compaction_factor - (
             1 / (self._beam.reference.gamma**2)
         )
+        assert not np.isnan(eta)
+        assert eta is not None
+
         self._cavity._ring.is_below_transition.return_value = bool(eta < 0)
 
         self.xsuite_to_blond_transform_particles(particles, self._beam)
@@ -363,6 +386,9 @@ class BLonD3Cavity:
 
         flags = beam.write_partial_flags()
 
+        assert not np.any(np.isnan(particles.zeta[active_mask]))
+        assert not np.any(np.isnan(particles.ptau[active_mask]))
+
         dt[:n_active] = (
             -particles.zeta[active_mask] / (particles.beta0[active_mask] * c)
             + self._dt_shift
@@ -383,6 +409,8 @@ class BLonD3Cavity:
 
         beam.purge_flagged_entries()
 
+
+
     # TODO test backward forward consistent with losses..
     def blond_to_xsuite_transform_particles(
         self, particles: XSuiteParticles, beam: BeamBaseClass
@@ -401,6 +429,8 @@ class BLonD3Cavity:
             BLonD beam object providing updated `dt` and `dE`.
         """
         # Relative energy deviation
+
+
         dE = beam.read_partial_dE()
 
         particles.ptau[self._previous_active_mask] = dE.ravel() / (
@@ -411,8 +441,14 @@ class BLonD3Cavity:
         # Longitudinal position
         dt = beam.read_partial_dt()
 
+        assert not np.any(np.isnan(particles.beta0[self._previous_active_mask]))
+        assert not np.isnan(self._dt_shift)
+
         particles.zeta[self._previous_active_mask] = (
             -(dt.ravel() - self._dt_shift)
             * particles.beta0[self._previous_active_mask]
             * c
         )
+
+        assert not np.any(np.isnan(particles.zeta[self._previous_active_mask]))
+        assert not np.any(np.isnan(particles.ptau[self._previous_active_mask]))

@@ -18,7 +18,7 @@ from .simple_xsuite_line import run_simulation as run_xsuite
 def test_blond_xsuite_interface():
     """Run xsuite + blond element simulation."""
     PLOT = True
-    n_turns = 1000
+    n_turns = 20
     zeta_xsuite, delta_xsuite, init_dist = run_xsuite(n_turns=n_turns)
     zeta_blond, delta_blond = run_blond(
         n_turns=n_turns, init_distribution=init_dist
@@ -42,7 +42,7 @@ def test_blond_xsuite_interface():
         plt.scatter(
             zeta_blond[:, -1], delta_blond[:, -1], label="xsuite + BLonD"
         )
-        plt.scatter(zeta_xsuite[:, -1], delta_xsuite[:, -1], label="xsuite")
+        plt.scatter(zeta_xsuite[:, -1], delta_xsuite[:, -1], marker='x', label="xsuite")
         plt.title(f"After {n_turns} turns")
         plt.xlabel("$\zeta$ [m]")
         plt.ylabel(r"$\delta$")

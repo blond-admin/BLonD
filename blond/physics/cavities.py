@@ -677,7 +677,8 @@ class RFStationBaseClass(
             energy_gain=reference_energy_change,
             above_transition=not self._ring.is_below_transition(beam=beam),
         )
-
+        if np.isnan(phi_s):
+            raise ValueError(f"Invalid input type {type(phi_s)=}")
         return phi_s
 
     def get_main_harmonic_t_rf(
