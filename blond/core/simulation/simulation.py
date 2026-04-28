@@ -29,7 +29,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
 
-from blond import WakeField
 from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
@@ -47,6 +46,7 @@ from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
 from blond.generals.iterables_ import _as_tuple
 from blond.generals.warnings_ import PerformanceWarning
+from blond.physics.impedances.base import WakeField
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
