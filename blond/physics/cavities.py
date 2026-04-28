@@ -741,7 +741,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             self._local_wakefield.track(beam=beam)
 
         if np.any(self.delta_omega_rf != 0):
-            self._update_delta_phi_rf_from_beam_feedback(beam=beam)
+            self._update_delta_phi_rf_from_beam_feedback()
 
     def _update_delta_phi_rf_from_beam_feedback(self) -> None:
         """

@@ -909,11 +909,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 - 1
             )
         rf_centers = np.arange(
-            time_to_next_falling_edge_zero,
-            # if self.residual_time_last_rf_centers_calculation == 0
-            # else -self.residual_time_last_rf_centers_calculation,
-            # TODO: if this is created and then removed anywat, this does not matter, removes need for decentering of first element
-            until_time,
+            start=time_to_next_falling_edge_zero,
+            stop=until_time,  # ensure that the last value is taken even with float precision
             step=step_width_rf_centers,
         )
 
