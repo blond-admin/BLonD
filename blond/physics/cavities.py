@@ -750,17 +750,17 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         Update the RF phase of all systems for the next turn
         Accumulated phase offset due to beam phase loop or frequency offset.
         """
-        # phi_increment = (
-        #     2.0
-        #     * np.pi
-        #     * self.harmonic
-        #     * self.delta_omega_rf
-        #     # /self.omega_rf_design
-        #     / self.calc_omega_rf_design(beam.reference.beta, self._ring.circumference)
-        #     # TODO: this is wrong, beam is not yet tracked, i.e. reference is too low
-        # )
+        phi_increment = (
+            2.0
+            * np.pi
+            * self.harmonic
+            * self.delta_omega_rf
+            / self.omega_rf_design
+            # / self.calc_omega_rf_design(beam.reference.beta, self._ring.circumference)
+            # TODO: this is wrong, beam is not yet tracked, i.e. reference is too low
+        )
 
-        self.phase_correction_frequency_offset += 0
+        self.phase_correction_frequency_offset += phi_increment
 
     def track_reference(
         self,

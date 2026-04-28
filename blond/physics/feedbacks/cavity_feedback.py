@@ -1015,6 +1015,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     ),
                     omega_rf=self.reverse_tracking_omega_list[time_ind],
                     phi_rf=self.phi_rf,
+                    # TODO: not working atm with delta_omega since the calculation of phi_increment is not done correctly
                     until_time=time,
                 ),
             )
