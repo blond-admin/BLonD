@@ -18,6 +18,7 @@ from blond import (
     StaticProfile,
     WakeField,
     backend,
+    mu_minus,
     mu_plus,
 )
 from blond.generals.distributed.distributed_array import DistributedArray
@@ -1026,6 +1027,200 @@ class TestIQCavityFeedbackTimingClass:
                     if fdbk_ind != len(continuousfdbk_time) - 1
                     else True
                 )
+        harm_per_section = self.harmonic // n_sections
+        rf_center_list = np.array(rf_center_list)
+        for trn_ind in range(
+            0, n_turns_to_simulate - 1
+        ):  # first turn is not recorded
+            if (
+                trn_ind == 0
+            ):  # first recorded turn --> no acceleration, should all be equal
+                for fdbk_ind in range(1, len(timing_fdbk_list)):
+                    np.testing.assert_allclose(
+                        rf_center_list[fdbk_ind][trn_ind],
+                        rf_center_list[fdbk_ind - 1][trn_ind],
+                    )
+            if trn_ind == 1:
+                for fdbk_ind in range(
+                    1, len(timing_fdbk_list) - 1
+                ):  # last one won't have any overlap --> only tracks within 2nd turn
+                    overlapping_elements = (
+                        len(timing_fdbk_list) - fdbk_ind - 1
+                    ) * harm_per_section
+                    np.testing.assert_allclose(
+                        rf_center_list[fdbk_ind][trn_ind][
+                            0:overlapping_elements
+                        ],
+                        rf_center_list[fdbk_ind - 1][trn_ind][
+                            0:overlapping_elements
+                        ],
+                    )
+                for fdbk_ind in range(
+                    1, len(timing_fdbk_list)
+                ):  # last elements of previous should be inside current
+                    np.testing.assert_allclose(
+                        rf_center_list[fdbk_ind][trn_ind][
+                            -2 * harm_per_section : -harm_per_section
+                        ],
+                        rf_center_list[fdbk_ind - 1][trn_ind][
+                            -harm_per_section:
+                        ],
+                    )
+            if trn_ind >= 2:  # const acceleration
+                for fdbk_ind in range(1, len(timing_fdbk_list)):
+                    np.testing.assert_allclose(
+                        rf_center_list[fdbk_ind][trn_ind][0:-harm_per_section],
+                        rf_center_list[fdbk_ind - 1][trn_ind][
+                            harm_per_section:
+                        ],
+                    )
+            # Test of last backward and forward not overlapping
+            # this should never be the case, as these are either lumped or have different frequencies.
+            for fdbk_ind in range(
+                1, len(timing_fdbk_list)
+            ):  # last elements of previous should be inside current
+                assert not any(
+                    np.isclose(
+                        rf_center_list[fdbk_ind][trn_ind][
+                            -2 * harm_per_section : -harm_per_section
+                        ],
+                        rf_center_list[fdbk_ind][trn_ind][-harm_per_section:],
+                        atol=0,
+                        rtol=1e-12,
+                    )
+                ), f"{fdbk_ind}, {trn_ind}"  # type: ignore
+
+    @pytest.mark.parametrize("n_sections", [4])  # 1, 4, 20,
+    def test_rf_centers_full_counterrotation_equality(self, n_sections):
+        backend.set_specials("cpp")
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp")
+        self.harmonic = 20
+        self.setup_simulation()
+
+        # n_sections = 4
+        circumference = 20
+
+        # only debugging/testing requirement, not for running
+        assert circumference % n_sections == 0, (
+            "simulation setup wrong, check input changes"
+        )
+        assert self.harmonic % n_sections == 0, (
+            "simulation setup wrong, check input changes"
+        )
+
+        ring, element_list, timing_fdbk_list = (
+            self.setup_simulation_multisection(
+                circumference=circumference, n_sections=n_sections
+            )
+        )
+
+        n_turns_to_simulate = 3
+        injection_energy = 5e8
+        en_gain_per_turn = 20e9
+        ejection_energy = (
+            injection_energy + en_gain_per_turn * n_turns_to_simulate
+        )
+
+        vals_after_rf_station = np.linspace(
+            injection_energy + en_gain_per_turn / n_sections,
+            ejection_energy,
+            num=n_sections * n_turns_to_simulate,
+        )
+        vals_after_rf_station = np.append(
+            np.ones(n_sections) * injection_energy, vals_after_rf_station
+        )
+        vals_after_rf_station = np.append(
+            np.ones(n_sections) * injection_energy, vals_after_rf_station
+        )
+        n_turns_to_simulate += 2
+        vals_after_rf_station = np.reshape(
+            vals_after_rf_station, (n_sections, n_turns_to_simulate), order="F"
+        )
+
+        cnst_cycle = MagneticCyclePerTurnAllRFStations(
+            reference_particle=mu_plus,
+            value_init=injection_energy,
+            values_after_rf_station_per_turn=vals_after_rf_station,
+            in_unit="momentum",
+        )
+
+        sim = Simulation(
+            ring,
+            cnst_cycle,
+        )
+
+        time_passed_list = [
+            [[] for _ in range(n_turns_to_simulate - 1)]
+            for _ in range(n_sections)
+        ]
+        omega_list = [
+            [[] for _ in range(n_turns_to_simulate - 1)]
+            for _ in range(n_sections)
+        ]
+        rf_center_list = [
+            [[] for _ in range(n_turns_to_simulate - 1)]
+            for _ in range(n_sections)
+        ]
+
+        harm_per_half_drift = self.harmonic / n_sections / 2
+        harm_per_full_drift = harm_per_half_drift * 2
+
+        def callback(simulation: Simulation, beam: Beam):
+            # TODO: implement euqliaty of length checks here, value checking below
+            if simulation.turn_i.value == 0:  # TODO: and not CR
+                for idx, fdbk in enumerate(timing_fdbk_list):  # CR beam -->
+                    fdbk: IQCavityFeedbackTimingClass
+                    assert len(fdbk.rf_centers) == int(
+                        np.floor(harm_per_half_drift)
+                        + fdbk.section_index * harm_per_full_drift
+                        + harm_per_full_drift
+                    )
+                return
+            for idx, fdbk in enumerate(timing_fdbk_list):
+                fdbk: IQCavityFeedbackTimingClass
+                if (
+                    n_sections != 1
+                ):  # only relevant/only gets set on multistation
+                    assert (
+                        len(fdbk.rf_centers) == 20,
+                        f"failed in {simulation.turn_i.value} {idx} {len(fdbk.rf_centers)}",
+                        # 15 from reverse and 5 from frwrd
+                    )
+                    msk = fdbk.reverse_tracking_time_array != 0
+                    used_time_array = np.array(
+                        fdbk.reverse_tracking_time_array
+                    )[msk]
+                    used_omega_array = np.array(
+                        fdbk.reverse_tracking_omega_list
+                    )[msk]
+                    used_omega_array = np.append(
+                        used_omega_array, fdbk.forward_tracking_omega_rf
+                    )
+                    used_time_array = np.append(
+                        used_time_array, fdbk.forward_tracking_time
+                    )
+
+                    time_passed_list[idx][sim.turn_i.value - 1] = (
+                        used_time_array
+                    )
+                    omega_list[idx][sim.turn_i.value - 1] = used_omega_array
+
+                    rf_center_list[idx][sim.turn_i.value - 1] = fdbk.rf_centers
+
+        beam_cr = deepcopy(self.beam)
+        beam_cr.reference._particle_type = mu_minus
+        beam_cr._is_counter_rotating = True
+
+        sim.run_simulation(
+            (
+                self.beam,
+                beam_cr,
+            ),
+            callbacks=(callback,),
+            n_turns=n_turns_to_simulate,
+        )
+
         harm_per_section = self.harmonic // n_sections
         rf_center_list = np.array(rf_center_list)
         for trn_ind in range(
