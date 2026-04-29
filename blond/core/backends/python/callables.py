@@ -239,6 +239,42 @@ class PythonSpecials(Specials):
         dE[:] += acceleration_kick
 
     @staticmethod
+    def sum_1d_array(array: NumpyArray) -> float:
+        """
+        Return the sum of an 1d array.
+
+        Parameters
+        ----------
+        array
+            Input array 1.
+
+        Returns
+        -------
+        sum_1d_array
+            Sum of a 1d arrays.
+        """
+        return np.sum(array)
+
+    @staticmethod
+    def dot_product_1d_array(array_1: NumpyArray, array_2: NumpyArray):
+        """
+        Return the sum of dot product of two 1d arrays.
+
+        Parameters
+        ----------
+        array_1
+            Input array 1.
+        array_2
+            Input array 2.
+
+        Returns
+        -------
+        dot_product_1d_array
+            Dot product of two 1d arrays.
+        """
+        return np.dot(array_1, array_2)
+
+    @staticmethod
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,

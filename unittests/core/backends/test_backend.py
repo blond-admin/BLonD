@@ -4,6 +4,7 @@ import warnings
 import numpy as np
 import pytest
 
+from blond import copy_to_cpu
 from blond.core.backends.backend import (
     Cupy32Bit,
     Cupy64Bit,
@@ -50,6 +51,10 @@ class TestBackendBaseClass(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     @pytest.mark.backend_mutation
+    def test_autoselect_backend(self) -> None:
+        self.backend_base_class.autoselect_backend()
+
+    @pytest.mark.backend_mutation
     def test_change_backend(self) -> None:
         self.backend_base_class.change_backend(new_backend=Numpy64Bit)
         self.assertEqual(self.backend_base_class.float, np.float64)
@@ -60,6 +65,7 @@ class TestBackendBaseClass(unittest.TestCase):
         self.backend_base_class.set_specials(mode="numba")
 
     def tearDown(self) -> None:
+        self.backend_base_class.change_backend(Numpy64Bit)
         self.backend_base_class.set_specials(mode="cpp")
 
     @pytest.mark.backend_mutation
@@ -1504,7 +1510,6 @@ class TestSpecials(unittest.TestCase):
                     stop=backend.float(8.0),
                 )
                 result = array_write
-                print(result.tolist())
 
                 if special == "cuda":
                     result = result.get()
@@ -1662,6 +1667,54 @@ class TestSpecials(unittest.TestCase):
         target = backend.array([1, 2, 3], dtype=backend.complex)
         unchanged = backend.cast_arr_complex_if_needed(target)
         self.assertTrue(target is unchanged)
+
+    @pytest.mark.backend_mutation
+    def test_sum_1d_array(self) -> None:
+        for dtype in (np.float32, np.float64):
+            x = np.random.rand(10_000).astype(dtype)
+            reference_sum = np.sum(x)
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                np.testing.assert_allclose(
+                    copy_to_cpu(
+                        backend.specials.sum_1d_array(backend.array(x))
+                    ),
+                    reference_sum,
+                    # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
+                    rtol=self.rtol * 8 if dtype == np.float32 else self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_dot_product_1d_array(self) -> None:
+        for dtype in (np.float64, np.float32):
+            x = np.random.rand(10_000).astype(dtype)
+            y = np.random.rand(10_000).astype(dtype)
+            reference_dot = np.dot(x, y)
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                backend_result = backend.specials.dot_product_1d_array(
+                    backend.array(x),
+                    backend.array(y),
+                )
+                backend_result = copy_to_cpu(backend_result)
+
+                np.testing.assert_allclose(
+                    backend_result,
+                    reference_dot,
+                    # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
+                    rtol=self.rtol * 8 if dtype == np.float32 else self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
+                self.assertTrue(backend_result.dtype == dtype)
 
     @multi_backend_testcase
     @pytest.mark.backend_mutation
