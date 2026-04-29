@@ -602,7 +602,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 decimal=self.decimal,
             )
             np.testing.assert_array_almost_equal(
-                sr_drift.radiation_integrals_tracker,
+                sr_drift.share_of_radiation_integrals,
                 self.synchrotron_radiation_integrals / 5,
                 decimal=self.decimal,
             )

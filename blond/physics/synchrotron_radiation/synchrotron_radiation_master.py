@@ -714,15 +714,3 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
             in [eV per turn].
         """
         return self._energy_lost_due_to_synchrotron_radiation
-
-    @property
-    def radiation_integrals_tracker(self) -> NumpyArray | None:
-        """
-        Synchrotron radiation integrals of the arc covered by the tracker.
-
-        Returns
-        -------
-        radiation_integrals_tracker
-            Synchrotron radiation integrals of the tracker.
-        """
-        return self.share_of_radiation_integrals
