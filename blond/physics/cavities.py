@@ -1112,25 +1112,22 @@ class SingleHarmonicRFStation(
                         self._delayed_kick_time_axis is None
                     )  # in principle checked at init
 
-                    self._delayed_kick.register(
-                        time_axis=time_axis,
-                        voltage=voltage - reference_energy_change,
-                    )
-                else:
-                    self._track_interp(
-                        beam=beam,
-                        reference_energy_change=reference_energy_change,
-                        time_axis=time_axis,
-                        voltage=voltage,
-                    )
+                self._track_interp(
+                    beam=beam,
+                    reference_energy_change=reference_energy_change,
+                    time_axis=time_axis,
+                    voltage=voltage,
+                )
             elif self._delayed_kick is not None:
                 assert self._delayed_kick_time_axis is not None
 
                 time_axis = self._delayed_kick_time_axis
                 voltage = self.calc_gap_voltage_without_feedbacks(ts=time_axis)
-                self._delayed_kick.register(
+                self._track_interp(
+                    beam=beam,
+                    reference_energy_change=reference_energy_change,
                     time_axis=time_axis,
-                    voltage=voltage - reference_energy_change,
+                    voltage=voltage,
                 )
             else:
                 self._track_no_interp(
@@ -1579,17 +1576,12 @@ class MultiHarmonicRFStation(
                     assert (
                         self._delayed_kick_time_axis is None
                     )  # in principle checked at init
-                    self._delayed_kick.register(
-                        time_axis=time_axis,
-                        voltage=voltage - reference_energy_change,
-                    )
-                else:
-                    self._track_interp(
-                        beam=beam,
-                        reference_energy_change=reference_energy_change,
-                        time_axis=time_axis,
-                        voltage=voltage,
-                    )
+                self._track_interp(
+                    beam=beam,
+                    reference_energy_change=reference_energy_change,
+                    time_axis=time_axis,
+                    voltage=voltage,
+                )
             elif self._delayed_kick is not None:
                 assert self._delayed_kick_time_axis is not None
 
@@ -1597,10 +1589,11 @@ class MultiHarmonicRFStation(
                 voltage = self.calc_gap_voltage_without_feedbacks(
                     ts=self._delayed_kick_time_axis,
                 )
-
-                self._delayed_kick.register(
+                self._track_interp(
+                    beam=beam,
+                    reference_energy_change=reference_energy_change,
                     time_axis=time_axis,
-                    voltage=voltage - reference_energy_change,
+                    voltage=voltage,
                 )
             else:
                 self._track_no_interp(
