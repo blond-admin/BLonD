@@ -115,7 +115,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
             cls.initial_bins_blond3 = np.copy(profile.hist_x)
 
             cls.pl_error_blond3 = np.zeros(n_turns)
-            cls.delta_phi_rf_blond3 = np.zeros(n_turns)
+            cls.sl_error_blond3 = np.zeros(n_turns)
             cls.omega_rf_blond3 = np.zeros(n_turns)
             cls.phi_rf_blond3 = np.zeros(n_turns)
 
@@ -134,9 +134,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
 
                 cls.phi_rf_blond3[i] = cavity.phi_rf[0]
                 cls.pl_error_blond3[i] = beam_control.dphi * 180 / np.pi
-                cls.delta_phi_rf_blond3[i] = (
-                    cavity._dphi_rf_next[0] * 180 / np.pi
-                )
+                cls.sl_error_blond3[i] = cavity._dphi_rf_next[0] * 180 / np.pi
 
         def setup_blond2():
             from tqdm import tqdm
@@ -304,7 +302,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
         # plt.show()
 
         np.testing.assert_allclose(
-            self.delta_phi_rf_blond3,
+            self.sl_error_blond3,
             self.synchro_loop_error_blond2,
             atol=1e-1,
             err_msg="Error in synchronization loop error signal",
