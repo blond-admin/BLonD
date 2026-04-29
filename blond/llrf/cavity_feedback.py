@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.random as rnd
 import scipy.signal
+from blond.beam.sparse_profiles import SparseBatch
 from scipy.interpolate import interp1d
 
 from ..utils import bmath as bm
