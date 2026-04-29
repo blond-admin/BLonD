@@ -361,6 +361,7 @@ class BackendBaseClass(ABC):
         self.linspace: Callable = None  # type: ignore
         self.sinc: Callable = None  # type: ignore
         self.histogram: Callable = None  # type: ignore
+        self.histogram2d: Callable = None  # type: ignore
         self.zeros: Callable = None  # type: ignore
         self.ones: Callable = None  # type: ignore
         self.zeros_like: Callable = None  # type: ignore
@@ -733,6 +734,7 @@ class NumpyBackend(BackendBaseClass):
         self.linspace = np.linspace
         self.sinc = np.sinc
         self.histogram = np.histogram
+        self.histogram2d = np.histogram2d
         self.zeros = np.zeros
         self.ones = np.ones
         self.zeros_like = np.zeros_like
@@ -892,6 +894,7 @@ class CupyBackend(BackendBaseClass):
         self.linspace = cp.linspace
         self.sinc = cp.sinc
         self.histogram = cp.histogram
+        self.histogram2d = cp.histogram2d
         self.zeros = cp.zeros
         self.ones = cp.ones
         self.zeros_like = cp.zeros_like

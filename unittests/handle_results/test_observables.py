@@ -27,6 +27,7 @@ from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
+    BeamHist2dOncePerTurn,
     BeamObservationOncePerTurn,
     BeamStatisticsOncePerTurn,
     DriftObservation,
@@ -356,6 +357,7 @@ class TestBeamObservation(unittest.TestCase):
             rf_station=rf_station,
         )
         bunch_observation = BeamObservationOncePerTurn(each_turn_i=100)
+        obs_beam_hist2d = BeamHist2dOncePerTurn(each_turn_i=100, bins=128)
         beam1._is_distributed = True
         with self.assertRaisesRegex(
             NotImplementedError, "This needs to be implement"
@@ -363,13 +365,17 @@ class TestBeamObservation(unittest.TestCase):
             sim.run_simulation(
                 beams=(beam1,),
                 n_turns=N_TURNS,
-                observe=(phase_observation, bunch_observation),
+                observe=(
+                    phase_observation,
+                    bunch_observation,
+                    obs_beam_hist2d,
+                ),
             )
         beam1._is_distributed = False
         sim.run_simulation(
             beams=(beam1,),
             n_turns=N_TURNS,
-            observe=(phase_observation, bunch_observation),
+            observe=(phase_observation, bunch_observation, obs_beam_hist2d),
         )
         plt.plot(phase_observation.phases)
         plt.figure()
@@ -382,6 +388,8 @@ class TestBeamObservation(unittest.TestCase):
                 bins=256,
                 # range=[[0, 2.5e-9], [-4e8, 4e8]],
             )
+        obs_beam_hist2d.plot_fancy(result_idx=-1)
+        plt.show()
 
 
 class TestBunchStatistics(unittest.TestCase):

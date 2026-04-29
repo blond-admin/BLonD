@@ -16,7 +16,12 @@ import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.gridspec import GridSpec
+from matplotlib.image import AxesImage
+from numpy.typing import ArrayLike
 from numpy.typing import NDArray as NumpyArray
 
 from blond import backend
@@ -262,6 +267,319 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self._simulation = simulation
 
 
+class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
+    """
+    Save a 2D histogram of the beam along simulation.
+
+    This is intended to save the beam coordinates in
+    less memory intensive way than storing the ``dt`` and ``dE``
+    coordinates directly.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    bins
+        Resolution, i.e. number of bins to use for histogram calculation.
+    range
+        The time and energy limits of the histogram.
+        If not given, each turn will directly use ``dt.min()`` and ``dt.max()``.
+
+    See Also
+    --------
+    BeamObservationOncePerTurn : To save the entire ``dt`` and ``dE`` coordinates directly.
+
+    Examples
+    --------
+    >>> from matplotlib import pyplot as plt
+    >>> from blond import Simulation
+    >>> from blond import BeamHist2dOncePerTurn
+    >>>
+    >>> sim = Simulation(...)
+    >>> beam_observation = BeamHist2dOncePerTurn(
+    ...     each_turn_i=2,
+    ...     bins=128,
+    ...     range=[[0, 2.5e-9], [-4e8, 4e8]],
+    ... )
+    >>>
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(beam_observation,),
+    ... )
+    >>> beam_observation.plot_fancy(result_idx=-1)
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        folder: str = "",
+        bins: int | tuple[int, int] = 32,
+        range: ArrayLike | None = None,
+    ):
+        super().__init__(
+            each_turn_i=each_turn_i,
+            folder=folder,
+        )
+        self._beam: BeamBaseClass | None = None
+        self._hist2d: DenseArrayRecorder | None = None
+        self._xedges: DenseArrayRecorder | None = None
+        self._yedges: DenseArrayRecorder | None = None
+        self._reference_time: DenseArrayRecorder | None = None
+        self._intensity: DenseArrayRecorder | None = None
+        self._reference_total_energy: DenseArrayRecorder | None = None
+
+        self._consider_intensity: bool | None = None
+
+        if isinstance(bins, int):
+            self._bins = (bins, bins)
+        else:
+            self._bins = bins
+        self._range = range
+        self._density = True
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,  # not used in this context
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        beam
+            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
+        from blond.generals.distributed.helpers import mpi_is_distributed
+
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+        )
+        if beam.is_distributed:
+            raise NotImplementedError(
+                "This needs to be implemented."
+                " Contact the devs if you need it."
+            )
+        self._beam = beam
+        self._consider_intensity = beam.intensity != 0
+
+        n_entries = self._calc_n_entries(n_turns)
+        if mpi_is_distributed():
+            warnings.warn(
+                "Saving beam with `BeamObservationOncePerTurn` only from "
+                "MPI-rank 0.",
+                UserWarning,
+                stacklevel=2,
+            )
+        shape = (n_entries, self._bins[0], self._bins[1])
+
+        self._hist2d = DenseArrayRecorder(
+            f"{self.common_filepath}_hist2d",
+            shape,
+        )
+
+        self._xedges = DenseArrayRecorder(
+            f"{self.common_filepath}_xedges",
+            (n_entries, self._bins[0] + 1),
+        )
+
+        self._yedges = DenseArrayRecorder(
+            f"{self.common_filepath}_yedges",
+            (n_entries, self._bins[1] + 1),
+        )
+
+        self._reference_time = DenseArrayRecorder(
+            f"{self.common_filepath}_reference_time",
+            (n_entries,),
+        )
+
+        self._intensity = DenseArrayRecorder(
+            f"{self.common_filepath}_intensity",
+            (n_entries,),
+        )
+        self._reference_total_energy = DenseArrayRecorder(
+            f"{self.common_filepath}_reference_total_energy",
+            (n_entries,),
+        )
+
+    def _update(self) -> None:
+        """Update memory with new values."""
+        assert self._hist2d is not None
+        assert self._xedges is not None
+        assert self._intensity is not None
+        assert self._yedges is not None
+        assert self._beam is not None
+        assert self._beam._dt is not None
+        assert self._reference_time is not None
+        assert self._reference_total_energy is not None
+
+        self._reference_time.write(self._beam.reference.time)
+        self._reference_total_energy.write(self._beam.reference.total_energy)
+        self._intensity.write(self._beam.intensity)
+        H, xedges, yedges = backend.histogram2d(
+            self._beam.dt.array_local,
+            self._beam.dE.array_local,
+            bins=self._bins,
+            range=self._range,
+            density=self._density,
+        )
+        self._hist2d.write(H)
+        self._xedges.write(xedges)
+        self._yedges.write(yedges)
+
+    def plot(self, result_idx: int) -> AxesImage:
+        """
+        Make a plot of the beam 2D histogram.
+
+        Parameters
+        ----------
+        result_idx
+            Index of the recorded result to show.
+
+        Returns
+        -------
+        image
+            The `AxesImage` pyplot object.
+        """
+        assert self._intensity is not None
+        assert self._hist2d is not None
+        assert self._xedges is not None
+        assert self._yedges is not None
+        assert result_idx < self._intensity._write_idx
+        if result_idx < 0:
+            result_idx = self._intensity._write_idx + result_idx
+        ax = plt.gca()
+
+        if self._consider_intensity:
+            H = (
+                self._hist2d._memory[result_idx, :, :]
+                * self._intensity._memory[result_idx]
+            )
+        else:
+            H = self._hist2d._memory[result_idx, :, :]
+
+        xedges = self._xedges._memory[result_idx, :]
+        yedges = self._yedges._memory[result_idx, :]
+        im = ax.imshow(
+            H.T,
+            origin="lower",
+            extent=(
+                float(xedges[0]),
+                float(xedges[-1]),
+                float(yedges[0]),
+                float(yedges[-1]),
+            ),
+            aspect="auto",
+            cmap="viridis",
+        )
+        return im
+
+    def plot_fancy(self, result_idx: int) -> tuple[Axes, Axes, Axes]:
+        """
+        Make a fancy plot of the beam 2D histogram.
+
+        Parameters
+        ----------
+        result_idx
+            Index of the recorded result to show.
+
+        Returns
+        -------
+        ax_main
+            The  pyplot `Axes` of the main 2D plot.
+        ax_xhist
+            The  pyplot `Axes` of the x histogram.
+        ax_yhist
+            The  pyplot `Axes` of the y histogram.
+        """
+        assert self._intensity is not None
+        assert self._hist2d is not None
+        assert self._xedges is not None
+        assert self._yedges is not None
+        assert result_idx < self._intensity._write_idx
+        if result_idx < 0:
+            result_idx = self._intensity._write_idx + result_idx
+
+        if self._consider_intensity:
+            H = (
+                self._hist2d._memory[result_idx, :, :]
+                * self._intensity._memory[result_idx]
+            )
+        else:
+            H = self._hist2d._memory[result_idx, :, :]
+
+        xedges = self._xedges._memory[result_idx, :]
+        yedges = self._yedges._memory[result_idx, :]
+
+        # Create figure with GridSpec
+        fig = plt.figure()
+        gs = GridSpec(4, 4, figure=fig)
+
+        ax_main = fig.add_subplot(gs[1:, :-1])  # main 2D histogram
+        ax_xhist = fig.add_subplot(gs[0, :-1])  # top X histogram
+        ax_yhist = fig.add_subplot(gs[1:, -1])  # right Y histogram
+
+        # Main 2D histogram
+        ax_main.imshow(
+            H.T,
+            origin="lower",
+            extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
+            aspect="auto",
+            cmap="viridis",
+        )
+
+        # X histogram (sum over Y)
+        x_counts = H.sum(axis=1)
+        ax_xhist.bar(
+            (xedges[:-1] + xedges[1:]) / 2,
+            x_counts,
+            width=np.diff(xedges),
+            align="center",
+            color="gray",
+        )
+        # ax_xhist.axis("off")  # optional, for cleaner look
+        ax_xhist.set_xticks([], [])
+        ax_xhist.set_xlim(ax_main.get_xlim())
+        max1 = ax_xhist.get_ylim()
+
+        # Y histogram (sum over X)
+        y_counts = H.sum(axis=0)
+        ax_yhist.barh(
+            (yedges[:-1] + yedges[1:]) / 2,
+            y_counts,
+            height=np.diff(yedges),
+            align="center",
+            color="gray",
+        )
+        # ax_yhist.axis("off")  # optional
+        ax_yhist.set_yticks([], [])
+        ax_yhist.set_ylim(ax_main.get_ylim())
+        max2 = ax_yhist.get_xlim()
+
+        ax_xhist.set_ylim(max(max1, max2))
+        ax_yhist.set_xlim(max(max1, max2))
+
+        return (
+            ax_main,
+            ax_xhist,
+            ax_yhist,
+        )
+
+
 class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     """
     Observe the bunch coordinates during simulation execution after a drift element.
@@ -276,6 +594,10 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         saving or loading files.
     warn
         If ``True``, emits a warning about the performance impact.
+
+    See Also
+    --------
+    BeamHist2dOncePerTurn : To save a 2D histogram of ``dt`` and ``dE``.
 
     Examples
     --------

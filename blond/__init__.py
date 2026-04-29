@@ -56,6 +56,7 @@ __all__ = [
     "copy_to_cpu",
     "EquidistantMultiProfile",
     "setup_backend",
+    "BeamHist2dOncePerTurn",
 ]
 from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
@@ -88,6 +89,7 @@ from blond.cycles.magnetic_cycle import (
 )
 from blond.generals.cupy.no_cupy_import import AllowPlotting, copy_to_cpu
 from blond.handle_results.observables import (
+    BeamHist2dOncePerTurn,
     BeamObservationOncePerTurn,
     DriftObservation,
     RFStationPhaseObservation,
