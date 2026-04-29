@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import unittest
 from random import random
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
@@ -26,6 +27,10 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
     _SynchrotronRadiationTracker,
 )
+
+if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
 
 
 class BeamBaseClassTester(BeamBaseClass):
