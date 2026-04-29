@@ -1298,22 +1298,18 @@ class TestSpecials(unittest.TestCase):
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 
-            # Positional args: backends disagree on kwarg names
-            # (cpp: is_counterrotating_beam / counterrotating_pole_signs;
-            # numba/python/cuda: is_counterrotating_beam /
-            # counterrotating_pole_signs). The parameter *order* is consistent.
             backend.specials.wake_from_pole_residue(
-                profile,
-                profile_dts,
-                poles,
-                residues,
-                False,
-                cr_flags,
-                states,
-                voltage,
-                voltage_threaded,
-                update_on_bin,
-                backend.float(1.0),
+                profile=profile,
+                profile_dts=profile_dts,
+                poles=poles,
+                residues=residues,
+                is_counterrotating_beam=False,
+                counterrotating_pole_signs=cr_flags,
+                states=states,
+                voltage=voltage,
+                voltage_threaded=voltage_threaded,
+                update_on_bin=update_on_bin,
+                factor=backend.float(1.0),
             )
 
             result = np.asarray(copy_to_cpu(voltage))

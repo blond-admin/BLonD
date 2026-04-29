@@ -37,7 +37,7 @@ f_res = resonator_data[:, 0] * 10**9
 Q_factor = resonator_data[:, 1]
 
 
-class TestSparsePorifleIntegration(unittest.TestCase):
+class TestSparseProfileIntegration(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_compare_both_profiles(self):
         backend.change_backend(Numpy64Bit)

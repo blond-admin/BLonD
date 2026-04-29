@@ -285,18 +285,18 @@ class Specials(ABC):
     @abstractmethod  # pragma: no cover
     def wake_from_pole_residue(
         # read
-        profile,
-        profile_dts,
-        poles,
-        residues,
-        is_counterrotating_beam,
-        counterrotating_pole_signs,
+        profile: NumpyArray | CupyArray,
+        profile_dts: NumpyArray | CupyArray,
+        poles: NumpyArray | CupyArray,
+        residues: NumpyArray | CupyArray,
+        is_counterrotating_beam: bool,
+        counterrotating_pole_signs: NumpyArray | CupyArray,
         # write
-        states,
-        voltage,
-        voltage_threaded,
-        update_on_bin,
-        factor,
+        states: NumpyArray | CupyArray,
+        voltage: NumpyArray | CupyArray,
+        voltage_threaded: NumpyArray | CupyArray,
+        update_on_bin: NumpyArray | CupyArray,
+        factor: float,
     ) -> None:
         """
         Apply poles based on the `profile` to generate `voltage`.

@@ -337,24 +337,7 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
 
     plt.draw()
     plt.pause(0.1)
-    if simulation.turn_i.value == 0:
-        print("saved histogram")
-        # p = profile.profiles[0]
-        # np.savez(
-        #    "/home/slauber/PycharmProjects/deleteme/manyideas"
-        #    "/linear_runtime_wakes/resources/hist.npz",
-        #    hist_x=p.hist_x,
-        #    hist_y=p.hist_y,
-        # )
-    # if simulation.turn_i.value == 1:
-    #    plt.show()
-    # artist.remove()
-    # for artist in artists:
-    #    artist.remove()
-    # input("continue?")
 
-
-"""sim.profiling(beam, 50, 5)"""
 
 my_callback.each_turn_i = 10
 sim.run_simulation(

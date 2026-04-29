@@ -541,18 +541,18 @@ def reload_cpp_backend(  # NOQA: PLR0915
         @staticmethod
         def wake_from_pole_residue(
             # read
-            profile,
-            profile_dts,
-            poles,
-            residues,
-            is_counterrotating_beam,
-            counterrotating_pole_signs,
+            profile: NumpyArray,
+            profile_dts: NumpyArray,
+            poles: NumpyArray,
+            residues: NumpyArray,
+            is_counterrotating_beam: bool,
+            counterrotating_pole_signs: NumpyArray,
             # write
-            states,
-            voltage,
-            voltage_threaded,
-            update_on_bin,
-            factor,
+            states: NumpyArray,
+            voltage: NumpyArray,
+            voltage_threaded: NumpyArray,
+            update_on_bin: NumpyArray,
+            factor: float,
         ) -> None:
             """
             Apply poles based on the `profile` to generate `voltage`.
