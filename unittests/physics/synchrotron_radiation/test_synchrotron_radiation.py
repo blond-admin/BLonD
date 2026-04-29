@@ -76,39 +76,6 @@ class BeamBaseClassTester(BeamBaseClass):
         mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
         **kwargs,
     ) -> None:
-        """Sets beam array attributes for simulation
-
-        Parameters
-        ----------
-        mpi_mode
-        dt
-            Macro-particle time coordinates [s]
-        dE
-            Macro-particle energy coordinates [eV]
-        flags
-            Macro-particle flags
-        reference_time
-            Time of the reference frame (global time), in [s]
-        reference_total_energy
-            Time of the reference frame (global total energy), in [eV]
-        mpi_mode
-            Specifies how the particle data is distributed across multiple ranks (processing
-            units) in a parallel environment:
-
-            - "root-distributes": The root node (rank 0) holds the full array and splits it
-              into smaller chunks, which are then distributed to all ranks, including rank 0.
-              Each rank stores its own chunk of the data. This mode is useful when loading
-              large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
-              across ranks.
-
-            - "all-ranks": Each rank independently generates and stores a full copy of the data.
-              While this mode uses more memory, it can be simpler to implement in scenarios where
-              each rank needs to work with its own independent data (e.g., generating separate
-              random distributions with `np.random.randn()`).
-        **kwargs
-            Keyword arguments to make the non-abstract implementation
-            extendable.
-        """
         pass
 
     def plot_hist2d(self):
