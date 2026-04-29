@@ -1300,8 +1300,8 @@ class TestSpecials(unittest.TestCase):
 
             # Positional args: backends disagree on kwarg names
             # (cpp: is_counterrotating_beam / counterrotating_pole_signs;
-            # numba/python/cuda: beam_counter_rotation_flag /
-            # cr_pole_flip_flags). The parameter *order* is consistent.
+            # numba/python/cuda: is_counterrotating_beam /
+            # counterrotating_pole_signs). The parameter *order* is consistent.
             backend.specials.wake_from_pole_residue(
                 profile,
                 profile_dts,

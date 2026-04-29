@@ -631,8 +631,8 @@ def reload_cuda_backend(  # NOQA: D102
             profile_dts: CupyArray,
             poles: CupyArray,
             residues: CupyArray,
-            beam_counter_rotation_flag: bool,
-            cr_pole_flip_flags: CupyArray,
+            is_counterrotating_beam: bool,
+            counterrotating_pole_signs: CupyArray,
             # write
             states: CupyArray,
             voltage: CupyArray,
@@ -650,12 +650,12 @@ def reload_cuda_backend(  # NOQA: D102
             profile_dts
                 Base for time step, connected to `update_on_bin`.
             poles
-                Complex poles of an equivalent circuit.
+                Complex poles of an equivalent circuit model.
             residues
-                Complex residues of an equivalent circuit.
-            beam_counter_rotation_flag
+                Complex residues of an equivalent circuit model.
+            is_counterrotating_beam
                 If true, the current beam is counter-rotating.
-            cr_pole_flip_flags
+            counterrotating_pole_signs
                 Array per pole, -1 if the sign of the impedance is flipped
                 for a counter-rotating beam.
             states
@@ -686,8 +686,8 @@ def reload_cuda_backend(  # NOQA: D102
             assert residues.device != "cpu", (
                 f"Requires Cupy array, but got {type(residues)}."
             )
-            assert cr_pole_flip_flags.device != "cpu", (
-                f"Requires Cupy array, but got {type(cr_pole_flip_flags)}."
+            assert counterrotating_pole_signs.device != "cpu", (
+                f"Requires Cupy array, but got {type(counterrotating_pole_signs)}."
             )
             assert states.device != "cpu", (
                 f"Requires Cupy array, but got {type(states)}."
@@ -705,7 +705,7 @@ def reload_cuda_backend(  # NOQA: D102
             assert profile.dtype == floattype
             assert profile_dts.dtype == floattype
             assert voltage.dtype == floattype
-            assert cr_pole_flip_flags.dtype == floattype
+            assert counterrotating_pole_signs.dtype == floattype
             assert poles.dtype == complex_dtype
             assert residues.dtype == complex_dtype
             assert states.dtype == complex_dtype
@@ -715,7 +715,7 @@ def reload_cuda_backend(  # NOQA: D102
             assert profile_dts.flags.c_contiguous
             assert poles.flags.c_contiguous
             assert residues.flags.c_contiguous
-            assert cr_pole_flip_flags.flags.c_contiguous
+            assert counterrotating_pole_signs.flags.c_contiguous
             assert states.flags.c_contiguous
             assert voltage.flags.c_contiguous
             assert update_on_bin.flags.c_contiguous
@@ -728,7 +728,7 @@ def reload_cuda_backend(  # NOQA: D102
             # states has length n_poles + 1; last entry stores t_start.
             assert states.shape[0] == n_poles + 1
             assert residues.shape[0] == n_poles
-            assert cr_pole_flip_flags.shape[0] == n_poles
+            assert counterrotating_pole_signs.shape[0] == n_poles
             assert voltage.shape[0] == n_bins
 
             # Output is reduced across poles via atomicAdd; must start at zero.
@@ -757,8 +757,8 @@ def reload_cuda_backend(  # NOQA: D102
                     profile_dts,
                     poles_r,
                     residues_r,
-                    np.int32(1 if beam_counter_rotation_flag else 0),
-                    cr_pole_flip_flags,
+                    np.int32(1 if is_counterrotating_beam else 0),
+                    counterrotating_pole_signs,
                     states_r,
                     voltage,
                     update_on_bin,

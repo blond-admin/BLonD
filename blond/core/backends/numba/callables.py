@@ -667,8 +667,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             profile_dts,
             poles,
             residues,
-            beam_counter_rotation_flag,
-            cr_pole_flip_flags,
+            is_counterrotating_beam,
+            counterrotating_pole_signs,
             # write
             states,
             voltage,
@@ -686,12 +686,12 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             profile_dts
                 Base for time step, connected to `update_on_bin`.
             poles
-                Complex poles of an equivalent circuit.
+                Complex poles of an equivalent circuit model.
             residues
-                Complex residues of an equivalent circuit.
-            beam_counter_rotation_flag
+                Complex residues of an equivalent circuit model.
+            is_counterrotating_beam
                 If true, the current beam is counter-rotating.
-            cr_pole_flip_flags
+            counterrotating_pole_signs
                 Array per pole, -1 if the sign of the impedance is flipped
                 for a counter-rotating beam.
             states
@@ -721,8 +721,8 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
 
                 cr_pole_flip = 1.0
                 if (
-                    beam_counter_rotation_flag
-                    and cr_pole_flip_flags[pole_i] == -1
+                    is_counterrotating_beam
+                    and counterrotating_pole_signs[pole_i] == -1
                 ):
                     cr_pole_flip = -1.0
 

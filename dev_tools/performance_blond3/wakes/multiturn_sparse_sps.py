@@ -52,9 +52,9 @@ class SupportsVectorFittedModel(ABC):
         Returns
         -------
         poles
-            Complex poles of an equivalent circuit.
+            Complex poles of an equivalent circuit model.
         residues
-            Complex residues of an equivalent circuit.
+            Complex residues of an equivalent circuit model.
         """
         pass
 
@@ -66,9 +66,9 @@ class VectorFittedModel(WakeFieldSource, SupportsVectorFittedModel):
     Parameters
     ----------
     poles
-        Complex poles of an equivalent circuit.
+        Complex poles of an equivalent circuit model.
     residues
-        Complex residues of an equivalent circuit.
+        Complex residues of an equivalent circuit model.
 
     See Also
     --------
@@ -83,6 +83,7 @@ class VectorFittedModel(WakeFieldSource, SupportsVectorFittedModel):
         assert len(poles) == len(residues), f"{len(poles)=}  {len(residues)=}"
         self.poles = poles
         self.residues = residues
+        self._shunt_impedances_counter_rotating = None
 
     def sort(self, by: str = "residues"):
         """
@@ -126,21 +127,21 @@ class VectorFittedModel(WakeFieldSource, SupportsVectorFittedModel):
 
     def plot(self, freq):
         """Plot the poles."""
-        # TODO without `rf`
-        """Omega = 2 * np.pi * freq
+        omega = 2 * np.pi * freq
         s = 1j * omega
         h = np.zeros_like(s)
         for i in range(len(self.poles)):
             pk = self.poles[i]
             ck = self.residues[i]
             h += ck / (s - pk)
-        plt.subplot(3,1,1)
-        plt.plot(freq, np.abs(h))
-        plt.subplot(3,1,2)
+            h += np.conjugate(ck) / (s - np.conjugate(pk))
+        plt.subplot(3, 1, 1)
+        plt.plot(freq, 20 * np.log10(np.abs(h)))
+        plt.subplot(3, 1, 2)
         plt.plot(freq, np.real(h))
-        plt.subplot(3,1,3)
+        plt.subplot(3, 1, 3)
         plt.plot(freq, np.imag(h))
-        """
+        return
         import skrf as rf
 
         freq = rf.Frequency.from_f(freq, unit="Hz")
@@ -225,7 +226,8 @@ profile = EquidistantMultiProfile(
 )
 
 poles = VectorFittedModel.from_file("resources/1_sps_gen_new.npz")
-# poles.plot(np.linspace(0, 10e9, 10000))
+plt.figure()
+poles.plot(np.linspace(0, 10e9, 10000))
 plt.show()
 poles.sort(by="residues")
 wakefield = WakeField(

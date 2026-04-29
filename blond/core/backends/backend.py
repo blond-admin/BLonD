@@ -289,8 +289,8 @@ class Specials(ABC):
         profile_dts,
         poles,
         residues,
-        beam_counter_rotation_flag,
-        cr_pole_flip_flags,
+        is_counterrotating_beam,
+        counterrotating_pole_signs,
         # write
         states,
         voltage,
@@ -308,12 +308,12 @@ class Specials(ABC):
         profile_dts
             Base for time step, connected to `update_on_bin`.
         poles
-            Complex poles of an equivalent circuit.
+            Complex poles of an equivalent circuit model.
         residues
-            Complex residues of an equivalent circuit.
-        beam_counter_rotation_flag
+            Complex residues of an equivalent circuit model.
+        is_counterrotating_beam
             If true, the current beam is counter-rotating.
-        cr_pole_flip_flags
+        counterrotating_pole_signs
             Array per pole, -1 if the sign of the impedance is flipped
             for a counter-rotating beam.
         states

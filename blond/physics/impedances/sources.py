@@ -75,9 +75,9 @@ def fit_poles(
     Returns
     -------
     poles
-        Complex poles of an equivalent circuit.
+        Complex poles of an equivalent circuit model.
     residues
-        Complex residues of an equivalent circuit.
+        Complex residues of an equivalent circuit model.
     rms_error
         Root mean square error of the fit.
     proportional_coeff
