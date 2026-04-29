@@ -795,7 +795,7 @@ class Resonators(
         residues1 = R_s * omega1 / (2 * Qbar)
         # residues2 = - R_s * omega2 / (2 * Qbar)
         # because ``j * (1 + 2j) = 1j - 2``
-        poles1 = 1j * np.real(omega1) - np.imag(omega1)
+        poles1 = 1j * omega1
         # poles2 = 1j * np.real(omega2) - np.imag(omega2)
 
         return poles1, residues1
