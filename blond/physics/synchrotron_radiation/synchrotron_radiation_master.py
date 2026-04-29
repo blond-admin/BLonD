@@ -25,7 +25,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     calculate_isomagnetic_radiation_integrals,
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import Schedulable, ScheduledArray, ScheduledInterpolation
+from blond.core.base import Schedulable, ScheduledArray
 from blond.core.beam.base import BeamBaseClass
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
@@ -588,10 +588,7 @@ class SynchrotronRadiationMaster(Schedulable):
     def schedule(
         self,
         attribute: str,
-        value: ScheduledArray
-        | ScheduledInterpolation
-        | NumpyArray
-        | tuple[NumpyArray, NumpyArray],
+        value: ScheduledArray | NumpyArray | tuple[NumpyArray, NumpyArray],
     ) -> None:
         """
         Propagate the scheduled radiation integrals to the trackers.
@@ -611,7 +608,6 @@ class SynchrotronRadiationMaster(Schedulable):
 
             2. **Explicit scheduling objects**:
                 - `ScheduledArray`: Full control over array-based scheduling.
-                - `ScheduledInterpolation`: Full control over interpolation-based scheduling.
         """
         for i, SRClass_child in enumerate(self.generated_children):
             SRClass_child.schedule(
