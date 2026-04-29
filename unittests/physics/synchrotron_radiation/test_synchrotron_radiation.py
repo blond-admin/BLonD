@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 import unittest
 from random import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from unittest.mock import Mock
 
 import numpy as np
@@ -27,114 +27,11 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
     _SynchrotronRadiationTracker,
 )
+from unittests.core.beam.test_base import BeamBaseClassTester
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
-
-
-class BeamBaseClassTester(BeamBaseClass):
-    def __init__(
-        self,
-        intensity: int | float,
-        particle_type: ParticleType,
-        is_counter_rotating: bool = False,
-        is_distributed=False,
-    ):
-        super().__init__(
-            intensity=intensity,
-            particle_type=particle_type,
-            is_counter_rotating=is_counter_rotating,
-            is_distributed=is_distributed,
-        )
-        # self.reference = Mock(ReferenceCoordinates)
-        self.reference._particle_type = particle_type
-        self.reference.time = 0
-        self.reference_beta = 0.99
-        self.reference_velocity = self.reference_beta * c0
-        self.reference_gamma = np.sqrt(1 - 0.99**2)  # beta**2
-        self.reference_total_energy = 20e9
-        self.reference.total_energy = 20e9
-        self._dE = DistributedArray(
-            np.linspace(-1e6, 1e6, 10, dtype=backend.float)
-        )  #
-        # delta E
-        # in eV
-        self._dt = DistributedArray(
-            np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
-        )  # delta t
-        # in s
-        self._flags = np.zeros(10, dtype=np.int32)
-        self._ids = np.arange(10, dtype=np.int32)
-
-    def ratio(self) -> float:
-        return self.intensity / self.common_array_size
-
-    def setup_beam(
-        self,
-        dt: NumpyArray | CupyArray,
-        dE: NumpyArray | CupyArray,
-        flags: NumpyArray | CupyArray = None,
-        reference_time: float | None = None,
-        reference_total_energy: float | None = None,
-        mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
-        **kwargs,
-    ) -> None:
-        """Sets beam array attributes for simulation
-
-        Parameters
-        ----------
-        mpi_mode
-        dt
-            Macro-particle time coordinates [s]
-        dE
-            Macro-particle energy coordinates [eV]
-        flags
-            Macro-particle flags
-        reference_time
-            Time of the reference frame (global time), in [s]
-        reference_total_energy
-            Time of the reference frame (global total energy), in [eV]
-        mpi_mode
-            Specifies how the particle data is distributed across multiple ranks (processing
-            units) in a parallel environment:
-
-            - "root-distributes": The root node (rank 0) holds the full array and splits it
-              into smaller chunks, which are then distributed to all ranks, including rank 0.
-              Each rank stores its own chunk of the data. This mode is useful when loading
-              large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
-              across ranks.
-
-            - "all-ranks": Each rank independently generates and stores a full copy of the data.
-              While this mode uses more memory, it can be simpler to implement in scenarios where
-              each rank needs to work with its own independent data (e.g., generating separate
-              random distributions with `np.random.randn()`).
-        **kwargs
-            Keyword arguments to make the non-abstract implementation
-            extendable.
-        """
-        pass
-
-    def plot_hist2d(self):
-        pass
-
-    def dE_max(self) -> float:
-        pass
-
-    def dt_min(self) -> float:
-        pass
-
-    def dt_max(self) -> float:
-        pass
-
-    def dE_min(self) -> float:
-        pass
-
-    def common_array_size(self) -> int:
-        pass
-
-    def rms_emittance(self) -> int:
-        pass
 
 
 class TestSynchrotronRadiationMaster(unittest.TestCase):
@@ -829,11 +726,12 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 1.71368060083e-11,
             ]
         )
+        circumference = 90.65874532 * 1e3
         ring = Ring(
-            circumference=90.65874532 * 1e3,
+            circumference=circumference,
             radiation_integrals=radiation_integrals,
         )
-        momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+        momentum_compaction_factor = radiation_integrals[0] / circumference
 
         number_of_sections = 4
         number_of_turns = 10
