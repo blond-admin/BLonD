@@ -93,10 +93,8 @@ extern "C" void wake_from_pole_residue(
         const int thread_i = omp_get_thread_num();
 
         real_t cr_pole_flip = 1;
-        if (is_counterrotating_beam) {
-            if (counterrotating_pole_signs[pole_i] == -1) {
-                cr_pole_flip = -1;
-            }
+        if (is_counterrotating_beam && (counterrotating_pole_signs[pole_i] == -1)) {
+            cr_pole_flip = -1;
         }
         const int pole_n = 2 * pole_i;
         const real_t pole_re = poles[pole_n];

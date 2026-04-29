@@ -715,7 +715,9 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             voltage[:] = 0  # reset to zero from previous call
             voltage_threaded[:, :] = 0  # reset to zero from previous call
             if not (voltage_threaded.shape[0] == numba.get_num_threads()):
-                raise Exception
+                raise RuntimeError(
+                    "Number of threads does not match voltage threaded shape."
+                )
             for pole_i in prange(n_poles):
                 thread_i = numba.get_thread_id()
 

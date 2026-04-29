@@ -1226,12 +1226,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     def __init__(
         self,
     ) -> None:
-        self._poles = None
-        self._residues = None
+        self._poles: NumpyArray | CupyArray | None = None
+        self._residues: NumpyArray | CupyArray | None = None
         self._profile: EquidistantMultiProfile | None = None
-        self._parent_wakefield = None
-        self._voltage = None
-        self.last_reference_time = None
+        self._parent_wakefield: WakeField | None = None
+        self._voltage: NumpyArray | CupyArray | None = None
+        self.last_reference_time: float | None = None
 
         self.counter_rotation_pole_flip: NumpyArray | CupyArray | None = None
         self._charge_per_macroparticle: float | None = None
@@ -1284,11 +1284,11 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             )
         else:
             self.counter_rotation_pole_flip = backend.array(
-                np.sign(counter_rotation_pole_flip), dtype=backend.float
+                backend.sign(counter_rotation_pole_flip), dtype=backend.float
             )
 
-        self._poles = np.array(poles, dtype=complex)
-        self._residues = np.array(residues, dtype=complex)
+        self._poles = backend.array(poles, dtype=complex)
+        self._residues = backend.array(residues, dtype=complex)
 
         hist_x_profile = (
             self._parent_wakefield.profile._continuous_memory_hist_x
@@ -1302,7 +1302,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             len(hist_x_profile),
             dtype=backend.float,
         )
-        self._states = np.zeros(len(self._poles) + 1, complex)
+        self._states = backend.zeros(len(self._poles) + 1, complex)
         hist_x = hist_x_profile
         bin_dt = float(hist_x[1] - hist_x[0])
         # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
@@ -1310,13 +1310,13 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         # state semantics; see poles.cpp for details).
         self._states[-1] = hist_x[0] - bin_dt / 2.0
 
-        self._voltage_threaded = np.zeros(
+        self._voltage_threaded = backend.zeros(
             ((numba.get_num_threads()), len(self._voltage))
         )
-        self._update_on_bin = np.unique(
+        self._update_on_bin = backend.unique(
             self._profile._bucket_index_to_memory_index
             if type(self._profile) is EquidistantMultiProfile
-            else np.array([0], dtype=np.int32)
+            else backend.array([0], dtype=np.int32)
         )
 
     def calc_induced_voltage(
