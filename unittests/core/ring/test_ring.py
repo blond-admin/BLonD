@@ -183,6 +183,28 @@ class TestRing(unittest.TestCase):
             section_index=None,
         )
 
+    def test_add_elements_with_none_skips_none(self):
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 0
+        self.ring.add_elements(
+            elements=[element, None],
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+        self.assertEqual(len(self.ring.elements.elements), 1)
+        assert self.ring.elements.elements[0] is element
+
+    def test_add_drifts_with_explicit_driftclass(self):
+        ring = Ring(10.0)
+        ring.add_drifts(
+            n_drifts_per_section=2,
+            n_sections=1,
+            driftclass=DriftSimple,
+            momentum_compaction_factor=0.01,
+        )
+        self.assertEqual(len(ring.elements.elements), 2)
+
     def test_insert_element_single_location(self):
         element1 = Mock(spec=BeamPhysicsRelevant)
         element2 = Mock(spec=BeamPhysicsRelevant)

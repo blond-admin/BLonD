@@ -144,6 +144,8 @@ def _gen_density_numba(
     --------
     _gen_hist_numba: This density can be converted to a 1D histogram directly,
     """
+    density_write[:, :] = 0.0
+
     h_shape_0 = potential_2D.shape[0]
     h_shape_1 = potential_2D.shape[1]
     n_states = occupation_per_equipotential_to_density.shape[0]
@@ -169,8 +171,6 @@ def _gen_density_numba(
     for idx_2D_flat in prange(h_shape_0 * h_shape_1):
         h_i = idx_2D_flat // h_shape_1
         h_j = idx_2D_flat % h_shape_1
-        if h_i >= potential_2D.shape[0]:
-            pass
         h_u_v = potential_2D[h_i, h_j]
         if h_u_v > h_max_write:
             continue
