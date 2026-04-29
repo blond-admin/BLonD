@@ -123,6 +123,32 @@ class DistributedArray:
         # Each rank receives one chunk
         self.array_local = self._comm.scatter(chunks, root=0)
 
+    def mpi_gather(self) -> NumpyArray | CupyArray | None:
+        """
+        Gather the distributed data and return it as a single array.
+
+        Gather a 1D NumPy array.
+        Rank 0 owns the global array after scatter.
+        Before scatter, each rank owns its local chunk.
+
+        Returns
+        -------
+        array | None
+            The gathered global array from all processes if ``rank==0``
+            else None.
+        """
+        if self._is_distributed:
+            gathered = self._comm.gather(self.array_local, root=0)
+
+            if self._rank != 0:
+                return None
+
+            array_global = backend.hstack(gathered)
+        else:
+            array_global = self.array_local.copy()
+
+        return array_global
+
     @property
     def local_size(self) -> int:
         """
