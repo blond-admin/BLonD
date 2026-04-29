@@ -15,7 +15,6 @@ L. Valle
 
 from __future__ import annotations
 
-from abc import ABC
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -96,7 +95,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
     return backend.cast_arr_float_if_needed(energy_kick)
 
 
-class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
     """
     Base class for radiating ring elements.
 
