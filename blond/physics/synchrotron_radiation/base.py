@@ -142,32 +142,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self.rng = backend.default_rng(seed=seed)
         # backend.default_rng
 
-    @property
-    def share_of_radiation_integrals(self) -> NumpyArray | None:
-        """
-        Synchrotron radiation integrals of the tracker.
-
-        Returns
-        -------
-        synchrotron_radiation_integrals
-            Synchrotron radiation integrals of the tracker.
-        """
-        return self.share_of_radiation_integrals
-
-    @share_of_radiation_integrals.setter
-    def share_of_radiation_integrals(
-        self, share_of_radiation_integrals: NumpyArray
-    ) -> None:
-        """
-        Synchrotron radiation integral share setter.
-
-        Parameters
-        ----------
-        share_of_radiation_integrals
-            Share of synchrotron radiation integrals.
-        """
-        self.share_of_radiation_integrals = share_of_radiation_integrals
-
     def _calculate_kick(
         self,
         beam: BeamBaseClass,

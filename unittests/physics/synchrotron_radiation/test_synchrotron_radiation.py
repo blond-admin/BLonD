@@ -666,7 +666,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             decimal=self.decimal,
         )
         np.testing.assert_array_almost_equal(
-            sr_drifts.radiation_integrals_tracker,
+            sr_drifts.share_of_radiation_integrals,
             self.synchrotron_radiation_integrals,
             decimal=self.decimal,
         )
@@ -733,7 +733,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             np.testing.assert_array_almost_equal(
                 ring_SRdrifts.elements.elements[
                     1 + 3 * i
-                ].radiation_integrals_tracker,
+                ].share_of_radiation_integrals,
                 self.synchrotron_radiation_integrals / number_of_sections,
                 decimal=self.decimal,
             )
