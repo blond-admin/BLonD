@@ -781,11 +781,6 @@ class Resonators(
         residues
             The complex residues.
         """
-        warnings.warn(
-            "`get_vectorfit` untested and probably wrong!",
-            UserWarning,
-            stacklevel=1,
-        )
         Q = self._quality_factors
         omega = self._omega
         R_s = self._shunt_impedances
@@ -797,14 +792,14 @@ class Resonators(
         Qbar = Q * np.sqrt(1 - 1 / 4 / Q**2)
         omega1 = omega / Q * (1j / 2 + Qbar)
         # omega2 = omega / Q * (1j / 2 - Qbar)
-        residues = R_s * omega1 / (2 * Qbar)
-        # fix to match `VectorFitting`
-        # probalby +- or complex-number problem in equations above
-        poles = 1j * np.real(omega1) - np.imag(omega1)
-        # proportional_coeff = 0
-        # constant_coeff = 0
+        # omega2 = omega / Q * (1j / 2 - Qbar)
+        residues1 = R_s * omega1 / (2 * Qbar)
+        # residues2 = - R_s * omega2 / (2 * Qbar)
+        # because ``j * (1 + 2j) = 1j - 2``
+        poles1 = 1j * np.real(omega1) - np.imag(omega1)
+        # poles2 = 1j * np.real(omega2) - np.imag(omega2)
 
-        return poles, residues
+        return poles1, residues1
 
 
 class ImpedanceTable(WakeFieldSource):

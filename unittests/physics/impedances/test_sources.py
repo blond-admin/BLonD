@@ -745,6 +745,51 @@ class TestResonators(unittest.TestCase):
             self.resonators.get_wake_counter_rotation(time=time)
         self.resonators._shunt_impedances_counter_rotating = save_cr_wake_imp
 
+    def test_get_vectorfit(self):
+        from blond.testing.helpers import allclose_tolerances
+
+        DEV_PLOT = False  # todo false
+        resonators = Resonators(
+            shunt_impedances=np.array(
+                [
+                    1e6,
+                ]
+            ),
+            center_frequencies=np.array([1e9]),
+            quality_factors=np.array(
+                [
+                    500,
+                ]
+            ),
+        )  # values chosen such that they are easily reproducible in test of test_get_impedance
+
+        freq = np.linspace(0, 4 * 1e9, 1000)
+        imp = resonators.get_impedance(freq, None, None, False)
+        poles, residues = resonators.get_vectorfit()
+        imp2 = residues[0] / (1j * 2 * np.pi * freq - poles[0])
+        imp2 += np.conjugate(residues[0]) / (
+            1j * 2 * np.pi * freq - np.conjugate(poles[0])
+        )
+        if DEV_PLOT:
+            plt.subplot(2, 1, 1)
+            plt.plot(freq, imp.real)
+            plt.plot(freq, imp2.real, "--")
+            plt.subplot(2, 1, 2)
+            plt.plot(freq, imp.imag)
+            plt.plot(freq, imp2.imag, "--")
+            plt.show()
+
+        np.testing.assert_allclose(
+            imp.real,
+            imp2.real,
+            **allclose_tolerances(imp.real),
+        )
+        np.testing.assert_allclose(
+            imp.imag,
+            imp2.imag,
+            **allclose_tolerances(imp.imag),
+        )
+
 
 class TestTravelingWaveCavity(unittest.TestCase):
     def setUp(self):
