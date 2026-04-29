@@ -764,7 +764,9 @@ class TestResonators(unittest.TestCase):
         )  # values chosen such that they are easily reproducible in test of test_get_impedance
 
         freq = np.linspace(0, 4 * 1e9, 1000)
-        imp = resonators.get_impedance(freq, None, None, False)
+        imp = copy_to_cpu(
+            resonators.get_impedance(backend.array(freq), None, None, False)
+        )
         poles, residues = resonators.get_vectorfit()
         imp2 = residues[0] / (1j * 2 * np.pi * freq - poles[0])
         imp2 += np.conjugate(residues[0]) / (

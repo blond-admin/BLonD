@@ -72,13 +72,11 @@ plt.rcParams["font.size"] = 12
 plt.rcParams["lines.linewidth"] = 2.0
 
 
-class InducedVoltageResonatorComparisonTest(unittest.TestCase):
+class TestInducedVoltageResonatorComparison(unittest.TestCase):
     def setUp(self):
         self.n_slices = 2**10
         self.cut_left = 0
-        self.cut_right = (
-            1.4072317864464973e-08  # self.rf_station_list[0].t_rf[0, 0] * 2
-        )
+        self.cut_right = 1.4072317864464973e-08
 
         self.harmonic = 10
         self.voltage_per_rf_station = 50e6

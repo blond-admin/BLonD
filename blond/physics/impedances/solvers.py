@@ -1289,6 +1289,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
         self._poles = backend.array(poles, dtype=complex)
         self._residues = backend.array(residues, dtype=complex)
+        assert len(self.counter_rotation_pole_flip) == len(self._poles)
 
         hist_x_profile = (
             self._parent_wakefield.profile._continuous_memory_hist_x

@@ -50,8 +50,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def fit_poles(
-    freqs: np.ndarray,
-    Z: np.ndarray,
+    freqs: NumpyArray,
+    Z: NumpyArray,
     n_pole: int,
     max_iterations: int | None = None,
     plot_resul: bool = False,
@@ -70,7 +70,7 @@ def fit_poles(
     max_iterations
         Maximum number of iterations.
     plot_resul
-        Whether to plot the result (needs ``plt.show()``.
+        Whether to plot the result (needs ``plt.show()``).
 
     Returns
     -------

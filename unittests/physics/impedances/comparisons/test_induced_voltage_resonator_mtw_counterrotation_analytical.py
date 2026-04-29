@@ -74,7 +74,6 @@ class TestInducedVoltageResonatorPhysics(unittest.TestCase):
         self.cut_right = (
             1.4072317864464973e-08  # self.rf_station_list[0].t_rf[0, 0] * 2
         )
-        # self.t_rf = 6.332543039009238e-09
         self.t_rf = 3.3356409519828137e-09
 
         self.harmonic = 20
