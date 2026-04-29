@@ -9,7 +9,7 @@
 /**
 C++ Math library
 @Author: Leonard Thiele
-@Date: 20.10.2017
+@Date: 27.04.2026
 */
 #include "blond_common.h"
 #include "openmp.h"

@@ -19,9 +19,9 @@
 // Complex exponential: exp(a + bi) = exp(a) * (cos(b) + i*sin(b))
 static inline void fast_cexp(const real_t re, const real_t im,
                              real_t &out_re, real_t &out_im) {
-    const real_t e = FAST_EXP(re);
-    out_re = e * FAST_COS(im);
-    out_im = e * FAST_SIN(im);
+    const real_t cmplx_res = FAST_EXP(re);
+    out_re = cmplx_res * FAST_COS(im);
+    out_im = cmplx_res * FAST_SIN(im);
 }
 
 // Complex multiply: (a + bi) * (c + di)

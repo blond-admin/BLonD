@@ -564,9 +564,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
             profile_dts
                 Base for time step, connected to `update_on_bin`.
             poles
-                Complex poles of an equivalent circuit.
+                Complex poles of an equivalent circuit model.
             residues
-                Complex residues of an equivalent circuit.
+                Complex residues of an equivalent circuit model.
             is_counterrotating_beam
                 If true, the current beam is counter-rotating.
             counterrotating_pole_signs

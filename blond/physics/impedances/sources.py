@@ -786,7 +786,7 @@ class Resonators(
         R_s = self._shunt_impedances
 
         # Impedances and Wakes in High Energy Particle Accelerators
-        #  Bruno W Zotter and Semyon Kheifets
+        # Bruno W Zotter and Semyon Kheifets
         # https://www.worldscientific.com/doi/epdf/10.1142/3068
         # Page 84 visible (Page 104 with PDF tool)
         Qbar = Q * np.sqrt(1 - 1 / 4 / Q**2)
