@@ -11,8 +11,7 @@ Collection to include synchrotron radiation and quantum excitation effects.
 
 Notes
 -----
-Authors:
-L. Valle
+Author: L. Valle
 """
 
 from __future__ import annotations
@@ -489,7 +488,7 @@ class SynchrotronRadiationMaster(Schedulable):
         ring either:
         - before the drifts if track_before_element_type is ``None``
           or `DriftBaseClass`. In that case, `_SynchrotronRadiationDrift`
-         trackers will be inserted in the ring before each drift.
+          trackers will be inserted in the ring before each drift.
         - after the RF cavities if track_before_element_type is `RFStationBaseClass`.
           In that case, `_SynchrotronRadiationSection` trackers will be
           inserted in the ring.
@@ -589,7 +588,8 @@ class SynchrotronRadiationMaster(Schedulable):
     def schedule(
         self,
         attribute: str,
-        value: SchedulerBaseClass
+        value: ScheduledArray
+        | ScheduledInterpolation
         | NumpyArray
         | tuple[NumpyArray, NumpyArray],
     ) -> None:
@@ -729,4 +729,4 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
         radiation_integrals_tracker
             Synchrotron radiation integrals of the tracker.
         """
-        return self._share_of_radiation_integrals
+        return self.share_of_radiation_integrals

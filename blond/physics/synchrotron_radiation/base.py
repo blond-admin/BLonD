@@ -93,7 +93,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
                 size=len(beam_delta_energy_array)
             )
         )
-    return energy_kick
+    return backend.cast_arr_float_if_needed(energy_kick)
 
 
 class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
@@ -131,7 +131,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
         self._simulation: Simulation | None = None
         self._turn_i: DynamicParameter | int = 0
-        self._share_of_radiation_integrals = share_of_radiation_integrals
+        self.share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
 
@@ -152,7 +152,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         synchrotron_radiation_integrals
             Synchrotron radiation integrals of the tracker.
         """
-        return self._share_of_radiation_integrals
+        return self.share_of_radiation_integrals
 
     @share_of_radiation_integrals.setter
     def share_of_radiation_integrals(
@@ -166,7 +166,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         share_of_radiation_integrals
             Share of synchrotron radiation integrals.
         """
-        self._share_of_radiation_integrals = share_of_radiation_integrals
+        self.share_of_radiation_integrals = share_of_radiation_integrals
 
     def _calculate_kick(
         self,
@@ -197,7 +197,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         ) = gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=beam.particle_type,
             energy=total_energy,
-            radiation_integrals=self._share_of_radiation_integrals,
+            radiation_integrals=self.share_of_radiation_integrals,
         )
         self._energy_lost_due_to_synchrotron_radiation = estimated_energy_lost
         self._damping_time = estimated_damping_time

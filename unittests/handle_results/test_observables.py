@@ -3,15 +3,22 @@ from copy import deepcopy
 from unittest.mock import Mock, PropertyMock
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 from blond import (
     Beam,
+    BiGaussian,
+    BoxLosses,
     DriftSimple,
+    MagneticCyclePerTurn,
+    Ring,
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
     electron,
+    momentum_compaction_factor,
+    proton,
 )
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
@@ -200,7 +207,7 @@ class TestObservables(unittest.TestCase):
             obs_helper.assert_lateinit()
 
 
-class TestBunchObservation(unittest.TestCase):
+class TestBeamObservation(unittest.TestCase):
     def setUp(self) -> None:
         self.bunch_observation = BeamObservationOncePerTurn(
             each_turn_i=1,
@@ -295,6 +302,86 @@ class TestBunchObservation(unittest.TestCase):
             to_compare.reference_total_energy,
             self.bunch_observation.reference_total_energy,
         )
+
+    def test_lossy_simulation(self):
+        ring = Ring(26658.883)
+
+        rf_station = SingleHarmonicRFStation()
+        rf_station.harmonic = 35640
+        rf_station.voltage = 6e6
+        rf_station.phi_rf_design = 0
+
+        N_TURNS = int(1e3)
+
+        energy_cycle = MagneticCyclePerTurn(
+            value_init=450e9,
+            values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+            reference_particle=proton,
+        )
+
+        drift1 = DriftSimple(
+            orbit_length=26658.883,
+        )
+        drift1.momentum_compaction_factor = momentum_compaction_factor(
+            transition_gamma=55.759505
+        )
+        loss_box = (
+            BoxLosses(  # This is required to test the observable with losses
+                purge_flagged_macroparticles=True,
+                t_min=0,
+                t_max=2.5e-9,
+            )
+        )
+
+        beam1 = Beam(
+            intensity=1e9,
+            particle_type=proton,
+        )
+
+        sim = Simulation.from_locals(locals())
+        sim.print_one_turn_execution_order()
+        sim.prepare_beam(
+            beam=beam1,
+            preparation_routine=BiGaussian(
+                sigma_dt=0.4e-9 / 4,
+                sigma_dE=1e9 / 4,
+                reinsertion=False,
+                seed=1,
+                n_macroparticles=1e3,
+            ),
+        )
+
+        phase_observation = RFStationPhaseObservation(
+            each_turn_i=1,
+            rf_station=rf_station,
+        )
+        bunch_observation = BeamObservationOncePerTurn(each_turn_i=100)
+        beam1._is_distributed = True
+        with self.assertRaisesRegex(
+            NotImplementedError, "This needs to be implement"
+        ):
+            sim.run_simulation(
+                beams=(beam1,),
+                n_turns=N_TURNS,
+                observe=(phase_observation, bunch_observation),
+            )
+        beam1._is_distributed = False
+        sim.run_simulation(
+            beams=(beam1,),
+            n_turns=N_TURNS,
+            observe=(phase_observation, bunch_observation),
+        )
+        plt.plot(phase_observation.phases)
+        plt.figure()
+        for i in range(bunch_observation.dts.shape[0]):
+            plt.clf()
+            sel = ~np.isnan(bunch_observation.dts[i, :])
+            plt.hist2d(
+                bunch_observation.dts[i, sel],
+                bunch_observation.dEs[i, sel],
+                bins=256,
+                # range=[[0, 2.5e-9], [-4e8, 4e8]],
+            )
 
 
 class TestBunchStatistics(unittest.TestCase):
@@ -701,6 +788,16 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
             profiles=[self.profile, self.profile_2],
             folder=callers_relative_path("results/", stacklevel=1),
         )
+
+    def test_init_sort_profiles_by_section_false(self) -> None:
+        obs = StaticMultiProfileObservation(
+            each_turn_i=1,
+            profiles=[self.profile_2, self.profile],
+            folder=callers_relative_path("results/", stacklevel=1),
+            sort_profiles_by_section=False,
+        )
+        self.assertIs(obs._profiles[0], self.profile_2)
+        self.assertIs(obs._profiles[1], self.profile)
 
     def test__error_throwing_wrong_length(self) -> None:
         wrong_profile = deepcopy(self.profile_2)

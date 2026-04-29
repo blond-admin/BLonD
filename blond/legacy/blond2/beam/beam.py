@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import itertools as itl
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
@@ -30,6 +30,8 @@ from ..utils import exceptions as blond_exceptions
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Iterable, Optional, Self
+
     import cupy as cp
     from numpy.typing import NDArray as NumpyArray
 
@@ -263,9 +265,10 @@ class Beam:
         self.mean_dE: float = 0.0
         self.sigma_dt: float = 0.0
         self.sigma_dE: float = 0.0
-        self.intensity: float = float(intensity)
-        self.n_macroparticles: int = int(n_macroparticles)
-        self.ratio: float = self.intensity / self.n_macroparticles
+
+        self._set_beam_info(n_macroparticles=int(n_macroparticles),
+                            intensity=float(intensity))
+
         self.id: NumpyArray | cp.array = np.arange(
             1, self.n_macroparticles + 1, dtype=int
         )
@@ -280,6 +283,22 @@ class Beam:
         self._mpi_sumsq_dE: NumpyArray | float = 0.0
         # For handling arrays on CPU/GPU
         self._device = "CPU"
+
+    def __iadd__(self, other: Self | Iterable[float]) -> Self:
+        """
+        Initialisation of in place addition calls add_beam(other) if other
+        is a blond beam object, calls add_particles(other) otherwise
+
+        Parameters
+        ----------
+        other : blond beam object or (2, n) array
+        """
+
+        if isinstance(other, type(self)):
+            self.add_beam(other)
+        else:
+            self.add_particles(other)
+        return self
 
     @property
     def Particle(self):
@@ -408,6 +427,68 @@ class Beam:
         """
 
         return self.n_macroparticles - self.n_macroparticles_alive
+
+    @property
+    def ratio(self) -> float:
+        return self._ratio
+
+    @ratio.setter
+    def ratio(self, value: float):
+        self._set_beam_info(ratio=value)
+
+    @property
+    def intensity(self) -> float:
+        return self._intensity
+
+    @intensity.setter
+    def intensity(self, value: float):
+        self._set_beam_info(intensity=value)
+
+    @property
+    def n_macroparticles(self) -> int:
+        return self._n_macroparticles
+
+    @n_macroparticles.setter
+    def n_macroparticles(self, value: int):
+        self._set_beam_info(n_macroparticles=value)
+
+    def _set_beam_info(self, *, n_macroparticles: Optional[int] = None,
+                          intensity: Optional[float] = None,
+                          ratio: Optional[float] = None):
+
+        input = (n_macroparticles, intensity, ratio)
+
+        match input:
+            case (None, None, None):
+                raise ValueError("All input None is not a valid option")
+            case (None, inten, rat) if inten is not None and rat is not None:
+                raise ValueError("Setting both intensity and ratio is not a"
+                                 + " valid option")
+            case (n_mac, None, None): self._set_n_macroparticles(n_mac)
+
+            case (None, inten, None): self._set_intensity(inten)
+
+            case (None, None, rat): self._set_ratio(rat)
+
+            case (n_mac, inten, None):
+                self._n_macroparticles = n_mac
+                self._set_intensity(inten)
+
+            case (n_mac, None, rat):
+                self._n_macroparticles = n_mac
+                self._set_ratio(rat)
+
+    def _set_n_macroparticles(self, n_macroparticles: int):
+        self._n_macroparticles = n_macroparticles
+        self._ratio = self._intensity / self._n_macroparticles
+
+    def _set_intensity(self, intensity: float):
+        self._intensity = intensity
+        self._ratio = intensity / self._n_macroparticles
+
+    def _set_ratio(self, ratio: float):
+        self._ratio = ratio
+        self._intensity = ratio * self._n_macroparticles
 
     def eliminate_lost_particles(self):
         """Eliminate lost particles from the beam coordinate arrays"""
@@ -574,12 +655,13 @@ class Beam:
                 ),
             )
         )
-        self.n_macroparticles += n_new
+        self._set_beam_info(n_macroparticles=self._n_macroparticles + n_new,
+                            ratio=self.ratio)
 
         self.dt = bm.concatenate((self.dt, newdt))
         self.dE = bm.concatenate((self.dE, newdE))
 
-    def add_beam(self, other_beam: Beam):
+    def add_beam(self, other_beam: Self):
         """
         Method to add the particles from another beam to this beam
         New particles are given id numbers sequential from last id of this beam
@@ -588,42 +670,37 @@ class Beam:
         Parameters
         ----------
         other_beam : blond beam object
+
+        Raises
+        ------
+        TypeError:
+            If other_beam is not an instance of Beam, a TypeError is raised.
+        ValueError:
+            If other_beam.ratio != self.ratio, a ValueError is raised.
         """
 
         if not isinstance(other_beam, type(self)):
             raise TypeError("add_beam method requires a beam object as input")
 
+        if other_beam.ratio != self.ratio:
+            raise ValueError("The other beam must have the same ratio as this"
+                             + " beam.")
+
         self.dt = bm.concatenate((self.dt, other_beam.dt))
         self.dE = bm.concatenate((self.dE, other_beam.dE))
 
-        counter = itl.count(self.n_macroparticles + 1)
-        newids = bm.zeros(other_beam.n_macroparticles)
+        counter = bm.arange(self.n_macroparticles + 1,
+                            self.n_macroparticles + 1
+                            + other_beam.n_macroparticles,
+                            dtype=int)
 
-        for i in range(other_beam.n_macroparticles):
-            if other_beam.id[i]:
-                newids[i] = next(counter)
-            else:
-                next(counter)
+        newids = counter*(other_beam.id != 0).astype(int)
 
         self.id = bm.concatenate((self.id, newids))
-        self.n_macroparticles += other_beam.n_macroparticles
 
-    def __iadd__(self, other: Beam | NumpyArray | list[list[float]]) -> Beam:
-        """
-        Initialisation of in place addition calls add_beam(other) if other
-        is a blond beam object, calls add_particles(other) otherwise
-
-        Parameters
-        ----------
-        other : blond beam object or (2, n) array
-        """
-
-        if isinstance(other, type(self)):
-            self.add_beam(other)
-            return self
-        else:
-            self.add_particles(other)  # might raise exception on wrong type
-            return self
+        self._set_beam_info(n_macroparticles=self.n_macroparticles
+                                                + other_beam.n_macroparticles,
+                               ratio=self.ratio)
 
     def split(self, random: bool = False, fast: bool = False):
         """
@@ -665,7 +742,8 @@ class Beam:
 
         assert len(self.dt) == len(self.dE) and len(self.dt) == len(self.id)
 
-        self.n_macroparticles = len(self.dt)
+        self._set_beam_info(n_macroparticles=len(self.dt), ratio=self.ratio)
+        # ratio needs to be kept constant for induced voltage calculations
         self._mpi_is_splitted = True
 
     def gather(self, all_gather: bool = False):
@@ -696,7 +774,8 @@ class Beam:
             if WORKER.is_master:
                 self._mpi_is_splitted = False
 
-        self.n_macroparticles = len(self.dt)
+        self._set_beam_info(n_macroparticles=len(self.dt), ratio=self.ratio)
+        # ratio needs to be kept constant for induced voltage calculations
 
     def gather_statistics(self, all_gather: bool = False):
         """

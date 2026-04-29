@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.exceptions import ComplexWarning
 
+from blond.generals.exceptions_ import ArrayCastingError
 from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -88,6 +89,50 @@ class Specials(ABC):
     ) -> None:
         raise NotImplementedError(
             "Abstract method `kick_multi_harmonic` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def sum_1d_array(array: NumpyArray | CupyArray) -> float:
+        """
+        Return the sum of an 1d array.
+
+        Parameters
+        ----------
+        array
+            Input array 1.
+
+        Returns
+        -------
+        sum_1d_array
+            Sum of a 1d arrays.
+        """
+        raise NotImplementedError(
+            "Abstract method `sum_1d_array` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def dot_product_1d_array(
+        array_1: NumpyArray | CupyArray, array_2: NumpyArray | CupyArray
+    ) -> float:
+        """
+        Return the sum of dot product of two 1d arrays.
+
+        Parameters
+        ----------
+        array_1
+            Input array 1.
+        array_2
+            Input array 2.
+
+        Returns
+        -------
+        dot_product_1d_array
+            Dot product of two 1d arrays.
+        """
+        raise NotImplementedError(
+            "Abstract method `dot_product_1d_array` is not implemented."
         )
 
     @staticmethod
@@ -167,7 +212,7 @@ class Specials(ABC):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
-    ):
+    ) -> None:
         """
         Reorder entries where ``flags == flag`` to the array end.
 
@@ -189,6 +234,49 @@ class Specials(ABC):
         raise NotImplementedError(
             "The backend for `move_flagged_elements_to_end` is missing."
         )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def histogram_sparse(
+        x: NumpyArray,
+        out: NumpyArray,
+        first_left_cut: float,
+        left_cut_distance: float,
+        cut_width: float,
+        bins_per_profile: int,
+        n_active_profiles: int,
+        filling_pattern: NumpyArray,
+        bucket_index_to_memory_index: NumpyArray,
+    ) -> None:
+        """
+        Sparse histogram with strided memory layout (gaps between profiles).
+
+        Parameters
+        ----------
+        x
+            An array, e.g., the particle ``dt`` values.
+        out
+            Output histogram ``(n_filled_buckets * bins_per_profile)``.
+        first_left_cut
+            Start of the first histogram.
+        left_cut_distance
+            Distance between the start of each histogram.
+        cut_width
+            Distance between left and right edge of the histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        n_active_profiles
+            Number of non-empty buckets.
+        filling_pattern
+            Filling pattern as a boolean array
+            where ``True`` means filled bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index.
+            For a ``filling_pattern = [1, 0, 0, 1]``
+            ``bucket_index_to_memory_index = [0, 0, 0, 8]`` with
+            ``bins_per_profile = 8``.
+            Use `_gen_array_bucket_index_to_memory_index` to generate this.
+        """
 
 
 class _ModeSwitchHelper:
@@ -238,13 +326,14 @@ class BackendBaseClass(ABC):
     float: type[np.float32 | np.float64]
     complex: type[np.complex128 | np.complex64]
 
-    def __init__(  # noqa: PLR0912
+    def __init__(  # noqa: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
         specials_mode: Literal[
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
             "cuda",
         ],
@@ -266,15 +355,19 @@ class BackendBaseClass(ABC):
         # Callables that link to e.g. Numpy, Cupy
         self.array: Callable = None  # type: ignore
         self.gradient: Callable = None  # type: ignore
+        self.isclose: Callable = None  # type: ignore
         self.empty: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
         self.linspace: Callable = None  # type: ignore
+        self.sinc: Callable = None  # type: ignore
         self.histogram: Callable = None  # type: ignore
         self.zeros: Callable = None  # type: ignore
         self.ones: Callable = None  # type: ignore
         self.zeros_like: Callable = None  # type: ignore
         self.fft: ModuleType = None  # type: ignore
+        self.all: Callable = None  # type: ignore
         self.random: ModuleType = None  # type: ignore
+        self.sinc: Callable = None  # type: ignore
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
         self.sqrt: Callable = None  # type: ignore
@@ -311,6 +404,22 @@ class BackendBaseClass(ABC):
         for attribute, val in self.__dict__.items():
             if val is None:
                 raise AttributeError(f"{self.__class__}.{attribute} is None.")
+
+    def autoselect_backend(self) -> None:
+        """Set automatically the fastest backend that is available on the computer."""
+        order = (
+            (Cupy64Bit, "cuda"),
+            (Numpy64Bit, "cpp"),
+            (Numpy64Bit, "numba"),
+            (Numpy64Bit, "python"),
+        )
+        for backend_, mode_ in order:
+            try:
+                self.change_backend(new_backend=backend_)
+                self.set_specials(mode=mode_)
+                return
+            except Exception:
+                pass
 
     def change_backend(
         self,
@@ -362,7 +471,7 @@ class BackendBaseClass(ABC):
         """
         return self._is_gpu
 
-    def apply_environment_variables(self) -> None:  # NOQA PLR0912
+    def apply_environment_variables(self) -> None:  # NOQA PLR0915
         """
         Load the environment variables and set up the backend accordingly.
 
@@ -384,6 +493,7 @@ class BackendBaseClass(ABC):
         _allowed_backend_modes = (
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
             "cuda",
         )
@@ -391,6 +501,7 @@ class BackendBaseClass(ABC):
             _backend_mode: Literal[
                 "python",
                 "cpp",
+                "cpp_single_core",
                 "numba",
                 "cuda",
             ] = _backend_mode_raw  # type: ignore
@@ -528,14 +639,14 @@ class BackendBaseClass(ABC):
         try:
             new_arr = self._asarray_if_needed(arr)
         except ValueError as exc:
-            raise ValueError(
+            raise ArrayCastingError(
                 f"Unable to convert input data {arr} to array."
             ) from exc
 
         try:
             new_arr = self._cast_dtype_if_needed(new_arr, dtype)
         except (TypeError, ValueError) as exc:
-            raise type(exc)(
+            raise ArrayCastingError(
                 "Unable to automatically cast dtype of input data from "
                 f"{new_arr.dtype} to {dtype}."
             ) from exc
@@ -601,7 +712,7 @@ class NumpyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(  # noqa: PLR0912
+    def __init__(  # noqa: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -616,15 +727,19 @@ class NumpyBackend(BackendBaseClass):
 
         self.array = np.array
         self.gradient = np.gradient
+        self.isclose = np.isclose
         self.empty = np.empty
         self.repeat = np.repeat
         self.linspace = np.linspace
+        self.sinc = np.sinc
         self.histogram = np.histogram
         self.zeros = np.zeros
         self.ones = np.ones
         self.zeros_like = np.zeros_like
         self.fft = np.fft
+        self.all = np.all
         self.random = np.random
+        self.sinc = np.sinc
         self.isnan = np.isnan
         self.sum = np.sum
         self.sqrt = np.sqrt
@@ -667,6 +782,7 @@ class NumpyBackend(BackendBaseClass):
         mode: Literal[
             "python",
             "cpp",
+            "cpp_single_core",
             "numba",
         ],
     ) -> None:
@@ -688,7 +804,12 @@ class NumpyBackend(BackendBaseClass):
         elif mode == "cpp":
             from blond.core.backends.cpp.callables import reload_cpp_backend
 
-            self.specials = reload_cpp_backend(self.float)
+            self.specials = reload_cpp_backend(self.float, parallel=True)
+            self.specials_mode = mode
+        elif mode == "cpp_single_core":
+            from blond.core.backends.cpp.callables import reload_cpp_backend
+
+            self.specials = reload_cpp_backend(self.float, parallel=False)
             self.specials_mode = mode
         elif mode == "numba":
             from blond.core.backends.numba.callables import (
@@ -742,7 +863,7 @@ class CupyBackend(BackendBaseClass):
         Precision type for complex, e.g. float32, float64.
     """
 
-    def __init__(  # noqa: PLR0912
+    def __init__(  # noqa: PLR0915
         self,
         float_: type[np.float32 | np.float64],
         complex_: type[np.complex128 | np.complex64],
@@ -765,15 +886,19 @@ class CupyBackend(BackendBaseClass):
 
         self.array = cp.array
         self.gradient = cp.gradient
+        self.isclose = cp.isclose
         self.empty = cp.empty
         self.repeat = cp.repeat
         self.linspace = cp.linspace
+        self.sinc = cp.sinc
         self.histogram = cp.histogram
         self.zeros = cp.zeros
         self.ones = cp.ones
         self.zeros_like = cp.zeros_like
         self.fft = cp.fft
+        self.all = cp.all
         self.random = cp.random
+        self.sinc = cp.sinc
         self.isnan = cp.isnan
         self.sum = cp.sum
         self.sqrt = cp.sqrt
@@ -855,8 +980,8 @@ class Cupy64Bit(CupyBackend):
         )
 
 
-default = Numpy64Bit()  # use .change_backend(...) to change it anywhere
-backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
+default = Numpy64Bit  # use .change_backend(...) to change it anywhere
+backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default()
 backend.verbose = True
 backend.apply_environment_variables()
 

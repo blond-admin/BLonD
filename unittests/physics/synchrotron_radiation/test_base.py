@@ -5,10 +5,13 @@ from functools import cached_property
 from unittest.mock import Mock
 
 import numpy as np
+import pytest
 from scipy.constants import speed_of_light as c0
 
 from blond import (
+    Numpy64Bit,
     Simulation,
+    copy_to_cpu,
     electron,
 )
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
@@ -51,16 +54,16 @@ class BeamBaseClassTester(BeamBaseClass):
         self.reference_total_energy = 20e9
         self.reference.total_energy = 20e9
         self._dE = DistributedArray(
-            np.linspace(-1e6, 1e6, 10, dtype=backend.float)
+            backend.linspace(-1e6, 1e6, 10, dtype=backend.float)
         )  #
         # delta E
         # in eV
         self._dt = DistributedArray(
-            np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
+            backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
         )  # delta t
         # in s
-        self._flags = np.zeros(10, dtype=np.int32)
-        self._ids = np.arange(10, dtype=np.int32)
+        self._flags = backend.zeros(10, dtype=np.int32)
+        self._ids = backend.arange(10, dtype=np.int32)
 
     @cached_property
     def ratio(self) -> float:
@@ -294,18 +297,18 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             )
         )
         np.testing.assert_array_equal(
-            energy_kick_from_SynchrotronRadiationBaseClass,
-            energy_kick_from_SynchrotronRadiationDrift,
+            copy_to_cpu(energy_kick_from_SynchrotronRadiationBaseClass),
+            copy_to_cpu(energy_kick_from_SynchrotronRadiationDrift),
         )
 
         np.testing.assert_array_equal(
-            energy_kick_from_SynchrotronRadiationBaseClass,
-            energy_kick_from_SynchrotronRadiationSection,
+            copy_to_cpu(energy_kick_from_SynchrotronRadiationBaseClass),
+            copy_to_cpu(energy_kick_from_SynchrotronRadiationSection),
         )
 
         np.testing.assert_array_equal(
-            energy_kick_from_SynchrotronRadiationDrift,
-            energy_kick_from_SynchrotronRadiationSection,
+            copy_to_cpu(energy_kick_from_SynchrotronRadiationDrift),
+            copy_to_cpu(energy_kick_from_SynchrotronRadiationSection),
         )
 
     def test_update_beam_energy(self):
@@ -316,7 +319,8 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
         self.SRB._update_beam_energy(beam=self.beam)
         energy_after_one_kick = self.beam.read_partial_dE().copy()
         np.testing.assert_array_equal(
-            energy_after_one_kick, previous_energy + energy_kick
+            copy_to_cpu(energy_after_one_kick),
+            copy_to_cpu(previous_energy + energy_kick),
         )
 
         second_energy_kick = self.SRB._calculate_kick(
@@ -326,11 +330,12 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
         energy_after_two_kicks = self.beam.read_partial_dE().copy()
 
         np.testing.assert_array_equal(
-            energy_after_two_kicks, energy_after_one_kick + second_energy_kick
+            copy_to_cpu(energy_after_two_kicks),
+            copy_to_cpu(energy_after_one_kick + second_energy_kick),
         )
         np.testing.assert_array_equal(
-            energy_after_two_kicks,
-            previous_energy + energy_kick + second_energy_kick,
+            copy_to_cpu(energy_after_two_kicks),
+            copy_to_cpu(previous_energy + energy_kick + second_energy_kick),
         )
 
     def test_energy_kick_with_quantum_excitation(self):
@@ -355,8 +360,8 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             * rng.standard_normal(size=1000)
         )
         np.testing.assert_allclose(
-            energy_kick,
-            expected_energy_kick,
+            copy_to_cpu(energy_kick),
+            copy_to_cpu(expected_energy_kick),
             rtol=1,
         )
 
