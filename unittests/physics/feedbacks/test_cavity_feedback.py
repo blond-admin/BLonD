@@ -550,6 +550,7 @@ class TestIQCavityFeedbackTimingClass:
                 for rf_centers_list_entry in rf_centers_list
             ]  # with no acceleration, this has to be true (all RF centers are the same)
 
+        #
         sim.run_simulation(
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
         )
@@ -1170,25 +1171,51 @@ class TestIQCavityFeedbackTimingClass:
 
         def callback(simulation: Simulation, beam: Beam):
             # TODO: implement euqliaty of length checks here, value checking below
-            if simulation.turn_i.value == 0:  # TODO: and not CR
-                for idx, fdbk in enumerate(timing_fdbk_list):  # CR beam -->
-                    fdbk: IQCavityFeedbackTimingClass
-                    # if n_sections == 2:
-                    #     assert len(fdbk.rf_centers) == int(harm_per_full_drift)  # tracking is always performed until next section
-                    # else:
-                    assert (
-                        len(fdbk.rf_centers)
-                        == int(
-                            +harm_per_full_drift
-                            * np.ceil(
-                                abs(
-                                    ((n_sections - 1) / 2) - fdbk.section_index
-                                )
-                            )
-                        )
-                    )  # TODO: this has to do with distance from crossing point --> adjust for higher harmonics
-                return
-            return
+            for idx, fdbk in enumerate(timing_fdbk_list):
+                if idx >= n_sections // 2:
+                    # second half, corot last
+                    # assert fdbk.reference_index_until_tracked == (fdbk.own_index_in_reference_list - 3) % len(fdbk.reference_altering_elements)
+                    pass
+                    # third element if next cavtiy which has not been tracked
+                    assert fdbk.reference_index_until_tracked == (
+                        fdbk.own_index_in_reference_list + 3
+                    ) % len(fdbk.reference_altering_elements)
+                    assert fdbk.reference_index_until_tracked_reverse == (
+                        len(fdbk.reference_altering_elements)
+                        - (fdbk.own_index_in_reference_list + 3 + 1)
+                    ) % len(fdbk.reference_altering_elements)
+                else:
+                    # first half --> counterrot last
+                    assert fdbk.reference_index_until_tracked == (
+                        fdbk.own_index_in_reference_list - 3
+                    ) % len(fdbk.reference_altering_elements)
+                    assert fdbk.reference_index_until_tracked_reverse == (
+                        len(fdbk.reference_altering_elements)
+                        - (fdbk.own_index_in_reference_list - 3 + 1)
+                    ) % len(fdbk.reference_altering_elements)
+                # if idx == 0:
+                #
+                # else:
+                #     assert fdbk.reference_index_until_tracked == (fdbk.own_index_in_reference_list + 3) % len(fdbk.reference_altering_elements)
+            # if simulation.turn_i.value == 0:  # TODO: and not CR
+            #     for idx, fdbk in enumerate(timing_fdbk_list):  # CR beam -->
+            #         fdbk: IQCavityFeedbackTimingClass
+            #         # if n_sections == 2:
+            #         #     assert len(fdbk.rf_centers) == int(harm_per_full_drift)  # tracking is always performed until next section
+            #         # else:
+            #         assert (
+            #             len(fdbk.rf_centers)
+            #             == int(
+            #                 +harm_per_full_drift
+            #                 * np.ceil(
+            #                     abs(
+            #                         ((n_sections - 1) / 2) - fdbk.section_index
+            #                     )
+            #                 )
+            #             )
+            #         )  # TODO: this has to do with distance from crossing point --> adjust for higher harmonics
+            #     return
+            # return
             for idx, fdbk in enumerate(timing_fdbk_list):
                 fdbk: IQCavityFeedbackTimingClass
                 if (
