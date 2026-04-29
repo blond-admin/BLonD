@@ -1044,6 +1044,7 @@ class SingleHarmonicRFStation(
                     charge=beam.signed_charge_with_direction(),
                     acceleration_kick=-reference_energy_change,  # Mind the minus!
                 )
+        pass
 
     def calc_gap_voltage_with_feedbacks(self):
         """

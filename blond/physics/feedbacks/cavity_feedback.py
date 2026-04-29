@@ -565,6 +565,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self.reference_state_until_tracked: ReferenceCoordinates | None = None
         self.reference_turn_offset: int = 0
+        self.last_tracked_turn_frwrd: int = 0
 
         self.debug = debug
 
@@ -654,7 +655,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     el_ind + self.own_index_in_reference_list
                     # This will be the next element
                 )
-                self.reference_turn_offset = -1
+                self.last_tracked_turn_frwrd = deepcopy(self.turn_i.value)
                 break
             element: AltersReference
 
@@ -678,7 +679,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                                 self.reference_altering_elements
                             )  # This will be the next element
                         )
-                        self.reference_turn_offset = 0
+                        self.last_tracked_turn_frwrd = deepcopy(
+                            self.turn_i.value
+                        )
                         break
             else:
                 next_reference_altering_element_index = -1
@@ -748,6 +751,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         omega_list = []
         start_time = self.reference_state_until_tracked.time
         found = False
+        if self.turn_i.value > self.last_tracked_turn_frwrd:
+            self.reference_turn_offset = -1
+        elif self.turn_i.value == self.last_tracked_turn_frwrd:
+            self.reference_turn_offset = 0
+        else:
+            raise RuntimeError("Hunt")
         for element in self.reference_altering_elements[
             start_index:
         ]:  # iterate through remaining last turn
@@ -1049,6 +1058,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             if (
                 self.tracked_forward_until_element
                 is not self._parent_rf_station
+                and self.own_index_in_reference_list
+                != self.reference_altering_elements_reverse.index(
+                    self.tracked_forward_until_element
+                )  # TODO: check if this works for more stations
             ):  # otherwise, the full turn was already tracked
                 self.calculate_rf_centers_for_reverse_direction(beam=beam)
         elif self._parent_rf_station._turn_i.value == 0:
