@@ -839,6 +839,8 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
             Total relativistic energy, in [eV].
         """
         key = hash(particle_type)
+        assert turn_i >= 0, f"turn_i has to be >=0 but was {turn_i=}"
+        assert section_i >= 0, f"section_i has to be >=0 but was {section_i=}"
         if key not in self._momentum_cached:
             self._momentum_cached[key] = (
                 conversions.magnetic_rigidity_to_momentum(
