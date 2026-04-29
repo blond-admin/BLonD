@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
+import pytest
 
 from blond import Simulation, mu_plus, proton
 from blond.core.backends.backend import backend
@@ -13,6 +14,11 @@ from blond.core.beam.flags import BeamFlags
 from blond.core.beam.particle_types import ParticleType, mu_minus
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.distributed_array import DistributedArray
+from blond.generals.distributed.helpers import (
+    MPI_RANK,
+    mpi_barrier,
+    mpi_is_distributed,
+)
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -507,6 +513,88 @@ class TestBeamBaseClass(unittest.TestCase):
         self.assertEqual(beam_1.ratio, beam_2.ratio)
         self.assertEqual(
             beam_1.common_array_size, 2 * beam_2.common_array_size
+        )
+
+    @pytest.mark.mpi
+    def test_addition_mpi(self):
+        mpi_active = mpi_is_distributed()
+
+        if not mpi_active:
+            return
+
+        beam_1 = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=proton,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        beam_2 = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=proton,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        dt_1 = DistributedArray(None)
+        dE_1 = DistributedArray(None)
+        dt_2 = DistributedArray(None)
+        dE_2 = DistributedArray(None)
+        flags = DistributedArray(None)
+        ids = DistributedArray(None)
+
+        if MPI_RANK == 0:
+            dt_1.array_local = backend.array([0, 1, 2], dtype=backend.float)
+            dE_1.array_local = backend.array([10, 11, 12], dtype=backend.float)
+            dt_2.array_local = backend.array([3, 4, 5], dtype=backend.float)
+            dE_2.array_local = backend.array([13, 14, 15], dtype=backend.float)
+            flags.array_local = backend.zeros_like(
+                dE_1.array_local, dtype=np.int32
+            )
+            ids.array_local = backend.array([1, 3, 5], dtype=np.int32)
+
+        dt_1.mpi_scatter()
+        dE_1.mpi_scatter()
+        dt_2.mpi_scatter()
+        dE_2.mpi_scatter()
+        flags.mpi_scatter()
+        ids.mpi_scatter()
+
+        mpi_barrier()
+
+        beam_1._dt = dt_1
+        beam_1._dE = dE_1
+        beam_1._flags = flags
+        beam_1._ids = ids
+
+        beam_2._dt = dt_2
+        beam_2._dE = dE_2
+        beam_2._flags = flags
+        beam_2._ids = ids
+
+        beam_1 += beam_2
+
+        ids = beam_1.ids.mpi_gather()
+        dt = beam_1.dt.mpi_gather()
+        dE = beam_1.dE.mpi_gather()
+
+        if MPI_RANK != 0:
+            return
+
+        gathered_ids = copy_to_cpu(ids)
+        gathered_dts = copy_to_cpu(dt)
+        gathered_dEs = copy_to_cpu(dE)
+
+        particle_order = np.argsort(gathered_ids)
+
+        np.testing.assert_array_equal(
+            gathered_ids[particle_order], np.array([1, 3, 5, 7, 9, 11])
+        )
+        np.testing.assert_array_equal(
+            gathered_dts[particle_order], np.array([0, 1, 2, 3, 4, 5])
+        )
+        np.testing.assert_array_equal(
+            gathered_dEs[particle_order], np.array([10, 11, 12, 13, 14, 15])
         )
 
 
