@@ -792,7 +792,6 @@ class Resonators(
         Qbar = Q * np.sqrt(1 - 1 / 4 / Q**2)
         omega1 = omega / Q * (1j / 2 + Qbar)
         # omega2 = omega / Q * (1j / 2 - Qbar)
-        # omega2 = omega / Q * (1j / 2 - Qbar)
         residues1 = R_s * omega1 / (2 * Qbar)
         # residues2 = - R_s * omega2 / (2 * Qbar)
         # because ``j * (1 + 2j) = 1j - 2``
