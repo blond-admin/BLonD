@@ -655,7 +655,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     el_ind + self.own_index_in_reference_list
                     # This will be the next element
                 )
-                self.last_tracked_turn_frwrd = deepcopy(self.turn_i.value)
+                self.last_tracked_turn_frwrd = deepcopy(self.turn_i.value - 1)
+                self.reference_turn_offset = -1
                 break
             element: AltersReference
 
@@ -682,6 +683,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                         self.last_tracked_turn_frwrd = deepcopy(
                             self.turn_i.value
                         )
+                        self.reference_turn_offset = 0
                         break
             else:
                 next_reference_altering_element_index = -1
@@ -751,12 +753,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         omega_list = []
         start_time = self.reference_state_until_tracked.time
         found = False
-        if self.turn_i.value > self.last_tracked_turn_frwrd:
-            self.reference_turn_offset = -1
-        elif self.turn_i.value == self.last_tracked_turn_frwrd:
-            self.reference_turn_offset = 0
-        else:
-            raise RuntimeError("Hunt")
+        # if self.turn_i.value > self.last_tracked_turn_frwrd:
+        #     self.reference_turn_offset = -1
+        # elif self.turn_i.value == self.last_tracked_turn_frwrd:
+        #     self.reference_turn_offset = 0
+        # else:
+        #     raise RuntimeError("Hunt")
         for element in self.reference_altering_elements[
             start_index:
         ]:  # iterate through remaining last turn
