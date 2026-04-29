@@ -111,7 +111,7 @@ class FillingSchemeByTurn(FillingScheme):
     ----------
     filling_scheme
         Array with entries to indicate which bucket should be filled at
-        which turn, e.g. ``[0,np.nna,0,1,1]``.
+        which turn, e.g. ``[0, np.nan, 0, 1, 1]``.
     harmonic
         Harmonic that this filling scheme is made for.
     """
