@@ -132,8 +132,9 @@ workflow:
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
     - pip list
     - cd ${project_root}
+    - mkdir -p junit-reports
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc --junitxml=junit-reports/junit-report-mpi-with-numba.xml; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
@@ -141,6 +142,7 @@ workflow:
       --cov-append
       --cov
       --cov-config=.coveragerc
+      --junitxml=junit-reports/junit-report-numba.xml
     - export BLOND_BACKEND_MODE="cuda"
     - python3 -m pytest
       -v unittests/
@@ -148,6 +150,7 @@ workflow:
       --cov-append
       --cov
       --cov-config=.coveragerc
+      --junitxml=junit-reports/junit-report-cuda.xml
     - export BLOND_BACKEND_MODE="numba"
     - pip uninstall -y cupy-cuda12x
     - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
@@ -159,7 +162,7 @@ workflow:
       --cov-config=.coveragerc
       --cov-report html:coverage-html
       --cov-report xml:coverage.xml
-      --junitxml=junit-report.xml
+      --junitxml=junit-reports/junit-report-numba-without-cuda.xml
     - COV=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
     - echo "XML_COVERAGE=$COV"
   coverage: '/XML_COVERAGE=(\d+\.\d+)/'
@@ -174,11 +177,11 @@ workflow:
         coverage_format: cobertura
         path: ${project_root}coverage.xml
       # Enables https://docs.gitlab.com/ee/ci/unit_test_reports.html
-      junit: ${project_root}junit-report.xml
+      junit: ${project_root}junit-reports/junit-report-*.xml
     paths:
       - ${project_root}coverage-html/*
       - ${project_root}coverage.xml
-      - ${project_root}junit-report.xml
+      - ${project_root}junit-reports/junit-report-*.xml
     # reports:
     #   junit: ${project_root}/coverage-report.xml
 
