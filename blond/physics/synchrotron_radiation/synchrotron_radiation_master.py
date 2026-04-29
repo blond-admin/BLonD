@@ -25,7 +25,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     calculate_isomagnetic_radiation_integrals,
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import Schedulable, ScheduledArray
+from blond.core.base import Schedulable, ScheduledBaseClass
 from blond.core.beam.base import BeamBaseClass
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
@@ -588,7 +588,7 @@ class SynchrotronRadiationMaster(Schedulable):
     def schedule(
         self,
         attribute: str,
-        value: ScheduledArray | NumpyArray | tuple[NumpyArray, NumpyArray],
+        value: ScheduledBaseClass | NumpyArray | tuple[NumpyArray, NumpyArray],
     ) -> None:
         """
         Propagate the scheduled radiation integrals to the trackers.
@@ -599,15 +599,8 @@ class SynchrotronRadiationMaster(Schedulable):
             The name of the attribute to be scheduled.
             Must be an existing attribute of the object.
         value
-            The schedule definition for the attribute.
-            Can be provided in one of several forms:
-
-            1. **Convenient input options**:
-                - `NumpyArray`: Automatically cast to `ScheduledArray`.
-                - `tuple[NumpyArray, NumpyArray]`: Automatically cast to `ScheduledInterpolation`.
-
-            2. **Explicit scheduling objects**:
-                - `ScheduledArray`: Full control over array-based scheduling.
+            The schedule definition for the attribute. ScheduledBaseClass
+            object.
         """
         for i, SRClass_child in enumerate(self.generated_children):
             SRClass_child.schedule(
