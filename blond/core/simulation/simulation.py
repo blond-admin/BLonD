@@ -46,7 +46,6 @@ from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
 from blond.generals.iterables_ import _as_tuple
 from blond.generals.warnings_ import PerformanceWarning
-from blond.physics.impedances.base import WakeField
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
@@ -276,7 +275,6 @@ class Simulation(Preparable):
         dt: NumpyArray,
         particle_type: ParticleType,
         subtract_min: bool = True,
-        beam: BeamBaseClass | None = None,
         **kwargs_plot,
     ) -> None:
         """
@@ -300,9 +298,6 @@ class Simulation(Preparable):
         subtract_min
             If True (default), normalizes the potential so its minimum is at zero.
             If False, normalizes so ``potential_well[0] = 0``.
-        beam
-            If given, use the beam to derive induced voltages and intesity
-            effects.
         **kwargs_plot
             Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
             for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
@@ -347,7 +342,6 @@ class Simulation(Preparable):
             dt=dt,
             particle_type=particle_type,
             subtract_min=subtract_min,
-            beam=beam,
         )
         plt.plot(
             copy_to_cpu(dt),
@@ -485,7 +479,6 @@ class Simulation(Preparable):
         subtract_min: bool = True,
         intensity: int = 0,
         until_section_index: int = -1,
-        beam: BeamBaseClass | None = None,
     ) -> tuple[NumpyArray, float, float]:
         """
         Calculate the RF potential well by tracking particles through one turn.
@@ -520,9 +513,6 @@ class Simulation(Preparable):
             Default is 0 (no intensity effects).
         until_section_index
             Section index until which to run the simulation. Default is -1.
-        beam
-            If given, use the beam to derive induced voltages and intesity
-            effects.
 
         Returns
         -------
@@ -581,27 +571,8 @@ class Simulation(Preparable):
         bunch_before = deepcopy(probe_bunch)
         t_0 = probe_bunch.reference.time
 
+        # prevent side effect
         sim_tmp = deepcopy(self)
-        if beam is not None:
-            turn_i_org = sim_tmp.turn_i.value
-            sim_tmp.run_simulation(
-                beams=(deepcopy(beam),),
-                n_turns=1,
-                show_progressbar=False,
-                verbose=False,
-                until_section_index=until_section_index,
-            )
-            sim_tmp.turn_i.value = turn_i_org
-
-        # Deactivate all updates of wake fields.
-        # They need to be previously calculated by a successful run with an
-        # actual line density, as the probe beam has no line density.
-        wakefields = sim_tmp.ring.elements.get_elements(
-            WakeField, recursive=True
-        )
-        for wakefield in wakefields:
-            wakefield.update_induced_voltage = False
-            wakefield.profile.active = False
 
         sim_tmp.run_simulation(
             beams=(probe_bunch,),

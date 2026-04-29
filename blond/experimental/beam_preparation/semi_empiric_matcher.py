@@ -289,13 +289,15 @@ class SemiEmpiricMatcher(MatchingRoutine):
         simulation.intensity_effect_manager.is_active_wakefields()
         simulation.intensity_effect_manager.is_active_profiles()
 
+        sim_tmp = deepcopy(simulation)  # prevent side effects
+
         ts = backend.linspace(
             self.time_limit[0], self.time_limit[1], self.internal_grid_shape[0]
         )
         # match beam without intensity effects
-        simulation.intensity_effect_manager.set_wakefields(active=False)
-        simulation.intensity_effect_manager.set_profiles(active=False)
-        self._match_beam(beam, simulation, ts)
+        sim_tmp.intensity_effect_manager.set_wakefields(active=False)
+        sim_tmp.intensity_effect_manager.set_profiles(active=False)
+        self._match_beam(beam, sim_tmp, ts)
 
         # iterate solution with intensity effects
         intensity_org = beam.intensity
@@ -311,8 +313,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.draw()
             plt.pause(0.1)
 
-        if simulation.intensity_effect_manager.has_wakefields():
-            simulation.intensity_effect_manager.set_wakefields(active=True)
+        if sim_tmp.intensity_effect_manager.has_wakefields():
             for i_intensity in range(self.maxiter_intensity_effects):
                 sim_tmp = deepcopy(simulation)  # prevent side effects
 
@@ -333,12 +334,13 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 # run simulation with beam to collect the actual profiles
                 # that cause the wake-fields
                 sim_tmp.intensity_effect_manager.set_profiles(active=True)
+                sim_tmp.intensity_effect_manager.unfreeze_wakefields()
 
                 # this might get changed by the simulation
                 beam_reference_time = beam.reference.time
                 beam_reference_total_energy = beam.reference.total_energy
-                turn_i_org = int(simulation.turn_i.value)
-                section_i_org = int(simulation.section_i.value)
+                turn_i_org = int(sim_tmp.turn_i.value)
+                section_i_org = int(sim_tmp.section_i.value)
 
                 sim_tmp.run_simulation(
                     beams=(beam,),
@@ -356,6 +358,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
                 # Prevent the profiles from updating.
                 sim_tmp.intensity_effect_manager.set_profiles(active=False)
+                sim_tmp.intensity_effect_manager.freeze_wakefields()
                 # This is intended as override, so that the line density
                 # inside `_match_beam` experiences the forces from the
                 # previously run with the full beam
@@ -397,9 +400,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
                         break
 
             beam.intensity = intensity_org
-
-        simulation.intensity_effect_manager.set_wakefields(active=True)
-        simulation.intensity_effect_manager.set_profiles(active=True)
 
     def _match_beam(
         self,
