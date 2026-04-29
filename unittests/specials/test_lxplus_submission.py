@@ -17,16 +17,18 @@ import subprocess
 import numpy as np
 import pytest
 
-from blond.specifics.cern.lxplus import submission
-from blond.specifics.cern.lxplus.submission import (
-    _build_submission_command,
-    _parse_cluster_id,
-    get_eos_target,
+from blond.experimental.specifics.cern.lxplus import (
     is_on_htcondor,
     move_results_to_eos,
     save_args,
     send_results_to_host,
+    submission,
     write_manifest,
+)
+from blond.experimental.specifics.cern.lxplus.submission import (
+    _build_submission_command,
+    _parse_cluster_id,
+    get_eos_target,
 )
 
 # ---------------------------------------------------------------------------

@@ -362,7 +362,7 @@ class HTCondorJob:
     >>> import logging
     >>> from pathlib import Path
     >>>
-    >>> from blond.specifics.cern.lxplus.submission import run_on_htcondor
+    >>> from blond.experimental.specifics.cern.lxplus.submission import run_on_htcondor
     >>>
     >>> logging.basicConfig(level=logging.DEBUG)
     >>>
@@ -380,7 +380,7 @@ class HTCondorJob:
     >>> import numpy as np
     >>> from blond import setup_backend
     >>> from blond.handle_results.helpers import callers_relative_path
-    >>> from blond.specifics.cern.lxplus.submission import (
+    >>> from blond.experimental.specifics.cern.lxplus.submission import (
     ...     is_on_htcondor,
     ...     move_results_to_eos,
     ...     write_manifest,
@@ -1135,7 +1135,7 @@ git -C "$SCRATCH/repo" checkout --quiet '{commit}'
 {'"$SCRATCH/venv/bin/pip" install --quiet cupy-cuda12x' if request_gpus else ""}
 
 # Run the target Python script from the repository; the script reads
-# its parameters from args.json via blond.specifics.cern.lxplus.load_args.
+# its parameters from args.json via blond.experimental.specifics.cern.lxplus.load_args.
 "$SCRATCH/venv/bin/python" "$SCRATCH/repo/{script_rel}"
 WRAPPER_EOF
 chmod +x {remote_workdir}/wrapper.sh
