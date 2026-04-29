@@ -833,9 +833,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         return content
 
 
-class SingleHarmonicRFStation(
-    RFStationBaseClass,
-):
+class SingleHarmonicRFStation(RFStationBaseClass):
     r"""
     RF station with only one RF wave for beam interaction.
 
@@ -852,10 +850,16 @@ class SingleHarmonicRFStation(
     ----------
     voltage
         RF station's effective voltage, in [V].
+        Use ``rf_station.schedule("voltage", ...)`` to influence
+        the parameter along the ramp.
     phi_rf
         RF station's design phase, in [rad].
+        Use rf_station``.schedule("phi_rf_design", ...)`` to influence
+        the parameter along the ramp.
     harmonic
         RF station's design harmonic [].
+        Use ``rf_station.schedule("harmonic", ...)`` to influence
+        the parameter along the ramp.
     section_index
         Section index to group elements into sections.
     local_wakefield
@@ -877,7 +881,7 @@ class SingleHarmonicRFStation(
     >>> import numpy as np
     >>> from blond import SingleHarmonicRFStation
     >>> rf_station = SingleHarmonicRFStation(...)
-    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
+    >>> rf_station.schedule(attribute='phi_rf_design', value=np.array(...), mode="per-turn")
     """
 
     def __init__(
@@ -1154,10 +1158,16 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         Used to calculate attributes that rely on only one harmonic.
     voltage
         Cavity's effective voltages (per harmonic) in [V].
+        Use ``rf_station.schedule("voltage", ...)`` to influence
+        the parameter along the ramp.
     phi_rf
         Cavity's design phases (per harmonic) in [rad].
+        Use rf_station``.schedule("phi_rf_design", ...)`` to influence
+        the parameter along the ramp.
     harmonic
         Cavity's design harmonics (per harmonic) [].
+        Use ``rf_station.schedule("harmonic", ...)`` to influence
+        the parameter along the ramp.
     section_index
         Section index to group elements into sections.
     local_wakefield
