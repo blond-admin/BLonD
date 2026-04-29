@@ -149,10 +149,6 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
             from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
             from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
 
-            # Options
-            SAVE_SIM = True
-            DISABLE_PL = False
-
             # Initialize the accelerator
             ring = Ring(
                 circumference, alpha, momentum, Proton(), n_turns=n_turns + 1
@@ -197,7 +193,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
             # Beam-phase loop
             # Beam Loops
 
-            PL_gain = 1 / (5 * ring.t_rev[0]) * int(not DISABLE_PL)
+            PL_gain = 1 / (5 * ring.t_rev[0])
             SL_gain = PL_gain / 10
             bl_config = {
                 "machine": "LHC",
@@ -262,28 +258,13 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
 
                 plt.show()
 
-            if SAVE_SIM:
-                if DISABLE_PL:
-                    cls.beam_loop_error_blond2 = beam_loop_error
-                    cls.synchro_loop_error_blond2 = synchro_loop_error
-                    cls.omega_rf_blond2 = omega_rf
-                    cls.phi_rf_blond2 = phi_rf
-                else:
-                    cls.beam_loop_error_blond2 = beam_loop_error
-                    cls.synchro_loop_error_blond2 = synchro_loop_error
-                    cls.omega_rf_blond2 = omega_rf
-                    cls.phi_rf_blond2 = phi_rf
+            cls.beam_loop_error_blond2 = beam_loop_error
+            cls.synchro_loop_error_blond2 = synchro_loop_error
+            cls.omega_rf_blond2 = omega_rf
+            cls.phi_rf_blond2 = phi_rf
 
         setup_blond2()
         setup_blond3()
-
-        import matplotlib.pyplot as plt
-
-        plt.figure()
-        plt.plot(cls.initial_bins_blond3, cls.initial_profile_blond3, "o")
-        plt.plot(cls.initial_bins_blond2, cls.initial_profile_blond2, "o")
-
-        plt.show()
 
     def test_phase_loop_error(self):
         np.testing.assert_allclose(
@@ -294,13 +275,6 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
         )
 
     def test_synchronization_loop_error(self):
-        # import matplotlib.pyplot as plt
-
-        # plt.figure()
-        # plt.plot(self.delta_phi_rf_blond3)
-        # plt.plot(self.synchro_loop_error_blond2)
-        # plt.show()
-
         np.testing.assert_allclose(
             self.sl_error_blond3,
             self.synchro_loop_error_blond2,
