@@ -5,7 +5,7 @@ import warnings
 from collections import deque
 from copy import deepcopy
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 import pytest
@@ -175,6 +175,29 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             self.time_domain_fft_solver.on_wakefield_init_simulation(
                 simulation=simulation, parent_wakefield=parent_wakefield
             )
+
+    def test_on_wakefield_init_simulation_no_warn_impedance_already_true(self):
+        simulation = Mock(Simulation)
+        parent_wakefield = Mock(WakeField)
+        profile = Mock(StaticProfile)
+        profile.n_bins = 10
+        parent_wakefield.profile = profile
+        parent_wakefield.profile.hist_step = 1
+
+        dynamic_source = Mock(Resonators)
+        dynamic_source.is_dynamic = True
+        dynamic_source.get_impedance.return_value = backend.linspace(1, 2, 6)
+        parent_wakefield.sources = (dynamic_source,)
+
+        self.time_domain_fft_solver.expect_impedance_change = True
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            self.time_domain_fft_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+        perf_warnings = [x for x in w if "Because" in str(x.message)]
+        self.assertEqual(len(perf_warnings), 0)
 
     def test_dynamic_profile_integration(self):
         beam = Beam(
@@ -3543,3 +3566,30 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             copy_to_cpu(wf_single.induced_voltage[-128:] + offset),
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
+
+
+class TestPeriodicFreqSolverBranches(unittest.TestCase):
+    def test_on_wakefield_init_simulation_no_warn_expect_already_true(self):
+        solver = PeriodicFreqSolver(t_periodicity=1e-6)
+        solver.expect_profile_change = True
+        solver.expect_impedance_change = True
+
+        simulation = Mock(Simulation)
+        parent_wakefield = Mock(WakeField)
+        profile = Mock(DynamicProfileConstNBins)
+        profile.n_bins = 128
+        parent_wakefield.profile = profile
+
+        dynamic_source = Mock()
+        dynamic_source.is_dynamic = True
+        parent_wakefield.sources = (dynamic_source,)
+
+        with patch.object(solver, "_update_internal_data"):
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                solver.on_wakefield_init_simulation(
+                    simulation=simulation, parent_wakefield=parent_wakefield
+                )
+
+        perf_warnings = [x for x in w if "Because" in str(x.message)]
+        self.assertEqual(len(perf_warnings), 0)
