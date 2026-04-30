@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
+import sympy
 from scipy.constants import speed_of_light as c0
 
 from blond.acc_math.analytic.hamilton import (
@@ -30,6 +31,7 @@ from blond.core.base import (
     AltersReference,
     BeamPhysicsRelevant,
     DynamicParameter,
+    HasSymbolicHamiltonian,
     Schedulable,
 )
 from blond.core.beam.beams import ProbeBeam
@@ -882,6 +884,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 class SingleHarmonicRFStation(
     RFStationBaseClass,
     SupportsPooledInterpolationKickMixIn,
+    HasSymbolicHamiltonian,
 ):
     r"""
     RF station with only one RF wave for beam interaction.
@@ -1277,9 +1280,41 @@ class SingleHarmonicRFStation(
         )
         return single_harmonic_rf_station
 
+    def get_hamilton_symbolic(self) -> sympy.Expr:
+        """
+        Return the partial Hamiltonian symbolic expression.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
+        """
+        dt = sympy.Symbol("dt", real=True)
+        q = sympy.Symbol("q", real=True)
+
+        V = (
+            self.voltage
+            if self.voltage is not None
+            else sympy.Symbol("V", positive=True)
+        )
+        omega = (
+            self.omega_rf_design
+            if self.omega_rf_design is not None
+            else sympy.Symbol("omega_rf", positive=True)
+        )
+        phi = (
+            self.phi_rf_design
+            if self.phi_rf_design is not None
+            else sympy.Symbol("phi_rf", real=True)
+        )
+
+        return q * V / omega * sympy.cos(omega * dt + phi)
+
 
 class MultiHarmonicRFStation(
-    RFStationBaseClass, SupportsPooledInterpolationKickMixIn
+    RFStationBaseClass,
+    SupportsPooledInterpolationKickMixIn,
+    HasSymbolicHamiltonian,
 ):
     r"""
     RF station with several RF wave for beam interaction.
@@ -1731,3 +1766,36 @@ class MultiHarmonicRFStation(
 
         multi_harmonic_rf_station._update_beam_based_attributes(beam)
         return multi_harmonic_rf_station
+
+    def get_hamilton_symbolic(self) -> sympy.Expr:
+        """
+        Return the partial Hamiltonian symbolic expression.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
+        """
+        dt = sympy.Symbol("dt", real=True)
+        q = sympy.Symbol("q", real=True)
+
+        expr = sympy.Integer(0)
+        for j in range(self.n_rf):
+            V_j = (
+                self.voltage[j]
+                if self.voltage is not None
+                else sympy.Symbol(f"V_{j}", positive=True)
+            )
+            omega_j = (
+                self.omega_rf_design[j]
+                if self.omega_rf_design is not None
+                else sympy.Symbol(f"omega_{j}", positive=True)
+            )
+            phi_j = (
+                self.phi_rf_design[j]
+                if self.phi_rf_design is not None
+                else sympy.Symbol(f"phi_{j}", real=True)
+            )
+            expr += q * V_j / omega_j * sympy.cos(omega_j * dt + phi_j)
+
+        return expr

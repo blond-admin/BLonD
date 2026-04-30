@@ -27,12 +27,14 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
+import sympy
 from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
 
 from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
     DynamicParameter,
+    HasSymbolicHamiltonian,
     Preparable,
     SimulationElementBase,
 )
@@ -53,6 +55,7 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
 
+    from matplotlib.lines import Line2D
     from numpy.typing import NDArray as NumpyArray
 
     from blond import BiGaussian
@@ -1683,3 +1686,141 @@ class Simulation(Preparable):
             )
         else:
             return self._current_t_rev
+
+    def get_separatrix(
+        self,
+        beam: BeamBaseClass,
+        dt: NumpyArray,
+    ) -> NumpyArray:
+        """
+        Compute the separatrix boundary in longitudinal phase space.
+
+        Accumulates the partial Hamiltonians from all elements that implement
+        :class:`HasSymbolicHamiltonian`, substitutes numerical beam values,
+        then solves ``H(dt, dE) = H_sep`` for ``dE`` at each point of ``dt``.
+
+        Parameters
+        ----------
+        beam
+            Beam whose reference coordinates supply β, γ, E and charge.
+        dt
+            Time-deviation grid [s] over which to evaluate the separatrix.
+            Should span the full RF bucket including the unstable fixed point.
+
+        Returns
+        -------
+        separatrix
+            Array of shape ``(2, len(dt))`` where row 0 is the upper branch
+            (``dE ≥ 0``) and row 1 is the lower branch (``dE ≤ 0``), in [eV·s].
+        """
+        # 1. Accumulate total Hamiltonian
+        ham = None
+        for element in self.ring.elements.get_elements(HasSymbolicHamiltonian):
+            partial = element.get_hamilton_symbolic()
+            ham = partial if ham is None else ham + partial
+
+        if ham is None:
+            raise ValueError(
+                "No elements with `HasSymbolicHamiltonian` found."
+            )
+
+        # 2. Substitute numerical beam values
+        dt_sym, dE_sym = sympy.symbols("dt dE", real=True)
+        beta_sym, gamma_sym, E_sym, q_sym = sympy.symbols(
+            "beta gamma E q", real=True
+        )
+        ham = ham.subs(
+            {
+                beta_sym: beam.reference.beta,
+                gamma_sym: beam.reference.gamma,
+                E_sym: beam.reference.total_energy,
+                q_sym: float(beam.particle_type.charge),
+            }
+        )
+
+        # 3. Extract kinetic coefficient a (coeff of dE²) and potential f(dt)
+        a = float(ham.coeff(dE_sym, 2))
+        f_expr = ham.subs(dE_sym, 0)
+        f_num = sympy.lambdify(dt_sym, f_expr, modules="numpy")
+
+        # 4. Find H_sep on a dense internal grid covering at least one full period
+        #    of the lowest RF frequency — independent of the user-supplied dt which
+        #    may be sparse or not reach the unstable fixed point.
+        omega_min = None
+        for element in self.ring.elements.get_elements(HasSymbolicHamiltonian):
+            omega_design = getattr(element, "omega_rf_design", None)
+            if omega_design is not None:
+                candidates = np.abs(np.atleast_1d(omega_design))
+                nonzero = candidates[candidates > 0]
+                if nonzero.size:
+                    candidate = float(np.min(nonzero))
+                    if omega_min is None or candidate < omega_min:
+                        omega_min = candidate
+
+        if omega_min is not None:
+            # 1.1× the longest RF period gives a 10 % margin on each side
+            T_rf = 2.0 * np.pi / omega_min
+            dt_scan = np.linspace(-0.05 * T_rf, 1.05 * T_rf, 10_000)
+        else:
+            raise RuntimeError("Failed to detect base harmonic frequency.")
+
+        f_scan = np.asarray(f_num(dt_scan), dtype=float)
+        H_sep = float(np.max(f_scan) if a > 0 else np.min(f_scan))
+
+        # 5. Evaluate f on the user-supplied grid, then solve H = H_sep for dE
+        f_values = np.asarray(f_num(dt), dtype=float)
+        inside = (H_sep - f_values) / a
+        dE_sep = np.sqrt(np.maximum(inside, 0.0))
+
+        return np.stack([dE_sep, -dE_sep])
+
+    def plot_separatrix(
+        self,
+        beam: BeamBaseClass,
+        dt: NumpyArray,
+        **kwargs_plot,
+    ) -> list[Line2D]:
+        """
+        Plot the longitudinal phase-space separatrix.
+
+        Calls :meth:`get_separatrix` and draws both branches on the current
+        matplotlib axes.  The label (if given) is applied only to the upper
+        branch so the legend shows a single entry.
+
+        Parameters
+        ----------
+        beam
+            Beam whose reference coordinates supply β, γ, E and charge.
+        dt
+            Time-deviation grid [s] spanning at least the full RF bucket,
+            including the unstable fixed point.
+        **kwargs_plot
+            Additional keyword arguments forwarded to ``matplotlib.pyplot.plot``
+            (e.g. ``color``, ``linewidth``, ``linestyle``).
+
+        Returns
+        -------
+        artists
+            List of matplotlib objects.
+
+        See Also
+        --------
+        get_separatrix : Compute the separatrix boundary numerically.
+
+        Notes
+        -----
+        This method does not call ``plt.show()``; call that separately.
+        """
+        separatrix = self.get_separatrix(beam=beam, dt=dt)
+        label = kwargs_plot.pop("label", None)
+        artists = plt.plot(dt, separatrix[0], label=label, **kwargs_plot)
+        if "color" in kwargs_plot:
+            kwargs_plot.pop("color")
+        artists.extend(
+            plt.plot(
+                dt, separatrix[1], color=artists[0].get_color(), **kwargs_plot
+            )
+        )
+        plt.xlabel("Time (s)")
+        plt.ylabel("Energy deviation (eV)")
+        return artists

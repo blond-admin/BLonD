@@ -6,6 +6,17 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+import matplotlib
+
+matplotlib.use("Qt5Agg")
+
 # pragma: no cover
 import logging
 
@@ -18,6 +29,7 @@ from blond import (
     BiGaussian,
     DriftSimple,
     MagneticCyclePerTurn,
+    MultiHarmonicRFStation,
     RFStationPhaseObservation,
     Ring,
     Simulation,
@@ -35,10 +47,10 @@ logging.basicConfig(level=logging.INFO)
 def main():
     ring = Ring(26658.883)
 
-    rf_station = SingleHarmonicRFStation()
-    rf_station.harmonic = 35640
-    rf_station.voltage = 6e6
-    rf_station.phi_rf_design = 0
+    rf_station = MultiHarmonicRFStation(n_harmonics=2, main_harmonic_idx=0)
+    rf_station.harmonic = np.array([35640, 4 * 35640])
+    rf_station.voltage = np.array([6e6, 6e6 / 2])
+    rf_station.phi_rf_design = np.array([0, 0])
 
     N_TURNS = int(1e3)
 
@@ -98,9 +110,19 @@ def main():
         if simulation.turn_i.value % 10 != 0:
             return
 
+        dt = beam.read_partial_dt()
         plt.scatter(
-            beam.read_partial_dt(),
+            dt,
             beam.read_partial_dE(),
+            s=1,
+        )
+        t0 = dt.min()
+        t1 = dt.max()
+        trange = t1 - t0
+
+        sim.plot_separatrix(
+            beam=beam,
+            dt=np.linspace(t0 - trange, t1 + trange, 1000),
         )
         plt.draw()
         plt.pause(0.1)
@@ -120,7 +142,7 @@ def main():
             beams=(beam1,),
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
-            # callback=custom_action,
+            callbacks=custom_action,
         )
     ANIMATE = False
     if ANIMATE:  # pragma: no cover

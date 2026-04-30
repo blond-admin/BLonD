@@ -15,11 +15,15 @@ from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
+import sympy
+from scipy.constants import speed_of_light as c0
+
 from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
     BeamPhysicsRelevant,
     HasPropertyCache,
+    HasSymbolicHamiltonian,
     Schedulable,
 )
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
@@ -131,7 +135,9 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
         pass
 
 
-class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
+class DriftSimple(
+    DriftBaseClass, Schedulable, HasPropertyCache, HasSymbolicHamiltonian
+):
     """
     Base class to implement beam drifts in synchrotrons.
 
@@ -366,8 +372,29 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         # super()._invalidate_cache(DriftSimple.cached_props)
         pass
 
+    def get_hamilton_symbolic(self) -> sympy.Expr:
+        """
+        Return the partial Hamiltonian symbolic expression.
 
-class DriftExact(DriftSimple):
+        Returns
+        -------
+        expression
+            The symbolic expression.
+        """
+        dE, beta, gamma, E = sympy.symbols("dE beta gamma E", real=True)
+
+        alpha_0 = (
+            self.alpha_0
+            if self.alpha_0 is not None
+            else sympy.Symbol("alpha_0", real=True)
+        )
+        T = self.orbit_length / (beta * c0)
+        eta_0 = alpha_0 - 1 / gamma**2
+
+        return sympy.Rational(1, 2) * T * eta_0 / (beta**2 * E) * dE**2
+
+
+class DriftExact(DriftSimple, HasSymbolicHamiltonian):
     """
     Drift element using the exact drift formulation.
 
@@ -461,6 +488,36 @@ class DriftExact(DriftSimple):
         )
 
         return drift
+
+    def get_hamilton_symbolic(self) -> sympy.Expr:
+        """
+        Return the partial Hamiltonian symbolic expression.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
+        """
+        dE, beta, E = sympy.symbols("dE beta E", real=True)
+        u = sympy.Symbol("u", real=True)
+
+        alpha_0 = (
+            self.alpha_0
+            if self.alpha_0 is not None
+            else sympy.Symbol("alpha_0", real=True)
+        )
+        T = self.orbit_length / (beta * c0)
+
+        delta = sympy.sqrt(1 + (u**2 / E**2 + 2 * u / E) / beta**2) - 1
+
+        poly = 1 + alpha_0 * delta
+        if self.higher_order_alpha is not None:
+            for k, alpha_k in enumerate(self.higher_order_alpha):
+                poly += alpha_k * delta ** (k + 2)
+
+        integrand = poly * (1 + u / E) / (1 + delta) - 1
+
+        return T * sympy.Integral(integrand, (u, 0, dE))
 
     def _track(self, beam: BeamBaseClass) -> None:
         """

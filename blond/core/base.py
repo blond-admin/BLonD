@@ -23,6 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Any, TypeVar
 
+    import sympy
     from numpy.typing import NDArray as NumpyArray
     from scipy.interpolate import (
         Akima1DInterpolator,
@@ -898,5 +899,21 @@ class AltersReference(ABC):
         -------
         change
             Change of reference time or energy.
+        """
+        pass
+
+
+class HasSymbolicHamiltonian(ABC):
+    """Base class for objects that have an analytic expression."""
+
+    @abstractmethod
+    def get_hamilton_symbolic(self) -> sympy.Expr:
+        """
+        Return the partial Hamiltonian symbolic expression.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
         """
         pass
