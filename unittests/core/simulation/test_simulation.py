@@ -788,6 +788,32 @@ class TestSimulation(unittest.TestCase):
         if DEV_PLOT:
             plt.show()
 
+    def test_current_t_rev(self):
+        buffer = np.zeros(2)
+        dE_rev_effective = np.empty(10)
+        dE_rev_sim = np.empty(10)
+        DEV_PLOT = False
+
+        def callback(sim: Simulation, beam: Beam):
+            buffer[0] = buffer[1]
+            buffer[1] = beam.reference.total_energy
+            i = sim.turn_i.value
+            dE_rev_effective[i] = buffer[1] - buffer[0]
+            dE_rev_sim[i] = sim.current_dE_rev
+            if DEV_PLOT:
+                plt.plot(i, buffer[1] - buffer[0], "o")
+                plt.plot(i, sim.current_dE_rev, "x")
+            return
+
+        self.simulation.run_simulation(
+            self.beam,
+            n_turns=10,
+            callbacks=callback,
+        )
+        np.testing.assert_allclose(dE_rev_effective, dE_rev_sim)
+        if DEV_PLOT:
+            plt.show()
+
 
 if __name__ == "__main__":
     unittest.main()
