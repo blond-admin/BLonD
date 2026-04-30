@@ -539,7 +539,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             n_rf_periods_per_coarse_grid=n_rf_periods_per_coarse_grid,
         )
 
-        self.rf_centers = np.zeros(5)
+        self.rf_centers = np.zeros(0)
         self.residual_time_last_rf_centers_calculation = 0
 
         self.ring: Ring | None = None
@@ -1075,7 +1075,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam to be tracked.
         """
-        # self.rf_centers = np.zeros(0)
+        self.rf_centers = np.zeros(0)
         # if self.tracked_forward_until_element is not None:  # noqa: SIM102
         #     if (
         #         self.tracked_forward_until_element
