@@ -441,7 +441,9 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         self._xedges.write(xedges)
         self._yedges.write(yedges)
 
-    def plot(self, result_idx: int) -> AxesImage:
+    def plot(
+        self, result_idx: int, kwargs_imshow: dict | None = None
+    ) -> AxesImage:
         """
         Make a plot of the beam 2D histogram.
 
@@ -449,12 +451,17 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         ----------
         result_idx
             Index of the recorded result to show.
+        kwargs_imshow
+            Keyword arguments for `matplotlib.pyplot.imshow`.
 
         Returns
         -------
         image
             The `AxesImage` pyplot object.
         """
+        if kwargs_imshow is None:
+            kwargs_imshow = {}
+
         assert self._intensity is not None
         assert self._hist2d is not None
         assert self._xedges is not None
@@ -474,28 +481,43 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
 
         xedges = self._xedges._memory[result_idx, :]
         yedges = self._yedges._memory[result_idx, :]
-        im = ax.imshow(
-            H.T,
-            origin="lower",
-            extent=(
+
+        default_kwargs_imshow = {
+            "origin": "lower",
+            "extent": (
                 float(xedges[0]),
                 float(xedges[-1]),
                 float(yedges[0]),
                 float(yedges[-1]),
             ),
-            aspect="auto",
-            cmap="viridis",
-        )
+            "aspect": "auto",
+            "cmap": "viridis",
+        }
+        # prevent overriding user arguments
+        for key, value in default_kwargs_imshow.items():
+            if key not in kwargs_imshow:
+                kwargs_imshow[key] = value
+
+        im = ax.imshow(H.T, **kwargs_imshow)
         return im
 
-    def plot_fancy(self, result_idx: int) -> tuple[Axes, Axes, Axes]:
+    def plot_fancy(
+        self,
+        result_idx: int,
+        kwargs_imshow: dict | None = None,
+        kwargs_bar: dict | None = None,
+    ) -> tuple[Axes, Axes, Axes]:
         """
-        Make a fancy plot of the beam 2D histogram and the corresponding histograms of the dE and dt projections. 
+        Make a fancy plot of the beam 2D histogram and the corresponding histograms of the dE and dt projections.
 
         Parameters
         ----------
         result_idx
             Index of the recorded result to show.
+        kwargs_imshow
+            Keyword arguments for `matplotlib.pyplot.imshow`.
+        kwargs_bar
+            Keyword arguments for `matplotlib.pyplot.bar` and `matplotlib.pyplot.barh`.
 
         Returns
         -------
@@ -506,6 +528,11 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         ax_yhist
             The  pyplot `Axes` of the y histogram.
         """
+        if kwargs_imshow is None:
+            kwargs_imshow = {}
+        if kwargs_bar is None:
+            kwargs_bar = {}
+
         assert self._intensity is not None
         assert self._hist2d is not None
         assert self._xedges is not None
@@ -533,14 +560,28 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         ax_xhist = fig.add_subplot(gs[0, :-1])  # top X histogram
         ax_yhist = fig.add_subplot(gs[1:, -1])  # right Y histogram
 
+        default_kwargs_imshow = {
+            "origin": "lower",
+            "extent": [xedges[0], xedges[-1], yedges[0], yedges[-1]],
+            "aspect": "auto",
+            "cmap": "viridis",
+        }
+        # prevent overriding user arguments
+        for key, value in default_kwargs_imshow.items():
+            if key not in kwargs_imshow:
+                kwargs_imshow[key] = value
+
+        default_kwargs_bar = {
+            "align": "center",
+            "color": "gray",
+        }
+        # prevent overriding user arguments
+        for key, value in default_kwargs_bar.items():
+            if key not in kwargs_bar:
+                kwargs_bar[key] = value
+
         # Main 2D histogram
-        ax_main.imshow(
-            H.T,
-            origin="lower",
-            extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
-            aspect="auto",
-            cmap="viridis",
-        )
+        ax_main.imshow(H.T, **kwargs_imshow)
 
         # X histogram (sum over Y)
         x_counts = H.sum(axis=1)
@@ -548,10 +589,9 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
             (xedges[:-1] + xedges[1:]) / 2,
             x_counts,
             width=np.diff(xedges),
-            align="center",
-            color="gray",
+            **kwargs_bar,
         )
-        # ax_xhist.axis("off")  # optional, for cleaner look
+
         ax_xhist.set_xticks([], [])
         ax_xhist.set_xlim(ax_main.get_xlim())
         max1 = ax_xhist.get_ylim()
@@ -562,10 +602,9 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
             (yedges[:-1] + yedges[1:]) / 2,
             y_counts,
             height=np.diff(yedges),
-            align="center",
-            color="gray",
+            **kwargs_bar,
         )
-        # ax_yhist.axis("off")  # optional
+
         ax_yhist.set_yticks([], [])
         ax_yhist.set_ylim(ax_main.get_ylim())
         max2 = ax_yhist.get_xlim()
