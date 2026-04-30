@@ -118,6 +118,7 @@ class Beam(BeamBaseClass):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
         mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        ids: NumpyArray | CupyArray | None = None,
         **kwargs,
     ) -> None:
         """
@@ -164,7 +165,9 @@ class Beam(BeamBaseClass):
               While this mode uses more memory, it can be simpler to implement in scenarios where
               each rank needs to work with its own independent data (e.g., generating separate
               random distributions with `np.random.randn()`).
-
+        ids
+            Per particle ids. They are usually automatically chosen. But reloading the beam from disk
+            for example needs to write the ids too.
         **kwargs
             Unused - Keyword arguments to make the non-abstract implementation
             extendable.
@@ -201,15 +204,25 @@ class Beam(BeamBaseClass):
             self._dt.mpi_scatter()
             self._flags.mpi_scatter()
             # IDs need special treatment
-            self._ids: DistributedArray = DistributedArray(
-                backend.arange(len(dt), dtype=np.int32)
-            )
+            if ids is None:
+                self._ids: DistributedArray = DistributedArray(
+                    backend.arange(len(dt), dtype=np.int32)
+                )
+            else:
+                self._ids: DistributedArray = DistributedArray(
+                    backend.array(ids, dtype=np.int32)
+                )
             self._ids.mpi_scatter()
         elif mpi_mode == "all-ranks":
             # IDs need special treatment
-            self._ids: DistributedArray = distributed_arange(
-                len(dt), dtype=np.int32
-            )
+            if ids is None:
+                self._ids: DistributedArray = distributed_arange(
+                    len(dt), dtype=np.int32
+                )
+            else:
+                self._ids: DistributedArray = DistributedArray(
+                    backend.array(ids, dtype=np.int32)
+                )
         else:
             raise NameError(f"Unknown {mpi_mode=}")
 

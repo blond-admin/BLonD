@@ -218,12 +218,8 @@ class BeamBaseClass(Preparable, ABC):
             flags=flags,
             reference_time=metadata["reference"]["time"],
             reference_total_energy=metadata["reference"]["total_energy"],
+            ids=ids,
         )
-        # ``setup_beam`` assigns fresh ids via ``arange``; overwrite with the
-        # stored ids so particle identification is preserved across saves.
-        from blond.core.backends.backend import backend
-
-        beam._ids.array_local = backend.array(ids, dtype=np.int32)
         return beam
 
     def signed_charge_with_direction(self):
