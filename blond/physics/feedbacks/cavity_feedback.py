@@ -376,6 +376,21 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             return self._parent_rf_station.harmonic[self.harmonic_index]
 
     @property
+    def delta_omega_rf(self) -> float:
+        """
+        Frequency deviation of the main harmonic of the parent cavity at harmonic_index.
+
+        Returns
+        -------
+        delta_omega_rf
+            Frequency deviation of the main harmonic of the parent cavity at harmonic_index.
+        """
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
+            return self._parent_rf_station.delta_omega_rf
+        else:
+            return self._parent_rf_station.delta_omega_rf[self.harmonic_index]
+
+    @property
     def omega_rf_design(self) -> float:
         """
         Design RF frequency of the parent cavity at harmonic_index.
@@ -568,6 +583,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.last_tracked_turn_frwrd: int = 0
         self.last_tracked_beam_state_frwrd: bool | None = None
 
+        self.phase_offset_frwrd_next: float = 0.0
+        self.phase_offset_frwrd: float = 0.0
+
         self.debug = debug
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -643,9 +661,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         start_time = dummy_reference.time
 
         found = False
-        forward_list = None
-        # beam is tracked after the feedback, therefore we have to track the current element
-        # the schedules are applied correctly though as this is done in the RFCavityBaseClass._track, which was already called
+
         own_index_tracking = (
             self.own_index_in_reference_list_reverse
             if beam.is_counter_rotating
@@ -655,6 +671,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             forward_list = self.reference_altering_elements_reverse
         else:
             forward_list = self.reference_altering_elements
+
+        # beam is tracked after the feedback, therefore we have to track the current element
+        # the schedules are applied correctly though as this is done in the RFCavityBaseClass._track, which was already called
         for el_ind, element in enumerate(
             forward_list[own_index_tracking:]
         ):  # iterate through remaining current turn
@@ -700,16 +719,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 next_reference_altering_element_index = -1
 
         self.forward_tracking_time = dummy_reference.time - start_time
-        # self.forward_tracking_omega_rf = self.omega_rf  # (
-        #     self._parent_rf_station.calc_omega_rf_design(
-        #         dummy_reference.beta, self.ring.circumference
-        #     )  # TODO: this should probably be omega_rf as here we have the correct one, but this will cause a discrepancy elsewhere
-        # ) + self._parent_rf_station.delta_omega_rf  # TODO: assume same delta as current
         self.forward_tracking_omega_rf = (
-            self._parent_rf_station.calc_omega_rf_design(
-                dummy_reference.beta, self.ring.circumference
+            (
+                self._parent_rf_station.calc_omega_rf_design(
+                    dummy_reference.beta, self.ring.circumference
+                )
             )
-        ) + self._parent_rf_station.delta_omega_rf
+            + self._parent_rf_station.delta_omega_rf
+        )  # TODO: problematic with multi-section if the delta is changed in between sections
         self.tracked_forward_until_element = (
             forward_list[
                 next_reference_altering_element_index % len(forward_list)
@@ -774,7 +791,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         elif self.turn_i.value == self.last_tracked_turn_frwrd:
             reference_turn_offset = 0
         else:
-            raise RuntimeError("Hunt")
+            raise RuntimeError("Turn value not possible, was a turn skipped?")
 
         if self.last_tracked_beam_state_frwrd is not None:
             if self.last_tracked_beam_state_frwrd:  # last beam was counterrot
@@ -814,9 +831,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 element.track_reference(
                     self.reference_state_until_tracked
                 )  # no need for CR flag
-            if isinstance(
-                element, RFStationBaseClass
-            ):  # and element == self.tracked_forward_until_element:
+            if isinstance(element, RFStationBaseClass):
                 element._turn_i._value -= reference_turn_offset
 
             omega_list.append(
@@ -839,7 +854,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 if is_above:
                     raise RuntimeError("yorak")
                     warnings.warn(
-                        "inconsistency with references", stacklevel=1
+                        "Inconsistency with references, is a delta_omega_rf applied to the rf_stations?",
+                        stacklevel=1,
                     )
                 found = True
                 break
@@ -885,9 +901,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             self.reverse_tracking_time_array = np.array(time_list)
             self.reverse_tracking_omega_list = np.array(omega_list)
 
-        # if not self.debug:
         self._unify_same_frequency_time_points_reverse()
-        # first entry references the 0 time-point, which is this cavity
 
         if self.debug:
             self.reference_time_after_reverse = (
@@ -1010,15 +1024,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.phase_offset_frwrd_next = (
             2.0
             * np.pi
-            * self._parent_rf_station.harmonic
-            * self._parent_rf_station.delta_omega_rf
+            * self.harmonic
+            * self.delta_omega_rf
             / self._parent_rf_station.calc_omega_rf_design(
                 beam_beta=self.reference_state_until_tracked.beta,
                 ring_circumference=self.ring.circumference,
             )
-        )  # this was added before
+        )
 
-        print(f"{self.phase_offset_frwrd=}")
         self.rf_centers = np.append(
             self.rf_centers,
             self._generate_rf_centers(
@@ -1080,7 +1093,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     ),
                     omega_rf=self.reverse_tracking_omega_list[time_ind],
                     phi_rf=self.phi_rf,
-                    # TODO: not working atm with delta_omega since the calculation of phi_increment is not done correctly
+                    # TODO: not working atm with delta_omega since the calculation of phi_increment is not done correctly in parent rf cavity
                     until_time=time,
                 ),
             )
@@ -1114,10 +1127,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             if (
                 self.tracked_forward_until_element
                 is not self._parent_rf_station
-                # and self.own_index_in_reference_list
-                # != self.reference_altering_elements_reverse.index(
-                #     self.tracked_forward_until_element
-                # )  # TODO: check if this works for more stations
             ):  # otherwise, the full turn was already tracked
                 self.calculate_rf_centers_for_reverse_direction(beam=beam)
         elif self._parent_rf_station._turn_i.value == 0:
