@@ -838,8 +838,8 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         total_energy
             Total relativistic energy, in [eV].
         """
-        assert turn_i >= 0, f"turn_i has to be >=0 but was {turn_i=}."
-        assert section_i >= 0, f"section_i has to be >=0 but was {section_i=}."
+        assert turn_i >= 0, f"`turn_i` has to be bigger or equal 0 but is {turn_i=}."
+        assert section_i >= 0, f"`section_i` has to be bigger or equal 0 but is {section_i=}."
 
         key = hash(particle_type)
 
