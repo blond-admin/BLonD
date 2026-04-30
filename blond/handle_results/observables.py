@@ -279,7 +279,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
     ----------
     each_turn_i
         Value to control that the element is
-        callable each n-th turn.
+        called each n-th turn.
     folder
         Path to the target folder used for
         saving or loading files.
@@ -380,7 +380,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         n_entries = self._calc_n_entries(n_turns)
         if mpi_is_distributed():  # pragma: no cover
             warnings.warn(
-                "Saving beam with `BeamObservationOncePerTurn` only from "
+                "Saving beam with `BeamHist2dOncePerTurn` only from "
                 "MPI-rank 0.",
                 UserWarning,
                 stacklevel=2,
