@@ -979,9 +979,9 @@ class SingleHarmonicRFStation(
         self.phi_rf_design: float | None = phi_rf
         self.harmonic: float | None = harmonic
 
-        self.delta_phi_rf: float | None = 0.0
-        self.delta_omega_rf: float | None = 0.0
-        self.phase_correction_frequency_offset: float | None = 0.0
+        self.delta_phi_rf: float = 0.0
+        self.delta_omega_rf: float = 0.0
+        self.phase_correction_frequency_offset: float = 0.0
 
         if self._delayed_kick is not None and self.any_feedback_not_none:
             assert delayed_kick_time_axis is None, (
@@ -1172,7 +1172,6 @@ class SingleHarmonicRFStation(
             charge=beam.signed_charge_with_direction(),
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )
-        pass
 
     def calc_gap_voltage_with_feedbacks(self):
         """
@@ -1308,17 +1307,17 @@ class MultiHarmonicRFStation(
 
     Parameters
     ----------
+    n_harmonics
+        Number of different RF waves for interaction.
+    main_harmonic_idx
+        Index of the RF station's main harmonic.
+        Used to calculate attributes that rely on only one harmonic.
     voltage
         Cavity's effective voltages (per harmonic) in [V].
     phi_rf
         Cavity's design phases (per harmonic) in [rad].
     harmonic
         Cavity's design harmonics (per harmonic) [].
-    n_harmonics
-        Number of different RF waves for interaction.
-    main_harmonic_idx
-        Index of the RF station's main harmonic.
-        Used to calculate attributes that rely on only one harmonic.
     section_index
         Section index to group elements into sections.
     local_wakefield
@@ -1354,11 +1353,11 @@ class MultiHarmonicRFStation(
 
     def __init__(
         self,
-        voltage: NumpyArray,
-        phi_rf: NumpyArray,
-        harmonic: NumpyArray,
         n_harmonics: int,
         main_harmonic_idx: int,
+        voltage: NumpyArray | None = None,
+        phi_rf: NumpyArray | None = None,
+        harmonic: NumpyArray | None = None,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback
@@ -1397,8 +1396,6 @@ class MultiHarmonicRFStation(
         self.harmonic: NumpyArray | None = (
             np.array(harmonic) if (harmonic is not None) else None
         )
-        self.delta_phi_rf: NumpyArray | None = np.zeros(n_harmonics)
-        self.delta_omega_rf: NumpyArray | None = np.zeros(n_harmonics)
 
         for array_name, input_array in (
             ("voltage", voltage),

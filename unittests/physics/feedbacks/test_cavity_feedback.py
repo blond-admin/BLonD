@@ -529,15 +529,13 @@ class TestIQCavityFeedbackTimingClass:
                     ]
                 )  # 2 elements between two cavities
 
-            check_allclose_turn_printing(
+            check_allclose_turn_printing_nested(
                 time_passed_list,
-                time_passed_list[0],
                 simulation.turn_i.value,
                 f"time_passed to init time passed no acceleration",
             )  # with no acceleration, this has to be true (all time_passed are the same
-            check_allclose_turn_printing(
+            check_allclose_turn_printing_nested(
                 omega_list,
-                omega_list[0],
                 simulation.turn_i.value,
                 f"omega to init omega no acceleration",
             )  # with no acceleration, this has to be true (all omegas are the same)
@@ -762,17 +760,19 @@ class TestIQCavityFeedbackTimingClass:
 
                     check_fail_printing(
                         fdbk.tracked_forward_until_element
-                        not in fdbk.current_slice_elements_forward,
+                        in fdbk.current_slice_elements_forward,
                         f"{fdbk.tracked_forward_until_element} is in the current slice but should not yet be. ",
                     )
 
                     rf_center_list[idx][sim.turn_i.value - 1] = fdbk.rf_centers
                     check_fail_printing(
-                        fdbk.tracked_forward_until_element
-                        is fdbk.reference_altering_elements[
-                            (fdbk.own_index_in_reference_list + 3)
-                            % len(fdbk.reference_altering_elements)
-                        ],
+                        not (
+                            fdbk.tracked_forward_until_element
+                            is fdbk.reference_altering_elements[
+                                (fdbk.own_index_in_reference_list + 3)
+                                % len(fdbk.reference_altering_elements)
+                            ]
+                        ),
                         f"tracking did no include 3 elements (two drift frwrd + element itself).",
                     )  # 3 elements between two cavities
 
@@ -910,7 +910,7 @@ class TestIQCavityFeedbackTimingClass:
                     fdbk: IQCavityFeedbackTimingClass
                     check_fail_printing(
                         len(fdbk.rf_centers)
-                        == int(
+                        != int(
                             np.floor(harm_per_half_drift)
                             + fdbk.section_index * harm_per_full_drift
                             + harm_per_full_drift
@@ -925,7 +925,7 @@ class TestIQCavityFeedbackTimingClass:
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
                     check_fail_printing(
-                        len(fdbk.rf_centers) == 20,
+                        len(fdbk.rf_centers) != 20,
                         f"failed in {simulation.turn_i.value} {idx} {len(fdbk.rf_centers)}",  # 15 from reverse and 5 from frwrd
                     )
                     msk = fdbk.reverse_tracking_time_array != 0
@@ -1091,7 +1091,7 @@ class TestIQCavityFeedbackTimingClass:
                     )
                 ), f"{fdbk_ind}, {trn_ind}"  # type: ignore
 
-    @pytest.mark.parametrize("n_sections", [4])  # , 4, 20,
+    @pytest.mark.parametrize("n_sections", [2, 410])
     def test_rf_centers_full_counterrotation_equality(self, n_sections):
         backend.set_specials("cpp")
         backend.change_backend(Numpy64Bit)
@@ -1216,30 +1216,34 @@ class TestIQCavityFeedbackTimingClass:
             ):
                 if n_sections == 2:
                     check_fail_printing(
-                        len(fdbk.rf_centers) == int(harm_per_full_drift),
-                        f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value}.",
+                        len(fdbk.rf_centers) != int(harm_per_full_drift),
+                        f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value},"
+                        f" was {len(fdbk.rf_centers)} but should have been {int(harm_per_full_drift)}.",
                     )
                     check_fail_printing(
                         len(timing_fdbk_list[1].rf_centers)
-                        == int(harm_per_full_drift),
-                        f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value}.",
+                        != int(harm_per_full_drift),
+                        f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value},"
+                        f" was f{len(timing_fdbk_list[1].rf_centers)} but should have been {int(harm_per_full_drift)}.",
                     )
                     break
                 else:
                     reverse_index = len(timing_fdbk_list) - idx - 1
-                    should_be_length = (
-                        int((((n_sections - 1) / 2) - fdbk.section_index) * 2)
+                    should_be_length = int(
+                        ((((n_sections - 1) / 2) - fdbk.section_index) * 2)
                         * harm_per_full_drift
                     )
                     check_fail_printing(
-                        len(fdbk.rf_centers) == should_be_length,
-                        f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value}.",
+                        len(fdbk.rf_centers) != should_be_length,
+                        f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value},"
+                        f" was {len(fdbk.rf_centers)} but should have been {should_be_length}.",
                     )
 
                     check_fail_printing(
                         len(timing_fdbk_list[reverse_index].rf_centers)
-                        == should_be_length,
-                        f"problem with rf centers reverse length check for fdbk idx {reverse_index} in turn {simulation.turn_i.value}.",
+                        != should_be_length,
+                        f"problem with rf centers reverse length check for fdbk idx {reverse_index} in turn {simulation.turn_i.value},"
+                        f" was {len(timing_fdbk_list[reverse_index].rf_centers)} but should have been {should_be_length}",
                     )
 
             # save for further analysis
