@@ -788,8 +788,11 @@ class TestSimulation(unittest.TestCase):
         if DEV_PLOT:
             plt.show()
 
-    def test_current_t_rev(self):
-        buffer = np.zeros(2)
+    def test_current_dE_rev(self):
+        # set initial value of energy
+        buffer = (
+            np.ones(2) * self.simulation.magnetic_cycle.get_total_energy_init()
+        )
         dE_rev_effective = np.empty(10)
         dE_rev_sim = np.empty(10)
         DEV_PLOT = False
@@ -810,7 +813,7 @@ class TestSimulation(unittest.TestCase):
             n_turns=10,
             callbacks=callback,
         )
-        np.testing.assert_allclose(dE_rev_effective, dE_rev_sim)
+        np.testing.assert_allclose(dE_rev_sim, dE_rev_effective)
         if DEV_PLOT:
             plt.show()
 
