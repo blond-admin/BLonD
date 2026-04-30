@@ -490,7 +490,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
 
     def plot_fancy(self, result_idx: int) -> tuple[Axes, Axes, Axes]:
         """
-        Make a fancy plot of the beam 2D histogram.
+        Make a fancy plot of the beam 2D histogram and the corresponding histograms of the dE and dt projections. 
 
         Parameters
         ----------
