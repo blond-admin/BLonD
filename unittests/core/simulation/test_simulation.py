@@ -742,6 +742,7 @@ class TestSimulation(unittest.TestCase):
             )
             wakefield.profile.hist_y_to_density_factor = 1e-05
             sim.simulation.intensity_effect_manager.set_profiles(False)
+            wakefield.calc_induced_voltage(sim.beam1)
             potential, factor, tilt = (
                 sim.simulation.get_potential_well_empiric(
                     dt=np.linspace(0, 3e-9),
