@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond.core.reference_clock.reference_clock_numba import beta as beta_nb
 from blond.core.reference_clock.reference_clock_numba import gamma as gamma_nb
 from blond.core.reference_clock.reference_clock_numba import (
@@ -114,7 +116,9 @@ class ReferenceCoordinates:
         beta
             Beam reference fraction of speed of light (v/c0) [].
         """
-        return beta_nb(self._total_energy, self._particle_type.mass_inv)
+        beta = beta_nb(self._total_energy, self._particle_type.mass_inv)
+        assert not np.isnan(beta), f"{beta=}"
+        return beta
 
     @property
     def velocity(self) -> float:
