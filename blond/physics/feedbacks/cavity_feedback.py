@@ -784,6 +784,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         time_list = []
         omega_list = []
         start_time = self.reference_state_until_tracked.time
+
         found = False
 
         if self.turn_i.value > self.last_tracked_turn_frwrd:
@@ -1078,6 +1079,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             self.own_index_in_reference_list == 0
             and self.tracked_forward_until_element is None
         ):
+            return
+        if beam.reference.time == self.reference_state_until_tracked.time:
             return
 
         self.get_time_omega_array_reverse_direction(beam=beam)
