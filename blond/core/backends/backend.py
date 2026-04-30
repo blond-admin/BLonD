@@ -166,7 +166,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def kick_induced_voltage(  # NOQA: D102
+    def kick_interpolated(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
@@ -175,7 +175,7 @@ class Specials(ABC):
         acceleration_kick: float,
     ) -> None:
         raise NotImplementedError(
-            "Abstract method `kick_induced_voltage` is not implemented."
+            "Abstract method `kick_interpolated` is not implemented."
         )
 
     @staticmethod
