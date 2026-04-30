@@ -529,11 +529,17 @@ class TestIQCavityFeedbackTimingClass:
                     ]
                 )  # 2 elements between two cavities
 
-            np.testing.assert_allclose(
-                time_passed_list, time_passed_list[0]
+            check_allclose_turn_printing(
+                time_passed_list,
+                time_passed_list[0],
+                simulation.turn_i.value,
+                f"time_passed to init time passed no acceleration",
             )  # with no acceleration, this has to be true (all time_passed are the same
-            np.testing.assert_allclose(
-                omega_list, omega_list[0]
+            check_allclose_turn_printing(
+                omega_list,
+                omega_list[0],
+                simulation.turn_i.value,
+                f"omega to init omega no acceleration",
             )  # with no acceleration, this has to be true (all omegas are the same)
             last_x_indices = (
                 0
@@ -550,7 +556,6 @@ class TestIQCavityFeedbackTimingClass:
                 for rf_centers_list_entry in rf_centers_list
             ]  # with no acceleration, this has to be true (all RF centers are the same)
 
-        #
         sim.run_simulation(
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
         )
@@ -584,7 +589,7 @@ class TestIQCavityFeedbackTimingClass:
         )
 
         def callback(simulation: Simulation, beam: Beam):
-            if simulation.turn_i.value == 0:  # TODO: and not CR
+            if simulation.turn_i.value == 0:
                 return
             time_passed_list = []
             omega_list = []
@@ -627,20 +632,6 @@ class TestIQCavityFeedbackTimingClass:
                         != len(fdbk.reverse_tracking_time_array),
                         f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
                     )
-
-                # rf_centers_list.append(fdbk.rf_centers_reverse_direction)
-
-                # assert (
-                #         fdbk.tracked_forward_until_element
-                #         not in fdbk.current_slice_elements_forward
-                # )  # this element should be tracked afterwards, not now
-                # assert (
-                #         fdbk.tracked_forward_until_element
-                #         is fdbk.reference_altering_elements[
-                #             (fdbk.own_index_in_reference_list + 3)
-                #             % len(fdbk.reference_altering_elements)
-                #             ]
-                # )  # 3 elements between two cavities
 
             check_allclose_turn_printing_nested(
                 time_passed_list, simulation.turn_i.value, "time_passed"
@@ -769,18 +760,20 @@ class TestIQCavityFeedbackTimingClass:
                     )
                     omega_list[idx][sim.turn_i.value - 1] = used_omega_array
 
-                    assert (
+                    check_fail_printing(
                         fdbk.tracked_forward_until_element
-                        not in fdbk.current_slice_elements_forward
-                    )  # this element should be tracked afterwards, not now
+                        not in fdbk.current_slice_elements_forward,
+                        f"{fdbk.tracked_forward_until_element} is in the current slice but should not yet be. ",
+                    )
 
                     rf_center_list[idx][sim.turn_i.value - 1] = fdbk.rf_centers
-                    assert (
+                    check_fail_printing(
                         fdbk.tracked_forward_until_element
                         is fdbk.reference_altering_elements[
                             (fdbk.own_index_in_reference_list + 3)
                             % len(fdbk.reference_altering_elements)
-                        ]
+                        ],
+                        f"tracking did no include 3 elements (two drift frwrd + element itself).",
                     )  # 3 elements between two cavities
 
         sim.run_simulation(
@@ -915,18 +908,23 @@ class TestIQCavityFeedbackTimingClass:
             if simulation.turn_i.value == 0:  # TODO: and not CR
                 for idx, fdbk in enumerate(timing_fdbk_list):
                     fdbk: IQCavityFeedbackTimingClass
-                    assert len(fdbk.rf_centers) == int(
-                        np.floor(harm_per_half_drift)
-                        + fdbk.section_index * harm_per_full_drift
-                        + harm_per_full_drift
+                    check_fail_printing(
+                        len(fdbk.rf_centers)
+                        == int(
+                            np.floor(harm_per_half_drift)
+                            + fdbk.section_index * harm_per_full_drift
+                            + harm_per_full_drift
+                        ),
+                        f"improper rf centers length in turn zero for fdbk idx {idx}.",
                     )
+
                 return
             for idx, fdbk in enumerate(timing_fdbk_list):
                 fdbk: IQCavityFeedbackTimingClass
                 if (
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
-                    assert (
+                    check_fail_printing(
                         len(fdbk.rf_centers) == 20,
                         f"failed in {simulation.turn_i.value} {idx} {len(fdbk.rf_centers)}",  # 15 from reverse and 5 from frwrd
                     )
@@ -1170,8 +1168,6 @@ class TestIQCavityFeedbackTimingClass:
         harm_per_full_drift = harm_per_half_drift * 2
 
         def callback(simulation: Simulation, beam: Beam):
-            # TODO: implement euqliaty of length checks here, value checking below
-
             # correct element until check
             for idx, fdbk in enumerate(timing_fdbk_list):
                 if idx >= n_sections // 2:
@@ -1200,7 +1196,6 @@ class TestIQCavityFeedbackTimingClass:
             for idx, fdbk in enumerate(
                 timing_fdbk_list[0 : len(timing_fdbk_list) // 2]
             ):
-                # TODO: does this cover half the list?
                 reverse_index = len(timing_fdbk_list) - idx - 1
                 np.testing.assert_allclose(
                     fdbk.rf_centers,
@@ -1208,15 +1203,26 @@ class TestIQCavityFeedbackTimingClass:
                     atol=0,
                     rtol=1e-12,
                 )
+                check_allclose_turn_printing(
+                    fdbk.rf_centers,
+                    timing_fdbk_list[reverse_index].rf_centers,
+                    simulation.turn_i.value,
+                    "rf_centers equality check",
+                )
 
             # correct length check
             for idx, fdbk in enumerate(
                 timing_fdbk_list[0 : len(timing_fdbk_list) // 2]
             ):
                 if n_sections == 2:
-                    assert len(fdbk.rf_centers) == int(harm_per_full_drift)
-                    assert len(timing_fdbk_list[1].rf_centers) == int(
-                        harm_per_full_drift
+                    check_fail_printing(
+                        len(fdbk.rf_centers) == int(harm_per_full_drift),
+                        f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value}.",
+                    )
+                    check_fail_printing(
+                        len(timing_fdbk_list[1].rf_centers)
+                        == int(harm_per_full_drift),
+                        f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value}.",
                     )
                     break
                 else:
@@ -1225,11 +1231,15 @@ class TestIQCavityFeedbackTimingClass:
                         int((((n_sections - 1) / 2) - fdbk.section_index) * 2)
                         * harm_per_full_drift
                     )
-                    assert len(fdbk.rf_centers) == should_be_length
+                    check_fail_printing(
+                        len(fdbk.rf_centers) == should_be_length,
+                        f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value}.",
+                    )
 
-                    assert (
+                    check_fail_printing(
                         len(timing_fdbk_list[reverse_index].rf_centers)
-                        == should_be_length
+                        == should_be_length,
+                        f"problem with rf centers reverse length check for fdbk idx {reverse_index} in turn {simulation.turn_i.value}.",
                     )
 
             # save for further analysis
