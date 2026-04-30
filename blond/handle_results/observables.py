@@ -378,7 +378,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         self._consider_intensity = beam.intensity != 0
 
         n_entries = self._calc_n_entries(n_turns)
-        if mpi_is_distributed():
+        if mpi_is_distributed():  # pragma: no cover
             warnings.warn(
                 "Saving beam with `BeamObservationOncePerTurn` only from "
                 "MPI-rank 0.",
