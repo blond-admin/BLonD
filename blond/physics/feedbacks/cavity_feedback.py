@@ -566,6 +566,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.reference_state_until_tracked: ReferenceCoordinates | None = None
         self.reference_turn_offset: int = 0
         self.last_tracked_turn_frwrd: int = 0
+        self.last_tracked_beam_state_frwrd: bool | None = None
 
         self.debug = debug
 
@@ -663,7 +664,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     el_ind + own_index_tracking
                     # This will be the next element
                 )
-                self.last_tracked_turn_frwrd = deepcopy(self.turn_i.value - 1)
+                self.last_tracked_turn_frwrd = deepcopy(self.turn_i.value)
                 self.reference_turn_offset = -1
                 break
             element: AltersReference
@@ -691,7 +692,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                             )  # This will be the next element
                         )
                         self.last_tracked_turn_frwrd = deepcopy(
-                            self.turn_i.value
+                            self.turn_i.value + 1
                         )
                         self.reference_turn_offset = 0
                         break
@@ -752,7 +753,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     self.own_index_in_reference_list : next_reference_altering_element_index
                 ]
 
-    def get_time_omega_array_reverse_direction(self, beam: BeamBaseClass):  # noqa: PLR0912
+    def get_time_omega_array_reverse_direction(self, beam: BeamBaseClass):  # noqa: PLR0912, PLR0915
         """
         Determine the slice of elements, which should be tracked in the reverse direction.
 
@@ -763,23 +764,38 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam object to receive the reference frame.
         """
-        if self.tracked_forward_until_element is not None:
-            start_index = self.reference_altering_elements.index(
-                self.tracked_forward_until_element
-            )
-        else:
-            start_index = 0
         time_list = []
         omega_list = []
         start_time = self.reference_state_until_tracked.time
         found = False
-        # if self.turn_i.value > self.last_tracked_turn_frwrd:
-        #     self.reference_turn_offset = -1
-        # elif self.turn_i.value == self.last_tracked_turn_frwrd:
-        #     self.reference_turn_offset = 0
-        # else:
-        #     raise RuntimeError("Hunt")
-        for element in self.reference_altering_elements[
+
+        if self.turn_i.value > self.last_tracked_turn_frwrd:
+            reference_turn_offset = -1
+        elif self.turn_i.value == self.last_tracked_turn_frwrd:
+            reference_turn_offset = 0
+        else:
+            raise RuntimeError("Hunt")
+
+        if self.last_tracked_beam_state_frwrd is not None:
+            if self.last_tracked_beam_state_frwrd:  # last beam was counterrot
+                start_index = self.reference_index_until_tracked_reverse
+                reverse_tracking_list = (
+                    self.reference_altering_elements_reverse
+                )
+            else:  # last beam was corot
+                start_index = self.reference_index_until_tracked
+                reverse_tracking_list = self.reference_altering_elements
+        else:
+            # first turn, nothing has been tracked yet.
+            if beam.is_counter_rotating:  # counterrot
+                reverse_tracking_list = (
+                    self.reference_altering_elements_reverse
+                )
+            else:  # corot
+                reverse_tracking_list = self.reference_altering_elements
+            start_index = 0
+
+        for element in reverse_tracking_list[
             start_index:
         ]:  # iterate through remaining last turn
             element: AltersReference  # TODO: are duplicate elements allowed in pipeline?
@@ -789,12 +805,19 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 # Since we are in the previous turn, we need to decrease this manually
                 # and increase it afterwards (only for cavities in case of scheduled acceleration).
                 # this is not strictly true for all cases, but only cases, where the reference crosses the turn border on the forward tracking
-                element._turn_i._value += self.reference_turn_offset
-            element.track_reference(self.reference_state_until_tracked)
+                element._turn_i._value += reference_turn_offset
+                element.track_reference(
+                    self.reference_state_until_tracked,
+                    beam.is_counter_rotating,
+                )
+            else:
+                element.track_reference(
+                    self.reference_state_until_tracked
+                )  # no need for CR flag
             if isinstance(
                 element, RFStationBaseClass
             ):  # and element == self.tracked_forward_until_element:
-                element._turn_i._value -= self.reference_turn_offset
+                element._turn_i._value -= reference_turn_offset
 
             omega_list.append(
                 self._parent_rf_station.calc_omega_rf_design(
@@ -821,12 +844,23 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 found = True
                 break
 
+        if reverse_tracking_list is self.reference_altering_elements:
+            until_index = self.own_index_in_reference_list
+        else:
+            until_index = self.own_index_in_reference_list_reverse
+
         if not found:
-            for element in self.reference_altering_elements[
-                : self.own_index_in_reference_list
+            for element in reverse_tracking_list[
+                :until_index
             ]:  # iterate through initial current turn
                 element: AltersReference
-                element.track_reference(self.reference_state_until_tracked)
+                if isinstance(element, RFStationBaseClass):
+                    element.track_reference(
+                        self.reference_state_until_tracked,
+                        beam.is_counter_rotating,
+                    )
+                else:
+                    element.track_reference(self.reference_state_until_tracked)
                 omega_list.append(
                     self._parent_rf_station.calc_omega_rf_design(
                         self.reference_state_until_tracked.beta,
@@ -910,7 +944,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         phi: float, frequency: float
     ) -> float:
         phi_modulated = np.mod(phi, 2 * np.pi)
-        return (np.pi - phi_modulated) / frequency
+        return np.mod(np.pi - phi_modulated, 2 * np.pi) / frequency
 
     def _generate_rf_centers(self, t_rf, omega_rf, phi_rf, until_time: float):
         time_to_next_falling_edge_zero = (
@@ -1076,18 +1110,18 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             Beam to be tracked.
         """
         self.rf_centers = np.zeros(0)
-        # if self.tracked_forward_until_element is not None:  # noqa: SIM102
-        #     if (
-        #         self.tracked_forward_until_element
-        #         is not self._parent_rf_station
-        #         # and self.own_index_in_reference_list
-        #         # != self.reference_altering_elements_reverse.index(
-        #         #     self.tracked_forward_until_element
-        #         # )  # TODO: check if this works for more stations
-        #     ):  # otherwise, the full turn was already tracked
-        #         self.calculate_rf_centers_for_reverse_direction(beam=beam)
-        # elif self._parent_rf_station._turn_i.value == 0:
-        #     self.calculate_rf_centers_for_reverse_direction(beam=beam)
+        if self.tracked_forward_until_element is not None:  # noqa: SIM102
+            if (
+                self.tracked_forward_until_element
+                is not self._parent_rf_station
+                # and self.own_index_in_reference_list
+                # != self.reference_altering_elements_reverse.index(
+                #     self.tracked_forward_until_element
+                # )  # TODO: check if this works for more stations
+            ):  # otherwise, the full turn was already tracked
+                self.calculate_rf_centers_for_reverse_direction(beam=beam)
+        elif self._parent_rf_station._turn_i.value == 0:
+            self.calculate_rf_centers_for_reverse_direction(beam=beam)
 
         self.calculate_rf_centers_for_forward_direction(beam=beam)
         self.relative_voltage_correction = np.ones_like(self.profile.hist_x)

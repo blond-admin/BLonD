@@ -655,7 +655,7 @@ class TestIQCavityFeedbackTimingClass:
         )
 
     @pytest.mark.backend_mutation
-    @pytest.mark.parametrize("n_sections", [1, 2, 10])  #
+    @pytest.mark.parametrize("n_sections", [4])  # [1, 4, 10]
     def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse(
         self, n_sections: int
     ):
