@@ -1091,7 +1091,7 @@ class TestIQCavityFeedbackTimingClass:
                     )
                 ), f"{fdbk_ind}, {trn_ind}"  # type: ignore
 
-    @pytest.mark.parametrize("n_sections", [2, 410])
+    @pytest.mark.parametrize("n_sections", [2, 4, 10])
     def test_rf_centers_full_counterrotation_equality(self, n_sections):
         backend.set_specials("cpp")
         backend.change_backend(Numpy64Bit)
