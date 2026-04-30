@@ -371,6 +371,9 @@ class WakeField(ImpedanceBaseClass):
         List of sources that cause wake-fields.
     solver
         Solver to calculate the induced voltage from the sources.
+    update_induced_voltage
+        If ``False``, will not update the induced voltage based on the profile,
+        but rather re-use the previously calculated induced voltage.
 
     See Also
     --------
@@ -406,6 +409,7 @@ class WakeField(ImpedanceBaseClass):
 
         self.solver = solver
         self.sources = sources
+        self.update_induced_voltage = True
         self._induced_voltage = None
         self.track_profile = True
 
@@ -485,7 +489,7 @@ class WakeField(ImpedanceBaseClass):
         ]
         # the induced voltage has to be provided with the backend precision
         # because the track() method below requires it by calling the backend.
-        return self.induced_voltage[: self.profile.n_bins]
+        return self.induced_voltage
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -498,7 +502,9 @@ class WakeField(ImpedanceBaseClass):
         """
         if self.profile.active and self.track_profile:
             self.profile.track(beam=beam)
-        induced_voltage = self.calc_induced_voltage(beam=beam)
+        if self.update_induced_voltage:
+            self.calc_induced_voltage(beam=beam)
+        induced_voltage = self.induced_voltage
         assert induced_voltage.dtype == backend.float, (
             f"{induced_voltage.dtype}"
         )

@@ -570,7 +570,11 @@ class Simulation(Preparable):
         )
         bunch_before = deepcopy(probe_bunch)
         t_0 = probe_bunch.reference.time
-        deepcopy(self).run_simulation(
+
+        # prevent side effect
+        sim_tmp = deepcopy(self)
+
+        sim_tmp.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             show_progressbar=False,
