@@ -1171,15 +1171,18 @@ class TestIQCavityFeedbackTimingClass:
 
         def callback(simulation: Simulation, beam: Beam):
             # TODO: implement euqliaty of length checks here, value checking below
+
+            # correct element until check
             for idx, fdbk in enumerate(timing_fdbk_list):
                 if idx >= n_sections // 2:
                     # second half, corot last
-                    # assert fdbk.reference_index_until_tracked == (fdbk.own_index_in_reference_list - 3) % len(fdbk.reference_altering_elements)
-                    pass
-                    # third element if next cavtiy which has not been tracked
-                    assert fdbk.reference_index_until_tracked == (
-                        fdbk.own_index_in_reference_list + 3
-                    ) % len(fdbk.reference_altering_elements)
+                    assert (
+                        fdbk.reference_index_until_tracked
+                        == (  # TODO: rework with proper printing
+                            fdbk.own_index_in_reference_list + 3
+                        )
+                        % len(fdbk.reference_altering_elements)
+                    )
                     assert fdbk.reference_index_until_tracked_reverse == (
                         len(fdbk.reference_altering_elements)
                         - (fdbk.own_index_in_reference_list + 3 + 1)
@@ -1193,39 +1196,48 @@ class TestIQCavityFeedbackTimingClass:
                         len(fdbk.reference_altering_elements)
                         - (fdbk.own_index_in_reference_list - 3 + 1)
                     ) % len(fdbk.reference_altering_elements)
-                # if idx == 0:
-                #
-                # else:
-                #     assert fdbk.reference_index_until_tracked == (fdbk.own_index_in_reference_list + 3) % len(fdbk.reference_altering_elements)
-            # if simulation.turn_i.value == 0:  # TODO: and not CR
-            #     for idx, fdbk in enumerate(timing_fdbk_list):  # CR beam -->
-            #         fdbk: IQCavityFeedbackTimingClass
-            #         # if n_sections == 2:
-            #         #     assert len(fdbk.rf_centers) == int(harm_per_full_drift)  # tracking is always performed until next section
-            #         # else:
-            #         assert (
-            #             len(fdbk.rf_centers)
-            #             == int(
-            #                 +harm_per_full_drift
-            #                 * np.ceil(
-            #                     abs(
-            #                         ((n_sections - 1) / 2) - fdbk.section_index
-            #                     )
-            #                 )
-            #             )
-            #         )  # TODO: this has to do with distance from crossing point --> adjust for higher harmonics
-            #     return
-            # return
+            # equality of values check here
+            for idx, fdbk in enumerate(
+                timing_fdbk_list[0 : len(timing_fdbk_list) // 2]
+            ):
+                # TODO: does this cover half the list?
+                reverse_index = len(timing_fdbk_list) - idx - 1
+                np.testing.assert_allclose(
+                    fdbk.rf_centers,
+                    timing_fdbk_list[reverse_index].rf_centers,
+                    atol=0,
+                    rtol=1e-12,
+                )
+
+            # correct length check
+            for idx, fdbk in enumerate(
+                timing_fdbk_list[0 : len(timing_fdbk_list) // 2]
+            ):
+                if n_sections == 2:
+                    assert len(fdbk.rf_centers) == int(harm_per_full_drift)
+                    assert len(timing_fdbk_list[1].rf_centers) == int(
+                        harm_per_full_drift
+                    )
+                    break
+                else:
+                    reverse_index = len(timing_fdbk_list) - idx - 1
+                    should_be_length = (
+                        int((((n_sections - 1) / 2) - fdbk.section_index) * 2)
+                        * harm_per_full_drift
+                    )
+                    assert len(fdbk.rf_centers) == should_be_length
+
+                    assert (
+                        len(timing_fdbk_list[reverse_index].rf_centers)
+                        == should_be_length
+                    )
+
+            # save for further analysis
             for idx, fdbk in enumerate(timing_fdbk_list):
                 fdbk: IQCavityFeedbackTimingClass
                 if (
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
-                    assert (
-                        len(fdbk.rf_centers) == 20,
-                        f"failed in {simulation.turn_i.value} {idx} {len(fdbk.rf_centers)}",
-                        # 15 from reverse and 5 from frwrd
-                    )
                     msk = fdbk.reverse_tracking_time_array != 0
                     used_time_array = np.array(
                         fdbk.reverse_tracking_time_array
@@ -1260,10 +1272,9 @@ class TestIQCavityFeedbackTimingClass:
             n_turns=n_turns_to_simulate,
         )
 
-        return
-
         harm_per_section = self.harmonic // n_sections
         rf_center_list = np.array(rf_center_list)
+        return
         for trn_ind in range(
             0, n_turns_to_simulate - 1
         ):  # first turn is not recorded
