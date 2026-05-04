@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+import sympy
 from scipy.constants import c
 from scipy.constants import speed_of_light as c0
 
@@ -219,6 +220,43 @@ class TestDriftSimple(unittest.TestCase):
             orbit_length=1.0, section_index=0, momentum_compaction_factor=2.5
         )
 
+    def test_compare_track_ham(self):
+        from blond.core.beam.particle_types import proton
+
+        drift = DriftSimple.headless(
+            momentum_compaction_factor=1e-3,
+            orbit_length=10.0,
+            section_index=0,
+        )
+        dE_values = np.linspace(-1e6, 1e6, 11)
+        beam = ProbeBeam(
+            dE=dE_values,
+            particle_type=proton,
+            reference_total_energy=1e9,
+        )
+        dt_before = beam.dt.copy_as_numpy()
+
+        # Predicted dt change: dH/d(dE) evaluated at each particle's dE.
+        dE_s, beta_s, gamma_s, E_s = sympy.symbols(
+            "dE beta gamma E", real=True
+        )
+        dH_ddE = sympy.lambdify(
+            (dE_s, beta_s, gamma_s, E_s),
+            sympy.diff(drift.get_hamilton_symbolic(), dE_s),
+            modules="numpy",
+        )
+        predicted = dH_ddE(
+            dE_values,
+            beam.reference.beta,
+            beam.reference.gamma,
+            beam.reference.total_energy,
+        )
+
+        drift.track(beam=beam)
+        actual = beam.dt.copy_as_numpy() - dt_before
+
+        np.testing.assert_allclose(actual, predicted, rtol=1e-12)
+
 
 class TestDriftExact(unittest.TestCase):
     def setUp(self):
@@ -333,6 +371,9 @@ class TestDriftExact(unittest.TestCase):
         drift.track(beam=beam)
 
         np.testing.assert_allclose(blond2_expected, beam.dt.copy_as_numpy())
+
+    def test_compare_track_ham(self):
+        pass
 
 
 class TestDriftSpecial(unittest.TestCase):
