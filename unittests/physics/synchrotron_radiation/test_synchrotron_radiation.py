@@ -289,7 +289,9 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             90.65874532 * 1e3,
             radiation_integrals=self.synchrotron_radiation_integrals,
         )
-        momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+        momentum_compaction_factor = self.synchrotron_radiation_integrals[
+            0
+        ] / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
@@ -460,7 +462,9 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             90.65874532 * 1e3,
             radiation_integrals=self.synchrotron_radiation_integrals,
         )
-        momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+        momentum_compaction_factor = self.synchrotron_radiation_integrals[
+            0
+        ] / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
@@ -513,7 +517,9 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             90.65874532 * 1e3,
             radiation_integrals=self.synchrotron_radiation_integrals,
         )
-        momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+        momentum_compaction_factor = self.synchrotron_radiation_integrals[
+            0
+        ] / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
@@ -573,7 +579,9 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             90.65874532 * 1e3,
             radiation_integrals=self.synchrotron_radiation_integrals,
         )
-        momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+        momentum_compaction_factor = self.synchrotron_radiation_integrals[
+            0
+        ] / (90.65874532 * 1e3)
 
         number_of_sections = 4
         for i in range(number_of_sections):
