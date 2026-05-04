@@ -5,9 +5,10 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
+import unittest
+
 import numpy as np
 from matplotlib import pyplot as plt
-from sympy.physics.quantum.trace import Tr
 
 from blond import (
     Beam,
@@ -30,7 +31,7 @@ from blond.utilities.separatrix.symbolic_serapartix import (
 
 class TestSymbolicSeparatrixHelper:
     def test_integration(self):
-        DEV_DRAW = False
+        DEV_DRAW = True  # TODO false
         ring = Ring(26658.883)
 
         rf_station1 = MultiHarmonicRFStation(
@@ -42,7 +43,7 @@ class TestSymbolicSeparatrixHelper:
         N_TURNS = int(1e3)
 
         energy_cycle = MagneticCyclePerTurn.init_from_linspace(
-            values=np.linspace(450e9, 450e9, N_TURNS + 1),
+            values=np.linspace(450e9, 451e9, N_TURNS + 1),
             reference_particle=proton,
         )
 
@@ -85,8 +86,8 @@ class TestSymbolicSeparatrixHelper:
             n_macroparticles=1e5,
             intensity=1e9,
             particle_type=proton,
-            dt_scale=0.4e-9 / 4,
-            dE_scale=1e9 / 2,
+            dt_scale=t_rf / 4,
+            dE_scale=0.1e9 / 2,
             dt_offset=t_rf / 2,
             seed=1,
         )
@@ -110,13 +111,19 @@ class TestSymbolicSeparatrixHelper:
                 beam.read_partial_dE(),
                 s=1,
             )
-            separatrix_dE = SymbolicSeparatrixHelper.from_simulation(
+            dt, separatrix_dE = SymbolicSeparatrixHelper.from_simulation(
                 simulation=sim
             ).get_separatrix(
                 beam=beam,
                 dt=np.linspace(*trange0_, 1000),
             )
             if simulation.turn_i.value == 0:
+                np.savetxt(
+                    callers_relative_path(
+                        "resources/separatrix_dE_pinned.txt", stacklevel=1
+                    ),
+                    separatrix_dE,
+                )
                 separatrix_dE_pinned = np.loadtxt(
                     callers_relative_path(
                         "resources/separatrix_dE_pinned.txt", stacklevel=1
@@ -147,4 +154,4 @@ class TestSymbolicSeparatrixHelper:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main()
+    unittest.main()
