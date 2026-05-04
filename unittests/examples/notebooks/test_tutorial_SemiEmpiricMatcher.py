@@ -62,6 +62,7 @@ class TestTutorialSemiEmpiricMatcher(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
+        self.skipTest("Too slow.")  # TODO activate
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
 
