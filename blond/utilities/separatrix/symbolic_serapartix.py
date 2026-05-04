@@ -36,6 +36,9 @@ class SymbolicSeparatrixHelper:
     """
     A helper tool to derive the separatrix dynamically from a symbolic Hamiltonian.
 
+    This captures only the instantaneous separatrix and does not
+    automatically update, when the simulation variables are updated.
+
     Parameters
     ----------
     hamiltonian
