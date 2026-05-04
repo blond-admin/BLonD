@@ -1362,9 +1362,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             start_index = np.sum(
                 self.rf_centers_lengths[:omega_index], dtype=int
             )
-            end_index = (
-                np.sum(self.rf_centers_lengths[: omega_index + 1], dtype=int)
-                - 1
+            end_index = np.sum(
+                self.rf_centers_lengths[: omega_index + 1], dtype=int
             )
 
             self.circuit_track(
@@ -1395,7 +1394,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             omega_input=self.forward_tracking_omega_rf,
             no_beam=False,
             start_index=len(self.rf_centers) - len_frwrd,
-            end_index=len(self.rf_centers) - 1,
+            end_index=len(self.rf_centers),
         )  # for all rf_centers
 
         # Convert to amplitude and phase
@@ -1488,6 +1487,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         use_lowpass_filter
             Usage of low-pass filter in the calculation of the beam current.
         """
+        if self.profile.active:
+            self.profile.track(beam=beam)
+
         # Beam current from profile
         sampling_time_frwrd = (
             self.n_rf_periods_per_coarse_grid
@@ -1507,7 +1509,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             beam=beam,
             profile=self.profile,
             omega_c=self.forward_tracking_omega_rf,
-            T_rev=self.forward_tracking_time,  # wrong
+            T_rev=self.forward_tracking_time,
             use_lowpass_filter=use_lowpass_filter,
             downsample={
                 "Ts": sampling_time_frwrd,
@@ -1522,5 +1524,5 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             self.beam_current_fine_grid / self.profile.hist_step
         )
         self.beam_current_forward_coarse_grid = (
-            self.beam_current_forward_coarse_grid / self.sampling_time_coarse
+            self.beam_current_forward_coarse_grid / sampling_time_frwrd
         )

@@ -188,7 +188,7 @@ def rf_beam_current(
 
         # Find which index in fine grid matches index in coarse grid
         ind_fine = np.round(
-            (profile.hist_x - dT - np.pi / omega_c) / T_s
+            (profile.hist_x + dT - np.pi / omega_c) / T_s
         )  # TODO: + or - here?
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
@@ -197,10 +197,9 @@ def rf_beam_current(
 
         # Pick total current within one coarse grid
         charges_coarse = np.zeros(n_points, dtype=complex)
-        charges_coarse[ind_fine[0]] = np.sum(
-            charges_fine[np.arange(indices[0])]
-        )
+        charges_coarse[ind_fine[0]] = np.sum(charges_fine[indices[0] :])
         if any(indices < 0):
+            raise RuntimeError("yorak")
             warnings.warn(
                 "part of the beam is located before turn time 0, "
                 "this will cause problems, please shift the beam",
@@ -211,6 +210,9 @@ def rf_beam_current(
             charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
                 charges_fine[np.arange(indices[i - 1], indices[i])]
             )
+        charges_coarse[ind_fine[-1]] = np.sum(
+            charges_fine[np.arange(indices[0], len(charges_fine), dtype=int)]
+        )
 
         return charges_fine, charges_coarse
 

@@ -25,6 +25,9 @@ from blond.core.ring.helpers import requires
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.array_recorders import DenseArrayRecorder
+from blond.physics.cavities import (
+    SingleHarmonicRFStation,
+)
 from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
@@ -36,9 +39,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import WakeField
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import (
-        SingleHarmonicRFStation,
-    )
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
@@ -854,7 +854,25 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         self._n_samples_fine = self._feedback.profile.n_bins
         n_entries = n_turns // self.each_turn_i + 2
 
-        shape_coarse = (n_entries, self._n_samples_coarse)
+        # overshoot on last element, which also tracks a half drift from the next turn
+        self.len_coarse_max = int(
+            (
+                1
+                + 1
+                / len(
+                    simulation.ring.elements.get_elements(
+                        SingleHarmonicRFStation
+                    )
+                )
+                / 2
+            )
+            * self._feedback.harmonic
+        )
+
+        shape_coarse = (
+            n_entries,
+            self.len_coarse_max,
+        )  # TODO: how to get number of RF stations? this is required for this setting in the first turn for last station
         shape_fine = (n_entries, self._n_samples_fine)
 
         self._v_ant_fine = DenseArrayRecorder(
@@ -884,38 +902,36 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             f"{self.common_filepath}_phi_corr", shape_fine
         )
 
-    def update(
+    def _update(
         self,
-        simulation: Simulation,
     ) -> None:
-        """
-        Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
+        """Update memory with new values."""
         self._v_ant_fine.write(
             self._feedback.antenna_voltage_fine_grid
         )  # TODO: redo without capitalization
         self._i_beam_fine.write(self._feedback.beam_current_fine_grid)
         self._i_gen_fine.write(self._feedback.generator_current_fine_grid)
 
+        coarse_mask = np.zeros(self.len_coarse_max, dtype=bool)
+        coarse_mask[: len(self._feedback.antenna_voltage_coarse_grid)] = True
+
         self._v_ant_coarse.write(
-            self._feedback.antenna_voltage_coarse_grid[
-                -self._n_samples_coarse :
-            ]
-        )
-        self._i_beam_coarse.write(
-            self._feedback.beam_current_forward_coarse_grid[
-                -self._n_samples_coarse
-            ]
+            self._feedback.antenna_voltage_coarse_grid,
+            mask=coarse_mask,
         )
         self._i_gen_coarse.write(
-            self._feedback.generator_current_coarse_grid[
-                -self._n_samples_coarse :
-            ]
+            self._feedback.generator_current_coarse_grid,
+            mask=coarse_mask,
+        )
+
+        coarse_mask = np.zeros(self.len_coarse_max, dtype=bool)
+        coarse_mask[: len(self._feedback.beam_current_forward_coarse_grid)] = (
+            True
+        )
+
+        self._i_beam_coarse.write(
+            self._feedback.beam_current_forward_coarse_grid,
+            mask=coarse_mask,
         )
 
         self._v_corr.write(self._feedback.relative_voltage_correction)

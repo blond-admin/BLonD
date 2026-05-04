@@ -1,8 +1,10 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from examples.scripts.EX_09_Semi_empiric_matcher import (
     bucket_fill_by_emittance_gaussian,
 )
 from experimental import SemiEmpiricMatcher
+from handle_results.observables import IQCavityFeedbackObservation
 from handle_results.observables_as_elements import (
     BeamObservationInRingElement,
     BunchObservationMetaParams,
@@ -36,7 +38,7 @@ n_slices = 2**10
 def match_beam(simulation, t_rf, beam):
     simulation.prepare_beam(
         preparation_routine=SemiEmpiricMatcher(
-            time_limit=[0.2 * t_rf, t_rf * 1.5],
+            time_limit=[1.0 * t_rf, t_rf * 2.0],
             n_macroparticles=int(1e6),
             hamilton_to_density_function=bucket_fill_by_emittance_gaussian,
             hamilton_to_density_kwargs={
@@ -151,7 +153,7 @@ def setup_and_run(
     F_b = 2
 
     I_g = (
-        voltage_per_station
+        voltage_per_cavity
         / (2 * R_over_Q)
         * (1 / Q_L - 2j * delta_omega / omega_rf)
         + np.abs(F_b) * beam_current * np.exp(-1j * phi_s) / 2
@@ -185,11 +187,12 @@ def setup_and_run(
     one_turn_model = []
     profile_list = []
     shc_list = []
+    cav_fdbk_obs_list = []
 
     for cavity_i in range(n_stations):
         profile_list.append(
             StaticProfile.from_rad(
-                np.pi,
+                np.pi * 1.5,
                 np.pi * 3.5,
                 n_slices,
                 t_rf,
@@ -221,6 +224,14 @@ def setup_and_run(
                 n_rf_periods_per_coarse_grid=1,
                 generator_current=I_g,
                 n_cavities=cav_per_station,
+            )
+            if not MTW
+            else None
+        )
+        cav_fdbk_obs_list.append(
+            IQCavityFeedbackObservation(
+                each_turn_i=1,
+                feedback=cav_fdbk,
             )
             if not MTW
             else None
@@ -271,38 +282,39 @@ def setup_and_run(
 
     sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
-    if MTW:
-        match_beam(
-            sim,
-            t_rf,
-            beam,
-        )
-        np.savez(
-            "./fdbk_testing/init_distr_convol.npz",
-            dE=beam.dE.array_local,
-            dt=beam.dt.array_local,
-        )
-    else:
-        load_beam_coordinates_from_file(
-            "./fdbk_testing/init_distr_convol.npz", beam
-        )
+    # if MTW:
+    #     match_beam(
+    #         sim,
+    #         t_rf,
+    #         beam,
+    #     )
+    #     np.savez(
+    #         "./fdbk_testing/init_distr_convol.npz",
+    #         dE=beam.dE.array_local,
+    #         dt=beam.dt.array_local,
+    #     )
+    # else:
+    load_beam_coordinates_from_file(
+        "./fdbk_testing/init_distr_convol.npz", beam
+    )
 
     bunch_observation.active = True
 
     sim.run_simulation(
-        (beam,), n_turns=None if n_turns_in == -1 else n_turns_in
+        (beam,),
+        n_turns=None if n_turns_in == -1 else n_turns_in,
+        observe=cav_fdbk_obs_list if not MTW else (),
     )
 
     return (
         bunch_observation,
         n_turns,
         ind_volt_obs_list,
+        cav_fdbk_obs_list,
     )
 
 
 def plot_results(bunch_obs_list, n_turns_list, ind_volt_obs_list):
-    import matplotlib.pyplot as plt
-
     plt.title("sigma_dt")
     plt.plot(bunch_obs_list[1].sigma_dt, label="MTW")
     plt.plot(bunch_obs_list[0].sigma_dt, label="fdbk")
@@ -334,18 +346,69 @@ def plot_results(bunch_obs_list, n_turns_list, ind_volt_obs_list):
     plt.show()
 
 
+def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
+    plt.clf()
+    fix, ax = plt.subplots()
+    plt.title("ind_volt vs fdbk_kick")
+
+    ax.plot(ind_volt_obs_list[0][0].induced_voltage[0], label="ind_volt")
+    # ax.plot(cav_fdbk_obs_list[1][0].v_corr[0] * 30e6, label="rel_volt correction")
+    ax.plot(
+        np.abs(cav_fdbk_obs_list[1][0].v_ant_fine[0]), label="abs v_ant_fine"
+    )
+    ax.plot(
+        np.real(cav_fdbk_obs_list[1][0].v_ant_fine[0]), label="real v_ant_fine"
+    )
+
+    ax2 = ax.twinx()
+    # ax2.plot(ind_volt_obs_list[0][0].beam_profile[0], label="beam profile")
+    ax2.plot(
+        cav_fdbk_obs_list[1][0].phi_corr[0] * 30e6, label="rel_volt correction"
+    )
+
+    plt.legend()
+    plt.show()
+
+    plt.clf()
+
+    fix, ax = plt.subplots()
+    plt.title("coarse")
+
+    ax.plot(cav_fdbk_obs_list[1][0].v_ant_coarse[0], label="ind_volt")
+
+    ax2 = ax.twinx()
+    ax2.plot(ind_volt_obs_list[0][0].beam_profile[0], label="beam profile")
+    # ax2.plot(cav_fdbk_obs_list[1][0].v_corr[0] * 30e6, label="rel_volt correction")
+
+    plt.legend()
+    plt.show()
+
+    pass
+
+
 if __name__ == "__main__":
     n_sections = 8
-    bunch_obs_list, n_turns_list, ind_volt_obs_list = [], [], []
+    bunch_obs_list, n_turns_list, ind_volt_obs_list, cav_fdbk_obs_list = (
+        [],
+        [],
+        [],
+        [],
+    )
     for MTW in [
         True,
         False,
     ]:
-        bunch_observation_buf, n_turns_buf, ind_volt_obs_list_buf = (
-            setup_and_run("RCS1", MTW=MTW, n_stations=n_sections)
-        )
+        (
+            bunch_observation_buf,
+            n_turns_buf,
+            ind_volt_obs_list_buf,
+            cav_fdbk_obs_list_buf,
+        ) = setup_and_run("RCS4", MTW=MTW, n_stations=n_sections, n_turns_in=5)
         bunch_obs_list.append(bunch_observation_buf)
         n_turns_list.append(n_turns_buf)
         ind_volt_obs_list.append(ind_volt_obs_list_buf)
+        cav_fdbk_obs_list.append(cav_fdbk_obs_list_buf)
+
+    # plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list)
 
     plot_results(bunch_obs_list, n_turns_list, ind_volt_obs_list)
