@@ -856,17 +856,19 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
 
         # overshoot on last element, which also tracks a half drift from the next turn
         self.len_coarse_max = int(
-            (
-                1
-                + 1
-                / len(
-                    simulation.ring.elements.get_elements(
-                        SingleHarmonicRFStation
+            np.ceil(
+                (
+                    1
+                    + 1
+                    / len(
+                        simulation.ring.elements.get_elements(
+                            SingleHarmonicRFStation
+                        )
                     )
+                    / 2
                 )
-                / 2
+                * self._feedback.harmonic
             )
-            * self._feedback.harmonic
         )
 
         shape_coarse = (
