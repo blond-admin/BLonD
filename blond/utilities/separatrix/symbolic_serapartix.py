@@ -101,7 +101,6 @@ class SymbolicSeparatrixHelper:
         self,
         beam: BeamBaseClass,
         dt: NumpyArray,
-        extend_dt: bool = False,
     ) -> tuple[NumpyArray, NumpyArray]:
         """
         Compute the separatrix boundary in longitudinal phase space.
@@ -117,9 +116,6 @@ class SymbolicSeparatrixHelper:
             Beam whose reference coordinates supply β, γ, E and charge.
         dt
             Time-deviation grid [s] over which to evaluate the separatrix.
-        extend_dt
-            If True, add the unstable fixed points to the dt array.
-            Intended for `blond.core.simulation.simulation.Simulation.plot_separatrix`.
 
         Returns
         -------
@@ -255,7 +251,6 @@ class SymbolicSeparatrixHelper:
         self,
         beam: BeamBaseClass,
         dt: NumpyArray,
-        extend_dt: bool = False,
         **kwargs_plot,
     ) -> list[Line2D]:
         """
@@ -272,9 +267,6 @@ class SymbolicSeparatrixHelper:
         dt
             Time-deviation grid [s] spanning at least the full RF bucket,
             including the unstable fixed point.
-        extend_dt
-            If ``True``, add the unstable fixed points to the `dt` array.
-            Intended for `blond.core.simulation.simulation.Simulation.plot_separatrix`.
         **kwargs_plot
             Additional keyword arguments forwarded to ``matplotlib.pyplot.plot``
             (e.g. ``color``, ``linewidth``, ``linestyle``).
@@ -302,7 +294,6 @@ class SymbolicSeparatrixHelper:
         dt, separatrix = self.get_separatrix(
             beam=beam,
             dt=dt,
-            extend_dt=extend_dt,
         )
         label = kwargs_plot.pop("label", None)
         artists = plt.plot(

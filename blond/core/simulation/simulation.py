@@ -1762,6 +1762,4 @@ class Simulation(Preparable):
         )
 
         sep = SymbolicSeparatrixHelper.from_simulation(simulation=self)
-        return sep.plot_separatrix(
-            beam=beam, dt=dt, extend_dt=True, **kwargs_plot
-        )
+        return sep.plot_separatrix(beam=beam, dt=dt, **kwargs_plot)
