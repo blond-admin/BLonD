@@ -366,11 +366,15 @@ class TestBeamObservation(unittest.TestCase):
                 sim.run_simulation(
                     beams=(beam1,),
                     n_turns=N_TURNS,
-                    observe=(
-                        phase_observation,
-                        bunch_observation,
-                        obs_beam_hist2d,
-                    ),
+                    observe=(obs_beam_hist2d,),
+                )
+            with self.assertRaisesRegex(
+                NotImplementedError, "This needs to be implement"
+            ):
+                sim.run_simulation(
+                    beams=(beam1,),
+                    n_turns=N_TURNS,
+                    observe=(bunch_observation,),
                 )
             beam1._is_distributed = False
             sim.run_simulation(
