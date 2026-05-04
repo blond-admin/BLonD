@@ -18,15 +18,21 @@ from scipy.constants import elementary_charge as e
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
+from blond.experimental.physics.kick_pooling import (
+    SupportsPooledInterpolationKickMixIn,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from cupy.typing import NDArray as CupyArray
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+    from blond.experimental.physics.kick_pooling import (
+        PooledInterpolationKick,
+    )
     from blond.physics.profiles import ProfileBaseClass
 
 
@@ -255,14 +261,17 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         Section index to group elements into sections.
     profile
         Object for calculation of beam profiles.
+    **kwargs
+        Additional keyword arguments.
     """
 
     def __init__(
         self,
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
+        **kwargs,
     ):
-        super().__init__(section_index=section_index)
+        super().__init__(section_index=section_index, **kwargs)
         self._profile = profile
 
     @property  # as readonly attributes
@@ -350,7 +359,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
             self._profile = profiles[0]
 
 
-class WakeField(ImpedanceBaseClass):
+class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
     """
     Manager class to calculate wake-fields.
 
@@ -364,6 +373,9 @@ class WakeField(ImpedanceBaseClass):
         Section index to group elements into sections.
     profile
         Object for calculation of beam profiles.
+    delayed_kick
+        The common interface to apply the kick later.
+        `PooledInterpolationKick.track(...)` must be executed elsewhere.
 
     Attributes
     ----------
@@ -404,8 +416,13 @@ class WakeField(ImpedanceBaseClass):
         solver: WakeFieldSolver,
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
+        delayed_kick: PooledInterpolationKick | None = None,
     ):
-        super().__init__(section_index=section_index, profile=profile)
+        super().__init__(
+            section_index=section_index,
+            profile=profile,
+            delayed_kick=delayed_kick,
+        )
 
         self.solver = solver
         self.sources = sources
@@ -508,15 +525,25 @@ class WakeField(ImpedanceBaseClass):
         assert induced_voltage.dtype == backend.float, (
             f"{induced_voltage.dtype}"
         )
-        backend.specials.kick_induced_voltage(
-            dt=beam.read_partial_dt(),
-            dE=beam.write_partial_dE(),
-            # TODO improve induced_voltage calculation data type for speedup
-            voltage=induced_voltage.astype(backend.float),
-            bin_centers=self.profile.hist_x,  # base for induced voltage
-            charge=beam.signed_charge_with_direction(),
-            acceleration_kick=0.0,  # TODO was this ever required??
-        )
+        voltage = induced_voltage.astype(backend.float)
+        bin_centers = self.profile.hist_x  # base for induced voltage
+        if self._delayed_kick is not None:
+            # Relies on PooledInterpolationKick.track()
+            # being called later.
+            self._delayed_kick.register(
+                time_axis=bin_centers,
+                voltage=voltage,
+            )
+        else:
+            backend.specials.kick_interpolated(
+                dt=beam.read_partial_dt(),
+                dE=beam.write_partial_dE(),
+                # TODO improve induced_voltage calculation data type for speedup
+                voltage=voltage,
+                bin_centers=bin_centers,  # base for induced voltage
+                charge=beam.signed_charge_with_direction(),
+                acceleration_kick=0.0,
+            )
 
     @staticmethod
     def headless(
