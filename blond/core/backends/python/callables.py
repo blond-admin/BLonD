@@ -365,7 +365,7 @@ class PythonSpecials(Specials):
         dt += T * (poly * (1.0 + dE * inv_energy) / (1.0 + beam_delta) - 1.0)
 
     @staticmethod
-    def kick_induced_voltage(
+    def kick_interpolated(
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,

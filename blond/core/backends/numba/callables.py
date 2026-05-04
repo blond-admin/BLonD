@@ -170,7 +170,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         sig_energy,  # energy: float,
     )
 
-    sig_kick_induced_voltage = void(
+    sig_kick_interpolated = void(
         sig_dt,
         sig_dE,
         sig_voltage,
@@ -500,12 +500,12 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         @staticmethod
         @enforce_precision(floattype)
         @njit(
-            sig_kick_induced_voltage,
+            sig_kick_interpolated,
             parallel=True,
             fastmath=True,
             cache=True,
         )
-        def kick_induced_voltage(
+        def kick_interpolated(
             dt: NumpyArray,
             dE: NumpyArray,
             voltage: NumpyArray,
