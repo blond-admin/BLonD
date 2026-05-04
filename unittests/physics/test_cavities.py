@@ -1028,6 +1028,61 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             #  Use `test_kick_interpolated_bug` to resolve this issue.
         )
 
+    def test_compare_track_ham(self):
+        """The tracker's dE change must equal ``-dH/d(dt)`` from
+        ``get_hamilton_symbolic`` — by Hamilton's equation,
+        ``Delta dE = -dH/d(dt)``.
+
+        Exercised both with ``reference_energy_change == 0`` and with a
+        non-zero acceleration to cover the ``Delta E_ref * dt`` term in
+        the multi-harmonic Hamiltonian.
+        """
+        import sympy
+
+        from blond.core.beam.particle_types import proton
+
+        dt_s, q_s = sympy.symbols("dt q", real=True)
+
+        for ref_energy_change in (0.0, 1e5):
+            with self.subTest(reference_energy_change=ref_energy_change):
+                beam = ProbeBeam(
+                    dt=np.linspace(-5e-10, 5e-10, 11),
+                    particle_type=proton,
+                    reference_total_energy=1e9,
+                )
+                rf = MultiHarmonicRFStation.headless(
+                    section_index=0,
+                    voltage=np.array([1e6, 5e5]),
+                    phi_rf=np.array([np.pi * 0.3, np.pi * 0.7]),
+                    harmonic=np.array([10, 30]),
+                    main_harmonic_idx=0,
+                    circumference=2 * np.pi * 100.0,
+                    total_energy=(
+                        beam.reference.total_energy + ref_energy_change
+                    ),
+                    beam_reference_beta=beam.reference.beta,
+                    local_wakefield=None,
+                    cavity_feedback=None,
+                    delayed_kick=None,
+                    delayed_kick_time_axis=None,
+                )
+                dE_before = beam.dE.copy_as_numpy()
+                dt_values = beam.dt.copy_as_numpy()
+
+                rf.track(beam=beam)
+                actual = beam.dE.copy_as_numpy() - dE_before
+
+                dH_ddt = sympy.lambdify(
+                    (dt_s, q_s),
+                    sympy.diff(rf.get_hamilton_symbolic(), dt_s),
+                    modules="numpy",
+                )
+                predicted = -dH_ddt(
+                    dt_values, float(beam.signed_charge_with_direction())
+                )
+
+                np.testing.assert_allclose(actual, predicted, rtol=1e-12)
+
 
 class TestSingleHarmonicRFStation(unittest.TestCase):
     def setUp(self) -> None:
@@ -1283,6 +1338,60 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         expected_energy_change = +energy_loss_per_turn
         expected_phi_s = np.pi - np.arcsin(expected_energy_change / 51e6)
         self.assertEqual(phi_s_calculated, expected_phi_s)
+
+    def test_compare_track_ham(self):
+        """The tracker's dE change must equal ``-dH/d(dt)`` from
+        ``get_hamilton_symbolic`` — by Hamilton's equation,
+        ``Delta dE = -dH/d(dt)``.
+
+        We exercise both ``reference_energy_change == 0`` and
+        ``reference_energy_change != 0`` to cover the acceleration term
+        ``Delta E_ref * dt`` in the Hamiltonian.
+        """
+        import sympy
+
+        from blond.core.beam.particle_types import proton
+
+        dt_s, q_s = sympy.symbols("dt q", real=True)
+
+        for ref_energy_change in (0.0, 1e5):
+            with self.subTest(reference_energy_change=ref_energy_change):
+                beam = ProbeBeam(
+                    dt=np.linspace(-5e-10, 5e-10, 11),
+                    particle_type=proton,
+                    reference_total_energy=1e9,
+                )
+                rf = SingleHarmonicRFStation.headless(
+                    section_index=0,
+                    voltage=1e6,
+                    phi_rf=np.pi * 0.3,
+                    harmonic=10,
+                    circumference=2 * np.pi * 100.0,
+                    total_energy=(
+                        beam.reference.total_energy + ref_energy_change
+                    ),
+                    beam_reference_beta=beam.reference.beta,
+                    local_wakefield=None,
+                    cavity_feedback=None,
+                    delayed_kick=None,
+                    delayed_kick_time_axis=None,
+                )
+                dE_before = beam.dE.copy_as_numpy()
+                dt_values = beam.dt.copy_as_numpy()
+
+                rf.track(beam=beam)
+                actual = beam.dE.copy_as_numpy() - dE_before
+
+                dH_ddt = sympy.lambdify(
+                    (dt_s, q_s),
+                    sympy.diff(rf.get_hamilton_symbolic(), dt_s),
+                    modules="numpy",
+                )
+                predicted = -dH_ddt(
+                    dt_values, float(beam.signed_charge_with_direction())
+                )
+
+                np.testing.assert_allclose(actual, predicted, rtol=1e-12)
 
 
 if __name__ == "__main__":

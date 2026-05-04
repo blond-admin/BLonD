@@ -240,6 +240,10 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             assert delayed_kick_time_axis is not None
         self._delayed_kick_time_axis = delayed_kick_time_axis
 
+        # Cached reference-energy change from the most recent _track call.
+        # Used by get_hamilton_symbolic to include the acceleration term.
+        self._last_reference_energy_change: float = 0.0
+
     @property
     def any_feedback_not_none(self) -> bool:
         """
@@ -1109,6 +1113,7 @@ class SingleHarmonicRFStation(
         reference_energy_change = self.track_reference(
             reference, beam.is_counter_rotating
         )
+        self._last_reference_energy_change = reference_energy_change
 
         if beam.common_array_size > 0:
             if self.any_feedback_not_none:
@@ -1287,8 +1292,28 @@ class SingleHarmonicRFStation(
         return single_harmonic_rf_station
 
     def get_hamilton_symbolic(self) -> sympy.Expr:
-        """
+        r"""
         Return the partial Hamiltonian symbolic expression.
+
+        The tracker applies the kick
+
+        .. math::
+
+            \\Delta dE = q V \\sin(\\omega\\, dt + \\phi)
+                        - \\Delta E_\\mathrm{ref},
+
+        where :math:`\\Delta E_\\mathrm{ref}` is the change of reference
+        total energy on this turn (the ``acceleration_kick``). Hamilton's
+        equation :math:`\\Delta dE = -\\partial H/\\partial dt` then gives
+
+        .. math::
+
+            H = \\frac{q V}{\\omega} \\cos(\\omega\\, dt + \\phi)
+                + \\Delta E_\\mathrm{ref}\\, dt.
+
+        :math:`\\Delta E_\\mathrm{ref}` is taken from the most recent
+        ``_track`` call (``self._last_reference_energy_change``); it is
+        zero before the first track and for non-accelerating cycles.
 
         Returns
         -------
@@ -1314,7 +1339,10 @@ class SingleHarmonicRFStation(
             else sympy.Symbol("phi_rf", real=True)
         )
 
-        return q * V / omega * sympy.cos(omega * dt + phi)
+        return (
+            q * V / omega * sympy.cos(omega * dt + phi)
+            + self._last_reference_energy_change * dt
+        )
 
 
 class MultiHarmonicRFStation(
@@ -1612,6 +1640,7 @@ class MultiHarmonicRFStation(
         reference_energy_change = self.track_reference(
             reference, beam.is_counter_rotating
         )
+        self._last_reference_energy_change = reference_energy_change
 
         if beam.common_array_size > 0:
             if self.any_feedback_not_none:
@@ -1780,8 +1809,28 @@ class MultiHarmonicRFStation(
         return multi_harmonic_rf_station
 
     def get_hamilton_symbolic(self) -> sympy.Expr:
-        """
+        r"""
         Return the partial Hamiltonian symbolic expression.
+
+        The tracker applies the kick
+
+        .. math::
+
+            \\Delta dE = \\sum_j q V_j \\sin(\\omega_j\\, dt + \\phi_j)
+                        - \\Delta E_\\mathrm{ref},
+
+        where :math:`\\Delta E_\\mathrm{ref}` is the change of reference
+        total energy on this turn. Hamilton's equation
+        :math:`\\Delta dE = -\\partial H/\\partial dt` gives
+
+        .. math::
+
+            H = \\sum_j \\frac{q V_j}{\\omega_j}
+                       \\cos(\\omega_j\\, dt + \\phi_j)
+                + \\Delta E_\\mathrm{ref}\\, dt.
+
+        :math:`\\Delta E_\\mathrm{ref}` is taken from the most recent
+        ``_track`` call.
 
         Returns
         -------
@@ -1810,4 +1859,4 @@ class MultiHarmonicRFStation(
             )
             expr += q * V_j / omega_j * sympy.cos(omega_j * dt + phi_j)
 
-        return expr
+        return expr + self._last_reference_energy_change * dt
