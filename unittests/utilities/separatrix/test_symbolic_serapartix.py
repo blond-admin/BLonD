@@ -31,7 +31,7 @@ from blond.utilities.separatrix.symbolic_serapartix import (
 
 class TestSymbolicSeparatrixHelper:
     def test_integration(self):
-        DEV_DRAW = True  # TODO false
+        DEV_DRAW = False
         ring = Ring(26658.883)
 
         rf_station1 = MultiHarmonicRFStation(
@@ -118,12 +118,6 @@ class TestSymbolicSeparatrixHelper:
                 dt=np.linspace(*trange0_, 1000),
             )
             if simulation.turn_i.value == 0:
-                np.savetxt(
-                    callers_relative_path(
-                        "resources/separatrix_dE_pinned.txt", stacklevel=1
-                    ),
-                    separatrix_dE,
-                )
                 separatrix_dE_pinned = np.loadtxt(
                     callers_relative_path(
                         "resources/separatrix_dE_pinned.txt", stacklevel=1
