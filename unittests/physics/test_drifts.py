@@ -373,7 +373,57 @@ class TestDriftExact(unittest.TestCase):
         np.testing.assert_allclose(blond2_expected, beam.dt.copy_as_numpy())
 
     def test_compare_track_ham(self):
-        pass
+        """For ``higher_order_alpha`` lengths 1, 2, 3 (i.e. α_1, α_1..α_2,
+        α_1..α_3 — α_0 is set separately by ``momentum_compaction_factor``),
+        the tracker's dt change must equal ``dH/d(dE)`` from
+        ``get_hamilton_symbolic``.
+
+        ``DriftExact`` symbolically truncates ``H`` at order ``n_alpha + 2``
+        in ``dE``. In principle the residual would shrink as
+        ``(dE/E)**(n_alpha + 1)``, but in practice the dE**2 coefficient
+        ``c1*beta**2 - c2`` suffers catastrophic cancellation near
+        ``beta = 1`` and keeps only ~9 significant digits. That floor —
+        not the truncation tail — sets the tolerance for every ``n_alpha``.
+        """
+        from blond.core.beam.particle_types import proton
+
+        dE_s, beta_s, E_s = sympy.symbols("dE beta E", real=True)
+
+        for higher_order_alpha in (
+            np.array([1.0]),
+            np.array([1.0, 0.5]),
+            np.array([1.0, 0.5, 0.25]),
+        ):
+            with self.subTest(n_alpha=len(higher_order_alpha)):
+                drift = DriftExact.headless(
+                    orbit_length=10000.0,
+                    section_index=0,
+                    momentum_compaction_factor=1e-3,
+                    higher_order_alpha=higher_order_alpha,
+                )
+                dE_values = np.linspace(-1e5, 1e5, 11)
+                beam = ProbeBeam(
+                    dE=dE_values,
+                    particle_type=proton,
+                    reference_total_energy=1e10,
+                )
+                dt_before = beam.dt.copy_as_numpy()
+
+                dH_ddE = sympy.lambdify(
+                    (dE_s, beta_s, E_s),
+                    sympy.diff(drift.get_hamilton_symbolic(), dE_s),
+                    modules="numpy",
+                )
+                predicted = dH_ddE(
+                    dE_values,
+                    beam.reference.beta,
+                    beam.reference.total_energy,
+                )
+
+                drift.track(beam=beam)
+                actual = beam.dt.copy_as_numpy() - dt_before
+
+                np.testing.assert_allclose(actual, predicted, rtol=1e-7)
 
 
 class TestDriftSpecial(unittest.TestCase):
