@@ -1702,7 +1702,7 @@ class Simulation(Preparable):
         Returns
         -------
         current_dE_rev
-            Revolution energy gain per turn, in [eV].
+            Energy gain in the current turn, in [eV].
 
         See Also
         --------
