@@ -230,7 +230,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         value
             Momentum compaction factor of this drift section.
         """
-        self._momentum_compaction_factor = float(value)
+        self._momentum_compaction_factor = value
 
     @staticmethod
     def headless(
