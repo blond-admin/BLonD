@@ -183,6 +183,8 @@ class DriftSimple(
             Momentum compaction factor of this drift section. In multi-drift
             setups the ring combines per-section values into a global weighted
             average; see :attr:`Ring.momentum_compaction_factor`.
+            Use ``drift.schedule("momentum_compaction_factor", ...)`` to influence
+            the parameter along the ramp.
         **kwargs
             Additional keyword arguments for method
             resolution order of inheriting elements.
@@ -412,8 +414,12 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         Section index to group elements into sections.
     momentum_compaction_factor : float
         Momentum compaction factor.
+        Use ``drift.schedule("momentum_compaction_factor", ...)`` to influence
+        the parameter along the ramp.
     higher_order_alpha : NumpyArray
         Higher-order alpha array up to desired order.
+        Use ``drift.schedule("higher_order_alpha", ...)`` to influence
+        the parameter along the ramp.
     **kwargs
         Additional keyword arguments for MRO of fused elements.
     """
@@ -433,6 +439,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
             **kwargs,
         )
 
+        self._add_intended_schedule("higher_order_alpha")
         self.higher_order_alpha = higher_order_alpha
 
     @staticmethod
