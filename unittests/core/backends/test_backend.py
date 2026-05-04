@@ -1791,6 +1791,123 @@ class TestSpecials(unittest.TestCase):
                     err_msg=f"Failed test `{special}` with {dtype}",
                 )
 
+            result2 = np.asarray(copy_to_cpu(states))
+
+            if i == 0:
+                result2_reference = result2
+            else:
+                np.testing.assert_allclose(
+                    result2,
+                    result2_reference,
+                    rtol=1e-10,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_charge_counterrotation(self) -> None:
+        """Cross-backend parity for `wake_from_pole_residue` voltage output.
+
+        Scoped to float64: numba's kernel signature is hard-coded to
+        ``complex128``, and the real caller in ``solvers.py`` always
+        allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
+        ``float64`` the only precision all backends consistently accept.
+        """
+        import numba as _nb
+
+        for charge in (-1, 1):
+            for is_counterrotating_beam in (False, True):
+                for cr_flags_sign in (-1, 1):
+                    n_bins = 64
+                    n_poles = 3
+                    dt_val = 1e-9
+
+                    # Reference inputs; each backend builds its own arrays from these.
+                    profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
+                    profile_dts_np = np.linspace(
+                        0, n_bins * dt_val, n_bins + 1
+                    )
+                    # Stable poles (Re < 0); decay magnitude per bin exp(Re*dt) in (0, 1).
+                    poles_np = np.array(
+                        [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j],
+                        dtype=np.complex128,
+                    )
+                    residues_np = np.array(
+                        [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j],
+                        dtype=np.complex128,
+                    )
+                    update_on_bin_np = np.array([0], dtype=np.int32)
+
+                    dtype = np.float64
+                    for i, special in enumerate(self.special_modes):
+                        try:
+                            self._setUp(dtype=dtype, special_mode=special)
+                        except (FileNotFoundError, OSError):
+                            print(
+                                f"Could not perform `{special}` test for {dtype}"
+                            )
+                            continue
+
+                        profile = backend.array(
+                            profile_np, dtype=backend.float
+                        )
+                        profile_dts = backend.array(
+                            profile_dts_np, dtype=backend.float
+                        )
+                        poles = backend.array(poles_np, dtype=np.complex128)
+                        residues = backend.array(
+                            residues_np, dtype=np.complex128
+                        )
+                        cr_flags = backend.ones(n_poles, dtype=backend.float)
+                        cr_flags[-1] *= cr_flags_sign
+                        states = backend.zeros(
+                            n_poles + 1, dtype=np.complex128
+                        )
+                        voltage = backend.zeros(n_bins, dtype=backend.float)
+                        voltage_threaded = backend.zeros(
+                            (_nb.get_num_threads(), n_bins),
+                            dtype=backend.float,
+                        )
+                        update_on_bin = backend.array(
+                            update_on_bin_np, dtype=np.int32
+                        )
+
+                        backend.specials.wake_from_pole_residue(
+                            profile=profile,
+                            profile_dts=profile_dts,
+                            poles=poles,
+                            residues=residues,
+                            is_counterrotating_beam=is_counterrotating_beam,
+                            counterrotating_pole_signs=cr_flags,
+                            states=states,
+                            voltage=voltage,
+                            voltage_threaded=voltage_threaded,
+                            update_on_bin=update_on_bin,
+                            factor=backend.float(charge * 1.0),
+                        )
+
+                        result = np.asarray(copy_to_cpu(voltage))
+
+                        if i == 0:
+                            result_reference = result
+                        else:
+                            np.testing.assert_allclose(
+                                result,
+                                result_reference,
+                                rtol=1e-10,
+                                err_msg=f"Failed test `{special}` with {dtype}",
+                            )
+                        result2 = np.asarray(copy_to_cpu(states))
+
+                        if i == 0:
+                            result2_reference = result2
+                        else:
+                            np.testing.assert_allclose(
+                                result2,
+                                result2_reference,
+                                rtol=1e-10,
+                                err_msg=f"Failed test `{special}` with {dtype}",
+                            )
+
     @pytest.mark.backend_mutation
     def test_wake_from_pole_residue_cr_flip_invariance(self) -> None:
         """Voltage is invariant under ``cr_pole_flip`` sign flips.
