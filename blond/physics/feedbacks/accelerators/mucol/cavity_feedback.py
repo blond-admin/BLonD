@@ -211,7 +211,7 @@ class PassiveCavity(IQCavityFeedback):
             * np.exp(1j * self.generator_phase)
         )
         self.generator_current_coarse_grid = (
-            np.ones_like(self.beam_current_coarse_grid, dtype=complex)
+            np.ones_like(self.beam_current_forward_coarse_grid, dtype=complex)
             * self.generator_current
             * np.exp(1j * self.generator_phase)
         )
@@ -330,7 +330,7 @@ class PassiveCavity(IQCavityFeedback):
             samples_per_rf_coarse = self.omega_rf * self.sampling_time_coarse
 
             self.antenna_voltage_coarse_grid = cavity_response_sparse_matrix(
-                I_beam=self.beam_current_coarse_grid,
+                I_beam=self.beam_current_forward_coarse_grid,
                 I_gen=self.generator_current_coarse_grid,
                 V_ant_init=self.antenna_voltage_coarse_grid[-1],
                 I_gen_init=self.generator_current_coarse_grid[-1],

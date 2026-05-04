@@ -908,7 +908,9 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             ]
         )
         self._i_beam_coarse.write(
-            self._feedback.beam_current_coarse_grid[-self._n_samples_coarse]
+            self._feedback.beam_current_forward_coarse_grid[
+                -self._n_samples_coarse
+            ]
         )
         self._i_gen_coarse.write(
             self._feedback.generator_current_coarse_grid[

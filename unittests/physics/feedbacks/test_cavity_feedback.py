@@ -3,6 +3,7 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from _pytest import unittest
 
 from blond import (
     Beam,
@@ -1303,3 +1304,7 @@ class TestIQCavityFeedbackTimingClass:
                     time_passed_list[fdbk_idx][trn_ind],
                     time_passed_list[reverse_index][trn_ind],
                 )
+
+
+class TestIQCavityFeedbackObservationClass(unittest.TestCase):
+    pass

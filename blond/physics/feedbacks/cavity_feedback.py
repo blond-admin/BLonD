@@ -16,6 +16,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import numpy as np
+from scipy.interpolate import interp1d
 
 from blond.core.base import AltersReference, DynamicParameter, HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
@@ -29,6 +30,7 @@ from blond.physics.cavities import (
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.feedbacks.helpers import (
     cartesian_to_polar,
+    cavity_response_sparse_matrix,
     polar_to_cartesian,
     rf_beam_current,
 )
@@ -122,7 +124,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
         self.alpha_sum: NumpyArray | None = None
 
-        self.beam_current_coarse_grid: NumpyArray | None = None
+        self.beam_current_forward_coarse_grid: NumpyArray | None = None
         self.beam_current_fine_grid: NumpyArray | None = None
         self.antenna_voltage_coarse_grid: NumpyArray | None = None
         self.antenna_voltage_fine_grid: NumpyArray | None = None
@@ -163,7 +165,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         )  # TODO: round or ceil?; should this be changed during simulation?
 
         self.voltage_setpoint = np.zeros(self.profile.n_bins, dtype=complex)
-        self.beam_current_coarse_grid = np.zeros(
+        self.beam_current_forward_coarse_grid = np.zeros(
             self.n_samples_coarse, dtype=complex
         )
         self.beam_current_fine_grid = np.zeros(
@@ -321,7 +323,7 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         # Beam current from profile
         (
             self.beam_current_fine_grid,
-            self.beam_current_coarse_grid[-self.n_samples_coarse :],
+            self.beam_current_forward_coarse_grid[-self.n_samples_coarse :],
         ) = rf_beam_current(
             beam=beam,
             profile=self.profile,
@@ -340,8 +342,8 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         self.beam_current_fine_grid = (
             self.beam_current_fine_grid / self.profile.hist_step
         )
-        self.beam_current_coarse_grid = (
-            self.beam_current_coarse_grid / self.sampling_time_coarse
+        self.beam_current_forward_coarse_grid = (
+            self.beam_current_forward_coarse_grid / self.sampling_time_coarse
         )
 
     def set_point_from_rfstation(self) -> NumpyArray:
@@ -535,8 +537,20 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
     ----------
     profile
         Static profile the feedback should act on.
+    R_over_Q
+        Geometric shunt impedance of the cavity.
+    Q_L
+        Loaded quality factor of the cavity.
+    generator_current
+        Generator current [A].
+    n_cavities
+        Number of cavities connected to the feedback.
+    initial_voltage
+        Initial voltage [V].
     n_rf_periods_per_coarse_grid
         Number of rf periods, which should be displayed by one coarse gridpoint. Default is 1.
+    detuning
+        Cavity detuning in [rad/s].
     debug
         Save debugging parameters during runtime.
     """
@@ -544,7 +558,13 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
     def __init__(
         self,
         profile,
+        R_over_Q: float,
+        Q_L: float,
+        generator_current: float,
+        n_cavities: int | float,
+        initial_voltage: float = 30.0e6,
         n_rf_periods_per_coarse_grid: int = 1,
+        detuning: float = 0.0,
         debug: bool = False,
     ):
         super().__init__(
@@ -554,7 +574,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             n_rf_periods_per_coarse_grid=n_rf_periods_per_coarse_grid,
         )
 
+        self.R_over_Q = R_over_Q
+        self.Q_L = Q_L
+
+        self.detuning = detuning
         self.rf_centers = np.zeros(0)
+        self.rf_centers_lengths = np.zeros(0, dtype=int)
         self.residual_time_last_rf_centers_calculation = 0
 
         self.ring: Ring | None = None
@@ -586,7 +611,18 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.phase_offset_frwrd_next: float = 0.0
         self.phase_offset_frwrd: float = 0.0
 
+        self.last_val_ant_voltage: float = 0.0
+        self.last_val_beam_current: float = 0.0
+        self.last_val_generator_current: float = 0.0
+        self.last_rf_centers_entry: float | None = None
+
+        self.init_voltage = initial_voltage
+
+        self.n_cavities = n_cavities
+
         self.debug = debug
+
+        self.generator_current_constant = generator_current
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -1033,15 +1069,21 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
         )
 
+        new_rf_centers = self._generate_rf_centers(
+            t_rf=(2 * np.pi / self.forward_tracking_omega_rf),
+            # TODO: this is indeed necessary for the multi-section acceleration tracking, delta_omega hast to be applied somewhere else if applicable
+            omega_rf=self.forward_tracking_omega_rf,
+            phi_rf=self.phase_offset_frwrd,  # phase_offset_frwrd,
+            until_time=self.forward_tracking_time,
+        )
+
+        self.rf_centers_lengths = np.append(
+            self.rf_centers_lengths, len(new_rf_centers)
+        )
+
         self.rf_centers = np.append(
             self.rf_centers,
-            self._generate_rf_centers(
-                t_rf=(2 * np.pi / self.forward_tracking_omega_rf),
-                # TODO: this is indeed necessary for the multi-section acceleration tracking, delta_omega hast to be applied somewhere else if applicable
-                omega_rf=self.forward_tracking_omega_rf,
-                phi_rf=self.phase_offset_frwrd,  # phase_offset_frwrd,
-                until_time=self.forward_tracking_time,
-            ),
+            new_rf_centers,
         )
         pass
 
@@ -1088,33 +1130,197 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         for time_ind, time in enumerate(self.reverse_tracking_time_array):
             # if time == 0:  # cavities may cause this in debug mode
             #     continue
+            new_rf_centers = self._generate_rf_centers(
+                t_rf=(2 * np.pi / self.reverse_tracking_omega_list[time_ind]),
+                omega_rf=self.reverse_tracking_omega_list[time_ind],
+                phi_rf=self.phi_rf,
+                # TODO: not working atm with delta_omega since the calculation of phi_increment is not done correctly in parent rf cavity
+                until_time=time,
+            )
+            self.rf_centers_lengths = np.append(
+                self.rf_centers_lengths, len(new_rf_centers)
+            )
             self.rf_centers = np.append(
                 self.rf_centers,
-                self._generate_rf_centers(
-                    t_rf=(
-                        2 * np.pi / self.reverse_tracking_omega_list[time_ind]
-                    ),
-                    omega_rf=self.reverse_tracking_omega_list[time_ind],
-                    phi_rf=self.phi_rf,
-                    # TODO: not working atm with delta_omega since the calculation of phi_increment is not done correctly in parent rf cavity
-                    until_time=time,
-                ),
+                new_rf_centers,
             )
 
-    def circuit_track(self, no_beam: bool = False) -> None:
+    def circuit_track(
+        self,
+        omega_input: float,
+        no_beam: bool = False,
+        start_index: int = 0,
+        end_index: int = -1,
+    ) -> None:
         """
         Dummy.
 
         Parameters
         ----------
+        omega_input
+            Frequency in the tracked segment.
         no_beam
-            Dummy.
+            No beam in this segment.
+        start_index
+            Index of self.rf_centers at which to start computing the response.
+        end_index
+            Index of rf_centers until which to compute the response.
         """
-        pass
+        for rf_centers_idx in range(start_index, end_index):
+            if rf_centers_idx == 0:
+                if self.last_rf_centers_entry is None:
+                    # first entry, just use frwrd direction
+                    delta_t = (
+                        self.rf_centers[rf_centers_idx + 1]
+                        - self.rf_centers[rf_centers_idx]
+                    )
+                else:
+                    delta_t = (
+                        self.rf_centers[0]
+                        + self.residual_time_last_rf_centers_calculation
+                    )
+            elif rf_centers_idx == start_index:
+                delta_t = (
+                    self.rf_centers[rf_centers_idx]
+                    + self.residual_time_last_rf_centers_calculation
+                )
+            else:
+                delta_t = (
+                    self.rf_centers[rf_centers_idx]
+                    - self.rf_centers[rf_centers_idx - 1]
+                )
+            assert delta_t > 0
+            self.cavity_response(
+                omega_input * delta_t,
+                coarse_grid_index_to_update=rf_centers_idx,
+                no_beam=no_beam,
+            )
+
+        if not no_beam:
+            init_beam_time = self.profile.cut_left
+            assert init_beam_time > 0, (
+                f"{init_beam_time=} has to be > 0, shift profile."
+            )
+
+            # last entry is forward length
+            antenna_voltage_init = interp1d(
+                self.rf_centers[-self.rf_centers_lengths[-1] :],
+                self.antenna_voltage_coarse_grid[
+                    -self.rf_centers_lengths[-1] :
+                ],
+            )(init_beam_time)
+            generator_current_init = interp1d(
+                self.rf_centers[-self.rf_centers_lengths[-1] :],
+                self.generator_current_coarse_grid[
+                    -self.rf_centers_lengths[-1] :
+                ],
+            )(init_beam_time)
+
+            # TODO: fix in case of RK application
+            samples_per_rf_fine_grid = omega_input * self.profile.hist_step
+            self.generator_current_fine_grid = np.interp(
+                self.profile.hist_x,
+                self.rf_centers[-self.rf_centers_lengths[-1] :],
+                self.generator_current_coarse_grid[
+                    -self.rf_centers_lengths[-1] :
+                ],
+            )
+
+            relative_detuning = self.detuning / omega_input
+            self.cavity_response_fine(
+                antenna_voltage_init,
+                0,
+                generator_current_init,
+                samples_per_rf_fine_grid,
+                relative_detuning=relative_detuning,
+            )
+
+    def cavity_response(
+        self,
+        omega_times_T_s,
+        coarse_grid_index_to_update,
+        no_beam: bool = False,
+    ):
+        """
+        Calculate antenna voltage on the coarse grid for a specific index.
+
+        Parameters
+        ----------
+        omega_times_T_s
+            Angular frequency times sampling time.
+        coarse_grid_index_to_update
+            Coarse grid index to update.
+        no_beam
+            If no beam is present, the beam current is set to 0.
+        """
+        if coarse_grid_index_to_update != 0:
+            if no_beam:
+                beam_current = 0
+            else:
+                forward_offset = (
+                    len(self.rf_centers) - self.rf_centers_lengths[-1]
+                )
+                beam_current = self.beam_current_forward_coarse_grid[
+                    coarse_grid_index_to_update - forward_offset
+                ]
+            self.antenna_voltage_coarse_grid[coarse_grid_index_to_update] = (
+                self.generator_current_coarse_grid[
+                    coarse_grid_index_to_update - 1
+                ]
+                * self.R_over_Q
+                * omega_times_T_s
+                + self.antenna_voltage_coarse_grid[
+                    coarse_grid_index_to_update - 1
+                ]
+                * (
+                    1
+                    - 0.5 * omega_times_T_s / self.Q_L
+                    + 1j * self.detuning * omega_times_T_s
+                )
+                - beam_current * 0.5 * self.R_over_Q * omega_times_T_s
+            )
+        else:
+            self.antenna_voltage_coarse_grid[coarse_grid_index_to_update] = (
+                self.last_val_generator_current
+                * self.R_over_Q
+                * omega_times_T_s
+                + self.last_val_ant_voltage
+                * (
+                    1
+                    - 0.5 * omega_times_T_s / self.Q_L
+                    + 1j * self.detuning * omega_times_T_s
+                )
+                - self.last_val_beam_current
+                * 0.5
+                * self.R_over_Q
+                * omega_times_T_s
+            )
 
     def update_feedback_variables(self) -> None:
         """Dummy."""
         pass
+
+    def reset_arrays(self):
+        """Reset coarse grid arrays to match rf_centers length and save last values."""
+        if self.antenna_voltage_coarse_grid is None:
+            self.last_val_ant_voltage = self.init_voltage
+        else:
+            self.last_val_ant_voltage = self.antenna_voltage_coarse_grid[-1]
+        self.antenna_voltage_coarse_grid = np.zeros(
+            len(self.rf_centers), dtype=np.complex128
+        )
+        # TODO: update this when feedback part is implemented
+        if self.generator_current_coarse_grid is None:
+            self.last_val_generator_current = self.generator_current_constant
+        else:
+            self.last_val_generator_current = (
+                self.generator_current_coarse_grid[-1]
+            )
+
+        self.generator_current_coarse_grid = (
+            np.ones(len(self.rf_centers), dtype=np.complex128)
+            * self.generator_current_constant
+        )
 
     def _track(self, beam: Beam) -> None:
         """
@@ -1125,7 +1331,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         beam
             Beam to be tracked.
         """
+        if len(self.rf_centers) != 0:
+            self.last_rf_centers_entry = self.rf_centers[-1]
+
         self.rf_centers = np.zeros(0)
+        self.rf_centers_lengths = np.zeros(0, dtype=int)
+
         if self.tracked_forward_until_element is not None:  # noqa: SIM102
             if (
                 self.tracked_forward_until_element
@@ -1133,8 +1344,183 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             ):  # otherwise, the full turn was already tracked
                 self.calculate_rf_centers_for_reverse_direction(beam=beam)
         elif self._parent_rf_station._turn_i.value == 0:
+            # at first call, this always needs to be tracked, since the values from the start of the simulation until now are not retrieved yet.
             self.calculate_rf_centers_for_reverse_direction(beam=beam)
 
+        len_rev = len(self.rf_centers)
+
+        remaining_delta_t_from_reverse_tracking = (
+            self.residual_time_last_rf_centers_calculation
+        )
+
         self.calculate_rf_centers_for_forward_direction(beam=beam)
-        self.relative_voltage_correction = np.ones_like(self.profile.hist_x)
-        self.phase_correction = np.zeros_like(self.profile.hist_x)
+
+        self.reset_arrays()
+        for omega_index, omega_track in enumerate(
+            self.reverse_tracking_omega_list
+        ):
+            start_index = np.sum(
+                self.rf_centers_lengths[:omega_index], dtype=int
+            )
+            end_index = (
+                np.sum(self.rf_centers_lengths[: omega_index + 1], dtype=int)
+                - 1
+            )
+
+            self.circuit_track(
+                omega_input=omega_track,
+                start_index=start_index,
+                end_index=end_index,
+                no_beam=True,
+            )
+
+        len_frwrd = len(self.rf_centers) - len_rev
+
+        if self.debug:
+            self.relative_voltage_correction = np.ones_like(
+                self.profile.hist_x
+            )
+            self.phase_correction = np.zeros_like(self.profile.hist_x)
+            return
+
+        # default behavior
+        self.calculate_rf_beam_current_partial(
+            beam=beam,
+            use_lowpass_filter=False,
+            n_points=len_frwrd,
+            remaining_delta_t_from_reverse_tracking=remaining_delta_t_from_reverse_tracking,
+        )
+
+        self.circuit_track(
+            omega_input=self.forward_tracking_omega_rf,
+            no_beam=False,
+            start_index=len(self.rf_centers) - len_frwrd,
+            end_index=len(self.rf_centers) - 1,
+        )  # for all rf_centers
+
+        # Convert to amplitude and phase
+        self.relative_voltage_correction, self.alpha_sum = cartesian_to_polar(
+            IQ_vector=self.antenna_voltage_fine_grid,
+        )
+
+        # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
+        self.relative_voltage_correction /= (
+            self.get_voltage_from_parent_rf_station()
+        )
+        self.phase_correction = self.alpha_sum - np.mean(
+            np.angle(self.voltage_setpoint)
+        )
+
+        self.gap_voltage_phase = np.angle(
+            self.antenna_voltage_coarse_grid / self.voltage_setpoint
+        )
+
+        # dummy values
+
+    def cavity_response_fine(
+        self,
+        initial_voltage_fine_grid: float,
+        initial_voltage_gradient_fine_grid: float,
+        initial_generator_current_fine_grid: float,
+        samples_per_rf_fine_grid: float,
+        relative_detuning: float,
+    ):
+        r"""
+        ACS cavity response model in matrix form on the fine-grid.
+
+        Parameters
+        ----------
+        initial_voltage_fine_grid : float
+            Initial condition of the voltage on the fine grid.
+        initial_voltage_gradient_fine_grid : float
+            Initial condition of the voltage gradient on the fine grid.
+        initial_generator_current_fine_grid : float
+            Initial condition of the generator current on the fine grid.
+        samples_per_rf_fine_grid
+            Sample points per period on the fine grid.
+        relative_detuning
+            Cavity detuning relative to the center frequency.
+        """
+        # if self.fine_RK:
+        #     _, self.antenna_voltage_fine_grid = (
+        #         self.runge_kutta_tryout_2nd_order(
+        #             dV_ant_init=initial_voltage_fine_grid,
+        #             delta_omega=self.omega_detuning,
+        #             V_init=initial_voltage_gradient_fine_grid,
+        #             bin_centers=self.profile.hist_x,
+        #             min_val=True,
+        #             omega=self.omega_center,
+        #         )
+        #     )
+        # else:
+
+        self.antenna_voltage_fine_grid = cavity_response_sparse_matrix(
+            I_beam=self.beam_current_fine_grid,
+            I_gen=self.generator_current_fine_grid,
+            V_ant_init=initial_voltage_fine_grid,
+            I_gen_init=initial_generator_current_fine_grid,
+            samples_per_rf=samples_per_rf_fine_grid,
+            R_over_Q=self.R_over_Q,
+            Q_L=self.Q_L,
+            relative_detuning=relative_detuning,
+        )
+
+        self.antenna_voltage_fine_grid *= self.n_cavities
+
+    def calculate_rf_beam_current_partial(
+        self,
+        beam: BeamBaseClass,
+        n_points: int,
+        remaining_delta_t_from_reverse_tracking: float,
+        use_lowpass_filter: bool = False,
+    ) -> None:
+        r"""
+        Calculate the IQ beam current for the coarse and fine grid.
+
+        Parameters
+        ----------
+        beam
+            Simulation `Beam` object.
+        n_points
+            Number of points in the resulting coarse grid.
+        remaining_delta_t_from_reverse_tracking
+            Remaining time from the last rf_centers calculation, causes phase shift in beam current calculation.
+        use_lowpass_filter
+            Usage of low-pass filter in the calculation of the beam current.
+        """
+        # Beam current from profile
+        sampling_time_frwrd = (
+            self.n_rf_periods_per_coarse_grid
+            * 2
+            * np.pi
+            / self.forward_tracking_omega_rf
+        )
+        self.last_val_beam_current = (
+            self.beam_current_forward_coarse_grid[-1]
+            if self.beam_current_forward_coarse_grid is not None
+            else 0
+        )
+        (
+            self.beam_current_fine_grid,
+            self.beam_current_forward_coarse_grid,
+        ) = rf_beam_current(
+            beam=beam,
+            profile=self.profile,
+            omega_c=self.forward_tracking_omega_rf,
+            T_rev=self.forward_tracking_time,  # wrong
+            use_lowpass_filter=use_lowpass_filter,
+            downsample={
+                "Ts": sampling_time_frwrd,
+                "points": n_points,
+            },
+            external_reference=True,
+            dT=remaining_delta_t_from_reverse_tracking,
+        )  # TODO: this is wrong --> adjust to rf_centers calculation
+
+        # Convert RF beam currents to be in units of Amperes
+        self.beam_current_fine_grid = (
+            self.beam_current_fine_grid / self.profile.hist_step
+        )
+        self.beam_current_forward_coarse_grid = (
+            self.beam_current_forward_coarse_grid / self.sampling_time_coarse
+        )
