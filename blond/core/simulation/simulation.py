@@ -1653,7 +1653,7 @@ class Simulation(Preparable):
         See Also
         --------
         current_t_rev: API to pick up the results.
-        current_dE_rev: API to pick up the results.
+        current_turn_dE_tot: API to pick up the results.
         """
         reference_tmp = copy(reference)
 
@@ -1695,13 +1695,16 @@ class Simulation(Preparable):
             return self._current_t_rev
 
     @property
-    def current_dE_rev(self) -> float:
+    def current_turn_dE_tot(self) -> float:
         """
         The energy gain of the current turn, in [eV].
 
+        This is the energy change of the total energy (kinetic + mass),
+        calculated from the start to the end of the current turn.
+
         Returns
         -------
-        current_dE_rev
+        current_turn_dE_tot
             Energy gain in the current turn, in [eV].
 
         See Also
