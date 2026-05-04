@@ -160,6 +160,7 @@ class Simulation(Preparable):
         self.check_circumference: Literal["raise", "warn", "ignore"] = "raise"
 
         self._current_t_rev = None
+        self._current_turn_dE_tot = None
         self._particle_performance_waning_threshold = int(1e3)
         self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
@@ -1668,7 +1669,7 @@ class Simulation(Preparable):
         E1 = reference_tmp.total_energy
 
         self._current_t_rev = t1 - t0
-        self._current_dE = E1 - E0
+        self._current_turn_dE_tot = E1 - E0
 
     @property
     def current_t_rev(self) -> float:
@@ -1711,9 +1712,9 @@ class Simulation(Preparable):
         --------
         _update_Trev_and_dErev: Responsible for updating the underlying variable.
         """
-        if self._current_dE is None:
+        if self._current_turn_dE_tot is None:
             raise ValueError(
                 "The value of `current_dE` is only available during the simulation execution."
             )
         else:
-            return self._current_dE
+            return self._current_turn_dE_tot
