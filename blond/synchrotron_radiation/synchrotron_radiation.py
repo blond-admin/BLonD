@@ -33,7 +33,9 @@ class SynchrotronRadiation:
 
     def __init__(self, Ring, RFParameters, Beam, bending_radius = None, rad_int = None,
                  n_kicks=1, quantum_excitation=True, python=False, seed=None,
-                 shift_beam=False):
+                 shift_beam=False,
+                 real_kick = False,
+                 ):
         """
         :param Ring: a Ring-type class
         :param RFParameters: RF Station class
@@ -45,11 +47,14 @@ class SynchrotronRadiation:
         :param python:
         :param seed:
         :param shift_beam: # Displace the beam in phase to account for the energy loss due to synchrotron radiation (temporary until bunch generation is updated)
+        :param real_kick: use the energy lost per particle.
         """
 
         self.ring = Ring
         self.rf_params = RFParameters
         self.beam = Beam
+
+        self.real_kick = real_kick
 
         # Input check
         if rad_int is None:
@@ -106,7 +111,9 @@ class SynchrotronRadiation:
         # Displace the beam in phase to account for the energy loss due to
         # synchrotron radiation (temporary until bunch generation is updated)
         if (shift_beam) and (self.rf_params.section_index == 0):
-            if self.U0 / (self.ring.Particle.charge * self.rf_params.voltage[0][0]) > 1:
+            if (self.U0 / (self.ring.Particle.charge *
+                          self.rf_params.voltage[0][0]) > 1 and
+                    self.rf_params.voltage[0][0]) > 0:
                 raise ValueError("Voltage too low to compensate synchrotron radiation losses.")
             self.beam_phase_to_compensate_SR = np.abs(np.arcsin(
                 self.U0 / (self.ring.Particle.charge * self.rf_params.voltage[0][0])))
@@ -191,11 +198,28 @@ class SynchrotronRadiation:
                 self.ring.energy[0, i_turn - 1]):
             self.calculate_SR_params()
         for i in range(self.n_kicks):
-            self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE +  # damping
-                              self.U0 / self.n_kicks # SR kick
-                              - 2.0 * self.sigma_dE /  np.sqrt(self.tau_z * self.n_kicks) *
-                              self.beam.energy
-                              * np.random.normal(size=self.beam.n_macroparticles)) #
+            if self.real_kick:
+                energy_lost_all_particles = (self.c_gamma *
+                                             (np.mean(self.beam.energy +
+                                              self.beam.dE) + self.beam.dE) **
+                                              4.0
+                           * self.I2 / (2.0 * np.pi)
+                           * self.rf_params.section_length
+                           / self.ring.ring_circumference)
+                self.beam.dE +=(- energy_lost_all_particles #includes energy
+                                # lost + radiation damping
+                                # - 2.0 *
+                                # self.sigma_dE /  np.sqrt(self.tau_z *
+                                #                          self.n_kicks) *
+                                # self.beam.energy * np.random.normal(size=self.beam.n_macroparticles)
+                                )
+            else:
+                self.beam.dE += -(2.0 / self.tau_z / self.n_kicks *
+            self.beam.dE #damping
+                            + self.U0 / self.n_kicks  # SR kick
+                            - 2.0 * self.sigma_dE / np.sqrt(
+                        self.tau_z * self.n_kicks) * self.beam.energy *
+                                np.random.normal(size=self.beam.n_macroparticles)) #
             # tentative to implement quantum excitation
 
     # Track particles with SR only (without quantum excitation)

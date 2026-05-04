@@ -122,9 +122,17 @@ slice_beam.track()
 # Synchrotron radiation objects without quantum excitation
 rho = 11e3
 SR = []
+
+# Compensation of the synchronous phase shift induced by the synchrotron
+# radiation loss
+
+shift_beam = True # shifts the beam in phase to compensate for the radiation
+# losses.
+
 for i in range(n_sections):
     SR.append(SynchrotronRadiation(general_params, RF_sct_par[i], beam, rho,
-                                   quantum_excitation=False, python=True))
+                                   quantum_excitation=False, python=True,
+                                   shift_beam = shift_beam))
 
 SR[0].print_SR_params()
 

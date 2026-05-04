@@ -176,11 +176,24 @@ class CavityFeedback(ABC):
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rfstation.voltage[self.n_h, self.rfstation.counter[0]]
-        self.phi_corr = self.alpha_sum - np.angle(
-            np.interp(
-                self.profile.bin_centers, self.rf_centers, self.V_SET[-self.n_coarse :]
+
+        if isinstance(self.profile, SparseBatch):
+            self.phi_corr = self.alpha_sum
+
+            for p, profile in enumerate(self.profile.profiles_list):
+                self.phi_corr[p*profile.n_slices:(p+1)* profile.n_slices] -=\
+                    np.angle(
+                np.interp(profile.bin_centers, self.rf_centers, self.V_SET[-self.n_coarse :]
+                ))
+
+        else:
+            self.phi_corr = self.alpha_sum - np.angle(
+                np.interp(
+                    self.profile.bin_centers,
+                    self.rf_centers,
+                    self.V_SET[-self.n_coarse:],
+                )
             )
-        )
 
     def rf_beam_current(self, lpf: bool = False):
         r"""Calculate RF beam current from beam profile"""
@@ -1436,16 +1449,39 @@ class LHCCavityLoop(CavityFeedback):
 
         if not no_beam:
             # Resample generator current to the fine-grid
-            self.I_GEN_FINE = np.interp(
-                np.concatenate(
-                    (
-                        np.array([self.profile.bin_centers[0] - self.profile.bin_size]),
-                        self.profile.bin_centers,
-                    )
-                ),
-                self.rf_centers,
-                self.I_GEN_COARSE[-self.n_coarse :],
-            )
+            if isinstance(self.profile, SparseBatch):
+                for p, profile in enumerate(self.profile.profiles_list):
+                    if p ==0:
+                        self.I_GEN_FINE[0:profile.n_slices] = np.interp(
+                            np.concatenate(
+                                (
+                                    np.array([profile.bin_centers[0] - profile.bin_size]),
+                                    profile.bin_centers,
+                                )
+                            ),
+                            self.rf_centers,
+                            self.I_GEN_COARSE[-self.n_coarse:],
+                        )
+                    else:
+                        self.I_GEN_FINE[p*profile.n_slices+1:(p+1)*
+                            profile.n_slices+1] = (
+                            np.interp(
+                                    profile.bin_centers,
+                            self.rf_centers,
+                            self.I_GEN_COARSE[-self.n_coarse:],
+                        ))
+
+            else:
+                self.I_GEN_FINE = np.interp(
+                    np.concatenate(
+                        (
+                            np.array([self.profile.bin_centers[0] - self.profile.bin_size]),
+                            self.profile.bin_centers,
+                        )
+                    ),
+                    self.rf_centers,
+                    self.I_GEN_COARSE[-self.n_coarse :],
+                )
 
             # Compute the fine-grid antenna voltage through solving a sparse matrix equation
             self.cavity_response_fine_matrix()
@@ -2087,21 +2123,43 @@ class FCCBoosterCavityLoop(CavityFeedback):
 
         if not no_beam:
             # Resample generator current to the fine-grid
-            self.I_GEN_FINE = np.interp(
-                np.concatenate(
-                    (
-                        np.array(
-                            [
-                                self.profile.bin_centers[0]
-                                - self.profile.bin_size
-                            ]
-                        ),
-                        self.profile.bin_centers,
-                    )
-                ),
-                self.rf_centers,
-                self.I_GEN_COARSE[-self.n_coarse:],
-            )
+            if isinstance(self.profile, SparseBatch):
+                for p, profile in enumerate(self.profile.profiles_list):
+                    self.I_GEN_FINE = np.zeros(self.profile.n_slices + 1,
+                                               dtype=self.dtype_array)
+                    if p == 0:
+                        self.I_GEN_FINE[0:profile.n_slices+1] = np.interp(
+                            np.concatenate(
+                                (
+                                    np.array([profile.bin_centers[
+                                                  0] - profile.bin_size]),
+                                    profile.bin_centers,
+                                )
+                            ),
+                            self.rf_centers,
+                            self.I_GEN_COARSE[-self.n_coarse:],
+                        )
+                    else:
+                        self.I_GEN_FINE[p * profile.n_slices + 1:(p + 1) *
+                                                                 profile.n_slices + 1] = (
+                            np.interp(
+                                profile.bin_centers,
+                                self.rf_centers,
+                                self.I_GEN_COARSE[-self.n_coarse:],
+                            ))
+
+            else:
+                self.I_GEN_FINE = np.interp(
+                    np.concatenate(
+                        (
+                            np.array([self.profile.bin_centers[
+                                          0] - self.profile.bin_size]),
+                            self.profile.bin_centers,
+                        )
+                    ),
+                    self.rf_centers,
+                    self.I_GEN_COARSE[-self.n_coarse:],
+                )
 
             # Compute the fine-grid antenna voltage through solving a sparse matrix equation
             self.cavity_response_fine_matrix()
@@ -2176,8 +2234,8 @@ class FCCBoosterCavityLoop(CavityFeedback):
                     R_over_Q=self.R_over_Q,
                     Q_L=self.Q_L,
                     detuning=self.detuning,
-                )
-                self.V_ANT_FINE[-self.profile.n_slices:] *= self.n_cavities
+                )[-profile.n_slices:]
+            self.V_ANT_FINE[-self.profile.n_slices:] *= self.n_cavities
         else:
             # Number of samples on fine grid
             self.samples_fine = self.omega_rf * self.profile.bin_size
