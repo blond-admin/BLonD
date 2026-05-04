@@ -12,15 +12,14 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy
 
-from blond.core.base import (
-    HasSymbolicHamiltonian,
-)
+from blond.core.base import HasSymbolicHamiltonian
 from blond.utilities.separatrix.helpers import _get_omega_min
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -32,6 +31,28 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _CanonicalBucket:
+    """
+    One canonical RF bucket worth of geometry, exploited by periodicity.
+
+    The full Hamiltonian decomposes as ``H = a*dE**2 + U(dt)`` and ``U(dt)``
+    splits into a periodic part plus a linear acceleration tilt
+    ``ref_E_change * dt``. ``U`` therefore repeats every ``period``, with
+    each successive copy shifted up by ``shift_per_period``. One canonical
+    UFP is enough to reconstruct every bucket by integer offsets:
+
+    * UFP at period ``n``: ``ufp_dt + n*period`` with potential
+      ``ufp_potential + n*shift_per_period``.
+    * Bucket ``n`` is bounded by UFP ``n`` and UFP ``n+1``.
+    """
+
+    ufp_dt: float
+    ufp_potential: float
+    period: float
+    shift_per_period: float
 
 
 class SymbolicSeparatrixHelper:
@@ -46,9 +67,9 @@ class SymbolicSeparatrixHelper:
     hamiltonian
         Sympy-based expression of the Hamiltonian.
     omega_min
-        Minimum RF frequency in the `Ring`.
-        This is internally used to derive the separatrix from ``H_max``
-        within the according period.
+        Minimum RF frequency in the `Ring`. The longest RF period
+        ``2*pi/omega_min`` is used as the canonical scan window when
+        locating unstable fixed points.
 
     See Also
     --------
@@ -58,15 +79,22 @@ class SymbolicSeparatrixHelper:
     blond.physics.drifts.DriftExact.get_hamilton_symbolic : Partial Hamiltonian definition for Drift.
     """
 
-    def __init__(self, hamiltonian: sympy.Expr, omega_min: float):
-        self._ham = hamiltonian
+    #: Number of grid points used when scanning one canonical period to
+    #: locate UFPs of the potential.
+    _CANONICAL_SCAN_RESOLUTION = 10_000
 
-        # Settings for `_get_H_sep`
-        self._find_Hmax_omega_min = omega_min
-        self._find_Hmax_points = 10_000
+    #: Tolerance (in fractional bucket index) within which ``ratio`` is
+    #: snapped to the nearest integer, so a UFP exactly on a bucket
+    #: boundary is assigned to the bucket on its right despite float
+    #: round-off.
+    _BUCKET_BOUNDARY_TOLERANCE = 1e-9
+
+    def __init__(self, hamiltonian: sympy.Expr, omega_min: float):
+        self._hamiltonian = hamiltonian
+        self._omega_min = omega_min
 
     @staticmethod
-    def from_simulation(simulation: Simulation):
+    def from_simulation(simulation: Simulation) -> SymbolicSeparatrixHelper:
         """
         Instantiate `SymbolicSeparatrixHelper` from a `Simulation`.
 
@@ -77,23 +105,22 @@ class SymbolicSeparatrixHelper:
 
         Returns
         -------
-        symbolic_separatrix_heler
+        symbolic_separatrix_helper
             The initialized `SymbolicSeparatrixHelper`.
         """
-        ham = None
-        for element in simulation.ring.elements.get_elements(
-            HasSymbolicHamiltonian
-        ):
-            partial = element.get_hamilton_symbolic()
-            ham = partial if ham is None else ham + partial
-
-        if ham is None:
+        partials = [
+            element.get_hamilton_symbolic()
+            for element in simulation.ring.elements.get_elements(
+                HasSymbolicHamiltonian
+            )
+        ]
+        if not partials:
             raise ValueError(
                 "No elements with `HasSymbolicHamiltonian` found."
             )
-
+        hamiltonian = sympy.Add(*partials)
         return SymbolicSeparatrixHelper(
-            hamiltonian=ham,
+            hamiltonian=hamiltonian,
             omega_min=_get_omega_min(simulation.ring),
         )
 
@@ -105,10 +132,14 @@ class SymbolicSeparatrixHelper:
         """
         Compute the separatrix boundary in longitudinal phase space.
 
-        Accumulates the partial Hamiltonians from all elements that implement
-        :class:`HasSymbolicHamiltonian`, substitutes numerical beam values,
-        then solves ``H(dt, dE) = H_sep(dt)`` for ``dE`` at each point of
-        ``dt``.
+        Substitutes numerical beam values into the symbolic Hamiltonian,
+        then solves ``H(dt, dE) = H_sep(dt)`` for ``dE`` at each ``dt``.
+        Each RF bucket has its own ``H_sep``: the lower of the two bounding
+        UFPs above transition (``a > 0``), the higher one below transition
+        (``a < 0``). With non-zero ``reference_energy_change`` consecutive
+        UFPs differ in height, so this per-dt treatment is required;
+        without acceleration the result reduces to the familiar single
+        ``H_sep`` answer.
 
         Parameters
         ----------
@@ -119,133 +150,24 @@ class SymbolicSeparatrixHelper:
 
         Returns
         -------
+        dt
+            The (unmodified) input ``dt`` array, returned for symmetry with
+            future extensions that may augment it.
         separatrix
-            Array of shape ``(2, len(dt))`` where row 0 is the upper branch
-            (``dE ≥ 0``) and row 1 is the lower branch (``dE ≤ 0``), in [eV].
-            Entries are ``NaN`` for ``dt`` that lie outside any RF bucket
-            (e.g. beyond the bracketing unstable fixed points, or in regions
-            where the linear acceleration tilt has eliminated all extrema).
-
-        Notes
-        -----
-        Each RF bucket has its own ``H_sep`` set by the lower of the two
-        bounding unstable fixed points (UFPs) when above transition
-        (``a > 0``), or the higher one when below transition (``a < 0``).
-        Without acceleration the potential is periodic and all UFPs share
-        the same height — the per-bucket result reduces to the old single
-        ``H_sep`` answer. With non-zero ``reference_energy_change`` from an
-        accelerating cycle the potential is a tilted cosine; consecutive
-        UFPs differ in height, so this per-dt treatment is required for the
-        result to be physical.
+            Array of shape ``(2, len(dt))``: row 0 the upper branch
+            (``dE ≥ 0``), row 1 the lower branch (``dE ≤ 0``), in [eV].
+            Entries are ``NaN`` for ``dt`` lying outside any RF bucket
+            (above the local barrier, or no bucket exists at all because
+            the linear tilt eliminated all extrema).
         """
-        # Substitute numerical beam values
-        dt_sym, dE_sym = sympy.symbols("dt dE", real=True)
-        beta_sym, gamma_sym, E_sym, q_sym = sympy.symbols(
-            "beta gamma E q", real=True
-        )
-        ham = self._ham.subs(
-            {
-                beta_sym: beam.reference.beta,
-                gamma_sym: beam.reference.gamma,
-                E_sym: beam.reference.total_energy,
-                q_sym: float(beam.particle_type.charge),
-            }
-        )
-
-        # Extract kinetic coefficient a (coeff of dE²) and potential f(dt)
-        a = float(ham.coeff(dE_sym, 2))
-        f_num = sympy.lambdify(dt_sym, ham.subs(dE_sym, 0), modules="numpy")
+        a, potential = self._substitute_beam(beam)
 
         dt_arr = np.asarray(dt, dtype=float)
-        H_sep = self._H_sep_per_dt(dt_arr, a=a, f_num=f_num)
-
-        f_values = np.asarray(f_num(dt_arr), dtype=float)
-        with np.errstate(invalid="ignore"):
-            inside = (H_sep - f_values) / a
-        dE_sep = np.full(dt_arr.shape, np.nan, dtype=float)
-        in_bucket = np.isfinite(inside) & (inside >= 0)
-        dE_sep[in_bucket] = np.sqrt(inside[in_bucket])
-
-        return dt, np.stack([dE_sep, -dE_sep])
-
-    def _H_sep_per_dt(
-        self,
-        dt: NumpyArray,
-        a: float,
-        f_num: Callable,
-    ) -> NumpyArray:
-        pass
-        """
-        Compute the per-``dt`` Hamiltonian value on the bucket separatrix.
-
-        ``f := H(dt, dE=0)`` decomposes as a periodic part plus the linear
-        acceleration tilt ``ref_E_change * dt``, so it repeats every
-        ``T_rf = 2π/omega_min`` with each period shifted up by exactly
-        ``shift_per_period := f(dt₀ + T_rf) - f(dt₀) = ref_E_change * T_rf``.
-        The bucket structure is therefore identical in every period and we
-        only need to find one canonical UFP, then extrapolate by integer
-        offsets:
-
-        * UFP at period ``n``: ``ufp_dt + n*T_rf`` with potential
-          ``ufp_potential + n*shift_per_period``.
-        * Bucket ``n`` is bounded by UFP ``n`` and UFP ``n+1``.
-        * ``H_sep`` is the lower (``a > 0``) or higher (``a < 0``) of the
-          two bounding UFP potentials.
-
-        Returns ``NaN`` when the linear tilt has eliminated all interior
-        extrema of ``f`` over a period (no bucket exists anywhere).
-        """
-        if a == 0.0:
-            return np.full(dt.shape, np.nan, dtype=float)
-
-        period = 2.0 * np.pi / self._find_Hmax_omega_min
-
-        # Scan ONE canonical period — endpoints differ by exactly
-        # shift_per_period (= ref_E_change * period).
-        period_start = float(np.min(dt))
-        scan_dt = np.linspace(
-            period_start,
-            period_start + period,
-            self._find_Hmax_points + 1,
+        H_sep = self._H_sep_per_dt(dt_arr, a=a, potential=potential)
+        dE_sep = self._dE_sep_upper(
+            dt_arr, a=a, potential=potential, H_sep=H_sep
         )
-        scan_potential = np.asarray(f_num(scan_dt), dtype=float)
-        shift_per_period = float(scan_potential[-1] - scan_potential[0])
-
-        # Interior extrema of the potential within this canonical period.
-        slope = np.diff(scan_potential)
-        if a > 0:
-            is_local_extremum = (slope[:-1] > 0) & (slope[1:] < 0)
-        else:
-            is_local_extremum = (slope[:-1] < 0) & (slope[1:] > 0)
-        extremum_indices = np.flatnonzero(is_local_extremum) + 1
-
-        if extremum_indices.size == 0:
-            # Linear tilt overwhelms the cosine — f is monotonic, no buckets.
-            return np.full(dt.shape, np.nan, dtype=float)
-
-        # Pick the outer-separatrix UFP: highest local max (a > 0) or
-        # lowest local min (a < 0) within the period. For single-harmonic
-        # there is only one and this is trivially it; for multi-harmonic
-        # this selects the outer barrier (sub-bucket structure inside is
-        # not represented).
-        if a > 0:
-            ufp_index = extremum_indices[
-                np.argmax(scan_potential[extremum_indices])
-            ]
-        else:
-            ufp_index = extremum_indices[
-                np.argmin(scan_potential[extremum_indices])
-            ]
-        ufp_dt = scan_dt[ufp_index]
-        ufp_potential = scan_potential[ufp_index]
-
-        # Bucket n is bounded by UFP_n at ufp_dt + n*period and UFP_{n+1}.
-        bucket_index = np.floor((dt - ufp_dt) / period)
-        potential_left_ufp = ufp_potential + bucket_index * shift_per_period
-        potential_right_ufp = potential_left_ufp + shift_per_period
-        if a > 0:
-            return np.minimum(potential_left_ufp, potential_right_ufp)
-        return np.maximum(potential_left_ufp, potential_right_ufp)
+        return dt_arr, np.stack([dE_sep, -dE_sep])
 
     def plot_separatrix(
         self,
@@ -257,7 +179,7 @@ class SymbolicSeparatrixHelper:
         Plot the longitudinal phase-space separatrix.
 
         Calls :meth:`get_separatrix` and draws both branches on the current
-        matplotlib axes.  The label (if given) is applied only to the upper
+        matplotlib axes. The label (if given) is applied only to the upper
         branch so the legend shows a single entry.
 
         Parameters
@@ -276,34 +198,18 @@ class SymbolicSeparatrixHelper:
         artists
             List of matplotlib objects.
 
-        See Also
-        --------
-        get_separatrix : Compute the separatrix boundary numerically.
-
         Notes
         -----
         This method does not call ``plt.show()``; call that separately.
         """
-        default_kwargs = {
-            "color": "red",
-            "linestyle": "dashed",
-        }
-        for key, value in default_kwargs.items():
-            if key not in kwargs_plot:
-                kwargs_plot[key] = value
-        dt, separatrix = self.get_separatrix(
-            beam=beam,
-            dt=dt,
-        )
+        kwargs_plot.setdefault("color", "red")
+        kwargs_plot.setdefault("linestyle", "dashed")
+
+        dt, separatrix = self.get_separatrix(beam=beam, dt=dt)
+
         label = kwargs_plot.pop("label", None)
-        artists = plt.plot(
-            dt,
-            separatrix[0],
-            label=label,
-            **kwargs_plot,
-        )
-        if "color" in kwargs_plot:
-            kwargs_plot.pop("color")
+        artists = plt.plot(dt, separatrix[0], label=label, **kwargs_plot)
+        kwargs_plot.pop("color", None)
         artists.extend(
             plt.plot(
                 dt,
@@ -315,3 +221,239 @@ class SymbolicSeparatrixHelper:
         plt.xlabel("Time [s]")
         plt.ylabel("Energy offset [eV]")
         return artists
+
+    def _substitute_beam(
+        self, beam: BeamBaseClass
+    ) -> tuple[float, Callable[[NumpyArray], NumpyArray]]:
+        """
+        Substitute beam scalars into the Hamiltonian.
+
+        Parameters
+        ----------
+        beam
+            Beam whose reference coordinates supply β, γ, E and charge.
+
+        Returns
+        -------
+        a
+            Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
+        potential
+            Numpy-vectorized callable for ``H(dt, dE=0)``.
+        """
+        dt_sym, dE_sym = sympy.symbols("dt dE", real=True)
+        beta_sym, gamma_sym, E_sym, q_sym = sympy.symbols(
+            "beta gamma E q", real=True
+        )
+        ham = self._hamiltonian.subs(
+            {
+                beta_sym: beam.reference.beta,
+                gamma_sym: beam.reference.gamma,
+                E_sym: beam.reference.total_energy,
+                q_sym: float(beam.particle_type.charge),
+            }
+        )
+        a = float(ham.coeff(dE_sym, 2))
+        potential = sympy.lambdify(
+            dt_sym, ham.subs(dE_sym, 0), modules="numpy"
+        )
+        return a, potential
+
+    @staticmethod
+    def _dE_sep_upper(
+        dt: NumpyArray,
+        a: float,
+        potential: Callable[[NumpyArray], NumpyArray],
+        H_sep: NumpyArray,
+    ) -> NumpyArray:
+        """
+        Solve ``a*dE**2 + U(dt) = H_sep(dt)`` for the upper branch ``dE >= 0``.
+
+        Parameters
+        ----------
+        dt
+            Time-deviation grid [s].
+        a
+            Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
+        potential
+            Numpy-vectorized callable for ``H(dt, dE=0)``.
+        H_sep
+            Per-dt Hamiltonian value on the bucket separatrix.
+
+        Returns
+        -------
+        dE_sep
+            Upper-branch separatrix energy at each ``dt``. ``NaN`` where
+            ``H_sep`` is ``NaN`` (no bucket exists) or ``(H_sep - U)/a < 0``
+            (particle above the local barrier).
+        """
+        f_values = np.asarray(potential(dt), dtype=float)
+        with np.errstate(invalid="ignore"):
+            inside = (H_sep - f_values) / a
+        dE_sep = np.full(dt.shape, np.nan, dtype=float)
+        in_bucket = np.isfinite(inside) & (inside >= 0)
+        dE_sep[in_bucket] = np.sqrt(inside[in_bucket])
+        return dE_sep
+
+    def _H_sep_per_dt(
+        self,
+        dt: NumpyArray,
+        a: float,
+        potential: Callable[[NumpyArray], NumpyArray],
+    ) -> NumpyArray:
+        """
+        Compute the per-``dt`` Hamiltonian value on the bucket separatrix.
+
+        Locates the canonical UFP within one RF period and extrapolates
+        bucket boundaries by integer offsets of ``period`` (in dt) and
+        ``shift_per_period`` (in potential).
+
+        Parameters
+        ----------
+        dt
+            Time-deviation grid [s].
+        a
+            Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
+        potential
+            Numpy-vectorized callable for ``H(dt, dE=0)``.
+
+        Returns
+        -------
+        H_sep
+            Per-dt separatrix Hamiltonian value. ``NaN`` when no interior
+            extremum exists (the linear tilt is so strong that the
+            potential is monotonic over a period).
+        """
+        if a == 0.0:
+            return np.full(dt.shape, np.nan, dtype=float)
+
+        bucket = self._find_canonical_bucket(
+            period_start=float(np.min(dt)), a=a, potential=potential
+        )
+        if bucket is None:
+            return np.full(dt.shape, np.nan, dtype=float)
+
+        bucket_index = self._bucket_index(dt, bucket)
+        potential_left = (
+            bucket.ufp_potential + bucket_index * bucket.shift_per_period
+        )
+        potential_right = potential_left + bucket.shift_per_period
+        if a > 0:
+            return np.minimum(potential_left, potential_right)
+        return np.maximum(potential_left, potential_right)
+
+    def _find_canonical_bucket(
+        self,
+        period_start: float,
+        a: float,
+        potential: Callable[[NumpyArray], NumpyArray],
+    ) -> _CanonicalBucket | None:
+        """
+        Locate one canonical UFP inside ``[period_start, period_start + period]``.
+
+        For multi-harmonic potentials with several extrema per period, the
+        canonical UFP is the highest local max (``a > 0``) or lowest local
+        min (``a < 0``) — i.e., the outer-separatrix barrier; sub-bucket
+        structure is not represented.
+
+        Parameters
+        ----------
+        period_start
+            Left edge of the canonical scan window [s].
+        a
+            Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
+        potential
+            Numpy-vectorized callable for ``H(dt, dE=0)``.
+
+        Returns
+        -------
+        bucket
+            Canonical bucket geometry, or ``None`` when no interior
+            extremum exists in the scan window.
+        """
+        period = 2.0 * np.pi / self._omega_min
+        scan_dt = np.linspace(
+            period_start,
+            period_start + period,
+            self._CANONICAL_SCAN_RESOLUTION + 1,
+        )
+        scan_potential = np.asarray(potential(scan_dt), dtype=float)
+        shift_per_period = float(scan_potential[-1] - scan_potential[0])
+
+        extremum_indices = self._interior_extrema(scan_potential, a=a)
+        if extremum_indices.size == 0:
+            return None
+
+        if a > 0:
+            ufp_index = extremum_indices[
+                np.argmax(scan_potential[extremum_indices])
+            ]
+        else:
+            ufp_index = extremum_indices[
+                np.argmin(scan_potential[extremum_indices])
+            ]
+        return _CanonicalBucket(
+            ufp_dt=float(scan_dt[ufp_index]),
+            ufp_potential=float(scan_potential[ufp_index]),
+            period=period,
+            shift_per_period=shift_per_period,
+        )
+
+    @staticmethod
+    def _interior_extrema(values: NumpyArray, a: float) -> NumpyArray:
+        """
+        Find indices of interior local maxima (``a > 0``) or minima (``a < 0``).
+
+        Parameters
+        ----------
+        values
+            1-D array sampled along the dt-axis.
+        a
+            Kinetic coefficient ``coeff(dE, 2)`` — its sign decides whether
+            UFPs are local maxima or local minima.
+
+        Returns
+        -------
+        indices
+            Indices into ``values`` of interior extrema (boundaries
+            excluded).
+        """
+        slope = np.diff(values)
+        if a > 0:
+            is_extremum = (slope[:-1] > 0) & (slope[1:] < 0)
+        else:
+            is_extremum = (slope[:-1] < 0) & (slope[1:] > 0)
+        return np.flatnonzero(is_extremum) + 1
+
+    @classmethod
+    def _bucket_index(
+        cls, dt: NumpyArray, bucket: _CanonicalBucket
+    ) -> NumpyArray:
+        """
+        Compute the bucket index ``n`` containing each ``dt``.
+
+        ``floor((dt - ufp_dt) / period)`` is ambiguous on the boundary due
+        to float roundoff (``n - 1e-16`` floors to ``n - 1``), so we round
+        to the nearest integer when within :attr:`_BUCKET_BOUNDARY_TOLERANCE`
+        — that way a UFP is treated as the LEFT boundary of bucket ``n``
+        (where the separatrix touches ``dE = 0``).
+
+        Parameters
+        ----------
+        dt
+            Time-deviation grid [s].
+        bucket
+            Canonical bucket geometry from :meth:`_find_canonical_bucket`.
+
+        Returns
+        -------
+        bucket_index
+            Integer-valued float array; ``dt`` lies in bucket
+            ``[UFP_n, UFP_{n+1}]``.
+        """
+        ratio = (dt - bucket.ufp_dt) / bucket.period
+        nearest = np.round(ratio)
+        return np.where(
+            np.abs(ratio - nearest) < cls._BUCKET_BOUNDARY_TOLERANCE,
+            nearest,
+            np.floor(ratio),
+        )
