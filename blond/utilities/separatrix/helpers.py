@@ -38,7 +38,7 @@ def _get_omega_min(ring: Ring) -> float:
     Returns
     -------
     omega_min
-        The minimum angular frequency in the `Ring`, inn [Hz].
+        The minimum angular frequency in the `Ring`, in [Hz].
     """
     omega_min = None
     for element in ring.elements.get_elements(HasSymbolicHamiltonian):
