@@ -497,34 +497,67 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         return drift
 
     def get_hamilton_symbolic(self) -> sympy.Expr:
-        """
+        r"""
         Return the partial Hamiltonian symbolic expression.
+
+        The tracker (see :meth:`DriftExact._track`) maps
+        ``dt -> dt + T * F(dE)`` with
+
+        .. math::
+
+            F(dE) &= \mathrm{poly}(\delta)\,\frac{1 + dE/E}{1 + \delta} - 1 \\
+            \delta(dE) &= \sqrt{1 + (dE^2 + 2\,dE\,E)/(\beta^2 E^2)} - 1 \\
+            \mathrm{poly}(\delta) &= 1 + \alpha_0\,\delta
+                + \sum_k \alpha_{k+1}\,\delta^{k+2}
+
+        Hamilton's equation :math:`\partial H/\partial dE = T\,F` plus the
+        substitution :math:`u \to \delta` closes the integral in form:
+
+        .. math::
+
+            H = T\,(\beta^2 E\,P(\delta(dE)) - dE),\qquad
+            P(\delta) := \int_0^\delta \mathrm{poly}(\delta')\,d\delta'
+
+        We Taylor-expand :math:`\delta(dE)` in ``dE`` up to order
+        ``len(higher_order_alpha) + 2`` — the highest order needed to fully
+        represent every supplied :math:`\alpha_k` — so the result is a
+        polynomial in ``dE`` and ``coeff(dE, n)`` works for downstream
+        consumers like :class:`SymbolicSeparatrixHelper`.
 
         Returns
         -------
         expression
-            The symbolic expression.
+            Polynomial in ``dE`` with coefficients in ``beta``, ``E``.
         """
         dE, beta, E = sympy.symbols("dE beta E", real=True)
-        u = sympy.Symbol("u", real=True)
-
         alpha_0 = (
             self.alpha_0
             if self.alpha_0 is not None
             else sympy.Symbol("alpha_0", real=True)
         )
+        higher = (
+            self.higher_order_alpha
+            if self.higher_order_alpha is not None
+            else ()
+        )
         T = self.orbit_length / (beta * c0)
+        truncation = len(higher) + 2
 
-        delta = sympy.sqrt(1 + (u**2 / E**2 + 2 * u / E) / beta**2) - 1
+        # Taylor-expand delta(dE) in dE and treat it as a polynomial.
+        delta_exact = (
+            sympy.sqrt(1 + (dE**2 + 2 * dE * E) / (beta**2 * E**2)) - 1
+        )
+        delta = delta_exact.series(dE, 0, truncation + 1).removeO()
 
-        poly = 1 + alpha_0 * delta
-        if self.higher_order_alpha is not None:
-            for k, alpha_k in enumerate(self.higher_order_alpha):
-                poly += alpha_k * delta ** (k + 2)
+        # P(delta) = integral_0^delta poly(delta') ddelta'
+        P = delta + alpha_0 * delta**2 / 2
+        for k, alpha_k in enumerate(higher):
+            P += alpha_k * delta ** (k + 3) / (k + 3)
 
-        integrand = poly * (1 + u / E) / (1 + delta) - 1
-
-        return T * sympy.Integral(integrand, (u, 0, dE))
+        # Expand and discard dE**k terms beyond the truncation order that
+        # appear as artifacts of multiplying truncated polynomials.
+        H = sympy.expand(T * (beta**2 * E * P - dE))
+        return sum(H.coeff(dE, k) * dE**k for k in range(truncation + 1))
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
