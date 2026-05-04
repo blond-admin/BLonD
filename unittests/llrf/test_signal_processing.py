@@ -242,12 +242,12 @@ class TestRFCurrentSparse(unittest.TestCase):
         self.beam2 = Beam(
             self.ring,
             total_number_of_bunches * N_m,
-            total_number_of_bunches * N_b,
+            total_number_of_bunches * number_of_bunches_per_batch,
         )
         self.beam_sparse = Beam(
             self.ring,
             total_number_of_bunches * N_m,
-            total_number_of_bunches * N_b,
+            total_number_of_bunches * number_of_bunches_per_batch,
         )
 
         for k in range(number_of_bunches_per_batch):

@@ -17,6 +17,7 @@ import os
 import unittest
 
 import numpy as np
+from numpy.ma.testutils import assert_almost_equal
 from scipy.constants import c
 
 from blond.beam.beam import Beam, Proton
@@ -1500,6 +1501,26 @@ class TestLHCCavityLoopSparseProfile(unittest.TestCase):
             )
         )
 
+        np.testing.assert_array_almost_equal(
+            self.lhc_cavity_loop_sparse.I_BEAM_COARSE[
+                -self.lhc_cavity_loop_sparse.n_coarse :
+            ],
+            self.lhc_cavity_loop.I_BEAM_COARSE[
+                -self.lhc_cavity_loop.n_coarse :
+            ],
+            decimal=12,
+        )
+
+        np.testing.assert_array_almost_equal(
+            self.lhc_cavity_loop_sparse.V_ANT_COARSE[
+                -self.lhc_cavity_loop_sparse.n_coarse :
+            ],
+            self.lhc_cavity_loop.V_ANT_COARSE[
+                -self.lhc_cavity_loop.n_coarse :
+            ],
+            decimal=12,
+        )
+
         # TODO: implement test for `cavity_response_fine_matrix`
         self.lhc_cavity_loop.cavity_response_fine_matrix()
         self.lhc_cavity_loop_sparse.cavity_response_fine_matrix()
@@ -1518,6 +1539,22 @@ class TestLHCCavityLoopSparseProfile(unittest.TestCase):
                     self.lhc_cavity_loop.profile.bin_centers
                     - profile.bin_centers[0]
                 )
+            )
+            np.testing.assert_array_almost_equal(
+                self.lhc_cavity_loop_sparse.I_BEAM_FINE[
+                    p * profile.n_slices : (p + 1) * profile.n_slices
+                ],
+                self.lhc_cavity_loop.I_BEAM_FINE[
+                    index : index + profile.n_slices
+                ],
+                decimal=12,
+            )
+            np.testing.assert_almost_equal(
+                profile.bin_centers,
+                self.lhc_cavity_loop.profile.bin_centers[
+                    index : index + profile.n_slices
+                ],
+                decimal=12,
             )
 
             np.testing.assert_array_equal(
