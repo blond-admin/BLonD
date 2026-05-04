@@ -741,7 +741,9 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 t_start = states[-1]
 
                 for bin_i in range(n_bins):
-                    profile_i_half = complex(0.5 * profile[bin_i])
+                    profile_i_half = (
+                        cr_pole_flip * 0.5 * profile[bin_i] * two_factor
+                    )
 
                     if bin_i == update_on_bin_i:
                         if bin_i == 0:
@@ -761,12 +763,10 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                             update_on_bin_i = update_on_bin[i_update]
                     else:
                         state *= decay
-                    state += cr_pole_flip * profile_i_half
+                    state += profile_i_half
                     amp = float(np.real(residue * state))
-                    voltage_threaded[thread_i, bin_i] += (
-                        cr_pole_flip * two_factor * amp
-                    )
-                    state += cr_pole_flip * profile_i_half
+                    voltage_threaded[thread_i, bin_i] += cr_pole_flip * amp
+                    state += profile_i_half
                 states[pole_i] = state
 
             for thread_i in prange(numba.get_num_threads()):

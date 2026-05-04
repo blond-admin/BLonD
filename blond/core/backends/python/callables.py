@@ -584,7 +584,9 @@ class PythonSpecials(Specials):
 
             decay = 0.0 + 0j
             for bin_i in range(n_bins):
-                profile_i_half = complex(0.5 * profile[bin_i])
+                profile_i_half = (
+                    cr_pole_flip * 0.5 * profile[bin_i] * two_factor
+                )
 
                 if bin_i == update_on_bin_i:
                     if bin_i == 0:
@@ -602,10 +604,10 @@ class PythonSpecials(Specials):
                         update_on_bin_i = update_on_bin[i_update]
                 else:
                     state *= decay
-                state += cr_pole_flip * profile_i_half
+                state += profile_i_half
                 amp = float(np.real(residue * state))
-                voltage[bin_i] += cr_pole_flip * two_factor * amp
-                state += cr_pole_flip * profile_i_half
+                voltage[bin_i] += cr_pole_flip * amp
+                state += profile_i_half
             states[pole_i] = state
 
         states[-1] = profile_dts[-1]
