@@ -5,9 +5,9 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
-
 import numpy as np
 from matplotlib import pyplot as plt
+from sympy.physics.quantum.trace import Tr
 
 from blond import (
     Beam,
@@ -78,7 +78,7 @@ class TestSymbolicSeparatrixHelper:
         )
 
         sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
-        sim.print_one_turn_execution_order()
+
         t_rf = sim.get_t_rev_init() / 35640
 
         beam1 = Beam.simple_gaussian(
