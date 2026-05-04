@@ -6,16 +6,6 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-# Copyright CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
-# In applying this licence, CERN does not waive the privileges and immunities
-# granted to it by virtue of its status as an Intergovernmental Organization or
-# submit itself to any jurisdiction.
-# Project website: http://blond.web.cern.ch/
-import matplotlib
-
-matplotlib.use("Qt5Agg")
 
 # pragma: no cover
 import logging
@@ -33,7 +23,6 @@ from blond import (
     RFStationPhaseObservation,
     Ring,
     Simulation,
-    SingleHarmonicRFStation,
     momentum_compaction_factor,
     proton,
 )
@@ -118,11 +107,11 @@ def main():
         )
         t0 = dt.min()
         t1 = dt.max()
-        trange = t1 - t0
+        trange_ = (t0, t1)
 
         sim.plot_separatrix(
             beam=beam,
-            dt=np.linspace(t0 - trange, t1 + trange, 1000),
+            dt=np.linspace(*trange_, 1000),
         )
         plt.draw()
         plt.pause(0.1)
