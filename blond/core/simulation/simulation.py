@@ -1698,7 +1698,7 @@ class Simulation(Preparable):
     @property
     def current_turn_dE_tot(self) -> float:
         """
-        The energy gain of the current turn, in [eV].
+        The energy gain in the current turn, in [eV].
 
         This is the energy change of the total energy (kinetic + mass),
         calculated from the start to the end of the current turn.
