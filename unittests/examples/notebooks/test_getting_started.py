@@ -38,7 +38,6 @@ class TestGettingStarted(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        return
         os.remove(
             os.path.join(
                 NOTEBOOK_DIR,
