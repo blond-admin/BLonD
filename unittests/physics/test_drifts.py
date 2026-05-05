@@ -6,7 +6,7 @@ import pytest
 from scipy.constants import c
 from scipy.constants import speed_of_light as c0
 
-from blond import Cupy32Bit, Numpy32Bit, Simulation, momentum_compaction_factor
+from blond import Simulation, momentum_compaction_factor
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass

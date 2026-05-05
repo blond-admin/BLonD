@@ -9,7 +9,6 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
-from blond.examples.scripts.EX_01_Acceleration_no_beam import n_turns
 
 
 class TestEX_05_Wake_impedance_pooled(unittest.TestCase):

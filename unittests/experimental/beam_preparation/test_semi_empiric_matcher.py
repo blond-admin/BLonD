@@ -5,10 +5,7 @@ import numpy as np
 
 from blond import (
     Beam,
-    Cupy32Bit,
-    Numpy32Bit,
     Simulation,
-    StaticProfile,
     WakeField,
     backend,
 )
