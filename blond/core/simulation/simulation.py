@@ -160,6 +160,7 @@ class Simulation(Preparable):
         self.check_circumference: Literal["raise", "warn", "ignore"] = "raise"
 
         self._current_t_rev = None
+        self._current_turn_dE_tot = None
         self._particle_performance_waning_threshold = int(1e3)
         self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
@@ -365,7 +366,7 @@ class Simulation(Preparable):
         )
 
         t_rev_before = self._current_t_rev  # prevent side effect
-        self._calculate_current_t_rev(
+        self._update_Trev_and_dErev(
             reference=(
                 ReferenceCoordinates(
                     time=0.0,
@@ -570,7 +571,11 @@ class Simulation(Preparable):
         )
         bunch_before = deepcopy(probe_bunch)
         t_0 = probe_bunch.reference.time
-        deepcopy(self).run_simulation(
+
+        # prevent side effect
+        sim_tmp = deepcopy(self)
+
+        sim_tmp.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             show_progressbar=False,
@@ -1631,9 +1636,9 @@ class Simulation(Preparable):
                 observable.rename(new_common_filepath=common_name)
             observable.from_disk()
 
-    def _calculate_current_t_rev(self, reference: ReferenceCoordinates):
+    def _update_Trev_and_dErev(self, reference: ReferenceCoordinates) -> None:
         """
-        Calculate the revolution time of the current turn, in [s].
+        Calculate the revolution time and energy gain of the current turn.
 
         This method takes the reference frame of the beam at the first element
         and tracks it along one turn back to the first element,
@@ -1646,19 +1651,25 @@ class Simulation(Preparable):
             The reference energy, i.e. velocity, impacts the revolution time
             and might change along the ring when multiple sections are used.
 
-        Returns
-        -------
-        t_rev
-            Revolution time, in [s].
+        See Also
+        --------
+        current_t_rev: API to pick up the results.
+        current_turn_dE_tot: API to pick up the results.
         """
         reference_tmp = copy(reference)
+
         t0 = reference_tmp.time
+        E0 = reference_tmp.total_energy
 
         for element in self.ring.elements.get_elements(AltersReference):
             element: AltersReference
             element.track_reference(reference_tmp)
+
         t1 = reference_tmp.time
+        E1 = reference_tmp.total_energy
+
         self._current_t_rev = t1 - t0
+        self._current_turn_dE_tot = E1 - E0
 
     @property
     def current_t_rev(self) -> float:
@@ -1672,6 +1683,10 @@ class Simulation(Preparable):
         -------
         t_rev
             Revolution time, in [s].
+
+        See Also
+        --------
+        _update_Trev_and_dErev: Responsible for updating the underlying variable.
         """
         if self._current_t_rev is None:
             raise ValueError(
@@ -1679,3 +1694,27 @@ class Simulation(Preparable):
             )
         else:
             return self._current_t_rev
+
+    @property
+    def current_turn_dE_tot(self) -> float:
+        """
+        The energy gain in the current turn, in [eV].
+
+        This is the energy change of the total energy (kinetic + mass),
+        calculated from the start to the end of the current turn.
+
+        Returns
+        -------
+        current_turn_dE_tot
+            Energy gain in the current turn, in [eV].
+
+        See Also
+        --------
+        _update_Trev_and_dErev: Responsible for updating the underlying variable.
+        """
+        if self._current_turn_dE_tot is None:
+            raise ValueError(
+                "The value of `current_dE` is only available during the simulation execution."
+            )
+        else:
+            return self._current_turn_dE_tot

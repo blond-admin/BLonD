@@ -8,6 +8,7 @@ from unittest.mock import Mock, create_autospec
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from six import assertRaisesRegex
 
 from blond import (
     Beam,
@@ -742,6 +743,7 @@ class TestSimulation(unittest.TestCase):
             )
             wakefield.profile.hist_y_to_density_factor = 1e-05
             sim.simulation.intensity_effect_manager.set_profiles(False)
+            wakefield.calc_induced_voltage(sim.beam1)
             potential, factor, tilt = (
                 sim.simulation.get_potential_well_empiric(
                     dt=np.linspace(0, 3e-9),
@@ -784,6 +786,45 @@ class TestSimulation(unittest.TestCase):
             callbacks=callback,
         )
         np.testing.assert_allclose(t_rev_effective, t_rev_sim)
+        if DEV_PLOT:
+            plt.show()
+
+    def test_current_turn_dE_tot(self):
+        # set initial value of energy
+        buffer = (
+            np.ones(2) * self.simulation.magnetic_cycle.get_total_energy_init()
+        )
+        dE_rev_effective = np.empty(10)
+        dE_rev_sim = np.empty(10)
+        DEV_PLOT = False
+
+        def callback(sim: Simulation, beam: Beam):
+            buffer[0] = buffer[1]
+            buffer[1] = beam.reference.total_energy
+            i = sim.turn_i.value
+            dE_rev_effective[i] = buffer[1] - buffer[0]
+            dE_rev_sim[i] = sim.current_turn_dE_tot
+            if DEV_PLOT:
+                plt.plot(i, buffer[1] - buffer[0], "o")
+                plt.plot(i, sim.current_turn_dE_tot, "x")
+            return
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "only available during the simulation",
+        ):
+            self.simulation.current_turn_dE_tot
+        with self.assertRaisesRegex(
+            ValueError,
+            "only available during the simulation",
+        ):
+            self.simulation.current_t_rev
+        self.simulation.run_simulation(
+            self.beam,
+            n_turns=10,
+            callbacks=callback,
+        )
+        np.testing.assert_allclose(dE_rev_sim, dE_rev_effective)
         if DEV_PLOT:
             plt.show()
 
