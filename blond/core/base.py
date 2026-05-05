@@ -907,7 +907,7 @@ class AltersReference(ABC):
 class HasSymbolicHamiltonian(ABC):
     """Base class for objects that have an analytic expression."""
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_hamilton_symbolic(
         self, replace_symbols: bool = True
     ) -> sympy.Expr:
