@@ -29,7 +29,6 @@ from blond.handle_results.observables_as_elements import (
 )
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 from blond.physics.impedances.sources import Resonators
-from blond.testing.helpers import enforce_64_bit_backend
 
 
 def gauss(x, width, center):

@@ -13,7 +13,6 @@ from blond import Beam as beam_b3
 from blond import (
     DriftSimple,
     MagneticCyclePerTurnAllRFStations,
-    Numpy64Bit,
 )
 from blond import Ring as ring_b3
 from blond import (

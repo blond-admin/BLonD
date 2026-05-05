@@ -24,7 +24,6 @@ from blond import (
     Simulation,
     StaticProfile,
     StaticProfileObservation,
-    backend,
     copy_to_cpu,
     momentum_compaction_factor,
     proton,

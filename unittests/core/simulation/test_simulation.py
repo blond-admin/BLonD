@@ -8,7 +8,6 @@ from unittest.mock import Mock, create_autospec
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from six import assertRaisesRegex
 
 from blond import (
     Beam,

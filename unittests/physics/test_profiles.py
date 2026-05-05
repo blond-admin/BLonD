@@ -15,7 +15,6 @@ from blond import (
     AllowPlotting,
     Beam,
     Cupy64Bit,
-    Numpy64Bit,
     backend,
     uranium_29,
 )
