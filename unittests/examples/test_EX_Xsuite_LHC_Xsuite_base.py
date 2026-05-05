@@ -2,18 +2,15 @@ import unittest
 
 import pytest
 
-from blond.core.backends.backend import (
-    Cupy32Bit,
-    Cupy64Bit,
-    Numpy32Bit,
-    Numpy64Bit,
-    backend,
-)
-
 
 class TestEX_Xsuite_LHC_Xsuite_base(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba32(self):
+        from blond.core.backends.backend import (
+            Numpy32Bit,
+            backend,
+        )
+
         self.skipTest("Too slow")
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
@@ -24,6 +21,11 @@ class TestEX_Xsuite_LHC_Xsuite_base(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
+        from blond.core.backends.backend import (
+            Numpy64Bit,
+            backend,
+        )
+
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
         from blond.examples.scripts import EX_Xsuite_LHC_Xsuite_base
@@ -33,6 +35,11 @@ class TestEX_Xsuite_LHC_Xsuite_base(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_executable_cuda32(self):
+        from blond.core.backends.backend import (
+            Cupy32Bit,
+            backend,
+        )
+
         self.skipTest("Too slow")
         try:
             import cupy  # type: ignore
@@ -50,6 +57,11 @@ class TestEX_Xsuite_LHC_Xsuite_base(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
+        from blond.core.backends.backend import (
+            Cupy64Bit,
+            backend,
+        )
+
         try:
             import cupy  # type: ignore
         except ImportError as exc:
