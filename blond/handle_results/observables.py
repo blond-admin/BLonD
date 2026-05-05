@@ -269,7 +269,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
 
 class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
     """
-    Save a 2D histogram of the beam along simulation.
+    Save a 2D histogram of the beam during the simulation.
 
     This is intended to save the beam coordinates in
     less memory intensive way than storing the ``dt`` and ``dE``
@@ -279,7 +279,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
     ----------
     each_turn_i
         Value to control that the element is
-        called each n-th turn.
+        called each 'each_turn_i'-th turn.
     folder
         Path to the target folder used for
         saving or loading files.
