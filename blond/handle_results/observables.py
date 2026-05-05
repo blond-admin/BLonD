@@ -1246,7 +1246,9 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         saving or loading files.
     separatrix_points
         Number of points to observe the separatrix with.
-        The separatrix is recorded within ``beam.dt_min`` and ``dt_max``.
+    separatrix_lim
+        If not provided, the separatrix is recorded within
+        ``beam.dt_min`` and ``beam.dt_max``.
     """
 
     def __init__(
@@ -1254,6 +1256,7 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         each_turn_i: int,
         folder: str = "",
         separatrix_points: int = 256,
+        separatrix_lim: tuple[float, float] | None = None,
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._simulation: Simulation | None = None
@@ -1261,6 +1264,7 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         self._t_revs: DenseArrayRecorder | None = None
         self._separatrices: DenseArrayRecorder | None = None
         self._separatrix_points = separatrix_points
+        self._separatrix_lim = separatrix_lim
         self._beam = None
 
     def on_run_simulation(
@@ -1316,9 +1320,12 @@ class SimulationObservation(ObservablesOncePerTurnBase):
 
         # Separatrix
         sep = self._simulation._get_separatrix_helper()
-        ts = np.linspace(
-            self._beam.dt_min, self._beam.dt_max, self._separatrix_points
+        separatrix_lim = (
+            (self._beam.dt_min, self._beam.dt_max)
+            if self._separatrix_lim is None
+            else self._separatrix_lim
         )
+        ts = np.linspace(*separatrix_lim, self._separatrix_points)
         self._separatrices.write(sep.get_separatrix(beam=self._beam, dt=ts))
 
     @property  # as readonly attributes

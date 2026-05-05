@@ -75,3 +75,7 @@ class TestEX_01_Acceleration(unittest.TestCase):
         backend.zeros(100)
 
         # full script. just checking if it crashes
+
+
+if __name__ == "__main__":
+    unittest.main()
