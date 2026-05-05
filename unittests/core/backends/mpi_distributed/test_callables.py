@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pytest
 
-from blond import Cupy64Bit, Numpy32Bit, Numpy64Bit, backend, copy_to_cpu
+from blond import Cupy64Bit, Numpy64Bit, backend, copy_to_cpu
 from blond.core.backends.mpi_distributed.callables import (
     rms_emittance,
 )

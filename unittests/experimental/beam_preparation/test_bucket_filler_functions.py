@@ -6,11 +6,9 @@ from blond.experimental.beam_preparation.bucket_filler_functions import (
     multibunch_match_metric_to_hamilton,
 )
 from blond.experimental.beam_preparation.density_functions import (
-    binomial_density,
     gaussian_density,
 )
 from blond.experimental.beam_preparation.metric_functions import (
-    q_percent_emittance,
     rms_emittance,
 )
 
