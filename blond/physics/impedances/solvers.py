@@ -23,7 +23,6 @@ Simon Lauber
 from __future__ import annotations
 
 import warnings
-from collections import deque
 from copy import copy
 from typing import TYPE_CHECKING
 
