@@ -112,7 +112,7 @@ class TestFilamentationMatcher(unittest.TestCase):
             energy_limit=self.energy_limit,
             n_macroparticles=1000,
             n_iter=5,
-            animate=False, # can be set to True if you want to check params
+            animate=False,  # can be set to True if you want to check params
             purge=True,
             purge_limit_time=self.time_limit,
             purge_limit_energy=self.energy_limit,
