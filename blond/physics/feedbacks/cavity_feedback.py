@@ -1163,6 +1163,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
 
             # last entry is forward length
+            # TODO: check this, might be wrong
             antenna_voltage_init = interp1d(
                 self.rf_centers[-self.rf_centers_lengths[-1] :],
                 self.antenna_voltage_coarse_grid[
@@ -1211,6 +1212,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             Angular frequency times sampling time.
         coarse_grid_index_to_update
             Coarse grid index to update.
+        relative_detuning
+            Detuning normalized to the current RF frequency.
         no_beam
             If no beam is present, the beam current is set to 0.
         """

@@ -16,6 +16,7 @@ from physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 from scipy.constants import elementary_charge, speed_of_light
+from scipy.interpolate import interp1d
 from specifics.muon_collider.beam_preparation import (
     load_beam_coordinates_counterrot_from_file,
     load_beam_coordinates_from_file,
@@ -160,14 +161,14 @@ def setup_and_run(
     )
     omega_rf = 1 / t_rf * 2 * np.pi
 
-    F_b = 2
+    F_b = 2 * (-0.8330691630689783 - 0.060605390015254904j)
 
-    # delta_omega = omega_rf * R_over_Q * F_b * beam_current * np.cos(phi_s) / (2 * voltage_per_cavity)
+    # delta_omega = omega_rf * R_over_Q * np.abs(F_b) * beam_current * np.cos(phi_s) / (2 * voltage_per_cavity)
     phi_s = np.pi / 2
     Q_L = voltage_per_cavity / (
-        R_over_Q * (F_b * beam_current * np.sin(phi_s)) ** 2
+        R_over_Q * (np.abs(F_b) * beam_current * np.sin(phi_s)) ** 2
         - (
-            F_b * beam_current * np.cos(phi_s)
+            np.abs(F_b) * beam_current * np.cos(phi_s)
             + voltage_per_cavity * 2 * delta_omega / (omega_rf * R_over_Q)
         )
         ** 2
@@ -177,7 +178,7 @@ def setup_and_run(
         voltage_per_cavity
         / (2 * R_over_Q)
         * (1 / Q_L - 2j * delta_omega / omega_rf)
-        + np.abs(F_b) * beam_current * np.exp(1j * (phi_s - np.pi / 2)) / 2 * 0
+        + np.abs(F_b) * beam_current * np.exp(1j * (phi_s - np.pi / 2)) / 2
     )
 
     I_g_ampl = np.abs(I_g)
@@ -324,6 +325,18 @@ def setup_and_run(
 
     bunch_observation.active = True
 
+    beam_freq = np.fft.rfftfreq(
+        100 * profile_list[-1].n_bins, profile_list[-1].hist_step
+    )
+    beam_spectrum = profile_list[-1].beam_spectrum(
+        100 * profile_list[-1].n_bins
+    )
+    rf_frequency_component = (
+        interp1d(beam_freq, beam_spectrum)(omega_rf / (2 * np.pi))
+        / beam_spectrum[0]
+    )
+    # (-0.8330691630689783-0.060605390015254904j)
+
     profile_list[-1].beam_spectrum(100 * profile_list[-1].n_bins)
 
     sim.run_simulation(
@@ -410,8 +423,8 @@ def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
     # plt.legend()
     # plt.show(block=False)
 
-    fig, ax = plt.subplots(2, 2)
-    for idx in range(5):
+    fig, ax = plt.subplots(2, 2, sharex=True)
+    for idx in range(1):
         clr = ax[0, 0]._get_lines.get_next_color()
         ax[0, 0].plot(
             ind_volt_obs_list[0][0].total_voltage[idx], color=clr, label="MTW"
@@ -422,8 +435,13 @@ def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
             color=clr,
             label="real fdbk",
         )
+        cavity_voltage_raw = (
+            ind_volt_obs_list[0][0].total_voltage[idx]
+            - ind_volt_obs_list[0][0].induced_voltage[idx]
+        )
         ax[0, 1].plot(
-            np.real(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx]),
+            np.real(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx])
+            - cavity_voltage_raw,
             ls="--",
             color=clr,
             label="real fdbk",
@@ -471,7 +489,7 @@ if __name__ == "__main__":
             n_turns_buf,
             ind_volt_obs_list_buf,
             cav_fdbk_obs_list_buf,
-        ) = setup_and_run("RCS1", MTW=MTW, n_stations=n_sections, n_turns_in=5)
+        ) = setup_and_run("RCS1", MTW=MTW, n_stations=n_sections, n_turns_in=1)
         bunch_obs_list.append(bunch_observation_buf)
         n_turns_list.append(n_turns_buf)
         ind_volt_obs_list.append(ind_volt_obs_list_buf)

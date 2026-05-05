@@ -159,8 +159,9 @@ def rf_beam_current(
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
     # Mix with frequency of interest; remember factor 2 demodulation
-    I_f = 2.0 * charges * np.cos(omega_c * profile.hist_x)
-    Q_f = -2.0 * charges * np.sin(omega_c * profile.hist_x)
+    # TODO: where do we have to apply the demodulation?
+    I_f = 1.0 * charges * np.cos(omega_c * profile.hist_x)
+    Q_f = -1.0 * charges * np.sin(omega_c * profile.hist_x)
 
     # Pass through a low-pass filter
     if use_lowpass_filter is True:
@@ -171,6 +172,7 @@ def rf_beam_current(
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
 
     charges_fine = I_f + 1j * Q_f
+    # dT = 0
     if external_reference:
         # slippage in phase due to a non-integer harmonic number
         dphi = dT * omega_c
@@ -188,7 +190,7 @@ def rf_beam_current(
             ) from e
 
         # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.round(
+        ind_fine = np.floor(
             (profile.hist_x + dT - np.pi / omega_c) / T_s
         )  # TODO: + or - here?
         ind_fine = np.array(ind_fine, dtype=int)
