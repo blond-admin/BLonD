@@ -73,6 +73,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
         XsuiteRFBucketMatcher,
     )
+    from blond.utilities.separatrix.symbolic_serapartix import (
+        SymbolicSeparatrixHelper,
+    )
 
     CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]
 
@@ -1758,9 +1761,13 @@ class Simulation(Preparable):
         -----
         This method does not call ``plt.show()``; call that separately.
         """
+        sep = self._get_separatrix_helper()
+        return sep.plot_separatrix(beam=beam, dt=dt, **kwargs_plot)
+
+    def _get_separatrix_helper(self) -> SymbolicSeparatrixHelper:
         from blond.utilities.separatrix.symbolic_serapartix import (  # avoid cyclic imports
             SymbolicSeparatrixHelper,
         )
 
         sep = SymbolicSeparatrixHelper.from_simulation(simulation=self)
-        return sep.plot_separatrix(beam=beam, dt=dt, **kwargs_plot)
+        return sep

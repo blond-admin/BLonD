@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import MultiHarmonicRFStation, SingleHarmonicRFStation
-
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.ring.ring import Ring
 
@@ -38,6 +36,8 @@ def _get_omega_min(ring: Ring) -> float:
     omega_min
         The minimum angular frequency in the `Ring`, in [Hz].
     """
+    from blond import MultiHarmonicRFStation, SingleHarmonicRFStation
+
     omega_min = None
     shc = ring.elements.get_elements(SingleHarmonicRFStation)
     mhc = ring.elements.get_elements(MultiHarmonicRFStation)

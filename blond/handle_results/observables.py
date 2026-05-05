@@ -1244,17 +1244,24 @@ class SimulationObservation(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+    separatrix_points
+        Number of points to observe the separatrix with.
+        The separatrix is recorded within ``beam.dt_min`` and ``dt_max``.
     """
 
     def __init__(
         self,
         each_turn_i: int,
         folder: str = "",
+        separatrix_points: int = 256,
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._simulation: Simulation | None = None
 
         self._t_revs: DenseArrayRecorder | None = None
+        self._separatrices: DenseArrayRecorder | None = None
+        self._separatrix_points = separatrix_points
+        self._beam = None
 
     def on_run_simulation(
         self,
@@ -1289,13 +1296,30 @@ class SimulationObservation(ObservablesOncePerTurnBase):
             f"{self.common_filepath}_t_revs",
             shape,
         )
+        self._separatrices = DenseArrayRecorder(
+            f"{self.common_filepath}_separatrices",
+            (n_entries, 2, self._separatrix_points),
+        )
         self._simulation = simulation
+        self._beam = beam
 
     def _update(
         self,
     ) -> None:
         """Update memory with new values."""
+        assert self._beam is not None
+        assert self._simulation is not None
+        assert self._t_revs is not None
+        assert self._separatrices is not None
+
         self._t_revs.write(self._simulation.current_t_rev)
+
+        # Separatrix
+        sep = self._simulation._get_separatrix_helper()
+        ts = np.linspace(
+            self._beam.dt_min, self._beam.dt_max, self._separatrix_points
+        )
+        self._separatrices.write(sep.get_separatrix(beam=self._beam, dt=ts))
 
     @property  # as readonly attributes
     def t_revs(self) -> NumpyArray:
