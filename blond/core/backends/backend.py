@@ -455,6 +455,7 @@ class BackendBaseClass(ABC):
         self.unique: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
         self.ndarray: type = None  # type: ignore
+        self.hstack: type = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -830,6 +831,7 @@ class NumpyBackend(BackendBaseClass):
         self.unique = np.unique
         self.repeat = np.repeat
         self.ndarray = np.ndarray
+        self.hstack = np.hstack
 
         self._finalize()
 
@@ -986,6 +988,7 @@ class CupyBackend(BackendBaseClass):
         self.unique = cp.unique
         self.repeat = cp.repeat
         self.ndarray = cp.ndarray
+        self.hstack = cp.hstack
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
