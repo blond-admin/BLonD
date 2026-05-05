@@ -42,7 +42,8 @@ class _CanonicalBucket:
     splits into a periodic part plus a linear acceleration tilt
     ``ref_E_change * dt``. ``U`` therefore repeats every ``period``, with
     each successive copy shifted up by ``shift_per_period``. One canonical
-    UFP is enough to reconstruct every bucket by integer offsets:
+    unstable fixed point (UFP) is enough to reconstruct every bucket by
+    integer offsets:
 
     * UFP at period ``n``: ``ufp_dt + n*period`` with potential
       ``ufp_potential + n*shift_per_period``.
