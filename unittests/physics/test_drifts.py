@@ -98,7 +98,7 @@ class TestDriftSimple(unittest.TestCase):
     def test_array_setup(self):
         self.drift_simple = DriftSimple.headless(
             momentum_compaction_factor=momentum_compaction_factor(
-                np.array([20.0])
+                20.0
             ),  # highly relativistic
             orbit_length=0.25 * 25,
             section_index=0,
