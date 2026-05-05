@@ -831,6 +831,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         )
         reference_energy_change = target_total_energy - reference.total_energy
         reference.total_energy = target_total_energy
+        self._last_reference_energy_change = reference_energy_change
         return reference_energy_change
 
     def calc_omega_rf_design(
@@ -1113,7 +1114,6 @@ class SingleHarmonicRFStation(
         reference_energy_change = self.track_reference(
             reference, beam.is_counter_rotating
         )
-        self._last_reference_energy_change = reference_energy_change
 
         if beam.common_array_size > 0:
             if self.any_feedback_not_none:
@@ -1640,7 +1640,6 @@ class MultiHarmonicRFStation(
         reference_energy_change = self.track_reference(
             reference, beam.is_counter_rotating
         )
-        self._last_reference_energy_change = reference_energy_change
 
         if beam.common_array_size > 0:
             if self.any_feedback_not_none:
