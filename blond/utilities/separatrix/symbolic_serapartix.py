@@ -130,7 +130,7 @@ class SymbolicSeparatrixHelper:
         beam: BeamBaseClass,
         dt: NumpyArray,
     ) -> tuple[NumpyArray, NumpyArray]:
-        """
+        r"""
         Compute the separatrix boundary in longitudinal phase space.
 
         Substitutes numerical beam values into the symbolic Hamiltonian,
@@ -145,7 +145,8 @@ class SymbolicSeparatrixHelper:
         Parameters
         ----------
         beam
-            Beam whose reference coordinates supply β, γ, E and charge.
+            Beam whose reference coordinates supply :math:`\beta`,
+            :math:`\gamma`, :math:`E` and charge.
         dt
             Time-deviation grid [s] over which to evaluate the separatrix.
 
@@ -153,7 +154,7 @@ class SymbolicSeparatrixHelper:
         -------
         separatrix
             Array of shape ``(2, len(dt))``: row 0 the upper branch
-            (``dE ≥ 0``), row 1 the lower branch (``dE ≤ 0``), in [eV].
+            (``dE >= 0``), row 1 the lower branch (``dE <= 0``), in [eV].
             Entries are ``NaN`` for ``dt`` lying outside any RF bucket
             (above the local barrier, or no bucket exists at all because
             the linear tilt eliminated all extrema).
@@ -170,7 +171,7 @@ class SymbolicSeparatrixHelper:
         dt: NumpyArray,
         **kwargs_plot,
     ) -> list[Line2D]:
-        """
+        r"""
         Plot the longitudinal phase-space separatrix.
 
         Calls :meth:`get_separatrix` and draws both branches on the current
@@ -180,7 +181,8 @@ class SymbolicSeparatrixHelper:
         Parameters
         ----------
         beam
-            Beam whose reference coordinates supply β, γ, E and charge.
+            Beam whose reference coordinates supply :math:`\beta`,
+            :math:`\gamma`, :math:`E` and charge.
         dt
             Time-deviation grid [s] spanning at least the full RF bucket,
             including the unstable fixed point.
@@ -220,13 +222,14 @@ class SymbolicSeparatrixHelper:
     def _substitute_symbols(
         self, beam: BeamBaseClass
     ) -> tuple[float, Callable[[NumpyArray], NumpyArray]]:
-        """
+        r"""
         Substitute beam scalars into the Hamiltonian.
 
         Parameters
         ----------
         beam
-            Beam whose reference coordinates supply β, γ, E and charge.
+            Beam whose reference coordinates supply :math:`\beta`,
+            :math:`\gamma`, :math:`E` and charge.
 
         Returns
         -------
@@ -347,7 +350,7 @@ class SymbolicSeparatrixHelper:
 
         For multi-harmonic potentials with several extrema per period, the
         canonical UFP is the highest local max (``a > 0``) or lowest local
-        min (``a < 0``) — i.e., the outer-separatrix barrier; sub-bucket
+        min (``a < 0``) -- i.e., the outer-separatrix barrier; sub-bucket
         structure is not represented.
 
         Parameters
@@ -403,7 +406,7 @@ class SymbolicSeparatrixHelper:
         values
             1-D array sampled along the dt-axis.
         a
-            Kinetic coefficient ``coeff(dE, 2)`` — its sign decides whether
+            Kinetic coefficient ``coeff(dE, 2)`` -- its sign decides whether
             UFPs are local maxima or local minima.
 
         Returns
@@ -429,7 +432,7 @@ class SymbolicSeparatrixHelper:
         ``floor((dt - ufp_dt) / period)`` is ambiguous on the boundary due
         to float roundoff (``n - 1e-16`` floors to ``n - 1``), so we round
         to the nearest integer when within :attr:`_BUCKET_BOUNDARY_TOLERANCE`
-        — that way a UFP is treated as the LEFT boundary of bucket ``n``
+        -- that way a UFP is treated as the LEFT boundary of bucket ``n``
         (where the separatrix touches ``dE = 0``).
 
         Parameters

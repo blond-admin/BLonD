@@ -1856,21 +1856,21 @@ class MultiHarmonicRFStation(
         q = sympy.Symbol("q", real=True)
 
         expr = sympy.Integer(0)
-        for j in range(self.n_rf):
+        for rf_idx in range(self.n_rf):
             V_j = (
-                self.voltage[j]
+                self.voltage[rf_idx]
                 if (self.voltage is not None) and replace_symbols
-                else sympy.Symbol(f"V_{j}", positive=True)
+                else sympy.Symbol(f"V_{rf_idx}", positive=True)
             )
             omega_j = (
-                self.omega_rf_design[j]
+                self.omega_rf_design[rf_idx]
                 if (self.omega_rf_design is not None) and replace_symbols
-                else sympy.Symbol(f"omega_{j}", positive=True)
+                else sympy.Symbol(f"omega_{rf_idx}", positive=True)
             )
             phi_j = (
-                self.phi_rf_design[j]
+                self.phi_rf_design[rf_idx]
                 if (self.phi_rf_design is not None) and replace_symbols
-                else sympy.Symbol(f"phi_{j}", real=True)
+                else sympy.Symbol(f"phi_{rf_idx}", real=True)
             )
             expr += q * V_j / omega_j * sympy.cos(omega_j * dt + phi_j)
 

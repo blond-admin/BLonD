@@ -15,9 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import (
-    HasSymbolicHamiltonian,
-)
+from blond import MultiHarmonicRFStation, SingleHarmonicRFStation
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.ring.ring import Ring
@@ -41,8 +39,10 @@ def _get_omega_min(ring: Ring) -> float:
         The minimum angular frequency in the `Ring`, in [Hz].
     """
     omega_min = None
-    for element in ring.elements.get_elements(HasSymbolicHamiltonian):
-        omega_design = getattr(element, "omega_rf_design", None)
+    shc = ring.elements.get_elements(SingleHarmonicRFStation)
+    mhc = ring.elements.get_elements(MultiHarmonicRFStation)
+    for element in shc + mhc:
+        omega_design = element.omega_rf_design
         if omega_design is not None:
             candidates = np.abs(np.atleast_1d(omega_design))
             nonzero = candidates[candidates > 0]
@@ -50,5 +50,7 @@ def _get_omega_min(ring: Ring) -> float:
                 candidate = float(np.min(nonzero))
                 if omega_min is None or candidate < omega_min:
                     omega_min = candidate
-    assert omega_min is not None
+    assert omega_min is not None, (
+        "None of the RF stations provided for `omega_min`."
+    )
     return omega_min

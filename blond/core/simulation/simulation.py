@@ -1726,7 +1726,7 @@ class Simulation(Preparable):
         dt: NumpyArray,
         **kwargs_plot,
     ) -> list[Line2D]:
-        """
+        r"""
         Plot the longitudinal phase-space separatrix.
 
         Calls :meth:`get_separatrix` and draws both branches on the current
@@ -1736,7 +1736,8 @@ class Simulation(Preparable):
         Parameters
         ----------
         beam
-            Beam whose reference coordinates supply β, γ, E and charge.
+            Beam whose reference coordinates supply :math:`\beta`,
+            :math:`\gamma`, :math:`E` and charge.
         dt
             Time-deviation grid [s] spanning at least the full RF bucket,
             including the unstable fixed point.

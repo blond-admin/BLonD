@@ -47,7 +47,8 @@ class TestSymbolicSeparatrixHelper:
         rf_station1 = MultiHarmonicRFStation(
             section_index=0, n_harmonics=2, main_harmonic_idx=0
         )
-        rf_station1.harmonic = np.array([35640, 4 * 35640])
+        base_harmonic = 35640
+        rf_station1.harmonic = np.array([base_harmonic, 4 * base_harmonic])
         rf_station1.voltage = np.array([6e6, 6e6 / 2])
         rf_station1.phi_rf_design = np.array([0, 0])
         N_TURNS = int(1e3)
@@ -76,7 +77,7 @@ class TestSymbolicSeparatrixHelper:
 
         rf_station2 = SingleHarmonicRFStation(
             section_index=1,
-            harmonic=35640,
+            harmonic=base_harmonic,
             voltage=6e6,
             phi_rf=np.deg2rad(20),
         )
@@ -90,7 +91,7 @@ class TestSymbolicSeparatrixHelper:
 
         sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
 
-        t_rf = sim.get_t_rev_init() / 35640
+        t_rf = sim.get_t_rev_init() / base_harmonic
 
         beam1 = Beam.simple_gaussian(
             n_macroparticles=1e5,

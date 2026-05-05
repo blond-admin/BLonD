@@ -1043,7 +1043,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
         dt_s, q_s = sympy.symbols("dt q", real=True)
 
-        for ref_energy_change in (0.0, 1e5):
+        for ref_energy_change in (-1e5, 0.0, 1e5):
             with self.subTest(reference_energy_change=ref_energy_change):
                 beam = ProbeBeam(
                     dt=np.linspace(-5e-10, 5e-10, 11),
@@ -1354,7 +1354,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
 
         dt_s, q_s = sympy.symbols("dt q", real=True)
 
-        for ref_energy_change in (0.0, 1e5):
+        for ref_energy_change in (-1e5, 0.0, 1e5):
             with self.subTest(reference_energy_change=ref_energy_change):
                 beam = ProbeBeam(
                     dt=np.linspace(-5e-10, 5e-10, 11),
