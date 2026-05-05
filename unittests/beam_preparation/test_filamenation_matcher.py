@@ -107,25 +107,24 @@ class TestFilamentationMatcher(unittest.TestCase):
         simulation_1.simulation.turn_i.value = 0  # there is some cacheing
         simulation_2.simulation.turn_i.value = 0
 
-        # --- Matcher with few iterations (poorly matched)
         matcher_few = FilamentationMatcher(
             time_limit=self.time_limit,
             energy_limit=self.energy_limit,
             n_macroparticles=1000,
             n_iter=5,
-            animate=True,
+            animate=False, # can be set to True if you want to check params
             purge=True,
             purge_limit_time=self.time_limit,
             purge_limit_energy=self.energy_limit,
         )
 
-        # --- Matcher with more iterations
+        #  more iterations
         matcher_many = FilamentationMatcher(
             time_limit=self.time_limit,
             energy_limit=self.energy_limit,
             n_macroparticles=1000,
             n_iter=400,
-            animate=True,
+            animate=False,
             purge=True,
             purge_limit_time=self.time_limit,
             purge_limit_energy=self.energy_limit,
