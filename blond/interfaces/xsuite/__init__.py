@@ -19,9 +19,10 @@ Elleanor Lamb
 Simon Lauber
 """
 
-__all__ = [
-    "XsuiteRFBucketMatcher",
-]
+__all__ = ["XsuiteRFBucketMatcher", "BLonD3Cavity"]
 from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
     XsuiteRFBucketMatcher,
+)
+from blond.interfaces.xsuite.physics.blond_element_for_xsuite import (
+    BLonD3Cavity,
 )

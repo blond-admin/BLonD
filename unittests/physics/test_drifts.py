@@ -261,6 +261,25 @@ class TestDriftExact(unittest.TestCase):
         )
         self.drift_exact.track(beam=beam)
 
+    def test_track_empty_beam_skips_drift(self):
+        from blond.core.simulation.simulation import Simulation
+
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.common_array_size = 0
+        beam.reference.time = float(0)
+        beam.reference.beta = float(0.5)
+        beam.reference.velocity = float(0.5 * c0)
+        beam.reference.gamma = float(np.sqrt(1 - 0.25))
+        beam.reference.total_energy = float(938)
+        self.drift_exact._simulation = Mock(Simulation)
+        self.drift_exact._simulation.turn_i = DynamicParameter(1)
+        self.drift_exact.schedule(
+            "higher_order_alpha",
+            np.array([[1.49, 23], [1.49, 24]]),
+        )
+        self.drift_exact.track(beam=beam)
+
     @pytest.mark.backend_mutation
     def test_track_vs_blond2(self):
         backend.change_backend(Numpy64Bit)

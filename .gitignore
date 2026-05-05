@@ -263,6 +263,9 @@ fabric.properties
 
 .idea/
 
+# uv pip
+uv.lock
+
 ### Java ###
 
 # BlueJ files

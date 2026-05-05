@@ -124,6 +124,20 @@ class BeamObservationElementTester(BeamObservationElement):
         pass
 
 
+class TestBeamPhysicsRelevantTrack(unittest.TestCase):
+    def test_track_inactive_skips_physics(self):
+        call_log = []
+
+        class TrackerHelper(BeamPhysicsRelevantTester):
+            def _track(self, beam):
+                call_log.append(beam)
+
+        element = TrackerHelper(section_index=0)
+        element.active = False
+        element.track(beam=object())
+        self.assertEqual(call_log, [])
+
+
 class TestBeamObservationElement(unittest.TestCase):
     def setUp(self):
         self.beam_observation_element = BeamObservationElementTester(

@@ -8,6 +8,7 @@ from unittest.mock import Mock, create_autospec
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from six import assertRaisesRegex
 
 from blond import (
     Beam,
@@ -19,6 +20,7 @@ from blond import (
     WakeField,
     backend,
     momentum_compaction_factor,
+    mu_minus,
     mu_plus,
     proton,
 )
@@ -26,6 +28,9 @@ from blond.core.backends.backend import Numpy32Bit, NumpyBackend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
+)
+from blond.core.simulation.execution_models.conterrotating_beams import (
+    MainloopCounterRotatingBeams,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
@@ -97,16 +102,44 @@ class TestSimulation(unittest.TestCase):
                 beams=(self.beam, self.beam, self.beam)
             )
 
+    def test_running_until_section_index(self):
+        # self.simulation.finalize((self.beam,))
+        with self.assertWarnsRegex(Warning, "n_turns is ignored since "):
+            self.simulation.run_simulation(
+                beams=(self.beam,),
+                n_turns=2,
+                until_section_index=0,
+            )
+
+        CR_beam = deepcopy(self.beam)
+        CR_beam._is_counter_rotating = True
+        self.simulation.execution_model = MainloopCounterRotatingBeams()
+        with self.assertWarnsRegex(Warning, "n_turns is ignored since "):
+            self.simulation.run_simulation(
+                beams=(self.beam, CR_beam),
+                n_turns=2,
+                until_section_index=0,
+            )
+
     def test__run_simulation_counterrotating_beam_no_int_effects(self):
-        beam = Beam(intensity=1e9, particle_type=mu_plus)
+        beam = Beam(
+            intensity=1e9, particle_type=mu_plus, is_counter_rotating=False
+        )
         beam.setup_beam(
             dt=np.linspace(-1e-9, 1e-9, 100),
             dE=np.linspace(-10e9, 10e8, 100),
             reference_time=0,
             reference_total_energy=63e9,
         )
-        beam_CR = deepcopy(beam)
-        beam_CR._is_counter_rotating = True
+        beam_CR = Beam(
+            intensity=1e9, particle_type=mu_minus, is_counter_rotating=True
+        )
+        beam_CR.setup_beam(
+            dt=np.linspace(-1e-9, 1e-9, 100),
+            dE=np.linspace(-10e9, 10e8, 100),
+            reference_time=0,
+            reference_total_energy=63e9,
+        )
         n_cavities = 2
 
         circumference = 5990
@@ -378,6 +411,21 @@ class TestSimulation(unittest.TestCase):
             start_turn_i=10,
             n_turns=20,
             beams=(self.beam,),
+            stats_lines=20,
+        )
+        self.simulation.profiling(
+            start_turn_i=10,
+            n_turns=20,
+            beams=(self.beam,),
+            stats_lines=None,
+        )
+
+    def test_profiling2(self):
+        self.simulation.profiling(
+            start_turn_i=10,
+            n_turns=20,
+            beams=(self.beam,),
+            stats_lines=None,
         )
 
     def test_ring(self):
@@ -695,6 +743,7 @@ class TestSimulation(unittest.TestCase):
             )
             wakefield.profile.hist_y_to_density_factor = 1e-05
             sim.simulation.intensity_effect_manager.set_profiles(False)
+            wakefield.calc_induced_voltage(sim.beam1)
             potential, factor, tilt = (
                 sim.simulation.get_potential_well_empiric(
                     dt=np.linspace(0, 3e-9),
@@ -737,6 +786,45 @@ class TestSimulation(unittest.TestCase):
             callbacks=callback,
         )
         np.testing.assert_allclose(t_rev_effective, t_rev_sim)
+        if DEV_PLOT:
+            plt.show()
+
+    def test_current_turn_dE_tot(self):
+        # set initial value of energy
+        buffer = (
+            np.ones(2) * self.simulation.magnetic_cycle.get_total_energy_init()
+        )
+        dE_rev_effective = np.empty(10)
+        dE_rev_sim = np.empty(10)
+        DEV_PLOT = False
+
+        def callback(sim: Simulation, beam: Beam):
+            buffer[0] = buffer[1]
+            buffer[1] = beam.reference.total_energy
+            i = sim.turn_i.value
+            dE_rev_effective[i] = buffer[1] - buffer[0]
+            dE_rev_sim[i] = sim.current_turn_dE_tot
+            if DEV_PLOT:
+                plt.plot(i, buffer[1] - buffer[0], "o")
+                plt.plot(i, sim.current_turn_dE_tot, "x")
+            return
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "only available during the simulation",
+        ):
+            self.simulation.current_turn_dE_tot
+        with self.assertRaisesRegex(
+            ValueError,
+            "only available during the simulation",
+        ):
+            self.simulation.current_t_rev
+        self.simulation.run_simulation(
+            self.beam,
+            n_turns=10,
+            callbacks=callback,
+        )
+        np.testing.assert_allclose(dE_rev_sim, dE_rev_effective)
         if DEV_PLOT:
             plt.show()
 

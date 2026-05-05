@@ -160,6 +160,7 @@ class Simulation(Preparable):
         self.check_circumference: Literal["raise", "warn", "ignore"] = "raise"
 
         self._current_t_rev = None
+        self._current_turn_dE_tot = None
         self._particle_performance_waning_threshold = int(1e3)
         self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
@@ -365,7 +366,7 @@ class Simulation(Preparable):
         )
 
         t_rev_before = self._current_t_rev  # prevent side effect
-        self._calculate_current_t_rev(
+        self._update_Trev_and_dErev(
             reference=(
                 ReferenceCoordinates(
                     time=0.0,
@@ -478,6 +479,7 @@ class Simulation(Preparable):
         particle_type: ParticleType,
         subtract_min: bool = True,
         intensity: int = 0,
+        until_section_index: int = -1,
     ) -> tuple[NumpyArray, float, float]:
         """
         Calculate the RF potential well by tracking particles through one turn.
@@ -510,6 +512,8 @@ class Simulation(Preparable):
         intensity
             Beam intensity (number of real particles) to include collective effects.
             Default is 0 (no intensity effects).
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Returns
         -------
@@ -567,10 +571,16 @@ class Simulation(Preparable):
         )
         bunch_before = deepcopy(probe_bunch)
         t_0 = probe_bunch.reference.time
-        deepcopy(self).run_simulation(
+
+        # prevent side effect
+        sim_tmp = deepcopy(self)
+
+        sim_tmp.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             show_progressbar=False,
+            verbose=False,
+            until_section_index=until_section_index,
         )
         # Calculate passed time
         t_1 = probe_bunch.reference.time
@@ -993,7 +1003,7 @@ class Simulation(Preparable):
         ...         hamilton_max=1.0                   # Hamiltonian cutoff [eV]
         ...     ),
         ...     internal_grid_shape=(1023, 1023),      # Resolution of phase space grid
-        ...     tolerance=1e-6,                        # Convergence threshold
+        ...     tolerance_potential_well=1e-6,                        # Convergence threshold
         ...     maxiter_intensity_effects=100,         # Max iterations with wakefields
         ...     increment_intensity_effects_until_iteration_i=10,  # Intensity ramp-up steps
         ...     seed=42,                               # For reproducibility
@@ -1014,6 +1024,7 @@ class Simulation(Preparable):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the beam dynamics simulation.
@@ -1040,6 +1051,8 @@ class Simulation(Preparable):
             called can be set by `each_turn_i`.
 
             An example is shown below.
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Notes
         -----
@@ -1065,6 +1078,7 @@ class Simulation(Preparable):
             n_turns=n_turns,
             observe=observe,
             show_progressbar=show_progressbar,
+            until_section_index=until_section_index,
             callbacks=callbacks,
         )
 
@@ -1114,6 +1128,7 @@ class Simulation(Preparable):
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
         verbose: bool = True,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the main beam dynamics simulation loop.
@@ -1157,6 +1172,8 @@ class Simulation(Preparable):
             called can be set by `each_turn_i`.
         verbose
             Will print infos if ``True``.
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Raises
         ------
@@ -1268,6 +1285,7 @@ class Simulation(Preparable):
             observe=observe,
             show_progressbar=show_progressbar,
             callbacks=callbacks,
+            until_section_index=until_section_index,
         )
 
     def finalize(
@@ -1618,9 +1636,9 @@ class Simulation(Preparable):
                 observable.rename(new_common_filepath=common_name)
             observable.from_disk()
 
-    def _calculate_current_t_rev(self, reference: ReferenceCoordinates):
+    def _update_Trev_and_dErev(self, reference: ReferenceCoordinates) -> None:
         """
-        Calculate the revolution time of the current turn, in [s].
+        Calculate the revolution time and energy gain of the current turn.
 
         This method takes the reference frame of the beam at the first element
         and tracks it along one turn back to the first element,
@@ -1633,19 +1651,25 @@ class Simulation(Preparable):
             The reference energy, i.e. velocity, impacts the revolution time
             and might change along the ring when multiple sections are used.
 
-        Returns
-        -------
-        t_rev
-            Revolution time, in [s].
+        See Also
+        --------
+        current_t_rev: API to pick up the results.
+        current_turn_dE_tot: API to pick up the results.
         """
         reference_tmp = copy(reference)
+
         t0 = reference_tmp.time
+        E0 = reference_tmp.total_energy
 
         for element in self.ring.elements.get_elements(AltersReference):
             element: AltersReference
             element.track_reference(reference_tmp)
+
         t1 = reference_tmp.time
+        E1 = reference_tmp.total_energy
+
         self._current_t_rev = t1 - t0
+        self._current_turn_dE_tot = E1 - E0
 
     @property
     def current_t_rev(self) -> float:
@@ -1659,6 +1683,10 @@ class Simulation(Preparable):
         -------
         t_rev
             Revolution time, in [s].
+
+        See Also
+        --------
+        _update_Trev_and_dErev: Responsible for updating the underlying variable.
         """
         if self._current_t_rev is None:
             raise ValueError(
@@ -1666,3 +1694,27 @@ class Simulation(Preparable):
             )
         else:
             return self._current_t_rev
+
+    @property
+    def current_turn_dE_tot(self) -> float:
+        """
+        The energy gain in the current turn, in [eV].
+
+        This is the energy change of the total energy (kinetic + mass),
+        calculated from the start to the end of the current turn.
+
+        Returns
+        -------
+        current_turn_dE_tot
+            Energy gain in the current turn, in [eV].
+
+        See Also
+        --------
+        _update_Trev_and_dErev: Responsible for updating the underlying variable.
+        """
+        if self._current_turn_dE_tot is None:
+            raise ValueError(
+                "The value of `current_dE` is only available during the simulation execution."
+            )
+        else:
+            return self._current_turn_dE_tot

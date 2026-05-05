@@ -1,4 +1,5 @@
 import unittest
+import warnings
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -130,6 +131,27 @@ class TestImpedanceTableTime(unittest.TestCase):
                 copy_to_cpu(wake_impedance3) != copy_to_cpu(wake_impedance2)
             )
         )
+
+    def test_get_wake_impedance_within_bounds_no_warning(self):
+        impedance_table = ImpedanceTableTime.from_file(
+            filepath=callers_relative_path(
+                "resources/example_impedance_table.csv", stacklevel=1
+            ),
+            reader=CsvReader(delimiter=","),
+        )
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        # _wake_x is [1,2,3,4,5]; time within bounds triggers neither warning
+        time = backend.linspace(2, 4, 10)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            impedance_table.get_wake_impedance(
+                time=time, simulation=simulation, beam=beam, n_fft=len(time)
+            )
+        boundary_warnings = [
+            x for x in w if "outside boundaries" in str(x.message)
+        ]
+        self.assertEqual(len(boundary_warnings), 0)
 
     def test_hashing(self):
         simulation = Mock(Simulation)
@@ -577,6 +599,33 @@ class TestResonators(unittest.TestCase):
                 plt.tight_layout()
                 # plt.savefig("")
                 plt.show()
+
+    def test_calculate_envelope(self):
+        time_axis = backend.linspace(
+            0,
+            backend.max(
+                self.resonators._quality_factors / self.resonators._omega
+            )
+            * 20,
+            100000,
+        )
+        env_time, envelope = self.resonators.calculate_envelope()
+        ent_time_2, envelope_2 = self.resonators.calculate_envelope(
+            time_axis=time_axis
+        )
+
+        np.testing.assert_allclose(
+            copy_to_cpu(env_time),
+            copy_to_cpu(ent_time_2),
+            rtol=1e-12 if backend is Numpy64Bit else 1e-12,
+            atol=0,
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(envelope),
+            copy_to_cpu(envelope_2),
+            rtol=1e-12 if backend is Numpy64Bit else 1e-12,
+            atol=0,
+        )
 
     def test_get_wake_counterrotation(self):
         freq, q_factor, shut_imp = (

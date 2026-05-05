@@ -482,6 +482,7 @@ class BeamPhysicsRelevantElements(Preparable):
         assert self.count(RFStationBaseClass, section_i=section_index) == 1, (
             f"Only one RF station per section allowed, but got "
             f"{self.count(RFStationBaseClass, section_i=section_index)}"
+            f" in section {section_index}."
         )
         elements_in_section = [
             e for e in self.elements if e.section_index == section_index

@@ -128,10 +128,16 @@ For CPU-only development:
 pip install --editable ".[dev]"
 ```
 
-For GPU-enabled development:
+For GPU-enabled development both CUDA12 and CUDA 13 are available:
 
+For CUDA12:
 ```bash
-pip install --editable ".[dev, gpu]"
+pip install --editable ".[dev, gpu_cuda12]"
+```
+
+For CUDA13:
+```bash
+pip install --editable ".[dev, gpu_cuda12]"
 ```
 
 ### 4. Set Up Pre-Commit Hooks
@@ -174,8 +180,11 @@ backend.set_specials(mode="cpp")  # Activate the C++ backend
 ## Running Tests
 > Automatically done in GitLab CI Pipeline
 ```bash
-python3 -m pytest -v unittests/
+python3 -m pytest -v unittests/ --randomly-seed=$CI_PIPELINE_ID
 ```
+
+The random seed is displayed online in the output terminal of the CI pipeline.
+Replace '$CI_PIPELINE_ID' by the actual pipeline number when executing tests on a local machine.
 
 BLonD provides for marked tests with [PyTest](https://docs.pytest.org/en/stable/how-to/mark.html) via `@pytest.mark.xxx`.
 Following markers are used

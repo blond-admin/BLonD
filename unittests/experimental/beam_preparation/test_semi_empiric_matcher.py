@@ -334,7 +334,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             internal_grid_shape=(512 - 1, 512 - 1),
             increment_intensity_effects_until_iteration_i=10,
             maxiter_intensity_effects=1000,
-            tolerance=0.000001,
+            tolerance_potential_well=0.000001,
             animate=False,
             debug=True,
         )
