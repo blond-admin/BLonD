@@ -23,6 +23,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    copy_to_cpu,
     momentum_compaction_factor,
     proton,
 )
@@ -100,8 +101,8 @@ def main():
             return
 
         plt.scatter(
-            beam.read_partial_dt(),
-            beam.read_partial_dE(),
+            copy_to_cpu(beam.read_partial_dt()),
+            copy_to_cpu(beam.read_partial_dE()),
         )
 
         sim.plot_separatrix(

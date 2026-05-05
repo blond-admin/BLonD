@@ -150,9 +150,6 @@ class SymbolicSeparatrixHelper:
 
         Returns
         -------
-        dt
-            The (unmodified) input ``dt`` array, returned for symmetry with
-            future extensions that may augment it.
         separatrix
             Array of shape ``(2, len(dt))``: row 0 the upper branch
             (``dE ≥ 0``), row 1 the lower branch (``dE ≤ 0``), in [eV].
@@ -160,14 +157,11 @@ class SymbolicSeparatrixHelper:
             (above the local barrier, or no bucket exists at all because
             the linear tilt eliminated all extrema).
         """
-        a, potential = self._substitute_beam(beam)
+        a, potential = self._substitute_symbols(beam=beam)
 
-        dt_arr = np.asarray(dt, dtype=float)
-        H_sep = self._H_sep_per_dt(dt_arr, a=a, potential=potential)
-        dE_sep = self._dE_sep_upper(
-            dt_arr, a=a, potential=potential, H_sep=H_sep
-        )
-        return dt_arr, np.stack([dE_sep, -dE_sep])
+        H_sep = self._H_sep_per_dt(dt, a=a, potential=potential)
+        dE_sep = self._dE_sep_upper(dt, a=a, potential=potential, H_sep=H_sep)
+        return np.stack([dE_sep, -dE_sep])
 
     def plot_separatrix(
         self,
@@ -205,7 +199,7 @@ class SymbolicSeparatrixHelper:
         kwargs_plot.setdefault("color", "red")
         kwargs_plot.setdefault("linestyle", "dashed")
 
-        dt, separatrix = self.get_separatrix(beam=beam, dt=dt)
+        separatrix = self.get_separatrix(beam=beam, dt=dt)
 
         label = kwargs_plot.pop("label", None)
         artists = plt.plot(dt, separatrix[0], label=label, **kwargs_plot)
@@ -222,7 +216,7 @@ class SymbolicSeparatrixHelper:
         plt.ylabel("Energy offset [eV]")
         return artists
 
-    def _substitute_beam(
+    def _substitute_symbols(
         self, beam: BeamBaseClass
     ) -> tuple[float, Callable[[NumpyArray], NumpyArray]]:
         """

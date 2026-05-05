@@ -111,7 +111,7 @@ class TestSymbolicSeparatrixHelper:
                 beam.read_partial_dE(),
                 s=1,
             )
-            dt, separatrix_dE = SymbolicSeparatrixHelper.from_simulation(
+            separatrix_dE = SymbolicSeparatrixHelper.from_simulation(
                 simulation=sim
             ).get_separatrix(
                 beam=beam,
