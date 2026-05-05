@@ -7,6 +7,7 @@
 # Project website: http://blond.web.cern.ch/
 
 import unittest
+
 import numpy as np
 
 from blond.beam_preparation.filamentation_matcher import (
@@ -49,11 +50,11 @@ class TestFilamentationMatcher(unittest.TestCase):
         dt = self.beam.read_partial_dt()
         dE = self.beam.read_partial_dE()
 
-        # Check number of particles
+        # n part assert
         self.assertEqual(len(dt), 100)
         self.assertEqual(len(dE), 100)
 
-        # Check bounds
+        # check bounds
         self.assertTrue(np.all(dt >= self.time_limit[0]))
         self.assertTrue(np.all(dt <= self.time_limit[1]))
         self.assertTrue(np.all(dE >= self.energy_limit[0]))
@@ -76,7 +77,7 @@ class TestFilamentationMatcher(unittest.TestCase):
         dt = self.beam.read_partial_dt()
         dE = self.beam.read_partial_dE()
 
-        # Check that all particles are within purge limits
+        # all particles are within purge limits
         self.assertTrue(np.all(dt >= 0.2e-9))
         self.assertTrue(np.all(dt <= 0.8e-9))
         self.assertTrue(np.all(dE >= -5e5))
