@@ -75,6 +75,8 @@ class TestBackendTesting(unittest.TestCase):
         self.assertFalse(InvalidBackend in available_list)
         self.assertTrue(InvalidBackend in all_list)
 
+    @pytest.mark.cupy
+    @unittest.skipIf(not cupy_available, "Cupy not found")
     def test_backend_validity(self):
         bend_test.FORCE_ALL_BACKENDS = False
         available_list = bend_test._backend_selection(
@@ -135,6 +137,8 @@ class TestBackendTesting(unittest.TestCase):
         )
         self.assertTrue(backend.backend.__class__ is test_init_backend)
 
+    @pytest.mark.cupy
+    @unittest.skipIf(not cupy_available, "Cupy not found")
     def test_multi_backend_testcase_with_forcing(self):
         used_backends = []
         bend_test.FORCE_ALL_BACKENDS = True
