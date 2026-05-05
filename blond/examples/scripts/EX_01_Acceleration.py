@@ -19,10 +19,10 @@ from blond import (
     BiGaussian,
     DriftSimple,
     MagneticCyclePerTurn,
-    MultiHarmonicRFStation,
     RFStationPhaseObservation,
     Ring,
     Simulation,
+    SingleHarmonicRFStation,
     momentum_compaction_factor,
     proton,
 )
@@ -36,10 +36,10 @@ logging.basicConfig(level=logging.INFO)
 def main():
     ring = Ring(26658.883)
 
-    rf_station = MultiHarmonicRFStation(n_harmonics=2, main_harmonic_idx=0)
-    rf_station.harmonic = np.array([35640, 4 * 35640])
-    rf_station.voltage = np.array([6e6, 6e6 / 2])
-    rf_station.phi_rf_design = np.array([0, 0])
+    rf_station = SingleHarmonicRFStation()
+    rf_station.harmonic = 35640
+    rf_station.voltage = 6e6
+    rf_station.phi_rf_design = 0
 
     N_TURNS = int(1e3)
 
@@ -95,23 +95,18 @@ def main():
     )
     bunch_observation = BeamObservationOncePerTurn(each_turn_i=1)
 
-    def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
+    def animate_live(simulation: Simulation, beam: Beam):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:
             return
 
-        dt = beam.read_partial_dt()
         plt.scatter(
-            dt,
+            beam.read_partial_dt(),
             beam.read_partial_dE(),
-            s=1,
         )
-        t0 = dt.min()
-        t1 = dt.max()
-        trange_ = (t0, t1)
 
         sim.plot_separatrix(
             beam=beam,
-            dt=np.linspace(*trange_, 1000),
+            dt=np.linspace(beam.dt.min(), beam.dt.max(), 1000),
         )
         plt.draw()
         plt.pause(0.1)
@@ -131,7 +126,7 @@ def main():
             beams=(beam1,),
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
-            callbacks=custom_action,
+            callbacks=animate_live,
         )
     ANIMATE = False
     if ANIMATE:  # pragma: no cover
