@@ -203,34 +203,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
 
         self._last_eta_0: float | None = None
 
-        self._momentum_compaction_factor: float | None = (
+        self.momentum_compaction_factor: float | None = (
             momentum_compaction_factor
         )
-
-    @property
-    def momentum_compaction_factor(self) -> float:
-        """
-        Momentum compaction factor of this drift section.
-
-        Returns
-        -------
-        momentum_compaction_factor
-            Momentum compaction factor of this drift section.
-        """
-        assert self._momentum_compaction_factor is not None
-        return self._momentum_compaction_factor
-
-    @momentum_compaction_factor.setter
-    def momentum_compaction_factor(self, value: float) -> None:
-        """
-        Momentum compaction factor of this drift section.
-
-        Parameters
-        ----------
-        value
-            Momentum compaction factor of this drift section.
-        """
-        self._momentum_compaction_factor = value
 
     @staticmethod
     def headless(
