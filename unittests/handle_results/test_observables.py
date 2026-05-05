@@ -27,6 +27,7 @@ from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
+    BeamHist2dOncePerTurn,
     BeamObservationOncePerTurn,
     BeamStatisticsOncePerTurn,
     DriftObservation,
@@ -304,84 +305,100 @@ class TestBeamObservation(unittest.TestCase):
         )
 
     def test_lossy_simulation(self):
-        ring = Ring(26658.883)
+        for intensity in (0, 1e9):
+            ring = Ring(26658.883)
 
-        rf_station = SingleHarmonicRFStation()
-        rf_station.harmonic = 35640
-        rf_station.voltage = 6e6
-        rf_station.phi_rf_design = 0
+            rf_station = SingleHarmonicRFStation()
+            rf_station.harmonic = 35640
+            rf_station.voltage = 6e6
+            rf_station.phi_rf_design = 0
 
-        N_TURNS = int(1e3)
+            N_TURNS = int(1e3)
 
-        energy_cycle = MagneticCyclePerTurn(
-            value_init=450e9,
-            values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
-            reference_particle=proton,
-        )
+            energy_cycle = MagneticCyclePerTurn(
+                value_init=450e9,
+                values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+                reference_particle=proton,
+            )
 
-        drift1 = DriftSimple(
-            orbit_length=26658.883,
-        )
-        drift1.momentum_compaction_factor = momentum_compaction_factor(
-            transition_gamma=55.759505
-        )
-        loss_box = (
-            BoxLosses(  # This is required to test the observable with losses
+            drift1 = DriftSimple(
+                orbit_length=26658.883,
+            )
+            drift1.momentum_compaction_factor = momentum_compaction_factor(
+                transition_gamma=55.759505
+            )
+            loss_box = BoxLosses(  # This is required to test the observable with losses
                 purge_flagged_macroparticles=True,
                 t_min=0,
                 t_max=2.5e-9,
             )
-        )
 
-        beam1 = Beam(
-            intensity=1e9,
-            particle_type=proton,
-        )
+            beam1 = Beam(
+                intensity=intensity,
+                particle_type=proton,
+            )
 
-        sim = Simulation.from_locals(locals())
-        sim.print_one_turn_execution_order()
-        sim.prepare_beam(
-            beam=beam1,
-            preparation_routine=BiGaussian(
-                sigma_dt=0.4e-9 / 4,
-                sigma_dE=1e9 / 4,
-                reinsertion=False,
-                seed=1,
-                n_macroparticles=1e3,
-            ),
-        )
+            sim = Simulation.from_locals(locals())
+            sim.print_one_turn_execution_order()
+            sim.prepare_beam(
+                beam=beam1,
+                preparation_routine=BiGaussian(
+                    sigma_dt=0.4e-9 / 4,
+                    sigma_dE=1e9 / 4,
+                    reinsertion=False,
+                    seed=1,
+                    n_macroparticles=1e3,
+                ),
+            )
 
-        phase_observation = RFStationPhaseObservation(
-            each_turn_i=1,
-            rf_station=rf_station,
-        )
-        bunch_observation = BeamObservationOncePerTurn(each_turn_i=100)
-        beam1._is_distributed = True
-        with self.assertRaisesRegex(
-            NotImplementedError, "This needs to be implement"
-        ):
+            phase_observation = RFStationPhaseObservation(
+                each_turn_i=1,
+                rf_station=rf_station,
+            )
+            bunch_observation = BeamObservationOncePerTurn(each_turn_i=100)
+            obs_beam_hist2d = BeamHist2dOncePerTurn(
+                each_turn_i=100, bins=128 if intensity == 0 else (128, 64)
+            )
+            beam1._is_distributed = True
+            with self.assertRaisesRegex(
+                NotImplementedError, "This needs to be implement"
+            ):
+                sim.run_simulation(
+                    beams=(beam1,),
+                    n_turns=N_TURNS,
+                    observe=(obs_beam_hist2d,),
+                )
+            with self.assertRaisesRegex(
+                NotImplementedError, "This needs to be implement"
+            ):
+                sim.run_simulation(
+                    beams=(beam1,),
+                    n_turns=N_TURNS,
+                    observe=(bunch_observation,),
+                )
+            beam1._is_distributed = False
             sim.run_simulation(
                 beams=(beam1,),
                 n_turns=N_TURNS,
-                observe=(phase_observation, bunch_observation),
+                observe=(
+                    phase_observation,
+                    bunch_observation,
+                    obs_beam_hist2d,
+                ),
             )
-        beam1._is_distributed = False
-        sim.run_simulation(
-            beams=(beam1,),
-            n_turns=N_TURNS,
-            observe=(phase_observation, bunch_observation),
-        )
-        plt.plot(phase_observation.phases)
-        plt.figure()
-        for i in range(bunch_observation.dts.shape[0]):
-            plt.clf()
-            sel = ~np.isnan(bunch_observation.dts[i, :])
-            plt.hist2d(
-                bunch_observation.dts[i, sel],
-                bunch_observation.dEs[i, sel],
-                bins=256,
-                # range=[[0, 2.5e-9], [-4e8, 4e8]],
-            )
+            plt.plot(phase_observation.phases)
+            plt.figure()
+            for i in range(bunch_observation.dts.shape[0]):
+                plt.clf()
+                sel = ~np.isnan(bunch_observation.dts[i, :])
+                plt.hist2d(
+                    bunch_observation.dts[i, sel],
+                    bunch_observation.dEs[i, sel],
+                    bins=256,
+                    # range=[[0, 2.5e-9], [-4e8, 4e8]],
+                )
+            obs_beam_hist2d.plot(result_idx=-1)
+            obs_beam_hist2d.plot_fancy(result_idx=-1)
 
 
 class TestBunchStatistics(unittest.TestCase):
