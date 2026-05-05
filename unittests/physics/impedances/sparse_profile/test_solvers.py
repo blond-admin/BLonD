@@ -10,7 +10,6 @@ from blond import (
     Beam,
     BiGaussian,
     ConstantMagneticCycle,
-    Cupy64Bit,
     DriftSimple,
     MagneticCyclePerTurn,
     Numpy64Bit,

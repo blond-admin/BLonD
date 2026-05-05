@@ -263,6 +263,13 @@ def reload_cpp_backend(  # NOQA: PLR0915
             dE: NumpyArray,
             flags: NumpyArray,
         ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert flags.dtype == np.int32
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert flags.flags.c_contiguous
+
             _LIBBLOND.loss_box(
                 c_real(e_max, floattype),
                 c_real(e_min, floattype),
@@ -348,6 +355,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
         @staticmethod
         def sum_1d_array(array: NumpyArray) -> float:
             assert array.dtype == floattype
+            assert array.flags.c_contiguous
             # requires setting of _LIBBLOND.sum_1d_array.restype = c_real_t(floattype) in
             # reload function
             return floattype(
@@ -361,6 +369,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
         ) -> float:
             assert array_1.dtype == floattype
             assert array_2.dtype == floattype
+            assert array_1.flags.c_contiguous
+            assert array_2.flags.c_contiguous
             assert len(array_1) == len(array_2)
 
             # requires setting of _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype) in

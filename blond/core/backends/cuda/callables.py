@@ -134,14 +134,14 @@ def reload_cuda_backend(  # NOQA: D102
                 f"Requires Cupy array, but got {type(flags)}."
             )
 
-            assert dt.dtype == backend.float
-            assert dE.dtype == backend.float
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
             assert flags.dtype == np.int32
 
-            assert isinstance(e_max, backend.float)
-            assert isinstance(e_min, backend.float)
-            assert isinstance(t_min, backend.float)
-            assert isinstance(t_max, backend.float)
+            assert isinstance(e_max, floattype)
+            assert isinstance(e_min, floattype)
+            assert isinstance(t_min, floattype)
+            assert isinstance(t_max, floattype)
 
             _loss_box(
                 args=(
@@ -556,8 +556,8 @@ def reload_cuda_backend(  # NOQA: D102
             #  to have a smaller memory footprint.
             flag = np.int32(flag)
             assert flags.dtype == np.int32
-            assert dt.dtype == backend.float
-            assert dE.dtype == backend.float
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
             assert ids.dtype == np.int32
 
             select = flags == flag
