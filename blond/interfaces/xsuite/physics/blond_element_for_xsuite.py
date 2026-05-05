@@ -151,6 +151,8 @@ class BLonD3Cavity:
         Initial beam intensity. If None, intensity handling is disabled.
     momentum_compaction_factor
         Momentum compaction factor. Default is None. Must be provided if there is an energy ramp.
+    _context
+        Xsuite context.
     """
 
     def __init__(
@@ -160,7 +162,9 @@ class BLonD3Cavity:
         line: XSuiteLine,
         initial_intensity: float | int,
         momentum_compaction_factor: float | None = None,
+        _context=None,
     ):
+        self._context = _context
         self._line = line
         self._dt_shift: float | None = None
         self._cavity = cavity
@@ -358,7 +362,13 @@ class BLonD3Cavity:
         dzeta = circumference * domega / omega_rf_design
 
         # Apply shift
-        self._time_center_shift = XSuiteZetaShift(dzeta=dzeta)
+        if self._context is not None:
+            self._time_center_shift = XSuiteZetaShift(
+                dzeta=dzeta,
+                _context=self._context,
+            )
+        else:
+            self._time_center_shift = XSuiteZetaShift(dzeta=dzeta)
         self._time_center_shift.track(particles)
 
     def xsuite_to_blond_transform_particles(

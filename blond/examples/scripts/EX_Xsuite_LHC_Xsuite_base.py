@@ -94,6 +94,7 @@ def main():
         particles=particles,
         line=line,
         initial_intensity=N_p,
+        _context=context,
     )
 
     # --- Insert cavity  --- #

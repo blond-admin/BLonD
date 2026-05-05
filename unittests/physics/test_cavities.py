@@ -910,6 +910,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             circumference=123,
             total_energy=beam.reference.total_energy,
             beam_reference_beta=beam.reference.beta,
+            is_below_transition=True,
             local_wakefield=None,
             cavity_feedback=None,
             delayed_kick=None,
@@ -933,6 +934,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             cavity_feedback=None,
             delayed_kick=pool,
             delayed_kick_time_axis=beam_interp.dt.copy_as_numpy(),
+            is_below_transition=True,
         )
         rf_station_interp.track(beam_interp)
         pool.track(beam_interp)
@@ -1087,6 +1089,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
                 delayed_kick=Mock(PooledInterpolationKick),  # trigger
                 # trigger because it shouldn't coexist with cavity feedback
                 delayed_kick_time_axis=np.linspace(1, 2, 10),
+                is_below_transition=True,
             )
 
     def test_delayed_kick_without_feedback_list_requires_time_axis2(self):
@@ -1105,6 +1108,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
                 beam_reference_beta=1,
                 delayed_kick=Mock(PooledInterpolationKick),
                 delayed_kick_time_axis=None,  # trigger Exception
+                is_below_transition=True,
             )
 
     def test_delayed_kick_registers(self):
@@ -1121,6 +1125,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
             beam_reference_beta=1,
             delayed_kick=delayed_kick_mock,
             delayed_kick_time_axis=np.linspace(1, 2, 10),  # trigger Exception
+            is_below_transition=True,
         )
         multi_harmonic_cavity.track(self.beam)
         self.assertTrue(delayed_kick_mock.register.called)
@@ -1145,6 +1150,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
             beam_reference_beta=1,
             delayed_kick=delayed_kick_mock,
             delayed_kick_time_axis=None,
+            is_below_transition=True,
         )
         multi_harmonic_cavity.track(self.beam)
         self.assertTrue(delayed_kick_mock.register.called)
