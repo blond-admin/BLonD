@@ -34,6 +34,7 @@ from blond import (
     mu_plus,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
+from unittests.physics.impedances.comparisons.mtw import voltage_per_cavity
 
 n_slices = 2**10
 
@@ -55,7 +56,7 @@ def match_beam(simulation, t_rf, beam):
                 "max_emittance_diff": 1e-6,
             },
             # verbose=True,
-            # animate=True,
+            animate=True,
             increment_intensity_effects_until_iteration_i=1,
             until_section_index=2,
         ),
@@ -86,7 +87,7 @@ def setup_and_run(
     backend.set_specials("cpp")
 
     if rcs == "RCS1":
-        R_over_Q = 518
+        R_over_Q = 3 * 518
         Q_L = 1.29e6
         phi_s = 2.5830872929516078  # 143
         alpha_p = 10.395e-4
@@ -112,18 +113,16 @@ def setup_and_run(
         n_turns = 55
     else:
         raise ValueError("Unknown RCS")
-
-    phi_s = np.pi / 2
+    f_det = 0
+    # phi_s = np.pi / 2
     harmonic = int(harmonic - harmonic % n_stations)
 
     voltage_per_cavity = 31140000.0
     energy_gain_per_turn = (ejection_energy - injection_energy) / n_turns
     total_voltage = energy_gain_per_turn / np.sin(phi_s)
-    total_voltage = 1e7
+    total_voltage = 1e9
     voltage_per_station = total_voltage / n_stations
-    n_cavities = (
-        int(np.ceil(voltage_per_station / voltage_per_cavity)) * n_stations
-    )
+    n_cavities = voltage_per_station / voltage_per_cavity * n_stations
     cav_per_station = n_cavities / n_stations
 
     delta_omega = 2 * np.pi * f_det
@@ -151,6 +150,7 @@ def setup_and_run(
         )
         / harmonic
     )
+    # t_rf
 
     beam_current = (
         elementary_charge
@@ -162,16 +162,22 @@ def setup_and_run(
 
     F_b = 2
 
-    Q_L_no_delta_omega = voltage_per_cavity / (
-        R_over_Q * (F_b * beam_current * np.cos(phi_s)) ** 2
-        + (F_b * beam_current * np.sin(phi_s)) ** 2
+    # delta_omega = omega_rf * R_over_Q * F_b * beam_current * np.cos(phi_s) / (2 * voltage_per_cavity)
+    phi_s = np.pi / 2
+    Q_L = voltage_per_cavity / (
+        R_over_Q * (F_b * beam_current * np.sin(phi_s)) ** 2
+        - (
+            F_b * beam_current * np.cos(phi_s)
+            + voltage_per_cavity * 2 * delta_omega / (omega_rf * R_over_Q)
+        )
+        ** 2
     )
 
     I_g = (
         voltage_per_cavity
         / (2 * R_over_Q)
         * (1 / Q_L - 2j * delta_omega / omega_rf)
-        + np.abs(F_b) * beam_current * np.exp(-1j * phi_s) / 2
+        + np.abs(F_b) * beam_current * np.exp(1j * (phi_s - np.pi / 2)) / 2 * 0
     )
 
     I_g_ampl = np.abs(I_g)
@@ -207,8 +213,8 @@ def setup_and_run(
     for cavity_i in range(n_stations):
         profile_list.append(
             StaticProfile.from_rad(
-                np.pi * 1.5,
-                np.pi * 3.5,
+                np.pi * 2,
+                np.pi * 4,
                 n_slices,
                 t_rf,
                 section_index=cavity_i,
@@ -223,10 +229,10 @@ def setup_and_run(
         wf = (
             WakeField(
                 sources=(local_res,),
-                solver=SingleTurnResonatorConvolutionSolver(),
-                # MultiPassResonatorSolver(
-                #         decay_fraction_threshold=1e-12, allow_delta_t_zero=True
-                #     ),
+                # solver=SingleTurnResonatorConvolutionSolver(),
+                solver=MultiPassResonatorSolver(
+                    decay_fraction_threshold=1e-12, allow_delta_t_zero=True
+                ),
                 profile=profile_list[-1],
             )
             if MTW
@@ -240,6 +246,7 @@ def setup_and_run(
                 n_rf_periods_per_coarse_grid=1,
                 generator_current=I_g,
                 n_cavities=cav_per_station,
+                initial_voltage=voltage_per_cavity,
                 delta_omega=delta_omega,
             )
             if not MTW
@@ -317,6 +324,8 @@ def setup_and_run(
 
     bunch_observation.active = True
 
+    profile_list[-1].beam_spectrum(100 * profile_list[-1].n_bins)
+
     sim.run_simulation(
         (beam,),
         n_turns=None if n_turns_in == -1 else n_turns_in,
@@ -364,41 +373,82 @@ def plot_results(bunch_obs_list, n_turns_list, ind_volt_obs_list):
 
 
 def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
-    plt.clf()
-    fix, ax = plt.subplots()
-    plt.title("ind_volt vs fdbk_kick")
+    # plt.clf()
+    # fix, ax = plt.subplots()
+    # plt.title("ind_volt vs fdbk_kick")
+    #
+    # ax.plot(
+    #     ind_volt_obs_list[0][0].induced_voltage[0], ls="--", label="ind_volt"
+    # )
+    # # ax.plot(cav_fdbk_obs_list[1][0].v_corr[0] * 30e6, label="rel_volt correction")
+    # ax.plot(
+    #     np.abs(cav_fdbk_obs_list[1][0].v_ant_fine[0]), label="abs v_ant_fine"
+    # )
+    # ax.plot(
+    #     np.real(cav_fdbk_obs_list[1][0].v_ant_fine[0]), label="real v_ant_fine"
+    # )
 
-    ax.plot(
-        ind_volt_obs_list[0][0].induced_voltage[0], ls="--", label="ind_volt"
-    )
-    # ax.plot(cav_fdbk_obs_list[1][0].v_corr[0] * 30e6, label="rel_volt correction")
-    ax.plot(
-        np.abs(cav_fdbk_obs_list[1][0].v_ant_fine[0]), label="abs v_ant_fine"
-    )
-    ax.plot(
-        np.real(cav_fdbk_obs_list[1][0].v_ant_fine[0]), label="real v_ant_fine"
-    )
-
-    ax2 = ax.twinx()
+    # ax2 = ax.twinx()
     # ax2.plot(ind_volt_obs_list[0][0].beam_profile[0], label="beam profile")
     # ax2.plot(
     #     cav_fdbk_obs_list[1][0].v_corr[0] * 30e6, label="rel_volt correction"
     # )
-    ax2.plot(cav_fdbk_obs_list[1][0].phi_corr[0], label="rel_volt correction")
+    # ax2.plot(cav_fdbk_obs_list[1][0].phi_corr[0], label="rel_volt correction")
+    #
+    # plt.legend()
+    # plt.show(block=False)
+    #
+    # fix, ax = plt.subplots()
+    # plt.title("coarse")
+    #
+    # ax.plot(cav_fdbk_obs_list[1][0].v_ant_coarse[0], label="ind_volt")
+    #
+    # ax2 = ax.twinx()
+    # ax2.plot(ind_volt_obs_list[0][0].beam_profile[0], label="beam profile")
+    # # ax2.plot(cav_fdbk_obs_list[1][0].v_corr[0] * 30e6, label="rel_volt correction")
+    #
+    # plt.legend()
+    # plt.show(block=False)
 
-    plt.legend()
-    plt.show(block=False)
+    fig, ax = plt.subplots(2, 2)
+    for idx in range(5):
+        clr = ax[0, 0]._get_lines.get_next_color()
+        ax[0, 0].plot(
+            ind_volt_obs_list[0][0].total_voltage[idx], color=clr, label="MTW"
+        )
+        ax[0, 0].plot(
+            np.real(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx]),
+            ls="--",
+            color=clr,
+            label="real fdbk",
+        )
+        ax[0, 1].plot(
+            np.real(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx]),
+            ls="--",
+            color=clr,
+            label="real fdbk",
+        )
+        ax[0, 1].plot(
+            ind_volt_obs_list[0][0].induced_voltage[idx],
+            color=clr,
+            label="MTW",
+        )
+        ax[1, 0].set_title("v_corr")
+        ax[1, 0].plot(
+            np.real(cav_fdbk_obs_list[1][0].v_corr[idx]),
+            color=clr,
+            label="v_corr",
+        )
+        ax[1, 1].set_title("phi_corr")
+        ax[1, 1].plot(
+            np.real(cav_fdbk_obs_list[1][0].phi_corr[idx]),
+            color=clr,
+            label="phi_corr",
+        )
 
-    fix, ax = plt.subplots()
-    plt.title("coarse")
-
-    ax.plot(cav_fdbk_obs_list[1][0].v_ant_coarse[0], label="ind_volt")
-
-    ax2 = ax.twinx()
-    ax2.plot(ind_volt_obs_list[0][0].beam_profile[0], label="beam profile")
-    # ax2.plot(cav_fdbk_obs_list[1][0].v_corr[0] * 30e6, label="rel_volt correction")
-
-    plt.legend()
+        # ax[1].plot(np.abs(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx]), label="abs fdbk")
+    plt.tight_layout()
+    # plt.legend()
     plt.show()
 
     pass
@@ -427,6 +477,13 @@ if __name__ == "__main__":
         ind_volt_obs_list.append(ind_volt_obs_list_buf)
         cav_fdbk_obs_list.append(cav_fdbk_obs_list_buf)
 
-    # plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list)
+    plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list)
 
     plot_results(bunch_obs_list, n_turns_list, ind_volt_obs_list)
+
+
+# TODO: tests to write
+"""
+check no voltage change over one turn for no detuned cavity --> purely real generator current, should not change between turns
+
+"""

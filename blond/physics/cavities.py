@@ -208,7 +208,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             self.attach_beam_feedback(beam_feedback)
 
         self._local_wakefield = local_wakefield
-        self._local_wakefield._parent_rf_station = self
+        if local_wakefield is not None:
+            self._local_wakefield._parent_rf_station = self
 
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None

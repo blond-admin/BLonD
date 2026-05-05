@@ -136,19 +136,20 @@ def rf_beam_current(
     """
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    charges = (
-        beam.ratio  # TODO: remove this
-        * beam.particle_type.charge
-        * elementary_charge
-        * profile.hist_y
-    )
-
     # charges = (
     #     beam.ratio  # TODO: remove this
     #     * beam.particle_type.charge
-    #     * e
-    #     * profile.hist_y * profile.hist_y_to_density_factor
+    #     * elementary_charge
+    #     * profile.hist_y
     # )
+
+    charges = (
+        elementary_charge
+        * beam.particle_type.charge
+        * beam.intensity
+        * profile.hist_y
+        * profile.hist_y_to_density_factor
+    )
 
     logger.debug(
         "Sum of particles: %d, total charge: %.4e C",
@@ -210,9 +211,9 @@ def rf_beam_current(
             charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
                 charges_fine[np.arange(indices[i - 1], indices[i])]
             )
-        charges_coarse[ind_fine[-1]] = np.sum(
-            charges_fine[np.arange(indices[0], len(charges_fine), dtype=int)]
-        )
+        # charges_coarse[ind_fine[-1]] = np.sum(
+        #     charges_fine[np.arange(indices[0], len(charges_fine), dtype=int)]
+        # )
 
         return charges_fine, charges_coarse
 
