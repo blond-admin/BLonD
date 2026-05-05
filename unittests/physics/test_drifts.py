@@ -376,7 +376,7 @@ class TestDriftExact(unittest.TestCase):
         np.testing.assert_allclose(blond2_expected, beam.dt.copy_as_numpy())
 
     @multi_backend_testcase("Numpy64Bit")
-    @pytest.mark.backend_mutation
+    @pytest.mark.backend_mutationn
     def test_compare_track_ham(self):
         """For ``higher_order_alpha`` lengths 1, 2, 3 (i.e. α_1, α_1..α_2,
         α_1..α_3 — α_0 is set separately by ``momentum_compaction_factor``),

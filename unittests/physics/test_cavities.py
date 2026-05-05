@@ -50,6 +50,7 @@ from blond.physics.cavities import (
 )
 from blond.physics.drifts import DriftSimple
 from blond.physics.impedances.base import WakeField
+from blond.testing.backend_testing import multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
 
 
