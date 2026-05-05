@@ -1291,7 +1291,9 @@ class SingleHarmonicRFStation(
         )
         return single_harmonic_rf_station
 
-    def get_hamilton_symbolic(self) -> sympy.Expr:
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
         r"""
         Return the partial Hamiltonian symbolic expression.
 
@@ -1315,6 +1317,12 @@ class SingleHarmonicRFStation(
         ``_track`` call (``self._last_reference_energy_change``); it is
         zero before the first track and for non-accelerating cycles.
 
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according symbolic variables will be replaced by
+            their current numeric value.
+
         Returns
         -------
         expression
@@ -1325,17 +1333,17 @@ class SingleHarmonicRFStation(
 
         V = (
             self.voltage
-            if self.voltage is not None
+            if (self.voltage is not None) and replace_symbols
             else sympy.Symbol("V", positive=True)
         )
         omega = (
             self.omega_rf_design
-            if self.omega_rf_design is not None
+            if (self.omega_rf_design is not None) and replace_symbols
             else sympy.Symbol("omega_rf", positive=True)
         )
         phi = (
             self.phi_rf_design
-            if self.phi_rf_design is not None
+            if (self.phi_rf_design is not None) and replace_symbols
             else sympy.Symbol("phi_rf", real=True)
         )
 
@@ -1807,7 +1815,9 @@ class MultiHarmonicRFStation(
         multi_harmonic_rf_station._update_beam_based_attributes(beam)
         return multi_harmonic_rf_station
 
-    def get_hamilton_symbolic(self) -> sympy.Expr:
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
         r"""
         Return the partial Hamiltonian symbolic expression.
 
@@ -1831,6 +1841,12 @@ class MultiHarmonicRFStation(
         :math:`\\Delta E_\\mathrm{ref}` is taken from the most recent
         ``_track`` call.
 
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according variables will be replaced by
+            their current numeric value.
+
         Returns
         -------
         expression
@@ -1843,17 +1859,17 @@ class MultiHarmonicRFStation(
         for j in range(self.n_rf):
             V_j = (
                 self.voltage[j]
-                if self.voltage is not None
+                if (self.voltage is not None) and replace_symbols
                 else sympy.Symbol(f"V_{j}", positive=True)
             )
             omega_j = (
                 self.omega_rf_design[j]
-                if self.omega_rf_design is not None
+                if (self.omega_rf_design is not None) and replace_symbols
                 else sympy.Symbol(f"omega_{j}", positive=True)
             )
             phi_j = (
                 self.phi_rf_design[j]
-                if self.phi_rf_design is not None
+                if (self.phi_rf_design is not None) and replace_symbols
                 else sympy.Symbol(f"phi_{j}", real=True)
             )
             expr += q * V_j / omega_j * sympy.cos(omega_j * dt + phi_j)

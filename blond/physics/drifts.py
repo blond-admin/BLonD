@@ -374,9 +374,17 @@ class DriftSimple(
         # super()._invalidate_cache(DriftSimple.cached_props)
         pass
 
-    def get_hamilton_symbolic(self) -> sympy.Expr:
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
         """
         Return the partial Hamiltonian symbolic expression.
+
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according variables will be replaced by
+            their current numeric value.
 
         Returns
         -------
@@ -387,7 +395,7 @@ class DriftSimple(
 
         alpha_0 = (
             self.alpha_0
-            if self.alpha_0 is not None
+            if (self.alpha_0 is not None) and replace_symbols
             else sympy.Symbol("alpha_0", real=True)
         )
         T = self.orbit_length / (beta * c0)
@@ -496,7 +504,9 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
 
         return drift
 
-    def get_hamilton_symbolic(self) -> sympy.Expr:
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
         r"""
         Return the partial Hamiltonian symbolic expression.
 
@@ -524,6 +534,12 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         polynomial in ``dE`` and ``coeff(dE, n)`` works for downstream
         consumers like :class:`SymbolicSeparatrixHelper`.
 
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according variables will be replaced by
+            their current numeric value.
+
         Returns
         -------
         expression
@@ -532,12 +548,12 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         dE, beta, E = sympy.symbols("dE beta E", real=True)
         alpha_0 = (
             self.alpha_0
-            if self.alpha_0 is not None
+            if (self.alpha_0 is not None) and replace_symbols
             else sympy.Symbol("alpha_0", real=True)
         )
         higher = (
             self.higher_order_alpha
-            if self.higher_order_alpha is not None
+            if (self.higher_order_alpha is not None) and replace_symbols
             else ()
         )
         T = self.orbit_length / (beta * c0)

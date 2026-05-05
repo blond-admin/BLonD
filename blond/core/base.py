@@ -908,9 +908,17 @@ class HasSymbolicHamiltonian(ABC):
     """Base class for objects that have an analytic expression."""
 
     @abstractmethod
-    def get_hamilton_symbolic(self) -> sympy.Expr:
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
         """
         Return the partial Hamiltonian symbolic expression.
+
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according variables will be replaced by
+            their current numeric value.
 
         Returns
         -------
