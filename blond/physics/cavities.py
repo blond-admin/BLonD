@@ -208,6 +208,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             self.attach_beam_feedback(beam_feedback)
 
         self._local_wakefield = local_wakefield
+        self._local_wakefield._parent_rf_station = self
 
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
@@ -1142,9 +1143,18 @@ class SingleHarmonicRFStation(
                     voltage=voltage,
                 )
             else:
-                self._track_no_interp(
-                    beam=beam, reference_energy_change=reference_energy_change
+                time_axis = self._local_wakefield.profile.hist_x
+                voltage = self.calc_gap_voltage_without_feedbacks(ts=time_axis)
+                self._track_interp(
+                    beam=beam,
+                    reference_energy_change=reference_energy_change,
+                    time_axis=time_axis,
+                    voltage=voltage,
                 )
+                # )
+                # self._track_no_interp(
+                #     beam=beam, reference_energy_change=reference_energy_change
+                # )
 
     def _track_no_interp(
         self, beam: BeamBaseClass, reference_energy_change: float

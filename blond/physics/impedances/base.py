@@ -13,6 +13,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from physics.cavities import RFStationBaseClass
 from scipy.constants import elementary_charge as e
 
 from blond.core.backends.backend import backend
@@ -417,6 +418,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
+        parent_rf_station: RFStationBaseClass | None = None,
     ):
         super().__init__(
             section_index=section_index,
@@ -429,6 +431,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         self.update_induced_voltage = True
         self._induced_voltage = None
         self.track_profile = True
+        self._parent_rf_station = parent_rf_station
 
     def info_string(self, prefix="") -> str:
         """

@@ -11,7 +11,10 @@ from handle_results.observables_as_elements import (
     InducedVoltageObservationCR,
 )
 from physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
-from physics.impedances.solvers import MultiPassResonatorSolver
+from physics.impedances.solvers import (
+    MultiPassResonatorSolver,
+    SingleTurnResonatorConvolutionSolver,
+)
 from scipy.constants import elementary_charge, speed_of_light
 from specifics.muon_collider.beam_preparation import (
     load_beam_coordinates_counterrot_from_file,
@@ -52,7 +55,7 @@ def match_beam(simulation, t_rf, beam):
                 "max_emittance_diff": 1e-6,
             },
             # verbose=True,
-            animate=True,
+            # animate=True,
             increment_intensity_effects_until_iteration_i=1,
             until_section_index=2,
         ),
@@ -110,11 +113,13 @@ def setup_and_run(
     else:
         raise ValueError("Unknown RCS")
 
+    phi_s = np.pi / 2
     harmonic = int(harmonic - harmonic % n_stations)
 
     voltage_per_cavity = 31140000.0
     energy_gain_per_turn = (ejection_energy - injection_energy) / n_turns
     total_voltage = energy_gain_per_turn / np.sin(phi_s)
+    total_voltage = 1e7
     voltage_per_station = total_voltage / n_stations
     n_cavities = (
         int(np.ceil(voltage_per_station / voltage_per_cavity)) * n_stations
@@ -154,7 +159,13 @@ def setup_and_run(
         / ring.circumference
     )
     omega_rf = 1 / t_rf * 2 * np.pi
+
     F_b = 2
+
+    Q_L_no_delta_omega = voltage_per_cavity / (
+        R_over_Q * (F_b * beam_current * np.cos(phi_s)) ** 2
+        + (F_b * beam_current * np.sin(phi_s)) ** 2
+    )
 
     I_g = (
         voltage_per_cavity
@@ -207,14 +218,15 @@ def setup_and_run(
         local_res = Resonators(
             shunt_impedances=R_over_Q * Q_L * cav_per_station,
             quality_factors=Q_L,
-            center_frequencies=1 / t_rf,
+            center_frequencies=1 / t_rf + f_det,
         )
         wf = (
             WakeField(
                 sources=(local_res,),
-                solver=MultiPassResonatorSolver(
-                    decay_fraction_threshold=1e-12, allow_delta_t_zero=True
-                ),
+                solver=SingleTurnResonatorConvolutionSolver(),
+                # MultiPassResonatorSolver(
+                #         decay_fraction_threshold=1e-12, allow_delta_t_zero=True
+                #     ),
                 profile=profile_list[-1],
             )
             if MTW
@@ -228,6 +240,7 @@ def setup_and_run(
                 n_rf_periods_per_coarse_grid=1,
                 generator_current=I_g,
                 n_cavities=cav_per_station,
+                delta_omega=delta_omega,
             )
             if not MTW
             else None
@@ -286,21 +299,21 @@ def setup_and_run(
 
     sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
-    if MTW:
-        match_beam(
-            sim,
-            t_rf,
-            beam,
-        )
-        np.savez(
-            "./fdbk_testing/init_distr_convol.npz",
-            dE=beam.dE.array_local,
-            dt=beam.dt.array_local,
-        )
-    else:
-        load_beam_coordinates_from_file(
-            "./fdbk_testing/init_distr_convol.npz", beam
-        )
+    # if MTW:
+    #     match_beam(
+    #         sim,
+    #         t_rf,
+    #         beam,
+    #     )
+    #     np.savez(
+    #         "./fdbk_testing/init_distr_convol.npz",
+    #         dE=beam.dE.array_local,
+    #         dt=beam.dt.array_local,
+    #     )
+    # else:
+    load_beam_coordinates_from_file(
+        "./fdbk_testing/init_distr_convol.npz", beam
+    )
 
     bunch_observation.active = True
 
@@ -320,32 +333,32 @@ def setup_and_run(
 
 def plot_results(bunch_obs_list, n_turns_list, ind_volt_obs_list):
     plt.title("sigma_dt")
-    plt.plot(bunch_obs_list[1].sigma_dt, label="MTW")
-    plt.plot(bunch_obs_list[0].sigma_dt, label="fdbk")
+    plt.plot(bunch_obs_list[0].sigma_dt, label="MTW")
+    plt.plot(bunch_obs_list[1].sigma_dt, ls="--", label="fdbk")
     plt.legend()
     plt.show()
 
     plt.title("rms_emittance")
-    plt.plot(bunch_obs_list[1].rms_emittance, label="MTW")
-    plt.plot(bunch_obs_list[0].rms_emittance, label="fdbk")
+    plt.plot(bunch_obs_list[0].rms_emittance, label="MTW")
+    plt.plot(bunch_obs_list[1].rms_emittance, ls="--", label="fdbk")
     plt.legend()
     plt.show()
 
     plt.title("sigma_dE")
-    plt.plot(bunch_obs_list[1].sigma_dE, label="MTW")
-    plt.plot(bunch_obs_list[0].sigma_dE, label="fdbk")
+    plt.plot(bunch_obs_list[0].sigma_dE, label="MTW")
+    plt.plot(bunch_obs_list[1].sigma_dE, ls="--", label="fdbk")
     plt.legend()
     plt.show()
 
     plt.title("mean_dt")
-    plt.plot(bunch_obs_list[1].mean_dt, label="MTW")
-    plt.plot(bunch_obs_list[0].mean_dt, label="fdbk")
+    plt.plot(bunch_obs_list[0].mean_dt, label="MTW")
+    plt.plot(bunch_obs_list[1].mean_dt, ls="--", label="fdbk")
     plt.legend()
     plt.show()
 
     plt.title("mean_dE")
-    plt.plot(bunch_obs_list[1].mean_dE, label="MTW")
-    plt.plot(bunch_obs_list[0].mean_dE, label="fdbk")
+    plt.plot(bunch_obs_list[0].mean_dE, label="MTW")
+    plt.plot(bunch_obs_list[1].mean_dE, ls="--", label="fdbk")
     plt.legend()
     plt.show()
 
@@ -355,7 +368,9 @@ def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
     fix, ax = plt.subplots()
     plt.title("ind_volt vs fdbk_kick")
 
-    ax.plot(ind_volt_obs_list[0][0].induced_voltage[0], label="ind_volt")
+    ax.plot(
+        ind_volt_obs_list[0][0].induced_voltage[0], ls="--", label="ind_volt"
+    )
     # ax.plot(cav_fdbk_obs_list[1][0].v_corr[0] * 30e6, label="rel_volt correction")
     ax.plot(
         np.abs(cav_fdbk_obs_list[1][0].v_ant_fine[0]), label="abs v_ant_fine"
@@ -366,14 +381,13 @@ def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
 
     ax2 = ax.twinx()
     # ax2.plot(ind_volt_obs_list[0][0].beam_profile[0], label="beam profile")
-    ax2.plot(
-        cav_fdbk_obs_list[1][0].phi_corr[0] * 30e6, label="rel_volt correction"
-    )
+    # ax2.plot(
+    #     cav_fdbk_obs_list[1][0].v_corr[0] * 30e6, label="rel_volt correction"
+    # )
+    ax2.plot(cav_fdbk_obs_list[1][0].phi_corr[0], label="rel_volt correction")
 
     plt.legend()
-    plt.show()
-
-    plt.clf()
+    plt.show(block=False)
 
     fix, ax = plt.subplots()
     plt.title("coarse")

@@ -810,6 +810,7 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         self._v_ant_fine: DenseArrayRecorder | None = None
         self._i_beam_fine: DenseArrayRecorder | None = None
         self._i_gen_fine: DenseArrayRecorder | None = None
+        self._kick_voltage_fine: DenseArrayRecorder | None = None
 
         self._v_ant_coarse: DenseArrayRecorder | None = None
         self._i_beam_coarse: DenseArrayRecorder | None = None
@@ -868,6 +869,7 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
                     / 2
                 )
                 * self._feedback.harmonic
+                / self._feedback.n_rf_periods_per_coarse_grid
             )
         )
 
@@ -885,6 +887,11 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         )
         self._i_gen_fine = DenseArrayRecorder(
             f"{self.common_filepath}_v_ant_fine", shape_fine, dtype=complex
+        )
+        self._kick_voltage_fine = DenseArrayRecorder(
+            f"{self.common_filepath}_kick_voltage_fine",
+            shape_fine,
+            dtype=complex,
         )
 
         self._v_ant_coarse = DenseArrayRecorder(
@@ -913,6 +920,9 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         )  # TODO: redo without capitalization
         self._i_beam_fine.write(self._feedback.beam_current_fine_grid)
         self._i_gen_fine.write(self._feedback.generator_current_fine_grid)
+        self._kick_voltage_fine.write(
+            self._feedback._parent_rf_station.calc_gap_voltage_with_feedbacks()
+        )
 
         coarse_mask = np.zeros(self.len_coarse_max, dtype=bool)
         coarse_mask[: len(self._feedback.antenna_voltage_coarse_grid)] = True
@@ -998,6 +1008,18 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             Array of antenna voltages on the fine grid.
         """
         return self._v_ant_fine.get_valid_entries()
+
+    @property  # as readonly attributes
+    def kick_voltage_fine(self) -> NumpyArray:
+        """
+        Kick voltage in the feedback ``(n_observations, n_fine)``, in [V].
+
+        Returns
+        -------
+        kick_voltage_fine
+            Array of kick voltages on the fine grid.
+        """
+        return self._kick_voltage_fine.get_valid_entries()
 
     @property  # as readonly attributes
     def i_beam_coarse(self) -> NumpyArray:

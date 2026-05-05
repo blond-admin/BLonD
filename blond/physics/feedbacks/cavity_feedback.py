@@ -23,7 +23,6 @@ from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
 from blond.physics.cavities import (
-    MultiHarmonicRFStation,
     RFStationBaseClass,
     SingleHarmonicRFStation,
 )
@@ -549,7 +548,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         Initial voltage [V].
     n_rf_periods_per_coarse_grid
         Number of rf periods, which should be displayed by one coarse gridpoint. Default is 1.
-    detuning
+    delta_omega
         Cavity detuning in [rad/s].
     debug
         Save debugging parameters during runtime.
@@ -564,7 +563,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         n_cavities: int | float,
         initial_voltage: float = 30.0e6,
         n_rf_periods_per_coarse_grid: int = 1,
-        detuning: float = 0.0,
+        delta_omega: float = 0.0,
         debug: bool = False,
     ):
         super().__init__(
@@ -577,7 +576,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.R_over_Q = R_over_Q
         self.Q_L = Q_L
 
-        self.detuning = detuning
+        self.delta_omega = delta_omega
         self.rf_centers = np.zeros(0)
         self.rf_centers_lengths = np.zeros(0, dtype=int)
         self.residual_time_last_rf_centers_calculation = 0
@@ -950,46 +949,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
             self.current_beam_reference_energy = beam.reference.total_energy
 
-    @property
-    def n_points_coarse_grid(self):
-        """
-        Number of points on the coarse grid in this turn.
-
-        Returns
-        -------
-        n_points_coarse_grid
-            Number of points on the coarse grid in this turn.
-        """
-        return len(self.rf_centers)
-
-    def get_t_rev(self):
-        """
-        Get revolution time from parent cavity.
-
-        Returns
-        -------
-        t_rev
-            Revolution time from the parent cavity.
-        """
-        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
-            return (
-                2
-                * np.pi
-                / self._parent_rf_station.omega_rf_design
-                * self._parent_rf_station.harmonic
-            )
-        elif isinstance(self._parent_rf_station, MultiHarmonicRFStation):
-            return (
-                2
-                * np.pi
-                / self.omega_rf_design
-                * self._parent_rf_station.harmonic
-            )
-        else:
-            raise RuntimeError(
-                f"Unknown cavity type {type(self._parent_rf_station)}"
-            )
-
     @staticmethod
     def _get_time_to_next_rising_edge_zero(
         phi: float, frequency: float
@@ -1193,6 +1152,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             self.cavity_response(
                 omega_input * delta_t,
                 coarse_grid_index_to_update=rf_centers_idx,
+                relative_detuning=self.delta_omega / omega_input,
                 no_beam=no_beam,
             )
 
@@ -1226,7 +1186,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 ],
             )
 
-            relative_detuning = self.detuning / omega_input
+            relative_detuning = self.delta_omega / omega_input
             self.cavity_response_fine(
                 antenna_voltage_init,
                 0,
@@ -1237,8 +1197,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
     def cavity_response(
         self,
-        omega_times_T_s,
-        coarse_grid_index_to_update,
+        omega_times_T_s: float,
+        coarse_grid_index_to_update: int,
+        relative_detuning: float,
         no_beam: bool = False,
     ):
         """
@@ -1275,7 +1236,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 * (
                     1
                     - 0.5 * omega_times_T_s / self.Q_L
-                    + 1j * self.detuning * omega_times_T_s
+                    + 1j * relative_detuning * omega_times_T_s
                 )
                 - beam_current * 0.5 * self.R_over_Q * omega_times_T_s
             )
@@ -1288,7 +1249,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 * (
                     1
                     - 0.5 * omega_times_T_s / self.Q_L
-                    + 1j * self.detuning * omega_times_T_s
+                    + 1j * relative_detuning * omega_times_T_s
                 )
                 - self.last_val_beam_current
                 * 0.5

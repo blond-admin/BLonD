@@ -446,6 +446,7 @@ class InducedVoltageObservationCR(
         self.each_turn_i = each_turn_i
 
         self._induced_voltage: DenseArrayRecorder | None = None
+        self._total_voltage: DenseArrayRecorder | None = None
         self._beam_reference_time: DenseArrayRecorder | None = None
         self._beam_profile: DenseArrayRecorder | None = None
         self._wake_field = wake_field
@@ -495,6 +496,11 @@ class InducedVoltageObservationCR(
             shape,
         )
 
+        self._total_voltage = DenseArrayRecorder(
+            f"{self.common_filepath}_total_voltage",
+            shape,
+        )
+
         self._beam_profile = DenseArrayRecorder(
             f"{self.common_filepath}_beam_profile",
             shape,
@@ -527,6 +533,18 @@ class InducedVoltageObservationCR(
             Induced voltage arrays for both beams.
         """
         return self._induced_voltage.get_valid_entries()
+
+    @property  # as readonly attributes
+    def total_voltage(self):
+        """
+        Induced voltage on the specified cavity object for both beams.
+
+        Returns
+        -------
+        total_voltage
+            Induced voltage arrays for both beams.
+        """
+        return self._total_voltage.get_valid_entries()
 
     @property  # as readonly attributes
     def beam_reference_time(self):
@@ -582,5 +600,11 @@ class InducedVoltageObservationCR(
         except AttributeError:
             return
         self._induced_voltage.write(current_recorded)
+        self._total_voltage.write(
+            self._wake_field._parent_rf_station.calc_gap_voltage_without_feedbacks(
+                self._wake_field.profile.hist_x
+            )
+            + current_recorded
+        )
         self._beam_reference_time.write(beam.reference.time)
         self._beam_profile.write(self._wake_field.profile.hist_y)
