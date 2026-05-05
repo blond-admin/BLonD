@@ -1730,7 +1730,7 @@ class Simulation(Preparable):
         Plot the longitudinal phase-space separatrix.
 
         Calls :meth:`get_separatrix` and draws both branches on the current
-        matplotlib axes.  The label (if given) is applied only to the upper
+        matplotlib axes. The label (if given) is applied only to the upper
         branch so the legend shows a single entry.
 
         Parameters
