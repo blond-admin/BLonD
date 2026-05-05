@@ -279,7 +279,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
     ----------
     each_turn_i
         Value to control that the element is
-        called each 'each_turn_i'-th turn.
+        called each ``each_turn_i``-th turn.
     folder
         Path to the target folder used for
         saving or loading files.
