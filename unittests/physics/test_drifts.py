@@ -16,6 +16,7 @@ from blond.core.beam.particle_types import lead_82
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftBaseClass, DriftExact, DriftSimple
+from blond.testing.backend_testing import multi_backend_testcase
 
 
 class DriftBaseClassHelper(DriftBaseClass):
@@ -220,6 +221,8 @@ class TestDriftSimple(unittest.TestCase):
             orbit_length=1.0, section_index=0, momentum_compaction_factor=2.5
         )
 
+    @multi_backend_testcase("Numpy64Bit")
+    @pytest.mark.backend_mutation
     def test_compare_track_ham(self):
         from blond.core.beam.particle_types import proton
 
@@ -372,6 +375,8 @@ class TestDriftExact(unittest.TestCase):
 
         np.testing.assert_allclose(blond2_expected, beam.dt.copy_as_numpy())
 
+    @multi_backend_testcase("Numpy64Bit")
+    @pytest.mark.backend_mutation
     def test_compare_track_ham(self):
         """For ``higher_order_alpha`` lengths 1, 2, 3 (i.e. α_1, α_1..α_2,
         α_1..α_3 — α_0 is set separately by ``momentum_compaction_factor``),

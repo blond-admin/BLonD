@@ -1028,6 +1028,8 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             #  Use `test_kick_interpolated_bug` to resolve this issue.
         )
 
+    @multi_backend_testcase("Numpy64Bit")
+    @pytest.mark.backend_mutation
     def test_compare_track_ham(self):
         """The tracker's dE change must equal ``-dH/d(dt)`` from
         ``get_hamilton_symbolic`` — by Hamilton's equation,
@@ -1339,6 +1341,8 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         expected_phi_s = np.pi - np.arcsin(expected_energy_change / 51e6)
         self.assertEqual(phi_s_calculated, expected_phi_s)
 
+    @multi_backend_testcase("Numpy64Bit")
+    @pytest.mark.backend_mutation
     def test_compare_track_ham(self):
         """The tracker's dE change must equal ``-dH/d(dt)`` from
         ``get_hamilton_symbolic`` — by Hamilton's equation,
