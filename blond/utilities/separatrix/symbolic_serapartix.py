@@ -244,9 +244,9 @@ class SymbolicSeparatrixHelper:
         )
         ham = self._hamiltonian.subs(
             {
-                beta_sym: beam.reference.beta,
-                gamma_sym: beam.reference.gamma,
-                E_sym: beam.reference.total_energy,
+                beta_sym: float(beam.reference.beta),
+                gamma_sym: float(beam.reference.gamma),
+                E_sym: float(beam.reference.total_energy),
                 q_sym: float(beam.particle_type.charge),
             }
         )

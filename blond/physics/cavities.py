@@ -1332,24 +1332,24 @@ class SingleHarmonicRFStation(
         q = sympy.Symbol("q", real=True)
 
         V = (
-            self.voltage
+            float(self.voltage)
             if (self.voltage is not None) and replace_symbols
             else sympy.Symbol("V", positive=True)
         )
         omega = (
-            self.omega_rf_design
+            float(self.omega_rf_design)
             if (self.omega_rf_design is not None) and replace_symbols
             else sympy.Symbol("omega_rf", positive=True)
         )
         phi = (
-            self.phi_rf_design
+            float(self.phi_rf_design)
             if (self.phi_rf_design is not None) and replace_symbols
             else sympy.Symbol("phi_rf", real=True)
         )
 
         return (
             q * V / omega * sympy.cos(omega * dt + phi)
-            + self._last_reference_energy_change * dt
+            + float(self._last_reference_energy_change) * dt
         )
 
 
@@ -1858,20 +1858,20 @@ class MultiHarmonicRFStation(
         expr = sympy.Integer(0)
         for rf_idx in range(self.n_rf):
             V_j = (
-                self.voltage[rf_idx]
+                float(self.voltage[rf_idx])
                 if (self.voltage is not None) and replace_symbols
                 else sympy.Symbol(f"V_{rf_idx}", positive=True)
             )
             omega_j = (
-                self.omega_rf_design[rf_idx]
+                float(self.omega_rf_design[rf_idx])
                 if (self.omega_rf_design is not None) and replace_symbols
                 else sympy.Symbol(f"omega_{rf_idx}", positive=True)
             )
             phi_j = (
-                self.phi_rf_design[rf_idx]
+                float(self.phi_rf_design[rf_idx])
                 if (self.phi_rf_design is not None) and replace_symbols
                 else sympy.Symbol(f"phi_{rf_idx}", real=True)
             )
             expr += q * V_j / omega_j * sympy.cos(omega_j * dt + phi_j)
 
-        return expr + self._last_reference_energy_change * dt
+        return expr + float(self._last_reference_energy_change) * dt

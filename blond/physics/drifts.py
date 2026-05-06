@@ -394,11 +394,11 @@ class DriftSimple(
         dE, beta, gamma, E = sympy.symbols("dE beta gamma E", real=True)
 
         alpha_0 = (
-            self.alpha_0
+            float(self.alpha_0)
             if (self.alpha_0 is not None) and replace_symbols
             else sympy.Symbol("alpha_0", real=True)
         )
-        T = self.orbit_length / (beta * c0)
+        T = float(self.orbit_length) / (beta * c0)
         eta_0 = alpha_0 - 1 / gamma**2
 
         return sympy.Rational(1, 2) * T * eta_0 / (beta**2 * E) * dE**2
@@ -546,17 +546,20 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
             Polynomial in ``dE`` with coefficients in ``beta``, ``E``.
         """
         dE, beta, E = sympy.symbols("dE beta E", real=True)
+        # Cast numeric inputs to native Python float: older sympy parses
+        # numpy scalars via str(), which on NumPy 2.x yields
+        # 'np.float64(...)' and fails Float.__new__.
         alpha_0 = (
-            self.alpha_0
+            float(self.alpha_0)
             if (self.alpha_0 is not None) and replace_symbols
             else sympy.Symbol("alpha_0", real=True)
         )
         higher = (
-            self.higher_order_alpha
+            tuple(float(a) for a in self.higher_order_alpha)
             if (self.higher_order_alpha is not None) and replace_symbols
             else ()
         )
-        T = self.orbit_length / (beta * c0)
+        T = float(self.orbit_length) / (beta * c0)
         truncation = len(higher) + 2
 
         # Taylor-expand delta(dE) in dE and treat it as a polynomial.
