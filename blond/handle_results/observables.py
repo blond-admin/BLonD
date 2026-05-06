@@ -883,10 +883,10 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             f"{self.common_filepath}_v_ant_fine", shape_fine, dtype=complex
         )
         self._i_beam_fine = DenseArrayRecorder(
-            f"{self.common_filepath}_v_ant_fine", shape_fine, dtype=complex
+            f"{self.common_filepath}_i_beam_fine", shape_fine, dtype=complex
         )
         self._i_gen_fine = DenseArrayRecorder(
-            f"{self.common_filepath}_v_ant_fine", shape_fine, dtype=complex
+            f"{self.common_filepath}_i_gen_fine", shape_fine, dtype=complex
         )
         self._kick_voltage_fine = DenseArrayRecorder(
             f"{self.common_filepath}_kick_voltage_fine",
