@@ -89,6 +89,24 @@ class TestProfileBaseClass(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             self.profile_base_class.track(beam=beam_mock)
 
+    def test_track_empty_beam_zeros_hist(self):
+        from unittest.mock import Mock
+
+        from blond import Beam
+
+        beam = Mock(Beam)
+        beam.is_distributed = False
+        beam.common_array_size = 0
+
+        self.profile_base_class._hist_y[:] = 1.0
+        self.profile_base_class.track(beam=beam)
+
+        np.testing.assert_array_equal(
+            copy_to_cpu(self.profile_base_class._hist_y),
+            np.zeros(self.profile_base_class.n_bins),
+        )
+        self.assertEqual(self.profile_base_class.hist_y_to_density_factor, 0.0)
+
     def test_get_arrays(self):
         self.profile_base_class.get_arrays(
             cut_left=-5.5,

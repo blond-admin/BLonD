@@ -327,5 +327,137 @@ class TestPole(unittest.TestCase):
         )
 
 
+class TestWakeFromPoleResidueBranches(unittest.TestCase):
+    """Targeted tests for branch coverage inside `wake_from_pole_residue`."""
+
+    @pytest.mark.backend_mutation
+    def test_bin_i_zero_uses_t_start(self):
+        """First-bin branch: ``t_jump = profile_dts[0] - t_start``.
+
+        Use two different ``states[-1]`` (a.k.a. ``t_start``) values and verify
+        that the resulting voltage differs — i.e. the ``bin_i == 0`` branch
+        actually consumes ``t_start`` instead of ignoring it.
+        """
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("numba")
+
+        n = 64
+        hist_y = np.zeros(n, dtype=float)
+        hist_y[0] = 1.0
+        centers = np.linspace(0.0, 1e-9, n, dtype=float)
+        bin_dt = float(centers[1] - centers[0])
+
+        poles = np.array([-1e8 + 2 * np.pi * 1e9j], dtype=complex)
+        residues = np.array([1.0 + 0.5j], dtype=complex)
+
+        def _run(t_start: float) -> np.ndarray:
+            voltage = np.zeros(n, dtype=float)
+            state = np.zeros(len(poles) + 1, dtype=complex)
+            # Non-zero initial pole state so the `state *= exp(pole * t_jump)`
+            # multiplication actually depends on `t_jump = dts[0] - t_start`.
+            state[0] = 1.0 + 0.5j
+            state[-1] = t_start
+            backend.specials.wake_from_pole_residue(
+                profile=hist_y,
+                profile_dts=centers,
+                poles=poles,
+                residues=residues,
+                is_counterrotating_beam=False,
+                counterrotating_pole_signs=backend.ones_like(
+                    poles, dtype=backend.float
+                ),
+                states=state,
+                voltage=voltage,
+                voltage_threaded=np.zeros(
+                    (numba.get_num_threads(), n), dtype=float
+                ),
+                update_on_bin=np.zeros(1, dtype=np.int32),
+                factor=1.0,
+            )
+            return voltage
+
+        # Aligned t_start: t_jump = profile_dts[0] - (profile_dts[0] - bin_dt) = bin_dt
+        voltage_aligned = _run(t_start=centers[0] - bin_dt)
+        # Different t_start → different t_jump → different output
+        voltage_offset = _run(t_start=centers[0] - 5 * bin_dt)
+        self.assertFalse(
+            np.allclose(voltage_aligned, voltage_offset),
+            "bin_i==0 branch must consume t_start; outputs should differ.",
+        )
+
+    @pytest.mark.backend_mutation
+    def test_multiple_update_on_bin_advances_index(self):
+        """``i_update < len(update_on_bin)`` branch: piecewise calls match a single call.
+
+        Splitting a profile at an internal index via ``update_on_bin = [0, k]``
+        must produce the same induced voltage as a single contiguous call. This
+        forces the inner branch ``i_update < len(update_on_bin)`` to fire on the
+        first update so that ``update_on_bin_i`` advances to ``k``.
+        """
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("numba")
+
+        n = 32
+        rng = np.random.default_rng(0)
+        hist_y = rng.standard_normal(n)
+        centers = np.linspace(0.0, 1e-9, n, dtype=float)
+
+        poles = np.array(
+            [-1e8 + 2 * np.pi * 1e9j, -2e8 + 2 * np.pi * 1.5e9j],
+            dtype=complex,
+        )
+        residues = np.array([1.0 + 0.5j, 0.7 - 0.2j], dtype=complex)
+
+        bin_dt = float(centers[1] - centers[0])
+
+        # Single call with one update_on_bin entry
+        v_single = np.zeros(n, dtype=float)
+        state_single = np.zeros(len(poles) + 1, dtype=complex)
+        state_single[-1] = centers[0] - bin_dt
+        backend.specials.wake_from_pole_residue(
+            profile=hist_y,
+            profile_dts=centers,
+            poles=poles,
+            residues=residues,
+            is_counterrotating_beam=False,
+            counterrotating_pole_signs=backend.ones_like(
+                poles, dtype=backend.float
+            ),
+            states=state_single,
+            voltage=v_single,
+            voltage_threaded=np.zeros(
+                (numba.get_num_threads(), n), dtype=float
+            ),
+            update_on_bin=np.zeros(1, dtype=np.int32),
+            factor=1.0,
+        )
+
+        # Split call with two update_on_bin entries — exercises the
+        # `i_update < len(update_on_bin)` True branch.
+        k = n // 2
+        v_split = np.zeros(n, dtype=float)
+        state_split = np.zeros(len(poles) + 1, dtype=complex)
+        state_split[-1] = centers[0] - bin_dt
+        backend.specials.wake_from_pole_residue(
+            profile=hist_y,
+            profile_dts=centers,
+            poles=poles,
+            residues=residues,
+            is_counterrotating_beam=False,
+            counterrotating_pole_signs=backend.ones_like(
+                poles, dtype=backend.float
+            ),
+            states=state_split,
+            voltage=v_split,
+            voltage_threaded=np.zeros(
+                (numba.get_num_threads(), n), dtype=float
+            ),
+            update_on_bin=np.array([0, k], dtype=np.int32),
+            factor=1.0,
+        )
+
+        np.testing.assert_allclose(v_split, v_single, rtol=1e-10, atol=1e-12)
+
+
 if __name__ == "__main__":
     unittest.main()

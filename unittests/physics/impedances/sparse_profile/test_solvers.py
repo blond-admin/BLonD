@@ -25,6 +25,7 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
@@ -399,6 +400,77 @@ class TestMultiPoleSparseMultiBunchMultiTurn(unittest.TestCase):
         # appear at hist_x + t_rev ∈ [t_rev, 2*t_rev].
         _assert_matches_reference(
             wakefield_sparse, wakefield_ref, x_shift=t_rev
+        )
+
+
+class TestMultiPoleSparseFinalize(unittest.TestCase):
+    """Unit tests for `MultiPoleSparseSolve._finalize_solver` branches."""
+
+    def _make_solver(self, sources):
+        from unittest.mock import Mock
+
+        from blond import StaticProfile, WakeField
+
+        solver = MultiPoleSparseSolve()
+        parent = Mock(WakeField)
+        parent.sources = sources
+        profile = Mock(spec=StaticProfile)
+        profile.hist_x = backend.linspace(0.0, 1e-9, 16)
+        profile.hist_y_to_density_factor = 1.0
+        # type-check uses `is EquidistantMultiProfile`; Mock(spec=...) is not
+        # the type itself, so the else branch is taken in `_finalize_solver`
+        parent.profile = profile
+        solver._parent_wakefield = parent
+        solver._profile = profile
+        return solver
+
+    def test_typeerror_fallback_with_scalar_pole(self):
+        """When `get_vectorfit` returns scalars, fall back to `append`."""
+        from unittest.mock import Mock
+
+        scalar_pole = complex(-1e6 + 1e9j)
+        scalar_residue = complex(2e9 + 3e9j)
+
+        source = Mock()
+        source.get_vectorfit.return_value = (scalar_pole, scalar_residue)
+        source._shunt_impedances_counter_rotating = None
+
+        solver = self._make_solver(sources=(source,))
+        solver._finalize_solver(beam=Mock())
+
+        self.assertEqual(len(solver._poles), 1)
+        np.testing.assert_array_equal(
+            copy_to_cpu(solver._poles), np.array([scalar_pole])
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(solver._residues), np.array([scalar_residue])
+        )
+        # No counter-rotating impedances → all-ones flip array of length 1
+        np.testing.assert_array_equal(
+            copy_to_cpu(solver.counter_rotation_pole_flip),
+            np.ones(1, dtype=backend.float),
+        )
+
+    def test_typeerror_fallback_with_counter_rotating(self):
+        """Scalar-source path also covers the counter-rotating append."""
+        from unittest.mock import Mock
+
+        source = Mock()
+        source.get_vectorfit.return_value = (
+            complex(-1e6 + 1e9j),
+            complex(2e9 + 3e9j),
+        )
+        # Set a single (non-iterable) counter-rotating impedance value so the
+        # except branch's `counter_rotation_pole_flip.append(...)` runs.
+        source._shunt_impedances_counter_rotating = -1.0
+
+        solver = self._make_solver(sources=(source,))
+        solver._finalize_solver(beam=Mock())
+
+        self.assertEqual(len(solver.counter_rotation_pole_flip), 1)
+        np.testing.assert_array_equal(
+            copy_to_cpu(solver.counter_rotation_pole_flip),
+            np.array([-1.0], dtype=backend.float),
         )
 
 
