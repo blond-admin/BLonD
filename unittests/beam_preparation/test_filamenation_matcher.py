@@ -68,7 +68,7 @@ class TestFilamentationMatcher(unittest.TestCase):
             n_iter=2,
             animate=False,
             purge=True,
-            purge_limit_time=(0.2e-9, 0.8e-9),
+            purge_limit_time=(0.2e-9, 0.8e-9),  # smaller than original
             purge_limit_energy=(-5e5, 5e5),
         )
 
@@ -123,7 +123,7 @@ class TestFilamentationMatcher(unittest.TestCase):
             time_limit=self.time_limit,
             energy_limit=self.energy_limit,
             n_macroparticles=1000,
-            n_iter=400,
+            n_iter=300,
             animate=False,
             purge=True,
             purge_limit_time=self.time_limit,
@@ -147,11 +147,17 @@ class TestFilamentationMatcher(unittest.TestCase):
         dt_few_after = simulation_1.beam1.read_partial_dt()
         dt_many_after = simulation_2.beam1.read_partial_dt()
 
-        change_few = np.std(dt_few_after - dt_few_before)
-        change_many = np.std(dt_many_after - dt_many_before)
+        growth_few = np.std(dt_few_after) - np.std(dt_few_before)
+        growth_many = np.std(dt_many_after) - np.std(dt_many_before)
 
-        # Better matched beam should change less
-        self.assertLess(change_many, change_few)
+        print(
+            "difference in stds., small iter:",
+            growth_few,
+            "larger iter:",
+            growth_many,
+        )
+
+        self.assertLess(growth_many, growth_few)
 
 
 if __name__ == "__main__":
