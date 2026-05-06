@@ -86,7 +86,7 @@ def setup_and_run(
     backend.set_specials("cpp")
 
     if rcs == "RCS1":
-        R_over_Q = 3 * 518
+        R_over_Q = 518
         # Q_L = 1.29e6
         phi_s = 2.5830872929516078  # 143
         alpha_p = 10.395e-4
@@ -129,15 +129,15 @@ def setup_and_run(
     ring = Ring(circumference=circumference, check_section_indices=False)
     magnetic_cycle = MagneticCyclePerTurnAllRFStations(
         value_init=injection_energy,
-        # values_after_rf_station_per_turn=np.linspace(
-        #     injection_energy + energy_gain_per_turn / n_stations,
-        #     ejection_energy,
-        #     n_turns * n_stations,
-        # ).reshape(n_stations, n_turns, order="F"),
-        values_after_rf_station_per_turn=injection_energy
-        * np.ones(
+        values_after_rf_station_per_turn=np.linspace(
+            injection_energy + energy_gain_per_turn / n_stations,
+            ejection_energy,
             n_turns * n_stations,
         ).reshape(n_stations, n_turns, order="F"),
+        # values_after_rf_station_per_turn=injection_energy
+        # * np.ones(
+        #     n_turns * n_stations,
+        # ).reshape(n_stations, n_turns, order="F"),
         in_unit="total energy",
         reference_particle=mu_plus,
     )
@@ -317,21 +317,21 @@ def setup_and_run(
 
     sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
-    if MTW:
-        match_beam(
-            sim,
-            t_rf,
-            beam,
-        )
-        np.savez(
-            "./fdbk_testing/init_distr_convol.npz",
-            dE=beam.dE.array_local,
-            dt=beam.dt.array_local,
-        )
-    else:
-        load_beam_coordinates_from_file(
-            "./fdbk_testing/init_distr_convol.npz", beam
-        )
+    # if MTW:
+    #     match_beam(
+    #         sim,
+    #         t_rf,
+    #         beam,
+    #     )
+    #     np.savez(
+    #         "./fdbk_testing/init_distr_convol.npz",
+    #         dE=beam.dE.array_local,
+    #         dt=beam.dt.array_local,
+    #     )
+    # else:
+    load_beam_coordinates_from_file(
+        "./fdbk_testing/init_distr_convol.npz", beam
+    )
 
     bunch_observation.active = True
 
@@ -433,7 +433,7 @@ def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
     # plt.show(block=False)
 
     fig, ax = plt.subplots(2, 2, sharex=True)
-    for idx in range(3):
+    for idx in range(5):
         clr = ax[0, 0]._get_lines.get_next_color()
         ax[0, 0].plot(
             ind_volt_obs_list[0][0].total_voltage[idx], color=clr, label="MTW"
@@ -505,7 +505,7 @@ if __name__ == "__main__":
             n_turns_buf,
             ind_volt_obs_list_buf,
             cav_fdbk_obs_list_buf,
-        ) = setup_and_run("RCS1", MTW=MTW, n_stations=n_sections, n_turns_in=3)
+        ) = setup_and_run("RCS4", MTW=MTW, n_stations=n_sections, n_turns_in=5)
         bunch_obs_list.append(bunch_observation_buf)
         n_turns_list.append(n_turns_buf)
         ind_volt_obs_list.append(ind_volt_obs_list_buf)
