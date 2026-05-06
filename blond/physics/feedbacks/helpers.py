@@ -178,7 +178,9 @@ def rf_beam_current(
         dphi = dT * omega_c
         # Total phase correction
         phase = dphi
-        charges_fine = charges_fine * np.exp(1j * phase)  # TODO: +1j or -1j?
+        charges_fine = charges_fine * np.exp(
+            1j * (phase + np.pi / 2)
+        )  # TODO: +1j or -1j?
 
     if downsample:
         try:
