@@ -9,6 +9,7 @@ import unittest
 
 import numpy as np
 import pytest
+import sympy
 from matplotlib import pyplot as plt
 
 from blond import (
@@ -152,6 +153,89 @@ class TestSymbolicSeparatrixHelper:
             n_turns=N_TURNS if DEV_DRAW else 1,
             callbacks=custom_action,
         )
+
+
+class TestSymbolicSeparatrixInternals:
+    """Cover edge-case branches of the private helpers."""
+
+    OMEGA_MIN = 2.0 * np.pi  # canonical period of 1 s
+
+    def _helper(self) -> SymbolicSeparatrixHelper:
+        return SymbolicSeparatrixHelper(
+            hamiltonian=sympy.Integer(0), omega_min=self.OMEGA_MIN
+        )
+
+    def test_interior_extrema_negative_a_finds_local_minima(self):
+        values = np.array([1.0, 0.0, 1.0])
+        idx = SymbolicSeparatrixHelper._interior_extrema(values, a=-1.0)
+        np.testing.assert_array_equal(idx, np.array([1]))
+
+    def test_interior_extrema_negative_a_ignores_local_maxima(self):
+        values = np.array([0.0, 1.0, 0.0])
+        idx = SymbolicSeparatrixHelper._interior_extrema(values, a=-1.0)
+        assert idx.size == 0
+
+    def test_find_canonical_bucket_no_extremum_returns_none(self):
+        helper = self._helper()
+        bucket = helper._find_canonical_bucket(
+            period_start=0.0,
+            a=1.0,
+            potential=lambda dt: np.asarray(dt, dtype=float),
+        )
+        assert bucket is None
+
+    def test_find_canonical_bucket_negative_a_picks_local_minimum(self):
+        helper = self._helper()
+
+        def potential(dt):
+            return np.sin(2 * np.pi * dt) - 0.1 * dt
+
+        bucket = helper._find_canonical_bucket(
+            period_start=0.0, a=-1.0, potential=potential
+        )
+        assert bucket is not None
+        assert 0.7 < bucket.ufp_dt < 0.8
+        np.testing.assert_allclose(bucket.ufp_potential, -1.075, atol=0.01)
+        np.testing.assert_allclose(bucket.shift_per_period, -0.1, atol=1e-9)
+
+    def test_H_sep_per_dt_zero_a_returns_all_nan(self):
+        helper = self._helper()
+        dt = np.linspace(0.0, 1.0, 11)
+        H_sep = helper._H_sep_per_dt(
+            dt, a=0.0, potential=lambda x: np.cos(2 * np.pi * x)
+        )
+        assert H_sep.shape == dt.shape
+        assert np.all(np.isnan(H_sep))
+
+    def test_H_sep_per_dt_no_canonical_bucket_returns_all_nan(self):
+        helper = self._helper()
+        dt = np.linspace(0.0, 1.0, 11)
+        H_sep = helper._H_sep_per_dt(
+            dt,
+            a=1.0,
+            potential=lambda x: np.asarray(x, dtype=float),
+        )
+        assert np.all(np.isnan(H_sep))
+
+    def test_H_sep_per_dt_negative_a_uses_maximum_branch(self):
+        helper = self._helper()
+
+        def potential(dt):
+            return np.sin(2 * np.pi * dt) - 0.1 * dt
+
+        dt = np.array([0.6, 0.9, 1.2])
+        H_sep = helper._H_sep_per_dt(dt, a=-1.0, potential=potential)
+
+        bucket = helper._find_canonical_bucket(
+            period_start=float(np.min(dt)), a=-1.0, potential=potential
+        )
+        assert bucket is not None
+        bucket_index = helper._bucket_index(dt, bucket)
+        left = bucket.ufp_potential + bucket_index * bucket.shift_per_period
+        right = left + bucket.shift_per_period
+        # Sanity: shift_per_period != 0 so np.maximum and np.minimum diverge.
+        assert not np.allclose(left, right)
+        np.testing.assert_allclose(H_sep, np.maximum(left, right))
 
 
 if __name__ == "__main__":  # pragma: no cover
