@@ -27,7 +27,7 @@ def main():
     """Measure the performance of the histogram function."""
     rng = np.random.default_rng(42)
     arr_sizes = np.array([1e3, 1e5, 1e7, 1e9], dtype=int)
-    specials = ["numba", "python", "cpp"]
+    specials = ["numba", "python", "cpp", "cpp_single_core"]
     times = np.zeros((len(specials), len(arr_sizes)))
     for arr_ind, arr_size in enumerate(arr_sizes):
         input_array = (rng.random(arr_size) - 0.5) * 20

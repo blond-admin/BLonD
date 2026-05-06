@@ -39,6 +39,7 @@ ASSIGNED_CATEGORIES = {
     "WakeField": Categories.LATTICE.value,
     "StaticProfile": Categories.LATTICE.value,
     "DynamicProfileConstNBins": Categories.LATTICE.value,
+    "EquidistantMultiProfile": Categories.LATTICE.value,
     # Wakes
     "InductiveImpedance": Categories.WAKE.value,
     "PeriodicFreqSolver": Categories.WAKE.value,
@@ -62,6 +63,7 @@ ASSIGNED_CATEGORIES = {
     "BeamObservationOncePerTurn": Categories.DIAGNOSTICS.value,
     "DriftObservation": Categories.DIAGNOSTICS.value,
     "SimulationObservation": Categories.DIAGNOSTICS.value,
+    "BeamHist2dOncePerTurn": Categories.DIAGNOSTICS.value,
     # Plotting
     "AllowPlotting": Categories.PLOTTING.value,
     # Backend / Precision

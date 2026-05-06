@@ -34,7 +34,7 @@ class ArrayRecorder(ABC):
     """Base class to save content to an array."""
 
     @abstractmethod  # pragma: no cover
-    def write(self, newdata: NumpyArray) -> None:
+    def write(self, newdata: NumpyArray, mask: NumpyArray | None) -> None:
         """
         Write new data to the internal array.
 
@@ -42,6 +42,9 @@ class ArrayRecorder(ABC):
         ----------
         newdata
             A new array to save into the internal array.
+        mask
+            Boolean mask array that handles where to write.
+            This is at the moment only needed to handle beams with losses.
         """
         pass
 
@@ -217,7 +220,11 @@ class DenseArrayRecorder(ArrayRecorder):
         dense_recorder.overwrite = loaded_data["overwrite"]
         return dense_recorder
 
-    def write(self, newdata: NumpyArray | CupyArray | float):
+    def write(
+        self,
+        newdata: NumpyArray | CupyArray | float,
+        mask: NumpyArray | CupyArray | None = None,
+    ):
         """
         Write new data to the internal array.
 
@@ -225,10 +232,22 @@ class DenseArrayRecorder(ArrayRecorder):
         ----------
         newdata
             A new array to save into the internal array.
+        mask
+            Boolean mask array that handles where to write.
+            This is at the moment only needed to handle beams with losses.
+            All elements that are not marked by the mask are set to `NaN`.
         """
         if is_cupy_array(newdata):
             newdata = newdata.get()  # type: ignore
-        self._memory[self._write_idx] = newdata
+        if mask is None:
+            self._memory[self._write_idx] = newdata
+        else:
+            if is_cupy_array(mask):
+                mask = mask.get()
+            assert mask.dtype == np.bool, f"{mask.dtype=}"
+            self._memory[self._write_idx][mask] = newdata
+            self._memory[self._write_idx][~mask] = np.nan
+
         self._write_idx += 1
 
     def get_valid_entries(self) -> NumpyArray:

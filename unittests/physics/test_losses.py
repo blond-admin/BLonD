@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -45,6 +46,14 @@ class TestLossesBaseClass(unittest.TestCase):
         np.testing.assert_equal(beam.intensity, 0.5)
 
 
+class TestLossesBaseClassPurge(unittest.TestCase):
+    def test_purge_particles_not_called_when_inactive(self):
+        helper = LossesBaseClassHelper(purge_flagged_macroparticles=False)
+        beam = Mock()
+        helper._purge_particles(beam=beam, force=False)
+        beam.purge_flagged_entries.assert_not_called()
+
+
 class TestBoxLosses(unittest.TestCase):
     def setUp(self):
         self.box_losses = BoxLosses(
@@ -88,6 +97,11 @@ class TestBoxLosses(unittest.TestCase):
         np.testing.assert_equal(
             copy_to_cpu(beam.read_partial_dE()) <= 20, True
         )
+
+    def test_track_empty_beam_skips_loss_box(self):
+        beam = Mock(BeamBaseClass)
+        beam.common_array_size = 0
+        self.box_losses.track(beam=beam)
 
     def test_wrong_args(self):
         with self.assertRaises(AssertionError):

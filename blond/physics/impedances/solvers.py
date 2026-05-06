@@ -34,7 +34,6 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
-from blond.generals.warnings_ import NotTestedWarning
 from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,
@@ -578,7 +577,6 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     """
 
     def __init__(self):
-        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
         self._wake_function_vals: NumpyArray | None = None
         self._wake_function_time: NumpyArray | None = None
@@ -636,6 +634,16 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             return
         hist_step = self._parent_wakefield.profile.hist_step
         arr_len = len(self._parent_wakefield.profile.hist_x)
+        if self._parent_wakefield.profile.hist_y[0] != 0.0:
+            warnings.warn(
+                "particle detected in leading edge bin, simulation might become unstable",
+                stacklevel=1,
+            )
+        elif self._parent_wakefield.profile.hist_y[-1] != 0.0:
+            warnings.warn(
+                "particle detected in trailing edge bin, simulation might become unstable",
+                stacklevel=1,
+            )
         self._wake_function_time = backend.linspace(
             -(arr_len - 1) * hist_step,
             arr_len * hist_step,
@@ -700,26 +708,35 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     decay_fraction_threshold
         Until which fraction of the decay will the profile
         still be considered for multi-pass wake calculation.
+    allow_delta_t_zero
+        Debugging flag to allow two beams to calculate the induced
+        voltage at the same time. Should not be used in production.
+        Default is False.
 
     Attributes
     ----------
-    _wake_function_vals: deque
+    _wake_function_vals
         List of wake function values: 0th entry being from the current pass,
         subsequent entries from previous passes.
-    _wake_function_time: deque
+    _wake_function_time
         time axes corresponding to _wake_function_time.
 
-    _past_profiles: deque
+    _past_profiles
         List of previously passed profiles: 0th entry being from the current pass,
         subsequent entries from previous passes.
-    _past_profile_times: deque
+    _past_profile_times
         time axes corresponding to _past_profiles.
     """
 
-    def __init__(self, decay_fraction_threshold: float = 0.001):
+    def __init__(
+        self,
+        decay_fraction_threshold: float = 0.001,
+        allow_delta_t_zero: bool = False,
+    ):
+        # This import is here because of sphinx warning
+        # `list assignment index out of range [autodoc]`
         from collections import deque
 
-        warnings.warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
 
         self._last_reference_time: float | None = None
@@ -739,6 +756,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._wake_function_vals: deque[NumpyArray] = deque()
         self._wake_function_time: deque[NumpyArray] = deque()
 
+        self._allow_delta_t_zero = allow_delta_t_zero
+
     def _determine_storage_time(self):
         """
         Determine the maximum storage time, in [s].
@@ -752,11 +771,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             )
         for source in self._parent_wakefield.sources:
             # Guarding against non-resonator sources is done in on_wakefield_init_simulation
-            time_axis, envelope = source.calculate_envelope()
+            storage_time = source.get_decay_time(
+                self._decay_fraction_threshold
+            )
 
-            storage_time = time_axis[
-                backend.abs(envelope - self._decay_fraction_threshold).argmin()
-            ]
             self._maximum_storage_time = max(
                 self._maximum_storage_time, storage_time
             )
@@ -774,6 +792,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         parent_wakefield
             Wakefield that this solver affiliated to.
         """
+        if backend.float(0).dtype.itemsize * 8 < 64:  # noqa: PLR2004
+            raise RuntimeError(
+                "MultiPassResonatorSolver does only run with 64 bit backends."
+            )
+
         self._simulation = simulation
         if parent_wakefield.profile is None:
             raise ValueError("Parent wakefield needs to have a profile.")
@@ -843,7 +866,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             Simulation time at the moment of calling, has to be > self._last_reference_time.
         """
         delta_t = current_time - self._last_reference_time
-        assert delta_t > 0  # TODO: performance = ?
+        assert (delta_t > 0) or self._allow_delta_t_zero, (
+            f"delta t was not > 0({delta_t})"
+        )  # TODO: performance = ?
         for prof_ind, profile_time in enumerate(self._past_profile_times):
             profile_time += delta_t  # NOQA # TODO test PLW2901 `for` loop variable `profile_time` overwritten by assignment target
             self._wake_function_time[prof_ind] += delta_t
@@ -870,6 +895,16 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             if (
                 prof_ind == 0
             ):  # current profile does not yet have arrays initialized
+                if self._parent_wakefield.profile.hist_y[0] != 0.0:
+                    warnings.warn(
+                        "particle detected in leading edge bin, simulation might become unstable",
+                        stacklevel=1,
+                    )
+                elif self._parent_wakefield.profile.hist_y[-1] != 0.0:
+                    warnings.warn(
+                        "particle detected in trailing edge bin, simulation might become unstable",
+                        stacklevel=1,
+                    )
                 hist_step = self._parent_wakefield.profile.hist_step
                 arr_len = len(self._parent_wakefield.profile.hist_x)
                 self._wake_function_time.appendleft(
@@ -982,16 +1017,20 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             _charge_per_macroparticle
         )
 
-        wake_sum = backend.zeros_like(self._past_profiles[0])
+        wake_sum = backend.zeros_like(
+            self._past_profiles[0], dtype=backend.float
+        )
         for prof_ind in range(
             len(self._past_profiles)
         ):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue --> deque not usable with numba
-            wake_sum += self._past_charge_per_macroparticle[
-                prof_ind
-            ] * backend.convolve(
+            convolve_result = backend.convolve(
                 self._wake_function_vals[prof_ind],
                 self._past_profiles[prof_ind],
                 mode="valid",
+            )
+            wake_sum += (
+                backend.float(self._past_charge_per_macroparticle[prof_ind])
+                * convolve_result
             )
         return wake_sum
 
@@ -1021,6 +1060,8 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     """
 
     def __init__(self, n_turns: int) -> None:
+        # This import is here because of sphinx warning
+        # `list assignment index out of range [autodoc]`
         from collections import deque
 
         self._n_wakes_full_turn = n_turns
