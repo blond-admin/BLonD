@@ -160,8 +160,8 @@ def rf_beam_current(
 
     # Mix with frequency of interest; remember factor 2 demodulation
     # TODO: where do we have to apply the demodulation?
-    I_f = 1.0 * charges * np.cos(omega_c * profile.hist_x)
-    Q_f = -1.0 * charges * np.sin(omega_c * profile.hist_x)
+    I_f = 2.0 * charges * np.cos(omega_c * profile.hist_x)
+    Q_f = -2.0 * charges * np.sin(omega_c * profile.hist_x)
 
     # Pass through a low-pass filter
     if use_lowpass_filter is True:
@@ -178,7 +178,7 @@ def rf_beam_current(
         dphi = dT * omega_c
         # Total phase correction
         phase = dphi
-        charges_fine = charges_fine * np.exp(1j * phase)
+        charges_fine = charges_fine * np.exp(1j * phase)  # TODO: +1j or -1j?
 
     if downsample:
         try:
@@ -190,17 +190,11 @@ def rf_beam_current(
             ) from e
 
         # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.floor(
-            (profile.hist_x + dT - np.pi / omega_c) / T_s
-        )  # TODO: + or - here?
+        # this has to be + since its the remaining time in the last bin (the time direction should be negative, therefore has to be added here)
+        # np.pi / omega_c --> center of T_s (bin_center)
+        ind_fine = np.round((profile.hist_x + dT - np.pi / omega_c) / T_s)
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-        if len(indices) == 0:  # only a single bucket in ind_fine
-            indices = np.array([ind_fine[0]])
-
-        # Pick total current within one coarse grid
-        charges_coarse = np.zeros(n_points, dtype=complex)
-        charges_coarse[ind_fine[0]] = np.sum(charges_fine[indices[0] :])
         if any(indices < 0):
             raise RuntimeError("yorak")
             warnings.warn(
@@ -209,13 +203,28 @@ def rf_beam_current(
                 stacklevel=2,
             )
 
-        for i in range(1, len(indices)):
-            charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
-                charges_fine[np.arange(indices[i - 1], indices[i])]
-            )
-        # charges_coarse[ind_fine[-1]] = np.sum(
-        #     charges_fine[np.arange(indices[0], len(charges_fine), dtype=int)]
-        # )
+        charges_coarse = np.zeros(n_points, dtype=complex)
+
+        if (
+            len(indices) == 0
+        ):  # only a single bucket in ind_fine  --> all ind_fine identical
+            charges_coarse[ind_fine[0]] = np.sum(charges_fine)
+        else:
+            # Pick total current within one coarse grid
+            charges_coarse[ind_fine[0]] = np.sum(charges_fine[: indices[0]])
+
+            for i in range(
+                1, len(indices)
+            ):  # TODO: not good for sparse profiles !!!!
+                if i + ind_fine[0] > n_points:
+                    raise RuntimeError("yorak")
+                charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
+                    charges_fine[
+                        indices[i - 1] : indices[i]
+                    ]  # TODO: +1 for edges?
+                )
+            # remainder after last indcident
+            charges_coarse[ind_fine[-1]] = np.sum(charges_fine[indices[-1] :])
 
         return charges_fine, charges_coarse
 
