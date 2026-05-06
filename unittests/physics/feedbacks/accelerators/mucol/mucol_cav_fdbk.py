@@ -13,6 +13,7 @@ from handle_results.observables_as_elements import (
 from physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from physics.impedances.solvers import (
     MultiPassResonatorSolver,
+    SingleTurnResonatorConvolutionSolver,
 )
 from scipy.constants import elementary_charge, speed_of_light
 from scipy.interpolate import interp1d
@@ -56,7 +57,7 @@ def match_beam(simulation, t_rf, beam):
             # verbose=True,
             animate=True,
             increment_intensity_effects_until_iteration_i=1,
-            until_section_index=2,
+            until_section_index=1,
         ),
         beam=beam,
     )
@@ -128,15 +129,15 @@ def setup_and_run(
     ring = Ring(circumference=circumference, check_section_indices=False)
     magnetic_cycle = MagneticCyclePerTurnAllRFStations(
         value_init=injection_energy,
-        values_after_rf_station_per_turn=np.linspace(
-            injection_energy + energy_gain_per_turn / n_stations,
-            ejection_energy,
-            n_turns * n_stations,
-        ).reshape(n_stations, n_turns, order="F"),
-        # values_after_rf_station_per_turn=injection_energy
-        # * np.ones(
+        # values_after_rf_station_per_turn=np.linspace(
+        #     injection_energy + energy_gain_per_turn / n_stations,
+        #     ejection_energy,
         #     n_turns * n_stations,
         # ).reshape(n_stations, n_turns, order="F"),
+        values_after_rf_station_per_turn=injection_energy
+        * np.ones(
+            n_turns * n_stations,
+        ).reshape(n_stations, n_turns, order="F"),
         in_unit="total energy",
         reference_particle=mu_plus,
     )
@@ -161,22 +162,22 @@ def setup_and_run(
     F_b = 2 * (-0.8330691630689783 - 0.060605390015254904j)
 
     delta_omega = (
-        -omega_rf
+        omega_rf
         * R_over_Q
         * np.abs(F_b)
         * beam_current
-        * np.sin(phi_s)
+        * np.cos(phi_s)
         / (2 * voltage_per_cavity)
-    )
+    ) / np.cos(phi_s) ** 2
     # delta_omega = 0
     f_det = delta_omega / (2 * np.pi)
     # phi_s = np.pi / 2
     Q_L = voltage_per_cavity / (
         R_over_Q
         * np.sqrt(
-            (np.abs(F_b) * beam_current * np.cos(phi_s)) ** 2
+            (np.abs(F_b) * beam_current * np.sin(phi_s)) ** 2
             + (
-                np.abs(F_b) * beam_current * np.sin(phi_s)
+                -np.abs(F_b) * beam_current * np.cos(phi_s)
                 + voltage_per_cavity * 2 * delta_omega / (omega_rf * R_over_Q)
             )
             ** 2
@@ -187,7 +188,7 @@ def setup_and_run(
         voltage_per_cavity
         / (2 * R_over_Q)
         * (1 / Q_L - 2j * delta_omega / omega_rf)
-        + np.abs(F_b) * beam_current * np.exp(-1j * (phi_s - np.pi / 2)) / 2
+        # + np.abs(F_b) * beam_current * np.exp(1j * (phi_s - np.pi/2)) / 2
     )
 
     I_g_ampl = np.abs(I_g)
@@ -253,7 +254,7 @@ def setup_and_run(
                 profile=profile_list[-1],
                 R_over_Q=R_over_Q,
                 Q_L=Q_L,
-                n_rf_periods_per_coarse_grid=1,
+                n_rf_periods_per_coarse_grid=0.5,
                 generator_current=I_g,
                 n_cavities=cav_per_station,
                 initial_voltage=voltage_per_cavity,
@@ -316,21 +317,21 @@ def setup_and_run(
 
     sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
-    # if MTW:
-    #     match_beam(
-    #         sim,
-    #         t_rf,
-    #         beam,
-    #     )
-    #     np.savez(
-    #         "./fdbk_testing/init_distr_convol.npz",
-    #         dE=beam.dE.array_local,
-    #         dt=beam.dt.array_local,
-    #     )
-    # else:
-    load_beam_coordinates_from_file(
-        "./fdbk_testing/init_distr_convol.npz", beam
-    )
+    if MTW:
+        match_beam(
+            sim,
+            t_rf,
+            beam,
+        )
+        np.savez(
+            "./fdbk_testing/init_distr_convol.npz",
+            dE=beam.dE.array_local,
+            dt=beam.dt.array_local,
+        )
+    else:
+        load_beam_coordinates_from_file(
+            "./fdbk_testing/init_distr_convol.npz", beam
+        )
 
     bunch_observation.active = True
 
@@ -432,7 +433,7 @@ def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
     # plt.show(block=False)
 
     fig, ax = plt.subplots(2, 2, sharex=True)
-    for idx in range(1):
+    for idx in range(3):
         clr = ax[0, 0]._get_lines.get_next_color()
         ax[0, 0].plot(
             ind_volt_obs_list[0][0].total_voltage[idx], color=clr, label="MTW"
@@ -488,7 +489,7 @@ def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
 
 
 if __name__ == "__main__":
-    n_sections = 8
+    n_sections = 4
     bunch_obs_list, n_turns_list, ind_volt_obs_list, cav_fdbk_obs_list = (
         [],
         [],
@@ -504,7 +505,7 @@ if __name__ == "__main__":
             n_turns_buf,
             ind_volt_obs_list_buf,
             cav_fdbk_obs_list_buf,
-        ) = setup_and_run("RCS1", MTW=MTW, n_stations=n_sections, n_turns_in=1)
+        ) = setup_and_run("RCS1", MTW=MTW, n_stations=n_sections, n_turns_in=3)
         bunch_obs_list.append(bunch_observation_buf)
         n_turns_list.append(n_turns_buf)
         ind_volt_obs_list.append(ind_volt_obs_list_buf)
