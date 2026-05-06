@@ -115,6 +115,18 @@ def reload_cuda_backend(  # NOQA: D102
 
     class CudaSpecials(Specials):
         @staticmethod
+        def get_max_threads() -> int:
+            """
+            Return the max number of threads this backend's kernels may use.
+
+            Returns
+            -------
+            max_threads
+                Maximum number of threads this backend's kernels may use.
+            """
+            return 1
+
+        @staticmethod
         def loss_box(
             e_max: float,
             e_min: float,

@@ -74,6 +74,18 @@ class PythonSpecials(Specials):
     """Implementation of backend functions in Python."""
 
     @staticmethod
+    def get_max_threads() -> int:
+        """
+        Return the max number of threads this backend's kernels may use.
+
+        Returns
+        -------
+        max_threads
+            Maximum number of threads this backend's kernels may use.
+        """
+        return 1
+
+    @staticmethod
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,

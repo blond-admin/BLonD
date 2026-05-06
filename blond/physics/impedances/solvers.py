@@ -26,7 +26,6 @@ import warnings
 from copy import copy
 from typing import TYPE_CHECKING
 
-import numba
 import numpy as np
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
@@ -1311,7 +1310,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._states[-1] = hist_x[0] - bin_dt / 2.0
 
         self._voltage_threaded = backend.zeros(
-            ((numba.get_num_threads()), len(self._voltage))
+            (backend.specials.get_max_threads(), len(self._voltage))
         )
         self._update_on_bin = backend.unique(
             self._profile._bucket_index_to_memory_index

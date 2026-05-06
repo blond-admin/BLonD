@@ -159,8 +159,22 @@ def reload_cpp_backend(  # NOQA: PLR0915
     _LIBBLOND.beam_phase.restype = c_real_t(floattype)
     _LIBBLOND.sum_1d_array.restype = c_real_t(floattype)
     _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype)
+    _LIBBLOND.blond_omp_get_max_threads.restype = ct.c_int
+    _LIBBLOND.blond_omp_get_max_threads.argtypes = []
 
     class CppSpecials(Specials):
+        @staticmethod
+        def get_max_threads() -> int:
+            """
+            Return the max number of threads this backend's kernels may use.
+
+            Returns
+            -------
+            max_threads
+                Maximum number of threads this backend's kernels may use.
+            """
+            return int(_LIBBLOND.blond_omp_get_max_threads())
+
         @staticmethod
         def beam_phase(
             hist_x: NumpyArray,

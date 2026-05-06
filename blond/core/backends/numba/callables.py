@@ -252,6 +252,18 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
 
     class NumbaSpecials(Specials):  # pragma: no cover
         @staticmethod
+        def get_max_threads() -> int:
+            """
+            Return the max number of threads this backend's kernels may use.
+
+            Returns
+            -------
+            max_threads
+                Maximum number of threads this backend's kernels may use.
+            """
+            return int(numba.get_num_threads())
+
+        @staticmethod
         @enforce_precision(floattype)
         @enforce_return_precision(floattype)
         @njit(

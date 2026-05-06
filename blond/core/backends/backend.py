@@ -47,6 +47,26 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
+    def get_max_threads() -> int:
+        """
+        Return the max number of threads this backend's kernels may use.
+
+        Used to size per-thread scratch buffers (e.g. ``voltage_threaded`` in
+        ``MultiPoleSparseSolve``). Each backend must report the count from the
+        runtime its own kernels will actually use, since numba and the cpp
+        backend's libgomp maintain independent thread pools.
+
+        Returns
+        -------
+        max_threads
+            Maximum number of threads this backend's kernels may use.
+        """
+        raise NotImplementedError(
+            "Abstract method `get_max_threads` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
     def loss_box(  # NOQA: D102
         e_max: float,
         e_min: float,
