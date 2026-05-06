@@ -56,9 +56,9 @@ class FillingScheme:
         return filling_scheme
 
     @property
-    def harmonic(self) -> int:
+    def harmonic_number(self) -> int:
         """
-        Harmonic that this filling scheme is made for.
+        Harmonic number that this filling scheme is made for.
 
         Returns
         -------
@@ -69,12 +69,12 @@ class FillingScheme:
 
     def fits_harmonic(self, harmonic: int):
         """
-        Wether this filling scheme fits the harmonic.
+        Whether this filling scheme fits the harmonic number.
 
         Parameters
         ----------
         harmonic
-            Harmonic that this filling scheme is made for.
+            Harmonic number that this filling scheme is made for.
 
         Returns
         -------
