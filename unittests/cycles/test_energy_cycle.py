@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import unittest
-from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
-from mpmath import sec
 from numpy.testing import assert_allclose
 from scipy.constants import speed_of_light as c0
 

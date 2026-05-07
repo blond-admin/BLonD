@@ -37,12 +37,6 @@ from blond.core.base import (
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
-from blond.experimental.physics.feedbacks.base import (
-    LocalFeedback as LocalFeedbackExp,
-)
-from blond.experimental.physics.feedbacks.beam_feedback import (
-    BeamFeedbackBase,
-)
 from blond.experimental.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
