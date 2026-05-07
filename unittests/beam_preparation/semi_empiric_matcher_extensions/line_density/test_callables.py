@@ -4,7 +4,6 @@ from unittest.mock import Mock
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond.acc_math.empiric.potential_well import PotentialWellHelper
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes import (
     ProfileMatcherAddon,
 )

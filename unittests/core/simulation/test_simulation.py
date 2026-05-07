@@ -788,6 +788,45 @@ class TestSimulation(unittest.TestCase):
         if DEV_PLOT:
             plt.show()
 
+    def test_current_turn_dE_tot(self):
+        # set initial value of energy
+        buffer = (
+            np.ones(2) * self.simulation.magnetic_cycle.get_total_energy_init()
+        )
+        dE_rev_effective = np.empty(10)
+        dE_rev_sim = np.empty(10)
+        DEV_PLOT = False
+
+        def callback(sim: Simulation, beam: Beam):
+            buffer[0] = buffer[1]
+            buffer[1] = beam.reference.total_energy
+            i = sim.turn_i.value
+            dE_rev_effective[i] = buffer[1] - buffer[0]
+            dE_rev_sim[i] = sim.current_turn_dE_tot
+            if DEV_PLOT:
+                plt.plot(i, buffer[1] - buffer[0], "o")
+                plt.plot(i, sim.current_turn_dE_tot, "x")
+            return
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "only available during the simulation",
+        ):
+            self.simulation.current_turn_dE_tot
+        with self.assertRaisesRegex(
+            ValueError,
+            "only available during the simulation",
+        ):
+            self.simulation.current_t_rev
+        self.simulation.run_simulation(
+            self.beam,
+            n_turns=10,
+            callbacks=callback,
+        )
+        np.testing.assert_allclose(dE_rev_sim, dE_rev_effective)
+        if DEV_PLOT:
+            plt.show()
+
 
 if __name__ == "__main__":
     unittest.main()
