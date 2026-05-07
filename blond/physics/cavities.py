@@ -349,7 +349,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Additional keyword arguments.
         """
         # set design omega etc. for this turn
-        self._update_beam_based_attributes(beam=beam)
+        self._update_reference_based_attributes(reference=beam.reference)
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic(self) -> float:
@@ -714,17 +714,22 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         return self._n_rf
 
-    def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
+    def _update_reference_based_attributes(
+        self, reference: ReferenceCoordinates
+    ) -> None:
         """
         Update internal data based on the tracked beam.
 
         Parameters
         ----------
-        beam
+        reference
             Beam to update the attributes from.
         """
+        assert self._ring is not None, (
+            "Not available before instancing ``Simulation(...)``"
+        )
         self.omega_rf_design = self.calc_omega_rf_design(
-            beam_beta=beam.reference.beta,
+            beam_beta=reference.beta,
             ring_circumference=self._ring.circumference,
         )
 
@@ -738,9 +743,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Beam class to interact with this element.
         """
         super()._track(beam=beam)
-
-        # set design omega etc. for this turn
-        self._update_beam_based_attributes(beam=beam)
 
         # Correction from cavity loop
         if not isinstance(beam, ProbeBeam) and self.any_feedback_not_none:
@@ -809,6 +811,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         reference_energy_change
             Change of reference energy [eV].
         """
+        # set design omega etc. for this turn
+        self._update_reference_based_attributes(reference=reference)
+
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
             section_i=self.section_index
@@ -1735,5 +1740,7 @@ class MultiHarmonicRFStation(
             beam=beam,
         )
 
-        multi_harmonic_rf_station._update_beam_based_attributes(beam)
+        multi_harmonic_rf_station._update_reference_based_attributes(
+            beam.reference
+        )
         return multi_harmonic_rf_station
