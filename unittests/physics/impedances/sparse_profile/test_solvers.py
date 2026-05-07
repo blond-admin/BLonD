@@ -424,55 +424,6 @@ class TestMultiPoleSparseFinalize(unittest.TestCase):
         solver._profile = profile
         return solver
 
-    def test_typeerror_fallback_with_scalar_pole(self):
-        """When `get_vectorfit` returns scalars, fall back to `append`."""
-        from unittest.mock import Mock
-
-        scalar_pole = complex(-1e6 + 1e9j)
-        scalar_residue = complex(2e9 + 3e9j)
-
-        source = Mock()
-        source.get_vectorfit.return_value = (scalar_pole, scalar_residue)
-        source._shunt_impedances_counter_rotating = None
-
-        solver = self._make_solver(sources=(source,))
-        solver._finalize_solver(beam=Mock())
-
-        self.assertEqual(len(solver._poles), 1)
-        np.testing.assert_array_equal(
-            copy_to_cpu(solver._poles), np.array([scalar_pole])
-        )
-        np.testing.assert_array_equal(
-            copy_to_cpu(solver._residues), np.array([scalar_residue])
-        )
-        # No counter-rotating impedances → all-ones flip array of length 1
-        np.testing.assert_array_equal(
-            copy_to_cpu(solver.counter_rotation_pole_flip),
-            np.ones(1, dtype=backend.float),
-        )
-
-    def test_typeerror_fallback_with_counter_rotating(self):
-        """Scalar-source path also covers the counter-rotating append."""
-        from unittest.mock import Mock
-
-        source = Mock()
-        source.get_vectorfit.return_value = (
-            complex(-1e6 + 1e9j),
-            complex(2e9 + 3e9j),
-        )
-        # Set a single (non-iterable) counter-rotating impedance value so the
-        # except branch's `counter_rotation_pole_flip.append(...)` runs.
-        source._shunt_impedances_counter_rotating = -1.0
-
-        solver = self._make_solver(sources=(source,))
-        solver._finalize_solver(beam=Mock())
-
-        self.assertEqual(len(solver.counter_rotation_pole_flip), 1)
-        np.testing.assert_array_equal(
-            copy_to_cpu(solver.counter_rotation_pole_flip),
-            np.array([-1.0], dtype=backend.float),
-        )
-
 
 if __name__ == "__main__":
     unittest.main()

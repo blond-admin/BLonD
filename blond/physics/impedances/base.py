@@ -592,3 +592,30 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
             n_turns=1,
         )
         return wf
+
+
+class SupportsVectorFittedModel(ABC):
+    """
+    Mixin to define sources with poles.
+
+    See Also
+    --------
+    MultiPoleSparseSolve: The corresponding wakefield solver.
+    """
+
+    @abstractmethod
+    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
+        """
+        Derive the poles and residues as in vector-fitting.
+
+        Returns
+        -------
+        poles
+            Complex poles of an equivalent circuit model.
+        residues
+            Complex residues of an equivalent circuit model.
+        counterrotation_signs
+            Signs of the poles to deal with higher order oscillators
+            in counterrotation. Default is ``1``.
+        """
+        pass

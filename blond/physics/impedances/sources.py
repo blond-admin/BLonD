@@ -770,7 +770,7 @@ class Resonators(
         self._cache_impedance = impedance
         return impedance
 
-    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray]:
+    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
         """
         Derive the poles and residues as in vector-fitting.
 
@@ -780,6 +780,9 @@ class Resonators(
             The complex poles.
         residues
             The complex residues.
+        counterrotation_signs
+            Signs of the poles to deal with higher order oscillators
+            in counterrotation. Default is ``1``.
         """
         Q = self._quality_factors
         omega = self._omega
@@ -797,8 +800,11 @@ class Resonators(
         # because ``j * (1 + 2j) = 1j - 2``
         poles1 = 1j * omega1
         # poles2 = 1j * np.real(omega2) - np.imag(omega2)
-
-        return poles1, residues1
+        if self._shunt_impedances_counter_rotating is None:
+            cr_signs = (np.ones(len(poles1), dtype=backend.float),)
+        else:
+            cr_signs = np.sign(self._shunt_impedances_counter_rotating)
+        return poles1, residues1, cr_signs
 
 
 class ImpedanceTable(WakeFieldSource):

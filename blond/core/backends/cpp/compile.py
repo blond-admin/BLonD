@@ -141,7 +141,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
 
         cflags = [
             "-O3",
-            "-std=c++20",
+            "-std=c++11",
             "-shared",
             "-funroll-loops",  # Aggressive loop unrolling
             "-ftree-vectorize",

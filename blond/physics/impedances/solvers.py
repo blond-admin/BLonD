@@ -37,9 +37,11 @@ from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
 from blond.physics.impedances.base import (
     FreqDomain,
+    SupportsVectorFittedModel,
     TimeDomain,
     WakeField,
     WakeFieldSolver,
+    WakeFieldSource,
 )
 from blond.physics.impedances.sources import InductiveImpedance, Resonators
 from blond.physics.profiles import (
@@ -52,6 +54,14 @@ from blond.physics.profiles_sparse import EquidistantMultiProfile
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
+
+    # local helper
+    class VectorFitTypeHint(
+        SupportsVectorFittedModel, WakeFieldSource, TimeDomain
+    ):
+        """Local helper for typing."""
+
+        pass
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
@@ -1231,8 +1241,10 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._voltage: NumpyArray | CupyArray | None = None
         self.last_reference_time: float | None = None
 
-        self.counter_rotation_pole_flip: NumpyArray | CupyArray | None = None
-        self._charge_per_macroparticle: float | None = None
+        self._charge_per_macroparticle: float | None = None  # in Coulomb
+
+        # counter rotation feature for muon collider
+        self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -1255,44 +1267,23 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         poles = []
         residues = []
         counter_rotation_pole_flip = []
+        assert self._parent_wakefield is not None
         for source in self._parent_wakefield.sources:
-            # source: TimeDomain  # type hint what the we expect # TODO
-            # source has to be resonator source  # TODO
-            poles_, residues_ = source.get_vectorfit()
-            try:
-                poles.extend(poles_)
-                residues.extend(residues_)
-                if (
-                    source._shunt_impedances_counter_rotating is not None
-                ):  # prevent that one source has it and another one doesnt --> do we ever need multiple sources in the first place?
-                    counter_rotation_pole_flip.extend(
-                        source._shunt_impedances_counter_rotating
-                    )
-            except TypeError:  # if single value instead of iterable
-                poles.append(poles_)
-                residues.append(residues_)
-                if source._shunt_impedances_counter_rotating is not None:
-                    counter_rotation_pole_flip.append(
-                        source._shunt_impedances_counter_rotating
-                    )
+            vector_source: VectorFitTypeHint = source
+
+            poles_, residues_, cr_signs_ = vector_source.get_vectorfit()
+
+            poles.extend(poles_)
+            residues.extend(residues_)
+            counter_rotation_pole_flip.extend(cr_signs_)
 
         self._poles = backend.array(poles, dtype=complex)
         self._residues = backend.array(residues, dtype=complex)
-
-        if len(counter_rotation_pole_flip) == 0:
-            self.counter_rotation_pole_flip = backend.ones_like(
-                self._poles, dtype=backend.float
-            )
-        else:
-            self.counter_rotation_pole_flip = backend.array(
-                backend.sign(
-                    backend.array(
-                        counter_rotation_pole_flip, dtype=backend.float
-                    )
-                ),
-                dtype=backend.float,
-            )
-        assert len(self.counter_rotation_pole_flip) == len(self._poles)
+        self._counterrotating_pole_signs = backend.array(
+            counter_rotation_pole_flip, dtype=backend.float
+        )
+        assert len(self._counterrotating_pole_signs) == len(self._poles)
+        assert len(self._residues) == len(self._poles)
 
         hist_x_profile = (
             self._parent_wakefield.profile._continuous_memory_hist_x
@@ -1370,7 +1361,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             poles=self._poles,
             residues=self._residues,
             is_counterrotating_beam=beam.is_counter_rotating,
-            counterrotating_pole_signs=self.counter_rotation_pole_flip,
+            counterrotating_pole_signs=self._counterrotating_pole_signs,
             states=self._states,
             voltage=self._voltage,
             voltage_threaded=self._voltage_threaded,
