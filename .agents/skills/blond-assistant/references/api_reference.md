@@ -311,7 +311,7 @@ obs.dEs     # shape (n_recorded_turns, n_macroparticles) [eV]
 obs.flags   # particle status flags
 ```
 
-Alias: `BeamObservationEndOfTurn` (same class, different import name).
+Alias: `BeamObservationOncePerTurn` (same class, different import name).
 
 ### RFStationPhaseObservation
 
