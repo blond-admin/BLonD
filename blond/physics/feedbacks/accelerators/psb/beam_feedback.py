@@ -18,6 +18,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+from blosc2 import NDArray
+
 from blond.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
 )
@@ -40,6 +43,8 @@ class PSBBeamControl(BeamFeedbackBase):
         The gain of the beam-phase loop.
     rl_gain
         The gain of the radial loop.
+    period
+        TBW.
     *args
         Variable positional arguments.
     **kwargs
@@ -50,19 +55,61 @@ class PSBBeamControl(BeamFeedbackBase):
         self,
         pl_gain: float,
         rl_gain: list[float] = None,
+        period: float = 10.0e-6,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
         self.pl_gain = pl_gain
-        self.rl_gain = rl_gain
 
         self.lhc_y = 0
 
         self.domega_rf = 0.0
         self.dphi = 0.0
         self.reference = 0.0
+
+        #: | *Radial loop gain, proportional [1] and integral [1/s].*
+        if rl_gain is None:
+            self.rl_gain = [0.0, 0.0]
+        else:
+            self.rl_gain = rl_gain
+
+        #: | *Optional: PL & RL acting only in certain time intervals/turns.*
+        self.dt = period
+
+        # Counter of turns passed since last time the PL was active
+        self.PL_counter = 0
+        self.on_time = np.array([])
+
+        #: | *Array of transfer function coefficients.*
+        if "coefficients" not in self.config:
+            self.coefficients = [
+                0.999019,
+                -0.999019,
+                0.0,
+                1.0,
+                -0.998038,
+                0.0,
+            ]
+        else:
+            self.coefficients = self.config["coefficients"]
+
+        #: | *Memory of previous phase correction, for phase loop.*
+        self.dphi_sum = 0.0
+        self.dphi_av = 0.0
+        self.dphi_av_prev = 0.0
+
+        #: | *Memory of previous relative radial correction, for rad loop.*
+        self.dR_over_R_prev = 0.0
+
+        #: | *Phase loop frequency correction [1/s]*
+        self.domega_PL = 0.0
+
+        #: | *Radial loop frequency correction [1/s]*
+        self.domega_RL = 0.0
+
+        self.dR_over_R = 0
 
     def on_run_simulation(
         self,
@@ -92,7 +139,39 @@ class PSBBeamControl(BeamFeedbackBase):
             **kwargs,
         )
 
-        # TODO: implement
+        self.pl_gain = self.pl_gain * np.ones(n_turns + 1)
+
+        self.rl_gain[0] = self.rl_gain[0] * np.ones(n_turns + 1)
+        self.rl_gain[1] = self.rl_gain[1] * np.ones(n_turns + 1)
+
+        # self.precalculate_time(simulation.ring.)
+
+    def precalculate_time(self, t_rev: NDArray):
+        """
+        Calculate the PL action before running the simuliaton.
+
+        For machines like the PSB, where the PL acts only in certain time
+        intervals, pre-calculate on which turns to act.
+
+        Parameters
+        ----------
+        t_rev
+            The design revolution period turn by turn during the simulation.
+        """
+        if self.dt > 0:
+            n = self.delay + 1
+            while n < t_rev.size:
+                summa = 0
+                while summa < self.dt:
+                    try:
+                        summa += t_rev[n]
+                        n += 1
+                    except Exception:
+                        self.on_time = np.append(self.on_time, 0)
+                        return
+                self.on_time = np.append(self.on_time, n - 1)
+        else:
+            self.on_time = np.arange(t_rev.size)
 
     def get_beam_attribute(self, beam: BeamBaseClass):
         """
@@ -113,13 +192,65 @@ class PSBBeamControl(BeamFeedbackBase):
         """
         Calculate the frequency correction from the beam control.
 
-        This method implements the feedback systems in the PSB beam control, i.e.
-        the beam-phase loop and the synchronization loop.
+        Phase and radial loops for PSB. See documentation on-line for details.
 
         Parameters
         ----------
         beam
             A beam object to extract the beam attribute from.
         """
-        pass
-        # TODO: implement
+        # Average phase error while frequency is updated
+        counter = self.cavities[0]._turn_i.value
+
+        self.phase_difference(beam)
+
+        self.dphi_sum += self.dphi
+
+        # Phase and radial loop active on certain turns
+        if counter == self.on_time[self.PL_counter] and counter >= self.delay:
+            # Phase loop
+            self.dphi_av = self.dphi_sum / (
+                self.on_time[self.PL_counter]
+                - self.on_time[self.PL_counter - 1]
+            )
+
+            if self.RFnoise is not None:
+                self.dphi_av += self.RFnoise.dphi[counter]
+
+            self.domega_PL = 0.99803799 * self.domega_PL + self.gain[
+                counter
+            ] * (0.99901903 * self.dphi_av - 0.99901003 * self.dphi_av_prev)
+
+            self.dphi_av_prev = self.dphi_av
+            self.dphi_sum = 0.0
+
+            # Radial loop
+            self.dR_over_R = (
+                self.rf_station.omega_rf[0, counter]
+                - self.rf_station.omega_rf_d[0, counter]
+            ) / (
+                self.rf_station.omega_rf_d[0, counter]
+                * (
+                    1.0
+                    / (
+                        self.ring.alpha_0[0, counter]
+                        * self.rf_station.gamma[counter] ** 2
+                    )
+                    - 1.0
+                )
+            )
+
+            self.domega_RL = (
+                self.domega_RL
+                + self.gain2[0][counter]
+                * (self.dR_over_R - self.dR_over_R_prev)
+                + self.gain2[1][counter] * self.dR_over_R
+            )
+
+            self.dR_over_R_prev = self.dR_over_R
+
+            # Counter to pick the next time step when the PL & RL will be active
+            self.PL_counter += 1
+
+        # Apply frequency correction
+        self.domega_rf = -self.domega_PL - self.domega_RL
