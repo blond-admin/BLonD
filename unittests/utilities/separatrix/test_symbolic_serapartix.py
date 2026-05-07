@@ -6,6 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 import unittest
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -236,6 +237,20 @@ class TestSymbolicSeparatrixInternals:
         # Sanity: shift_per_period != 0 so np.maximum and np.minimum diverge.
         assert not np.allclose(left, right)
         np.testing.assert_allclose(H_sep, np.maximum(left, right))
+
+
+class TestSymbolicSeparatrixHelperFromSimulation:
+    """Cover `SymbolicSeparatrixHelper.from_simulation`."""
+
+    def test_raises_when_no_symbolic_hamiltonian_elements(self):
+        simulation = Mock()
+        simulation.ring.elements.get_elements.return_value = []
+
+        with pytest.raises(
+            ValueError,
+            match="No elements with `HasSymbolicHamiltonian` found.",
+        ):
+            SymbolicSeparatrixHelper.from_simulation(simulation=simulation)
 
 
 if __name__ == "__main__":  # pragma: no cover
