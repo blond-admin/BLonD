@@ -1276,17 +1276,22 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                         source._shunt_impedances_counter_rotating
                     )
 
+        self._poles = backend.array(poles, dtype=complex)
+        self._residues = backend.array(residues, dtype=complex)
+
         if len(counter_rotation_pole_flip) == 0:
             self.counter_rotation_pole_flip = backend.ones_like(
-                poles, dtype=backend.float
+                self._poles, dtype=backend.float
             )
         else:
             self.counter_rotation_pole_flip = backend.array(
-                backend.sign(counter_rotation_pole_flip), dtype=backend.float
+                backend.sign(
+                    backend.array(
+                        counter_rotation_pole_flip, dtype=backend.float
+                    )
+                ),
+                dtype=backend.float,
             )
-
-        self._poles = backend.array(poles, dtype=complex)
-        self._residues = backend.array(residues, dtype=complex)
         assert len(self.counter_rotation_pole_flip) == len(self._poles)
 
         hist_x_profile = (
