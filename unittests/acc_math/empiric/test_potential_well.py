@@ -7,7 +7,6 @@ import numpy as np
 from blond import backend
 from blond.acc_math.empiric.potential_well import PotentialWellHelper
 from blond.handle_results.helpers import callers_relative_path
-from blond.testing.helpers import pinned_values_helper
 
 
 class TestPotentialWellHelper(unittest.TestCase):

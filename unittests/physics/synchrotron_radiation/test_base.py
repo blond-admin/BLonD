@@ -5,11 +5,9 @@ from functools import cached_property
 from unittest.mock import Mock
 
 import numpy as np
-import pytest
 from scipy.constants import speed_of_light as c0
 
 from blond import (
-    Numpy64Bit,
     copy_to_cpu,
     electron,
 )

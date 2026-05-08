@@ -13,7 +13,6 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     NumpyBackend,
     backend,
-    default,
 )
 from blond.core.backends.numba.callables import recompile_numba_backend
 from blond.generals.exceptions_ import ArrayCastingError
@@ -2000,7 +1999,7 @@ class TestSpecials(unittest.TestCase):
             backend.cast_arr_float_if_needed([[1, 2], 3])
 
     def test_import(self):
-        from blond.core.backends import backend  # see if import works
+        pass
 
 
 class TestNumbaCompilation(unittest.TestCase):

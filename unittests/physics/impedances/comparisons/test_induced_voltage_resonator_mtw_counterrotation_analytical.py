@@ -34,7 +34,6 @@ from blond.physics.impedances.solvers import (
     MultiPoleSparseSolve,
 )
 from blond.physics.impedances.sources import Resonators
-from blond.testing.helpers import enforce_64_bit_backend
 
 
 def gauss(x, width, center):

@@ -6,7 +6,6 @@ import numpy as np
 from blond import (
     Beam,
     ConstantMagneticCycle,
-    MagneticCyclePerTurn,
     Ring,
     Simulation,
     SingleHarmonicRFStation,

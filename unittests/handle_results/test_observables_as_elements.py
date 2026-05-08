@@ -1,15 +1,12 @@
 import unittest
-from copy import deepcopy
 from unittest.mock import Mock
 
 import numpy as np
 
 from blond import (
-    Beam,
     Resonators,
     Ring,
     Simulation,
-    SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
 )
