@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import Cupy64Bit, Numpy64Bit, backend
+from blond import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -53,7 +53,7 @@ def pinned_values_helper(variable: NumpyArray, variable_name: str) -> None:
         f"""np.testing.assert_allclose(
     {variable_name},
     {variable_name_nodot}_pinned,
-    rtol=1e-6 if backend.float == np.float32 else 1e-12,
+    rtol=1e-12,
 )"""
     )
 
@@ -102,6 +102,7 @@ def allclose_tolerances(
     ...     **allclose_tolerances(expected),
     ... )
     """
+    raise TypeError("32-bit float and 64-bit complex have been removed.")
     amplitude = float(np.max(expected) - np.min(expected))
     rtol = rtol_32bit if backend.float == np.float32 else (rtol_32bit**2)
     kwargs = {
@@ -114,7 +115,4 @@ def allclose_tolerances(
 def enforce_64_bit_backend():
     """Enforce 64-bit backend, GPU is taken into account."""
     if backend.float == np.float32:
-        if backend.is_gpu:
-            backend.change_backend(Cupy64Bit)
-        else:
-            backend.change_backend(Numpy64Bit)
+        raise TypeError("32-bit float and 64-bit complex have been removed.")
