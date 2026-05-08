@@ -1,4 +1,5 @@
-"""Integration test of BLonD 2 vs 3 with induced voltage.
+"""
+Integration test of BLonD 2 vs 3 with induced voltage.
 
 Notes
 -----

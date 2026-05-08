@@ -1,4 +1,5 @@
-"""Integration test of BLonD 2 vs 3 only with RF + drift.
+"""
+Integration test of BLonD 2 vs 3 only with RF + drift.
 
 Notes
 -----
