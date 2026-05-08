@@ -949,7 +949,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         np.testing.assert_allclose(
             result_smooth[:-1],
             result_interp[:-1],
-            **allclose_tolerances(result_smooth[:-1], 1e-3),
+            **allclose_tolerances(result_smooth[:-1], 1e-6),
             # FIXME
             #  this tolerance is so low because of the GPU
             #  backend. Reason unknown for now.
@@ -1015,7 +1015,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         np.testing.assert_allclose(
             result_smooth[:-1],
             result_interp[:-1],
-            **allclose_tolerances(result_smooth[:-1], 1e-3),
+            **allclose_tolerances(result_smooth[:-1], 1e-6),
             # FIXME
             #  this tolerance is so low because of the GPU
             #  backend. Reason unknown for now.

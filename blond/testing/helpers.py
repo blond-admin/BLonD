@@ -76,7 +76,7 @@ def pytest_active():
 
 def allclose_tolerances(
     expected: NumpyArray,
-    rtol_32bit: float = 1e-6,
+    rtol: float = 1e-12,
 ) -> dict[str, float]:
     """
     Generate keyword-arguments for the tolerances of `np.testing.assert_allclose`.
@@ -85,9 +85,8 @@ def allclose_tolerances(
     ----------
     expected
         Expected array of `np.testing.assert_allclose`.
-    rtol_32bit
-        Relative tolerance for 32 bit backend.
-        The 64-bit tolerance is double, e.g. `1e-6` and `1e-12`.
+    rtol
+        The required relative tolerance.
 
     Returns
     -------
@@ -102,9 +101,7 @@ def allclose_tolerances(
     ...     **allclose_tolerances(expected),
     ... )
     """
-    raise TypeError("32-bit float and 64-bit complex have been removed.")
     amplitude = float(np.max(expected) - np.min(expected))
-    rtol = rtol_32bit if backend.float == np.float32 else (rtol_32bit**2)
     kwargs = {
         "rtol": 0,  # intentional 0, it makes problems at arrays that cross 0.
         "atol": amplitude * rtol,

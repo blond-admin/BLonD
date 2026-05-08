@@ -993,7 +993,7 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(
                         result,
                         result_python,
-                        **allclose_tolerances(result_python, 1e-3),
+                        **allclose_tolerances(result_python, 1e-6),
                         # FIXME
                         #  this tolerance is so low because of the GPU
                         #  backend. Reason unknown for now.
