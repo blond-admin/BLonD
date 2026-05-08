@@ -297,7 +297,6 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         def dummy_track(beam: BeamBaseClass):
             self.track_called = True
-            return
 
         prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
 
@@ -352,7 +351,6 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         def dummy_track(beam: BeamBaseClass):
             self.track_called = True
-            return
 
         prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
 
@@ -634,9 +632,9 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         beam.reference.gamma = np.sqrt(1 - 0.25)  # beta**2
         beam.reference.total_energy = 938
         beam.reference._total_energy = beam.reference.total_energy
-        beam.dE = backend.linspace(-1e6, 1e6, 10, dtype=backend.float)  #
+        beam.dE = backend.linspace(-1e6, 1e6, 10, dtype=backend.float)
         # delta E  in eV
-        beam.dt = backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  #
+        beam.dt = backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
         # delta t in s
         beam.read_partial_dt.return_value = beam.dt
         beam.write_partial_dE.return_value = beam.dE

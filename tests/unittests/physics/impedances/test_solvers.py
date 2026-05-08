@@ -1460,10 +1460,8 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
 
         self.multi_pass_resonator_solver._past_profile_times = deque(
-            (
-                d + self.multi_pass_resonator_solver._maximum_storage_time + 1
-                for d in self.multi_pass_resonator_solver._past_profile_times
-            )
+            d + self.multi_pass_resonator_solver._maximum_storage_time + 1
+            for d in self.multi_pass_resonator_solver._past_profile_times
         )
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
             indexes_to_check=2

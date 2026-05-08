@@ -198,7 +198,7 @@ class InducedVoltageResonatorComparisonTest(unittest.TestCase):
         beta_array = np.array(
             [
                 result
-                for combination in zip(*beta_arrays)
+                for combination in zip(*beta_arrays, strict=False)
                 for result in combination
             ]
         )
@@ -298,9 +298,8 @@ class InducedVoltageResonatorComparisonTest(unittest.TestCase):
                             0 : trn_ind * self.n_stations + inter_turn_ind
                         ]
                     )
-                else:
-                    if inter_turn_ind != 0:
-                        time_shift = np.sum(section_time[:inter_turn_ind])
+                elif inter_turn_ind != 0:
+                    time_shift = np.sum(section_time[:inter_turn_ind])
                     # inter_turn_ind == 0 means, that this is the first section
                     # and there is no previous turn
                 self.time_array_profile[inter_turn_ind].append(

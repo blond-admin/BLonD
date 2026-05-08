@@ -3,8 +3,8 @@ import unittest
 
 import pytest
 
-import blond.core.backends.backend as backend
 import blond.testing.backend_testing as bend_test
+from blond.core.backends import backend
 
 try:
     import cupy
