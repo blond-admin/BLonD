@@ -44,7 +44,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.rf_station.voltage = np.array([V])
         self.rf_station.phi_rf_effective = np.array([phi])
         self.drift = DriftSimple(orbit_length=C)
-        self.drift.momentum_compaction_factor = momentum_compaction_factor(gamma_t)
+        self.drift.momentum_compaction_factor = momentum_compaction_factor(
+            gamma_t
+        )
 
         N_m = int(1e6)  # Number of macro-particles for tracking
         N_b = 288 * 2.3e11  # Bunch intensity [ppb]
