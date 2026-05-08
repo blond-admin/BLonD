@@ -120,7 +120,7 @@ def main():
             beams=(beam1,),
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
-            # callback=custom_action,
+            # callbacks=custom_action,
         )
     ANIMATE = False
     if ANIMATE:  # pragma: no cover
