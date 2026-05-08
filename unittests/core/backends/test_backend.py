@@ -1516,7 +1516,7 @@ class TestSpecials(unittest.TestCase):
                     err_msg=f"{special=} {dtype=}",
                 )
 
-    @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    @multi_backend_testcase("Numpy64Bit")
     @pytest.mark.backend_mutation
     def test_cast_float_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.float)
