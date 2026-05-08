@@ -801,7 +801,7 @@ class Resonators(
         poles1 = 1j * omega1
         # poles2 = 1j * np.real(omega2) - np.imag(omega2)
         if self._shunt_impedances_counter_rotating is None:
-            cr_signs = (np.ones(len(poles1), dtype=backend.float),)
+            cr_signs = np.ones(len(poles1), dtype=backend.float)
         else:
             cr_signs = np.sign(self._shunt_impedances_counter_rotating)
         return poles1, residues1, cr_signs
