@@ -5,9 +5,7 @@ import pytest
 
 from blond import Beam
 from blond.core.backends.backend import (
-    Cupy32Bit,
     Cupy64Bit,
-    Numpy32Bit,
     Numpy64Bit,
     backend,
 )
@@ -50,35 +48,10 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     @pytest.mark.mpi
-    def test_executable_numba32(self):
-        backend.change_backend(Numpy32Bit)
-        backend.set_specials("numba")
-
-        self._execute()
-
-    @pytest.mark.backend_mutation
-    @pytest.mark.mpi
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
         self._execute()
-
-    @pytest.mark.backend_mutation
-    @pytest.mark.mpi
-    def test_executable_cuda32(self):
-        try:
-            import cupy  # type: ignore
-        except ImportError as exc:
-            # skip test if GPU is not available
-            self.skipTest(str(exc))
-        backend.change_backend(Cupy32Bit)
-        backend.set_specials("cuda")
-
-        self._execute()
-
-        backend.zeros(100)  # make sure that cupy is still working,
-        # previous memory
-        # violations would crash this command
 
     @pytest.mark.backend_mutation
     @pytest.mark.mpi

@@ -17,7 +17,7 @@ except (ModuleNotFoundError, ImportError):
 class InvalidBackendTestError(Exception): ...
 
 
-class InvalidBackend(backend.Numpy32Bit):
+class InvalidBackend(backend.Numpy64Bit):
     def __init__(self):
         raise InvalidBackendTestError
 
@@ -119,10 +119,10 @@ class TestBackendTesting(unittest.TestCase):
 
         bend_test.FORCE_ALL_BACKENDS = False
 
-        if self.init_backend == "Numpy32Bit":
-            backend.backend.change_backend(backend.Numpy64Bit)
+        if self.init_backend == "Numpy64Bit":
+            backend.backend.change_backend(backend.Cupy64Bit)
         else:
-            backend.backend.change_backend(backend.Numpy32Bit)
+            backend.backend.change_backend(backend.Numpy64Bit)
 
         test_init_backend = backend.backend.__class__
 
@@ -157,10 +157,10 @@ class TestBackendTesting(unittest.TestCase):
     def test_multi_backend_testcase_failsafe(self):
         bend_test.FORCE_ALL_BACKENDS = False
 
-        if self.init_backend == "Numpy32Bit":
-            backend.backend.change_backend(backend.Numpy64Bit)
+        if self.init_backend == "Numpy64Bit":
+            backend.backend.change_backend(backend.Cupy64Bit)
         else:
-            backend.backend.change_backend(backend.Numpy32Bit)
+            backend.backend.change_backend(backend.Numpy64Bit)
 
         test_init_backend = backend.backend.__class__
 

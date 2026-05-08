@@ -6,10 +6,8 @@ import pytest
 
 from blond import copy_to_cpu
 from blond.core.backends.backend import (
-    Cupy32Bit,
     Cupy64Bit,
     CupyBackend,
-    Numpy32Bit,
     Numpy64Bit,
     NumpyBackend,
     backend,
@@ -43,7 +41,7 @@ class TestBackendBaseClass(unittest.TestCase):
         backend.set_specials(backend_specials_mode_org)
 
     def setUp(self) -> None:
-        self.backend_base_class = Numpy32Bit()
+        self.backend_base_class = Numpy64Bit()
 
     @pytest.mark.backend_mutation
     def test___init__(self):
@@ -72,7 +70,7 @@ class TestBackendBaseClass(unittest.TestCase):
         import os
 
         backend_modes = ["python", "cpp", "cpp_single_core", "numba", "fail"]
-        backend_bits = ["32", "64", "fail"]
+        backend_bits = ["64", "fail"]
         try:
             import cupy
 
@@ -103,14 +101,14 @@ class TestBackendBaseClass(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test__finalize(self):
-        some_backend = Numpy32Bit()
+        some_backend = Numpy64Bit()
         some_backend.array = None
         with self.assertRaises(AttributeError):
             some_backend._finalize()
 
     @pytest.mark.backend_mutation
     def test_change_backend(self):
-        some_backend = Numpy32Bit()
+        some_backend = Numpy64Bit()
         some_backend.change_backend(some_backend)  # shouldnt do anything
 
     @pytest.mark.backend_mutation
@@ -130,14 +128,6 @@ class TestBackendBaseClass(unittest.TestCase):
         backend.change_backend(backend_org)
 
 
-class TestCupy32Bit(unittest.TestCase):
-    @pytest.mark.backend_mutation
-    def test___init__(self) -> None:
-        if not cupy_available:
-            self.skipTest(f"{cupy_available=}")
-        self.cupy32_bit = Cupy32Bit()
-
-
 class TestCupy64Bit(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test___init__(self) -> None:
@@ -152,7 +142,7 @@ class TestCupyBackend(unittest.TestCase):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, complex_=np.complex64
+            float_=np.float64, complex_=np.complex128
         )
 
     @pytest.mark.backend_mutation
@@ -160,7 +150,7 @@ class TestCupyBackend(unittest.TestCase):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, complex_=np.complex64
+            float_=np.float64, complex_=np.complex128
         )
         self.cupy_backend.set_specials(mode="cuda")
 
@@ -169,7 +159,7 @@ class TestCupyBackend(unittest.TestCase):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, complex_=np.complex64
+            float_=np.float64, complex_=np.complex128
         )
         with self.assertRaises(ValueError):
             self.cupy_backend.set_specials("doesnt exist")
@@ -187,8 +177,8 @@ class TestNumpy64Bit(unittest.TestCase):
 class TestNumpyBackend(unittest.TestCase):
     def setUp(self) -> None:
         self.numpy_backend = NumpyBackend(
-            float_=np.float32,
-            complex_=np.complex64,
+            float_=np.float64,
+            complex_=np.complex128,
         )
 
     @pytest.mark.backend_mutation
@@ -251,12 +241,12 @@ class TestSpecials(unittest.TestCase):
             "numba",
         ):
             if dtype == np.float32:
-                backend.change_backend(Numpy32Bit)
+                raise TypeError("32 Bit backends have been removed")
             else:
                 backend.change_backend(Numpy64Bit)
         elif special_mode in ("cuda",):
             if dtype == np.float32:
-                backend.change_backend(Cupy32Bit)
+                raise TypeError("32 Bit backends have been removed")
             else:
                 backend.change_backend(Cupy64Bit)
         else:
@@ -294,7 +284,7 @@ class TestSpecials(unittest.TestCase):
         self.charge = backend.float(1)
         self.acceleration_kick = backend.float(-1)
         if backend.float == np.float32:
-            self.rtol = 1e-6
+            raise TypeError("32 bit backends have been removed.")
         elif backend.float == np.float64:
             self.rtol = 1e-12
         else:
@@ -306,7 +296,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_drift_exact(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -339,7 +329,7 @@ class TestSpecials(unittest.TestCase):
     @unittest.skip
     @pytest.mark.backend_mutation
     def test_drift_legacy(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -372,7 +362,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_drift_simple(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -393,16 +383,20 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                 else:
+
+                    if backend.float == np.float32:
+                        raise TypeError("32 bit backends have been removed.")
+
                     np.testing.assert_allclose(
                         result,
                         result_python,
-                        rtol=1e-5 if dtype == np.float32 else 1e-12,
+                        rtol=1e-12,
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
     @pytest.mark.backend_mutation
     def test_kick_multi_harmonic(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for n_voltages in (1, 2, 3, 4, 5):
                 for i, special in enumerate(self.special_modes):
                     self.n_voltages = n_voltages
@@ -438,7 +432,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_kick_single_harmonic(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -460,16 +454,20 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                 else:
+
+                    if backend.float == np.float32:
+                        raise TypeError("32 bit backends have been removed.")
+
                     np.testing.assert_allclose(
                         result,
                         result_python,
-                        rtol=1e-5 if dtype == np.float32 else 1e-12,
+                        rtol=1e-12,
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -505,7 +503,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated_edges(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -953,7 +951,7 @@ class TestSpecials(unittest.TestCase):
             "charge": 82.0,
             "acceleration_kick": 0.0,
         }
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1004,7 +1002,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end(self):
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1069,7 +1067,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_potentially_race_conditions(self):
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1120,7 +1118,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_none_flagged(self):
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1149,7 +1147,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_all_but_one_flagged(self):
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1179,7 +1177,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_all_flagged(self):
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1208,7 +1206,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_loss_box(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1248,10 +1246,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_beam_phase(self) -> None:
-        for dtype in (
-            np.float32,
-            np.float64,
-        ):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1270,6 +1265,8 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                 else:
+                    if backend.float == np.float32:
+                        raise TypeError("32 bit backends have been removed.")
                     np.testing.assert_allclose(
                         result,
                         result_python,
@@ -1282,13 +1279,13 @@ class TestSpecials(unittest.TestCase):
                         # The accuracy for 32-bit test is therefore lowered
                         # to 1e-5 instead of 1e-6, hopefully without
                         # consequences.
-                        rtol=1e-5 if dtype is np.float32 else self.rtol,
+                        rtol=self.rtol,
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
     @pytest.mark.backend_mutation
     def test_histogram(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1321,7 +1318,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_histogram_sparse(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1366,7 +1363,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_histogram_sparse_left_edged(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1422,7 +1419,7 @@ class TestSpecials(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_histogram_long_profiles(self) -> None:
         """Specifically to test edge effects at beginning and end."""
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1454,7 +1451,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_histogram_short_profile(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1491,7 +1488,7 @@ class TestSpecials(unittest.TestCase):
         array_read = (
             np.random.random_sample(size=1024) - 0.5
         ) * 20  # common sample data from -10 to 10
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1669,7 +1666,7 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_sum_1d_array(self) -> None:
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             x = np.random.rand(10_000).astype(dtype)
             reference_sum = np.sum(x)
             for i, special in enumerate(self.special_modes):
@@ -1684,13 +1681,13 @@ class TestSpecials(unittest.TestCase):
                     ),
                     reference_sum,
                     # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
-                    rtol=self.rtol * 8 if dtype == np.float32 else self.rtol,
+                    rtol=self.rtol,
                     err_msg=f"{special=} {dtype=}",
                 )
 
     @pytest.mark.backend_mutation
     def test_dot_product_1d_array(self) -> None:
-        for dtype in (np.float64, np.float32):
+        for dtype in (np.float64,):
             x = np.random.rand(10_000).astype(dtype)
             y = np.random.rand(10_000).astype(dtype)
             reference_dot = np.dot(x, y)
@@ -1706,11 +1703,14 @@ class TestSpecials(unittest.TestCase):
                 )
                 backend_result = copy_to_cpu(backend_result)
 
+                if backend.float == np.float32:
+                    raise TypeError("32 bit backends have been removed.")
+
                 np.testing.assert_allclose(
                     backend_result,
                     reference_dot,
                     # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
-                    rtol=self.rtol * 8 if dtype == np.float32 else self.rtol,
+                    rtol=self.rtol,
                     err_msg=f"{special=} {dtype=}",
                 )
                 self.assertTrue(backend_result.dtype == dtype)

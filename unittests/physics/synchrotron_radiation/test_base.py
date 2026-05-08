@@ -172,7 +172,10 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             is_distributed=False,
         )
 
-        self.decimal = 6 if backend.float == np.float32 else 12
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
+        self.decimal = 12
 
         self.U0, self.tau_z, self.sigma0 = (
             gather_longitudinal_synchrotron_radiation_parameters(

@@ -10,7 +10,6 @@ from scipy.constants import speed_of_light as c0
 
 from blond import (
     ConstantMagneticCycle,
-    Cupy32Bit,
     Cupy64Bit,
     MagneticCyclePerTurn,
     Numpy64Bit,
@@ -29,7 +28,7 @@ from blond.acc_math.analytic.simple_math import (
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_energy_loss_per_turn,
 )
-from blond.core.backends.backend import Numpy32Bit, backend
+from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
@@ -764,6 +763,9 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         self.assertEqual(self.beam.reference.time, 0)  # unchanged
 
         # print(self.beam.dE.tolist())
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(  # changer/ test pinned to some value
             copy_to_cpu(self.beam.dE),
             [
@@ -778,7 +780,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                 -251122.31467230315,
                 3259845.9525205432,
             ],
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
         np.testing.assert_allclose(  # unchanged
@@ -893,10 +895,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_interp_kick_single_harmonic(self):
-        if isinstance(backend, Cupy32Bit):
-            backend.change_backend(Cupy64Bit)
-        if isinstance(backend, Numpy32Bit):
-            backend.change_backend(Numpy64Bit)
         beam = ProbeBeam(
             particle_type=lead_82,
             dt=np.linspace(0, 1, 100),
@@ -960,10 +958,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_interp_kick_multi_harmonic(self):
-        if isinstance(backend, Cupy32Bit):
-            backend.change_backend(Cupy64Bit)
-        if isinstance(backend, Numpy32Bit):
-            backend.change_backend(Numpy64Bit)
         beam = ProbeBeam(
             particle_type=lead_82,
             dt=np.linspace(0, 1, 100, dtype=backend.float),
@@ -1153,6 +1147,10 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
 
         self.assertEqual(939, self.beam.reference.total_energy)  # incremented
         self.assertEqual(self.beam.reference.time, 0)  # unchanged
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(  # test pinned to some value
             copy_to_cpu(self.beam.dE),
             [
@@ -1167,7 +1165,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
                 1055852.7198949838,
                 1950042.1738763654,
             ],
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
         np.testing.assert_allclose(  # unchanged
