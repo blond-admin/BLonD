@@ -11,7 +11,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blond"
-dynamic = ["dependencies", "optional-dependencies", "version"]
+dynamic = ["version"]
 description = "CERN code for simulating longitudinal beam dynamics in synchrotrons."
 readme = "README.md"
 license = { file = "LICENSE.txt" }
@@ -31,6 +31,55 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Scientific/Engineering :: Physics",
 ]
+dependencies = [
+  "setuptools>=60",
+  "numpy>=2",
+  "scipy>=1.15",
+  "matplotlib>=3.9",
+  "numba>=0.60",     # simple computing backend that compiles everywhere out of the box
+  "tqdm>4",          # nice loading bar
+  "mpi4py>=4",       # distributed computing
+  "mpmath>=1",       # for numba fastmath replacement
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9",
+  "pre-commit",
+  "pytest-cov>=6",
+  "mpmath>=1",          # part of the testing against blond2
+  "pytest-randomly>=4",
+  "nbconvert>=6",
+]
+doc = [
+  "sphinx>=6",
+  "sphinx-rtd-theme>=3",
+  "numpydoc>1",
+  "intersphinx_registry>0.2511",
+  "myst-parser>4",
+  "sphinx_autodoc_typehints>3",
+  "pydata_sphinx_theme>0.16",
+  "nbsphinx>=0.9",
+  "nbconvert>=6",
+  "ipython>5",
+  "notebook>=7",                 # for jupyter-notebooks in the examples
+]
+mpi = ["mpi4py>=4"]
+gpu_cuda12 = ["cupy-cuda12x"]
+gpu_cuda13 = ["cupy-cuda13x"]
+xsuite = ["xpart>=0.23.9", "xobjects>=0.5.12", "xtrack>=0.99.5"]
+legacy = [
+  "h5py>=3.11.0,<=3.15.1",
+  "matplotlib>=3.8.0,<=3.10.8",
+  "mpmath>=1.0.0,<=1.3.0",
+  "numba>=0.61,<=0.63.1",
+  "numpy>=2,<=2.2.6",
+  "scipy~=1.15",
+  "packaging==26.0",
+]
+all_no_cuda = ["blond[dev,doc,xsuite,mpi]"]
+all_cuda12 = ["blond[dev,doc,xsuite,mpi,gpu_cuda12]"]
+all_cuda13 = ["blond[dev,doc,xsuite,mpi,gpu_cuda13]"]
 
 [tool.setuptools]
 packages = { find = {} }
@@ -48,41 +97,6 @@ blond-compile-cuda = "blond.core.backends.cuda.compile:main_cli"
 
 [tool.setuptools_scm]
 write_to = 'blond/_version.py' # autogenerates version string using git
-
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
-optional-dependencies = { all_no_cuda = { file = [
-  "requirements.txt",
-  "requirements-dev.txt",
-  "requirements-doc.txt",
-  "blond/interfaces/xsuite/requirements.txt",
-  "requirements-mpi.txt",
-] }, all_cuda12 = { file = [
-  "requirements.txt",
-  "requirements-gpu-cuda12.txt",
-  "requirements-dev.txt",
-  "requirements-doc.txt",
-  "blond/interfaces/xsuite/requirements.txt",
-  "requirements-mpi.txt",
-] }, all_cuda13 = { file = [
-  "requirements.txt",
-  "requirements-gpu-cuda13.txt",
-  "requirements-dev.txt",
-  "requirements-doc.txt",
-  "blond/interfaces/xsuite/requirements.txt",
-  "requirements-mpi.txt",
-] }, gpu_cuda12 = { file = [
-  "requirements-gpu-cuda12.txt",
-] }, gpu_cuda13 = { file = [
-  "requirements-gpu-cuda13.txt",
-] }, dev = { file = [
-  "requirements-dev.txt",
-] }, mpi = { file = [
-  "requirements-mpi.txt",
-] }, legacy = { file = [
-  "legacy/requirements.txt",
-] }, doc = { file = "requirements-doc.txt" }, xsuite = { file = "blond/interfaces/xsuite/requirements.txt" } }
-
 
 [tool.ruff]
 src = ["blond"]                                                       # Source directories
