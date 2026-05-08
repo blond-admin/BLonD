@@ -32,10 +32,10 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-  "setuptools>=60",
-  "numpy>=2",
-  "scipy>=1.15",
-  "matplotlib>=3.9",
+  "setuptools>=60",  # packaging utilities
+  "numpy>=2",        # array computing
+  "scipy>=1.15",     # scientific computing algorithms
+  "matplotlib>=3.9", # plotting and visualization
   "numba>=0.60",     # simple computing backend that compiles everywhere out of the box
   "tqdm>4",          # nice loading bar
   "mpi4py>=4",       # distributed computing
@@ -44,38 +44,48 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=9",
-  "pre-commit",
-  "pytest-cov>=6",
+  "pytest>=9",          # test runner
+  "pre-commit",         # automatic checks before `git commit`
+  "pytest-cov>=6",      # test coverage reporting
   "mpmath>=1",          # part of the testing against blond2
-  "pytest-randomly>=4",
-  "nbconvert>=6",
+  "pytest-randomly>=4", # randomizes test order via `randomly-seed=...`
+  "nbconvert>=6",       # notebook execution in tests
 ]
 doc = [
-  "sphinx>=6",
-  "sphinx-rtd-theme>=3",
-  "numpydoc>1",
-  "intersphinx_registry>0.2511",
-  "myst-parser>4",
-  "sphinx_autodoc_typehints>3",
-  "pydata_sphinx_theme>0.16",
-  "nbsphinx>=0.9",
-  "nbconvert>=6",
-  "ipython>5",
+  "sphinx>=6",                   # documentation generator
+  "sphinx-rtd-theme>=3",         # Read the Docs theme
+  "numpydoc>1",                  # NumPy-style docstring parser
+  "intersphinx_registry>0.2511", # cross-project documentation links
+  "myst-parser>4",               # Markdown support for Sphinx
+  "sphinx_autodoc_typehints>3",  # type hint integration for autodoc
+  "pydata_sphinx_theme>0.16",    # PyData community theme
+  "nbsphinx>=0.9",               # Jupyter notebook integration for Sphinx
+  "nbconvert>=6",                # notebook to documentation conversion
+  "ipython>5",                   # interactive Python shell
   "notebook>=7",                 # for jupyter-notebooks in the examples
 ]
-mpi = ["mpi4py>=4"]
-gpu_cuda12 = ["cupy-cuda12x"]
-gpu_cuda13 = ["cupy-cuda13x"]
-xsuite = ["xpart>=0.23.9", "xobjects>=0.5.12", "xtrack>=0.99.5"]
+mpi = [
+  "mpi4py>=4", # MPI bindings for distributed computing
+]
+gpu_cuda12 = [
+  "cupy-cuda12x", # GPU array computing (CUDA 12)
+]
+gpu_cuda13 = [
+  "cupy-cuda13x", # GPU array computing (CUDA 13)
+]
+xsuite = [
+  "xpart>=0.23.9",    # particle objects
+  "xobjects>=0.5.12", # xsuite low-level objects
+  "xtrack>=0.99.5",   # particle tracking
+]
 legacy = [
-  "h5py>=3.11.0,<=3.15.1",
-  "matplotlib>=3.8.0,<=3.10.8",
-  "mpmath>=1.0.0,<=1.3.0",
-  "numba>=0.61,<=0.63.1",
-  "numpy>=2,<=2.2.6",
-  "scipy~=1.15",
-  "packaging==26.0",
+  "h5py>=3.11.0,<=3.15.1",      # HDF5 file format
+  "matplotlib>=3.8.0,<=3.10.8", # plotting and visualization
+  "mpmath>=1.0.0,<=1.3.0",      # arbitrary-precision arithmetic
+  "numba>=0.61,<=0.63.1",       # JIT compiler
+  "numpy>=2,<=2.2.6",           # array computing
+  "scipy~=1.15",                # scientific computing algorithms
+  "packaging==26.0",            # version parsing
 ]
 all_no_cuda = ["blond[dev,doc,xsuite,mpi]"]
 all_cuda12 = ["blond[dev,doc,xsuite,mpi,gpu_cuda12]"]
