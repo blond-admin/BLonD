@@ -73,7 +73,7 @@ def enforce_return_precision(dtype):
 
 @cache  # or set a limit like maxsize=128
 def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
-    floattype: type[np.float32 | np.float64],
+    floattype: type[np.float64],
 ):
     """
     Helper to recompile `NumbaSpecials` when the backend changed.
@@ -82,7 +82,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     ----------
     floattype
         Float type to compile the backend for.
-        `np.float32` or `np.float64` bit.
+        `np.float64` bit only.
 
     Returns
     -------
@@ -94,7 +94,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     nb_i = numba.int32
 
     if floattype == np.float32:
-        nb_f = numba.float32
+        raise TypeError("32-bit float and 64-bit complex have been removed.")
 
     elif floattype == np.float64:
         nb_f = numba.float64
@@ -336,10 +336,10 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             cache=True,
         )
         def loss_box(
-            e_max: np.float32 | np.float64,
-            e_min: np.float32 | np.float64,
-            t_min: np.float32 | np.float64,
-            t_max: np.float32 | np.float64,
+            e_max: np.float64,
+            e_min: np.float64,
+            t_min: np.float64,
+            t_max: np.float64,
             dt: NumpyArray,
             dE: NumpyArray,
             flags: NumpyArray,
