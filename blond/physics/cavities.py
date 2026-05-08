@@ -686,7 +686,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             energy_gain=reference_energy_change,
             above_transition=not self._ring.is_below_transition(beam=beam),
         )
-
+        if np.isnan(phi_s):
+            raise ValueError(f"Invalid input type {type(phi_s)=}")
         return phi_s
 
     def get_main_harmonic_t_rf(
@@ -1192,6 +1193,7 @@ class SingleHarmonicRFStation(
         harmonic: float,
         circumference: float,
         total_energy: float,
+        is_below_transition: bool,
         beam_reference_beta: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
@@ -1215,6 +1217,8 @@ class SingleHarmonicRFStation(
             Synchrotron circumference in [m].
         total_energy
             Target total energy in [eV].
+        is_below_transition
+            If below transition.
         beam_reference_beta
             Beam velocity as a fraction of the speed of light [1].
         local_wakefield
@@ -1250,12 +1254,15 @@ class SingleHarmonicRFStation(
         )
 
         ring = Mock(Ring)
+        ring.radiation_integrals = None
         ring.circumference = circumference
         ring.section_lengths = np.array(
             [
                 circumference,
             ]
         )
+
+        ring.is_below_transition.return_value = is_below_transition
 
         energy_cycle = Mock(ConstantMagneticCycle)
         energy_cycle.get_target_total_energy.return_value = total_energy
@@ -1710,6 +1717,7 @@ class MultiHarmonicRFStation(
         )
 
         ring = Mock(Ring)
+        ring.radiation_integrals = None
         ring.circumference = circumference
         ring.section_lengths = np.array(
             [
