@@ -13,7 +13,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from physics.cavities import RFStationBaseClass
 from scipy.constants import elementary_charge as e
 
 from blond.core.backends.backend import backend
@@ -22,6 +21,7 @@ from blond.core.ring.helpers import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
+from blond.physics.cavities import RFStationBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
