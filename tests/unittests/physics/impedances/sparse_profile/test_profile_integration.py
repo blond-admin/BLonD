@@ -147,7 +147,7 @@ class MyTestCase(unittest.TestCase):
 
         beam = make_multibunch_beam(
             beam=_bunch,
-            n_times=int((rf_station.harmonic // 10)),
+            n_times=int(rf_station.harmonic // 10),
             t_distance=t_rf * 10,
         )
         drift.orbit_length = 0

@@ -777,7 +777,6 @@ class TestSimulation(unittest.TestCase):
             if DEV_PLOT:
                 plt.plot(i, buffer[1] - buffer[0], "o")
                 plt.plot(i, sim.current_t_rev, "x")
-            return
 
         self.simulation.run_simulation(
             self.beam,
@@ -806,7 +805,6 @@ class TestSimulation(unittest.TestCase):
             if DEV_PLOT:
                 plt.plot(i, buffer[1] - buffer[0], "o")
                 plt.plot(i, sim.current_turn_dE_tot, "x")
-            return
 
         with self.assertRaisesRegex(
             ValueError,

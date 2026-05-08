@@ -52,7 +52,7 @@ class BeamBaseClassTester(BeamBaseClass):
         self.reference.total_energy = 20e9
         self._dE = DistributedArray(
             backend.linspace(-1e6, 1e6, 10, dtype=backend.float)
-        )  #
+        )
         # delta E
         # in eV
         self._dt = DistributedArray(
@@ -73,7 +73,7 @@ class BeamBaseClassTester(BeamBaseClass):
         flags: NumpyArray | CupyArray = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
-        mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        mpi_mode: Literal[root - distributes, all - ranks] = "all-ranks",
         **kwargs,
     ) -> None:
         """Sets beam array attributes for simulation

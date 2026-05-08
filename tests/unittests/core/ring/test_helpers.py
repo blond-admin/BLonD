@@ -271,7 +271,7 @@ class TestFunctions(unittest.TestCase):
         ]
         for i in range(10):
             random.shuffle(instances)
-            ordered_classes = get_required_order(instances, f"method.requires")
+            ordered_classes = get_required_order(instances, "method.requires")
             self.assertEqual(
                 ordered_classes, ["First", "AlsoFirst", "Second", "Third"]
             )

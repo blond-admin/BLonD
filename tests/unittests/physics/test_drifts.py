@@ -167,7 +167,7 @@ class TestDriftSimple(unittest.TestCase):
         beam.reference = Mock(ReferenceCoordinates)
         beam.common_array_size = 1
         beam.reference.time = float(0)
-        beam.reference.beta = float(0.5)
+        beam.reference.beta = 0.5
         beam.reference.velocity = float(beam.reference.beta * c0)
         beam.reference.gamma = float(np.sqrt(1 - 0.25))  # beta**2
         beam.reference.total_energy = float(938)
@@ -237,7 +237,7 @@ class TestDriftExact(unittest.TestCase):
         beam.reference = Mock(ReferenceCoordinates)
         beam.common_array_size = 1
         beam.reference.time = float(0)
-        beam.reference.beta = float(0.5)
+        beam.reference.beta = 0.5
         beam.reference.velocity = float(beam.reference.beta * c0)
         beam.reference.gamma = float(np.sqrt(1 - 0.25))
         beam.reference.total_energy = float(938)
@@ -268,7 +268,7 @@ class TestDriftExact(unittest.TestCase):
         beam.reference = Mock(ReferenceCoordinates)
         beam.common_array_size = 0
         beam.reference.time = float(0)
-        beam.reference.beta = float(0.5)
+        beam.reference.beta = 0.5
         beam.reference.velocity = float(0.5 * c0)
         beam.reference.gamma = float(np.sqrt(1 - 0.25))
         beam.reference.total_energy = float(938)

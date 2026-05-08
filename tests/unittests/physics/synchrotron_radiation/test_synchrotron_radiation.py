@@ -126,7 +126,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         with self.assertRaisesRegex(
             expected_exception=TypeError,
             expected_regex=f"Expected a list or numpy.ndarray as an input. Received"
-            f" {type('not an array')}.",
+            f" {str}.",
         ):
             SRM._radiation_integrals_internal_setter(
                 ring=ring, radiation_integrals="not an array"

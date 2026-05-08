@@ -54,13 +54,7 @@ class TestCallablesWithMPI(unittest.TestCase):
         from blond.generals.distributed.helpers import distributed_zeros
 
         da = distributed_zeros(12, dtype=np.int32)
-        if da._rank == 0:
-            np.testing.assert_array_equal(
-                da.copy_as_numpy(),
-                np.zeros(12),
-                err_msg=f"{da._rank=} {da._size=}",
-            )
-        elif da._rank == 1:
+        if da._rank == 0 or da._rank == 1:
             np.testing.assert_array_equal(
                 da.copy_as_numpy(),
                 np.zeros(12),

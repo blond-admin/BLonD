@@ -224,7 +224,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
             )
 
         assert (
-            len((self.beam_physics_relevant_elements._get_element_cache)) <= 32
+            len(self.beam_physics_relevant_elements._get_element_cache) <= 32
         )
 
     def test_get_order_info(self):
