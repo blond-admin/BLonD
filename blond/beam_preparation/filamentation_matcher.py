@@ -232,7 +232,7 @@ class FilamentationMatcher(MatchingRoutine):
 
         beam.setup_beam(dt=dt_init, dE=dE_init)
 
-        if self.animate:
+        if self.animate:  # pragma : no cover
             plt.ion()
             fig, ax = plt.subplots()
 
@@ -281,14 +281,16 @@ class FilamentationMatcher(MatchingRoutine):
                 beams=[beam], n_turns=1, show_progressbar=False
             )
 
-            if self.animate and (i % step == 0 or i == self.n_iter - 1):
+            if self.animate and (
+                i % step == 0 or i == self.n_iter - 1
+            ):  # pragma : no cover
                 scat.remove()
                 scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")
                 ax.set_title(f"Iteration {i + 1}/{self.n_iter}")
 
                 plt.pause(0.1)
 
-        if self.animate:
+        if self.animate:  # pragma : no cover
             plt.ioff()
         if self.purge:
             intensity_before = beam.intensity
