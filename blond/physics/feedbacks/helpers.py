@@ -161,9 +161,9 @@ def rf_beam_current(
     # Mix with frequency of interest; remember factor 2 demodulation
     # TODO: where do we have to apply the demodulation?
     I_f = (
-        -2.0 * charges * np.cos(omega_c * profile.hist_x)
+        2.0 * charges * np.cos(omega_c * profile.hist_x)
     )  # TODO: flipperydoo?
-    Q_f = 2.0 * charges * np.sin(omega_c * profile.hist_x)
+    Q_f = -2.0 * charges * np.sin(omega_c * profile.hist_x)
 
     # Pass through a low-pass filter
     if use_lowpass_filter is True:
