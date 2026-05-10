@@ -1148,7 +1148,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     self.rf_centers[rf_centers_idx]
                     - self.rf_centers[rf_centers_idx - 1]
                 )
-            assert delta_t > 0
+            assert delta_t >= 0
+            if delta_t == 0:
+                warnings.warn(
+                    "double taking of rf_centers value, skipping", stacklevel=1
+                )
+                continue
             self.cavity_response(
                 omega_input * delta_t,
                 coarse_grid_index_to_update=rf_centers_idx,
