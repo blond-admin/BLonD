@@ -131,7 +131,9 @@ def setup_and_run(
         raise ValueError("Unknown RCS")
     # f_det = 0
     # phi_s = np.pi / 2
-    harmonic = int(harmonic - harmonic % n_stations)
+    harmonic = int(
+        harmonic - harmonic % (n_stations * 2)
+    )  # every half drift has integer number of drifts
 
     voltage_per_cavity = 31140000.0
     energy_gain_per_turn = (ejection_energy - injection_energy) / n_turns
