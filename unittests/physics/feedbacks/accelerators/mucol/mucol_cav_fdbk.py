@@ -88,7 +88,7 @@ def setup_and_run(
     if rcs == "RCS1":
         R_over_Q = 518
         # Q_L = 1.29e6
-        phi_s = 2.5830872929516078  # 143
+        phi_s = 2.5830872929516078  # 148
         alpha_p = 10.395e-4
         bunch_intensity = 2.7e12
         circumference = 5990
@@ -97,6 +97,22 @@ def setup_and_run(
         # f_det = -1040
         harmonic = 25900
         n_turns = 18
+        F_b = 2 * (-0.8330691630689783 - 0.060605390015254904j)
+
+    elif rcs == "RCS2":
+        R_over_Q = 518
+        # Q_L = 1.29e6
+        phi_s = 2.670353755551324  # 153
+        alpha_p = 8.986e-4
+        bunch_intensity = 2.4e12
+        circumference = 5990
+        injection_energy = 313.8e9
+        ejection_energy = 750e9
+        # f_det = -1040
+        harmonic = 25900
+        n_turns = 55
+
+        F_b = 2 * (-0.8578510208833927 - 0.47979182305969775j)
 
     elif rcs == "RCS4":
         R_over_Q = 518
@@ -110,6 +126,7 @@ def setup_and_run(
         # f_det = -190
         harmonic = 151400
         n_turns = 55
+        F_b = 2
     else:
         raise ValueError("Unknown RCS")
     # f_det = 0
@@ -159,7 +176,7 @@ def setup_and_run(
     )
     omega_rf = 1 / t_rf * 2 * np.pi
 
-    F_b = 2 * (-0.8330691630689783 - 0.060605390015254904j)
+    F_b = 2
 
     delta_omega = (
         omega_rf
@@ -254,7 +271,7 @@ def setup_and_run(
                 profile=profile_list[-1],
                 R_over_Q=R_over_Q,
                 Q_L=Q_L,
-                n_rf_periods_per_coarse_grid=0.5,
+                n_rf_periods_per_coarse_grid=1,
                 generator_current=I_g,
                 n_cavities=cav_per_station,
                 initial_voltage=voltage_per_cavity,
@@ -324,28 +341,29 @@ def setup_and_run(
     #         beam,
     #     )
     #     np.savez(
-    #         "./fdbk_testing/init_distr_convol.npz",
+    #         f"./fdbk_testing/init_distr_convol_{rcs}.npz",
     #         dE=beam.dE.array_local,
     #         dt=beam.dt.array_local,
     #     )
     # else:
     load_beam_coordinates_from_file(
-        "./fdbk_testing/init_distr_convol.npz", beam
+        f"./fdbk_testing/init_distr_convol_{rcs}.npz", beam
     )
 
     bunch_observation.active = True
 
     # F_B calculation
+    # profile_list[0].track(beam=beam)
     # beam_freq = np.fft.rfftfreq(
-    #     100 * profile_list[-1].n_bins, profile_list[-1].hist_step
+    #     100 * profile_list[0].n_bins, profile_list[0].hist_step
     # )
-    # beam_spectrum = profile_list[-1].beam_spectrum(
-    #     100 * profile_list[-1].n_bins
+    # beam_spectrum = profile_list[0].beam_spectrum(
+    #     100 * profile_list[0].n_bins
     # )
     # rf_frequency_component = (
     #     interp1d(beam_freq, beam_spectrum)(omega_rf / (2 * np.pi))
     #     / beam_spectrum[0]
-    # )
+    # )  # needs to be multiplied by two for F_b
     # (-0.8330691630689783-0.060605390015254904j)
 
     sim.run_simulation(
@@ -394,7 +412,9 @@ def plot_results(bunch_obs_list, n_turns_list, ind_volt_obs_list):
     plt.show()
 
 
-def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
+def plot_ind_volt_cav_fdbk_voltage(
+    ind_volt_obs_list, cav_fdbk_obs_list, n_turns_in: int
+):
     # plt.clf()
     # fix, ax = plt.subplots()
     # plt.title("ind_volt vs fdbk_kick")
@@ -433,7 +453,7 @@ def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
     # plt.show(block=False)
 
     fig, ax = plt.subplots(2, 2, sharex=True)
-    for idx in range(5):
+    for idx in range(n_turns_in):
         clr = ax[0, 0]._get_lines.get_next_color()
         ax[0, 0].plot(
             ind_volt_obs_list[0][0].total_voltage[idx], color=clr, label="MTW"
@@ -489,13 +509,16 @@ def plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list):
 
 
 if __name__ == "__main__":
-    n_sections = 4
+    n_sections = 8
     bunch_obs_list, n_turns_list, ind_volt_obs_list, cav_fdbk_obs_list = (
         [],
         [],
         [],
         [],
     )
+
+    n_turns = 3
+
     for MTW in [
         True,
         False,
@@ -505,13 +528,17 @@ if __name__ == "__main__":
             n_turns_buf,
             ind_volt_obs_list_buf,
             cav_fdbk_obs_list_buf,
-        ) = setup_and_run("RCS4", MTW=MTW, n_stations=n_sections, n_turns_in=5)
+        ) = setup_and_run(
+            "RCS2", MTW=MTW, n_stations=n_sections, n_turns_in=n_turns
+        )
         bunch_obs_list.append(bunch_observation_buf)
         n_turns_list.append(n_turns_buf)
         ind_volt_obs_list.append(ind_volt_obs_list_buf)
         cav_fdbk_obs_list.append(cav_fdbk_obs_list_buf)
 
-    plot_ind_volt_cav_fdbk_voltage(ind_volt_obs_list, cav_fdbk_obs_list)
+    plot_ind_volt_cav_fdbk_voltage(
+        ind_volt_obs_list, cav_fdbk_obs_list, n_turns_in=n_turns
+    )
 
     plot_results(bunch_obs_list, n_turns_list, ind_volt_obs_list)
 
