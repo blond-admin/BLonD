@@ -1185,7 +1185,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 self.generator_current_coarse_grid[
                     -self.rf_centers_lengths[-1] :
                 ],
-            )(init_beam_time)
+            )(
+                init_beam_time
+            )  # TODO: this should also be before the bunch arrival time and not interpolated
 
             # TODO: fix in case of RK application
             samples_per_rf_fine_grid = omega_input * self.profile.hist_step

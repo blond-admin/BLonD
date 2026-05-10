@@ -233,7 +233,7 @@ def rf_beam_current(
                 )
             # remainder after last indcident
             # charges_coarse[ind_fine[-1]] = np.sum(charges_fine[indices[-1] :])
-        print(np.angle(charges_coarse[1], deg=True))
+        # print(np.angle(charges_coarse[1], deg=True))
         return charges_fine, charges_coarse
 
     else:
