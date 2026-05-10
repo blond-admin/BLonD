@@ -69,6 +69,7 @@ def rf_beam_current(
     downsample: dict | None = None,
     external_reference: bool = True,
     dT: float = 0,
+    phi_s: float = 0,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""
     Calculate the beam charge at the carrier frequency slice by slice.
@@ -125,6 +126,8 @@ def rf_beam_current(
         Option to include the changing external reference of the time-grid.
     dT : float
         The shift in time due to shifting reference frames.
+    phi_s : float
+        Dummy.
 
     Returns
     -------
@@ -144,7 +147,7 @@ def rf_beam_current(
     # )
 
     charges = (
-        elementary_charge
+        -elementary_charge
         * beam.particle_type.charge
         * beam.intensity
         * profile.hist_y
@@ -179,9 +182,10 @@ def rf_beam_current(
         # slippage in phase due to a non-integer harmonic number
         dphi = dT * omega_c
         # Total phase correction
-        phase = dphi
+        # dphi = 0
+        # phase = dphi
         charges_fine = charges_fine * np.exp(
-            1j * (phase + np.pi / 2)  # TODO: why?
+            1j * (dphi + np.pi / 2)  # TODO: why?
         )  # TODO: +1j or -1j?
 
     if downsample:
@@ -228,8 +232,8 @@ def rf_beam_current(
                     ]  # TODO: +1 for edges?
                 )
             # remainder after last indcident
-            charges_coarse[ind_fine[-1]] = np.sum(charges_fine[indices[-1] :])
-
+            # charges_coarse[ind_fine[-1]] = np.sum(charges_fine[indices[-1] :])
+        print(np.angle(charges_coarse[1], deg=True))
         return charges_fine, charges_coarse
 
     else:

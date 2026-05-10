@@ -866,7 +866,7 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
                             SingleHarmonicRFStation
                         )
                     )
-                    / 2
+                    # / 2
                 )
                 * self._feedback.harmonic
                 / self._feedback.n_rf_periods_per_coarse_grid

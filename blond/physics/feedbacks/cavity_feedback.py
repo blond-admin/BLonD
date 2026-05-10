@@ -1174,7 +1174,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 self.antenna_voltage_coarse_grid[
                     -self.rf_centers_lengths[-1] :
                 ],
-            )(init_beam_time)
+            )(
+                init_beam_time
+            )  # This is already interpolated between 0 and 100%
+            antenna_voltage_init = self.antenna_voltage_coarse_grid[
+                -self.rf_centers_lengths[-1] :
+            ][0]
             generator_current_init = interp1d(
                 self.rf_centers[-self.rf_centers_lengths[-1] :],
                 self.generator_current_coarse_grid[
@@ -1486,6 +1491,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             },
             external_reference=True,
             dT=remaining_delta_t_from_reverse_tracking,
+            phi_s=self._parent_rf_station.calc_phi_s_main_harmonic(beam=beam),
         )  # TODO: this is wrong --> adjust to rf_centers calculation
 
         # Convert RF beam currents to be in units of Amperes
