@@ -62,15 +62,15 @@ class TestDistributedArray(unittest.TestCase):
         assert is_cupy_array(array)
 
     def _call_test(self, func, func_name):
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
         mpi_active = mpi_is_distributed()
 
         expected = func(self.array)
         if mpi_active:
             self.distributed_array.mpi_scatter()
         actual = getattr(self.distributed_array, func_name)()
-        np.testing.assert_almost_equal(
-            actual, expected, decimal=5 if backend.float == np.float32 else 11
-        )
+        np.testing.assert_almost_equal(actual, expected, 11)
         if mpi_active:
             self.distributed_array.mpi_scatter()
 

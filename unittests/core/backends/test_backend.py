@@ -1266,15 +1266,6 @@ class TestSpecials(unittest.TestCase):
                 np.testing.assert_allclose(
                     result,
                     result_python,
-                    # There is some numerical reason, why 32-bit C++ and
-                    # Numba returns slightly different results than
-                    # Python.
-                    # The Fortran port of the C++ code works fine,
-                    # so it's not an algorithmic problem, but something
-                    # governed by the compiler.
-                    # The accuracy for 32-bit test is therefore lowered
-                    # to 1e-5 instead of 1e-6, hopefully without
-                    # consequences.
                     rtol=self.rtol,
                     err_msg=f"Failed test `{special}` with {dtype}",
                 )

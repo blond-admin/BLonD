@@ -446,7 +446,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             )
         )["induced_voltage"]
 
-        np.testing.assert_allclose(pinned_values, induced_voltage, rtol=1e-5)
+        np.testing.assert_allclose(pinned_values, induced_voltage, rtol=1e-12)
 
         # np.savez(callers_relative_path("resources/induced_voltage_periodic_freq_solver.npz", stacklevel=1), induced_voltage=induced_voltage)
         DEV_PLOT = False
