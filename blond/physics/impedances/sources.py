@@ -125,8 +125,8 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         self._cache_derivative: NumpyArray | CupyArray | None = None
         self._cache_derivative_hash: int | None = None
 
-        self._cache_wake_impedance: NumpyArray | CupyArray | None = None
-        self._cache_wake_impedance_hash: int | None = None
+        self._cache_impedance_from_wake: NumpyArray | CupyArray | None = None
+        self._cache_impedance_from_wake_hash: int | None = None
 
     def get_impedance(
         self,
@@ -207,7 +207,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
 
         return derivative
 
-    def get_wake_impedance(
+    def get_impedance_from_wake(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
@@ -236,16 +236,16 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         # Recalculate only if `time` is changed
 
         hash_ = get_hash(time)
-        if hash_ == self._cache_wake_impedance_hash:
-            return self._cache_wake_impedance
+        if hash_ == self._cache_impedance_from_wake_hash:
+            return self._cache_impedance_from_wake
         freq = backend.fft.rfftfreq(n_fft, d=time[1] - time[0])
         wake_impedance = self.get_impedance(
             freq_x=freq,
             simulation=simulation,
             beam=beam,
         ) / (time[1] - time[0])
-        self._cache_wake_impedance_hash = hash_
-        self._cache_wake_impedance = wake_impedance
+        self._cache_impedance_from_wake_hash = hash_
+        self._cache_impedance_from_wake = wake_impedance
 
         return wake_impedance
 
@@ -358,24 +358,26 @@ class Resonators(
                 "All center frequencies must be greater or equal 0"
             )
 
-        self._cache_wake_impedance: NumpyArray | CupyArray | None = None
-        self._cache_wake_impedance_hash: int | None = None
+        self._cache_impedance_from_wake: NumpyArray | CupyArray | None = None
+        self._cache_impedance_from_wake_hash: int | None = None
 
-        self._cache_wake_impedance_counter_rotation: (
+        self._cache_impedance_from_wake_counter_rotation: (
             NumpyArray | CupyArray | None
         ) = None
-        self._cache_wake_impedance_counter_rotation_hash: int | None = None
+        self._cache_impedance_from_wake_counter_rotation_hash: int | None = (
+            None
+        )
 
         self._cache_impedance: NumpyArray | CupyArray | None = None
         self._cache_impedance_hash: int | None = None
 
-    def get_wake_impedance(
+    def get_impedance_from_wake(
         self,
         time: NumpyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
-    ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
+    ) -> NumpyArray | CupyArray:  # Fixme all get_impedance_from_wake same
         """
         Get the wake function, but converted to frequency domain.
 
@@ -400,23 +402,23 @@ class Resonators(
         """
         # Recalculate only if `time` has changed
         hash_ = get_hash(time)
-        if hash_ == self._cache_wake_impedance_hash:
-            return self._cache_wake_impedance
+        if hash_ == self._cache_impedance_from_wake_hash:
+            return self._cache_impedance_from_wake
 
         wake = self.get_wake(time)
         wake_impedance = backend.fft.rfft(wake, n=n_fft)
 
-        self._cache_wake_impedance_hash = hash_
-        self._cache_wake_impedance = wake_impedance
+        self._cache_impedance_from_wake_hash = hash_
+        self._cache_impedance_from_wake = wake_impedance
         return wake_impedance
 
-    def get_wake_impedance_counter_rotation(
+    def get_impedance_from_wake_counter_rotation(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
-    ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
+    ) -> NumpyArray | CupyArray:  # Fixme all get_impedance_from_wake same
         """
         Get the wake function, but converted to frequency domain.
 
@@ -441,23 +443,23 @@ class Resonators(
         """
         # Recalculate only if `time` has changed
         hash_ = get_hash(time + 1)  # to distinguish between counterrotation
-        if hash_ == self._cache_wake_impedance_counter_rotation_hash:
-            return self._cache_wake_impedance_counter_rotation
+        if hash_ == self._cache_impedance_from_wake_counter_rotation_hash:
+            return self._cache_impedance_from_wake_counter_rotation
 
         wake_counter_rotation = self.get_wake_counter_rotation(time)
         wake_impedance_counter_rotation = backend.fft.rfft(
             wake_counter_rotation, n=n_fft
         )
 
-        self._cache_wake_impedance_counter_rotation_hash = hash_
-        self._cache_wake_impedance_counter_rotation = (
+        self._cache_impedance_from_wake_counter_rotation_hash = hash_
+        self._cache_impedance_from_wake_counter_rotation = (
             wake_impedance_counter_rotation
         )
         return wake_impedance_counter_rotation
 
-    def get_wake_impedance_freq(self, time):
+    def get_impedance_from_wake_freq(self, time):
         """
-        Get frequency array corresponding to time used in :func:`get_wake_impedance`.
+        Get frequency array corresponding to time used in :func:`get_impedance_from_wake`.
 
         Parameters
         ----------
@@ -470,7 +472,7 @@ class Resonators(
             Frequency array corresponding to the wake impedance.
         """
         return backend.fft.rfftfreq(
-            len(self._cache_wake_impedance), time[1] - time[0]
+            len(self._cache_impedance_from_wake), time[1] - time[0]
         )
 
     def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
@@ -842,8 +844,8 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         self._wake_x = backend.array(wake_x)
         self._wake_y = backend.array(wake_y)
 
-        self._cache_wake_impedance: NumpyArray | CupyArray | None = None
-        self._cache_wake_impedance_hash: int | None = None
+        self._cache_impedance_from_wake: NumpyArray | CupyArray | None = None
+        self._cache_impedance_from_wake_hash: int | None = None
 
     @staticmethod
     def from_file(
@@ -867,7 +869,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         x_array, y_array = reader.load_file(filepath=filepath)
         return ImpedanceTableTime(wake_x=x_array, wake_y=y_array)
 
-    def get_wake_impedance(
+    def get_impedance_from_wake(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
@@ -894,8 +896,8 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
             Wake impedance in frequency domain.
         """
         hash_ = get_hash(time)
-        if hash_ == self._cache_wake_impedance_hash:
-            return self._cache_wake_impedance
+        if hash_ == self._cache_impedance_from_wake_hash:
+            return self._cache_impedance_from_wake
         if time.min() < self._wake_x.min():
             warnings.warn(
                 "Interpolation of wake outside boundaries",
@@ -908,8 +910,8 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
             )
         wake = backend.interp(time, self._wake_x, self._wake_y)
         wake_impedance = backend.fft.rfft(wake, n=n_fft)
-        self._cache_wake_impedance_hash = hash_
-        self._cache_wake_impedance = wake_impedance
+        self._cache_impedance_from_wake_hash = hash_
+        self._cache_impedance_from_wake = wake_impedance
         return wake_impedance
 
 
@@ -1028,7 +1030,7 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
             )
         return wake
 
-    def get_wake_impedance(
+    def get_impedance_from_wake(
         self,
         time: NumpyArray,
         simulation: Simulation,

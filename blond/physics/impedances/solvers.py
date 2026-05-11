@@ -503,7 +503,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
             if isinstance(source, TimeDomain):
                 # get the wake functions in time
                 # but store already fft(wake) for convolution later
-                wake_imp_y_tmp = source.get_wake_impedance(
+                wake_imp_y_tmp = source.get_impedance_from_wake(
                     time=_wake_x,
                     simulation=self._simulation,
                     beam=beam,
