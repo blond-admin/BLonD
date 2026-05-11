@@ -350,7 +350,7 @@ release_sdist_310:
   before_script:
     - python3 -m pip install --upgrade pip
     - python3 -m pip install build twine
-    # Without an up-to-date setuptools, we don't get the requirements.txt
+    # Without an up-to-date setuptools, we don't get the requirements
     # inside the sdist.
     - python3 -m pip install -U setuptools
     - eval ${PRE_SDIST_BUILD}
