@@ -91,7 +91,7 @@ target-version = "py310"                                              # Minimum 
 fix = true                                                            # Enable autofix
 exclude = ["blond/legacy/*", "legacy/*", "integrationtests_blond3/*"]
 [tool.ruff.lint]
-exclude = ["blond/experimental/*", "unittests/*", "blond/examples/*"]
+exclude = ["blond/experimental/*", "tests/*", "blond/examples/*"]
 # Enable broad set of useful lint rules
 select = [
   "E", # pycodestyle errors
@@ -147,7 +147,7 @@ exclude_files = [ # don't process filepaths that match these regex
   '^integrationtests/.*',
   '^integrationtests_blond3/.*',
   '^legacy/.*',
-  '^unittests/.*',
+  '^tests/.*',
   '^blond/legacy/.*',
   '^blond/core/backends/cpp/callables.py',
   '^blond/core/backends/cuda/callables.py',
