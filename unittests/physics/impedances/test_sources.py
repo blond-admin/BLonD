@@ -112,23 +112,24 @@ class TestImpedanceTableTime(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         time = backend.linspace(0, 100)
 
-        wake_impedance = impedance_table.get_impedance_from_wake(
+        impedance_from_wake = impedance_table.get_impedance_from_wake(
             time=time, simulation=simulation, beam=beam, n_fft=len(time)
         )
-        wake_impedance2 = impedance_table.get_impedance_from_wake(
+        impedance_from_wake2 = impedance_table.get_impedance_from_wake(
             time=time, simulation=simulation, beam=beam, n_fft=len(time)
         )
-        wake_impedance3 = impedance_table.get_impedance_from_wake(
+        impedance_from_wake3 = impedance_table.get_impedance_from_wake(
             time=time * 2, simulation=simulation, beam=beam, n_fft=len(time)
         )
         # assert cache hit
         np.testing.assert_allclose(
-            copy_to_cpu(wake_impedance), copy_to_cpu(wake_impedance2)
+            copy_to_cpu(impedance_from_wake), copy_to_cpu(impedance_from_wake2)
         )
         # assert cache miss
         self.assertTrue(
             np.all(
-                copy_to_cpu(wake_impedance3) != copy_to_cpu(wake_impedance2)
+                copy_to_cpu(impedance_from_wake3)
+                != copy_to_cpu(impedance_from_wake2)
             )
         )
 
@@ -794,7 +795,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
             backend.change_backend(Numpy64Bit)
         if isinstance(backend, Cupy32Bit):
             backend.change_backend(Cupy64Bit)
-        wake_impedance = self.twc.get_impedance_from_wake(
+        impedance_from_wake = self.twc.get_impedance_from_wake(
             time=backend.linspace(1, 1e-9),
             simulation=Mock(Simulation),
             beam=Mock(BeamBaseClass),
@@ -806,26 +807,30 @@ class TestTravelingWaveCavity(unittest.TestCase):
         if SAVE_PINNED:
             np.savetxt(
                 callers_relative_path(
-                    "resources/TWC_wake_impedance_array_source.csv",
+                    "resources/TWC_impedance_from_wake_array_source.csv",
                     stacklevel=1,
                 ),
-                np.column_stack((wake_impedance.real, wake_impedance.imag)),
+                np.column_stack(
+                    (impedance_from_wake.real, impedance_from_wake.imag)
+                ),
             )
-        wake_impedance_pinned = np.loadtxt(
+        impedance_from_wake_pinned = np.loadtxt(
             callers_relative_path(
-                "resources/TWC_wake_impedance_array_source.csv", stacklevel=1
+                "resources/TWC_impedance_from_wake_array_source.csv",
+                stacklevel=1,
             )
         )
-        wake_impedance_pinned = (
-            wake_impedance_pinned[:, 0] + 1j * wake_impedance_pinned[:, 1]
+        impedance_from_wake_pinned = (
+            impedance_from_wake_pinned[:, 0]
+            + 1j * impedance_from_wake_pinned[:, 1]
         )
         np.testing.assert_allclose(
-            copy_to_cpu(wake_impedance),
-            wake_impedance_pinned,
+            copy_to_cpu(impedance_from_wake),
+            impedance_from_wake_pinned,
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
-        wake_impedance_float = self.twc_floats.get_impedance_from_wake(
+        impedance_from_wake_float = self.twc_floats.get_impedance_from_wake(
             time=backend.linspace(1, 1e-9),
             simulation=Mock(Simulation),
             beam=Mock(BeamBaseClass),
@@ -837,25 +842,29 @@ class TestTravelingWaveCavity(unittest.TestCase):
         if SAVE_PINNED:
             np.savetxt(
                 callers_relative_path(
-                    "resources/TWC_wake_impedance_float_source.csv",
+                    "resources/TWC_impedance_from_wake_float_source.csv",
                     stacklevel=1,
                 ),
                 np.column_stack(
-                    (wake_impedance_float.real, wake_impedance_float.imag)
+                    (
+                        impedance_from_wake_float.real,
+                        impedance_from_wake_float.imag,
+                    )
                 ),
             )
-        wake_impedance_pinned_float = np.loadtxt(
+        impedance_from_wake_pinned_float = np.loadtxt(
             callers_relative_path(
-                "resources/TWC_wake_impedance_float_source.csv", stacklevel=1
+                "resources/TWC_impedance_from_wake_float_source.csv",
+                stacklevel=1,
             )
         )
-        wake_impedance_pinned_float = (
-            wake_impedance_pinned_float[:, 0]
-            + 1j * wake_impedance_pinned_float[:, 1]
+        impedance_from_wake_pinned_float = (
+            impedance_from_wake_pinned_float[:, 0]
+            + 1j * impedance_from_wake_pinned_float[:, 1]
         )
         np.testing.assert_allclose(
-            copy_to_cpu(wake_impedance_float),
-            wake_impedance_pinned_float,
+            copy_to_cpu(impedance_from_wake_float),
+            impedance_from_wake_pinned_float,
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 

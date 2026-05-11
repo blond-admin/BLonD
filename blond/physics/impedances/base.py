@@ -147,7 +147,7 @@ class TimeDomain(ABC):
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Impedance array.
         """
         pass
@@ -215,7 +215,7 @@ class TimeDomainCounterRotation(ABC):
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Impedance array.
         """
         pass

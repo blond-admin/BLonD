@@ -230,7 +230,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Wake impedance.
         """
         # Recalculate only if `time` is changed
@@ -239,15 +239,15 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
         freq = backend.fft.rfftfreq(n_fft, d=time[1] - time[0])
-        wake_impedance = self.get_impedance(
+        impedance_from_wake = self.get_impedance(
             freq_x=freq,
             simulation=simulation,
             beam=beam,
         ) / (time[1] - time[0])
         self._cache_impedance_from_wake_hash = hash_
-        self._cache_impedance_from_wake = wake_impedance
+        self._cache_impedance_from_wake = impedance_from_wake
 
-        return wake_impedance
+        return impedance_from_wake
 
 
 class Resonators(
@@ -397,7 +397,7 @@ class Resonators(
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Wake impedance in frequency domain.
         """
         # Recalculate only if `time` has changed
@@ -406,11 +406,11 @@ class Resonators(
             return self._cache_impedance_from_wake
 
         wake = self.get_wake(time)
-        wake_impedance = backend.fft.rfft(wake, n=n_fft)
+        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
 
         self._cache_impedance_from_wake_hash = hash_
-        self._cache_impedance_from_wake = wake_impedance
-        return wake_impedance
+        self._cache_impedance_from_wake = impedance_from_wake
+        return impedance_from_wake
 
     def get_impedance_from_wake_counter_rotation(
         self,
@@ -438,7 +438,7 @@ class Resonators(
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Wake impedance in frequency domain for counter-rotating mode.
         """
         # Recalculate only if `time` has changed
@@ -447,15 +447,15 @@ class Resonators(
             return self._cache_impedance_from_wake_counter_rotation
 
         wake_counter_rotation = self.get_wake_counter_rotation(time)
-        wake_impedance_counter_rotation = backend.fft.rfft(
+        impedance_from_wake_counter_rotation = backend.fft.rfft(
             wake_counter_rotation, n=n_fft
         )
 
         self._cache_impedance_from_wake_counter_rotation_hash = hash_
         self._cache_impedance_from_wake_counter_rotation = (
-            wake_impedance_counter_rotation
+            impedance_from_wake_counter_rotation
         )
-        return wake_impedance_counter_rotation
+        return impedance_from_wake_counter_rotation
 
     def get_impedance_from_wake_freq(self, time):
         """
@@ -892,7 +892,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Wake impedance in frequency domain.
         """
         hash_ = get_hash(time)
@@ -909,10 +909,10 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
                 stacklevel=1,
             )
         wake = backend.interp(time, self._wake_x, self._wake_y)
-        wake_impedance = backend.fft.rfft(wake, n=n_fft)
+        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
         self._cache_impedance_from_wake_hash = hash_
-        self._cache_impedance_from_wake = wake_impedance
-        return wake_impedance
+        self._cache_impedance_from_wake = impedance_from_wake
+        return impedance_from_wake
 
 
 # TODO rework docstring
@@ -1053,12 +1053,12 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Wake impedance in frequency domain.
         """
         wake = self.wake_calc(time=time)
-        wake_impedance = backend.fft.rfft(wake, n=n_fft)
-        return wake_impedance
+        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
+        return impedance_from_wake
 
     def get_impedance(
         self,
