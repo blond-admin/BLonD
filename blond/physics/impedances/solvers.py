@@ -795,7 +795,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         if backend.float(0).dtype.itemsize * 8 < 64:  # noqa: PLR2004
             raise RuntimeError(
                 "MultiPassResonatorSolver does only run with 64 bit backends."
-            )
+            )  # pragma: no cover (only 64 bit backends now available)
 
         self._simulation = simulation
         if parent_wakefield.profile is None:
