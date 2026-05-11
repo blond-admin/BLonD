@@ -6,8 +6,6 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-# pragma: no cover
-
 """
 PSB-like ramp simulation using time-interpolated momentum programs.
 
