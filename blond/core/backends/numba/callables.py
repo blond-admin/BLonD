@@ -93,14 +93,12 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
 
     nb_i = numba.int32
 
-    if floattype == np.float32:
-        raise TypeError("32-bit float and 64-bit complex have been removed.")
-
-    elif floattype == np.float64:
-        nb_f = numba.float64
-
+    # Leave floattype as an option for legacy reasons, also keeps
+    # door open for adding options again in the future.
+    if floattype != np.float64:
+        raise TypeError(f"Only np.float64 can be used, not {floattype}.")
     else:
-        raise TypeError(floattype)
+        nb_f = numba.float64
 
     sig_dt = nb_f[:]
     sig_dE = nb_f[:]

@@ -1731,6 +1731,9 @@ class TestNumbaCompilation(unittest.TestCase):
         with self.assertRaises(TypeError):
             recompile_numba_backend(floattype=np.float16)
 
+        with self.assertRaises(TypeError):
+            recompile_numba_backend(floattype=np.float32)
+
 
 if __name__ == "__main__":
     unittest.main()
