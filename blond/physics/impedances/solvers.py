@@ -23,6 +23,7 @@ Simon Lauber
 from __future__ import annotations
 
 import warnings
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -712,6 +713,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Debugging flag to allow two beams to calculate the induced
         voltage at the same time. Should not be used in production.
         Default is False.
+    delta_f
+        Static frequency offset.
 
     Attributes
     ----------
@@ -719,7 +722,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         List of wake function values: 0th entry being from the current pass,
         subsequent entries from previous passes.
     _wake_function_time
-        time axes corresponding to _wake_function_time.
+        Time axes corresponding to _wake_function_time.
 
     _past_profiles
         List of previously passed profiles: 0th entry being from the current pass,
@@ -732,12 +735,15 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self,
         decay_fraction_threshold: float = 0.001,
         allow_delta_t_zero: bool = False,
+        delta_f: float = 0.0,
     ):
         # This import is here because of sphinx warning
         # `list assignment index out of range [autodoc]`
         from collections import deque
 
         super().__init__()
+
+        self.delta_f = delta_f
 
         self._last_reference_time: float | None = None
 
@@ -792,6 +798,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         parent_wakefield
             Wakefield that this solver affiliated to.
         """
+        self.circumference = simulation.ring.circumference
+
         if backend.float(0).dtype.itemsize * 8 < 64:  # noqa: PLR2004
             raise RuntimeError(
                 "MultiPassResonatorSolver does only run with 64 bit backends."
@@ -984,7 +992,18 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_profiles_counter_rotation_flag.appendleft(
             beam.is_counter_rotating
         )
-
+        dummy_reference = deepcopy(beam.reference)
+        self._parent_wakefield._parent_rf_station.track_reference(
+            dummy_reference, is_counter_rotating=beam.is_counter_rotating
+        )
+        self._parent_wakefield.sources[0]._center_frequencies[0] = (
+            self._parent_wakefield._parent_rf_station.calc_omega_rf_design(
+                beam_beta=dummy_reference.beta,
+                ring_circumference=self.circumference,
+            )
+            / (2 * np.pi)
+            + self.delta_f
+        )
         self._update_past_profile_wake_functions()
 
     def calc_induced_voltage(

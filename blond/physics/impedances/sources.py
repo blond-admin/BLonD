@@ -344,9 +344,9 @@ class Resonators(
                 )
 
         # secondary quantities for wake calculation
-        self._omega = 2 * np.pi * self._center_frequencies
-        self._alpha = self._omega / (2 * self._quality_factors)
-        self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
+        # self._omega =
+        # self._alpha =
+        # self._omega_bar =
 
         # Test if one or more quality factors is smaller than 0.5.
         if backend.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
@@ -368,6 +368,18 @@ class Resonators(
 
         self._cache_impedance: NumpyArray | CupyArray | None = None
         self._cache_impedance_hash: int | None = None
+
+    @property
+    def _omega(self):
+        return 2 * np.pi * self._center_frequencies
+
+    @property
+    def _alpha(self):
+        return self._omega / (2 * self._quality_factors)
+
+    @property
+    def _omega_bar(self):
+        return np.sqrt(self._omega**2 - self._alpha**2)
 
     def get_wake_impedance(
         self,

@@ -69,6 +69,7 @@ def setup_and_run(
     n_stations: int = 8,
     beam_observation=False,
     n_turns_in: int = -1,
+    force_rematch: bool = False,
 ):
     """
 
@@ -253,14 +254,16 @@ def setup_and_run(
         local_res = Resonators(
             shunt_impedances=R_over_Q * Q_L * cav_per_station,
             quality_factors=Q_L,
-            center_frequencies=1 / t_rf + f_det,
+            center_frequencies=1 / t_rf,  # + f_det,
         )
         wf = (
             WakeField(
                 sources=(local_res,),
                 # solver=SingleTurnResonatorConvolutionSolver(),
                 solver=MultiPassResonatorSolver(
-                    decay_fraction_threshold=1e-12, allow_delta_t_zero=True
+                    decay_fraction_threshold=1e-12,
+                    allow_delta_t_zero=True,
+                    delta_f=f_det,
                 ),
                 profile=profile_list[-1],
             )
@@ -300,6 +303,7 @@ def setup_and_run(
                 section_index=cavity_i,
             )
         )
+        # shc_list[-1].delta_omega_rf = delta_omega
         ind_volt_obs_list.append(
             InducedVoltageObservationCR(
                 each_turn_i=1,
@@ -335,22 +339,22 @@ def setup_and_run(
 
     sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
-    # if MTW:
-    #     match_beam(
-    #         sim,
-    #         t_rf,
-    #         beam,
-    #     )
-    #     np.savez(
-    #         f"./fdbk_testing/init_distr_convol_{rcs}_n_stations_{n_stations}.npz",
-    #         dE=beam.dE.array_local,
-    #         dt=beam.dt.array_local,
-    #     )
-    # else:
-    load_beam_coordinates_from_file(
-        f"./fdbk_testing/init_distr_convol_{rcs}_n_stations_{n_stations}.npz",
-        beam,
-    )
+    if MTW and force_rematch:
+        match_beam(
+            sim,
+            t_rf,
+            beam,
+        )
+        np.savez(
+            f"./fdbk_testing/init_distr_convol_{rcs}_n_stations_{n_stations}.npz",
+            dE=beam.dE.array_local,
+            dt=beam.dt.array_local,
+        )
+    else:
+        load_beam_coordinates_from_file(
+            f"./fdbk_testing/init_distr_convol_{rcs}_n_stations_{n_stations}.npz",
+            beam,
+        )
 
     bunch_observation.active = True
 
@@ -576,7 +580,7 @@ def plot_ind_volt_cav_fdbk_voltage(
 
 
 if __name__ == "__main__":
-    n_sections = 8
+    n_sections = 32
     bunch_obs_list, n_turns_list, ind_volt_obs_list, cav_fdbk_obs_list = (
         [],
         [],
@@ -584,7 +588,7 @@ if __name__ == "__main__":
         [],
     )
 
-    n_turns = 55
+    n_turns = 5
     for MTW in [
         True,
         False,
@@ -595,7 +599,11 @@ if __name__ == "__main__":
             ind_volt_obs_list_buf,
             cav_fdbk_obs_list_buf,
         ) = setup_and_run(
-            "RCS2", MTW=MTW, n_stations=n_sections, n_turns_in=n_turns
+            "RCS1",
+            MTW=MTW,
+            n_stations=n_sections,
+            n_turns_in=n_turns,
+            force_rematch=True,
         )
         bunch_obs_list.append(bunch_observation_buf)
         n_turns_list.append(n_turns_buf)

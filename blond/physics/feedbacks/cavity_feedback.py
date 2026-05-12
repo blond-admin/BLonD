@@ -755,12 +755,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self.forward_tracking_time = dummy_reference.time - start_time
         self.forward_tracking_omega_rf = (
-            (
-                self._parent_rf_station.calc_omega_rf_design(
-                    dummy_reference.beta, self.ring.circumference
-                )
+            self._parent_rf_station.calc_omega_rf_design(
+                dummy_reference.beta, self.ring.circumference
             )
-            + self._parent_rf_station.delta_omega_rf
+            # + self._parent_rf_station.delta_omega_rf
         )  # TODO: problematic with multi-section if the delta is changed in between sections
         self.tracked_forward_until_element = (
             forward_list[
@@ -1021,7 +1019,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             2.0
             * np.pi
             * self.harmonic
-            * self.delta_omega_rf
+            # * self.delta_omega_rf
             / self._parent_rf_station.calc_omega_rf_design(
                 beam_beta=self.reference_state_until_tracked.beta,
                 ring_circumference=self.ring.circumference,
