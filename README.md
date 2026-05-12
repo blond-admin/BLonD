@@ -59,7 +59,9 @@ See full documentation [here](https://blond-code.docs.cern.ch/).
 
 
 ## Usage
+A collection of examples can be found in the folder [blond/examples](blond/examples).
 
+Below, a basic example for a beam in LHC at flat-bottom is given.
 ```python
 import matplotlib.pyplot as plt
 
@@ -73,6 +75,7 @@ from blond import (
     Beam,
     BiGaussian,
     backend,
+    momentum_compaction_factor,
 )
 
 backend.set_specials("cpp")  # set any backend you want

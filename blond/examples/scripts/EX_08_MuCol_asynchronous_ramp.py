@@ -113,7 +113,7 @@ def main():
             until_section_index=1,
         ),
     )
-    if not pytest_active():
+    if not pytest_active():  # pragma: no cover
         plt.show()
 
     def my_callback(
