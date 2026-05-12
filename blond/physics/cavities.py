@@ -37,12 +37,6 @@ from blond.core.base import (
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
-from blond.experimental.physics.feedbacks.base import (
-    LocalFeedback as LocalFeedbackExp,
-)
-from blond.experimental.physics.feedbacks.beam_feedback import (
-    BeamFeedbackBase,
-)
 from blond.experimental.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
@@ -1334,7 +1328,7 @@ class SingleHarmonicRFStation(
         V = (
             float(self.voltage)
             if (self.voltage is not None) and replace_symbols
-            else sympy.Symbol("V", positive=True)
+            else sympy.Symbol("V")
         )
         omega = (
             float(self.omega_rf_design)
@@ -1860,7 +1854,7 @@ class MultiHarmonicRFStation(
             V_j = (
                 float(self.voltage[rf_idx])
                 if (self.voltage is not None) and replace_symbols
-                else sympy.Symbol(f"V_{rf_idx}", positive=True)
+                else sympy.Symbol(f"V_{rf_idx}")
             )
             omega_j = (
                 float(self.omega_rf_design[rf_idx])
