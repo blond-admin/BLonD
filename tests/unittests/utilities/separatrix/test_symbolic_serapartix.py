@@ -168,19 +168,23 @@ class TestSymbolicSeparatrixInternals:
 
     def test_interior_extrema_negative_a_finds_local_minima(self):
         values = np.array([1.0, 0.0, 1.0])
-        idx = SymbolicSeparatrixHelper._interior_extrema(values, a=-1.0)
+        idx = SymbolicSeparatrixHelper._interior_extrema(
+            values, kinetic_coeff=-1.0
+        )
         np.testing.assert_array_equal(idx, np.array([1]))
 
     def test_interior_extrema_negative_a_ignores_local_maxima(self):
         values = np.array([0.0, 1.0, 0.0])
-        idx = SymbolicSeparatrixHelper._interior_extrema(values, a=-1.0)
+        idx = SymbolicSeparatrixHelper._interior_extrema(
+            values, kinetic_coeff=-1.0
+        )
         assert idx.size == 0
 
     def test_find_canonical_bucket_no_extremum_returns_none(self):
         helper = self._helper()
         bucket = helper._find_canonical_bucket(
             period_start=0.0,
-            a=1.0,
+            kinetic_coeff=1.0,
             potential=lambda dt: np.asarray(dt, dtype=float),
         )
         assert bucket is None
@@ -192,7 +196,7 @@ class TestSymbolicSeparatrixInternals:
             return np.sin(2 * np.pi * dt) - 0.1 * dt
 
         bucket = helper._find_canonical_bucket(
-            period_start=0.0, a=-1.0, potential=potential
+            period_start=0.0, kinetic_coeff=-1.0, potential=potential
         )
         assert bucket is not None
         assert 0.7 < bucket.ufp_dt < 0.8
@@ -203,7 +207,7 @@ class TestSymbolicSeparatrixInternals:
         helper = self._helper()
         dt = np.linspace(0.0, 1.0, 11)
         H_sep = helper._H_sep_per_dt(
-            dt, a=0.0, potential=lambda x: np.cos(2 * np.pi * x)
+            dt, kinetic_coeff=0.0, potential=lambda x: np.cos(2 * np.pi * x)
         )
         assert H_sep.shape == dt.shape
         assert np.all(np.isnan(H_sep))
@@ -213,7 +217,7 @@ class TestSymbolicSeparatrixInternals:
         dt = np.linspace(0.0, 1.0, 11)
         H_sep = helper._H_sep_per_dt(
             dt,
-            a=1.0,
+            kinetic_coeff=1.0,
             potential=lambda x: np.asarray(x, dtype=float),
         )
         assert np.all(np.isnan(H_sep))
@@ -225,10 +229,14 @@ class TestSymbolicSeparatrixInternals:
             return np.sin(2 * np.pi * dt) - 0.1 * dt
 
         dt = np.array([0.6, 0.9, 1.2])
-        H_sep = helper._H_sep_per_dt(dt, a=-1.0, potential=potential)
+        H_sep = helper._H_sep_per_dt(
+            dt, kinetic_coeff=-1.0, potential=potential
+        )
 
         bucket = helper._find_canonical_bucket(
-            period_start=float(np.min(dt)), a=-1.0, potential=potential
+            period_start=float(np.min(dt)),
+            kinetic_coeff=-1.0,
+            potential=potential,
         )
         assert bucket is not None
         bucket_index = helper._bucket_index(dt, bucket)
