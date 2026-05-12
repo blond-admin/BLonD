@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import warnings
+from copy import deepcopy
 from math import sqrt
 from typing import TYPE_CHECKING
 
@@ -96,6 +97,39 @@ class DistributedArray:
             The NumPy array produced by ``__getstate__``.
         """
         self.__init__(backend.array(array))
+
+    def __deepcopy__(self, memo: dict) -> DistributedArray:
+        """
+        Deep-copy without going through pickle.
+
+        Pickling is restricted to single-rank arrays so the on-disk stream
+        captures the whole logical array. ``deepcopy`` is a purely-local
+        operation that must keep working when ``mpirun -n > 1``
+        (e.g. ``Simulation.get_potential_well_empiric`` deep-copies the beam
+        and simulation to run a probe turn without side effects), so it
+        bypasses ``__getstate__`` and copies the local chunk directly.
+
+        Parameters
+        ----------
+        memo
+            Memo dictionary passed by ``copy.deepcopy`` to track already-copied
+            objects.
+
+        Returns
+        -------
+        new
+            A new ``DistributedArray`` with an independent copy of the local
+            chunk; the MPI communicator reference is shared.
+        """
+        new = DistributedArray.__new__(DistributedArray)
+        memo[id(self)] = new
+        new.array_local = deepcopy(self.array_local, memo)
+        new._comm = self._comm
+        new._rank = self._rank
+        new._size = self._size
+        new._is_distributed = self._is_distributed
+        new._histogram_local_cache = {}
+        return new
 
     def copy_as_numpy(self) -> NumpyArray:
         """

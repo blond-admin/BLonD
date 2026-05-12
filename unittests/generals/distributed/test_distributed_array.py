@@ -233,6 +233,31 @@ class TestDistributedArrayPickle(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 pickle.dumps(original)
 
+    def test_deepcopy_works_for_distributed_array(self):
+        # ``deepcopy`` must keep working under MPI (used by
+        # ``Simulation.get_potential_well_empiric`` to run a probe turn
+        # without side effects), even though ``pickle`` rejects distributed
+        # arrays.
+        from copy import deepcopy
+        from unittest.mock import patch
+
+        rng = np.random.default_rng(0)
+        array = rng.normal(loc=0, scale=1.0, size=64).astype(backend.float)
+        original = DistributedArray(backend.array(array.copy()))
+        with patch.object(original, "_is_distributed", True):
+            clone = deepcopy(original)
+
+        self.assertIsNot(clone, original)
+        self.assertIsNot(clone.array_local, original.array_local)
+        self.assertTrue(
+            np.array_equal(
+                copy_to_cpu(clone.array_local),
+                copy_to_cpu(original.array_local),
+            )
+        )
+        self.assertTrue(clone._is_distributed)
+        self.assertIs(clone._comm, original._comm)
+
 
 if __name__ == "__main__":
     unittest.main()
