@@ -1,3 +1,4 @@
+import time
 import unittest
 
 import numpy as np
@@ -19,6 +20,7 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.generals.formatting_ import si_format
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
     InductiveImpedanceSolver,
@@ -37,7 +39,14 @@ from blond.testing.helpers import pinned_values_helper
 DEV_DRAW = False
 
 
-def plot_diff_if_failed(actual, expected):
+def plot_diff_if_failed(actual, expected, save: str | None = None):
+    if save is not None:
+        np.savetxt(
+            save,
+            expected,
+            delimiter=",",
+        )
+        return
     try:
         rtol = 1e-4
         np.testing.assert_allclose(
@@ -85,9 +94,9 @@ class TestWakeFields(unittest.TestCase):
             transition_gamma=55.759505
         )
         profile = StaticProfile(
-            cut_left=2 * beam1.dt_min, cut_right=2 * beam1.dt_max, n_bins=1024
+            cut_left=2 * beam1.dt_min, cut_right=2 * beam1.dt_max, n_bins=128
         )
-        print(f"{profile.cutoff_frequency}=")
+        print(f"{si_format(profile.cutoff_frequency)=}")
 
         wake_field = WakeField(
             sources=(source,), solver=solver, profile=profile
@@ -113,12 +122,13 @@ class TestWakeFields(unittest.TestCase):
             # ContinuousMultiTurnTimeDomainSolver(n_turns=2),
             # not applicable with `short profile`
         )
+        filepath = callers_relative_path(
+            "resources/test_impedance_integration_single_profile"
+            "/test_source_InductiveImpedance.csv",
+            stacklevel=1,
+        )
         induced_voltage_pinned = np.loadtxt(
-            callers_relative_path(
-                "resources/test_impedance_integration_single_profile"
-                "/test_source_InductiveImpedance.csv",
-                stacklevel=1,
-            ),
+            filepath,
             delimiter=",",
         )
 
@@ -135,14 +145,13 @@ class TestWakeFields(unittest.TestCase):
             plot_diff_if_failed(
                 self.wake_field.induced_voltage,
                 induced_voltage_pinned,
+                # save=filepath, # use to overwrite pinned values
             )
         if DEV_DRAW:
             plt.legend()
             plt.show()
 
-    @pytest.mark.backend_mutation
     def test_source_TravelingWaveCavity(self):
-        backend.change_backend(Numpy64Bit)
         makers = ["s", "o", "1", "2", "3", "."]
         solvers = (
             PeriodicFreqSolver(),
@@ -152,12 +161,13 @@ class TestWakeFields(unittest.TestCase):
             # ContinuousMultiTurnTimeDomainSolver(n_turns=2),
             # not applicable with `short profile`
         )
+        filepath = callers_relative_path(
+            "resources/test_impedance_integration_single_profile"
+            "/test_source_TravelingWaveCavity.csv",
+            stacklevel=1,
+        )
         induced_voltage_pinned = np.loadtxt(
-            callers_relative_path(
-                "resources/test_impedance_integration_single_profile"
-                "/test_source_TravelingWaveCavity.csv",
-                stacklevel=1,
-            ),
+            filepath,
             delimiter=",",
         )
         for i, solver in enumerate(solvers):
@@ -181,14 +191,13 @@ class TestWakeFields(unittest.TestCase):
             plot_diff_if_failed(
                 self.wake_field.induced_voltage,
                 induced_voltage_pinned,
+                # save=filepath, # use to overwrite pinned values
             )
         if DEV_DRAW:
             plt.legend()
             plt.show()
 
-    @pytest.mark.backend_mutation
     def test_source_Resonators(self):
-        backend.change_backend(Numpy64Bit)
         makers = ["s", "o", "1", "2", "3", "."]
         solvers = (
             # InductiveImpedanceSolver(),
@@ -200,12 +209,13 @@ class TestWakeFields(unittest.TestCase):
             # ContinuousMultiTurnTimeDomainSolver(n_turns=2),
             # not applicable with `short profile`
         )
+        filepath = callers_relative_path(
+            "resources/test_impedance_integration_single_profile"
+            "/test_source_Resonators.csv",
+            stacklevel=1,
+        )
         induced_voltage_pinned = np.loadtxt(
-            callers_relative_path(
-                "resources/test_impedance_integration_single_profile"
-                "/test_source_Resonators.csv",
-                stacklevel=1,
-            ),
+            filepath,
             delimiter=",",
         )
         for i, solver in enumerate(solvers):
@@ -232,7 +242,12 @@ class TestWakeFields(unittest.TestCase):
             plot_diff_if_failed(
                 self.wake_field.induced_voltage,
                 induced_voltage_pinned,
+                # save=filepath, # use to overwrite pinned values
             )
         if DEV_DRAW:
             plt.legend()
             plt.show()
+
+
+if __name__ == "__main__":
+    unittest.main()
