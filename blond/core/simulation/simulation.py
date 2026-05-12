@@ -164,7 +164,7 @@ class Simulation(Preparable):
         self._particle_performance_waning_threshold = int(1e3)
         self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
-        self._exec_alters_reference()
+        self._exec_track_reference()
 
     def profiling(
         self,
@@ -744,7 +744,7 @@ class Simulation(Preparable):
             n_turns=n_turns,
         )
 
-    def _exec_alters_reference(self):
+    def _exec_track_reference(self):
         reference = ReferenceCoordinates(
             time=0.0,
             total_energy=self.magnetic_cycle.get_total_energy_init(
