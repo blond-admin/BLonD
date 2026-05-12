@@ -103,7 +103,7 @@ class TestResonatorImpedances(unittest.TestCase):
                 magnetic_cycle=magnetic_cycle,
             )
             wake_ = np.fft.irfft(
-                resonators.get_wake_impedance(
+                resonators.get_impedance_from_wake(
                     profile.hist_x,
                     simulation=sim,
                     beam=beam,
