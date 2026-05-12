@@ -1275,11 +1275,15 @@ class SingleHarmonicRFStation(
         beam.reference = Mock(ReferenceCoordinates)
         beam.reference.beta = beam_reference_beta
         single_harmonic_rf_station.on_init_simulation(simulation=simulation)
+        single_harmonic_rf_station._update_reference_based_attributes(
+            beam.reference
+        )
         single_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
             n_turns=1,
             beam=beam,
         )
+
         return single_harmonic_rf_station
 
 
