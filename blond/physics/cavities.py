@@ -723,7 +723,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         Parameters
         ----------
         reference
-            Beam to update the attributes from.
+            Reference to update the attributes from.
         """
         assert self._ring is not None, (
             "Not available before instancing ``Simulation(...)``"
