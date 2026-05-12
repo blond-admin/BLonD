@@ -50,6 +50,8 @@ class BeamFeedback:
         configuration: dict[str, str | float],  # todo improve type hint
         PhaseNoise: None = None,  # todo class doesnt exist anymore??
         LHCNoiseFB: Optional[LHCNoiseFB] = None,
+        cavity_feedback=None,
+        current_thres=None,
         delay: int = 0,
     ):
         #: | *Import Ring*
@@ -150,6 +152,30 @@ class BeamFeedback:
             else:
                 self.gain2 = self.config["FL_gain"]
 
+        ##  SPS Beam feedback for proton beams (excluded fix target).
+        # It includes phase loop, synchro loop and frequency loop
+        elif self.machine == "SPS_PL_SL_FL":
+            self.K_phi_n = self.config["K_phi_n"]
+            self.K_phi_nm1 = self.config["K_phi_nm1"]
+            self.K_eps_n = self.config["K_eps_n"]
+            self.K_Z_n = self.config["K_Z_n"]
+            self.K_a_n = self.config["K_a_n"]
+            self.K_b_n = self.config["K_b_n"]
+            self.phi_sync = self.config["phi_sync"]
+
+            self.delay_turns = self.config.get(
+                "delay_turns", 2
+            )  ### Delay in turns for the correction.
+            buf_len = self.delay_turns
+
+            self.domega_rf_corr = [0.0] * buf_len
+
+            self.dphi_prev = 0
+            self.epsilon_prev = 0
+            self.Zeta = 0
+            self.Alpha = 0
+            self.Alpha_prev = 0
+
         # PSB CONFIGURATION
         elif self.machine == "PSB":
             self.gain = self.gain * np.ones(ring.n_turns + 1)
@@ -233,6 +259,16 @@ class BeamFeedback:
 
         #: | *Optional import of amplitude-scaling feedback object LHCNoiseFB*
         self.noiseFB = LHCNoiseFB
+
+        #: | *Optional import of a CavityFeedback model for cavity sum reference including beam loading*
+        self.cavity_feedback = cavity_feedback
+
+        #: | *Optional import of an array showing the filled slots in the machine*
+        self.current_thres = current_thres
+        if self.current_thres is None and self.cavity_feedback is not None:
+            raise RuntimeError(
+                "The filled slots in the machine is needed to compute the cavity sum phase"
+            )
 
     def track(self):
         """
@@ -358,6 +394,27 @@ class BeamFeedback:
         # Correct for design stable phase
         counter = self.rf_station.counter[0]
         self.dphi = self.phi_beam - self.rf_station.phi_s[counter]
+
+        # Phase offset due to beam loading
+        if self.cavity_feedback is not None:
+            current_thres = self.current_thres * np.max(
+                np.abs(
+                    self.cavity_feedback.I_BEAM_COARSE[
+                        -self.cavity_feedback.n_coarse :
+                    ]
+                )
+            )
+            # voltage difference
+            self.dphi = self.dphi + np.mean(
+                self.cavity_feedback.gap_voltage_phase[
+                    np.abs(
+                        self.cavity_feedback.I_BEAM_COARSE[
+                            -self.cavity_feedback.n_coarse :
+                        ]
+                    )
+                    > current_thres
+                ]
+            )
 
         # Possibility to add RF phase noise through the PL
         if self.RFnoise is not None:
@@ -513,6 +570,47 @@ class BeamFeedback:
         )
 
         self.domega_rf = self.domega_dphi + self.domega_dR
+
+    def SPS_PL_SL_FL(self):
+        counter = self.rf_station.counter[0]
+
+        self.beam_phase()
+        self.phase_difference()
+
+        # Phase loop
+        self.domega_dphi = (
+            -self.K_phi_n[counter] * self.dphi
+            - self.K_phi_nm1[counter] * self.dphi_prev
+        )
+
+        # Synchro Loop
+        self.epsilon = (
+            self.rf_station.phi_rf[0, counter] - self.phi_sync[counter]
+        )
+        self.Zeta += self.epsilon_prev
+        self.domega_sync = (
+            -self.K_eps_n[counter] * self.epsilon
+            - self.K_Z_n[counter] * self.Zeta
+        )
+
+        # Frequency Loop
+        self.domega_freq = (
+            -self.K_a_n[counter] * self.Alpha
+            - self.K_b_n[counter] * self.Alpha_prev
+        )
+
+        # Total frequency correction
+        self.domega_rf_corr = [
+            self.domega_dphi + self.domega_sync + self.domega_freq
+        ] + self.domega_rf_corr[:-1]
+
+        self.domega_rf = self.domega_rf_corr[-1]
+
+        # Update some parameters for the next turn
+        self.Alpha_prev = self.Alpha
+        self.Alpha = self.domega_rf * self.rf_station.t_rev[counter]
+        self.epsilon_prev = self.epsilon
+        self.dphi_prev = self.dphi
 
     def LHC(self):
         """

@@ -35,7 +35,6 @@ from blond.legacy.blond2.input_parameters.ring import Ring
 from blond.legacy.blond2.llrf.rf_modulation import PhaseModulation as PMod
 from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
 from blond.legacy.blond2.utils import bmath
-
 try:
     import cupy
 

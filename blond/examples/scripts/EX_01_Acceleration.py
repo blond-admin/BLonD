@@ -42,9 +42,8 @@ def main():
 
     N_TURNS = int(1e3)
 
-    energy_cycle = MagneticCyclePerTurn(
-        value_init=450e9,
-        values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+    energy_cycle = MagneticCyclePerTurn.init_from_linspace(
+        values=np.linspace(450e9, 450e9, N_TURNS + 1),
         reference_particle=proton,
     )
 
@@ -59,7 +58,11 @@ def main():
         particle_type=proton,
     )
 
-    sim = Simulation.from_locals(locals())
+    ring.add_elements((drift1, rf_station))
+    sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
+    # or alternatively to automatically discover the variables
+    # sim = Simulation.from_locals(locals())
+
     sim.print_one_turn_execution_order()
     BIGAUS = True
     if BIGAUS:
@@ -121,7 +124,7 @@ def main():
             beams=(beam1,),
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
-            # callback=custom_action,
+            # callbacks=custom_action,
         )
     ANIMATE = False
     if ANIMATE:  # pragma: no cover

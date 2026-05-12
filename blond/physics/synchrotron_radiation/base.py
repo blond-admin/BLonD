@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.random import Generator
-from numpy.typing import NDArray as NumpyArray
 
 from blond import backend
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
@@ -93,7 +92,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
                 size=len(beam_delta_energy_array)
             )
         )
-    return energy_kick
+    return backend.cast_arr_float_if_needed(energy_kick)
 
 
 class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):

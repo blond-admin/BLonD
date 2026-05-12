@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.exceptions_ import ArrayPrecisionError
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -121,6 +122,32 @@ class DistributedArray:
 
         # Each rank receives one chunk
         self.array_local = self._comm.scatter(chunks, root=0)
+
+    def mpi_gather(self) -> NumpyArray | CupyArray | None:
+        """
+        Gather the distributed data and return it as a single array.
+
+        Gather a 1D NumPy array.
+        Rank 0 owns the global array after scatter.
+        Before scatter, each rank owns its local chunk.
+
+        Returns
+        -------
+        array | None
+            The gathered global array from all processes if ``rank==0``
+            else None.
+        """
+        if self._is_distributed:
+            gathered = self._comm.gather(self.array_local, root=0)
+
+            if self._rank != 0:
+                return None
+
+            array_global = backend.hstack(gathered)
+        else:
+            array_global = self.array_local.copy()
+
+        return array_global
 
     @property
     def local_size(self) -> int:
@@ -311,3 +338,128 @@ class DistributedArray:
             return array_write_local
         else:
             return array_write_local
+
+    def histogram_sparse(
+        self,
+        out: NumpyArray,
+        first_left_cut: float,
+        left_cut_distance: float,
+        cut_width: float,
+        bins_per_profile: int,
+        n_active_profiles: int,
+        filling_pattern: NumpyArray,
+        bucket_index_to_memory_index: NumpyArray,
+    ):
+        """
+        Compute the global histogram across all processes.
+
+        Parameters
+        ----------
+        out
+            Output histogram ``(n_filled_buckets * bins_per_profile)``.
+        first_left_cut
+            Start of the first histogram.
+        left_cut_distance
+            Distance between the start of each histogram.
+        cut_width
+            Distance between left and right edge of the histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        n_active_profiles
+            Number of non-empty buckets.
+        filling_pattern
+            Filling pattern as a boolean array
+            where ``True`` means filled bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index.
+            For a ``filling_pattern = [1, 0, 0, 1]``
+            ``bucket_index_to_memory_index = [0, 0, 0, 8]`` with
+            ``bins_per_profile = 8``.
+            Use `_gen_array_bucket_index_to_memory_index` to generate this.
+
+        Returns
+        -------
+        array
+            The histogram counts across all distributed array chunks.
+        """
+        # Compute or retrieve local histogram
+        assert out.dtype == backend.float
+        array_write_local = out
+
+        backend.specials.histogram_sparse(
+            x=self.array_local,
+            out=array_write_local,
+            first_left_cut=first_left_cut,
+            left_cut_distance=left_cut_distance,
+            cut_width=cut_width,
+            bins_per_profile=bins_per_profile,
+            n_active_profiles=n_active_profiles,
+            filling_pattern=filling_pattern,
+            bucket_index_to_memory_index=bucket_index_to_memory_index,
+        )
+
+        # Combine histograms from all processes
+        if self._is_distributed:
+            self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
+
+            return array_write_local
+        else:
+            return array_write_local
+
+
+def concatenate(
+    array_1: DistributedArray, array_2: DistributedArray
+) -> DistributedArray:
+    """
+    Concatenate two distributed arrays, return the result.
+
+    Parameters
+    ----------
+    array_1
+        The first array.
+    array_2
+        The second array, will be concatenated to the end of the first.
+
+    Returns
+    -------
+    concatenated array
+        The concatenated array.
+
+    Raises
+    ------
+    RuntimeError
+        Raised if the `is_distributed` flags of the two arrays do not
+        match.
+    ArrayPrecisionError
+        Raised if the `dtype`s of the local arrays do not match.
+    TypeError
+        Raised if the `type`s of the local arrays do not match.
+    """
+    # Check both distributed, mismatch probably not possible
+    if array_1.is_distributed != array_2.is_distributed:  # pragma: no cover
+        raise RuntimeError(
+            "Distributed arrays can only be joined if both"
+            "or neither are distributed:\n"
+            f"First distributed: {array_1.is_distributed}\n"
+            f"Second distributed: {array_2.is_distributed}"
+        )
+
+    # Check same dtypes
+    if array_1.array_local.dtype != array_2.array_local.dtype:
+        raise ArrayPrecisionError(
+            "Cannot concatenate arrays of different dtype:\n"
+            f"First dtype: {array_1.array_local.dtype}\n"
+            f"Second dtype: {array_2.array_local.dtype}"
+        )
+
+    # Check same array type
+    if type(array_1.array_local) is not type(array_2.array_local):
+        raise TypeError(
+            "Cannot concatenate arrays of different types:\n"
+            f"First type: {type(array_1.array_local)}\n"
+            f"Second type: {type(array_2.array_local)}"
+        )
+
+    return DistributedArray(
+        backend.concatenate((array_1.array_local, array_2.array_local))
+    )

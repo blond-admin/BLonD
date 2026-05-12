@@ -109,7 +109,7 @@ Ensure the following tools are installed:
 
 ```bash
 git clone https://gitlab.cern.ch/blond/BLonD/
-cd blond
+cd BLonD
 git checkout blonder  # Current development branch for BLonD3
 ```
 
@@ -125,13 +125,19 @@ source .venv/bin/activate
 For CPU-only development:
 
 ```bash
-pip install --editable .[dev]
+pip install --editable ".[dev]"
 ```
 
-For GPU-enabled development:
+For GPU-enabled development both CUDA12 and CUDA 13 are available:
 
+For CUDA12:
 ```bash
-pip install --editable .[dev, gpu]
+pip install --editable ".[dev, gpu_cuda12]"
+```
+
+For CUDA13:
+```bash
+pip install --editable ".[dev, gpu_cuda12]"
 ```
 
 ### 4. Set Up Pre-Commit Hooks
@@ -174,8 +180,11 @@ backend.set_specials(mode="cpp")  # Activate the C++ backend
 ## Running Tests
 > Automatically done in GitLab CI Pipeline
 ```bash
-python3 -m pytest -v unittests/
+python3 -m pytest -v tests/unittests/ --randomly-seed=$CI_PIPELINE_ID
 ```
+
+The random seed is displayed online in the output terminal of the CI pipeline.
+Replace '$CI_PIPELINE_ID' by the actual pipeline number when executing tests on a local machine.
 
 BLonD provides for marked tests with [PyTest](https://docs.pytest.org/en/stable/how-to/mark.html) via `@pytest.mark.xxx`.
 Following markers are used
@@ -187,13 +196,13 @@ Those tests can be excluded for running the tests with the `pytest -m` flag.
 ```bash
 export BLOND_BACKEND_MODE=cuda
 export BLOND_BACKEND_BITS=32
-python3 -m pytest -m "not backend_mutation"  -v unittests/
+python3 -m pytest -m "not backend_mutation"  -v tests/unittests/
 ```
 
 The tests with distributed computing (MPI) can be executed via
 ```bash
 export MPLBACKEND=Agg  # Prevent matplotlib deadlock
-mpirun -n 2 python3 -m pytest -v unittests/ -m "mpi"
+mpirun -n 2 python3 -m pytest -v tests/unittests/ -m "mpi"
 ```
 
 ---
@@ -245,7 +254,7 @@ Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 
 2. Implement your feature **along with unit tests**.
 
-   * Follow the same folder structure in `/unittests` as in `blond/`.
+   * Follow the same folder structure in `tests/unittests` as in `blond/`.
 
 3. Run tests to ensure nothing is broken.
 
