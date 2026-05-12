@@ -344,6 +344,9 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
 
 class TestCallables:
     def test_get_hamiltonian_semi_analytic(self):
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         # Define simple test inputs
         ts = np.linspace(0, 1, 100)  # Time or spatial grid
         eta = 0.1  # Some parameter (perhaps perturbation strength or scaling factor)
@@ -385,7 +388,7 @@ class TestCallables:
         np.testing.assert_allclose(
             hamilton_2D_expected,
             hamilton_2D,
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
 

@@ -32,9 +32,9 @@ class TestResonatorImpedances(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
 
     def tearDown(self):
-        from blond.core.backends.backend import Numpy32Bit, backend
+        from blond.core.backends.backend import Numpy64Bit, backend
 
-        backend.change_backend(Numpy32Bit)
+        backend.change_backend(Numpy64Bit)
 
     @pytest.mark.backend_mutation
     def test_equal(self):

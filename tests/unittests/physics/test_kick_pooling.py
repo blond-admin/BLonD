@@ -56,10 +56,14 @@ class TestPooledInterpolationKick(unittest.TestCase):
                 "resources/beam_dt_copy_as_numpy_pinned.npy", stacklevel=1
             )
         )
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             beam.dt.copy_as_numpy()[:-1],
             beam_dt_copy_as_numpy_pinned,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
 
