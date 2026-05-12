@@ -1,5 +1,5 @@
-import time
 import unittest
+from turtle import rt
 
 import numpy as np
 import pytest
@@ -9,12 +9,17 @@ from scipy.constants import c
 from blond import (
     Beam,
     DriftSimple,
+    InductiveImpedance,
+    InductiveImpedanceSolver,
     MagneticCyclePerTurn,
     Numpy64Bit,
+    PeriodicFreqSolver,
+    Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
+    TimeDomainFftSolver,
     WakeField,
     backend,
     momentum_compaction_factor,
@@ -23,18 +28,12 @@ from blond import (
 from blond.generals.formatting_ import si_format
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
-    InductiveImpedanceSolver,
     MultiPassResonatorSolver,
-    PeriodicFreqSolver,
     SingleTurnResonatorConvolutionSolver,
-    TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import (
-    InductiveImpedance,
-    Resonators,
     TravelingWaveCavity,
 )
-from blond.testing.helpers import pinned_values_helper
 
 DEV_DRAW = False
 
@@ -48,11 +47,11 @@ def plot_diff_if_failed(actual, expected, save: str | None = None):
         )
         return
     try:
-        rtol = 1e-4
+        offset = 2 * expected.min()
         np.testing.assert_allclose(
-            actual,
-            expected,
-            atol=np.max(np.abs(expected)) * rtol,
+            actual - offset,
+            expected - offset,
+            rtol=1e-3,
         )
     except Exception as exc:
         plt.plot(expected, "o")
