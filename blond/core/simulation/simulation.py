@@ -276,6 +276,7 @@ class Simulation(Preparable):
         dt: NumpyArray,
         particle_type: ParticleType,
         subtract_min: bool = True,
+        until_section_index: int = -1,
         **kwargs_plot,
     ) -> None:
         """
@@ -299,6 +300,9 @@ class Simulation(Preparable):
         subtract_min
             If True (default), normalizes the potential so its minimum is at zero.
             If False, normalizes so ``potential_well[0] = 0``.
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
+
         **kwargs_plot
             Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
             for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
@@ -343,6 +347,7 @@ class Simulation(Preparable):
             dt=dt,
             particle_type=particle_type,
             subtract_min=subtract_min,
+            until_section_index=until_section_index,
         )
         plt.plot(
             copy_to_cpu(dt),
