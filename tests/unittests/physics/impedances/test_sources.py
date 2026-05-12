@@ -791,10 +791,6 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_get_impedance_from_wake(self):
-        if isinstance(backend, Numpy32Bit):
-            backend.change_backend(Numpy64Bit)
-        if isinstance(backend, Cupy32Bit):
-            backend.change_backend(Cupy64Bit)
         impedance_from_wake = self.twc.get_impedance_from_wake(
             time=backend.linspace(1, 1e-9),
             simulation=Mock(Simulation),
