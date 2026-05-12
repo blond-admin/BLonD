@@ -13,7 +13,6 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c
-from testing import pytest_active
 
 from blond import (
     Beam,
@@ -30,6 +29,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
 from blond.handle_results.observables import BeamStatisticsOncePerTurn
+from blond.testing import pytest_active
 
 
 def main():
