@@ -43,7 +43,7 @@ def plot_diff_if_failed(actual, expected, save: str | None = None):
     if save is not None:
         np.savetxt(
             save,
-            expected,
+            actual,
             delimiter=",",
         )
         return
