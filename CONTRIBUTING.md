@@ -180,7 +180,7 @@ backend.set_specials(mode="cpp")  # Activate the C++ backend
 ## Running Tests
 > Automatically done in GitLab CI Pipeline
 ```bash
-python3 -m pytest -v unittests/ --randomly-seed=$CI_PIPELINE_ID
+python3 -m pytest -v tests/unittests/ --randomly-seed=$CI_PIPELINE_ID
 ```
 
 The random seed is displayed online in the output terminal of the CI pipeline.
@@ -196,13 +196,13 @@ Those tests can be excluded for running the tests with the `pytest -m` flag.
 ```bash
 export BLOND_BACKEND_MODE=cuda
 export BLOND_BACKEND_BITS=32
-python3 -m pytest -m "not backend_mutation"  -v unittests/
+python3 -m pytest -m "not backend_mutation"  -v tests/unittests/
 ```
 
 The tests with distributed computing (MPI) can be executed via
 ```bash
 export MPLBACKEND=Agg  # Prevent matplotlib deadlock
-mpirun -n 2 python3 -m pytest -v unittests/ -m "mpi"
+mpirun -n 2 python3 -m pytest -v tests/unittests/ -m "mpi"
 ```
 
 ---
@@ -254,7 +254,7 @@ Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 
 2. Implement your feature **along with unit tests**.
 
-   * Follow the same folder structure in `/unittests` as in `blond/`.
+   * Follow the same folder structure in `tests/unittests` as in `blond/`.
 
 3. Run tests to ensure nothing is broken.
 
