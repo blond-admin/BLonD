@@ -6,5 +6,5 @@ recursive-include blond *.dll
 recursive-include blond *.so
 recursive-include blond *.cubin
 
-recursive-exclude unittests *
+recursive-exclude tests *
 recursive-exclude legacy *

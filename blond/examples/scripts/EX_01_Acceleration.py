@@ -60,7 +60,11 @@ def main():
         particle_type=proton,
     )
 
-    sim = Simulation.from_locals(locals())
+    ring.add_elements((drift1, rf_station))
+    sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
+    # or alternatively to automatically discover the variables
+    # sim = Simulation.from_locals(locals())
+
     sim.print_one_turn_execution_order()
     BIGAUS = True
     if BIGAUS:
