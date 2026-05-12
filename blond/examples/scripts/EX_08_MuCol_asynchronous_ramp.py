@@ -12,7 +12,6 @@ from copy import deepcopy
 
 import matplotlib.pyplot as plt
 import numpy as np
-from experimental import SemiEmpiricMatcher
 from scipy.constants import c
 from testing import pytest_active
 
@@ -27,6 +26,9 @@ from blond import (
     mu_plus,
 )
 from blond.core.beam.particle_types import mu_minus
+from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    SemiEmpiricMatcher,
+)
 from blond.handle_results.observables import BeamStatisticsOncePerTurn
 
 
