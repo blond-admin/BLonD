@@ -404,14 +404,14 @@ class SymbolicSeparatrixHelper:
 
     @staticmethod
     def _interior_extrema(
-        values: NumpyArray, kinetic_coeff: float
+        dt_sampling_values: NumpyArray, kinetic_coeff: float
     ) -> NumpyArray:
         """
         Find indices of interior local maxima (``a > 0``) or minima (``a < 0``).
 
         Parameters
         ----------
-        values
+        dt_sampling_values
             1-D array sampled along the dt-axis.
         kinetic_coeff
             Kinetic coefficient ``coeff(dE, 2)`` -- its sign decides whether
@@ -423,7 +423,7 @@ class SymbolicSeparatrixHelper:
             Indices into ``values`` of interior extrema (boundaries
             excluded).
         """
-        slope = np.diff(values)
+        slope = np.diff(dt_sampling_values)
         if kinetic_coeff > 0:
             is_extremum = (slope[:-1] > 0) & (slope[1:] < 0)
         else:
