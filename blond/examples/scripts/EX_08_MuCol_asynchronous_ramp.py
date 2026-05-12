@@ -49,8 +49,10 @@ def main():
 
     energy_cycle = MagneticCycleByTime(
         reference_particle=mu_plus,
-        base_time=np.linspace(0, (n_turns + 1) * time_per_turn, n_turns + 1),
-        base_values=energy_ramp,
+        reference_time=np.linspace(
+            0, (n_turns + 1) * time_per_turn, n_turns + 1
+        ),
+        reference_values=energy_ramp,
         in_unit="total energy",
     )
 
