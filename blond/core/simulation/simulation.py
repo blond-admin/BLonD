@@ -1169,7 +1169,7 @@ class Simulation(Preparable):
             Default is None.
         observe
             Tuple of observable objects that record data during the simulation
-            (e.g., ``RFStationPhaseObservation``, ``BeamObservationEndOfTurn``).
+            (e.g., ``RFStationPhaseObservation``, ``BeamObservationOncePerTurn``).
             Each observable is updated according to its own schedule. Default is empty tuple.
         show_progressbar
             If True, displays a progress bar showing simulation progress and turn rate.

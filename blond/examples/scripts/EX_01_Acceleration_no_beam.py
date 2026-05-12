@@ -72,7 +72,7 @@ def main():
         beams=(beam1,),
         n_turns=n_turns,
         observe=(phase_observation, bunch_observation),
-        # callback=custom_action,
+        # callbacks=custom_action,
     )
     plt.figure()
     plt.ylabel("reference_time (s)")

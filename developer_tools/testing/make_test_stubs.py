@@ -15,10 +15,10 @@ import re
 from pathlib import Path
 
 COVERAGE_JSON_PATH = (
-    Path(__file__).parent / Path("../../unittests/coverage.json")
+    Path(__file__).parent / Path("../../tests/unittests/coverage.json")
 ).resolve()
 PROJECT_ROOT = (Path(__file__).parent / Path("../../blond/")).resolve()
-TEST_ROOT = (Path(__file__).parent / Path("../../unittests")).resolve()
+TEST_ROOT = (Path(__file__).parent / Path("../../tests/unittests")).resolve()
 
 
 def classname_to_varname(name):

@@ -141,7 +141,7 @@ def main(
     )
 
     bunch_time = copy_to_cpu(profile.hist_x) * 1e9
-    cycle_time = np.arange(0, n_turns + 1, each_turn_i_profile) * t_rev * 1e3
+    cycle_time = profile_observation.turns_array * t_rev * 1e3
     plt.figure("bunch evolution")
     plt.clf()
     plt.imshow(
@@ -164,3 +164,4 @@ def main(
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()
