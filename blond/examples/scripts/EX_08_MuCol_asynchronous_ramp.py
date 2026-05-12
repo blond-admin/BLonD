@@ -107,7 +107,7 @@ def main():
             internal_grid_shape=(1023, 1023),  # Resolution of phase space grid
             seed=42,  # For reproducibility
             verbose=True,  # Print convergence info
-            animate=True,  # Set True for live plotting
+            animate=False,  # Set True for live plotting
             until_section_index=1,
         ),
     )
