@@ -23,10 +23,10 @@ if __name__ == "__main__":
     if cpu:
         os.environ["BLOND_BACKEND_MODE"] = "numba"
         os.environ["BLOND_BACKEND_BITS"] = "64"
-        unittest_path = Path("./unittests").resolve()
+        unittest_path = Path("./tests/unittests").resolve()
         run_pytest(str(unittest_path))
     else:
         os.environ["BLOND_BACKEND_MODE"] = "cuda"
         os.environ["BLOND_BACKEND_BITS"] = "32"
-        unittest_path = Path("./unittests").resolve()
+        unittest_path = Path("./tests/unittests").resolve()
         run_pytest(str(unittest_path))

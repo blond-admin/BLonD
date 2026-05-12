@@ -362,7 +362,7 @@ def reload_cuda_backend(  # NOQA: D102
             )
 
         @staticmethod
-        def kick_induced_voltage(
+        def kick_interpolated(
             dt: CupyArray,
             dE: CupyArray,
             voltage: CupyArray,

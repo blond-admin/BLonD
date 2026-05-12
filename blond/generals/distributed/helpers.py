@@ -162,6 +162,36 @@ def distributed_arange(
     return DistributedArray(local_ids)
 
 
+def distributed_zeros(
+    local_n: int, dtype: np.typing.DTypeLike
+) -> DistributedArray:
+    """
+    Distributed version of `np.zeros` and `cp.zeros`.
+
+    Parameters
+    ----------
+    local_n
+        Number of elements owned by *this MPI rank*.
+    dtype
+        Data type of the array.
+
+    Returns
+    -------
+    DistributedArray
+        Zeros distributed across MPI ranks.
+
+        Example (2 ranks):
+            rank 0: [0, 0, 0]
+            rank 1: [0, 0, 0]
+    """
+    from blond import backend
+    from blond.generals.distributed.distributed_array import DistributedArray
+
+    local_ids = backend.zeros(local_n, dtype=dtype)
+
+    return DistributedArray(local_ids)
+
+
 def mpi_is_distributed():
     """
     Whether the software runs with a MPI size > 1 or not.

@@ -73,11 +73,11 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v tests/unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v tests/unittests/ -m "mpi" --randomly-seed=0; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
-      -v unittests/
+      -v tests/unittests/
       --randomly-seed=$CI_PIPELINE_ID
       --cov-append
       --cov
@@ -102,7 +102,7 @@ workflow:
     - python3 -m pytest
       -m "not backend_mutation and not mpi"
       -m "not backend_mutation"
-      -v unittests/
+      -v tests/unittests/
       --randomly-seed=$CI_PIPELINE_ID
 
 .main_no_gpu:
@@ -115,12 +115,12 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v tests/unittests/ -m "mpi" --randomly-seed=0; else python3 -m pytest -v tests/unittests/ -m "mpi" --randomly-seed=0; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - pip uninstall -y cupy-cuda12x
     - python3 -m pytest
-      -v unittests/
+      -v tests/unittests/
       --randomly-seed=$CI_PIPELINE_ID
 
 .main_many_environments:
@@ -133,17 +133,17 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v tests/unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v tests/unittests/ -m "mpi" --randomly-seed=0; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
-      -v unittests/
+      -v tests/unittests/
       --cov-append
       --cov
       --cov-config=.coveragerc
     - export BLOND_BACKEND_MODE="cuda"
     - python3 -m pytest
-      -v unittests/
+      -v tests/unittests/
       -m "not mpi and not backend_mutation"
       --cov-append
       --cov
@@ -152,7 +152,7 @@ workflow:
     - pip uninstall -y cupy-cuda12x
     - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
     - python3 -m pytest
-      -v unittests/
+      -v tests/unittests/
       --randomly-seed=$CI_PIPELINE_ID
       --cov-append
       --cov
@@ -331,7 +331,7 @@ test_minimum:
     - cd ${project_root}
     # Run all unittests + the examples
     - python -m pytest
-      -v unittests/
+      -v tests/unittests/
       --import-mode=importlib
   tags:
     - k8s-gpu
@@ -350,7 +350,7 @@ release_sdist_310:
   before_script:
     - python3 -m pip install --upgrade pip
     - python3 -m pip install build twine
-    # Without an up-to-date setuptools, we don't get the requirements.txt
+    # Without an up-to-date setuptools, we don't get the requirements
     # inside the sdist.
     - python3 -m pip install -U setuptools
     - eval ${PRE_SDIST_BUILD}
@@ -364,7 +364,7 @@ release_sdist_310:
       dist/*.tar.gz
 
 test_documentation_building:
-  image: gitlab-registry.cern.ch/blond/blond/python310
+  image: gitlab-registry.cern.ch/blond/blond/python314
   stage: doc_build
   interruptible: true
   script:

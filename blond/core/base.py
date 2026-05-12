@@ -604,7 +604,8 @@ class UnsafeUserElement(UserDefinedElement):
         if not isinstance(element, _Trackable):
             raise TypeError(
                 "Arbitrary user elements must at minimum "
-                "define a `.track(self, beam)` method."
+                "define a `.track(self, beam)` method,"
+                f" but {element.__class__.__name__} does not provide it."
             )
         else:
             warnings.warn(

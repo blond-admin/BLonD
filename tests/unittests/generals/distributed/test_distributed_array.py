@@ -1,0 +1,325 @@
+import sys
+import unittest
+from unittest.mock import patch
+
+import numpy as np
+import pytest
+
+from blond import backend, copy_to_cpu
+from blond.generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.distributed.distributed_array import (
+    DistributedArray,
+    concatenate,
+)
+from blond.generals.distributed.helpers import mpi_barrier, mpi_is_distributed
+from blond.generals.exceptions_ import ArrayPrecisionError
+from blond.testing.backend_testing import skip_if_no_cupy
+
+
+@pytest.mark.mpi
+class TestDistributedArray(unittest.TestCase):
+    def setUp(self):
+        from blond.generals.distributed.distributed_array import (
+            DistributedArray,
+        )
+
+        rng = np.random.default_rng(0)
+        self.array = np.astype(
+            rng.normal(loc=0, scale=1.0, size=128), backend.float
+        )
+        self.distributed_array = DistributedArray(
+            backend.array(self.array.copy())
+        )
+
+    def test_local_size(self):
+        mpi_active = mpi_is_distributed()
+
+        self.assertEqual(self.distributed_array.local_size, 128)
+        if mpi_active:
+            self.distributed_array.mpi_scatter()
+
+        if mpi_active:
+            self.assertEqual(
+                self.distributed_array.local_size, 64
+            )  # assumes `mpirun -n 2`
+            self.assertTrue(self.distributed_array._is_distributed)
+            self.assertEqual(self.distributed_array.global_size, 128)
+        else:
+            self.assertEqual(self.distributed_array.local_size, 128)
+            self.assertFalse(self.distributed_array._is_distributed)
+            self.assertEqual(self.distributed_array.global_size, 128)
+
+    def test_copy_as_numpy(self):
+        array = self.distributed_array.copy_as_numpy()
+        assert array.device == "cpu"
+
+    def test_copy_as_cupy(self):
+        try:
+            import cupy  # type: ignore
+        except (ImportError, ModuleNotFoundError) as exc:  # pragma: no cover
+            self.skipTest(str(exc))
+        array = self.distributed_array.copy_as_cupy()
+        assert is_cupy_array(array)
+
+    def _call_test(self, func, func_name):
+        mpi_active = mpi_is_distributed()
+
+        expected = func(self.array)
+        if mpi_active:
+            self.distributed_array.mpi_scatter()
+        actual = getattr(self.distributed_array, func_name)()
+        np.testing.assert_almost_equal(
+            actual, expected, decimal=5 if backend.float == np.float32 else 11
+        )
+        if mpi_active:
+            self.distributed_array.mpi_scatter()
+
+    def test_min(self):
+        self._call_test(np.min, "min")
+
+    def test_max(self):
+        self._call_test(np.max, "max")
+
+    def test_mean(self):
+        self._call_test(np.mean, "mean")
+
+    def test_std(self):
+        self._call_test(np.std, "std")
+
+    def test_sum(self):
+        self._call_test(lambda x: float(np.sum(x)), "sum")
+
+    def test_histogram(self):
+        mpi_active = mpi_is_distributed()
+
+        expected, _ = np.histogram(self.array, bins=8)
+        if mpi_active:
+            self.distributed_array.mpi_scatter()
+        actual = self.distributed_array.histogram(bins=8)
+        np.testing.assert_allclose(expected, copy_to_cpu(actual))
+
+    def test_histogram_cache_hit(self):
+        mpi_active = mpi_is_distributed()
+        if mpi_active:
+            self.distributed_array.mpi_scatter()
+        self.distributed_array.histogram(bins=8)  # cache miss
+        actual = self.distributed_array.histogram(bins=8)  # cache hit
+        expected, _ = np.histogram(self.array, bins=8)
+        np.testing.assert_allclose(expected, copy_to_cpu(actual))
+
+    def test_histogram_with_out(self):
+        from blond import backend
+
+        mpi_active = mpi_is_distributed()
+
+        expected, _ = np.histogram(self.array, bins=8)
+        if mpi_active:
+            self.distributed_array.mpi_scatter()
+        actual = backend.zeros_like(expected, dtype=backend.float)
+        self.distributed_array.histogram(bins=8, out=actual)
+        np.testing.assert_allclose(expected, copy_to_cpu(actual))
+
+    def test_barrier(self):
+        mpi_active = mpi_is_distributed()
+
+        if mpi_active:
+            self.distributed_array.array_local = (
+                self.distributed_array.array_local[:64]
+            )
+            mpi_barrier()
+            self.assertEqual(
+                self.distributed_array.global_size, 2 * 64
+            )  # assumes `mpirun -n 2`
+
+    def test_histogram_sparse_left_edged(self) -> None:
+        mpi_active = mpi_is_distributed()
+
+        if mpi_active:
+            particles_x = []
+            # mark all left and right edges, left edge should result 2, right 1
+            for left_edge in (-12, -12 + 2 * 8, -12 + 4 * 8):
+                for _ in range(2):  # so hist_y counts two
+                    particles_x.append(left_edge)
+            for right_edge in (-12 + 4, -12 + 2 * 8 + 4, -12 + 4 * 8 + 4):
+                for _ in range(1):  # so hist_y counts one
+                    particles_x.append(right_edge)
+            da = DistributedArray(np.array(particles_x, float))
+            mpi_barrier()
+
+            bins_per_profile = 4
+            n_profiles = 3
+            array_write = np.ones(bins_per_profile * n_profiles, dtype=float)
+            filling_pattern = np.array([1, 0, 1, 0, 1, 0], dtype=bool)
+            bucket_index_to_memory_index = np.array(
+                [0, 0, 4, 4, 8, 8],
+                dtype=np.int32,
+            )
+
+            for _ in range(
+                10  # not 1 to see if result is accumulated (shouldn't be)
+            ):
+                result_direct = da.histogram_sparse(
+                    out=array_write,
+                    first_left_cut=-12,
+                    left_cut_distance=8,
+                    cut_width=4,
+                    bins_per_profile=bins_per_profile,
+                    n_active_profiles=n_profiles,
+                    filling_pattern=filling_pattern,
+                    bucket_index_to_memory_index=bucket_index_to_memory_index,
+                )
+            result_indirect = array_write
+            expected_single_node = np.array(
+                [
+                    2.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    2.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    2.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                ]
+            )
+            mpi_nodes = 2  # expect `mpirun -n 2`
+            expected_combined = mpi_nodes * expected_single_node
+
+            np.testing.assert_allclose(result_direct, expected_combined)
+            np.testing.assert_allclose(result_indirect, expected_combined)
+
+    def test_concatenate(self):
+        mpi_active = mpi_is_distributed()
+
+        if mpi_active:
+            array_1 = DistributedArray(backend.array([1, 2, 3, 4, 5, 6]))
+            array_2 = DistributedArray(backend.array([7, 8, 9, 10, 11, 12]))
+            array_1.mpi_scatter()
+            array_2.mpi_scatter()
+
+            array_3 = concatenate(array_1, array_2)
+
+            self.assertEqual(array_3.global_size, 12)
+            self.assertEqual(array_3.min(), 1)
+            self.assertEqual(array_3.max(), 12)
+
+    @skip_if_no_cupy
+    def test_concatenate_errors(self):
+        array_1 = DistributedArray(
+            np.array([1, 2, 3, 4, 5, 6], dtype=np.float32)
+        )
+        array_2 = DistributedArray(
+            np.array([7, 8, 9, 10, 11, 12], dtype=np.float64)
+        )
+
+        with self.assertRaises(ArrayPrecisionError):
+            concatenate(array_1, array_2)
+
+        import cupy as cp
+
+        array_1 = DistributedArray(cp.array([1, 2, 3, 4, 5, 6]))
+        array_2 = DistributedArray(np.array([7, 8, 9, 10, 11, 12]))
+
+        with self.assertRaises(TypeError):
+            concatenate(array_1, array_2)
+
+    def test_gather(self):
+        mpi_active = mpi_is_distributed()
+
+        if mpi_active:
+            in_array = np.array([1, 2, 3, 4, 5, 6])
+            array = DistributedArray(in_array)
+            array.mpi_scatter()
+            out_array = array.mpi_gather()
+
+            rank = array._comm.Get_rank()
+            if rank != 0:
+                return
+
+            np.testing.assert_equal(in_array, out_array)
+
+
+@pytest.mark.mpi
+class TestDistributedArrayNoMPI(unittest.TestCase):
+    def test_no_mpi(self):
+        with patch.dict(sys.modules, {"mpi4py": None}):
+            # trigger new import
+            sys.modules.pop(
+                "blond.generals.distributed.distributed_array", None
+            )
+            from blond.generals.distributed.distributed_array import (
+                DistributedArray,
+            )
+
+            rng = np.random.default_rng(0)
+            self.array = rng.normal(loc=0, scale=1.0, size=128)
+            distributed_array = DistributedArray(self.array.copy())
+            self.assertFalse(distributed_array._is_distributed)
+            self.assertEqual(distributed_array._rank, 0)
+            self.assertEqual(distributed_array._size, 1)
+
+
+class TestDistributedArrayPickle(unittest.TestCase):
+    def test_pickle_roundtrip_preserves_values(self):
+        import pickle
+
+        rng = np.random.default_rng(0)
+        array = rng.normal(loc=0, scale=1.0, size=64).astype(backend.float)
+        original = DistributedArray(backend.array(array.copy()))
+
+        restored = pickle.loads(pickle.dumps(original))
+
+        self.assertTrue(
+            np.array_equal(
+                copy_to_cpu(original.array_local),
+                copy_to_cpu(restored.array_local),
+            )
+        )
+        # After unpickling, ``__init__`` was re-run so all MPI attributes are
+        # freshly populated.
+        self.assertFalse(restored._is_distributed)
+        self.assertEqual(restored._rank, original._rank)
+        self.assertEqual(restored._size, original._size)
+
+    def test_pickle_rejects_distributed_array(self):
+        import pickle
+        from unittest.mock import patch
+
+        rng = np.random.default_rng(0)
+        array = rng.normal(loc=0, scale=1.0, size=64).astype(backend.float)
+        original = DistributedArray(backend.array(array.copy()))
+        with patch.object(original, "_is_distributed", True):
+            with self.assertRaises(AssertionError):
+                pickle.dumps(original)
+
+    def test_deepcopy_works_for_distributed_array(self):
+        # ``deepcopy`` must keep working under MPI (used by
+        # ``Simulation.get_potential_well_empiric`` to run a probe turn
+        # without side effects), even though ``pickle`` rejects distributed
+        # arrays.
+        from copy import deepcopy
+        from unittest.mock import patch
+
+        rng = np.random.default_rng(0)
+        array = rng.normal(loc=0, scale=1.0, size=64).astype(backend.float)
+        original = DistributedArray(backend.array(array.copy()))
+        with patch.object(original, "_is_distributed", True):
+            clone = deepcopy(original)
+
+        self.assertIsNot(clone, original)
+        self.assertIsNot(clone.array_local, original.array_local)
+        self.assertTrue(
+            np.array_equal(
+                copy_to_cpu(clone.array_local),
+                copy_to_cpu(original.array_local),
+            )
+        )
+        self.assertTrue(clone._is_distributed)
+        self.assertIs(clone._comm, original._comm)
+
+
+if __name__ == "__main__":
+    unittest.main()
