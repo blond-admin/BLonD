@@ -22,14 +22,14 @@ idiomatic simulation input files and understand BLonD's API.
 ## Key paths in this project
 
 - **Source code**: `./blond/` (the installed package)
-- **Examples**: `./blond/examples/` — always check these first for patterns
+- **Examples**: `./blond/examples/scripts/` — always check these first for patterns
 - **Built docs**: `./docs/_build/html/` (open in browser) or read the RST
   sources at `./docs/_build/html/_sources/`
 - **Getting-started guide**: `./docs/_build/html/_sources/models_new/getting_started.rst.txt`
 
 When you need to understand a class in depth, read its source or docstring
 directly from `./blond/`. When a user needs an example of a full workflow,
-point them to the appropriate file in `./blond/examples/`.
+point them to the appropriate file in `./blond/examples/scripts/`.
 
 ## BLonD simulation structure
 
@@ -132,6 +132,7 @@ beam = Beam(intensity=1e9, particle_type=proton)
 ```python
 ring.add_elements([drift, rf], reorder=True)   # reorder=True lets BLonD sort elements
 # or reorder=False to keep your explicit order
+ring.add_element(drift)                        # singular variant — adds one element
 
 from blond import Simulation
 # Option A – explicit (recommended when you want full control):
@@ -156,6 +157,8 @@ sim.prepare_beam(
         reinsertion=False,       # re-insert lost particles
     ),
 )
+# Alternatives: FilamentationMatcher (experimental) or XsuiteRFBucketMatcher (requires xpart)
+# See references/api_reference.md → Beam Preparation for full list
 ```
 
 ### 8. Set up observations (optional)
@@ -175,6 +178,7 @@ sim.run_simulation(
     beams=(beam,),
     n_turns=int(1e4),
     observe=(bunch_obs, phase_obs),   # optional
+    callbacks=my_function,            # optional: called each turn with (sim, beam)
 )
 ```
 
@@ -226,10 +230,11 @@ backend.set_specials("cuda")   # GPU (requires CUDA + blond-compile-cuda)
   times in **seconds**, lengths in **metres**.
 - `n_macroparticles` can be passed as a float (e.g. `1e6`) — BLonD converts it.
 - `MagneticCyclePerTurn.values_after_turn` must have length == N_TURNS.
+- `run_simulation` takes `callbacks=` (plural), not `callback=`.
 
 ## How to help users effectively
 
-1. **Read the relevant example first** from `./blond/examples/` before writing
+1. **Read the relevant example first** from `./blond/examples/scripts/` before writing
    code, especially for new use cases.
 2. **Check the getting-started guide** at
    `./docs/_build/html/_sources/models_new/getting_started.rst.txt` for
