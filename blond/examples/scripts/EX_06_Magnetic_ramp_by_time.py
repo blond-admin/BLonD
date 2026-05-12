@@ -54,8 +54,8 @@ def main():
     ring = Ring(circumference=circumference)
     energy_cycle = MagneticCycleByTime(
         reference_particle=proton,
-        base_time=time_points,
-        base_values=momentum_points,
+        reference_time=time_points,
+        reference_values=momentum_points,
         in_unit="momentum",
         interpolator=PchipInterpolator,
     )
