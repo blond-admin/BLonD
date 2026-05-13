@@ -39,7 +39,7 @@ def _get_omega_min(ring: Ring) -> float:
     for element in ring.elements.get_elements(RFStationBaseClass):
         omega_design = element.omega_rf_design
         if omega_design is not None:
-            candidates = np.abs(np.atleast_1d(omega_design))
+            candidates = np.atleast_1d(omega_design)
             candidate = float(np.min(candidates))
             if omega_min is None or candidate < omega_min:
                 omega_min = candidate
