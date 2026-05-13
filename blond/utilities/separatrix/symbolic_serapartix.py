@@ -132,8 +132,8 @@ class SymbolicSeparatrixHelper:
         Substitutes numerical beam values into the symbolic Hamiltonian,
         then solves ``H(dt, dE) = H_sep(dt)`` for ``dE`` at each ``dt``.
         Each RF bucket has its own ``H_sep``: the lower of the two bounding
-        UFPs above transition (``a > 0``), the higher one below transition
-        (``a < 0``). With non-zero ``reference_energy_change`` consecutive
+        UFPs above transition (``kinetic_coeff > 0``), the higher one below transition
+        (``kinetic_coeff < 0``). With non-zero ``reference_energy_change`` consecutive
         UFPs differ in height, so this per-dt treatment is required;
         without acceleration the result reduces to the familiar single
         ``H_sep`` answer.
@@ -155,10 +155,14 @@ class SymbolicSeparatrixHelper:
             (above the local barrier, or no bucket exists at all because
             the linear tilt eliminated all extrema).
         """
-        a, potential = self._substitute_symbols(beam=beam)
+        kinetic_coeff, potential = self._substitute_symbols(beam=beam)
 
-        H_sep = self._H_sep_per_dt(dt, a=a, potential=potential)
-        dE_sep = self._dE_sep_upper(dt, a=a, potential=potential, H_sep=H_sep)
+        H_sep = self._H_sep_per_dt(
+            dt, kinetic_coeff=kinetic_coeff, potential=potential
+        )
+        dE_sep = self._dE_sep_upper(
+            dt, kinetic_coeff=kinetic_coeff, potential=potential, H_sep=H_sep
+        )
         return np.stack([dE_sep, -dE_sep])
 
     def plot_separatrix(
@@ -229,7 +233,7 @@ class SymbolicSeparatrixHelper:
 
         Returns
         -------
-        a
+        kinetic_coeff
             Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
         potential
             Numpy-vectorized callable for ``H(dt, dE=0)``.
@@ -246,16 +250,16 @@ class SymbolicSeparatrixHelper:
                 q_sym: float(beam.particle_type.charge),
             }
         )
-        a = float(ham.coeff(dE_sym, 2))
+        kinetic_coeff = float(ham.coeff(dE_sym, 2))
         potential = sympy.lambdify(
             dt_sym, ham.subs(dE_sym, 0), modules="numpy"
         )
-        return a, potential
+        return kinetic_coeff, potential
 
     @staticmethod
     def _dE_sep_upper(
         dt: NumpyArray,
-        a: float,
+        kinetic_coeff: float,
         potential: Callable[[NumpyArray], NumpyArray],
         H_sep: NumpyArray,
     ) -> NumpyArray:
@@ -266,7 +270,7 @@ class SymbolicSeparatrixHelper:
         ----------
         dt
             Time-deviation grid [s].
-        a
+        kinetic_coeff
             Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
         potential
             Numpy-vectorized callable for ``H(dt, dE=0)``.
@@ -282,7 +286,7 @@ class SymbolicSeparatrixHelper:
         """
         f_values = np.asarray(potential(dt), dtype=float)
         with np.errstate(invalid="ignore"):
-            inside = (H_sep - f_values) / a
+            inside = (H_sep - f_values) / kinetic_coeff
         dE_sep = np.full(dt.shape, np.nan, dtype=float)
         in_bucket = np.isfinite(inside) & (inside >= 0)
         dE_sep[in_bucket] = np.sqrt(inside[in_bucket])
@@ -291,7 +295,7 @@ class SymbolicSeparatrixHelper:
     def _H_sep_per_dt(
         self,
         dt: NumpyArray,
-        a: float,
+        kinetic_coeff: float,
         potential: Callable[[NumpyArray], NumpyArray],
     ) -> NumpyArray:
         """
@@ -305,7 +309,7 @@ class SymbolicSeparatrixHelper:
         ----------
         dt
             Time-deviation grid [s].
-        a
+        kinetic_coeff
             Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
         potential
             Numpy-vectorized callable for ``H(dt, dE=0)``.
@@ -317,11 +321,13 @@ class SymbolicSeparatrixHelper:
             extremum exists (the linear tilt is so strong that the
             potential is monotonic over a period).
         """
-        if a == 0.0:
+        if kinetic_coeff == 0.0:
             return np.full(dt.shape, np.nan, dtype=float)
 
         bucket = self._find_canonical_bucket(
-            period_start=float(np.min(dt)), a=a, potential=potential
+            period_start=float(np.min(dt)),
+            kinetic_coeff=kinetic_coeff,
+            potential=potential,
         )
         if bucket is None:
             return np.full(dt.shape, np.nan, dtype=float)
@@ -331,14 +337,14 @@ class SymbolicSeparatrixHelper:
             bucket.ufp_potential + bucket_index * bucket.shift_per_period
         )
         potential_right = potential_left + bucket.shift_per_period
-        if a > 0:
+        if kinetic_coeff > 0:
             return np.minimum(potential_left, potential_right)
         return np.maximum(potential_left, potential_right)
 
     def _find_canonical_bucket(
         self,
         period_start: float,
-        a: float,
+        kinetic_coeff: float,
         potential: Callable[[NumpyArray], NumpyArray],
     ) -> _CanonicalBucket | None:
         """
@@ -353,7 +359,7 @@ class SymbolicSeparatrixHelper:
         ----------
         period_start
             Left edge of the canonical scan window [s].
-        a
+        kinetic_coeff
             Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
         potential
             Numpy-vectorized callable for ``H(dt, dE=0)``.
@@ -373,11 +379,13 @@ class SymbolicSeparatrixHelper:
         scan_potential = np.asarray(potential(scan_dt), dtype=float)
         shift_per_period = float(scan_potential[-1] - scan_potential[0])
 
-        extremum_indices = self._interior_extrema(scan_potential, a=a)
+        extremum_indices = self._interior_extrema(
+            scan_potential, kinetic_coeff=kinetic_coeff
+        )
         if extremum_indices.size == 0:
             return None
 
-        if a > 0:
+        if kinetic_coeff > 0:
             ufp_index = extremum_indices[
                 np.argmax(scan_potential[extremum_indices])
             ]
@@ -393,7 +401,9 @@ class SymbolicSeparatrixHelper:
         )
 
     @staticmethod
-    def _interior_extrema(values: NumpyArray, a: float) -> NumpyArray:
+    def _interior_extrema(
+        values: NumpyArray, kinetic_coeff: float
+    ) -> NumpyArray:
         """
         Find indices of interior local maxima (``a > 0``) or minima (``a < 0``).
 
@@ -401,7 +411,7 @@ class SymbolicSeparatrixHelper:
         ----------
         values
             1-D array sampled along the dt-axis.
-        a
+        kinetic_coeff
             Kinetic coefficient ``coeff(dE, 2)`` -- its sign decides whether
             UFPs are local maxima or local minima.
 
@@ -412,7 +422,7 @@ class SymbolicSeparatrixHelper:
             excluded).
         """
         slope = np.diff(values)
-        if a > 0:
+        if kinetic_coeff > 0:
             is_extremum = (slope[:-1] > 0) & (slope[1:] < 0)
         else:
             is_extremum = (slope[:-1] < 0) & (slope[1:] > 0)
