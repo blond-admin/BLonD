@@ -251,9 +251,9 @@ class TestSymbolicSeparatrixHelperFromSimulation(unittest.TestCase):
         simulation = Mock()
         simulation.ring.elements.get_elements.return_value = []
 
-        with pytest.raises(
+        with self.assertRaisesRegex(
             ValueError,
-            match="No elements with `HasSymbolicHamiltonian` found.",
+            "No elements with `HasSymbolicHamiltonian` found.",
         ):
             SymbolicSeparatrixHelper.from_simulation(simulation=simulation)
 
