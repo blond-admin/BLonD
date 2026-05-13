@@ -4,20 +4,18 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+import sympy
 from matplotlib import pyplot as plt
 from numpy import ndarray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond import (
     ConstantMagneticCycle,
-    Cupy64Bit,
     MagneticCyclePerTurn,
-    Numpy64Bit,
     Ring,
     Simulation,
     StaticProfile,
     positron,
-    proton,
 )
 from blond.acc_math.analytic.hamilton import (
     calc_synchrotron_tune_single_harmonic,
@@ -32,7 +30,7 @@ from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
-from blond.core.beam.particle_types import ParticleType, lead_82
+from blond.core.beam.particle_types import ParticleType, lead_82, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental import PooledInterpolationKick
 from blond.experimental.physics.feedbacks.base import (
@@ -173,7 +171,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             n_harmonics=len(harmonic_index),
             phi_rf=phi_rf,
             main_harmonic_idx=0,
-            harmonic=np.zeros(len(harmonic_index)),
+            harmonic=np.ones(len(harmonic_index)),
         )
         mhc.omega_rf_design = omega_rf
 
@@ -1021,7 +1019,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             #  Use `test_kick_interpolated_bug` to resolve this issue.
         )
 
-    @multi_backend_testcase("Numpy64Bit")
+    @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
     @pytest.mark.backend_mutation
     def test_compare_track_ham(self):
         """The tracker's dE change must equal ``-dH/d(dt)`` from
@@ -1032,9 +1030,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         non-zero acceleration to cover the ``Delta E_ref * dt`` term in
         the multi-harmonic Hamiltonian.
         """
-        import sympy
-
-        from blond.core.beam.particle_types import proton
 
         dt_s, q_s = sympy.symbols("dt q", real=True)
 
@@ -1338,7 +1333,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         expected_phi_s = np.pi - np.arcsin(expected_energy_change / 51e6)
         self.assertEqual(phi_s_calculated, expected_phi_s)
 
-    @multi_backend_testcase("Numpy64Bit")
+    @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
     @pytest.mark.backend_mutation
     def test_compare_track_ham(self):
         """The tracker's dE change must equal ``-dH/d(dt)`` from

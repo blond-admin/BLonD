@@ -428,9 +428,8 @@ class SymbolicSeparatrixHelper:
             is_extremum = (slope[:-1] < 0) & (slope[1:] > 0)
         return np.flatnonzero(is_extremum) + 1
 
-    @classmethod
     def _bucket_index(
-        cls, dt: NumpyArray, bucket: _CanonicalBucket
+        self, dt: NumpyArray, bucket: _CanonicalBucket
     ) -> NumpyArray:
         """
         Compute the bucket index ``n`` containing each ``dt``.
@@ -457,7 +456,7 @@ class SymbolicSeparatrixHelper:
         ratio = (dt - bucket.ufp_dt) / bucket.period
         nearest = np.round(ratio)
         return np.where(
-            np.abs(ratio - nearest) < cls._BUCKET_BOUNDARY_TOLERANCE,
+            np.abs(ratio - nearest) < self._BUCKET_BOUNDARY_TOLERANCE,
             nearest,
             np.floor(ratio),
         )

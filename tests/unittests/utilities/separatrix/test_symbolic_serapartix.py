@@ -96,7 +96,7 @@ class TestSymbolicSeparatrixHelper:
         t_rf = sim.get_t_rev_init() / base_harmonic
 
         beam1 = Beam.simple_gaussian(
-            n_macroparticles=1e5,
+            n_macroparticles=int(1e5),
             intensity=1e9,
             particle_type=proton,
             dt_scale=t_rf / 4,
@@ -111,12 +111,8 @@ class TestSymbolicSeparatrixHelper:
         plt.figure("Dynamic beam")
         plt.xlim(trange0_)
 
-        def custom_action(
-            simulation: Simulation, beam: Beam
-        ):  # pragma: no cover
+        def custom_action(simulation: Simulation, beam: Beam):
             plt.figure("Dynamic beam")
-            if simulation.turn_i.value % 10 != 0:
-                return
 
             dt = beam.read_partial_dt()
             beam.plot_scatter()
@@ -149,6 +145,7 @@ class TestSymbolicSeparatrixHelper:
                 plt.pause(0.1)
                 plt.cla()
 
+        custom_action.each_turn_i = 10
         sim.run_simulation(
             beams=(beam1,),
             n_turns=N_TURNS if DEV_DRAW else 1,
@@ -156,7 +153,7 @@ class TestSymbolicSeparatrixHelper:
         )
 
 
-class TestSymbolicSeparatrixInternals:
+class TestSymbolicSeparatrixInternals(unittest.TestCase):
     """Cover edge-case branches of the private helpers."""
 
     OMEGA_MIN = 2.0 * np.pi  # canonical period of 1 s
@@ -178,7 +175,7 @@ class TestSymbolicSeparatrixInternals:
         idx = SymbolicSeparatrixHelper._interior_extrema(
             values, kinetic_coeff=-1.0
         )
-        assert idx.size == 0
+        self.assertTrue(idx.size == 0)
 
     def test_find_canonical_bucket_no_extremum_returns_none(self):
         helper = self._helper()
@@ -187,7 +184,7 @@ class TestSymbolicSeparatrixInternals:
             kinetic_coeff=1.0,
             potential=lambda dt: np.asarray(dt, dtype=float),
         )
-        assert bucket is None
+        self.assertTrue(bucket is None)
 
     def test_find_canonical_bucket_negative_a_picks_local_minimum(self):
         helper = self._helper()
@@ -198,8 +195,8 @@ class TestSymbolicSeparatrixInternals:
         bucket = helper._find_canonical_bucket(
             period_start=0.0, kinetic_coeff=-1.0, potential=potential
         )
-        assert bucket is not None
-        assert 0.7 < bucket.ufp_dt < 0.8
+        self.assertTrue(bucket is not None)
+        self.assertTrue(0.7 < bucket.ufp_dt < 0.8)
         np.testing.assert_allclose(bucket.ufp_potential, -1.075, atol=0.01)
         np.testing.assert_allclose(bucket.shift_per_period, -0.1, atol=1e-9)
 
@@ -209,8 +206,8 @@ class TestSymbolicSeparatrixInternals:
         H_sep = helper._H_sep_per_dt(
             dt, kinetic_coeff=0.0, potential=lambda x: np.cos(2 * np.pi * x)
         )
-        assert H_sep.shape == dt.shape
-        assert np.all(np.isnan(H_sep))
+        self.assertTrue(H_sep.shape == dt.shape)
+        self.assertTrue(np.all(np.isnan(H_sep)))
 
     def test_H_sep_per_dt_no_canonical_bucket_returns_all_nan(self):
         helper = self._helper()
@@ -220,7 +217,7 @@ class TestSymbolicSeparatrixInternals:
             kinetic_coeff=1.0,
             potential=lambda x: np.asarray(x, dtype=float),
         )
-        assert np.all(np.isnan(H_sep))
+        self.assertTrue(np.all(np.isnan(H_sep)))
 
     def test_H_sep_per_dt_negative_a_uses_maximum_branch(self):
         helper = self._helper()
@@ -238,16 +235,16 @@ class TestSymbolicSeparatrixInternals:
             kinetic_coeff=-1.0,
             potential=potential,
         )
-        assert bucket is not None
+        self.assertTrue(bucket is not None)
         bucket_index = helper._bucket_index(dt, bucket)
         left = bucket.ufp_potential + bucket_index * bucket.shift_per_period
         right = left + bucket.shift_per_period
         # Sanity: shift_per_period != 0 so np.maximum and np.minimum diverge.
-        assert not np.allclose(left, right)
+        self.assertTrue(not np.allclose(left, right))
         np.testing.assert_allclose(H_sep, np.maximum(left, right))
 
 
-class TestSymbolicSeparatrixHelperFromSimulation:
+class TestSymbolicSeparatrixHelperFromSimulation(unittest.TestCase):
     """Cover `SymbolicSeparatrixHelper.from_simulation`."""
 
     def test_raises_when_no_symbolic_hamiltonian_elements(self):
