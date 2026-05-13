@@ -140,7 +140,7 @@ class DistributedArray:
         if self._is_distributed:
             gathered = self._comm.gather(self.array_local, root=0)
 
-            if self._rank != 0:
+            if self._rank != 0:  # pragma: no cover
                 return None
 
             array_global = backend.hstack(gathered)
