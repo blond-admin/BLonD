@@ -838,8 +838,8 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             )
 
     def test_general_getters(self) -> None:
-        self.multi_harmonic_cavity._update_beam_based_attributes(
-            beam=self.beam
+        self.multi_harmonic_cavity._update_reference_based_attributes(
+            reference=self.beam.reference
         )
         assert (
             self.multi_harmonic_cavity.get_main_harmonic()
@@ -1225,8 +1225,8 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         )
 
     def test_general_getters(self) -> None:
-        self.single_harmonic_cavity._update_beam_based_attributes(
-            beam=self.beam
+        self.single_harmonic_cavity._update_reference_based_attributes(
+            reference=self.beam.reference
         )
         assert (
             self.single_harmonic_cavity.get_main_harmonic()
