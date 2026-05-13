@@ -227,19 +227,18 @@ class TestDistributedArray(unittest.TestCase):
             concatenate(array_1, array_2)
 
     def test_gather(self):
+        in_array = np.array([1, 2, 3, 4, 5, 6])
+        array = DistributedArray(in_array)
+        array.mpi_scatter()
+        out_array = array.mpi_gather()
+
         mpi_active = mpi_is_distributed()
-
         if mpi_active:
-            in_array = np.array([1, 2, 3, 4, 5, 6])
-            array = DistributedArray(in_array)
-            array.mpi_scatter()
-            out_array = array.mpi_gather()
-
             rank = array._comm.Get_rank()
             if rank != 0:
                 return
 
-            np.testing.assert_equal(in_array, out_array)
+        np.testing.assert_equal(in_array, out_array)
 
 
 @pytest.mark.mpi
