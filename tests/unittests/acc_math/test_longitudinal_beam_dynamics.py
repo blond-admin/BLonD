@@ -41,7 +41,10 @@ class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
             * self.expected_small_amplitude_tune
         )
 
-        self.places = 6 if backend.float == np.float32 else 12
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
+        self.places = 12
 
     def test_get_linear_angular_synchrotron_frequency(self):
         tune = get_small_amplitude_angular_synchrotron_tune(
@@ -136,7 +139,10 @@ class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
             * self.expected_small_amplitude_tune
         )
 
-        self.places = 6 if backend.float == np.float32 else 12
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
+        self.places = 12
 
     def test_get_linear_angular_synchrotron_frequency(self):
         with self.assertRaises(UnevenArraySizes):

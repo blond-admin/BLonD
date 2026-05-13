@@ -29,7 +29,11 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         self.circumference = 90.65874532 * 1e3
         self.momentum_compaction_factor = 7.120435962 * 1e-6
         self.bending_radius = 14428.78745218723
-        self.decimals = 6 if backend.float == np.float32 else 12
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
+        self.decimals = 12
 
     def test_gather_longitudinal_synchrotron_radiation_parameters(self):
         energy_loss, tau_z, sigmaE = (

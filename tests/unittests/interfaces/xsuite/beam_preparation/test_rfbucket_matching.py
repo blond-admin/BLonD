@@ -76,7 +76,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
             "resources/hist_ThermalDistribution.txt", stacklevel=1
         )
         expected_counts = np.loadtxt(filepath)
-        np.testing.assert_allclose(expected_counts, counts, rtol=1e-5)
+        np.testing.assert_allclose(expected_counts, counts, rtol=1e-12)
 
     def test_distribution_is_matched_qgaussian(self):
         try:
@@ -102,7 +102,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
             "resources/hist_QGaussianDistribution.txt", stacklevel=1
         )
         expected_counts = np.loadtxt(filepath)
-        np.testing.assert_allclose(expected_counts, counts, rtol=1e-5)
+        np.testing.assert_allclose(expected_counts, counts, rtol=1e-12)
 
     @unittest.skip("test takes too long")
     def test_distribution_is_matched_parabolic(self):
@@ -129,7 +129,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
             "resources/hist_ParabolicDistribution.txt", stacklevel=1
         )
         expected_counts = np.loadtxt(filepath)
-        np.testing.assert_allclose(expected_counts, counts, rtol=1e-5)
+        np.testing.assert_allclose(expected_counts, counts, rtol=1e-12)
 
 
 if __name__ == "__main__":

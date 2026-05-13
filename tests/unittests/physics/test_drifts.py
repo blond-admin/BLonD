@@ -163,6 +163,9 @@ class TestDriftSimple(unittest.TestCase):
         self.drift_simple.on_init_simulation(simulation=simulation)
 
     def test_track(self):
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
         beam.common_array_size = 1
@@ -198,7 +201,7 @@ class TestDriftSimple(unittest.TestCase):
                 -0.0001832679173685216,
                 -0.00023563017947381346,
             ],
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
         np.testing.assert_allclose(
             copy_to_cpu(beam.dE),

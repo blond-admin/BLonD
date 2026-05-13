@@ -11,7 +11,7 @@ from scipy.constants import pi
 from scipy.constants import speed_of_light as c0
 from scipy.signal import find_peaks
 
-from blond import Cupy32Bit, Cupy64Bit, Numpy32Bit, Numpy64Bit, backend
+from blond import Cupy64Bit, Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.simulation.simulation import Simulation
@@ -791,10 +791,6 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_get_impedance_from_wake(self):
-        if isinstance(backend, Numpy32Bit):
-            backend.change_backend(Numpy64Bit)
-        if isinstance(backend, Cupy32Bit):
-            backend.change_backend(Cupy64Bit)
         impedance_from_wake = self.twc.get_impedance_from_wake(
             time=backend.linspace(1, 1e-9),
             simulation=Mock(Simulation),
@@ -824,10 +820,11 @@ class TestTravelingWaveCavity(unittest.TestCase):
             impedance_from_wake_pinned[:, 0]
             + 1j * impedance_from_wake_pinned[:, 1]
         )
+
         np.testing.assert_allclose(
             copy_to_cpu(impedance_from_wake),
             impedance_from_wake_pinned,
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
         impedance_from_wake_float = self.twc_floats.get_impedance_from_wake(
@@ -862,18 +859,18 @@ class TestTravelingWaveCavity(unittest.TestCase):
             impedance_from_wake_pinned_float[:, 0]
             + 1j * impedance_from_wake_pinned_float[:, 1]
         )
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             copy_to_cpu(impedance_from_wake_float),
             impedance_from_wake_pinned_float,
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
     @pytest.mark.backend_mutation
     def test_get_impedance(self):
-        if isinstance(backend, Numpy32Bit):
-            backend.change_backend(Numpy64Bit)
-        if isinstance(backend, Cupy32Bit):
-            backend.change_backend(Cupy64Bit)
         impedance = self.twc.get_impedance(
             freq_x=backend.linspace(0, 10),
             simulation=Mock(Simulation),
@@ -895,10 +892,14 @@ class TestTravelingWaveCavity(unittest.TestCase):
             )
         )
         impedance_pinned = impedance_pinned[:, 0] + 1j * impedance_pinned[:, 1]
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             copy_to_cpu(impedance),
             impedance_pinned,
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
         impedance_float = self.twc_floats.get_impedance(
@@ -923,10 +924,14 @@ class TestTravelingWaveCavity(unittest.TestCase):
         impedance_pinned_float = (
             impedance_pinned_float[:, 0] + 1j * impedance_pinned_float[:, 1]
         )
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             copy_to_cpu(impedance_float),
             impedance_pinned_float,
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
     def test_division_by_zero(self):
