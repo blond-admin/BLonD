@@ -236,7 +236,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
         # Cached reference-energy change from the most recent _track call.
         # Used by get_hamilton_symbolic to include the acceleration term.
-        self._last_reference_energy_change: float = 0.0
+        self._last_reference_energy_change: float | None = None
 
     @property
     def any_feedback_not_none(self) -> bool:
@@ -1840,6 +1840,8 @@ class MultiHarmonicRFStation(
         replace_symbols
             If ``True``, the according variables will be replaced by
             their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
 
         Returns
         -------

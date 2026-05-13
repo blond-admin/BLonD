@@ -385,6 +385,8 @@ class DriftSimple(
         replace_symbols
             If ``True``, the according variables will be replaced by
             their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
 
         Returns
         -------
@@ -539,6 +541,8 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         replace_symbols
             If ``True``, the according variables will be replaced by
             their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
 
         Returns
         -------
