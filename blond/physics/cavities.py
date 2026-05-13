@@ -174,6 +174,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        assert n_rf > 0, f"{n_rf=}"
+
         super().__init__(
             section_index=section_index,
             name=name,
@@ -185,7 +187,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             "phi_rf_design",
             "harmonic",
         )
-
         self._n_rf = n_rf
 
         self.cavity_feedback_list: list[
@@ -961,6 +962,11 @@ class SingleHarmonicRFStation(
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        if voltage is not None:
+            assert voltage >= 0, f"{voltage=}"
+        if harmonic is not None:
+            assert harmonic > 0, f"{harmonic=}"
+
         super().__init__(
             n_rf=1,
             section_index=section_index,
@@ -1434,6 +1440,11 @@ class MultiHarmonicRFStation(
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        if voltage is not None:
+            assert np.all(voltage >= 0), f"{voltage=}"
+        if harmonic is not None:
+            assert np.all(harmonic > 0), f"{harmonic=}"
+
         assert main_harmonic_idx < n_harmonics, (
             f"{n_harmonics=}, but {main_harmonic_idx=}."
         )
