@@ -285,8 +285,8 @@ class TestEnergyCycleBase(unittest.TestCase):
 class TestEnergyCycleByTime(unittest.TestCase):
     def setUp(self):
         self.magnetic_cycle_by_time = MagneticCycleByTime(
-            base_time=np.linspace(1, 12, 12),
-            base_values=np.linspace(1e9, 5e9, 12),
+            reference_time=np.linspace(1, 12, 12),
+            reference_values=np.linspace(1e9, 5e9, 12),
             reference_particle=proton,
         )
 
@@ -351,8 +351,8 @@ class TestEnergyCycleByTime(unittest.TestCase):
         )
         cycle = MagneticCycleByTime(
             reference_particle=proton,
-            base_time=np.linspace(0, 12.5, 12),
-            base_values=np.linspace(1e12, 1e12, 12),
+            reference_time=np.linspace(0, 12.5, 12),
+            reference_values=np.linspace(1e12, 1e12, 12),
         )
         sim = Simulation.from_locals(locals())  # so on_init executes
 
@@ -392,8 +392,8 @@ class TestEnergyCycleByTime(unittest.TestCase):
         )
         cycle = MagneticCycleByTime(
             reference_particle=proton,
-            base_time=np.linspace(0, 11.5, 24),
-            base_values=np.linspace(1e12, 1e12, 24),
+            reference_time=np.linspace(0, 11.5, 24),
+            reference_values=np.linspace(1e12, 1e12, 24),
         )
         return ring, cycle
 

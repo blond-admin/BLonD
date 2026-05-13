@@ -32,9 +32,9 @@ class TestResonatorImpedances(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
 
     def tearDown(self):
-        from blond.core.backends.backend import Numpy32Bit, backend
+        from blond.core.backends.backend import Numpy64Bit, backend
 
-        backend.change_backend(Numpy32Bit)
+        backend.change_backend(Numpy64Bit)
 
     @pytest.mark.backend_mutation
     def test_equal(self):
@@ -103,7 +103,7 @@ class TestResonatorImpedances(unittest.TestCase):
                 magnetic_cycle=magnetic_cycle,
             )
             wake_ = np.fft.irfft(
-                resonators.get_wake_impedance(
+                resonators.get_impedance_from_wake(
                     profile.hist_x,
                     simulation=sim,
                     beam=beam,

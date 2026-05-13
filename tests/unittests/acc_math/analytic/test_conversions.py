@@ -571,6 +571,8 @@ class TestConversionFunctions(unittest.TestCase):
     @multi_backend_testcase
     @pytest.mark.backend_mutation
     def test_deltcleara_P_delta_E(self):
+        if backend.backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
         momentum = 1e9
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
             0
@@ -583,7 +585,7 @@ class TestConversionFunctions(unittest.TestCase):
         self.assertAlmostEqual(
             delta_E,
             np.sqrt(mass**2 + (delta_P + momentum) ** 2) - total_energy,
-            delta=1e-5,
+            delta=1e-12,
         )
 
         delta_E = 1e-3 * total_energy
@@ -591,7 +593,7 @@ class TestConversionFunctions(unittest.TestCase):
         self.assertAlmostEqual(
             delta_P,
             np.sqrt((total_energy + delta_E) ** 2 - mass**2) - momentum,
-            delta=1e-5,
+            delta=1e-6,
         )
 
         momentum = backend.backend.array(

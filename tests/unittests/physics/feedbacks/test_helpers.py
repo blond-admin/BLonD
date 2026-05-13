@@ -562,7 +562,7 @@ class TestRFBeamCurrent(unittest.TestCase):
         np.testing.assert_allclose(
             rf_current.real,
             Iref_real,
-            rtol=1e-5,
+            rtol=1e-12,
             atol=0,
             err_msg="In TestRFCurrent test_3, mismatch in real part of RF current",
         )
@@ -675,7 +675,7 @@ class TestRFBeamCurrent(unittest.TestCase):
         np.testing.assert_allclose(
             rf_current.imag,
             Iref_imag,
-            rtol=1e-5,
+            rtol=1e-12,
             atol=0,
             err_msg="In TestRFCurrent test_3, mismatch in imaginary part of RF current",
         )

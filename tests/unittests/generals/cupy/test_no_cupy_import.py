@@ -23,10 +23,10 @@ class TestFunctions(unittest.TestCase):
         array = cp.array([1, 2, 23])
         array2 = cp.array([1, 2, 25])
         plt.figure()
-        from blond.core.backends.backend import Cupy32Bit, backend
+        from blond.core.backends.backend import Cupy64Bit, backend
 
         backend_org = type(backend)
-        backend.change_backend(Cupy32Bit)
+        backend.change_backend(Cupy64Bit)
         with AllowPlotting():
             # would crash without AllowPlotting
             # TypeError: Implicit conversion to a NumPy array is not allowed. Please use `.get()` to construct a NumPy array explicitly.
