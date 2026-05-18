@@ -409,6 +409,68 @@ class PythonSpecials(Specials):
                 dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
 
     @staticmethod
+    def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+        beam_dE: NumpyArray,
+        energy_lost: float,
+        longitudinal_damping_time: float,
+        natural_energy_spread: float,
+        total_energy: float,
+        disable_quantum_excitation: bool = False,
+    ) -> None:
+        """
+        Apply the synchrotron-radiation + quantum-excitation energy kick.
+
+        Single-sweep on ``beam_dE``: ``np.multiply(.., out=beam_dE)`` followed
+        by one ``np.add(.., out=beam_dE)`` — naive ``*=``, ``-=``, ``+=``
+        would touch ``beam_dE`` three separate times (3× memory traffic at
+        millions of entries).
+
+        Parameters
+        ----------
+        beam_dE
+            Macro-particle energy coordinates, in [eV]. Modified in place.
+        energy_lost
+            Energy lost through the considered synchrotron segment,
+            in [eV per turn].
+        longitudinal_damping_time
+            Longitudinal damping time of the considered synchrotron segment,
+            in [turn].
+        natural_energy_spread
+            Natural energy spread of the considered synchrotron segment,
+            [dimensionless].
+        total_energy
+            Beam total reference energy, in [eV].
+        disable_quantum_excitation
+            Expert user only. Disables the quantum excitation kick.
+        """
+        damping_factor = 1.0 - 2.0 / longitudinal_damping_time
+        if disable_quantum_excitation:
+            # beam_dE := damping_factor * beam_dE - energy_lost
+            # Two passes over beam_dE are unavoidable in pure NumPy (no fma),
+            # but only beam_dE-sized memory is touched.
+            np.multiply(beam_dE, damping_factor, out=beam_dE)
+            beam_dE -= energy_lost
+        else:
+            noise_scale = (
+                2.0
+                * natural_energy_spread
+                / float(np.sqrt(longitudinal_damping_time))
+                * total_energy
+            )
+            # Pre-combine the additive term in the noise buffer so that the
+            # final update over beam_dE is a single fused-multiply-add-like
+            # expression: beam_dE := damping_factor * beam_dE + noise_term.
+            # Legacy `np.random.standard_normal` is intentional: keeps
+            # `np.random.seed(...)` reproducibility on the Python reference
+            # backend.
+            noise_term = np.random.standard_normal(size=len(beam_dE))  # NOQA: NPY002
+            np.multiply(noise_term, noise_scale, out=noise_term)
+            noise_term -= energy_lost
+            # One sweep on beam_dE: scale then add the prepared noise_term.
+            np.multiply(beam_dE, damping_factor, out=beam_dE)
+            beam_dE += noise_term
+
+    @staticmethod
     def move_flagged_elements_to_end(
         flag: int,
         flags: NumpyArray,  # also purged

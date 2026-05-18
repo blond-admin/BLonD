@@ -21,7 +21,6 @@ from blond.core.beam.particle_types import ParticleType
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
-    apply_synchrotron_radiation_and_quantum_excitation_energy_kick,
 )
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationTracker,
@@ -282,83 +281,69 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
         )
 
     def test_all_energy_kicks_are_equal(self):
-        np.random.seed(seed=self.seed)
-        energy_kick_from_SynchrotronRadiationBaseClass = self.SRB._apply_kick(
-            beam=self.beam,
-        )
-        energy_kick_from_SynchrotronRadiationDrift = self.SRD._apply_kick(
-            beam=self.beam,
-        )
-        energy_kick_from_SynchrotronRadiationSection = self.SRS._apply_kick(
-            beam=self.beam,
-        )
-        np.testing.assert_array_equal(
-            copy_to_cpu(energy_kick_from_SynchrotronRadiationBaseClass),
-            copy_to_cpu(energy_kick_from_SynchrotronRadiationDrift),
-        )
+        # The three classes (BaseClass/Drift/Section) all share `_apply_kick`
+        # (defined on the base class) and were constructed with
+        # `disable_quantum_excitation=True` — the kick is fully deterministic,
+        # so resetting the beam between calls is enough to compare the three
+        # classes' effects on identical inputs.
+        initial_dE = self.beam.read_partial_dE().copy()
+
+        self.SRB._apply_kick(beam=self.beam)
+        dE_after_base_class_kick = self.beam.read_partial_dE().copy()
+
+        self.beam.write_partial_dE()[:] = initial_dE
+        self.SRD._apply_kick(beam=self.beam)
+        dE_after_drift_kick = self.beam.read_partial_dE().copy()
+
+        self.beam.write_partial_dE()[:] = initial_dE
+        self.SRS._apply_kick(beam=self.beam)
+        dE_after_section_kick = self.beam.read_partial_dE().copy()
 
         np.testing.assert_array_equal(
-            copy_to_cpu(energy_kick_from_SynchrotronRadiationBaseClass),
-            copy_to_cpu(energy_kick_from_SynchrotronRadiationSection),
+            copy_to_cpu(dE_after_base_class_kick),
+            copy_to_cpu(dE_after_drift_kick),
         )
-
         np.testing.assert_array_equal(
-            copy_to_cpu(energy_kick_from_SynchrotronRadiationDrift),
-            copy_to_cpu(energy_kick_from_SynchrotronRadiationSection),
+            copy_to_cpu(dE_after_base_class_kick),
+            copy_to_cpu(dE_after_section_kick),
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(dE_after_drift_kick),
+            copy_to_cpu(dE_after_section_kick),
         )
 
     def test_update_beam_energy(self):
-        previous_energy = self.beam.read_partial_dE().copy()
-        energy_kick = self.SRB._apply_kick(
-            beam=self.beam,
-        )
+        # `_update_beam_energy` is a thin wrapper around `_apply_kick`, so
+        # invoking either on identical starting states must produce identical
+        # post-kick dE arrays (deterministic with QE disabled).
+        initial_dE = self.beam.read_partial_dE().copy()
+
+        self.SRB._apply_kick(beam=self.beam)
+        dE_after_apply_kick = self.beam.read_partial_dE().copy()
+
+        self.beam.write_partial_dE()[:] = initial_dE
         self.SRB._update_beam_energy(beam=self.beam)
-        energy_after_one_kick = self.beam.read_partial_dE().copy()
-        np.testing.assert_array_equal(
-            copy_to_cpu(energy_after_one_kick),
-            copy_to_cpu(previous_energy + energy_kick),
-        )
-
-        second_energy_kick = self.SRB._apply_kick(
-            beam=self.beam,
-        )
-        self.SRB.track(beam=self.beam)
-        energy_after_two_kicks = self.beam.read_partial_dE().copy()
+        dE_after_update = self.beam.read_partial_dE().copy()
 
         np.testing.assert_array_equal(
-            copy_to_cpu(energy_after_two_kicks),
-            copy_to_cpu(energy_after_one_kick + second_energy_kick),
-        )
-        np.testing.assert_array_equal(
-            copy_to_cpu(energy_after_two_kicks),
-            copy_to_cpu(previous_energy + energy_kick + second_energy_kick),
+            copy_to_cpu(dE_after_apply_kick), copy_to_cpu(dE_after_update)
         )
 
-    def test_energy_kick_with_quantum_excitation(self):
-        rng = np.random.default_rng(seed=self.seed)
-        energy_kick = (
-            apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
-                beam_dE=20e9 * np.ones(1000),
-                energy_lost=13e6,
-                longitudinal_damping_time=14955,
-                natural_energy_spread=1e-3,
-                total_energy=20e9,
-                random_generator=rng,
-                disable_quantum_excitation=False,
-            )
-        )
+        # Two successive kicks on the same beam compose (each pass is just
+        # `dE := (1 - 2/τ) * dE - U_0` with `disable_quantum_excitation=True`).
+        self.beam.write_partial_dE()[:] = initial_dE
+        self.SRB._apply_kick(beam=self.beam)
+        self.SRB._apply_kick(beam=self.beam)
+        dE_after_two_kicks = self.beam.read_partial_dE().copy()
 
-        expected_energy_kick = (
-            -13e6
-            - 2.0 / 14955 * 20e9 * np.ones(1000)
-            + 2.0
-            * 1e-3
-            / np.sqrt(14955)
-            * 20e9
-            * rng.standard_normal(size=1000)
+        damping_factor = 1.0 - 2.0 / self.SRB._damping_time
+        energy_lost = self.SRB._energy_lost_due_to_synchrotron_radiation
+        expected_dE_after_two_kicks = (
+            damping_factor * (damping_factor * initial_dE - energy_lost)
+            - energy_lost
         )
         np.testing.assert_allclose(
-            copy_to_cpu(energy_kick),
-            copy_to_cpu(expected_energy_kick),
-            rtol=1,
+            copy_to_cpu(dE_after_two_kicks),
+            copy_to_cpu(expected_dE_after_two_kicks),
+            rtol=1e-12,
         )

@@ -278,6 +278,55 @@ class Specials(ABC):
             Use `_gen_array_bucket_index_to_memory_index` to generate this.
         """
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+        beam_dE: NumpyArray | CupyArray,
+        energy_lost: float,
+        longitudinal_damping_time: float,
+        natural_energy_spread: float,
+        total_energy: float,
+        disable_quantum_excitation: bool = False,
+    ) -> None:
+        r"""
+        Apply the synchrotron-radiation + quantum-excitation energy kick.
+
+        Updates ``beam_dE`` in place with
+
+        .. math::
+
+            \Delta E \mapsto \left(1 - \frac{2}{\tau}\right)\,\Delta E
+                            - U_0
+                            + 2 \sigma_\delta \frac{E_0}{\sqrt{\tau}}\,
+                              \mathcal{N}(0, 1)
+
+        where the gaussian noise term is omitted when
+        ``disable_quantum_excitation`` is ``True``.
+
+        Parameters
+        ----------
+        beam_dE
+            Macro-particle energy coordinates, in [eV]. Modified in place.
+        energy_lost
+            Energy lost through the considered synchrotron segment,
+            in [eV per turn].
+        longitudinal_damping_time
+            Longitudinal damping time of the considered synchrotron segment,
+            in [turn].
+        natural_energy_spread
+            Natural energy spread of the considered synchrotron segment,
+            [dimensionless].
+        total_energy
+            Beam total reference energy, in [eV].
+        disable_quantum_excitation
+            Expert user only. Disables the quantum excitation kick.
+        """
+        raise NotImplementedError(
+            "Abstract method "
+            "`apply_synchrotron_radiation_and_quantum_excitation_energy_kick` "
+            "is not implemented."
+        )
+
 
 class _ModeSwitchHelper:
     """

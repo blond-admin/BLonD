@@ -453,6 +453,43 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
+        def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+            beam_dE: NumpyArray,
+            energy_lost: float,
+            longitudinal_damping_time: float,
+            natural_energy_spread: float,
+            total_energy: float,
+            disable_quantum_excitation: bool = False,
+        ) -> None:
+            assert beam_dE.dtype == floattype
+            assert beam_dE.flags.c_contiguous
+
+            damping_factor = floattype(1.0 - 2.0 / longitudinal_damping_time)
+            energy_lost_typed = floattype(energy_lost)
+
+            if disable_quantum_excitation:
+                _LIBBLOND.apply_synchrotron_radiation_no_excitation(
+                    _getPointer(beam_dE),
+                    c_real(damping_factor, floattype),
+                    c_real(energy_lost_typed, floattype),
+                    _getLen(beam_dE),
+                )
+            else:
+                noise_scale = floattype(
+                    2.0
+                    * natural_energy_spread
+                    / np.sqrt(longitudinal_damping_time)
+                    * total_energy
+                )
+                _LIBBLOND.apply_synchrotron_radiation_and_quantum_excitation(
+                    _getPointer(beam_dE),
+                    c_real(damping_factor, floattype),
+                    c_real(energy_lost_typed, floattype),
+                    c_real(noise_scale, floattype),
+                    _getLen(beam_dE),
+                )
+
+        @staticmethod
         def move_flagged_elements_to_end(
             flag: int,
             flags: NumpyArray,  # also purged

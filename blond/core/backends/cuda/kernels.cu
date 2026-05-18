@@ -327,6 +327,127 @@ __global__ void loss_box(
         }
 }
 
+// =================================================================
+// Synchrotron-radiation + quantum-excitation energy kick
+//
+// Fused: beam_dE[i] = damping_factor * beam_dE[i] - energy_lost
+//                   + noise_scale * N(0, 1)
+//
+// The Gaussian noise is generated *inline* with no auxiliary buffer
+// (avoids the 80+ MB allocation `cp.random.standard_normal` would
+// emit on every call). The RNG matches the C++ backend:
+//
+//   * `xoshiro256+` for the uniform stream (4 x uint64 of state per
+//     thread, kept in registers).
+//   * Marsaglia polar Box-Muller for the Gaussian transform — 1 sqrt
+//     + 1 log per *two* samples (cached spare), no sincos. About 21%
+//     of (u, v) pairs fall outside the unit disc and are rejected.
+//
+// xoshiro256+ and splitmix64 (used here only for the per-thread seed
+// expansion) by Blackman & Vigna (https://prng.di.unimi.it/,
+// CC0/public domain).
+// =================================================================
+
+#include <stdint.h>
+
+__device__ __forceinline__ uint64_t splitmix64(uint64_t* state) {
+    *state += 0x9E3779B97F4A7C15ULL;
+    uint64_t z = *state;
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+    return z ^ (z >> 31);
+}
+
+struct Xoshiro256p {
+    uint64_t s[4];
+};
+
+__device__ __forceinline__ uint64_t rotl64(const uint64_t x, int k) {
+    return (x << k) | (x >> (64 - k));
+}
+
+__device__ __forceinline__ uint64_t xoshiro_next(Xoshiro256p& rng) {
+    const uint64_t result = rng.s[0] + rng.s[3];
+    const uint64_t t = rng.s[1] << 17;
+    rng.s[2] ^= rng.s[0];
+    rng.s[3] ^= rng.s[1];
+    rng.s[1] ^= rng.s[2];
+    rng.s[0] ^= rng.s[3];
+    rng.s[2] ^= t;
+    rng.s[3] = rotl64(rng.s[3], 45);
+    return result;
+}
+
+// Uniform in (0, 1) using the top 53 bits.
+__device__ __forceinline__ real_t xoshiro_uniform(Xoshiro256p& rng) {
+    return (real_t)(xoshiro_next(rng) >> 11)
+         * (real_t)(1.0 / (double)(1ULL << 53));
+}
+
+extern "C" __global__ void apply_sr_without_quantum_excitation(
+    real_t * __restrict__ beam_dE,
+    const real_t damping_factor,
+    const real_t energy_lost,
+    const int n_macroparticles
+) {
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = tid; i < n_macroparticles; i += stride) {
+        beam_dE[i] = damping_factor * beam_dE[i] - energy_lost;
+    }
+}
+
+extern "C" __global__ void apply_sr_with_quantum_excitation(
+    real_t * __restrict__ beam_dE,
+    const real_t damping_factor,
+    const real_t energy_lost,
+    const real_t noise_scale,
+    const unsigned long long base_seed,
+    const int n_macroparticles
+) {
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    int stride = blockDim.x * gridDim.x;
+
+    // Per-thread xoshiro256+ state (4 x uint64 = 32 bytes), kept in
+    // registers. Seed via splitmix64 from a call-unique `base_seed`
+    // mixed with the global thread index, so every thread on every
+    // call has an independent, well-decorrelated stream.
+    Xoshiro256p rng;
+    uint64_t seed_state = (uint64_t)base_seed
+                        ^ ((uint64_t)tid * 0x9E3779B97F4A7C15ULL);
+    #pragma unroll
+    for (int k = 0; k < 4; ++k) {
+        rng.s[k] = splitmix64(&seed_state);
+    }
+
+    // Cache the second polar-Box-Muller sample (1 accepted pair = 2 normals).
+    real_t spare = (real_t)0.0;
+    bool has_spare = false;
+
+    for (int i = tid; i < n_macroparticles; i += stride) {
+        real_t z_norm;
+        if (has_spare) {
+            z_norm = spare;
+            has_spare = false;
+        } else {
+            // Marsaglia polar form: draw points in the unit disc, reject ~21%.
+            // No sincos, no transcendentals on rejected pairs.
+            real_t u, v, s;
+            do {
+                u = (real_t)2.0 * xoshiro_uniform(rng) - (real_t)1.0;
+                v = (real_t)2.0 * xoshiro_uniform(rng) - (real_t)1.0;
+                s = u * u + v * v;
+            } while (s >= (real_t)1.0 || s == (real_t)0.0);
+            const real_t factor = sqrt((real_t)(-2.0) * log(s) / s);
+            z_norm = u * factor;
+            spare = v * factor;
+            has_spare = true;
+        }
+        beam_dE[i] = damping_factor * beam_dE[i] - energy_lost
+                   + noise_scale * z_norm;
+    }
+}
+
 extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
                                        const real_t *__restrict__ beam_dE,
                                        const real_t T, const real_t alpha_zero,
