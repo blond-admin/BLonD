@@ -573,11 +573,12 @@ class SymbolicSeparatrixHelper:
         """
         Compute the bucket index ``n`` containing each ``dt``.
 
-        ``floor((dt - ufp_dt) / period)`` is ambiguous on the boundary due
-        to float roundoff (``n - 1e-16`` floors to ``n - 1``), so we round
-        to the nearest integer when within :attr:`_BUCKET_BOUNDARY_TOLERANCE`
-        -- that way a UFP is treated as the LEFT boundary of bucket ``n``
-        (where the separatrix touches ``dE = 0``).
+        Bucket ``n`` is the half-open interval ``[UFP_n, UFP_{n+1})``,
+        so a UFP belongs to the bucket on its right. The ratio
+        ``(dt - ufp_dt) / period`` is shifted by
+        :attr:`_BUCKET_BOUNDARY_TOLERANCE` before flooring, so a sample
+        sitting on a UFP up to roundoff is assigned to that right-hand
+        bucket rather than to the one ending at it.
 
         Parameters
         ----------
@@ -590,12 +591,7 @@ class SymbolicSeparatrixHelper:
         -------
         bucket_index
             Integer-valued float array; ``dt`` lies in bucket
-            ``[UFP_n, UFP_{n+1}]``.
+            ``[UFP_n, UFP_{n+1})``.
         """
         ratio = (dt - bucket.ufp_dt) / bucket.period
-        nearest = np.round(ratio)
-        return np.where(
-            np.abs(ratio - nearest) < self._BUCKET_BOUNDARY_TOLERANCE,
-            nearest,
-            np.floor(ratio),
-        )
+        return np.floor(ratio + self._BUCKET_BOUNDARY_TOLERANCE)
