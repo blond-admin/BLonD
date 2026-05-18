@@ -18,63 +18,66 @@ Code that is not mature enough to be inside the standard codebase should be deve
 
 <!-- Automatically created using `dev_tools/create_tables.py` -->
 ```
-blond/                        BLonD beam dynamics software.
-├── acc_math/                 Analytical equations.
-├──── analytic/               Analytical equations for theoretic descriptions.
-├────── synchrotron_radiation/A collection of analytic equations required for synchrotron radiation.
-├──── empiric/                Analytical equations for empirical observations.
+├ blond/                      BLonD beam dynamics software.
+acc_math/                     Analytical equations.
+├── analytic/                 Analytical equations for theoretic descriptions.
+├──── synchrotron_radiation/  A collection of analytic equations required for synchrotron radiation.
+├── empiric/                  Analytical equations for empirical observations.
+beam_preparation/             Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
+core/                         Core functionalities that define BLonD and its runtime.
+├── backends/                 All helper functions and implementations for the numeric backends of BLonD.
+├──── cpp/                    Holds `CppSpecials` and helper functions.
+├──── cuda/                   Holds `CudaSpecials` and helper functions.
+├──── mpi_distributed/        Functions to interface with MPI distributed arrays.
+├──── numba/                  Holds `NumbaSpecials` and helper functions.
+├──── python/                 Holds `PythonSpecials` and helper functions.
+├── beam/                     Core classes and routines related to the Beam objects.
+├── reference_clock/          Helper class that holds the reference to the beam coordinate system.
+├── ring/                     Methods related to the `Ring` class.
+├── simulation/               Definitions related to assembling a `Simulation`.
+├──── execution_models/       Different implementations of main-loops, for example for counter-rotation.
+cycles/                       Module to manage and describe the ramp of the magnets and other cycles.
+├── noise_generators/         Module for noise generators.
+examples/                     Overview of BLonD input files as a starting point for new simulations..
+├── notebooks/                Helpful jupyter notebooks that are presented on the website.
+├── scripts/                  Overview of BLonD input files as a starting point for new simulations..
+experimental/                 Untested/unstable code that might be changed in the future.
+├── acc_math/                 Helpers for math to deal with the output of simulations.
+├──── empiric/                Helpers for math to deal with the output of simulations.
 ├── beam_preparation/         Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
+├──── semi_empiric_matcher_extensions/
+├────── line_density/         Helper implementations to fit a line density with `SemiEmpiricMatcher`.
 ├── cycles/                   Module to manage and describe the ramp of the magnets and other cycles.
-├──── noise_generators/       Module for noise generators.
-├── examples/                 Overview of BLonD input files as a starting point for new simulations..
-├── experimental/             Untested/unstable code that might be changed in the future.
-├──── acc_math/               Helpers for math to deal with the output of simulations.
-├────── empiric/              Helpers for math to deal with the output of simulations.
-├──── beam_preparation/       Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
-├──── physics/                Implementations to handle different beam physics processes,
-├────── feedbacks/            Module to manage and describe the longitudinal feedbacks.
-├──────── accelerators/       Feedback implementations for specific accelerators.
-├────────── lhc/              Functions to define the CERN Large Hadron Collider feedback systems.
-├────────── sps/              Utility functions to define feedbacks for the CERN synchrotrons.
-├────────── psb/              Functions to define the CERN Proton Synchrotron Booster feedback systems.
-├──── cycles/                 Module to manage and describe the ramp of the magnets and other cycles.
-├────── noise_generators/     Collection of functions to generate noise.
-├── handle_results/           Helper functions and detailed implementations to define :class:`blond.handle_results.observables.Observables`.
-├── legacy/                   Access point for the legacy blond version, use ``from blond.legacy import blond2``.
-├── physics/                  Implementations to handle different beam physics processes, like RF-Stations.
-├──── impedances/             Module to handle the interaction of impedance sources with the beam.
+├──── noise_generators/       Collection of functions to generate noise.
+├── physics/                  Implementations to handle different beam physics processes,
 ├──── feedbacks/              Module to manage and describe the longitudinal feedbacks.
-├── testing/                  Utilities for testing of BLonD.
-├──── synchrotron_radiation/  Implementations to simulate the effect of synchrotron radiation.
-├── specifics/                Utility functions for specific accelerators.
-├──── cern/                   Utility functions for CERN synchrotrons.
-├────── lhc/                  Utility functions for the CERN Large Hadron Collider.
-├────── ps/                   Utility functions for the CERN Proton Synchrotron.
-├────── psb/                  Utility functions for the CERN Proton Synchrotron Booster.
-├────── sps/                  Utility functions for the CERN Super Proton Synchrotron.
-├──── fccee/                  Accelerator specifics for the future circular collider.
-├──── muon_collider/          Helper scripts for the muon collider.
-├── interfaces/               Managing access to other (optional) beam physics software, like XSuite.
-├──── xsuite/                 Glue code for XSuite.
-├────── beam_preparation/     Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
-├────── physics/              Beam physics classes for interfacing XSuite.
-├── generals/                 Function definitions that are useful outside the beam physics context.
-├──── cupy/                   Scripts that are useful to work with Cupy.
-├──── distributed/            Helper module to work with CPU/GPU arrays distributed via MPI.
-├── core/                     Core functionalities that define BLonD and its runtime.
-├──── backends/               All helper functions and implementations for the numeric backends of BLonD.
-├────── cpp/                  Holds `CppSpecials` and helper functions.
-├────── cuda/                 Holds `CduaSpecials` and helper functions.
-├────── numba/                Holds `NumbaSpecials` and helper functions.
-├────── python/               Holds `PythonSpecials` and helper functions.
-├────── mpi_distributed/      Functions to interface with MPI distributed arrays.
-├──── beam/                   Core classes and routines related to the Beam objects.
-├──── ring/                   Methods related to the `Ring` class.
-├──── simulation/             Definitions related to assembling a `Simulation`.
-├────── execution_models/     Different implementations of main-loops, for example for counter-rotation.
-├──── reference_clock/        Helper class that holds the reference to the beam coordinate system.
-├── performance_blond3/       Testing the performance of BLonD.
-├──── backends/               Testing the performance of the BLonD backends.
+├────── accelerators/         Feedback implementations for specific accelerators.
+├──────── lhc/                Functions to define the CERN Large Hadron Collider feedback systems.
+├──────── psb/                Functions to define the CERN Proton Synchrotron Booster feedback systems.
+├──────── sps/                Utility functions to define feedbacks for the CERN synchrotrons.
+generals/                     Function definitions that are useful outside the beam physics context.
+├── cupy/                     Scripts that are useful to work with Cupy.
+├── distributed/              Helper module to work with CPU/GPU arrays distributed via MPI.
+handle_results/               Helper functions and detailed implementations to define :class:`blond.handle_results.observables.Observables`.
+interfaces/                   Managing access to other (optional) beam physics software, like XSuite.
+├── xsuite/                   Glue code for XSuite.
+├──── beam_preparation/       Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
+├──── physics/                Beam physics classes for interfacing XSuite.
+legacy/                       Access point for the legacy blond version, use ``from blond.legacy import blond2``.
+physics/                      Implementations to handle different beam physics processes, like RF-Stations.
+├── feedbacks/                Module to manage and describe the longitudinal feedbacks.
+├── impedances/               Module to handle the interaction of impedance sources with the beam.
+├── synchrotron_radiation/    Implementations to simulate the effect of synchrotron radiation.
+specifics/                    Utility functions for specific accelerators.
+├── cern/                     Utility functions for CERN synchrotrons.
+├──── lhc/                    Utility functions for the CERN Large Hadron Collider.
+├──── ps/                     Utility functions for the CERN Proton Synchrotron.
+├──── psb/                    Utility functions for the CERN Proton Synchrotron Booster.
+├──── sps/                    Utility functions for the CERN Super Proton Synchrotron.
+├── muon_collider/            Helper scripts for the muon collider.
+├── fccee/                    Accelerator specifics for the future circular collider.
+testing/                      Utilities for testing of BLonD.
+convenience/                  Convenience functions to interact with BLonD.
 ```
 
 ---
@@ -137,7 +140,7 @@ pip install --editable ".[dev, gpu_cuda12]"
 
 For CUDA13:
 ```bash
-pip install --editable ".[dev, gpu_cuda12]"
+pip install --editable ".[dev, gpu_cuda13]"
 ```
 
 ### 4. Set Up Pre-Commit Hooks
@@ -146,7 +149,7 @@ pip install --editable ".[dev, gpu_cuda12]"
 pre-commit install
 ```
 
-### 4. Compiling Native Backends (Optional)
+### 5. Compiling Native Backends (Optional)
 
 > **Note:** These steps are automatically executed in the GitLab CI pipeline prior to running tests.
 > You only need to perform them manually if you are developing or testing locally.
@@ -159,18 +162,15 @@ blond-compile-cpp --parallel   # Compile the C++ backend
 ```bash
 blond-compile-cuda             # Compile the CUDA backend
 ```
-```bash
-blond-compile-fortran          # Compile the Fortran backend
-```
 
 Once compiled, the corresponding backends will be available for use within your simulation environment.
 
 To activate a specific backend (for example, the C++ backend), you can use the following Python code:
 
 ```python
-from blond import backend
+from blond import setup_backend
 
-backend.set_specials(mode="cpp")  # Activate the C++ backend
+setup_backend("cpp")  # Activate the C++ backend
 ```
 
 
@@ -191,11 +191,12 @@ Following markers are used
 
 - 'backend_mutation'
 - 'cupy'
+- 'mpi'
 
 Those tests can be excluded for running the tests with the `pytest -m` flag.
 ```bash
 export BLOND_BACKEND_MODE=cuda
-export BLOND_BACKEND_BITS=32
+export BLOND_BACKEND_BITS=64
 python3 -m pytest -m "not backend_mutation"  -v tests/unittests/
 ```
 
@@ -237,9 +238,10 @@ To build the documentation locally:
 
 ```bash
 python -m pip install .[doc]
-python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going docs docs/_build/html
+cd docs && bash create_docs.sh
 ```
 
+See [`docs/create_docs.sh`](docs/create_docs.sh) for the full build steps.
 Built files appear in `docs/_build/html/`.
 
 Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
@@ -276,12 +278,12 @@ Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 
 ## Release Process
 > [!WARNING]
-> As long as BLonD 3 is not the main BLonD Version, it will not be available on PyPi and the docuemntation website.
+> As long as BLonD 3 is not the main BLonD Version, it will not be available on PyPi and the documentation website.
 
 > Automatically done in GitLab CI Pipeline
 
 The [GitLab CI Pipeline](.gitlab-ci.yml) is configured for an automatic release process.
-- Uploads **BLonD** from `master` to [PyPi](https://pypi.org/project/blond/)  if a new tag is created (see [BLonD Tags](https://gitlab.cern.ch/blond/BLonD/-/tags))
+- Uploads **BLonD** to [PyPi](https://pypi.org/project/blond/) whenever a new tag is pushed (see [BLonD Tags](https://gitlab.cern.ch/blond/BLonD/-/tags))
 - Build/updates the **documentation** hosted at [BLonD Documentation Website](https://blond-code.docs.cern.ch/)
   - The linking between the GitLab project and the website can be adjusted in the [GitLab project settings](https://gitlab.cern.ch/blond/BLonD/pages#domains-settings)
 
