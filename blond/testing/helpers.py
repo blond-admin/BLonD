@@ -13,8 +13,16 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+import numpy as np
+
+from blond import backend
+
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
+    from typing import Any
+
+    from numpy.typing import NDArray
+
+    NumpyArray = NDArray[Any]
 
 
 def pinned_values_helper(variable: NumpyArray, variable_name: str) -> None:
@@ -39,12 +47,13 @@ def pinned_values_helper(variable: NumpyArray, variable_name: str) -> None:
     >>> array = np.ones(10)
     >>> pinned_values_helper(array, "array")
     """
+    variable_name_nodot = variable_name.replace(".", "_")
     print(
-        f"\n{variable_name}_pinned = {variable.tolist()}\n"
+        f"\n{variable_name_nodot}_pinned = {variable.tolist()}\n"
         f"""np.testing.assert_allclose(
     {variable_name},
-    {variable_name}_pinned,
-    rtol=1e-6 if backend.float == np.float32 else 1e-12,
+    {variable_name_nodot}_pinned,
+    rtol=1e-12,
 )"""
     )
 
@@ -63,3 +72,44 @@ def pytest_active():
         return False
     else:
         return bool(testing)
+
+
+def allclose_tolerances(
+    expected: NumpyArray,
+    rtol: float = 1e-12,
+) -> dict[str, float]:
+    """
+    Generate keyword-arguments for the tolerances of `np.testing.assert_allclose`.
+
+    Parameters
+    ----------
+    expected
+        Expected array of `np.testing.assert_allclose`.
+    rtol
+        The required relative tolerance.
+
+    Returns
+    -------
+    kwargs
+        The `rtol` and `atol` keyword arguments.
+
+    Examples
+    --------
+    >>> np.testing.assert_allclose(
+    ...     actual,
+    ...     expected,
+    ...     **allclose_tolerances(expected),
+    ... )
+    """
+    amplitude = float(np.max(expected) - np.min(expected))
+    kwargs = {
+        "rtol": 0,  # intentional 0, it makes problems at arrays that cross 0.
+        "atol": amplitude * rtol,
+    }
+    return kwargs
+
+
+def enforce_64_bit_backend():
+    """Enforce 64-bit backend, GPU is taken into account."""
+    if backend.float == np.float32:
+        raise TypeError("32-bit float and 64-bit complex have been removed.")

@@ -39,21 +39,29 @@ BLonD also features **parallel backends** for efficient execution on both **CPUs
 ```bash
 pip install blond
 ```
-or if a GPU is available
+or if a GPU is available, either CUDA12 or CUDA13 can be used
 ```bash
-pip install blond[gpu]
+pip install blond[gpu_cuda12]
+```
+```bash
+pip install blond[gpu_cuda13]
 ```
 
 ### Configuration
 Optional backends can be compiled after installation using the commands `blond-compile-cpp --parallel` or `blond-compile-cuda`
 for improved performance. The backend can be selected in Python using ```backend.set_specials(...)```.
 
+NB: check your cuda version with `nvidia-smi`, to ensure you select the correct optional dependency.
+
+
 ## Documentation
 See full documentation [here](https://blond-code.docs.cern.ch/).
 
 
 ## Usage
+A collection of examples can be found in the folder [blond/examples](blond/examples).
 
+Below, a basic example for a beam in LHC at flat-bottom is given.
 ```python
 import matplotlib.pyplot as plt
 
@@ -67,6 +75,7 @@ from blond import (
     Beam,
     BiGaussian,
     backend,
+    momentum_compaction_factor,
 )
 
 backend.set_specials("cpp")  # set any backend you want

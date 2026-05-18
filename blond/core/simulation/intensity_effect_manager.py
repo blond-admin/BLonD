@@ -128,3 +128,27 @@ class IntensityEffectManager:
             "Cant handle mixed states of Profiles being active/inactive."
         )
         return actives.pop()
+
+    def freeze_wakefields(self) -> None:
+        """Freeze the wakefields, so that they applied the kick to what has happened before."""
+        # Deactivate all updates of wake fields.
+        # They need to be previously calculated by a successful run with an
+        # actual line density, as the probe beam has no line density.
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField, recursive=True
+        )
+        for wakefield in wakefields:
+            wakefield.update_induced_voltage = False
+            wakefield.profile.active = False
+
+    def unfreeze_wakefields(self) -> None:
+        """Unfreeze the wakefields, so that all intensity effects are active."""
+        # Deactivate all updates of wake fields.
+        # They need to be previously calculated by a successful run with an
+        # actual line density, as the probe beam has no line density.
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField, recursive=True
+        )
+        for wakefield in wakefields:
+            wakefield.update_induced_voltage = True
+            wakefield.profile.active = True

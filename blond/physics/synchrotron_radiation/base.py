@@ -81,7 +81,7 @@ def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
             * natural_energy_spread
             / np.sqrt(longitudinal_damping_time)
             * total_energy
-            * np.random.standard_normal(size=len(beam_dE))
+            * np.random.standard_normal(size=len(beam_dE))  # NOQA NPY002
         )
     beam_dE += energy_kick
 

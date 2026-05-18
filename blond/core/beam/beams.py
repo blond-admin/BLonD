@@ -582,7 +582,8 @@ class Beam(BeamBaseClass):
         )
         dEs = (
             mpi_aware_random_generator_cpu(
-                seed=seed, n_forward_per_rank=local_size
+                seed=None if seed is None else seed + 1,
+                n_forward_per_rank=local_size,
             ).standard_normal(size=local_size)
             * dE_scale
             + dE_offset

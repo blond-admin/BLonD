@@ -14,14 +14,18 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond.core.base import Preparable
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
+from blond.generals.distributed import distributed_array
+from blond.generals.distributed import helpers as dist_help
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Literal
+    from typing import Any, Literal, Self
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
@@ -71,6 +75,187 @@ class BeamBaseClass(Preparable, ABC):
 
         self.reference = ReferenceCoordinates(
             time=0, total_energy=None, particle_type=particle_type
+        )
+
+    def __iadd__(self, other: Self) -> Self:
+        """
+        In place addition of another beam to this one.
+
+        See `add_beam` for full documentation.
+
+        Parameters
+        ----------
+        other
+            The beam object to be added to this one.
+
+        Returns
+        -------
+        self
+            Self with the contents of other beam added.
+
+        Examples
+        --------
+        >>> beam_1 = Beam([..])
+        >>> beam_2 = Beam([..])
+        >>> beam_1 += beam_2
+        """
+        self.add_beam(other)
+        return self
+
+    def add_beam(self, other: Self):
+        """
+        Add another beam to this one, mutates this beam.
+
+        The particles from the other beam will be concatenated with the
+        particles of this one.  The MPI distribution status, intensity
+        ratio and particle types must match.
+
+        The ``ids`` of the added beam will be incremented by the maximum id
+        of the current beam plus one.  E.g.:
+            ``self.ids = [0, 2, 4]``
+            ``other.ids = [0, 1, 2, 3, 4]``
+        After addition:
+            ``self.ids = [0, 2, 4, 5, 6, 7, 8, 9]``
+
+        Parameters
+        ----------
+        other
+            The beam object to be added to this one.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if one beam is distributed and one is not.
+        ValueError
+            Raised if the ratio values are not exactly equal.
+            Raised if the particle types are not equal.
+        """
+        if self.is_distributed != other.is_distributed:
+            raise RuntimeError(
+                "A non-distributed beam cannot be added to a distributed beam."
+                f"{self.is_distributed=}, {other.is_distributed=}"
+            )
+
+        if self.ratio != other.ratio:
+            raise ValueError(
+                "Beams can only be added if they have the same ratio."
+                f"{self.ratio=}, {other.ratio=}"
+            )
+
+        if self.particle_type != other.particle_type:
+            raise ValueError(
+                "Cannot add beams with mismatched particle types."
+                f"{self.particle_type=}, {other.particle_type=}"
+            )
+
+        new_ids = other._ids.array_local + int(self._ids.max()) + 1
+
+        self._add_coordinates(
+            other._dt,
+            other._dE,
+            other._flags,
+            distributed_array.DistributedArray(new_ids),
+        )
+
+    def add_particles(self, dt: DistributedArray, dE: DistributedArray):
+        """
+        Add a new set of particle coordinates to the beam.
+
+        The particle coordinates given by input `dt` and `dE` will be
+        added to the beam object.  The intensity per macroparticle of
+        the added particles will be set to match the existing beam and
+        all particles will be flagged as active.
+
+        Parameters
+        ----------
+        dt
+            The time coordinates of the new particles.
+        dE
+            The energy coordinates of the new particles.
+
+        Raises
+        ------
+        ValueError
+            Raised if the local or global sizes of the `dt` and `dE`
+            arrays do not match.
+        """
+        if (dt.local_size != dE.local_size) or (
+            dt.global_size != dE.global_size
+        ):
+            raise ValueError(
+                "The dt and dE array sizes are mismatched"
+                f"{dt.local_size=}, {dE.local_size=}"
+                f"{dt.global_size=}, {dE.global_size=}"
+            )
+
+        id_max = np.int32(self._ids.max())
+        local_size = self._dt.local_size
+
+        new_ids = dist_help.distributed_arange(local_size, np.int32)
+        new_ids.array_local += id_max + 1
+
+        new_flags = dist_help.distributed_zeros(local_size, np.int32)
+        new_flags.array_local[:] = np.int32(BeamFlags.ACTIVE.value)
+
+        self._add_coordinates(dt, dE, new_flags, new_ids)
+
+    def _add_coordinates(
+        self,
+        new_dt: DistributedArray,
+        new_dE: DistributedArray,
+        new_flags: DistributedArray,
+        new_ids: DistributedArray,
+    ):
+        """
+        Protected function to add new coordinates to the beam.
+
+        Parameters
+        ----------
+        new_dt
+            The new dt coordinates.
+        new_dE
+            The new dE coordinates.
+        new_flags
+            The new particle flags.
+        new_ids
+            The new particle ids.
+        """
+        ratio = self.ratio
+
+        self._dt = distributed_array.concatenate(self._dt, new_dt)
+        self._dE = distributed_array.concatenate(self._dE, new_dE)
+        self._flags = distributed_array.concatenate(self._flags, new_flags)
+        self._ids = distributed_array.concatenate(self._ids, new_ids)
+
+        self.intensity = ratio * self.common_array_size
+
+    def signed_charge_with_direction(self):
+        """
+        Return the charge, corrected with the direction of the beam.
+
+        If a particle traverses an electrical field, the directionality is taken into account through the vector of the
+        electrical field. For particles traveling in the opposite direction, this has to be inverted, which is handled
+        through an opposite sign of the charge.
+
+        Field     -->
+        Velocity  -->
+        Acceleration
+
+        Field     -->
+        Velocity  <--
+        Same field, but deceleration for counter-rotating beam.
+
+        Its the most convenient way to include the change via the charge.
+
+        Returns
+        -------
+        signed_charge_with_direction
+            Charge, corrected with the direction of the beam.
+        """
+        return (
+            self.particle_type.charge * -1
+            if self.is_counter_rotating
+            else self.particle_type.charge
         )
 
     @property

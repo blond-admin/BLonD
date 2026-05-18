@@ -33,7 +33,7 @@ from blond import (
 )
 
 
-def main():
+def main(n_turns: int = 2000):
     # Simulation parameters -------------------------------------------------------
     p_s = 450.0e9  # Synchronous momentum [eV]
     harmonic_number = 35640  # Harmonic number
@@ -103,7 +103,7 @@ def main():
     # profile_observable = DynamicProfileObservation(each_turn_i=10,
     # profile=profile)
     sim.run_simulation(
-        n_turns=2000,
+        n_turns=n_turns,
         # observe=(profile_observable,),
         beams=(beam,),
     )

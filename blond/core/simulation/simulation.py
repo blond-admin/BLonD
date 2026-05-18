@@ -40,10 +40,12 @@ from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
+from blond.generals.iterables_ import _as_tuple
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
@@ -58,7 +60,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.beam_preparation.base import BeamPreparationRoutine
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
-    from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.ring.ring import Ring
     from blond.core.simulation.execution_models.base import ExecutionModel
     from blond.experimental.beam_preparation.empiric_matcher import (
@@ -74,26 +75,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
     CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]
 
+
 logger = logging.getLogger(__name__)
-
-
-def _single_beam_to_tuple(
-    maybe_beams: BeamBaseClass | tuple[BeamBaseClass, ...],
-) -> tuple[BeamBaseClass, ...]:
-    """
-    Guarantee that the result is a tuple of beams.
-
-    Parameters
-    ----------
-    maybe_beams
-        Single beam instance or multiple beams.
-
-    Returns
-    -------
-    beams
-        Tuple of at leat one beam.
-    """
-    return maybe_beams if isinstance(maybe_beams, Sequence) else (maybe_beams,)
 
 
 class Simulation(Preparable):
@@ -177,9 +160,11 @@ class Simulation(Preparable):
         self.check_circumference: Literal["raise", "warn", "ignore"] = "raise"
 
         self._current_t_rev = None
+        self._current_turn_dE_tot = None
         self._particle_performance_waning_threshold = int(1e3)
         self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
+        self._exec_track_reference()
 
     def profiling(
         self,
@@ -187,6 +172,7 @@ class Simulation(Preparable):
         n_turns: int | float,
         start_turn_i: int = 0,
         sortby: SortKey = SortKey.CUMULATIVE,
+        stats_lines: int | None = None,
     ) -> None:
         """
         Profile the simulation to identify performance bottlenecks.
@@ -211,6 +197,8 @@ class Simulation(Preparable):
             - SortKey.CUMULATIVE: Sort by cumulative time (default, most useful)
             - SortKey.TIME: Sort by internal time
             - SortKey.CALLS: Sort by call count
+        stats_lines
+            Number of lines to print of the statistics.
 
         See Also
         --------
@@ -278,7 +266,10 @@ class Simulation(Preparable):
         pr.disable()
         s = io.StringIO()
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        ps.print_stats()
+        if stats_lines is None:
+            ps.print_stats()
+        else:
+            ps.print_stats(stats_lines)
         print(s.getvalue())
 
     def plot_potential_well_empiric(
@@ -286,6 +277,7 @@ class Simulation(Preparable):
         dt: NumpyArray,
         particle_type: ParticleType,
         subtract_min: bool = True,
+        until_section_index: int = -1,
         **kwargs_plot,
     ) -> None:
         """
@@ -309,6 +301,9 @@ class Simulation(Preparable):
         subtract_min
             If True (default), normalizes the potential so its minimum is at zero.
             If False, normalizes so ``potential_well[0] = 0``.
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
+
         **kwargs_plot
             Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
             for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
@@ -353,6 +348,7 @@ class Simulation(Preparable):
             dt=dt,
             particle_type=particle_type,
             subtract_min=subtract_min,
+            until_section_index=until_section_index,
         )
         plt.plot(
             copy_to_cpu(dt),
@@ -376,7 +372,7 @@ class Simulation(Preparable):
         )
 
         t_rev_before = self._current_t_rev  # prevent side effect
-        self._calculate_current_t_rev(
+        self._update_Trev_and_dErev(
             reference=(
                 ReferenceCoordinates(
                     time=0.0,
@@ -470,7 +466,13 @@ class Simulation(Preparable):
         t1 = probe_bunch.reference.time
         T = t1 - t0
         drift_term = (
-            cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
+            # `copy_to_cpu` because `cumulative_simpson` does not have a
+            # cupy implementation for now.
+            cumulative_simpson(
+                copy_to_cpu(probe_bunch.read_partial_dt()),
+                x=copy_to_cpu(dE),
+                initial=0,
+            )
             / T
         )
         drift_term -= drift_term.min()
@@ -483,6 +485,7 @@ class Simulation(Preparable):
         particle_type: ParticleType,
         subtract_min: bool = True,
         intensity: int = 0,
+        until_section_index: int = -1,
     ) -> tuple[NumpyArray, float, float]:
         """
         Calculate the RF potential well by tracking particles through one turn.
@@ -515,6 +518,8 @@ class Simulation(Preparable):
         intensity
             Beam intensity (number of real particles) to include collective effects.
             Default is 0 (no intensity effects).
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Returns
         -------
@@ -572,10 +577,16 @@ class Simulation(Preparable):
         )
         bunch_before = deepcopy(probe_bunch)
         t_0 = probe_bunch.reference.time
-        deepcopy(self).run_simulation(
+
+        # prevent side effect
+        sim_tmp = deepcopy(self)
+
+        sim_tmp.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             show_progressbar=False,
+            verbose=False,
+            until_section_index=until_section_index,
         )
         # Calculate passed time
         t_1 = probe_bunch.reference.time
@@ -737,6 +748,17 @@ class Simulation(Preparable):
             beam=beam,
             n_turns=n_turns,
         )
+
+    def _exec_track_reference(self):
+        reference = ReferenceCoordinates(
+            time=0.0,
+            total_energy=self.magnetic_cycle.get_total_energy_init(
+                particle_type=self.magnetic_cycle.reference_particle
+            ),
+            particle_type=self.magnetic_cycle.reference_particle,
+        )
+        for element in self.ring.elements.get_elements(AltersReference):
+            element.track_reference(reference=reference)
 
     @staticmethod
     def from_locals(
@@ -998,7 +1020,7 @@ class Simulation(Preparable):
         ...         hamilton_max=1.0                   # Hamiltonian cutoff [eV]
         ...     ),
         ...     internal_grid_shape=(1023, 1023),      # Resolution of phase space grid
-        ...     tolerance=1e-6,                        # Convergence threshold
+        ...     tolerance_potential_well=1e-6,                        # Convergence threshold
         ...     maxiter_intensity_effects=100,         # Max iterations with wakefields
         ...     increment_intensity_effects_until_iteration_i=10,  # Intensity ramp-up steps
         ...     seed=42,                               # For reproducibility
@@ -1019,6 +1041,7 @@ class Simulation(Preparable):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the beam dynamics simulation.
@@ -1045,6 +1068,8 @@ class Simulation(Preparable):
             called can be set by `each_turn_i`.
 
             An example is shown below.
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Notes
         -----
@@ -1059,13 +1084,18 @@ class Simulation(Preparable):
         >>>     ...
         >>> my_callback.each_turn_i = 2
         """
-        beams = _single_beam_to_tuple(beams)
+        beams = _as_tuple(beams)
+        observe = _as_tuple(observe)
+        if callbacks is not None:
+            callbacks = _as_tuple(callbacks)
+
         self.execution_model.mainloop(
             simulation=self,
             beams=beams,
             n_turns=n_turns,
             observe=observe,
             show_progressbar=show_progressbar,
+            until_section_index=until_section_index,
             callbacks=callbacks,
         )
 
@@ -1110,10 +1140,12 @@ class Simulation(Preparable):
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
+        observe: ObservablesOncePerTurnBase
+        | tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
         verbose: bool = True,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the main beam dynamics simulation loop.
@@ -1142,7 +1174,7 @@ class Simulation(Preparable):
             Default is None.
         observe
             Tuple of observable objects that record data during the simulation
-            (e.g., ``RFStationPhaseObservation``, ``BeamObservationEndOfTurn``).
+            (e.g., ``RFStationPhaseObservation``, ``BeamObservationOncePerTurn``).
             Each observable is updated according to its own schedule. Default is empty tuple.
         show_progressbar
             If True, displays a progress bar showing simulation progress and turn rate.
@@ -1157,6 +1189,8 @@ class Simulation(Preparable):
             called can be set by `each_turn_i`.
         verbose
             Will print infos if ``True``.
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Raises
         ------
@@ -1240,7 +1274,11 @@ class Simulation(Preparable):
         >>>     ...
         >>> my_callback.each_turn_i = 2
         """
-        beams = _single_beam_to_tuple(beams)
+        beams = _as_tuple(beams)
+        observe = _as_tuple(observe)
+        if callbacks is not None:
+            callbacks = _as_tuple(callbacks)
+
         logger.info(f"Running `run_simulation` with {locals()}")
         n_turns = (
             int_from_float_with_warning(n_turns, warning_stacklevel=2)
@@ -1264,6 +1302,7 @@ class Simulation(Preparable):
             observe=observe,
             show_progressbar=show_progressbar,
             callbacks=callbacks,
+            until_section_index=until_section_index,
         )
 
     def finalize(
@@ -1318,7 +1357,8 @@ class Simulation(Preparable):
           object to allow discovery by the initialization system.
         - Performance warnings are issued if using Python backend with many particles.
         """
-        beams = _single_beam_to_tuple(beams)
+        beams = _as_tuple(beams)
+        observe = _as_tuple(observe)
         if self.execution_model is None:
             self._autoselect_execution_model(beams)
 
@@ -1613,9 +1653,9 @@ class Simulation(Preparable):
                 observable.rename(new_common_filepath=common_name)
             observable.from_disk()
 
-    def _calculate_current_t_rev(self, reference: ReferenceCoordinates):
+    def _update_Trev_and_dErev(self, reference: ReferenceCoordinates) -> None:
         """
-        Calculate the revolution time of the current turn, in [s].
+        Calculate the revolution time and energy gain of the current turn.
 
         This method takes the reference frame of the beam at the first element
         and tracks it along one turn back to the first element,
@@ -1628,19 +1668,25 @@ class Simulation(Preparable):
             The reference energy, i.e. velocity, impacts the revolution time
             and might change along the ring when multiple sections are used.
 
-        Returns
-        -------
-        t_rev
-            Revolution time, in [s].
+        See Also
+        --------
+        current_t_rev: API to pick up the results.
+        current_turn_dE_tot: API to pick up the results.
         """
         reference_tmp = copy(reference)
+
         t0 = reference_tmp.time
+        E0 = reference_tmp.total_energy
 
         for element in self.ring.elements.get_elements(AltersReference):
             element: AltersReference
             element.track_reference(reference_tmp)
+
         t1 = reference_tmp.time
+        E1 = reference_tmp.total_energy
+
         self._current_t_rev = t1 - t0
+        self._current_turn_dE_tot = E1 - E0
 
     @property
     def current_t_rev(self) -> float:
@@ -1654,6 +1700,10 @@ class Simulation(Preparable):
         -------
         t_rev
             Revolution time, in [s].
+
+        See Also
+        --------
+        _update_Trev_and_dErev: Responsible for updating the underlying variable.
         """
         if self._current_t_rev is None:
             raise ValueError(
@@ -1661,3 +1711,27 @@ class Simulation(Preparable):
             )
         else:
             return self._current_t_rev
+
+    @property
+    def current_turn_dE_tot(self) -> float:
+        """
+        The energy gain in the current turn, in [eV].
+
+        This is the energy change of the total energy (kinetic + mass),
+        calculated from the start to the end of the current turn.
+
+        Returns
+        -------
+        current_turn_dE_tot
+            Energy gain in the current turn, in [eV].
+
+        See Also
+        --------
+        _update_Trev_and_dErev: Responsible for updating the underlying variable.
+        """
+        if self._current_turn_dE_tot is None:
+            raise ValueError(
+                "The value of `current_dE` is only available during the simulation execution."
+            )
+        else:
+            return self._current_turn_dE_tot

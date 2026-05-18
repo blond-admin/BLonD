@@ -10,9 +10,7 @@
 
 __all__ = [
     "BiGaussian",
-    "Cupy32Bit",
     "Cupy64Bit",
-    "Numpy32Bit",
     "Numpy64Bit",
     "backend",
     "UserDefinedElement",
@@ -54,17 +52,21 @@ __all__ = [
     "make_multibunch_beam",
     "momentum_compaction_factor",
     "copy_to_cpu",
+    "EquidistantMultiProfile",
+    "setup_backend",
+    "BeamHist2dOncePerTurn",
+    "BeamStatisticsOncePerTurn",
+    "WakeFieldObservation",
 ]
 from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
 from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.core.backends.backend import (
-    Cupy32Bit,
     Cupy64Bit,
-    Numpy32Bit,
     Numpy64Bit,
     backend,
 )
+from blond.core.backends.helpers import setup_backend
 from blond.core.base import UserDefinedElement
 from blond.core.beam.beams import Beam, EmptyBeam
 from blond.core.beam.particle_types import (
@@ -85,11 +87,14 @@ from blond.cycles.magnetic_cycle import (
 )
 from blond.generals.cupy.no_cupy_import import AllowPlotting, copy_to_cpu
 from blond.handle_results.observables import (
+    BeamHist2dOncePerTurn,
     BeamObservationOncePerTurn,
+    BeamStatisticsOncePerTurn,
     DriftObservation,
     RFStationPhaseObservation,
     SimulationObservation,
     StaticProfileObservation,
+    WakeFieldObservation,
 )
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
@@ -116,3 +121,4 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+from blond.physics.profiles_sparse import EquidistantMultiProfile
