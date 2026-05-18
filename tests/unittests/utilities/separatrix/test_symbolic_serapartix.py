@@ -33,13 +33,7 @@ from blond.utilities.separatrix.symbolic_serapartix import (
 )
 
 
-class TestSymbolicSeparatrixHelper:
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-
+class TestSymbolicSeparatrixHelper(unittest.TestCase):
     @multi_backend_testcase("Cupy64Bit", "Numpy64Bit")
     @pytest.mark.backend_mutation
     def test_integration(self):
@@ -175,7 +169,7 @@ class TestSymbolicSeparatrixInternals(unittest.TestCase):
         idx = SymbolicSeparatrixHelper._interior_extrema(
             values, kinetic_coeff=-1.0
         )
-        self.assertTrue(idx.size == 0)
+        self.assertEqual(idx.size, 0)
 
     def test_find_canonical_bucket_no_extremum_returns_none(self):
         helper = self._helper()
@@ -184,7 +178,7 @@ class TestSymbolicSeparatrixInternals(unittest.TestCase):
             kinetic_coeff=1.0,
             potential=lambda dt: np.asarray(dt, dtype=float),
         )
-        self.assertTrue(bucket is None)
+        self.assertIsNone(bucket)
 
     def test_find_canonical_bucket_negative_a_picks_local_minimum(self):
         helper = self._helper()
@@ -195,8 +189,9 @@ class TestSymbolicSeparatrixInternals(unittest.TestCase):
         bucket = helper._find_canonical_bucket(
             period_start=0.0, kinetic_coeff=-1.0, potential=potential
         )
-        self.assertTrue(bucket is not None)
-        self.assertTrue(0.7 < bucket.ufp_dt < 0.8)
+        self.assertIsNotNone(bucket)
+        self.assertGreater(bucket.ufp_dt, 0.7)
+        self.assertLess(bucket.ufp_dt, 0.8)
         np.testing.assert_allclose(bucket.ufp_potential, -1.075, atol=0.01)
         np.testing.assert_allclose(bucket.shift_per_period, -0.1, atol=1e-9)
 
@@ -208,8 +203,8 @@ class TestSymbolicSeparatrixInternals(unittest.TestCase):
             kinetic_coeffs=(0.0, 0.0, 0.0),
             potential=lambda x: np.cos(2 * np.pi * x),
         )
-        self.assertTrue(H_sep.shape == dt.shape)
-        self.assertTrue(np.all(np.isnan(H_sep)))
+        self.assertEqual(H_sep.shape, dt.shape)
+        np.testing.assert_array_equal(H_sep, np.nan)
 
     def test_H_sep_per_dt_no_canonical_bucket_returns_all_nan(self):
         helper = self._helper()
@@ -237,12 +232,12 @@ class TestSymbolicSeparatrixInternals(unittest.TestCase):
             kinetic_coeff=-1.0,
             potential=potential,
         )
-        self.assertTrue(bucket is not None)
+        self.assertIsNotNone(bucket)
         bucket_index = helper._bucket_index(dt, bucket)
         left = bucket.ufp_potential + bucket_index * bucket.shift_per_period
         right = left + bucket.shift_per_period
         # Sanity: shift_per_period != 0 so np.maximum and np.minimum diverge.
-        self.assertTrue(not np.allclose(left, right))
+        self.assertFalse(np.allclose(left, right))
         np.testing.assert_allclose(H_sep, np.maximum(left, right))
 
 

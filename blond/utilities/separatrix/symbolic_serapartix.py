@@ -405,13 +405,14 @@ class SymbolicSeparatrixHelper:
             a ``dE**2`` term.
         """
         kinetic_coeff = self._dE_squared_coefficient(kinetic_coeffs)
-        if kinetic_coeff == 0.0:
-            return np.full(dt.shape, np.nan, dtype=float)
-
-        bucket = self._find_canonical_bucket(
-            period_start=float(np.min(dt)),
-            kinetic_coeff=kinetic_coeff,
-            potential=potential,
+        bucket = (
+            None
+            if kinetic_coeff == 0.0
+            else self._find_canonical_bucket(
+                period_start=float(np.min(dt)),
+                kinetic_coeff=kinetic_coeff,
+                potential=potential,
+            )
         )
         if bucket is None:
             return np.full(dt.shape, np.nan, dtype=float)
@@ -421,9 +422,12 @@ class SymbolicSeparatrixHelper:
             bucket.ufp_potential + bucket_index * bucket.shift_per_period
         )
         potential_right = potential_left + bucket.shift_per_period
-        if kinetic_coeff > 0:
-            return np.minimum(potential_left, potential_right)
-        return np.maximum(potential_left, potential_right)
+        # The two bounding UFPs of bucket ``n`` differ by ``shift_per_period``
+        # under acceleration. The separatrix is the H-level set anchored at
+        # the *lower* UFP for ``c_2 > 0`` (UFPs are local maxima of U) and
+        # at the *higher* UFP for ``c_2 < 0`` (UFPs are local minima).
+        bounding_potentials = np.minimum if kinetic_coeff > 0 else np.maximum
+        return bounding_potentials(potential_left, potential_right)
 
     @staticmethod
     def _dE_squared_coefficient(kinetic_coeffs: tuple[float, ...]) -> float:
