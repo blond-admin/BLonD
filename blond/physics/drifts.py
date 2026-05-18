@@ -417,16 +417,16 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
 
     Parameters
     ----------
-    orbit_length : float
+    orbit_length
         Length of drift, in [m].
         Length / Velocity => Time to pass the element.
-    section_index : int
+    section_index
         Section index to group elements into sections.
-    momentum_compaction_factor : float
+    momentum_compaction_factor
         Momentum compaction factor.
         Use ``drift.schedule("momentum_compaction_factor", ...)`` to influence
         the parameter along the ramp.
-    higher_order_alpha : NumpyArray
+    higher_order_alpha
         Higher-order alpha array up to desired order.
         Use ``drift.schedule("higher_order_alpha", ...)`` to influence
         the parameter along the ramp.
@@ -469,14 +469,14 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
 
         Parameters
         ----------
-        orbit_length : float
+        orbit_length
             Length of drift, in [m].
             Length / Velocity => Time to pass the element.
-        section_index : int
+        section_index
             Section index to group elements into sections.
-        momentum_compaction_factor : float
+        momentum_compaction_factor
             Momentum compaction factor.
-        higher_order_alpha : NumpyArray
+        higher_order_alpha
             Higher-order alpha array up to desired order.
 
         Returns
@@ -588,7 +588,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
 
         Parameters
         ----------
-        beam : BeamBaseClass
+        beam
             Beam.
         """
         # Apply schedules if active
