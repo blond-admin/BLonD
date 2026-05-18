@@ -285,7 +285,18 @@ class SymbolicSeparatrixHelper:
         else:
             K_poly = sympy.Poly(K_expr, dE_sym)
             kinetic_coeffs = tuple(float(c) for c in K_poly.all_coeffs())
-        potential = sympy.lambdify(dt_sym, U_expr, modules="numpy")
+        u_lambda = sympy.lambdify(dt_sym, U_expr, modules="numpy")
+
+        def potential(dt: NumpyArray) -> NumpyArray:
+            # ``sympy.lambdify`` collapses a constant ``U_expr`` (e.g.
+            # ``voltage=0`` and no acceleration tilt) to a scalar-valued
+            # callable. Broadcast so downstream code can rely on an
+            # array of the same shape as ``dt``.
+            return np.broadcast_to(
+                np.asarray(u_lambda(dt), dtype=float),
+                np.shape(np.asarray(dt)),
+            )
+
         return kinetic_coeffs, potential
 
     @classmethod

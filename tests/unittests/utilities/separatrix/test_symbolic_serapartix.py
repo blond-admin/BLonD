@@ -504,6 +504,116 @@ class TestGetSeparatrixAsymmetricDriftExact(unittest.TestCase):
         )
 
 
+class TestGetSeparatrixDegenerateWindow(unittest.TestCase):
+    """
+    Cover ``get_separatrix`` for degenerate inputs at the public-API
+    level: a vanishing RF potential (``voltage=0``) and a ``dt`` window
+    that does not span a full RF bucket.
+    """
+
+    @staticmethod
+    def _build_simulation(voltage: float):
+        from blond import (
+            Beam,
+            BiGaussian,
+            DriftSimple,
+            MagneticCyclePerTurn,
+            Ring,
+            Simulation,
+            SingleHarmonicRFStation,
+            momentum_compaction_factor,
+            proton,
+        )
+
+        ring = Ring(26658.883)
+        rf_station = SingleHarmonicRFStation(
+            harmonic=35640,
+            voltage=voltage,
+            phi_rf=0.0,
+        )
+        drift = DriftSimple(orbit_length=26658.883)
+        drift.momentum_compaction_factor = momentum_compaction_factor(
+            transition_gamma=55.759505,
+        )
+        energy_cycle = MagneticCyclePerTurn.init_from_linspace(
+            values=np.linspace(450e9, 450e9, 2),
+            reference_particle=proton,
+        )
+        ring.add_elements((drift, rf_station))
+        sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
+        beam = Beam(intensity=1e9, particle_type=proton)
+        sim.prepare_beam(
+            beam=beam,
+            preparation_routine=BiGaussian(
+                sigma_dt=1e-10,
+                sigma_dE=1e8,
+                reinsertion=False,
+                seed=1,
+                n_macroparticles=10,
+            ),
+        )
+        return sim, beam, rf_station
+
+    def test_voltage_zero_returns_all_nan(self):
+        """No RF voltage and no acceleration -> ``U(dt) = 0`` and no UFP.
+
+        With ``voltage=0`` the cavity contributes nothing to the
+        Hamiltonian, so ``U(dt)`` is identically zero (``sympy.lambdify``
+        even collapses to a scalar-valued callable) and
+        :meth:`_find_canonical_bucket` cannot locate an extremum. Both
+        branches must come back ``NaN`` rather than crash or report a
+        spurious finite bucket.
+        """
+        sim, beam, rf_station = self._build_simulation(voltage=0.0)
+        helper = SymbolicSeparatrixHelper.from_simulation(simulation=sim)
+
+        t_rf = 2.0 * np.pi / float(rf_station.omega_rf_design)
+        dt = np.linspace(-0.5 * t_rf, 1.5 * t_rf, 201)
+        separatrix = helper.get_separatrix(beam=beam, dt=dt)
+
+        self.assertEqual(separatrix.shape, (2, dt.size))
+        self.assertTrue(
+            np.all(np.isnan(separatrix)),
+            "voltage=0 must yield an all-NaN separatrix",
+        )
+
+    def test_dt_window_narrower_than_bucket_matches_broader_window(self):
+        """``dt`` covers a fraction of a single bucket -> still finite.
+
+        The canonical scan inside :meth:`_find_canonical_bucket` always
+        uses one ``2*pi/omega_min`` period regardless of the requested
+        ``dt`` extent, so a zoomed-in window inside a single bucket must
+        still produce a well-defined separatrix that matches what a
+        broader-window evaluation gives at the same ``dt`` values.
+        """
+        sim, beam, rf_station = self._build_simulation(voltage=6e6)
+        helper = SymbolicSeparatrixHelper.from_simulation(simulation=sim)
+
+        t_rf = 2.0 * np.pi / float(rf_station.omega_rf_design)
+        # Bucket spans dt in [0, t_rf]; narrow_dt lies entirely inside it
+        # and does not contain either bounding UFP.
+        narrow_dt = np.linspace(0.3 * t_rf, 0.7 * t_rf, 41)
+        broad_dt = np.linspace(-0.2 * t_rf, 1.2 * t_rf, 4001)
+
+        narrow_sep = helper.get_separatrix(beam=beam, dt=narrow_dt)
+        broad_sep = helper.get_separatrix(beam=beam, dt=broad_dt)
+
+        self.assertTrue(
+            np.all(np.isfinite(narrow_sep)),
+            "dt window inside one bucket must yield finite branches",
+        )
+        # Upper branch positive, lower branch negative (above transition).
+        self.assertTrue(np.all(narrow_sep[0] > 0))
+        self.assertTrue(np.all(narrow_sep[1] < 0))
+
+        # Same separatrix from a broader-window evaluation -- the
+        # canonical scan is window-independent so the values must agree.
+        upper_ref = np.interp(narrow_dt, broad_dt, broad_sep[0])
+        lower_ref = np.interp(narrow_dt, broad_dt, broad_sep[1])
+        np.testing.assert_allclose(narrow_sep[0], upper_ref, rtol=1e-3)
+        np.testing.assert_allclose(narrow_sep[1], lower_ref, rtol=1e-3)
+
+
 class TestSymbolicSeparatrixHelperFromSimulation(unittest.TestCase):
     """Cover `SymbolicSeparatrixHelper.from_simulation`."""
 
