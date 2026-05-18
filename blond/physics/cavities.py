@@ -1339,22 +1339,19 @@ class SingleHarmonicRFStation(
         """
         dt = sympy.Symbol("dt", real=True)
         q = sympy.Symbol("q", real=True)
+        if replace_symbols:
+            assert self.voltage is not None
+            assert self.omega_rf_design is not None
+            assert self.phi_rf_design is not None
 
-        V = (
-            float(self.voltage)
-            if (self.voltage is not None) and replace_symbols
-            else sympy.Symbol("V")
-        )
-        omega = (
-            float(self.omega_rf_design)
-            if (self.omega_rf_design is not None) and replace_symbols
-            else sympy.Symbol("omega_rf", positive=True)
-        )
-        phi = (
-            float(self.phi_rf_design)
-            if (self.phi_rf_design is not None) and replace_symbols
-            else sympy.Symbol("phi_rf", real=True)
-        )
+            V = float(self.voltage)
+            omega = float(self.omega_rf_design)
+            phi = float(self.phi_rf_design)
+
+        else:
+            V = sympy.Symbol("V")
+            omega = sympy.Symbol("omega_rf", positive=True)
+            phi = sympy.Symbol("phi_rf", real=True)
 
         return (
             q * V / omega * sympy.cos(omega * dt + phi)
@@ -1875,21 +1872,19 @@ class MultiHarmonicRFStation(
 
         expr = sympy.Integer(0)
         for rf_idx in range(self.n_rf):
-            V_j = (
-                float(self.voltage[rf_idx])
-                if (self.voltage is not None) and replace_symbols
-                else sympy.Symbol(f"V_{rf_idx}")
-            )
-            omega_j = (
-                float(self.omega_rf_design[rf_idx])
-                if (self.omega_rf_design is not None) and replace_symbols
-                else sympy.Symbol(f"omega_{rf_idx}", positive=True)
-            )
-            phi_j = (
-                float(self.phi_rf_design[rf_idx])
-                if (self.phi_rf_design is not None) and replace_symbols
-                else sympy.Symbol(f"phi_{rf_idx}", real=True)
-            )
+            if replace_symbols:
+                assert self.voltage is not None
+                assert self.omega_rf_design is not None
+                assert self.phi_rf_design is not None
+
+                V_j = float(self.voltage[rf_idx])
+                omega_j = float(self.omega_rf_design[rf_idx])
+                phi_j = float(self.phi_rf_design[rf_idx])
+            else:
+                V_j = sympy.Symbol(f"V_{rf_idx}")
+                omega_j = sympy.Symbol(f"omega_{rf_idx}", positive=True)
+                phi_j = sympy.Symbol(f"phi_{rf_idx}", real=True)
+
             expr += q * V_j / omega_j * sympy.cos(omega_j * dt + phi_j)
 
         return expr + float(self._last_reference_energy_change) * dt

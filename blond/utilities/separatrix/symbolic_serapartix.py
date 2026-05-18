@@ -100,8 +100,10 @@ class SymbolicSeparatrixHelper:
         self._hamiltonian = hamiltonian
         self._omega_min = omega_min
 
-    @staticmethod
-    def from_simulation(simulation: Simulation) -> SymbolicSeparatrixHelper:
+    @classmethod
+    def from_simulation(
+        cls, simulation: Simulation, omega_min: float | None = None
+    ) -> SymbolicSeparatrixHelper:
         """
         Instantiate `SymbolicSeparatrixHelper` from a `Simulation`.
 
@@ -109,6 +111,10 @@ class SymbolicSeparatrixHelper:
         ----------
         simulation
             `Simulation` object that the separatrix is derived from.
+        omega_min
+            Minimum RF frequency in the `Ring`. The longest RF period
+            ``2*pi/omega_min`` is used as the canonical scan window when
+            locating unstable fixed points.
 
         Returns
         -------
@@ -126,9 +132,11 @@ class SymbolicSeparatrixHelper:
                 "No elements with `HasSymbolicHamiltonian` found."
             )
         hamiltonian = sympy.Add(*partials)
-        return SymbolicSeparatrixHelper(
+        return cls(
             hamiltonian=hamiltonian,
-            omega_min=_get_omega_min(simulation.ring),
+            omega_min=_get_omega_min(simulation.ring)
+            if omega_min is None
+            else float(omega_min),
         )
 
     def get_separatrix(

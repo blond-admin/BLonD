@@ -433,6 +433,42 @@ class TestDriftExact(unittest.TestCase):
 
                 np.testing.assert_allclose(actual, predicted, rtol=1e-7)
 
+    def test_get_hamilton_symbolic_replace_symbols_false_preserves_higher_alpha(
+        self,
+    ):
+        """
+        With ``replace_symbols=False`` the analytical Hamiltonian must
+        keep one ``dE``-polynomial term per configured higher-order
+        alpha. Regression: an earlier implementation hard-coded
+        ``higher = ()`` in symbolic mode, collapsing the truncation back
+        to ``dE**2`` and silently dropping every ``alpha_k`` (``k >= 1``).
+        """
+        dE_s = sympy.Symbol("dE", real=True)
+
+        for n_alpha in (0, 1, 2, 3):
+            higher_order_alpha = (
+                np.zeros(n_alpha) if n_alpha > 0 else np.array([])
+            )
+            drift = DriftExact.headless(
+                orbit_length=10000.0,
+                section_index=0,
+                momentum_compaction_factor=1e-3,
+                higher_order_alpha=higher_order_alpha,
+            )
+            with self.subTest(n_alpha=n_alpha):
+                ham = drift.get_hamilton_symbolic(replace_symbols=False)
+                # Polynomial degree in dE must reflect every configured
+                # alpha: 2 base + n_alpha higher-order terms.
+                self.assertEqual(
+                    sympy.Poly(ham, dE_s).degree(),
+                    n_alpha + 2,
+                )
+                # Each alpha_k symbol (k = 1..n_alpha) must actually
+                # appear in the expression.
+                free_names = {s.name for s in ham.free_symbols}
+                for k in range(1, n_alpha + 1):
+                    self.assertIn(f"alpha_{k}", free_names)
+
 
 class TestDriftSpecial(unittest.TestCase):
     @unittest.skip

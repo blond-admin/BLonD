@@ -395,11 +395,12 @@ class DriftSimple(
         """
         dE, beta, gamma, E = sympy.symbols("dE beta gamma E", real=True)
 
-        alpha_0 = (
-            float(self.alpha_0)
-            if (self.alpha_0 is not None) and replace_symbols
-            else sympy.Symbol("alpha_0", real=True)
-        )
+        if replace_symbols:
+            assert self.alpha_0 is not None
+            alpha_0 = float(self.alpha_0)
+        else:
+            alpha_0 = sympy.Symbol("alpha_0", real=True)
+
         T = float(self.orbit_length) / (beta * c0)
         eta_0 = alpha_0 - 1 / gamma**2
 
@@ -553,16 +554,27 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         # Cast numeric inputs to native Python float: older sympy parses
         # numpy scalars via str(), which on NumPy 2.x yields
         # 'np.float64(...)' and fails Float.__new__.
-        alpha_0 = (
-            float(self.alpha_0)
-            if (self.alpha_0 is not None) and replace_symbols
-            else sympy.Symbol("alpha_0", real=True)
-        )
-        higher = (
-            tuple(float(a) for a in self.higher_order_alpha)
-            if (self.higher_order_alpha is not None) and replace_symbols
-            else ()
-        )
+        if replace_symbols:
+            assert self.alpha_0 is not None
+            assert self.higher_order_alpha is not None
+
+            alpha_0 = float(self.alpha_0)
+            higher = tuple(float(a) for a in self.higher_order_alpha)
+        else:
+            alpha_0 = sympy.Symbol("alpha_0", real=True)
+            # Honor the configured number of higher-order alphas in
+            # symbolic mode -- otherwise the Taylor truncation collapses
+            # to dE**2 and every dE**k (k > 2) contribution is silently
+            # dropped from the analytical Hamiltonian.
+            n_higher = (
+                0
+                if self.higher_order_alpha is None
+                else len(self.higher_order_alpha)
+            )
+            higher = tuple(
+                sympy.Symbol(f"alpha_{k + 1}", real=True)
+                for k in range(n_higher)
+            )
         T = float(self.orbit_length) / (beta * c0)
         truncation = len(higher) + 2
 
