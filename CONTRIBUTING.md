@@ -80,6 +80,13 @@ testing/                      Utilities for testing of BLonD.
 convenience/                  Convenience functions to interact with BLonD.
 ```
 
+**Where to start reading:**
+
+* [`blond/examples/scripts/minimum_working_example.py`](blond/examples/scripts/minimum_working_example.py) — smallest end-to-end simulation.
+* [`blond/core/simulation/simulation.py`](blond/core/simulation/simulation.py) — assembles `Ring`, `MagneticCycle`, beams, and observables; drives the main loop.
+* [`blond/core/ring/ring.py`](blond/core/ring/ring.py) and [`blond/physics/`](blond/physics/) — physics elements added to a ring.
+* [`blond/examples/scripts/`](blond/examples/scripts/) — `EX_01_*` … `EX_13_*` cover progressively richer setups.
+
 ---
 
 ## Dependencies
@@ -90,7 +97,7 @@ Ensure the following tools are installed:
 * [Git](https://git-scm.com/)
 * [Pre-Commit](https://pre-commit.com/)
 
-**Optional (for C++ extensions / GPU support):**
+**Optional (for C++ extensions / GPU / MPI support):**
 
 * **Linux:**
 
@@ -102,6 +109,11 @@ Ensure the following tools are installed:
 * **GPU Support:**
 
   * [CUDA Compiler Driver (NVCC)](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/)
+* **MPI Support** (required to build `mpi4py`):
+
+  * Linux: `libopenmpi-dev` / `openmpi` (or your distribution's equivalent)
+  * macOS: `brew install open-mpi`
+  * Windows: [Microsoft MPI](https://learn.microsoft.com/en-us/message-passing-interface/microsoft-mpi)
 
 ---
 
@@ -120,7 +132,8 @@ git checkout blonder  # Current development branch for BLonD3
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate           # Linux / macOS
+# .venv\Scripts\activate            # Windows (PowerShell or cmd)
 ```
 
 ### 3. Install Development Dependencies
@@ -141,6 +154,25 @@ pip install --editable ".[dev, gpu_cuda12]"
 For CUDA13:
 ```bash
 pip install --editable ".[dev, gpu_cuda13]"
+```
+
+The convenience extras `all_no_cuda`, `all_cuda12`, and `all_cuda13` bundle
+`dev`, `doc`, `xsuite`, and `mpi` (and the matching GPU package), e.g.:
+
+```bash
+pip install --editable ".[all_cuda12]"
+```
+
+For XSuite interop only (e.g., RF-bucket matching via XSuite), add the `xsuite` extra:
+
+```bash
+pip install --editable ".[dev, xsuite]"
+```
+
+After installation, verify your setup by running a minimal slice of the test suite:
+
+```bash
+python3 -m pytest -v tests/unittests/core/ring/
 ```
 
 ### 4. Set Up Pre-Commit Hooks
@@ -187,17 +219,27 @@ The random seed is displayed online in the output terminal of the CI pipeline.
 Replace '$CI_PIPELINE_ID' by the actual pipeline number when executing tests on a local machine.
 
 BLonD provides for marked tests with [PyTest](https://docs.pytest.org/en/stable/how-to/mark.html) via `@pytest.mark.xxx`.
-Following markers are used
+Apply a marker when your test depends on global/backend state or external runtimes:
 
-- 'backend_mutation'
-- 'cupy'
-- 'mpi'
+- `backend_mutation` — test changes the active backend as a side effect (e.g.,
+  switches numerical specials). Skip these when running against a fixed backend.
+- `cupy` — test requires CuPy / a CUDA-capable GPU.
+- `mpi` — test must be launched under `mpirun` (uses MPI communication).
 
 Those tests can be excluded for running the tests with the `pytest -m` flag.
 ```bash
 export BLOND_BACKEND_MODE=cuda
 export BLOND_BACKEND_BITS=64
 python3 -m pytest -m "not backend_mutation"  -v tests/unittests/
+```
+
+When modifying backend code, set `BLOND_FORCE_TEST_ALL_BACKENDS=True` to make
+backend-aware tests fan out across every available backend instead of only the
+one selected by `BLOND_BACKEND_MODE`:
+
+```bash
+export BLOND_FORCE_TEST_ALL_BACKENDS=True
+python3 -m pytest -v tests/unittests/
 ```
 
 The tests with distributed computing (MPI) can be executed via
@@ -228,6 +270,19 @@ An optional check of the code can be done using the command
 ruff check
 ```
 
+**Docstring style.** Public functions, classes, and modules use the
+[NumPy docstring convention](https://numpydoc.readthedocs.io/en/latest/format.html);
+docstrings are validated by `numpydoc` (configured in `pyproject.toml`).
+
+**Copyright header.** Every new file under `blond/` (excluding `blond/legacy/`)
+must carry the copyright header from
+[`dev_tools/copyright_notice.txt`](dev_tools/copyright_notice.txt) — pre-commit
+will reject missing headers. To apply the header to all new files in bulk:
+
+```bash
+python3 dev_tools/copy_copyright_to_all_files.py
+```
+
 ---
 
 
@@ -248,10 +303,20 @@ Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 
 ## Contributing
 
-1. Create a feature branch:
+> **Reporting bugs or asking questions:** open an issue at
+> [BLonD Issues](https://gitlab.cern.ch/blond/BLonD/-/issues). When an issue is
+> linked from a branch, reference it in the branch name (e.g.
+> `blonder_feature/249-...`).
+
+1. Create a feature branch off `blonder`. Branch naming follows the pattern:
+
+   ```text
+   blonder_feature/<issue-or-topic>     # new functionality
+   blonder_bugfix/<issue-or-topic>      # bug fixes
+   ```
 
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b blonder_feature/your-feature-name
    ```
 
 2. Implement your feature **along with unit tests**.
@@ -263,7 +328,7 @@ Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 4. Push your changes:
    * [GitLab CI Pipeline](.gitlab-ci.yml) will automatically run all tests online.
 
-5. Create a Merge Request (MR):
+5. Create a Merge Request (MR) targeting `blonder`:
 
    * Clearly explain your changes.
    * MR view shows:
@@ -286,6 +351,16 @@ The [GitLab CI Pipeline](.gitlab-ci.yml) is configured for an automatic release 
 - Uploads **BLonD** to [PyPi](https://pypi.org/project/blond/) whenever a new tag is pushed (see [BLonD Tags](https://gitlab.cern.ch/blond/BLonD/-/tags))
 - Build/updates the **documentation** hosted at [BLonD Documentation Website](https://blond-code.docs.cern.ch/)
   - The linking between the GitLab project and the website can be adjusted in the [GitLab project settings](https://gitlab.cern.ch/blond/BLonD/pages#domains-settings)
+
+**Cutting a release (manual steps).** Versioning is driven by Git tags via
+[`setuptools_scm`](https://setuptools-scm.readthedocs.io/) — no version field
+is edited by hand. To release:
+
+1. Ensure `blonder` is green in CI and that all release-blocking issues are closed.
+2. Tag the release commit following [PEP 440](https://peps.python.org/pep-0440/),
+   e.g. `git tag v3.0.0` (use `vMAJOR.MINOR.PATCH`).
+3. Push the tag: `git push origin v3.0.0`. The `release_sdist_*` jobs (triggered
+   by `.on_tag` in `.gitlab-ci.yml`) then publish to PyPi.
 
 
 
