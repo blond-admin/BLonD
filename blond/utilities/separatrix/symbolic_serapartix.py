@@ -86,6 +86,16 @@ class SymbolicSeparatrixHelper:
     #: round-off.
     _BUCKET_BOUNDARY_TOLERANCE = 1e-9
 
+    #: Maximum absolute imaginary part for a complex root returned by
+    #: :func:`sympy.nroots` to be treated as a real root of the
+    #: ``K(dE) = H_sep - U(dt)`` polynomial.
+    _ROOT_IMAG_TOLERANCE = 1e-9
+
+    #: Lower bound for ``Re(root)`` to be treated as a non-negative real
+    #: root despite numerical round-off; values down to ``-_ROOT_NEG_TOLERANCE``
+    #: are clamped to zero.
+    _ROOT_NEG_TOLERANCE = 1e-9
+
     def __init__(self, hamiltonian: sympy.Expr, omega_min: float):
         self._hamiltonian = hamiltonian
         self._omega_min = omega_min
@@ -155,15 +165,17 @@ class SymbolicSeparatrixHelper:
             (above the local barrier, or no bucket exists at all because
             the linear tilt eliminated all extrema).
         """
-        kinetic_coeff, potential = self._substitute_symbols(beam=beam)
-
+        kinetic_coeffs, potential = self._substitute_symbols(beam=beam)
         H_sep = self._H_sep_per_dt(
-            dt, kinetic_coeff=kinetic_coeff, potential=potential
+            dt, kinetic_coeffs=kinetic_coeffs, potential=potential
         )
-        dE_sep = self._dE_sep_upper(
-            dt, kinetic_coeff=kinetic_coeff, potential=potential, H_sep=H_sep
+        dE_upper, dE_lower = self._dE_sep_branches(
+            dt,
+            kinetic_coeffs=kinetic_coeffs,
+            potential=potential,
+            H_sep=H_sep,
         )
-        return np.stack([dE_sep, -dE_sep])
+        return np.stack([dE_upper, dE_lower])
 
     def plot_separatrix(
         self,
@@ -221,9 +233,15 @@ class SymbolicSeparatrixHelper:
 
     def _substitute_symbols(
         self, beam: BeamBaseClass
-    ) -> tuple[float, Callable[[NumpyArray], NumpyArray]]:
+    ) -> tuple[tuple[float, ...], Callable[[NumpyArray], NumpyArray]]:
         r"""
         Substitute beam scalars into the Hamiltonian.
+
+        The Hamiltonian decomposes as ``H(dt, dE) = K(dE) + U(dt)``: the
+        kinetic part ``K`` is a polynomial in ``dE`` with coefficients
+        independent of ``dt`` (degree 2 for the simple drift, degree
+        ``2 + len(higher_order_alpha)`` for the exact drift), and the
+        potential part ``U`` is a function of ``dt`` only.
 
         Parameters
         ----------
@@ -233,8 +251,10 @@ class SymbolicSeparatrixHelper:
 
         Returns
         -------
-        kinetic_coeff
-            Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
+        kinetic_coeffs
+            Coefficients of ``K(dE)`` in descending degree order
+            (``c_n, c_{n-1}, ..., c_2, c_1, c_0``). For physical
+            Hamiltonians ``c_0`` and ``c_1`` are zero.
         potential
             Numpy-vectorized callable for ``H(dt, dE=0)``.
         """
@@ -250,28 +270,55 @@ class SymbolicSeparatrixHelper:
                 q_sym: float(beam.particle_type.charge),
             }
         )
-        kinetic_coeff = float(ham.coeff(dE_sym, 2))
-        potential = sympy.lambdify(
-            dt_sym, ham.subs(dE_sym, 0), modules="numpy"
-        )
-        return kinetic_coeff, potential
+        U_expr = ham.subs(dE_sym, 0)
+        K_expr = sympy.expand(ham - U_expr)
+        if K_expr == 0:
+            kinetic_coeffs: tuple[float, ...] = (0.0,)
+        else:
+            K_poly = sympy.Poly(K_expr, dE_sym)
+            kinetic_coeffs = tuple(float(c) for c in K_poly.all_coeffs())
+        potential = sympy.lambdify(dt_sym, U_expr, modules="numpy")
+        return kinetic_coeffs, potential
 
-    @staticmethod
-    def _dE_sep_upper(
+    @classmethod
+    def _dE_sep_branches(
+        cls,
         dt: NumpyArray,
-        kinetic_coeff: float,
+        kinetic_coeffs: tuple[float, ...],
         potential: Callable[[NumpyArray], NumpyArray],
         H_sep: NumpyArray,
-    ) -> NumpyArray:
+    ) -> tuple[NumpyArray, NumpyArray]:
         """
-        Solve ``a*dE**2 + U(dt) = H_sep(dt)`` for the upper branch ``dE >= 0``.
+        Solve ``K(dE) + U(dt) = H_sep(dt)`` for both separatrix branches.
+
+        ``K(dE)`` is the full polynomial in ``dE`` -- degree 2 for the
+        simple drift, ``2 + len(higher_order_alpha)`` for the exact drift.
+        For each ``dt`` we adjust the constant term to ``-(H_sep - U(dt))``,
+        call :func:`numpy.roots` (a LAPACK companion-matrix eigenvalue
+        solver, far faster than :func:`sympy.nroots` while returning
+        identical answers for purely numerical coefficients), and pick:
+
+        * the **smallest non-negative** real root as the upper branch
+          (``dE >= 0``);
+        * the **largest non-positive** real root as the lower branch
+          (``dE <= 0``).
+
+        When ``K`` is symmetric (``DriftSimple`` or ``DriftExact`` with
+        ``alpha_0 != 0`` and small higher-order alphas), the lower-branch
+        root is just ``-dE_upper``. When ``K`` carries odd-degree terms
+        -- e.g., ``DriftExact`` with ``alpha_0 = 0`` and non-trivial
+        ``higher_order_alpha``, where a ``dE**3`` coefficient appears --
+        the polynomial is asymmetric and the two branches must be
+        computed independently. The earlier ``np.stack([dE, -dE])``
+        mirror produced a visibly wrong lower branch in that regime.
 
         Parameters
         ----------
         dt
             Time-deviation grid [s].
-        kinetic_coeff
-            Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
+        kinetic_coeffs
+            Coefficients of ``K(dE)`` in descending degree order, as
+            returned by :meth:`_substitute_symbols`.
         potential
             Numpy-vectorized callable for ``H(dt, dE=0)``.
         H_sep
@@ -279,23 +326,47 @@ class SymbolicSeparatrixHelper:
 
         Returns
         -------
-        dE_sep
+        dE_upper
             Upper-branch separatrix energy at each ``dt``. ``NaN`` where
-            ``H_sep`` is ``NaN`` (no bucket exists) or ``(H_sep - U)/a < 0``
-            (particle above the local barrier).
+            ``H_sep`` is ``NaN`` or no non-negative real root exists at
+            this ``dt`` (particle above the local barrier).
+        dE_lower
+            Lower-branch separatrix energy at each ``dt``. ``NaN`` under
+            the analogous conditions on the non-positive side.
         """
         f_values = np.asarray(potential(dt), dtype=float)
-        with np.errstate(invalid="ignore"):
-            inside = (H_sep - f_values) / kinetic_coeff
-        dE_sep = np.full(dt.shape, np.nan, dtype=float)
-        in_bucket = np.isfinite(inside) & (inside >= 0)
-        dE_sep[in_bucket] = np.sqrt(inside[in_bucket])
-        return dE_sep
+        dE_upper = np.full(dt.shape, np.nan, dtype=float)
+        dE_lower = np.full(dt.shape, np.nan, dtype=float)
+        if len(kinetic_coeffs) < 2:  # NOQA PLR2004
+            return dE_upper, dE_lower
+
+        base_coeffs = np.asarray(kinetic_coeffs, dtype=float)
+        rhs_values = H_sep - f_values
+        for i in range(dt.shape[0]):
+            rhs = rhs_values[i]
+            if not np.isfinite(rhs):
+                continue
+            coeffs = base_coeffs.copy()
+            coeffs[-1] -= rhs
+            try:
+                roots = np.roots(coeffs)
+            except (np.linalg.LinAlgError, ValueError):
+                continue
+            real_parts = roots[
+                np.abs(roots.imag) < cls._ROOT_IMAG_TOLERANCE
+            ].real
+            non_neg = real_parts[real_parts >= -cls._ROOT_NEG_TOLERANCE]
+            non_pos = real_parts[real_parts <= cls._ROOT_NEG_TOLERANCE]
+            if non_neg.size:
+                dE_upper[i] = max(0.0, float(non_neg.min()))
+            if non_pos.size:
+                dE_lower[i] = min(0.0, float(non_pos.max()))
+        return dE_upper, dE_lower
 
     def _H_sep_per_dt(
         self,
         dt: NumpyArray,
-        kinetic_coeff: float,
+        kinetic_coeffs: tuple[float, ...],
         potential: Callable[[NumpyArray], NumpyArray],
     ) -> NumpyArray:
         """
@@ -303,14 +374,17 @@ class SymbolicSeparatrixHelper:
 
         Locates the canonical UFP within one RF period and extrapolates
         bucket boundaries by integer offsets of ``period`` (in dt) and
-        ``shift_per_period`` (in potential).
+        ``shift_per_period`` (in potential). Only ``sign(c_2)`` is used
+        from ``kinetic_coeffs`` -- see :meth:`_find_canonical_bucket` for
+        why higher-order ``K(dE)`` terms cannot enter the UFP topology.
 
         Parameters
         ----------
         dt
             Time-deviation grid [s].
-        kinetic_coeff
-            Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
+        kinetic_coeffs
+            Coefficients of ``K(dE)`` in descending degree order, as
+            returned by :meth:`_substitute_symbols`.
         potential
             Numpy-vectorized callable for ``H(dt, dE=0)``.
 
@@ -319,8 +393,10 @@ class SymbolicSeparatrixHelper:
         H_sep
             Per-dt separatrix Hamiltonian value. ``NaN`` when no interior
             extremum exists (the linear tilt is so strong that the
-            potential is monotonic over a period).
+            potential is monotonic over a period) or when ``K(dE)`` lacks
+            a ``dE**2`` term.
         """
+        kinetic_coeff = self._dE_squared_coefficient(kinetic_coeffs)
         if kinetic_coeff == 0.0:
             return np.full(dt.shape, np.nan, dtype=float)
 
@@ -341,6 +417,29 @@ class SymbolicSeparatrixHelper:
             return np.minimum(potential_left, potential_right)
         return np.maximum(potential_left, potential_right)
 
+    @staticmethod
+    def _dE_squared_coefficient(kinetic_coeffs: tuple[float, ...]) -> float:
+        """
+        Return ``c_2`` from a descending-degree coefficient tuple.
+
+        ``kinetic_coeffs`` is ordered ``(c_n, c_{n-1}, ..., c_2, c_1, c_0)``
+        so the ``dE**2`` entry sits at index ``len-3``. Returns ``0.0``
+        when the polynomial is degree < 2 (degenerate ``H = U(dt)``).
+
+        Parameters
+        ----------
+        kinetic_coeffs
+            Coefficients of ``K(dE)`` in descending degree order
+            (``c_n, c_{n-1}, ..., c_2, c_1, c_0``). For physical
+            Hamiltonians ``c_0`` and ``c_1`` are zero.
+
+        Returns
+        -------
+        kinetic_coeff
+            ``c_2`` from a descending-degree coefficient tuple.
+        """
+        return float(kinetic_coeffs[-3]) if len(kinetic_coeffs) >= 3 else 0.0  # NOQA PLR2004
+
     def _find_canonical_bucket(
         self,
         period_start: float,
@@ -355,12 +454,40 @@ class SymbolicSeparatrixHelper:
         min (``a < 0``) -- i.e., the outer-separatrix barrier; sub-bucket
         structure is not represented.
 
+        Why only the sign of ``kinetic_coeff`` matters
+
+        ``H = K(dE) + U(dt)`` with ``K(dE) = c_2 dE**2 + c_3 dE**3 + ...``.
+        A fixed point satisfies ``K'(dE) = 0`` and ``U'(dt) = 0``; since
+        ``K`` starts at ``dE**2`` the first condition pins ``dE = 0``, so
+        every fixed point sits on ``dE = 0`` at an extremum of ``U``. The
+        Hessian at such a point is diagonal,
+
+            d2H/dE2 = 2 c_2,         d2H/dE ddt = 0,
+            d2H/dt2 = U''(dt_ext),
+
+        and a saddle (UFP) requires the two diagonal entries to have
+        opposite signs:
+
+        ===============   ==========================   =====================
+        ``sign(c_2)``     UFP location                 stable-phase location
+        ===============   ==========================   =====================
+        ``> 0``           local **max** of ``U(dt)``   local **min** of ``U``
+        ``< 0``           local **min** of ``U(dt)``   local **max** of ``U``
+        ===============   ==========================   =====================
+
+        Every higher derivative of ``K`` carries an extra factor of ``dE``
+        and so vanishes at the UFP -- ``c_3, c_4, ...`` shape the
+        separatrix curve in :meth:`_dE_sep_branches` but cannot change
+        which extremum of ``U`` is the UFP. One bit (``sign(c_2)``) is
+        the irreducible minimum of ``K``-information needed here.
+
         Parameters
         ----------
         period_start
             Left edge of the canonical scan window [s].
         kinetic_coeff
             Kinetic coefficient ``coeff(dE, 2)`` of the Hamiltonian.
+            Only its sign is used.
         potential
             Numpy-vectorized callable for ``H(dt, dE=0)``.
 
