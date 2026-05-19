@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import Callable  # NOQA
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -30,7 +29,6 @@ from blond import (  # NOQA
     momentum_compaction_factor,
     proton,
 )
-from blond.core.backends.backend import Numpy64Bit, backend
 from blond.experimental.beam_preparation.bucket_filler_functions import (
     multibunch_match_metric_to_hamilton,
 )
@@ -100,6 +98,9 @@ def bucket_fill_by_emittance_gaussian(
     )
 
     return _density
+
+
+increment_intensity_effects_until_iteration_i = 10
 
 
 def main():
@@ -208,7 +209,7 @@ def main():
             },  # Greatest tolerated difference in generated emittance
             animate=False,
             tolerance_potential_well=1e-3,
-            increment_intensity_effects_until_iteration_i=10,
+            increment_intensity_effects_until_iteration_i=increment_intensity_effects_until_iteration_i,
         ),
     )
 

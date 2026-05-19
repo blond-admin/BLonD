@@ -26,11 +26,11 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def c_real(
-    scalar: float, floattype: type[np.float32] | type[np.float64]
+    scalar: float, floattype: type[np.float64]
 ) -> ct.c_float | ct.c_double:
     """Convert input to default precision."""
     if floattype == np.float32:
-        return ct.c_float(scalar)
+        raise TypeError("32-bit float and 64-bit complex have been removed.")
     elif floattype == np.float64:
         return ct.c_double(scalar)
     else:
@@ -38,11 +38,11 @@ def c_real(
 
 
 def c_real_t(
-    floattype: type[np.float32] | type[np.float64],
+    floattype: type[np.float64],
 ) -> type[ct.c_float | ct.c_double]:
     """Get default precision."""
     if floattype == np.float32:
-        return ct.c_float
+        raise TypeError("32-bit float and 64-bit complex have been removed.")
     elif floattype == np.float64:
         return ct.c_double
     else:
@@ -50,7 +50,7 @@ def c_real_t(
 
 
 def reload_cpp_backend(  # NOQA: PLR0915
-    floattype: type[np.float32] | type[np.float64],
+    floattype: type[np.float64], parallel: bool = True
 ) -> CppSpecials:
     """
     Load and link the according C++ backend.
@@ -60,6 +60,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
     floattype
         Float type to compile the backend for.
         32 or 64 bit.
+    parallel
+        If True, loads the parallel OMP computing backend.
 
     Returns
     -------
@@ -67,8 +69,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
         The `CppSpecials` class.
 
     """
+    parallel_suffix = "" if parallel else "_noOMP"
 
-    def load_libblond(precision: str = "single") -> CDLL:
+    def load_libblond(precision: str = "double") -> CDLL:
         """
         Locates and initializes the blond compiled library.
 
@@ -76,9 +79,15 @@ def reload_cpp_backend(  # NOQA: PLR0915
         ----------
         precision
             The floating point precision of the calculations.
-            Can be 'single' or 'double'.
-            Default is  "single".
+            Can only be 'double'.
+            Default is  "double".
         """
+        if precision != "double":
+            raise TypeError(
+                "Only double precision (64 Bit) callables are "
+                f"available, requested precision is {precision}"
+            )
+
         libblond_path_ = os.environ.get("LIBBLOND", None)
 
         from blond.generals.hashing_ import hash_in_folder
@@ -96,7 +105,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 libblond_path = os.path.abspath(libblond_path_)
             else:
                 libblond_path = os.path.join(
-                    basepath, f"libblond_{precision}.so"
+                    basepath, f"libblond_{precision}{parallel_suffix}.so"
                 )
             _LIBBLOND = ct.CDLL(str(libblond_path))
         elif "win" in sys.platform:
@@ -104,7 +113,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 libblond_path = os.path.abspath(libblond_path_)
             else:
                 libblond_path = os.path.join(
-                    basepath, f"libblond_{precision}.dll"
+                    basepath, f"libblond_{precision}{parallel_suffix}.dll"
                 )
 
             if hasattr(os, "add_dll_directory"):
@@ -121,7 +130,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
     try:
         if floattype == np.float32:
-            _LIBBLOND = load_libblond(precision="single")
+            raise TypeError(
+                "32-bit float and 64-bit complex have been removed."
+            )
         elif floattype == np.float64:
             _LIBBLOND = load_libblond(precision="double")
         else:
@@ -132,10 +143,12 @@ def reload_cpp_backend(  # NOQA: PLR0915
         print(
             "C++ backend was not found.. Trying to compile parallel backend."
         )
-        compile_cpp_library(parallel=True)
+        compile_cpp_library()
         try:
             if floattype == np.float32:
-                _LIBBLOND = load_libblond(precision="single")
+                raise TypeError(
+                    "32-bit float and 64-bit complex have been removed."
+                )
             elif floattype == np.float64:
                 _LIBBLOND = load_libblond(precision="double")
             else:
@@ -154,6 +167,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
         return ct.c_int(len(x))
 
     _LIBBLOND.beam_phase.restype = c_real_t(floattype)
+    _LIBBLOND.sum_1d_array.restype = c_real_t(floattype)
+    _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype)
 
     class CppSpecials(Specials):
         @staticmethod
@@ -176,14 +191,18 @@ def reload_cpp_backend(  # NOQA: PLR0915
             phi_rf = floattype(phi_rf)
             bin_size = floattype(bin_size)
 
-            return _LIBBLOND.beam_phase(
-                hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
-                hist_y.ctypes.data_as(ct.c_void_p),  # profile
-                c_real(alpha, floattype),  # alpha
-                c_real(omega_rf, floattype),  # omega_rf
-                c_real(phi_rf, floattype),  # phi_rf
-                c_real(bin_size, floattype),  # bin_size
-                ct.c_int(len(hist_x)),  # n_bins
+            # requires setting of _LIBBLOND.beam_phase.restype = c_real_t(floattype) in
+            # reload function
+            return floattype(
+                _LIBBLOND.beam_phase(
+                    hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
+                    hist_y.ctypes.data_as(ct.c_void_p),  # profile
+                    c_real(alpha, floattype),  # alpha
+                    c_real(omega_rf, floattype),  # omega_rf
+                    c_real(phi_rf, floattype),  # phi_rf
+                    c_real(bin_size, floattype),  # bin_size
+                    ct.c_int(len(hist_x)),  # n_bins
+                )
             )
 
         @staticmethod
@@ -212,7 +231,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
-        def kick_induced_voltage(
+        def kick_interpolated(
             dt: NumpyArray,
             dE: NumpyArray,
             voltage: NumpyArray,
@@ -334,6 +353,34 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _getPointer(phi_rf),
                 _getLen(dt),
                 c_real(acceleration_kick, floattype),
+            )
+
+        @staticmethod
+        def sum_1d_array(array: NumpyArray) -> float:
+            assert array.dtype == floattype
+            # requires setting of _LIBBLOND.sum_1d_array.restype = c_real_t(floattype) in
+            # reload function
+            return floattype(
+                _LIBBLOND.sum_1d_array(_getPointer(array), _getLen(array))
+            )
+
+        @staticmethod
+        def dot_product_1d_array(
+            array_1: NumpyArray,
+            array_2: NumpyArray,
+        ) -> float:
+            assert array_1.dtype == floattype
+            assert array_2.dtype == floattype
+            assert len(array_1) == len(array_2)
+
+            # requires setting of _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype) in
+            # reload function
+            return floattype(
+                _LIBBLOND.dot_product_1d_array(
+                    _getPointer(array_1),
+                    _getPointer(array_2),
+                    ct.c_int(len(array_2)),
+                )
             )
 
         @staticmethod

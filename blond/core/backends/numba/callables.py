@@ -25,6 +25,8 @@ from blond.core.backends.python.callables import (
 )
 from blond.core.beam.flags import BeamFlags
 
+from .fastmath import fast_sin
+
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
@@ -56,9 +58,22 @@ def enforce_precision(dtype):
     return decorator
 
 
+def enforce_return_precision(dtype):
+    """Decorator to convert float outputs to a consistent precision."""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return dtype(func(*args, **kwargs))
+
+        return wrapper
+
+    return decorator
+
+
 @cache  # or set a limit like maxsize=128
 def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
-    floattype: type[np.float32 | np.float64],
+    floattype: type[np.float64],
 ):
     """
     Helper to recompile `NumbaSpecials` when the backend changed.
@@ -67,7 +82,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     ----------
     floattype
         Float type to compile the backend for.
-        `np.float32` or `np.float64` bit.
+        `np.float64` bit only.
 
     Returns
     -------
@@ -78,14 +93,12 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
 
     nb_i = numba.int32
 
-    if floattype == np.float32:
-        nb_f = numba.float32
-
-    elif floattype == np.float64:
-        nb_f = numba.float64
-
+    # Leave floattype as an option for legacy reasons, also keeps
+    # door open for adding options again in the future.
+    if floattype != np.float64:
+        raise TypeError(f"Only np.float64 can be used, not {floattype}.")
     else:
-        raise TypeError(floattype)
+        nb_f = numba.float64
 
     sig_dt = nb_f[:]
     sig_dE = nb_f[:]
@@ -132,6 +145,10 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         sig_acceleration_kick,
     )
 
+    sig_sum_1d_array = nb_f(nb_f[:])
+
+    sig_dot_product_1d_array = nb_f(nb_f[:], nb_f[:])
+
     sig_drift_simple = void(
         sig_dt,
         sig_dE,
@@ -151,7 +168,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         sig_energy,  # energy: float,
     )
 
-    sig_kick_induced_voltage = void(
+    sig_kick_interpolated = void(
         sig_dt,
         sig_dE,
         sig_voltage,
@@ -234,6 +251,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     class NumbaSpecials(Specials):  # pragma: no cover
         @staticmethod
         @enforce_precision(floattype)
+        @enforce_return_precision(floattype)
         @njit(
             sig_beam_phase,
             parallel=True,
@@ -316,10 +334,10 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             cache=True,
         )
         def loss_box(
-            e_max: np.float32 | np.float64,
-            e_min: np.float32 | np.float64,
-            t_min: np.float32 | np.float64,
-            t_max: np.float32 | np.float64,
+            e_max: np.float64,
+            e_min: np.float64,
+            t_min: np.float64,
+            t_max: np.float64,
             dt: NumpyArray,
             dE: NumpyArray,
             flags: NumpyArray,
@@ -354,7 +372,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             voltage_kick = charge * voltage
             for i in prange(len(dt)):
                 dE[i] += (
-                    voltage_kick * np.sin(omega_rf * dt[i] + phi_rf)
+                    voltage_kick * fast_sin(omega_rf * dt[i] + phi_rf)
                     + acceleration_kick
                 )
 
@@ -401,9 +419,33 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                     de_sum += (
                         charge
                         * voltage[j]
-                        * np.sin(omega_rf[j] * dti + phi_rf[j])
+                        * fast_sin(omega_rf[j] * dti + phi_rf[j])
                     )
                 dE[i] += de_sum + acceleration_kick
+
+        @staticmethod
+        @enforce_precision(floattype)
+        @enforce_return_precision(floattype)
+        @njit(sig_sum_1d_array, parallel=True, cache=False, fastmath=True)
+        def sum_1d_array(
+            array_1: NumpyArray,
+        ):
+            acc = floattype(0.0)
+            for idx in prange(array_1.shape[0]):
+                acc += array_1[idx]
+            return acc
+
+        @staticmethod
+        @enforce_precision(floattype)
+        @enforce_return_precision(floattype)
+        @njit(
+            sig_dot_product_1d_array, parallel=True, cache=False, fastmath=True
+        )
+        def dot_product_1d_array(array_1: NumpyArray, array_2: NumpyArray):
+            acc = floattype(0.0)
+            for idx in prange(array_1.shape[0]):
+                acc += array_1[idx] * array_2[idx]
+            return acc
 
         @staticmethod
         @enforce_precision(floattype)
@@ -456,12 +498,12 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         @staticmethod
         @enforce_precision(floattype)
         @njit(
-            sig_kick_induced_voltage,
+            sig_kick_interpolated,
             parallel=True,
             fastmath=True,
             cache=True,
         )
-        def kick_induced_voltage(
+        def kick_interpolated(
             dt: NumpyArray,
             dE: NumpyArray,
             voltage: NumpyArray,

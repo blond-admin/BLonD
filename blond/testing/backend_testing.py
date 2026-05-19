@@ -102,7 +102,7 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
     ----------
     *args
         If only specific backends are desired, their name should be
-        specified as a str.  E.g. @multi_backend_testcase("Numpy32Bit")
+        specified as a str.  E.g. @multi_backend_testcase("Numpy64Bit")
         If no name is specified, all known backends are used.
 
     Returns
@@ -116,8 +116,8 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
     >>> @multi_backend_testcase
     ... def testcase(self):
     ...    # Unit test code
-    >>> # To run with only Numpy32Bit and Numpy64Bit
-    >>> @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    >>> # To run with only Numpy64Bit
+    >>> @multi_backend_testcase("Numpy64Bit")
     ... def testcase(self):
     ...    # Unit test code
     """
