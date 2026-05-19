@@ -237,7 +237,7 @@ class BarrierRF(RFManipulationBaseClass):
         )
 
         # TODO: Integrate with `PooledInterpolationKick`
-        backend.specials.kick_induced_voltage(
+        backend.specials.kick_interpolated(
             beam.write_partial_dt(),
             beam.write_partial_dE(),
             waveform,
