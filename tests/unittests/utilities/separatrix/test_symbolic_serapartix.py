@@ -408,6 +408,54 @@ class TestDESepBranches(unittest.TestCase):
         self.assertTrue(np.isnan(upper[0]))
         self.assertTrue(np.isnan(lower[0]))
 
+    def test_kinetic_coeffs_too_short_returns_all_nan(self):
+        """Fewer than 2 coefficients means ``K(dE)`` carries no
+        ``dE``-dependence to solve, so both branches must be NaN
+        everywhere -- without ever calling the root finder. Covers the
+        ``len(kinetic_coeffs) < 2`` early return (e.g. the degenerate
+        ``H = U(dt)`` case where ``_substitute_symbols`` returns
+        ``(0.0,)``).
+        """
+        dt = np.array([0.0, 0.5, 1.0])
+        upper, lower = SymbolicSeparatrixHelper._dE_sep_branches(
+            dt,
+            kinetic_coeffs=(0.0,),
+            potential=lambda x: np.zeros_like(x),
+            H_sep=np.array([4.0, 9.0, 16.0]),
+        )
+        self.assertEqual(upper.shape, dt.shape)
+        self.assertEqual(lower.shape, dt.shape)
+        self.assertTrue(np.all(np.isnan(upper)))
+        self.assertTrue(np.all(np.isnan(lower)))
+
+    def test_root_solver_failure_skips_dt_sample(self):
+        """If :func:`numpy.roots` raises for a given ``dt`` sample, that
+        sample's branches stay NaN instead of propagating the exception.
+
+        Covers the ``except (LinAlgError, ValueError): continue`` guard;
+        ``numpy.roots`` is patched to raise so the failure is exercised
+        deterministically rather than relying on a fragile coefficient
+        set that happens to break LAPACK.
+        """
+        from unittest import mock
+
+        dt = np.array([0.0, 0.5])
+        with mock.patch(
+            "blond.utilities.separatrix.symbolic_separatrix.np.roots",
+            side_effect=np.linalg.LinAlgError("forced failure"),
+        ) as mocked_roots:
+            upper, lower = SymbolicSeparatrixHelper._dE_sep_branches(
+                dt,
+                kinetic_coeffs=(1.0, 0.0, 0.0),
+                potential=lambda x: np.zeros_like(x),
+                H_sep=np.array([4.0, 9.0]),
+            )
+
+        # The finite rhs values reach the root finder, which then fails.
+        self.assertEqual(mocked_roots.call_count, dt.size)
+        self.assertTrue(np.all(np.isnan(upper)))
+        self.assertTrue(np.all(np.isnan(lower)))
+
 
 class TestGetSeparatrixAsymmetricDriftExact(unittest.TestCase):
     """

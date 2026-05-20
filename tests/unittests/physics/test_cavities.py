@@ -1073,6 +1073,58 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
                 np.testing.assert_allclose(actual, predicted, rtol=1e-12)
 
+    def test_get_hamilton_symbolic_replace_symbols_false_keeps_rf_symbols(
+        self,
+    ):
+        """With ``replace_symbols=False`` every harmonic's voltage, RF
+        angular frequency and phase must stay as the free symbols
+        ``V_j``, ``omega_j`` and ``phi_j``; resubstituting their numeric
+        values must reproduce the ``replace_symbols=True`` Hamiltonian.
+        """
+        beam = ProbeBeam(
+            dt=np.linspace(-5e-10, 5e-10, 11),
+            particle_type=proton,
+            reference_total_energy=1e9,
+        )
+        rf = MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([1e6, 5e5]),
+            phi_rf=np.array([np.pi * 0.3, np.pi * 0.7]),
+            harmonic=np.array([10, 30]),
+            main_harmonic_idx=0,
+            circumference=2 * np.pi * 100.0,
+            total_energy=beam.reference.total_energy,
+            beam_reference_beta=beam.reference.beta,
+            local_wakefield=None,
+            cavity_feedback=None,
+            delayed_kick=None,
+            delayed_kick_time_axis=None,
+        )
+        # Populate ``_last_reference_energy_change`` used by the Hamiltonian.
+        rf.track(beam=beam)
+
+        ham_sym = rf.get_hamilton_symbolic(replace_symbols=False)
+        free_names = {s.name for s in ham_sym.free_symbols}
+
+        substitutions = {}
+        for rf_idx in range(rf.n_rf):
+            for name in (f"V_{rf_idx}", f"omega_{rf_idx}", f"phi_{rf_idx}"):
+                self.assertIn(name, free_names)
+            substitutions[sympy.Symbol(f"V_{rf_idx}")] = float(
+                rf.voltage[rf_idx]
+            )
+            substitutions[sympy.Symbol(f"omega_{rf_idx}", positive=True)] = (
+                float(rf.omega_rf_design[rf_idx])
+            )
+            substitutions[sympy.Symbol(f"phi_{rf_idx}", real=True)] = float(
+                rf.phi_rf_design[rf_idx]
+            )
+
+        ham_num = rf.get_hamilton_symbolic(replace_symbols=True)
+        self.assertEqual(
+            sympy.simplify(ham_sym.subs(substitutions) - ham_num), 0
+        )
+
 
 class TestSingleHarmonicRFStation(unittest.TestCase):
     def setUp(self) -> None:
@@ -1388,6 +1440,52 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
                 )
 
                 np.testing.assert_allclose(actual, predicted, rtol=1e-12)
+
+    def test_get_hamilton_symbolic_replace_symbols_false_keeps_rf_symbols(
+        self,
+    ):
+        """With ``replace_symbols=False`` the voltage, RF angular
+        frequency and phase must stay as the free symbols ``V``,
+        ``omega_rf`` and ``phi_rf``; resubstituting their numeric values
+        must reproduce the ``replace_symbols=True`` Hamiltonian.
+        """
+        beam = ProbeBeam(
+            dt=np.linspace(-5e-10, 5e-10, 11),
+            particle_type=proton,
+            reference_total_energy=1e9,
+        )
+        rf = SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=1e6,
+            phi_rf=np.pi * 0.3,
+            harmonic=10,
+            circumference=2 * np.pi * 100.0,
+            total_energy=beam.reference.total_energy,
+            beam_reference_beta=beam.reference.beta,
+            local_wakefield=None,
+            cavity_feedback=None,
+            delayed_kick=None,
+            delayed_kick_time_axis=None,
+        )
+        # Populate ``_last_reference_energy_change`` used by the Hamiltonian.
+        rf.track(beam=beam)
+
+        ham_sym = rf.get_hamilton_symbolic(replace_symbols=False)
+        free_names = {s.name for s in ham_sym.free_symbols}
+        for name in ("V", "omega_rf", "phi_rf"):
+            self.assertIn(name, free_names)
+
+        ham_num = rf.get_hamilton_symbolic(replace_symbols=True)
+        resubstituted = ham_sym.subs(
+            {
+                sympy.Symbol("V"): float(rf.voltage),
+                sympy.Symbol("omega_rf", positive=True): float(
+                    rf.omega_rf_design
+                ),
+                sympy.Symbol("phi_rf", real=True): float(rf.phi_rf_design),
+            }
+        )
+        self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
 
 
 if __name__ == "__main__":

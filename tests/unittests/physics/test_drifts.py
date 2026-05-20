@@ -263,6 +263,26 @@ class TestDriftSimple(unittest.TestCase):
 
         np.testing.assert_allclose(actual, predicted, rtol=1e-12)
 
+    def test_get_hamilton_symbolic_replace_symbols_false_keeps_alpha_0(self):
+        """With ``replace_symbols=False`` the momentum-compaction factor
+        must stay the free symbol ``alpha_0`` instead of being baked in
+        as a float, and resubstituting its numeric value must reproduce
+        the ``replace_symbols=True`` Hamiltonian.
+        """
+        drift = DriftSimple.headless(
+            momentum_compaction_factor=1e-3,
+            orbit_length=10.0,
+            section_index=0,
+        )
+        alpha_0_s = sympy.Symbol("alpha_0", real=True)
+
+        ham_sym = drift.get_hamilton_symbolic(replace_symbols=False)
+        self.assertIn("alpha_0", {s.name for s in ham_sym.free_symbols})
+
+        ham_num = drift.get_hamilton_symbolic(replace_symbols=True)
+        resubstituted = ham_sym.subs(alpha_0_s, float(drift.alpha_0))
+        self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
+
 
 class TestDriftExact(unittest.TestCase):
     def setUp(self):
