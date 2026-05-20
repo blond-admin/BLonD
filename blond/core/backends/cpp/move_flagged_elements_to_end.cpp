@@ -22,6 +22,11 @@ extern "C" int move_flagged_elements_to_end(
     const int n_macroparticles
 ) {
 
+    // Empty input: nothing to partition, no flagged elements.
+    if (n_macroparticles == 0) {
+        return 0;
+    }
+
     // Set j to the end of the array.
     // Later every entry matching the flag is put to the end of the array
     // and j is moved to one position left.
