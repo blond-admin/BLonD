@@ -1942,11 +1942,11 @@ class TestSpecials(unittest.TestCase):
                 residues,
                 flag,
                 cr_flags,
+                update_on_bin,
+                backend.float(1.0),
                 states,
                 voltage,
                 voltage_threaded,
-                update_on_bin,
-                backend.float(1.0),
             )
             return np.asarray(copy_to_cpu(voltage)).copy()
 

@@ -635,12 +635,12 @@ def reload_cuda_backend(  # NOQA: D102
             residues: CupyArray,
             is_counterrotating_beam: bool,
             counterrotating_pole_signs: CupyArray,
+            update_on_bin: CupyArray,
+            factor: float,
             # write
             states: CupyArray,
             voltage: CupyArray,
             voltage_threaded: CupyArray,
-            update_on_bin: CupyArray,
-            factor: float,
         ) -> None:
             """
             Apply poles based on the `profile` to generate `voltage`.
@@ -660,6 +660,12 @@ def reload_cuda_backend(  # NOQA: D102
             counterrotating_pole_signs
                 Array per pole, -1 if the sign of the impedance is flipped
                 for a counter-rotating beam.
+            update_on_bin
+                Index when to trigger an update of dt. For speedup.
+                E.g. For profile No.: ``0,0,0,1,1,1,1,2,2,2``
+                one needs ``update_on_bin = [0,3,7]``.
+            factor
+                To convert `profile` to current per bin [A].
             states
                 Complex state vector, length ``n_poles + 1``.
                 The last element stores ``t_start`` in its real part.
@@ -669,12 +675,6 @@ def reload_cuda_backend(  # NOQA: D102
                 Unused on the CUDA backend (kept for API parity with CPU
                 backends); pole contributions are reduced into `voltage`
                 directly via atomic adds.
-            update_on_bin
-                Index when to trigger an update of dt. For speedup.
-                E.g. For profile No.: ``0,0,0,1,1,1,1,2,2,2``
-                one needs ``update_on_bin = [0,3,7]``.
-            factor
-                To convert `profile` to current per bin [A].
             """
             assert profile.device != "cpu", (
                 f"Requires Cupy array, but got {type(profile)}."
@@ -761,10 +761,10 @@ def reload_cuda_backend(  # NOQA: D102
                     residues_r,
                     np.int32(1 if is_counterrotating_beam else 0),
                     counterrotating_pole_signs,
-                    states_r,
-                    voltage,
                     update_on_bin,
                     floattype(factor),
+                    states_r,
+                    voltage,
                     np.int32(n_bins),
                     np.int32(n_poles),
                     np.int32(n_updates),

@@ -311,12 +311,12 @@ class Specials(ABC):
         residues: NumpyArray | CupyArray,
         is_counterrotating_beam: bool,
         counterrotating_pole_signs: NumpyArray | CupyArray,
+        update_on_bin: NumpyArray | CupyArray,
+        factor: float,
         # write
         states: NumpyArray | CupyArray,
         voltage: NumpyArray | CupyArray,
         voltage_threaded: NumpyArray | CupyArray,
-        update_on_bin: NumpyArray | CupyArray,
-        factor: float,
     ) -> None:
         """
         Apply poles based on the `profile` to generate `voltage`.
@@ -336,19 +336,18 @@ class Specials(ABC):
         counterrotating_pole_signs
             Array per pole, -1 if the sign of the impedance is flipped
             for a counter-rotating beam.
+        update_on_bin
+            Index when to trigger an update of dt. For speedup.
+            E.g. For profile No.: `0,0,0,1,1,1,1,2,2,2`
+            one needs `update_on_bin = [0,3,7]`.
+        factor
+            To convert `profile` to current per bin [A].
         states
             Complex state vector, initially ``(0 + 0j)``.
         voltage
             Output voltage, in [V].
         voltage_threaded
             Cached `voltage` array per thread. For speedup.
-        update_on_bin
-            Index when to trigger an update of dt. For speedup.
-            E.g. For profile No.: `0,0,0,1,1,1,1,2,2,2`
-            one needs `update_on_bin = [0,3,7]`.
-
-        factor
-            To convert `profile` to current per bin [A].
         """
         raise NotImplementedError(
             "The backend for `wake_from_pole_residue` is missing."

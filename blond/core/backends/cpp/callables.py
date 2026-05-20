@@ -581,12 +581,12 @@ def reload_cpp_backend(  # NOQA: PLR0915
             residues: NumpyArray,
             is_counterrotating_beam: bool,
             counterrotating_pole_signs: NumpyArray,
+            update_on_bin: NumpyArray,
+            factor: float,
             # write
             states: NumpyArray,
             voltage: NumpyArray,
             voltage_threaded: NumpyArray,
-            update_on_bin: NumpyArray,
-            factor: float,
         ) -> None:
             """
             Apply poles based on the `profile` to generate `voltage`.
@@ -606,18 +606,18 @@ def reload_cpp_backend(  # NOQA: PLR0915
             counterrotating_pole_signs
                 Array per pole, -1 if the sign of the impedance is flipped
                 for a counter-rotating beam.
-            states
-                Complex state vector, initially ``(0 + 0j)``.
-            voltage
-                Output voltage, in [V].
-            voltage_threaded
-                Cached `voltage` array per thread. For speedup.
             update_on_bin
                 Index when to trigger an update of dt. For speedup.
                 E.g. For profile No.: `0,0,0,1,1,1,1,2,2,2`
                 one needs `update_on_bin = [0,3,7]`.
             factor
                 To convert `profile` to current per bin [A].
+            states
+                Complex state vector, initially ``(0 + 0j)``.
+            voltage
+                Output voltage, in [V].
+            voltage_threaded
+                Cached `voltage` array per thread. For speedup.
             """
             complextype = (
                 np.complex64 if floattype == np.float32 else np.complex128
@@ -650,11 +650,11 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _getPointer(residues),
                 ct.c_bool(is_counterrotating_beam),
                 _getPointer(counterrotating_pole_signs),
+                _getPointer(update_on_bin),
+                c_real(factor, floattype),
                 _getPointer(states),
                 _getPointer(voltage),
                 _getPointer(voltage_threaded),
-                _getPointer(update_on_bin),
-                c_real(factor, floattype),
                 ct.c_int(len(profile)),  # n_bins
                 ct.c_int(len(poles)),  # n_poles
                 ct.c_int(voltage_threaded.shape[0]),  # n_threads
