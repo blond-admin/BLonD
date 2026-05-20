@@ -30,6 +30,7 @@ from blond import (
     backend,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.handle_results.helpers import callers_relative_path
@@ -43,6 +44,9 @@ from blond.testing.helpers import pytest_active
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 
 class VectorFittedModel(WakeFieldSource, SupportsVectorFittedModel):
@@ -82,9 +86,9 @@ class VectorFittedModel(WakeFieldSource, SupportsVectorFittedModel):
         """
         if by == "residues":
             order = np.argsort(np.abs(self.residues))
-        elif by == "poles":
+        elif by == "poles":  # pragma: no cover
             order = np.argsort(np.abs(self.poles))
-        else:
+        else:  # pragma: no cover
             raise NameError(str(by))
         self.poles = self.poles[order]
         self.residues = self.residues[order]
@@ -200,6 +204,7 @@ def main():
         callers_relative_path("resources/1_sps_gen_new.npz", stacklevel=1)
     )
     poles.sort(by="residues")
+    poles.plot(freq=np.linspace(0, 1e9, 10_000))
 
     wakefield = WakeField(
         sources=(poles,),
@@ -286,7 +291,7 @@ def main():
                 c=cmap(np.arange(len(states[:]))),
             )
 
-        if not pytest_active():
+        if not pytest_active():  # pragma: no cover
             plt.draw()
             plt.pause(0.1)
 
@@ -299,5 +304,6 @@ def main():
     )
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()
