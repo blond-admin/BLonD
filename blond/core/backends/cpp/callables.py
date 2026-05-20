@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials, backend
+from blond.generals.hashing_ import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
@@ -89,8 +90,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         libblond_path_ = os.environ.get("LIBBLOND", None)
-
-        from blond.generals.hashing_ import hash_in_folder
 
         folder = os.path.dirname(os.path.abspath(__file__))
 

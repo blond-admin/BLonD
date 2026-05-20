@@ -17,6 +17,8 @@ import platform
 import subprocess
 import sys
 
+from blond.generals.hashing_ import hash_in_folder
+
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 
@@ -123,8 +125,6 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     print("\nTrying to compile C++ backend.")
     for parallel in (False, True):
         if libname is None:
-            from blond.generals.hashing_ import hash_in_folder
-
             folder = os.path.dirname(os.path.abspath(__file__))
 
             hash_ = hash_in_folder(

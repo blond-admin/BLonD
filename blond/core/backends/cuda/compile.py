@@ -15,6 +15,8 @@ import os
 import subprocess
 from typing import TYPE_CHECKING
 
+from blond.generals.hashing_ import hash_in_folder
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
 
@@ -60,8 +62,6 @@ def compile_cuda_library(  # NOQA: PLR0915
         The compute capability of your GPU,
         see https://developer.nvidia.com/cuda-gpus.
     """
-    from blond.generals.hashing_ import hash_in_folder
-
     print("\nTrying to compile CUDA backend.")
 
     cuda_files = [
