@@ -1700,10 +1700,6 @@ class Simulation(Preparable):
         -------
         t_rev
             Revolution time, in [s].
-
-        Notes
-        -----
-        The underlying value is updated by ``_update_Trev_and_dErev``.
         """
         if self._current_t_rev is None:
             raise ValueError(
@@ -1724,10 +1720,6 @@ class Simulation(Preparable):
         -------
         current_turn_dE_tot
             Energy gain in the current turn, in [eV].
-
-        Notes
-        -----
-        The underlying value is updated by ``_update_Trev_and_dErev``.
         """
         if self._current_turn_dE_tot is None:
             raise ValueError(

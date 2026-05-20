@@ -288,10 +288,6 @@ class Ring(Preparable):
         -------
         average_eta_0
             The weighted average slip factor (dimensionless).
-
-        Notes
-        -----
-        Internally uses ``eta_0`` of each drift for the calculation.
         """
         from blond.physics.drifts import (
             DriftBaseClass,  # prevent circular import
