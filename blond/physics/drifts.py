@@ -138,8 +138,19 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
 class DriftSimple(
     DriftBaseClass, Schedulable, HasPropertyCache, HasSymbolicHamiltonian
 ):
-    """
+    r"""
     Base class to implement beam drifts in synchrotrons.
+
+    The arrival-time change over the drift is calculated as:
+
+    .. math::
+        \Delta dt = \frac{L}{\beta c}\,\eta_0\,\frac{dE}{\beta^2 E},
+        \qquad \eta_0 = \alpha_0 - \frac{1}{\gamma^2}
+
+    where :math:`L` is the orbit length, :math:`\beta`, :math:`\gamma` and
+    :math:`E` are the reference beam quantities, :math:`dE` the energy
+    deviation and :math:`\eta_0` the (first-order) phase-slip factor built
+    from the momentum compaction factor :math:`\alpha_0`.
 
     Parameters
     ----------
@@ -423,13 +434,32 @@ class DriftSimple(
 
 
 class DriftExact(DriftSimple, HasSymbolicHamiltonian):
-    """
+    r"""
     Drift element using the exact drift formulation.
 
     This replaces the simple drift with the exact solver based on:
       - exact delta from dE
       - full alpha(delta) expansion
       - exact (1 + dE/E) / (1 + delta) factor
+
+    The arrival-time change over the drift is calculated as:
+
+    .. math::
+        \Delta dt = \frac{L}{\beta c}\left[
+            \mathrm{poly}(\delta)\,\frac{1 + dE/E}{1 + \delta} - 1
+        \right]
+
+    with
+
+    .. math::
+        \delta(dE) &= \sqrt{1 + \frac{dE^2 + 2\,dE\,E}{\beta^2 E^2}} - 1 \\
+        \mathrm{poly}(\delta) &= 1 + \alpha_0\,\delta
+            + \sum_k \alpha_{k+1}\,\delta^{k+2}
+
+    where :math:`\delta` is the exact relative momentum deviation and
+    :math:`\mathrm{poly}(\delta)` the full momentum-compaction expansion in
+    the momentum compaction factor :math:`\alpha_0` and the higher-order
+    coefficients :math:`\alpha_k`.
 
     Parameters
     ----------
