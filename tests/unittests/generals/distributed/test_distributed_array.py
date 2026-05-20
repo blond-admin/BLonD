@@ -226,6 +226,77 @@ class TestDistributedArray(unittest.TestCase):
         with self.assertRaises(TypeError):
             concatenate(array_1, array_2)
 
+    def test_arithmetic_returns_new_distributed_array(self):
+        # `+ - * /` against a scalar, a raw array and another
+        # `DistributedArray` all act element-wise on the local array and
+        # return a fresh `DistributedArray`.
+        local = self.array
+        other = np.astype(np.linspace(1.0, 2.0, local.size), backend.float)
+        operands = {
+            "scalar": 2.0,
+            "numpy": other,
+            "distributed": DistributedArray(backend.array(other.copy())),
+        }
+        for name, operand in operands.items():
+            expected_other = other if name != "scalar" else 2.0
+            for op, ref in (
+                (lambda a, b: a + b, local + expected_other),
+                (lambda a, b: a - b, local - expected_other),
+                (lambda a, b: a * b, local * expected_other),
+                (lambda a, b: a / b, local / expected_other),
+            ):
+                result = op(self.distributed_array, operand)
+                self.assertIsInstance(result, DistributedArray)
+                # operands must be left untouched
+                self.assertIsNot(result, self.distributed_array)
+                np.testing.assert_allclose(
+                    copy_to_cpu(result.array_local), ref, err_msg=name
+                )
+
+    def test_arithmetic_reflected(self):
+        # Reflected ops trigger when the left operand is a scalar/raw array.
+        local = self.array
+        np.testing.assert_allclose(
+            copy_to_cpu((5.0 + self.distributed_array).array_local),
+            5.0 + local,
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu((5.0 - self.distributed_array).array_local),
+            5.0 - local,
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu((5.0 * self.distributed_array).array_local),
+            5.0 * local,
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu((5.0 / self.distributed_array).array_local),
+            5.0 / local,
+        )
+
+    def test_arithmetic_inplace(self):
+        # `+= -= *= /=` mutate the local array in place and return self.
+        other = np.astype(
+            np.linspace(1.0, 2.0, self.array.size), backend.float
+        )
+
+        for op, ref in (
+            (lambda a: a.__iadd__(other), self.array + other),
+            (lambda a: a.__isub__(other), self.array - other),
+            (lambda a: a.__imul__(other), self.array * other),
+            (lambda a: a.__itruediv__(other), self.array / other),
+        ):
+            da = DistributedArray(backend.array(self.array.copy()))
+            returned = op(da)
+            self.assertIs(returned, da)
+            np.testing.assert_allclose(copy_to_cpu(da.array_local), ref)
+
+        # in-place also accepts another `DistributedArray`
+        da = DistributedArray(backend.array(self.array.copy()))
+        da += DistributedArray(backend.array(other.copy()))
+        np.testing.assert_allclose(
+            copy_to_cpu(da.array_local), self.array + other
+        )
+
     def test_gather(self):
         in_array = np.array([1, 2, 3, 4, 5, 6])
         array = DistributedArray(in_array)

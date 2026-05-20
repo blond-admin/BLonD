@@ -23,6 +23,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
+    # Anything that can be combined with the local array element-wise:
+    # a scalar, a raw CPU/GPU array, or another `DistributedArray`.
+    Operand = "DistributedArray | NumpyArray | CupyArray | float | int"
+
 try:
     from mpi4py import MPI
 except Exception as exc:
@@ -60,6 +64,234 @@ class DistributedArray:
             self._is_distributed = self._size > 1
 
         self._histogram_local_cache: dict[int, NumpyArray | CupyArray] = {}
+
+    @staticmethod
+    def _unwrap(other: Operand) -> NumpyArray | CupyArray | float | int:
+        """
+        Return the operand to combine with the local array.
+
+        Unwraps another `DistributedArray` to its local array so that
+        arithmetic acts element-wise on the local chunks; scalars and raw
+        CPU/GPU arrays are passed through unchanged.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to combine with.
+
+        Returns
+        -------
+        operand
+            ``other.array_local`` if `other` is a `DistributedArray`,
+            otherwise `other` itself.
+        """
+        if isinstance(other, DistributedArray):
+            return other.array_local
+        return other
+
+    def __add__(self, other: Operand) -> DistributedArray:
+        """
+        Return ``self + other`` as a new `DistributedArray`.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to add.
+
+        Returns
+        -------
+        result
+            New `DistributedArray` holding the element-wise sum of the
+            local arrays.
+        """
+        return DistributedArray(self.array_local + self._unwrap(other))
+
+    def __radd__(self, other: Operand) -> DistributedArray:
+        """
+        Return ``other + self`` as a new `DistributedArray`.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to add.
+
+        Returns
+        -------
+        result
+            New `DistributedArray` holding the element-wise sum of the
+            local arrays.
+        """
+        return DistributedArray(self._unwrap(other) + self.array_local)
+
+    def __iadd__(self, other: Operand) -> DistributedArray:
+        """
+        Add `other` to the local array in place.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to add.
+
+        Returns
+        -------
+        self
+            This `DistributedArray` with its local array updated.
+        """
+        self.array_local += self._unwrap(other)
+        return self
+
+    def __sub__(self, other: Operand) -> DistributedArray:
+        """
+        Return ``self - other`` as a new `DistributedArray`.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to subtract.
+
+        Returns
+        -------
+        result
+            New `DistributedArray` holding the element-wise difference of
+            the local arrays.
+        """
+        return DistributedArray(self.array_local - self._unwrap(other))
+
+    def __rsub__(self, other: Operand) -> DistributedArray:
+        """
+        Return ``other - self`` as a new `DistributedArray`.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to subtract from.
+
+        Returns
+        -------
+        result
+            New `DistributedArray` holding the element-wise difference of
+            the local arrays.
+        """
+        return DistributedArray(self._unwrap(other) - self.array_local)
+
+    def __isub__(self, other: Operand) -> DistributedArray:
+        """
+        Subtract `other` from the local array in place.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to subtract.
+
+        Returns
+        -------
+        self
+            This `DistributedArray` with its local array updated.
+        """
+        self.array_local -= self._unwrap(other)
+        return self
+
+    def __mul__(self, other: Operand) -> DistributedArray:
+        """
+        Return ``self * other`` as a new `DistributedArray`.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to multiply by.
+
+        Returns
+        -------
+        result
+            New `DistributedArray` holding the element-wise product of the
+            local arrays.
+        """
+        return DistributedArray(self.array_local * self._unwrap(other))
+
+    def __rmul__(self, other: Operand) -> DistributedArray:
+        """
+        Return ``other * self`` as a new `DistributedArray`.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to multiply by.
+
+        Returns
+        -------
+        result
+            New `DistributedArray` holding the element-wise product of the
+            local arrays.
+        """
+        return DistributedArray(self._unwrap(other) * self.array_local)
+
+    def __imul__(self, other: Operand) -> DistributedArray:
+        """
+        Multiply the local array by `other` in place.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to multiply by.
+
+        Returns
+        -------
+        self
+            This `DistributedArray` with its local array updated.
+        """
+        self.array_local *= self._unwrap(other)
+        return self
+
+    def __truediv__(self, other: Operand) -> DistributedArray:
+        """
+        Return ``self / other`` as a new `DistributedArray`.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to divide by.
+
+        Returns
+        -------
+        result
+            New `DistributedArray` holding the element-wise quotient of the
+            local arrays.
+        """
+        return DistributedArray(self.array_local / self._unwrap(other))
+
+    def __rtruediv__(self, other: Operand) -> DistributedArray:
+        """
+        Return ``other / self`` as a new `DistributedArray`.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to be divided.
+
+        Returns
+        -------
+        result
+            New `DistributedArray` holding the element-wise quotient of the
+            local arrays.
+        """
+        return DistributedArray(self._unwrap(other) / self.array_local)
+
+    def __itruediv__(self, other: Operand) -> DistributedArray:
+        """
+        Divide the local array by `other` in place.
+
+        Parameters
+        ----------
+        other
+            Scalar, raw array or `DistributedArray` to divide by.
+
+        Returns
+        -------
+        self
+            This `DistributedArray` with its local array updated.
+        """
+        self.array_local /= self._unwrap(other)
+        return self
 
     def copy_as_numpy(self) -> NumpyArray:
         """
