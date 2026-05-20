@@ -1310,19 +1310,19 @@ class SingleHarmonicRFStation(
 
         .. math::
 
-            \\Delta dE = q V \\sin(\\omega\\, dt + \\phi)
-                        - \\Delta E_\\mathrm{ref},
+            \Delta dE = q V \sin(\omega\, dt + \phi)
+                        - \Delta E_\mathrm{ref},
 
-        where :math:`\\Delta E_\\mathrm{ref}` is the change of reference
+        where :math:`\Delta E_\mathrm{ref}` is the change of reference
         total energy on this turn (the ``acceleration_kick``). Hamilton's
-        equation :math:`\\Delta dE = -\\partial H/\\partial dt` then gives
+        equation :math:`\Delta dE = -\partial H/\partial dt` then gives
 
         .. math::
 
-            H = \\frac{q V}{\\omega} \\cos(\\omega\\, dt + \\phi)
-                + \\Delta E_\\mathrm{ref}\\, dt.
+            H = \frac{q V}{\omega} \cos(\omega\, dt + \phi)
+                + \Delta E_\mathrm{ref}\, dt.
 
-        :math:`\\Delta E_\\mathrm{ref}` is taken from the most recent
+        :math:`\Delta E_\mathrm{ref}` is taken from the most recent
         ``_track`` call (``self._last_reference_energy_change``); it is
         zero before the first track and for non-accelerating cycles.
 
@@ -1838,20 +1838,20 @@ class MultiHarmonicRFStation(
 
         .. math::
 
-            \\Delta dE = \\sum_j q V_j \\sin(\\omega_j\\, dt + \\phi_j)
-                        - \\Delta E_\\mathrm{ref},
+            \Delta dE = \sum_j q V_j \sin(\omega_j\, dt + \phi_j)
+                        - \Delta E_\mathrm{ref},
 
-        where :math:`\\Delta E_\\mathrm{ref}` is the change of reference
+        where :math:`\Delta E_\mathrm{ref}` is the change of reference
         total energy on this turn. Hamilton's equation
-        :math:`\\Delta dE = -\\partial H/\\partial dt` gives
+        :math:`\Delta dE = -\partial H/\partial dt` gives
 
         .. math::
 
-            H = \\sum_j \\frac{q V_j}{\\omega_j}
-                       \\cos(\\omega_j\\, dt + \\phi_j)
-                + \\Delta E_\\mathrm{ref}\\, dt.
+            H = \sum_j \frac{q V_j}{\omega_j}
+                       \cos(\omega_j\, dt + \phi_j)
+                + \Delta E_\mathrm{ref}\, dt.
 
-        :math:`\\Delta E_\\mathrm{ref}` is taken from the most recent
+        :math:`\Delta E_\mathrm{ref}` is taken from the most recent
         ``_track`` call.
 
         Parameters
