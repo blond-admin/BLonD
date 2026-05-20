@@ -399,10 +399,10 @@ class InducedVoltageResonatorComparisonTest(unittest.TestCase):
             particle_type=mu_plus,
             is_counter_rotating=False,
         )
-        beam._dt = DistributedArray(
+        beam.dt = DistributedArray(
             backend.zeros(self.n_macroparticles, dtype=backend.float)
         )
-        beam._dE = DistributedArray(
+        beam.dE = DistributedArray(
             backend.zeros(self.n_macroparticles, dtype=backend.float)
         )
         beam._flags = DistributedArray(

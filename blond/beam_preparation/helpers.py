@@ -77,9 +77,9 @@ def make_multibunch_beam(
     )
     # np.repeat([1,2], 2)
     # array([1, 1, 2, 2])
-    full_dE = backend.repeat(beam._dE.array_local, n_times)
+    full_dE = backend.repeat(beam.dE.array_local, n_times)
 
-    full_dt = backend.repeat(beam._dt.array_local, n_times)
+    full_dt = backend.repeat(beam.dt.array_local, n_times)
     for i in range(n_times):
         t_offset = t_distance * i + common_offset
         sel = slice(i, None, n_times)

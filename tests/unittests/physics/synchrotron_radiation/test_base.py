@@ -50,12 +50,12 @@ class BeamBaseClassTester(BeamBaseClass):
         self.reference_gamma = np.sqrt(1 - 0.99**2)  # beta**2
         self.reference_total_energy = 20e9
         self.reference.total_energy = 20e9
-        self._dE = DistributedArray(
+        self.dE = DistributedArray(
             backend.linspace(-1e6, 1e6, 10, dtype=backend.float)
         )
         # delta E
         # in eV
-        self._dt = DistributedArray(
+        self.dt = DistributedArray(
             backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
         )  # delta t
         # in s

@@ -89,8 +89,8 @@ class Beam(BeamBaseClass):
         """
         return all(
             (
-                self._dE is not None,
-                self._dt is not None,
+                self.dE is not None,
+                self.dt is not None,
                 self._flags is not None,
                 self._ids is not None,
             )
@@ -179,10 +179,10 @@ class Beam(BeamBaseClass):
             assert flags.max() <= BeamFlags.ACTIVE.value
             assert len(dt) == len(flags)
 
-        self._dE: DistributedArray = DistributedArray(
+        self.dE: DistributedArray = DistributedArray(
             backend.array(dE, dtype=backend.float)
         )
-        self._dt: DistributedArray = DistributedArray(
+        self.dt: DistributedArray = DistributedArray(
             backend.array(dt, dtype=backend.float)
         )
 
@@ -197,8 +197,8 @@ class Beam(BeamBaseClass):
             self.reference.total_energy = reference_total_energy
 
         if mpi_mode == "root-distributes":
-            self._dE.mpi_scatter()
-            self._dt.mpi_scatter()
+            self.dE.mpi_scatter()
+            self.dt.mpi_scatter()
             self._flags.mpi_scatter()
             # IDs need special treatment
             self._ids: DistributedArray = DistributedArray(
@@ -279,7 +279,7 @@ class Beam(BeamBaseClass):
         dt_min
             Earliest time position in [s], relative to the reference time.
         """
-        return self._dt.min()
+        return self.dt.min()
 
     @property
     def dt_max(self) -> float:
@@ -291,7 +291,7 @@ class Beam(BeamBaseClass):
         dt_max
             Latest time position in [s], relative to the reference time.
         """
-        return self._dt.max()
+        return self.dt.max()
 
     @property
     def dE_min(self) -> float:
@@ -303,7 +303,7 @@ class Beam(BeamBaseClass):
         dE_min
             Lowest energy in [eV], relative to the reference energy.
         """
-        return self._dE.min()
+        return self.dE.min()
 
     @property
     def dE_max(self) -> float:
@@ -315,7 +315,7 @@ class Beam(BeamBaseClass):
         dE_max
             Highest energy in [eV], relative to the reference energy.
         """
-        return self._dE.max()
+        return self.dE.max()
 
     @property
     def rms_emittance(self):
@@ -327,7 +327,7 @@ class Beam(BeamBaseClass):
         rms_emittance
             The Root-Mean-Square emittance in [s eV] of the beam.
         """
-        return rms_emittance(dt=self._dt, dE=self._dE)
+        return rms_emittance(dt=self.dt, dE=self.dE)
 
     @property
     def common_array_size(self) -> int:
@@ -347,7 +347,7 @@ class Beam(BeamBaseClass):
         Particles that are labeled LOST will be nevertheless counted,
         as they still exist in the array.
         """
-        return self._dt.global_size
+        return self.dt.global_size
 
     def plot_hist2d(self, **kwargs) -> QuadMesh:
         """
@@ -375,7 +375,7 @@ class Beam(BeamBaseClass):
         -----
         The x-axis represents time `dt` and the y-axis represents energy `dE`.
         """
-        if self._dt is None or self._dE is None:
+        if self.dt is None or self.dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
             )
@@ -389,16 +389,16 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        if is_cupy_array(self._dt.array_local):
+        if is_cupy_array(self.dt.array_local):
             # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE.array_local
-            dt: CupyArray = self._dt.array_local
+            dE: CupyArray = self.dE.array_local
+            dt: CupyArray = self.dt.array_local
             counts, xedges, yedges, image = plt.hist2d(
                 dt.get(), dE.get(), **kwargs
             )
         else:
             counts, xedges, yedges, image = plt.hist2d(
-                self._dt.array_local, self._dE.array_local, **kwargs
+                self.dt.array_local, self.dE.array_local, **kwargs
             )
         return image
 
@@ -420,7 +420,7 @@ class Beam(BeamBaseClass):
         """
         if ax is None:
             ax = plt
-        if self._dt is None or self._dE is None:
+        if self.dt is None or self.dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
             )
@@ -430,14 +430,14 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        if is_cupy_array(self._dt.array_local):
+        if is_cupy_array(self.dt.array_local):
             # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE.array_local
-            dt: CupyArray = self._dt.array_local
+            dE: CupyArray = self.dE.array_local
+            dt: CupyArray = self.dt.array_local
             scat = ax.scatter(dt.get(), dE.get(), **kwargs)
         else:
             scat = ax.scatter(
-                self._dt.array_local, self._dE.array_local, **kwargs
+                self.dt.array_local, self.dE.array_local, **kwargs
             )
 
         return scat
@@ -463,7 +463,7 @@ class Beam(BeamBaseClass):
             - range: data range (min, max)
             - density: if True, normalize to form a probability density
         """
-        if self._dt is None or self._dE is None:
+        if self.dt is None or self.dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
             )
@@ -475,8 +475,8 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        dE = self._dE.array_local
-        dt = self._dt.array_local
+        dE = self.dE.array_local
+        dt = self.dt.array_local
 
         if is_cupy_array(dE):  # assume `dE` is the same like `dt`
             if axis == 0:

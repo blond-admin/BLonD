@@ -385,8 +385,8 @@ class EmpiricMatcher(MatchingRoutine):
                 plt.clf()
                 plt.title(f"Iteration {i}")
                 plt.hist2d(
-                    users_beam._dt,
-                    users_beam._dE,
+                    users_beam.dt,
+                    users_beam.dE,
                     bins=len(self._grid_base_dt),
                 )
                 plt.draw()

@@ -72,18 +72,16 @@ class TestCoasting(unittest.TestCase):
 
         coast.prepare_beam(self.simulation, self.beam)
 
-        np.testing.assert_almost_equal(
-            self.beam._dE.max(), bins[-1], decimal=2
-        )
-        np.testing.assert_almost_equal(self.beam._dE.min(), bins[0], decimal=2)
-        np.testing.assert_almost_equal(self.beam._dE.mean(), 0, decimal=2)
+        np.testing.assert_almost_equal(self.beam.dE.max(), bins[-1], decimal=2)
+        np.testing.assert_almost_equal(self.beam.dE.min(), bins[0], decimal=2)
+        np.testing.assert_almost_equal(self.beam.dE.mean(), 0, decimal=2)
 
         np.testing.assert_almost_equal(
-            self.beam._dt.max(), self.t_rev, decimal=2
+            self.beam.dt.max(), self.t_rev, decimal=2
         )
-        np.testing.assert_almost_equal(self.beam._dt.min(), 0, decimal=2)
+        np.testing.assert_almost_equal(self.beam.dt.min(), 0, decimal=2)
         np.testing.assert_almost_equal(
-            self.beam._dt.mean(), self.t_rev / 2, decimal=2
+            self.beam.dt.mean(), self.t_rev / 2, decimal=2
         )
 
     @multi_backend_testcase
@@ -104,21 +102,21 @@ class TestCoasting(unittest.TestCase):
         coast.prepare_beam(self.simulation, self.beam)
 
         np.testing.assert_almost_equal(
-            self.beam._dE.max(), bins[-1] + 1, decimal=2
+            self.beam.dE.max(), bins[-1] + 1, decimal=2
         )
         np.testing.assert_almost_equal(
-            self.beam._dE.min(), bins[0] + 1, decimal=2
+            self.beam.dE.min(), bins[0] + 1, decimal=2
         )
-        np.testing.assert_almost_equal(self.beam._dE.mean(), 1, decimal=2)
+        np.testing.assert_almost_equal(self.beam.dE.mean(), 1, decimal=2)
 
         np.testing.assert_almost_equal(
-            self.beam._dt.max(), self.t_rev * 0.75, decimal=2
+            self.beam.dt.max(), self.t_rev * 0.75, decimal=2
         )
         np.testing.assert_almost_equal(
-            self.beam._dt.min(), self.t_rev * 0.25, decimal=2
+            self.beam.dt.min(), self.t_rev * 0.25, decimal=2
         )
         np.testing.assert_almost_equal(
-            self.beam._dt.mean(), self.t_rev / 2, decimal=2
+            self.beam.dt.mean(), self.t_rev / 2, decimal=2
         )
 
     def test_prepare_beam_varying_offset(self):
@@ -135,24 +133,24 @@ class TestCoasting(unittest.TestCase):
         coast.prepare_beam(self.simulation, self.beam)
 
         np.testing.assert_almost_equal(
-            self.beam._dE.max(), bins[-1] + 1, decimal=1
+            self.beam.dE.max(), bins[-1] + 1, decimal=1
         )
         np.testing.assert_almost_equal(
-            self.beam._dE.min(), bins[0] - 1, decimal=1
+            self.beam.dE.min(), bins[0] - 1, decimal=1
         )
-        np.testing.assert_almost_equal(self.beam._dE.mean(), 0, decimal=1)
+        np.testing.assert_almost_equal(self.beam.dE.mean(), 0, decimal=1)
 
         np.testing.assert_almost_equal(
-            self.beam._dt.max(), self.t_rev, decimal=2
+            self.beam.dt.max(), self.t_rev, decimal=2
         )
-        np.testing.assert_almost_equal(self.beam._dt.min(), 0, decimal=2)
+        np.testing.assert_almost_equal(self.beam.dt.min(), 0, decimal=2)
         np.testing.assert_almost_equal(
-            self.beam._dt.mean(), self.t_rev / 2, decimal=2
+            self.beam.dt.mean(), self.t_rev / 2, decimal=2
         )
 
-        time_sorted = np.argsort(self.beam._dt.array_local)
-        self.assertTrue(self.beam._dE.array_local[time_sorted[0]] < 0)
-        self.assertTrue(self.beam._dE.array_local[time_sorted[-1]] > 0)
+        time_sorted = np.argsort(self.beam.dt.array_local)
+        self.assertTrue(self.beam.dE.array_local[time_sorted[0]] < 0)
+        self.assertTrue(self.beam.dE.array_local[time_sorted[-1]] > 0)
 
 
 if __name__ == "__main__":

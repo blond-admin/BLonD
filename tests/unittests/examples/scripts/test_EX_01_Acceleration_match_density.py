@@ -25,10 +25,10 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         bunch: Beam = EX_01_Acceleration_match_density.main()
         fetch_new_pinned_values = False
         if fetch_new_pinned_values:
-            print("dt_mean =", bunch._dt.mean())
-            print("dt_std =", bunch._dt.std())
-            print("dE_mean =", bunch._dE.mean())
-            print("dE_std =", bunch._dE.std())
+            print("dt_mean =", bunch.dt.mean())
+            print("dt_std =", bunch.dt.std())
+            print("dE_mean =", bunch.dE.mean())
+            print("dE_std =", bunch.dE.std())
         # pinned values
         dt_mean = 8.316356750144916e-10
         dt_std = 1.0907507797569666e-10
@@ -36,14 +36,14 @@ class TestEX_01_Acceleration_match_density(unittest.TestCase):
         dE_std = 34138361.01478994
 
         # quasi 0
-        np.testing.assert_allclose(bunch._dt.mean(), dt_mean, atol=0.01)
+        np.testing.assert_allclose(bunch.dt.mean(), dt_mean, atol=0.01)
 
-        np.testing.assert_allclose(bunch._dt.std(), dt_std, atol=0.01)
+        np.testing.assert_allclose(bunch.dt.std(), dt_std, atol=0.01)
 
         # quasi 0
-        np.testing.assert_allclose(bunch._dE.mean(), dE_mean, atol=0.01 * 1e9)
+        np.testing.assert_allclose(bunch.dE.mean(), dE_mean, atol=0.01 * 1e9)
 
-        np.testing.assert_allclose(bunch._dE.std(), dE_std, atol=0.01 * 1e9)
+        np.testing.assert_allclose(bunch.dE.std(), dE_std, atol=0.01 * 1e9)
 
     @pytest.mark.backend_mutation
     @pytest.mark.mpi

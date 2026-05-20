@@ -68,8 +68,8 @@ class BeamBaseClass(Preparable, ABC):
         self._is_counter_rotating = is_counter_rotating
 
         # should be initialized later using `setup_beam`
-        self._dE: DistributedArray | None = None
-        self._dt: DistributedArray | None = None
+        self.dE: DistributedArray | None = None
+        self.dt: DistributedArray | None = None
         self._flags: DistributedArray | None = None
         self._ids: DistributedArray | None = None
 
@@ -151,8 +151,8 @@ class BeamBaseClass(Preparable, ABC):
         new_ids = other._ids.array_local + int(self._ids.max()) + 1
 
         self._add_coordinates(
-            other._dt,
-            other._dE,
+            other.dt,
+            other.dE,
             other._flags,
             distributed_array.DistributedArray(new_ids),
         )
@@ -189,7 +189,7 @@ class BeamBaseClass(Preparable, ABC):
             )
 
         id_max = np.int32(self._ids.max())
-        local_size = self._dt.local_size
+        local_size = self.dt.local_size
 
         new_ids = dist_help.distributed_arange(local_size, np.int32)
         new_ids.array_local += id_max + 1
@@ -222,8 +222,8 @@ class BeamBaseClass(Preparable, ABC):
         """
         ratio = self.ratio
 
-        self._dt = distributed_array.concatenate(self._dt, new_dt)
-        self._dE = distributed_array.concatenate(self._dE, new_dE)
+        self.dt = distributed_array.concatenate(self.dt, new_dt)
+        self.dE = distributed_array.concatenate(self.dE, new_dE)
         self._flags = distributed_array.concatenate(self._flags, new_flags)
         self._ids = distributed_array.concatenate(self._ids, new_ids)
 
@@ -257,40 +257,6 @@ class BeamBaseClass(Preparable, ABC):
             if self.is_counter_rotating
             else self.particle_type.charge
         )
-
-    @property
-    def dE(self) -> DistributedArray:
-        """
-        Beam macro-particle energy coordinates, in [eV].
-
-        Returns
-        -------
-        dE
-            Beam macro-particle energy coordinates, in [eV].
-        """
-        if self._dE is None:
-            raise AttributeError(
-                "Beam is not properly initialized. "
-                "You can sse `setup_beam` or the beam preparation methods.."
-            )
-        return self._dE
-
-    @property
-    def dt(self) -> DistributedArray:
-        """
-        Beam macro-particle time coordinates, in [s].
-
-        Returns
-        -------
-        dt
-            Beam macro-particle time coordinates, in [s].
-        """
-        if self._dt is None:
-            raise AttributeError(
-                "Beam is not properly initialized. "
-                "You can sse `setup_beam` or the beam preparation methods.."
-            )
-        return self._dt
 
     @property
     def flags(self) -> DistributedArray:
@@ -362,8 +328,8 @@ class BeamBaseClass(Preparable, ABC):
             " `simulation.prepare_beam(...)` or"
             " `beam.setup_beam(...)`."
         )
-        assert self._dt is not None, msg
-        assert self._dE is not None, msg
+        assert self.dt is not None, msg
+        assert self.dE is not None, msg
         assert self._flags is not None, msg
         assert self._ids is not None, msg
         total_energy_init = simulation.magnetic_cycle.get_total_energy_init(
@@ -551,11 +517,11 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        if self._dE is not None:
-            return self._dE.local_size
+        if self.dE is not None:
+            return self.dE.local_size
         else:
             raise AttributeError(
-                f"{self._dE=}. You can use `setup_beam("
+                f"{self.dE=}. You can use `setup_beam("
                 f"...)` for initialisation."
             )
 
@@ -597,7 +563,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dt.array_local
+        return self.dt.array_local
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
         """
@@ -617,7 +583,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dt.array_local
+        return self.dt.array_local
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
         """
@@ -637,7 +603,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dE.array_local
+        return self.dE.array_local
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
         """
@@ -657,7 +623,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        return self._dE.array_local
+        return self.dE.array_local
 
     def write_partial_flags(self) -> NumpyArray | CupyArray:
         """
@@ -714,28 +680,28 @@ class BeamBaseClass(Preparable, ABC):
         )
         from blond.generals.distributed.helpers import mpi_barrier
 
-        n_before_truncation_global = self._dt.global_size
+        n_before_truncation_global = self.dt.global_size
 
         n_after_truncation_local = (
             backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=self._flags.array_local,
-                dt=self._dt.array_local,
-                dE=self._dE.array_local,
+                dt=self.dt.array_local,
+                dE=self.dE.array_local,
                 ids=self._ids.array_local,
             )
         )
         self._flags.array_local = self._flags.array_local[
             :n_after_truncation_local
         ]
-        self._dt.array_local = self._dt.array_local[:n_after_truncation_local]
-        self._dE.array_local = self._dE.array_local[:n_after_truncation_local]
+        self.dt.array_local = self.dt.array_local[:n_after_truncation_local]
+        self.dE.array_local = self.dE.array_local[:n_after_truncation_local]
         self._ids.array_local = self._ids.array_local[
             :n_after_truncation_local
         ]
 
         mpi_barrier()
-        n_after_truncation_global = self._dt.global_size
+        n_after_truncation_global = self.dt.global_size
 
         self.intensity *= (
             n_after_truncation_global / n_before_truncation_global

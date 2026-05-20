@@ -41,10 +41,10 @@ class BeamBaseClassTester(BeamBaseClass):
             is_counter_rotating=is_counter_rotating,
             is_distributed=is_distributed,
         )
-        self._dE = DistributedArray(
+        self.dE = DistributedArray(
             backend.linspace(1, 10, 10, dtype=backend.float)
         )
-        self._dt = DistributedArray(
+        self.dt = DistributedArray(
             backend.linspace(20, 30, 10, dtype=backend.float)
         )
         self._flags = DistributedArray(backend.zeros(10, dtype=np.int32))
@@ -104,7 +104,7 @@ class BeamBaseClassTester(BeamBaseClass):
 
     @property
     def common_array_size(self) -> int:
-        return self._dt.global_size
+        return self.dt.global_size
 
     def rms_emittance(self):
         pass
@@ -168,7 +168,7 @@ class TestBeamBaseClass(unittest.TestCase):
         self.beam_base_class.on_init_simulation(simulation=simulation)
 
     def test_missing_init_of_simulation(self):
-        self.beam_base_class._dE = None
+        self.beam_base_class.dE = None
         with self.assertRaises(AttributeError):
             self.beam_base_class.n_macroparticles_partial()
 
@@ -257,8 +257,8 @@ class TestBeamBaseClass(unittest.TestCase):
             is_distributed=False,
         )
 
-        beam_1._dt = DistributedArray(dt_1)
-        beam_1._dE = DistributedArray(dE_1)
+        beam_1.dt = DistributedArray(dt_1)
+        beam_1.dE = DistributedArray(dE_1)
         beam_1._flags = DistributedArray(flags_1)
         beam_1._ids = DistributedArray(ids_1)
 
@@ -270,11 +270,11 @@ class TestBeamBaseClass(unittest.TestCase):
         beam_1._add_coordinates(dist_dt, dist_dE, dist_flags, dist_ids)
 
         np.testing.assert_array_equal(
-            copy_to_cpu(beam_1._dt.array_local),
+            copy_to_cpu(beam_1.dt.array_local),
             copy_to_cpu(np.concatenate((dt_1, dt_2))),
         )
         np.testing.assert_array_equal(
-            copy_to_cpu(beam_1._dE.array_local),
+            copy_to_cpu(beam_1.dE.array_local),
             copy_to_cpu(np.concatenate((dE_1, dE_2))),
         )
         np.testing.assert_array_equal(
@@ -308,8 +308,8 @@ class TestBeamBaseClass(unittest.TestCase):
             is_distributed=False,
         )
 
-        beam_1._dt = DistributedArray(dt_1)
-        beam_1._dE = DistributedArray(dE_1)
+        beam_1.dt = DistributedArray(dt_1)
+        beam_1.dE = DistributedArray(dE_1)
         beam_1._flags = DistributedArray(flags_1)
         beam_1._ids = DistributedArray(ids_1)
 
@@ -319,11 +319,11 @@ class TestBeamBaseClass(unittest.TestCase):
         beam_1.add_particles(dist_dt, dist_dE)
 
         np.testing.assert_array_equal(
-            copy_to_cpu(beam_1._dt.array_local),
+            copy_to_cpu(beam_1.dt.array_local),
             copy_to_cpu(np.concatenate((dt_1, dt_2))),
         )
         np.testing.assert_array_equal(
-            copy_to_cpu(beam_1._dE.array_local),
+            copy_to_cpu(beam_1.dE.array_local),
             copy_to_cpu(np.concatenate((dE_1, dE_2))),
         )
         np.testing.assert_array_equal(
@@ -368,24 +368,24 @@ class TestBeamBaseClass(unittest.TestCase):
             is_distributed=False,
         )
 
-        beam_1._dt = DistributedArray(dt_1)
-        beam_1._dE = DistributedArray(dE_1)
+        beam_1.dt = DistributedArray(dt_1)
+        beam_1.dE = DistributedArray(dE_1)
         beam_1._flags = DistributedArray(flags_1)
         beam_1._ids = DistributedArray(ids_1)
 
-        beam_2._dt = DistributedArray(dt_2)
-        beam_2._dE = DistributedArray(dE_2)
+        beam_2.dt = DistributedArray(dt_2)
+        beam_2.dE = DistributedArray(dE_2)
         beam_2._flags = DistributedArray(flags_2)
         beam_2._ids = DistributedArray(ids_2)
 
         beam_1.add_beam(beam_2)
 
         np.testing.assert_array_equal(
-            copy_to_cpu(beam_1._dt.array_local),
+            copy_to_cpu(beam_1.dt.array_local),
             copy_to_cpu(np.concatenate((dt_1, dt_2))),
         )
         np.testing.assert_array_equal(
-            copy_to_cpu(beam_1._dE.array_local),
+            copy_to_cpu(beam_1.dE.array_local),
             copy_to_cpu(np.concatenate((dE_1, dE_2))),
         )
         np.testing.assert_array_equal(
@@ -428,13 +428,13 @@ class TestBeamBaseClass(unittest.TestCase):
             is_distributed=False,
         )
 
-        beam_1._dt = DistributedArray(dt_1)
-        beam_1._dE = DistributedArray(dE_1)
+        beam_1.dt = DistributedArray(dt_1)
+        beam_1.dE = DistributedArray(dE_1)
         beam_1._flags = DistributedArray(flags_1)
         beam_1._ids = DistributedArray(ids_1)
 
-        beam_2._dt = DistributedArray(dt_2)
-        beam_2._dE = DistributedArray(dE_2)
+        beam_2.dt = DistributedArray(dt_2)
+        beam_2.dE = DistributedArray(dE_2)
         beam_2._flags = DistributedArray(flags_2)
         beam_2._ids = DistributedArray(ids_2)
 
@@ -480,24 +480,24 @@ class TestBeamBaseClass(unittest.TestCase):
             is_distributed=False,
         )
 
-        beam_1._dt = DistributedArray(dt_1)
-        beam_1._dE = DistributedArray(dE_1)
+        beam_1.dt = DistributedArray(dt_1)
+        beam_1.dE = DistributedArray(dE_1)
         beam_1._flags = DistributedArray(flags_1)
         beam_1._ids = DistributedArray(ids_1)
 
-        beam_2._dt = DistributedArray(dt_2)
-        beam_2._dE = DistributedArray(dE_2)
+        beam_2.dt = DistributedArray(dt_2)
+        beam_2.dE = DistributedArray(dE_2)
         beam_2._flags = DistributedArray(flags_2)
         beam_2._ids = DistributedArray(ids_2)
 
         beam_1 += beam_2
 
         np.testing.assert_array_equal(
-            copy_to_cpu(beam_1._dt.array_local),
+            copy_to_cpu(beam_1.dt.array_local),
             copy_to_cpu(np.concatenate((dt_1, dt_2))),
         )
         np.testing.assert_array_equal(
-            copy_to_cpu(beam_1._dE.array_local),
+            copy_to_cpu(beam_1.dE.array_local),
             copy_to_cpu(np.concatenate((dE_1, dE_2))),
         )
         np.testing.assert_array_equal(
@@ -562,13 +562,13 @@ class TestBeamBaseClass(unittest.TestCase):
 
         mpi_barrier()
 
-        beam_1._dt = dt_1
-        beam_1._dE = dE_1
+        beam_1.dt = dt_1
+        beam_1.dE = dE_1
         beam_1._flags = flags
         beam_1._ids = ids
 
-        beam_2._dt = dt_2
-        beam_2._dE = dE_2
+        beam_2.dt = dt_2
+        beam_2.dE = dE_2
         beam_2._flags = flags
         beam_2._ids = ids
 

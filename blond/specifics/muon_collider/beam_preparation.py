@@ -103,8 +103,8 @@ def copy_beam_data_from_other_beam(
     if other_beam._is_distributed:
         raise RuntimeError("Copying is not supported with distributed beams.")
 
-    to_beam._dt = deepcopy(other_beam._dt)
-    to_beam._dE = deepcopy(other_beam._dE)
+    to_beam.dt = deepcopy(other_beam.dt)
+    to_beam.dE = deepcopy(other_beam.dE)
     to_beam._flags = deepcopy(other_beam._flags)
     to_beam._ids = deepcopy(other_beam._ids)
 

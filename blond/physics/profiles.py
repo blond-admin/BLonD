@@ -348,7 +348,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             # `_hist_x`, `_hist_y` could be None, which is not handled and
             # causes a MyPy type error,
             # This is intentionally ignored, we want to get an exception.
-            beam._dt.histogram(  # MPI aware histogram calculation
+            beam.dt.histogram(  # MPI aware histogram calculation
                 len(self._hist_y),
                 range=(
                     self.cut_left,

@@ -211,10 +211,10 @@ class InducedVoltageResonatorPhysicsCR(unittest.TestCase):
         )
         sim.print_one_turn_execution_order()
 
-        beam._dE = DistributedArray(
+        beam.dE = DistributedArray(
             backend.array([0, 0, 0], dtype=backend.float)
         )
-        beam._dt = DistributedArray(
+        beam.dt = DistributedArray(
             backend.array([0, 0, 0], dtype=backend.float)
         )
         beam._flags = DistributedArray(

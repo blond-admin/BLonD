@@ -423,7 +423,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         assert self._intensity is not None
         assert self._yedges is not None
         assert self._beam is not None
-        assert self._beam._dt is not None
+        assert self._beam.dt is not None
         assert self._reference_time is not None
         assert self._reference_total_energy is not None
 
@@ -723,7 +723,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             )
         self._beam = beam
         n_entries = self._calc_n_entries(n_turns)
-        n_macroparticles = int(beam._dt.local_size)
+        n_macroparticles = int(beam.dt.local_size)
         if mpi_is_distributed():
             warnings.warn(
                 "Saving beam with `BeamObservationOncePerTurn` only from "
@@ -762,7 +762,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
 
-        if self._beam._dt.local_size < self._dts._memory.shape[1]:
+        if self._beam.dt.local_size < self._dts._memory.shape[1]:
             mask = backend.zeros(self._dts._memory.shape[1], dtype=bool)
             mask[self._beam.read_partial_ids()] = True
         else:
@@ -933,9 +933,9 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         # TODO allow several bunches
 
         # MPI capable
-        self._bunch_position.write(self._beam._dt.mean())
-        self._energy_spread.write(self._beam._dE.std())
-        self._bunch_length.write(self._beam._dt.std())
+        self._bunch_position.write(self._beam.dt.mean())
+        self._energy_spread.write(self._beam.dE.std())
+        self._bunch_length.write(self._beam.dt.std())
 
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)

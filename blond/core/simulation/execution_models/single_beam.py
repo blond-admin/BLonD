@@ -105,7 +105,7 @@ class MainloopSingleBeam(ExecutionModel):
         )
         if show_progressbar:
             # Get particle count for throughput calculation
-            n_particles = beam._dt.global_size
+            n_particles = beam.dt.global_size
             iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
             # display to iteration
         for turn_i in iterator:

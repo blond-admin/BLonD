@@ -203,7 +203,7 @@ class TestDriftIntegration(unittest.TestCase):
                 sim.ring.momentum_compaction_factor
             )  # this is tested
 
-            return p._dt.array_local, global_momentum_compaction_factor
+            return p.dt.array_local, global_momentum_compaction_factor
 
         def run_combined_drifts(global_momentum_compaction_factor):
             ring = Ring(circumference=circumference)
@@ -225,7 +225,7 @@ class TestDriftIntegration(unittest.TestCase):
             sim.ring.assert_circumference()
             p = deepcopy(beam1)
             sim.run_simulation(beams=p, n_turns=5)
-            return p._dt.array_local
+            return p.dt.array_local
 
         dt1, global_momentum_compaction_factor = run_two_drifts()
         dt2 = run_combined_drifts(global_momentum_compaction_factor)

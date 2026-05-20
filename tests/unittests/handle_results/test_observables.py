@@ -57,19 +57,19 @@ simulation.turn_i = DynamicParameter(None)
 simulation.turn_i.value = 0
 simulation.current_t_rev = 123
 beam = Mock(BeamBaseClass)
-beam._dE = Mock(DistributedArray)
-beam._dt = Mock(DistributedArray)
+beam.dE = Mock(DistributedArray)
+beam.dt = Mock(DistributedArray)
 beam._flags = Mock(DistributedArray)
 beam.common_array_size = 128
 beam.reference = Mock(ReferenceCoordinates)
 beam.reference.time = 0.8
 beam.reference.beta = 0.9
 beam.reference.total_energy = 11
-beam._dt.array_local = np.ones(beam.common_array_size, dtype=float)
-beam._dE.array_local = np.ones(beam.common_array_size, dtype=float)
+beam.dt.array_local = np.ones(beam.common_array_size, dtype=float)
+beam.dE.array_local = np.ones(beam.common_array_size, dtype=float)
 beam._flags.array_local = np.ones(beam.common_array_size, dtype=int)
-beam.read_partial_dt.return_value = beam._dt.array_local
-beam.read_partial_dE.return_value = beam._dE.array_local
+beam.read_partial_dt.return_value = beam.dt.array_local
+beam.read_partial_dE.return_value = beam.dE.array_local
 beam.read_partial_flags.return_value = beam._flags.array_local
 
 
@@ -223,8 +223,8 @@ class TestBeamObservation(unittest.TestCase):
         self.beam.reference.time = 0.8
         # self.beam.reference.beta = 0.9
         self.beam.reference.total_energy = 11
-        self.beam._dt = np.ones(common_array_size, dtype=float)
-        self.beam._dE = np.ones(common_array_size, dtype=float)
+        self.beam.dt = np.ones(common_array_size, dtype=float)
+        self.beam.dE = np.ones(common_array_size, dtype=float)
         self.beam._flags = np.ones(common_array_size, dtype=int)
 
         self.beam.setup_beam(
@@ -411,10 +411,10 @@ class TestBunchStatistics(unittest.TestCase):
         self.beam.reference._time = 0.8
         self.beam.reference._beta = 0.9
         self.beam.reference._total_energy = 11
-        self.beam._dt = DistributedArray(
+        self.beam.dt = DistributedArray(
             np.ones(common_array_size, dtype=float)
         )
-        self.beam._dE = DistributedArray(
+        self.beam.dE = DistributedArray(
             np.ones(common_array_size, dtype=float)
         )
         self.beam._flags = DistributedArray(

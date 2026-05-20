@@ -190,8 +190,8 @@ class TestNestedMocksHashingBug(unittest.TestCase):
         beam = Beam(
             intensity=1, particle_type=mu_plus, is_counter_rotating=False
         )
-        beam._dt = DistributedArray(np.zeros(5))
-        beam._dE = DistributedArray(np.zeros(5))
+        beam.dt = DistributedArray(np.zeros(5))
+        beam.dE = DistributedArray(np.zeros(5))
         beam._ids = DistributedArray(np.arange(5))
         beam._flags = DistributedArray(np.zeros(5))
 

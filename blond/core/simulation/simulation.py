@@ -1117,20 +1117,20 @@ class Simulation(Preparable):
         for i, beam in enumerate(beams):
             size_bytes = sum(
                 (
-                    beam._dt.array_local.nbytes,
-                    beam._dE.array_local.nbytes,
+                    beam.dt.array_local.nbytes,
+                    beam.dE.array_local.nbytes,
                     beam._ids.array_local.nbytes,
                     beam._flags.array_local.nbytes,
                 )
             )
 
             print(
-                f"\nBeam {i} has {si_format(beam._dt.global_size)} "
+                f"\nBeam {i} has {si_format(beam.dt.global_size)} "
                 f"macroparticles",
                 end="",
             )
-            if beam._dt.is_distributed:
-                print(f" ({beam._dt.local_size:.2e} on this node)")
+            if beam.dt.is_distributed:
+                print(f" ({beam.dt.local_size:.2e} on this node)")
             else:
                 print(f" {si_format(size_bytes)}B")
         print(f"{n_turns=}")

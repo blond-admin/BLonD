@@ -56,14 +56,7 @@ class TestBeam(unittest.TestCase):
         self.beam.ids  # NOQA
 
         beam = Beam(intensity=123, particle_type=lead_82)
-        with self.assertRaisesRegex(
-            AttributeError, "not properly initialized"
-        ):
-            beam.dt  # NOQA
-        with self.assertRaisesRegex(
-            AttributeError, "not properly initialized"
-        ):
-            beam.dE  # NOQA
+
         with self.assertRaisesRegex(
             AttributeError, "not properly initialized"
         ):
@@ -104,8 +97,8 @@ class TestBeam(unittest.TestCase):
         )
 
     def test_plot_hist2d_fails(self) -> None:
-        self.beam._dt = None
-        self.beam._dE = None
+        self.beam.dt = None
+        self.beam.dE = None
         with self.assertRaises(ValueError):
             self.beam.plot_hist2d()
 
@@ -130,22 +123,22 @@ class TestBeam(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("Cupy not available")
         beam = Mock(Beam)
-        beam._dE = DistributedArray(cp.ones(10))
-        beam._dt = DistributedArray(cp.ones(10))
+        beam.dE = DistributedArray(cp.ones(10))
+        beam.dt = DistributedArray(cp.ones(10))
         Beam.plot_hist2d(beam)
         plt.gcf().clf()
 
     def test_plot_scatter_raises(self) -> None:
         beam = Mock(Beam)
-        beam._dE = None
-        beam._dt = None
+        beam.dE = None
+        beam.dt = None
         with self.assertRaises(ValueError):
             Beam.plot_scatter(beam)
 
     def test_plot_scatter_executes_cpu(self) -> None:
         beam = Mock(Beam)
-        beam._dE = DistributedArray(np.ones(10))
-        beam._dt = DistributedArray(np.ones(10))
+        beam.dE = DistributedArray(np.ones(10))
+        beam.dt = DistributedArray(np.ones(10))
         Beam.plot_scatter(beam)
         plt.gcf().clf()
 
@@ -156,23 +149,23 @@ class TestBeam(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("Cupy not available")
         beam = Mock(Beam)
-        beam._dE = DistributedArray(cp.ones(10))
-        beam._dt = DistributedArray(cp.ones(10))
+        beam.dE = DistributedArray(cp.ones(10))
+        beam.dt = DistributedArray(cp.ones(10))
         Beam.plot_scatter(beam)
         plt.gcf().clf()
 
     def test_plot_scatter_with_explicit_ax(self) -> None:
         beam = Mock(Beam)
-        beam._dE = DistributedArray(np.ones(10))
-        beam._dt = DistributedArray(np.ones(10))
+        beam.dE = DistributedArray(np.ones(10))
+        beam.dt = DistributedArray(np.ones(10))
         fig, ax = plt.subplots()
         Beam.plot_scatter(beam, ax=ax)
         plt.close(fig)
 
     def test_plot_hist_raises(self) -> None:
         beam = Mock(Beam)
-        beam._dE = None
-        beam._dt = None
+        beam.dE = None
+        beam.dt = None
         with self.assertRaises(ValueError):
             Beam.plot_hist(beam, axis=1)
 
@@ -183,8 +176,8 @@ class TestBeam(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("Cupy not available")
         beam = Mock(Beam)
-        beam._dE = DistributedArray(cp.ones(10))
-        beam._dt = DistributedArray(cp.ones(10))
+        beam.dE = DistributedArray(cp.ones(10))
+        beam.dt = DistributedArray(cp.ones(10))
         for axis in range(2):
             Beam.plot_hist(beam, axis=axis)
             plt.gcf().clf()
@@ -202,27 +195,25 @@ class TestBeam(unittest.TestCase):
             dt_offset=0.5e-9,
         )
         # places=1 because using random generator with low number of particles
+        self.assertAlmostEqual(beam.dt.mean(), 5.194208272517843e-10, places=1)
+        self.assertAlmostEqual(beam.dt.std(), 1.003710018454918e-09, places=1)
         self.assertAlmostEqual(
-            beam._dt.mean(), 5.194208272517843e-10, places=1
-        )
-        self.assertAlmostEqual(beam._dt.std(), 1.003710018454918e-09, places=1)
-        self.assertAlmostEqual(
-            beam._dE.mean() / 1e9, 510497638.7958076 / 1e9, places=1
+            beam.dE.mean() / 1e9, 510497638.7958076 / 1e9, places=1
         )
         self.assertAlmostEqual(
-            beam._dE.std() / 1e9, 996310643.973366 / 1e9, places=1
+            beam.dE.std() / 1e9, 996310643.973366 / 1e9, places=1
         )
 
     def test_plot_hist_executes_kwargs(self) -> None:
         beam = Mock(Beam)
-        beam._dE = DistributedArray(np.ones(10))
-        beam._dt = DistributedArray(np.ones(10))
+        beam.dE = DistributedArray(np.ones(10))
+        beam.dt = DistributedArray(np.ones(10))
         Beam.plot_hist(beam, axis=0, bins=12)
 
     def test_plot_hist_executes_cpu(self) -> None:
         beam = Mock(Beam)
-        beam._dE = DistributedArray(np.ones(10))
-        beam._dt = DistributedArray(np.ones(10))
+        beam.dE = DistributedArray(np.ones(10))
+        beam.dt = DistributedArray(np.ones(10))
         for axis in range(2):
             Beam.plot_hist(beam, axis=axis)
             plt.gcf().clf()
@@ -244,15 +235,15 @@ class TestBeam(unittest.TestCase):
             dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
         )
         if MPI_RANK == 0 and MPI_SIZE == 2:  # assume `mpirun -n 2`
-            np.testing.assert_allclose(beam._dt.array_local, np.arange(0, 6))
-            np.testing.assert_allclose(beam._dE.array_local, np.arange(0, 6))
+            np.testing.assert_allclose(beam.dt.array_local, np.arange(0, 6))
+            np.testing.assert_allclose(beam.dE.array_local, np.arange(0, 6))
             np.testing.assert_allclose(
                 beam._flags.array_local, np.ones(6) * BeamFlags.ACTIVE.value
             )
             np.testing.assert_allclose(beam._ids.array_local, np.arange(0, 6))
         elif MPI_RANK == 1:
-            np.testing.assert_allclose(beam._dt.array_local, np.arange(6, 12))
-            np.testing.assert_allclose(beam._dE.array_local, np.arange(6, 12))
+            np.testing.assert_allclose(beam.dt.array_local, np.arange(6, 12))
+            np.testing.assert_allclose(beam.dE.array_local, np.arange(6, 12))
             np.testing.assert_allclose(
                 beam._flags.array_local, np.ones(6) * BeamFlags.ACTIVE.value
             )

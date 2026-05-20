@@ -335,10 +335,10 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         if isinstance(beam, ProbeBeam):
             return
         if self._beam_id_filter is None or self._beam_id_filter == id(beam):
-            self._sigma_dt.write(beam._dt.std())
-            self._sigma_dE.write(beam._dE.std())
-            self._mean_dt.write(beam._dt.mean())
-            self._mean_dE.write(beam._dE.mean())
+            self._sigma_dt.write(beam.dt.std())
+            self._sigma_dE.write(beam.dE.std())
+            self._mean_dt.write(beam.dt.mean())
+            self._mean_dE.write(beam.dE.mean())
             self._rms_emittance.write(  # attribute acess on cached property
                 beam.rms_emittance
             )

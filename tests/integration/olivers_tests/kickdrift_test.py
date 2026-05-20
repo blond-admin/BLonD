@@ -113,14 +113,14 @@ def main():  # noqa
     def my_callback(simulation: Simulation):
         if simulation.turn_i.value:
             plt.scatter(
-                beam1._dt[-100:],
-                beam1._dE[-100:],
+                beam1.dt[-100:],
+                beam1.dE[-100:],
                 marker="x",
                 c="C1",
             )
             plt.scatter(
-                beam1._dt[:100],
-                beam1._dE[:100],
+                beam1.dt[:100],
+                beam1.dE[:100],
                 marker="x",
                 c="C1",
                 label="blond3",
@@ -263,14 +263,14 @@ def main():  # noqa
             label="blond2",
         )
         plt.scatter(
-            beam1._dt[-100:],
-            beam1._dE[-100:],
+            beam1.dt[-100:],
+            beam1.dE[-100:],
             marker="x",
             c="C1",
         )
         plt.scatter(
-            beam1._dt[:100],
-            beam1._dE[:100],
+            beam1.dt[:100],
+            beam1.dE[:100],
             marker="x",
             c="C1",
             label="blond3",
