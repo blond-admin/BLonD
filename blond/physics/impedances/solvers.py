@@ -41,7 +41,6 @@ from blond.physics.impedances.base import (
     TimeDomain,
     WakeField,
     WakeFieldSolver,
-    WakeFieldSource,
 )
 from blond.physics.impedances.sources import InductiveImpedance, Resonators
 from blond.physics.profiles import (
@@ -54,14 +53,6 @@ from blond.physics.profiles_sparse import EquidistantMultiProfile
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
-
-    # local helper
-    class VectorFitTypeHint(
-        SupportsVectorFittedModel, WakeFieldSource, TimeDomain
-    ):
-        """Local helper for typing."""
-
-        pass
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
@@ -1229,8 +1220,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
     See Also
     --------
-    SupportsVectorFittedModel: Interface for wakefield sources that can
-        provide the poles and residues this solver consumes.
+    blond.physics.impedances.base.SupportsVectorFittedModel : Interface for wakefield sources that can provide the poles and residues this solver consumes.
     """
 
     def __init__(
@@ -1271,7 +1261,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         counter_rotation_pole_flip = []
         assert self._parent_wakefield is not None
         for source in self._parent_wakefield.sources:
-            vector_source: VectorFitTypeHint = source
+            vector_source: SupportsVectorFittedModel = source
 
             poles_, residues_, cr_signs_ = vector_source.get_vectorfit()
 

@@ -600,7 +600,7 @@ class SupportsVectorFittedModel(ABC):
 
     See Also
     --------
-    MultiPoleSparseSolve: The corresponding wakefield solver.
+    blond.physics.impedances.solvers.MultiPoleSparseSolve : The corresponding wakefield solver.
     """
 
     @abstractmethod  # pragma: no cover
