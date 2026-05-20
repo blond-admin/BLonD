@@ -109,7 +109,8 @@ plt.title("Beam before simulation")
 beam1.plot_hist2d()
 
 # Artificially introduce offset to show filamentation
-beam1.dt += 0.05e-9
+dts = beam1.write_partial_dt()
+dts += 0.05e-9
 
 sim.run_simulation(
     beams=(beam1,),
