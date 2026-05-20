@@ -191,9 +191,9 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     found_instances
         Set of instances that have the specified method.
 
-    See Also
-    --------
-    _find: Internal method used.
+    Notes
+    -----
+    Uses the internal ``_find`` helper.
 
     Examples
     --------
@@ -243,9 +243,9 @@ def find_instances_by_class(root: Any, class_: type[T]) -> T:
     found_instances
         Set of instances that are a ``isinstance(element, class_)``.
 
-    See Also
-    --------
-    _find: Internal method used.
+    Notes
+    -----
+    Uses the internal ``_find`` helper.
     """
 
     def _matches_class(obj):
