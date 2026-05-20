@@ -338,7 +338,7 @@ class Specials(ABC):
             for a counter-rotating beam.
         update_on_bin
             Index when to trigger an update of dt. For speedup.
-            E.g. For profile No.: `0,0,0,1,1,1,1,2,2,2`
+            E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
             one needs `update_on_bin = [0,3,7]`.
         factor
             To convert `profile` to current per bin [A].
