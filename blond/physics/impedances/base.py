@@ -125,7 +125,7 @@ class TimeDomain(ABC):
     """Indication of a source is defined in time domain."""
 
     @abstractmethod  # pragma: no cover
-    def get_wake_impedance(
+    def get_impedance_from_wake(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
@@ -148,7 +148,7 @@ class TimeDomain(ABC):
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Impedance array.
         """
         pass
@@ -193,7 +193,7 @@ class TimeDomainCounterRotation(ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_wake_impedance_counter_rotation(
+    def get_impedance_from_wake_counter_rotation(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
@@ -216,7 +216,7 @@ class TimeDomainCounterRotation(ABC):
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Impedance array.
         """
         pass
@@ -377,6 +377,8 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
     delayed_kick
         The common interface to apply the kick later.
         `PooledInterpolationKick.track(...)` must be executed elsewhere.
+    parent_rf_station
+        RFStation this wakefield is attached to if any.
 
     Attributes
     ----------

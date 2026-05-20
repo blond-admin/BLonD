@@ -19,7 +19,6 @@ import numpy as np
 
 from blond.core.base import (
     Preparable,
-    SimulationElementBase,
     UnsafeUserElement,
 )
 
@@ -583,6 +582,8 @@ class Ring(Preparable):
         >>> rf_station = MultiHarmonicRFStation(voltage=1e6, harmonic=400, section_index=0)
         >>> ring.add_element(rf_station)
         """
+        from blond.core.base import SimulationElementBase  # NOQA
+
         if deepcopy:
             element = copy.deepcopy(element)
         if section_index is not None:

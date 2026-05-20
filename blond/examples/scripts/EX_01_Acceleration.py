@@ -58,7 +58,11 @@ def main():
         particle_type=proton,
     )
 
-    sim = Simulation.from_locals(locals())
+    ring.add_elements((drift1, rf_station))
+    sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
+    # or alternatively to automatically discover the variables
+    # sim = Simulation.from_locals(locals())
+
     sim.print_one_turn_execution_order()
     BIGAUS = True
     if BIGAUS:
@@ -120,7 +124,7 @@ def main():
             beams=(beam1,),
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
-            # callback=custom_action,
+            # callbacks=custom_action,
         )
     ANIMATE = False
     if ANIMATE:  # pragma: no cover
