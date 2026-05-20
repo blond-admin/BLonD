@@ -131,7 +131,7 @@ class Coasting(base.BeamPreparationRoutine):
         simulation
             `Simulation` context manager.
         beam
-            Simulation :class:`~blond.core.beam.beam.Beam` object.
+            Simulation :class:`~blond.core.beam.beams.Beam` object.
         """
         super().prepare_beam(simulation, beam)
 

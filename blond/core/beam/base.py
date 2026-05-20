@@ -304,7 +304,7 @@ class BeamBaseClass(Preparable, ABC):
 
         See Also
         --------
-        blond.core.beam.base.BeamFlags: The available flags.
+        blond.core.beam.flags.BeamFlags: The available flags.
         """
         if self._flags is None:
             raise AttributeError(

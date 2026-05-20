@@ -38,9 +38,9 @@ def load_beam_coordinates_counterrot_from_file(
         File that was saved with ``np.save(...)``
         that holds the dt and dE coordinates.
     beam
-        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+        Simulation :class:`~blond.core.beam.beams.Beam` object.
     beam_counterrot
-        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+        Simulation :class:`~blond.core.beam.beams.Beam` object.
 
     Notes
     -----
@@ -72,7 +72,7 @@ def load_beam_coordinates_from_file(
         File that was saved with ``np.save(...)``
         that holds the dt and dE coordinates.
     beam
-        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+        Simulation :class:`~blond.core.beam.beams.Beam` object.
 
     Notes
     -----
