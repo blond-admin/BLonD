@@ -28,7 +28,7 @@ from blond.handle_results.helpers import callers_relative_path
 from blond.physics.drifts import DriftExact
 from blond.testing.backend_testing import multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
-from blond.utilities.separatrix.symbolic_serapartix import (
+from blond.utilities.separatrix.symbolic_separatrix import (
     SymbolicSeparatrixHelper,
 )
 

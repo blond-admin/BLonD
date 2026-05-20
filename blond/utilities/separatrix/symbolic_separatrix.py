@@ -121,6 +121,8 @@ class SymbolicSeparatrixHelper:
         symbolic_separatrix_helper
             The initialized `SymbolicSeparatrixHelper`.
         """
+        # todo make this consider the Baker–Campbell–Hausdorff formula
+        #  See Wikipedia https://en.wikipedia.org/wiki/Baker%E2%80%93Campbell%E2%80%93Hausdorff_formula
         partials = [
             element.get_hamilton_symbolic()
             for element in simulation.ring.elements.get_elements(

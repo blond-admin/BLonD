@@ -1775,7 +1775,7 @@ class Simulation(Preparable):
         -----
         This method does not call ``plt.show()``; call that separately.
         """
-        from blond.utilities.separatrix.symbolic_serapartix import (  # avoid cyclic imports
+        from blond.utilities.separatrix.symbolic_separatrix import (  # avoid cyclic imports
             SymbolicSeparatrixHelper,
         )
 
