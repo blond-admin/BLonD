@@ -377,8 +377,23 @@ class DriftSimple(
     def get_hamilton_symbolic(
         self, replace_symbols: bool = True
     ) -> sympy.Expr:
-        """
+        r"""
         Return the partial Hamiltonian symbolic expression.
+
+        The tracker (see :meth:`DriftSimple._track`) maps
+        ``dt -> dt + T * eta_0 * dE / (beta^2 E)`` with
+
+        .. math::
+
+            T = \frac{L}{\beta c},\qquad
+            \eta_0 = \alpha_0 - \frac{1}{\gamma^2}.
+
+        Hamilton's equation :math:`\partial H/\partial dE = T\,\eta_0\,dE /
+        (\beta^2 E)` integrates to the linearized Hamiltonian
+
+        .. math::
+
+            H = \frac{1}{2}\,\frac{T\,\eta_0}{\beta^2 E}\,dE^2.
 
         Parameters
         ----------
