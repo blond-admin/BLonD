@@ -387,9 +387,9 @@ class BackendBaseClass(ABC):
     Parameters
     ----------
     float_
-        Precision type for float, e.g. float32, float64.
+        Precision type for float, e.g. float64.
     complex_
-        Precision type for complex, e.g. float32, float64.
+        Precision type for complex, e.g. complex128.
     specials_mode
         Default mode to load special libraries.
     is_gpu
@@ -399,13 +399,13 @@ class BackendBaseClass(ABC):
     """
 
     # type annotations for MyPy
-    float: type[np.float32 | np.float64]
-    complex: type[np.complex128 | np.complex64]
+    float: type[np.float64]
+    complex: type[np.complex128]
 
     def __init__(  # noqa: PLR0915
         self,
-        float_: type[np.float32 | np.float64],
-        complex_: type[np.complex128 | np.complex64],
+        float_: type[np.float64],
+        complex_: type[np.complex128],
         specials_mode: Literal[
             "python",
             "cpp",
@@ -419,6 +419,16 @@ class BackendBaseClass(ABC):
         self.verbose = verbose
 
         self._is_gpu = is_gpu
+
+        if (
+            float_ == np.float32 or complex_ == np.complex64
+        ):  # pragma: no cover
+            warnings.warn(
+                "32 Bit backends have been removed, choosing 32 bit float or "
+                "64 bit complex will give unpredictable and untested "
+                "behaviour.",
+                stacklevel=2,
+            )
 
         self.float = float_
         self.complex = complex_
@@ -501,7 +511,7 @@ class BackendBaseClass(ABC):
 
     def change_backend(
         self,
-        new_backend: type[Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit],
+        new_backend: type[Numpy64Bit | Cupy64Bit],
     ) -> None:
         """
         Change the backend precision.
@@ -558,7 +568,7 @@ class BackendBaseClass(ABC):
         Following environment variables can be set:
 
         - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'cuda'
-        - `BLOND_BACKEND_BITS` can be '32' or '64'
+        - `BLOND_BACKEND_BITS` can only be '64'
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
@@ -594,15 +604,9 @@ class BackendBaseClass(ABC):
             "BLOND_BACKEND_BITS",
             DEFAULT_BITS,  # default
         )
-        _allowed_backend_bits_flag = (
-            "32",
-            "64",
-        )
+        _allowed_backend_bits_flag = ("64",)
         if _backend_bits_raw in _allowed_backend_bits_flag:
-            _backend_bits: Literal[
-                "32",
-                "64",
-            ] = _backend_bits_raw  # type: ignore
+            _backend_bits: Literal["64",] = _backend_bits_raw  # type: ignore
         else:
             raise ValueError(
                 f"The environment variable `BLOND_BACKEND_BITS` "
@@ -611,9 +615,7 @@ class BackendBaseClass(ABC):
             )
 
         if _backend_mode == "cuda":
-            if _backend_bits == "32":
-                self.change_backend(Cupy32Bit)
-            elif _backend_bits == "64":
+            if _backend_bits == "64":
                 self.change_backend(Cupy64Bit)
             else:
                 # This statement is not reachable
@@ -622,9 +624,7 @@ class BackendBaseClass(ABC):
                 raise ValueError(_backend_bits)  # pragma: no cover
             self.set_specials(mode=_backend_mode)  # type: ignore
         else:
-            if _backend_bits == "32":
-                self.change_backend(Numpy32Bit)
-            elif _backend_bits == "64":
+            if _backend_bits == "64":
                 self.change_backend(Numpy64Bit)
             else:
                 # This statement is not reachable
@@ -785,15 +785,15 @@ class NumpyBackend(BackendBaseClass):
     Parameters
     ----------
     float_
-        Precision type for float, e.g. float32, float64.
+        Precision type for float, e.g. float64.
     complex_
-        Precision type for complex, e.g. float32, float64.
+        Precision type for complex, e.g. complex128.
     """
 
     def __init__(  # noqa: PLR0915
         self,
-        float_: type[np.float32 | np.float64],
-        complex_: type[np.complex128 | np.complex64],
+        float_: type[np.float64],
+        complex_: type[np.complex128],
     ) -> None:
         super().__init__(
             float_,
@@ -906,19 +906,6 @@ class NumpyBackend(BackendBaseClass):
 
 
 @_register_backend
-class Numpy32Bit(NumpyBackend):
-    """Numpy backend with 32 bit precision."""
-
-    def __init__(
-        self,
-    ) -> None:
-        super().__init__(
-            np.float32,
-            np.complex64,
-        )
-
-
-@_register_backend
 class Numpy64Bit(NumpyBackend):
     """Numpy backend with 64 bit precision."""
 
@@ -938,15 +925,15 @@ class CupyBackend(BackendBaseClass):
     Parameters
     ----------
     float_
-        Precision type for float, e.g. float32, float64.
+        Precision type for float, e.g. float64.
     complex_
-        Precision type for complex, e.g. float32, float64.
+        Precision type for complex, e.g. complex128.
     """
 
     def __init__(  # noqa: PLR0915
         self,
-        float_: type[np.float32 | np.float64],
-        complex_: type[np.complex128 | np.complex64],
+        float_: type[np.float64],
+        complex_: type[np.complex128],
     ) -> None:
         super().__init__(
             float_,
@@ -1041,19 +1028,8 @@ class CupyBackend(BackendBaseClass):
 
 
 @_register_backend
-class Cupy32Bit(CupyBackend):
-    """Cupy backend with 64 bit precision."""
-
-    def __init__(self) -> None:
-        super().__init__(
-            np.float32,
-            np.complex64,
-        )
-
-
-@_register_backend
 class Cupy64Bit(CupyBackend):
-    """Cupy backend with 32 bit precision."""
+    """Cupy backend with 64 bit precision."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -1063,7 +1039,7 @@ class Cupy64Bit(CupyBackend):
 
 
 default = Numpy64Bit  # use .change_backend(...) to change it anywhere
-backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default()
+backend: Numpy64Bit | Cupy64Bit = default()
 backend.verbose = True
 backend.apply_environment_variables()
 

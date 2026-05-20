@@ -40,6 +40,7 @@ from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
@@ -59,7 +60,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.beam_preparation.base import BeamPreparationRoutine
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
-    from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.ring.ring import Ring
     from blond.core.simulation.execution_models.base import ExecutionModel
     from blond.experimental.beam_preparation.empiric_matcher import (
@@ -164,6 +164,7 @@ class Simulation(Preparable):
         self._particle_performance_waning_threshold = int(1e3)
         self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
+        self._exec_track_reference()
 
     def profiling(
         self,
@@ -276,6 +277,7 @@ class Simulation(Preparable):
         dt: NumpyArray,
         particle_type: ParticleType,
         subtract_min: bool = True,
+        until_section_index: int = -1,
         **kwargs_plot,
     ) -> None:
         """
@@ -299,6 +301,9 @@ class Simulation(Preparable):
         subtract_min
             If True (default), normalizes the potential so its minimum is at zero.
             If False, normalizes so ``potential_well[0] = 0``.
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
+
         **kwargs_plot
             Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
             for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
@@ -343,6 +348,7 @@ class Simulation(Preparable):
             dt=dt,
             particle_type=particle_type,
             subtract_min=subtract_min,
+            until_section_index=until_section_index,
         )
         plt.plot(
             copy_to_cpu(dt),
@@ -742,6 +748,17 @@ class Simulation(Preparable):
             beam=beam,
             n_turns=n_turns,
         )
+
+    def _exec_track_reference(self):
+        reference = ReferenceCoordinates(
+            time=0.0,
+            total_energy=self.magnetic_cycle.get_total_energy_init(
+                particle_type=self.magnetic_cycle.reference_particle
+            ),
+            particle_type=self.magnetic_cycle.reference_particle,
+        )
+        for element in self.ring.elements.get_elements(AltersReference):
+            element.track_reference(reference=reference)
 
     @staticmethod
     def from_locals(

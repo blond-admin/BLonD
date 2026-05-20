@@ -62,15 +62,15 @@ class TestDistributedArray(unittest.TestCase):
         assert is_cupy_array(array)
 
     def _call_test(self, func, func_name):
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
         mpi_active = mpi_is_distributed()
 
         expected = func(self.array)
         if mpi_active:
             self.distributed_array.mpi_scatter()
         actual = getattr(self.distributed_array, func_name)()
-        np.testing.assert_almost_equal(
-            actual, expected, decimal=5 if backend.float == np.float32 else 11
-        )
+        np.testing.assert_almost_equal(actual, expected, 11)
         if mpi_active:
             self.distributed_array.mpi_scatter()
 
@@ -227,19 +227,18 @@ class TestDistributedArray(unittest.TestCase):
             concatenate(array_1, array_2)
 
     def test_gather(self):
+        in_array = np.array([1, 2, 3, 4, 5, 6])
+        array = DistributedArray(in_array)
+        array.mpi_scatter()
+        out_array = array.mpi_gather()
+
         mpi_active = mpi_is_distributed()
-
         if mpi_active:
-            in_array = np.array([1, 2, 3, 4, 5, 6])
-            array = DistributedArray(in_array)
-            array.mpi_scatter()
-            out_array = array.mpi_gather()
-
             rank = array._comm.Get_rank()
             if rank != 0:
                 return
 
-            np.testing.assert_equal(in_array, out_array)
+        np.testing.assert_equal(in_array, out_array)
 
 
 @pytest.mark.mpi

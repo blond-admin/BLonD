@@ -26,11 +26,11 @@ class TestTutorialSemiEmpiricMatcher(unittest.TestCase):
         ipynb_to_py(
             os.path.join(
                 NOTEBOOK_DIR,
-                "tutorial_SemiEmpiricMatcher.ipynb",
+                "wake_impedance_pooled.ipynb",
             ),
             os.path.join(
                 NOTEBOOK_DIR,
-                "tutorial_SemiEmpiricMatcher.py",
+                "wake_impedance_pooled.py",
             ),
         )
 
@@ -39,7 +39,7 @@ class TestTutorialSemiEmpiricMatcher(unittest.TestCase):
         os.remove(
             os.path.join(
                 NOTEBOOK_DIR,
-                "tutorial_SemiEmpiricMatcher.py",
+                "wake_impedance_pooled.py",
             )
         )
 
@@ -50,17 +50,14 @@ class TestTutorialSemiEmpiricMatcher(unittest.TestCase):
         backend.set_specials("numba")
 
         # this file is only created by `setUpClass` and deleted by `tearDownClass`
-        from blond.examples.notebooks import (
-            tutorial_SemiEmpiricMatcher,  # NOQA
-        )
+        from blond.examples.notebooks import wake_impedance_pooled  # NOQA
 
         importlib.reload(
-            tutorial_SemiEmpiricMatcher
+            wake_impedance_pooled
         )  # make sure the script is executed
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
-        self.skipTest("Too slow.")
         try:
             import cupy  # type: ignore
         except ImportError as exc:
@@ -70,10 +67,8 @@ class TestTutorialSemiEmpiricMatcher(unittest.TestCase):
         backend.set_specials("cuda")
 
         # this file is only created by `setUpClass` and deleted by `tearDownClass`tearDownClass`
-        from blond.examples.notebooks import (
-            tutorial_SemiEmpiricMatcher,  # NOQA
-        )
+        from blond.examples.notebooks import wake_impedance_pooled  # NOQA
 
         importlib.reload(
-            tutorial_SemiEmpiricMatcher
+            wake_impedance_pooled
         )  # make sure the script is executed

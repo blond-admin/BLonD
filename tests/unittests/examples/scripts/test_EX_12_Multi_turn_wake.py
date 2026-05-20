@@ -9,22 +9,17 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_01_Acceleration_sparse_profiles(unittest.TestCase):
+class TestEX_12_Multi_turn_wake(unittest.TestCase):
     @pytest.mark.backend_mutation
-    @pytest.mark.mpi
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import (
-            EX_01_Acceleration_sparse_profiles,  # NOQA
-        )
+        from blond.examples.scripts import EX_12_Multi_turn_wake
 
-        # This will run the full script. just checking if it crashes
-        EX_01_Acceleration_sparse_profiles.main()
+        # full script. just checking if it crashes
+        EX_12_Multi_turn_wake.main()
 
     @pytest.mark.backend_mutation
-    @pytest.mark.mpi
-    @unittest.skip  # TODO remove
     def test_executable_cuda64(self):
         try:
             import cupy  # type: ignore
@@ -33,11 +28,8 @@ class TestEX_01_Acceleration_sparse_profiles(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import (
-            EX_01_Acceleration_sparse_profiles,  # NOQA
-        )
+        from blond.examples.scripts import EX_12_Multi_turn_wake
 
-        # This will run the full script. just checking if it crashes
-
-        EX_01_Acceleration_sparse_profiles.main()
+        # full script. just checking if it crashes
+        EX_12_Multi_turn_wake.main()
         backend.zeros(100)

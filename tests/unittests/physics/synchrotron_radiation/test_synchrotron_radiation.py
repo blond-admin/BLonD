@@ -25,6 +25,9 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
 
 class TestSynchrotronRadiationMaster(unittest.TestCase):
     def setUp(self):
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         self.synchrotron_radiation_integrals = np.array(
             [
                 0.646747216157,
@@ -40,7 +43,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
         )
         self.ring = copy.deepcopy(self.SR_ring)
 
-        self.decimal = 6 if backend.float == np.float32 else 12
+        self.decimal = 12
 
     def test_inputs(self):
         SRHandler = SynchrotronRadiationMaster()

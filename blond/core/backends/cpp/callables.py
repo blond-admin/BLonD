@@ -26,11 +26,11 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def c_real(
-    scalar: float, floattype: type[np.float32] | type[np.float64]
+    scalar: float, floattype: type[np.float64]
 ) -> ct.c_float | ct.c_double:
     """Convert input to default precision."""
     if floattype == np.float32:
-        return ct.c_float(scalar)
+        raise TypeError("32-bit float and 64-bit complex have been removed.")
     elif floattype == np.float64:
         return ct.c_double(scalar)
     else:
@@ -38,11 +38,11 @@ def c_real(
 
 
 def c_real_t(
-    floattype: type[np.float32] | type[np.float64],
+    floattype: type[np.float64],
 ) -> type[ct.c_float | ct.c_double]:
     """Get default precision."""
     if floattype == np.float32:
-        return ct.c_float
+        raise TypeError("32-bit float and 64-bit complex have been removed.")
     elif floattype == np.float64:
         return ct.c_double
     else:
@@ -50,7 +50,7 @@ def c_real_t(
 
 
 def reload_cpp_backend(  # NOQA: PLR0915
-    floattype: type[np.float32] | type[np.float64], parallel: bool = True
+    floattype: type[np.float64], parallel: bool = True
 ) -> CppSpecials:
     """
     Load and link the according C++ backend.
@@ -71,7 +71,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
     """
     parallel_suffix = "" if parallel else "_noOMP"
 
-    def load_libblond(precision: str = "single") -> CDLL:
+    def load_libblond(precision: str = "double") -> CDLL:
         """
         Locates and initializes the blond compiled library.
 
@@ -79,9 +79,15 @@ def reload_cpp_backend(  # NOQA: PLR0915
         ----------
         precision
             The floating point precision of the calculations.
-            Can be 'single' or 'double'.
-            Default is  "single".
+            Can only be 'double'.
+            Default is  "double".
         """
+        if precision != "double":
+            raise TypeError(
+                "Only double precision (64 Bit) callables are "
+                f"available, requested precision is {precision}"
+            )
+
         libblond_path_ = os.environ.get("LIBBLOND", None)
 
         from blond.generals.hashing_ import hash_in_folder
@@ -124,7 +130,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
     try:
         if floattype == np.float32:
-            _LIBBLOND = load_libblond(precision="single")
+            raise TypeError(
+                "32-bit float and 64-bit complex have been removed."
+            )
         elif floattype == np.float64:
             _LIBBLOND = load_libblond(precision="double")
         else:
@@ -138,7 +146,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
         compile_cpp_library()
         try:
             if floattype == np.float32:
-                _LIBBLOND = load_libblond(precision="single")
+                raise TypeError(
+                    "32-bit float and 64-bit complex have been removed."
+                )
             elif floattype == np.float64:
                 _LIBBLOND = load_libblond(precision="double")
             else:

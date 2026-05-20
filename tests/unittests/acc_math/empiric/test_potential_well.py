@@ -51,10 +51,14 @@ class TestPotentialWellHelper(unittest.TestCase):
 
         self.assertEqual(len(pwh.bucket_list), 1)
         bucket_list_pinned = [[0.4, 5.88258737371689]]
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             pwh.bucket_list,
             bucket_list_pinned,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
     def test_double_bucket(self):
@@ -74,10 +78,14 @@ class TestPotentialWellHelper(unittest.TestCase):
             [0.4, 5.875872725945524],
             [6.588567657738867, 12.266370614359172],
         ]
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             pwh.bucket_list,
             pwh_bucket_list_pinned,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
     def test_triple_bucket(self):
@@ -99,10 +107,14 @@ class TestPotentialWellHelper(unittest.TestCase):
             [6.286342461039599, 12.572374842273243],
             [12.88122614424137, 18.549555921538758],
         ]
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             pwh.bucket_list,
             pwh_bucket_list_pinned,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
     def test_analyze_buckets(self):
@@ -139,10 +151,14 @@ class TestPotentialWellHelper(unittest.TestCase):
             [7.957957957957959, 13.063063063063062],
             [14.234234234234233, 19.33933933933934],
         ]
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             pwh.bucket_list,
             pwh_bucket_list_pinned,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
         if DEV_PLOT:
@@ -166,10 +182,14 @@ class TestPotentialWellHelper(unittest.TestCase):
             [15.435435435435434, 18.67867867867868],
             [13.903903903903903, 15.435435435435434],
         ]
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             pwh.bucket_list,
             pwh_bucket_list_pinned,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
         if DEV_PLOT:
@@ -208,10 +228,14 @@ class TestPotentialWellHelper(unittest.TestCase):
             [15.435435435435434, 18.67867867867868],
             [13.903903903903903, 15.435435435435434],
         ]
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             pwh.bucket_list,
             pwh_bucket_list_pinned,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
     def test_get_principal_bucket_slices_border(self):
@@ -246,10 +270,14 @@ class TestPotentialWellHelper(unittest.TestCase):
             [15.435435435435434, 18.67867867867868],
             [13.903903903903903, 15.435435435435434],
         ]
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             pwh.bucket_list,
             pwh_bucket_list_pinned,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
     def test_analyze_bug(self):
@@ -284,6 +312,10 @@ class TestPotentialWellHelper(unittest.TestCase):
                 pwh.plot()
                 plt.show()
             # np.testing.assert_allclose(pwh.bucket_list, pinned)
+
+            if backend.float == np.float32:
+                raise TypeError("32 bit backends have been removed.")
+
             if i == 0:
                 pwh_bucket_list_pinned = np.loadtxt(
                     callers_relative_path(
@@ -291,10 +323,11 @@ class TestPotentialWellHelper(unittest.TestCase):
                         stacklevel=1,
                     )
                 )
+
                 np.testing.assert_allclose(
                     pwh.bucket_list,
                     pwh_bucket_list_pinned,
-                    rtol=1e-6 if backend.float == np.float32 else 1e-12,
+                    rtol=1e-12,
                 )
             elif i == 1:
                 pwh_bucket_list_pinned = np.loadtxt(
@@ -306,7 +339,7 @@ class TestPotentialWellHelper(unittest.TestCase):
                 np.testing.assert_allclose(
                     pwh.bucket_list,
                     pwh_bucket_list_pinned,
-                    rtol=1e-6 if backend.float == np.float32 else 1e-12,
+                    rtol=1e-12,
                 )
             elif i == 2:
                 pwh_bucket_list_pinned = np.loadtxt(
@@ -318,7 +351,7 @@ class TestPotentialWellHelper(unittest.TestCase):
                 np.testing.assert_allclose(
                     pwh.bucket_list,
                     pwh_bucket_list_pinned,
-                    rtol=1e-6 if backend.float == np.float32 else 1e-12,
+                    rtol=1e-12,
                 )
             else:
                 raise Exception
@@ -338,10 +371,14 @@ class TestPotentialWellHelper(unittest.TestCase):
             [7.867867867867869, 14.144144144144143],
             [14.564564564564563, 20.0],
         ]
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             pwh.bucket_list,
             pwh_bucket_list_pinned,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
 

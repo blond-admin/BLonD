@@ -178,7 +178,7 @@ class TestBothBlonds(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()
 
-    def close_in_norm(self, arr_a, arr_b, rtol=1e-5, atol=1e-8):
+    def close_in_norm(self, arr_a, arr_b, rtol=1e-12, atol=1e-8):
         norm = np.inf
         a = np.asarray(arr_a)
         b = np.asarray(arr_b)
