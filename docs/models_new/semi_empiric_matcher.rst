@@ -10,7 +10,7 @@ Overview
 
 The :class:`SemiEmpiricMatcher` class provides a **semi-empirical longitudinal
 beam-matching procedure** that combines an *empirically obtained potential well*
-from :func:`~blond._core.simulation.simulation.Simulation.get_potential_well_empiric`
+from :meth:`~blond.core.simulation.simulation.Simulation.get_potential_well_empiric`
 with an *analytic drift term* derived from the Hamiltonian of longitudinal motion.
 
 The routine is particularly suited for cases where wakefields or high-intensity
@@ -63,7 +63,7 @@ The matching routine proceeds as follows:
 
 1. **Initial potential acquisition**
 
-   Using :func:`Simulation.get_potential_well_empiric`, the empirical potential
+   Using :meth:`~blond.core.simulation.simulation.Simulation.get_potential_well_empiric`, the empirical potential
    well is obtained by tracking a *probe beam* for one turn through the full
    RF configuration. The output potential includes all RF phase shifts and
    wakefield effects.
