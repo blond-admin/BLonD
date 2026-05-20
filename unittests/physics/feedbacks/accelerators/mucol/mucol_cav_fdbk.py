@@ -133,12 +133,15 @@ def setup_and_run(
     # f_det = 0
     # phi_s = np.pi / 2
     # phi_s = np.pi
+
+    voltage_per_cavity = 31140000.0
+    energy_gain_per_turn = (ejection_energy - injection_energy) / n_turns / 20
+    phi_s = 170 * np.pi / 180
+    harmonic /= 8
     harmonic = int(
         harmonic - harmonic % (n_stations * 2)
     )  # every half drift has integer number of drifts
-
-    voltage_per_cavity = 31140000.0
-    energy_gain_per_turn = (ejection_energy - injection_energy) / n_turns
+    circumference /= 8
     total_voltage = energy_gain_per_turn / np.sin(phi_s)
     # total_voltage = 1e9
     voltage_per_station = total_voltage / n_stations
@@ -187,7 +190,7 @@ def setup_and_run(
         * beam_current
         * np.cos(phi_s)
         / (2 * voltage_per_cavity)
-    ) / np.cos(phi_s) ** 2
+    ) / np.sin(phi_s - np.pi / 2) ** 2
     # delta_omega = 0
     f_det = delta_omega / (2 * np.pi)
     # phi_s = np.pi / 2
@@ -459,62 +462,62 @@ def plot_ind_volt_cav_fdbk_voltage(
     # plt.show(block=False)
 
     #
-    turn_idx = 1
-    fig, ax = plt.subplots(2, 2, sharex=True)
-    ax[0, 0].set_title("through stations")
-    for idx in range(3):
-        clr = ax[0, 0]._get_lines.get_next_color()
-        ax[0, 0].plot(
-            ind_volt_obs_list[0][idx].total_voltage[turn_idx],
-            color=clr,
-            label="MTW",
-        )
-        ax[0, 0].plot(
-            np.real(cav_fdbk_obs_list[1][idx].kick_voltage_fine[turn_idx]),
-            ls="--",
-            color=clr,
-            label="real fdbk",
-        )
-        cavity_voltage_raw = (
-            ind_volt_obs_list[0][idx].total_voltage[turn_idx]
-            - ind_volt_obs_list[0][idx].induced_voltage[turn_idx]
-        )
-        ax[0, 1].plot(
-            np.real(cav_fdbk_obs_list[1][idx].kick_voltage_fine[turn_idx])
-            - cavity_voltage_raw,
-            ls="--",
-            color=clr,
-            label="real fdbk",
-        )
-        ax[0, 1].plot(
-            np.imag(cav_fdbk_obs_list[1][idx].kick_voltage_fine[turn_idx]),
-            # - cavity_voltage_raw,
-            ls=":",
-            color=clr,
-            label="real fdbk",
-        )
-        ax[0, 1].plot(
-            ind_volt_obs_list[0][idx].induced_voltage[turn_idx],
-            color=clr,
-            label="MTW",
-        )
-        ax[1, 0].set_title("v_corr")
-        ax[1, 0].plot(
-            np.real(cav_fdbk_obs_list[1][idx].v_corr[turn_idx]),
-            color=clr,
-            label="v_corr",
-        )
-        ax[1, 1].set_title("phi_corr")
-        ax[1, 1].plot(
-            np.real(cav_fdbk_obs_list[1][idx].phi_corr[turn_idx]),
-            color=clr,
-            label="phi_corr",
-        )
-
-        # ax[1].plot(np.abs(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx]), label="abs fdbk")
-    plt.tight_layout()
-    # plt.legend()
-    plt.show(block=False)
+    # turn_idx = 1
+    # fig, ax = plt.subplots(2, 2, sharex=True)
+    # ax[0, 0].set_title("through stations")
+    # for idx in range(3):
+    #     clr = ax[0, 0]._get_lines.get_next_color()
+    #     ax[0, 0].plot(
+    #         ind_volt_obs_list[0][idx].total_voltage[turn_idx],
+    #         color=clr,
+    #         label="MTW",
+    #     )
+    #     ax[0, 0].plot(
+    #         np.real(cav_fdbk_obs_list[1][idx].kick_voltage_fine[turn_idx]),
+    #         ls="--",
+    #         color=clr,
+    #         label="real fdbk",
+    #     )
+    #     cavity_voltage_raw = (
+    #         ind_volt_obs_list[0][idx].total_voltage[turn_idx]
+    #         - ind_volt_obs_list[0][idx].induced_voltage[turn_idx]
+    #     )
+    #     ax[0, 1].plot(
+    #         np.real(cav_fdbk_obs_list[1][idx].kick_voltage_fine[turn_idx])
+    #         - cavity_voltage_raw,
+    #         ls="--",
+    #         color=clr,
+    #         label="real fdbk",
+    #     )
+    #     ax[0, 1].plot(
+    #         np.imag(cav_fdbk_obs_list[1][idx].kick_voltage_fine[turn_idx]),
+    #         # - cavity_voltage_raw,
+    #         ls=":",
+    #         color=clr,
+    #         label="real fdbk",
+    #     )
+    #     ax[0, 1].plot(
+    #         ind_volt_obs_list[0][idx].induced_voltage[turn_idx],
+    #         color=clr,
+    #         label="MTW",
+    #     )
+    #     ax[1, 0].set_title("v_corr")
+    #     ax[1, 0].plot(
+    #         np.real(cav_fdbk_obs_list[1][idx].v_corr[turn_idx]),
+    #         color=clr,
+    #         label="v_corr",
+    #     )
+    #     ax[1, 1].set_title("phi_corr")
+    #     ax[1, 1].plot(
+    #         np.real(cav_fdbk_obs_list[1][idx].phi_corr[turn_idx]),
+    #         color=clr,
+    #         label="phi_corr",
+    #     )
+    #
+    #     # ax[1].plot(np.abs(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx]), label="abs fdbk")
+    # plt.tight_layout()
+    # # plt.legend()
+    # plt.show(block=False)
 
     trn_idx = 1
     plt.figure("coarse_voltage")
@@ -580,7 +583,7 @@ def plot_ind_volt_cav_fdbk_voltage(
 
 
 if __name__ == "__main__":
-    n_sections = 32
+    n_sections = 1
     bunch_obs_list, n_turns_list, ind_volt_obs_list, cav_fdbk_obs_list = (
         [],
         [],
@@ -588,7 +591,7 @@ if __name__ == "__main__":
         [],
     )
 
-    n_turns = 5
+    n_turns = 3
     for MTW in [
         True,
         False,
@@ -603,7 +606,7 @@ if __name__ == "__main__":
             MTW=MTW,
             n_stations=n_sections,
             n_turns_in=n_turns,
-            force_rematch=True,
+            force_rematch=False,
         )
         bunch_obs_list.append(bunch_observation_buf)
         n_turns_list.append(n_turns_buf)

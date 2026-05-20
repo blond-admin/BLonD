@@ -758,7 +758,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             self._parent_rf_station.calc_omega_rf_design(
                 dummy_reference.beta, self.ring.circumference
             )
-            # + self._parent_rf_station.delta_omega_rf
+            # + self.delta_omega
         )  # TODO: problematic with multi-section if the delta is changed in between sections
         self.tracked_forward_until_element = (
             forward_list[
@@ -930,10 +930,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             self.reverse_tracking_time_array = np.append(
                 np.array(time_list[0] - start_time), np.diff(time_list)
             )
-            self.reverse_tracking_omega_list = np.array(omega_list)
+            self.reverse_tracking_omega_list = np.array(
+                omega_list
+            )  # + self.delta_omega
         else:
             self.reverse_tracking_time_array = np.array(time_list)
-            self.reverse_tracking_omega_list = np.array(omega_list)
+            self.reverse_tracking_omega_list = np.array(
+                omega_list
+            )  # + self.delta_omega
 
         self._unify_same_frequency_time_points_reverse()
 
@@ -1019,7 +1023,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             2.0
             * np.pi
             * self.harmonic
-            # * self.delta_omega_rf
+            # * -self.delta_omega  # makes no difference whatsoever
             / self._parent_rf_station.calc_omega_rf_design(
                 beam_beta=self.reference_state_until_tracked.beta,
                 ring_circumference=self.ring.circumference,
