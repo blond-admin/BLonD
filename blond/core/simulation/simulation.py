@@ -1746,7 +1746,9 @@ class Simulation(Preparable):
         r"""
         Plot the longitudinal phase-space separatrix.
 
-        Calls :meth:`get_separatrix` and draws both branches on the current
+        Calls
+        :meth:`~blond.utilities.separatrix.symbolic_separatrix.SymbolicSeparatrixHelper.get_separatrix`
+        and draws both branches on the current
         matplotlib axes. The label (if given) is applied only to the upper
         branch so the legend shows a single entry.
 
@@ -1769,7 +1771,8 @@ class Simulation(Preparable):
 
         See Also
         --------
-        get_separatrix : Compute the separatrix boundary numerically.
+        blond.utilities.separatrix.symbolic_separatrix.SymbolicSeparatrixHelper.get_separatrix :
+            Compute the separatrix boundary numerically.
 
         Notes
         -----

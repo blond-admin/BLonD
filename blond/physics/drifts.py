@@ -391,7 +391,7 @@ class DriftSimple(
         r"""
         Return the partial Hamiltonian symbolic expression.
 
-        The tracker (see :meth:`DriftSimple._track`) maps
+        The tracker (see ``DriftSimple._track``) maps
         ``dt -> dt + T * eta_0 * dE / (beta^2 E)`` with
 
         .. math::
@@ -558,7 +558,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         r"""
         Return the partial Hamiltonian symbolic expression.
 
-        The tracker (see :meth:`DriftExact._track`) maps
+        The tracker (see ``DriftExact._track``) maps
         ``dt -> dt + T * F(dE)`` with
 
         .. math::
@@ -580,7 +580,8 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         ``len(higher_order_alpha) + 2`` — the highest order needed to fully
         represent every supplied :math:`\alpha_k` — so the result is a
         polynomial in ``dE`` and ``coeff(dE, n)`` works for downstream
-        consumers like :class:`SymbolicSeparatrixHelper`.
+        consumers like
+        :class:`~blond.utilities.separatrix.symbolic_separatrix.SymbolicSeparatrixHelper`.
 
         Parameters
         ----------
