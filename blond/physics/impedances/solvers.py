@@ -1225,12 +1225,12 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
 class MultiPoleSparseSolve(WakeFieldSolver):
     """
-    Solver that uses an `VectorFittedModel` calculate the induced voltage.
+    Solver that uses a vector-fitted pole-residue model to calculate the induced voltage.
 
     See Also
     --------
-    SupportsVectorFittedModel: Wakefield sources can support vector fitting.
-    VectorFittedModel: Basic interface to support vector fitting.
+    SupportsVectorFittedModel: Interface for wakefield sources that can
+        provide the poles and residues this solver consumes.
     """
 
     def __init__(
@@ -1347,6 +1347,10 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             self._finalize_solver(beam=beam)
             assert self._update_on_bin[0] == 0, "First bin must always update."
         else:
+            # The last entry of `_states` is not a pole state but the running
+            # reference time of the convolution (real part only). Each turn it
+            # is shifted back by the time elapsed since the previous call, so
+            # the pole decays are computed relative to the current profile.
             passed_time = beam.reference.time - self.last_reference_time
             self._states[-1] -= complex(passed_time)
             assert self._states[-1].real <= hist_x_profile[0]

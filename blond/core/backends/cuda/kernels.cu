@@ -476,13 +476,11 @@ extern "C" __global__ void wake_from_pole_residue(
 
             // state *= exp(pole * t_jump)
             {
-                const real_t decay_abs   = exp(pole_re * t_jump);
-                const real_t cos_tmp     = cos(pole_im * t_jump);
-                const real_t sin_tmp     = sin(pole_im * t_jump);
-                const real_t decay_re  = decay_abs * cos_tmp;
-                const real_t decay_im  = decay_abs * sin_tmp;
-                const real_t new_state_re    = state_re * decay_re - state_im * decay_im;
-                const real_t new_state_imag    = state_re * decay_im + state_im * decay_re;
+                const real_t jump_abs  = exp(pole_re * t_jump);
+                const real_t jump_re   = jump_abs * cos(pole_im * t_jump);
+                const real_t jump_im   = jump_abs * sin(pole_im * t_jump);
+                const real_t new_state_re   = state_re * jump_re - state_im * jump_im;
+                const real_t new_state_imag = state_re * jump_im + state_im * jump_re;
                 state_re = new_state_re;
                 state_im = new_state_imag;
             }

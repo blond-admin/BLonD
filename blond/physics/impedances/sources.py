@@ -55,7 +55,7 @@ def fit_poles(
     Z: NumpyArray,
     n_pole: int,
     max_iterations: int | None = None,
-    plot_resul: bool = False,
+    plot_result: bool = False,
 ):
     """
     Use vector fitting to get a `VectorFittedModel`.
@@ -70,7 +70,7 @@ def fit_poles(
         Number of poles to fit.
     max_iterations
         Maximum number of iterations.
-    plot_resul
+    plot_result
         Whether to plot the result (needs ``plt.show()``).
 
     Returns
@@ -101,7 +101,7 @@ def fit_poles(
 
     poles = vf.poles
     residues = vf.residues
-    if plot_resul:  # pragma: no cover
+    if plot_result:  # pragma: no cover
         vf.plot_s_db()  # overlay fit vs original
         plt.show()
     rms_error = vf.get_rms_error()
@@ -804,6 +804,12 @@ class Resonators(
         if self._shunt_impedances_counter_rotating is None:
             cr_signs = np.ones(len(poles1), dtype=backend.float)
         else:
+            # np.sign(0) == 0, which the backends treat as +1; require a
+            # well-defined sign so the counter-rotating flip is unambiguous.
+            assert np.all(self._shunt_impedances_counter_rotating != 0), (
+                "Counter-rotating shunt impedances must be non-zero to have a "
+                "well-defined sign."
+            )
             cr_signs = np.sign(self._shunt_impedances_counter_rotating)
         return poles1, residues1, cr_signs
 
