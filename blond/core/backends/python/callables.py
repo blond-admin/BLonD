@@ -74,7 +74,7 @@ class PythonSpecials(Specials):
     """Implementation of backend functions in Python."""
 
     @staticmethod
-    def get_max_threads() -> int:
+    def get_max_threads() -> int:  # pragma: no cover
         """
         Return the max number of threads this backend's kernels may use.
 

@@ -603,7 +603,7 @@ class SupportsVectorFittedModel(ABC):
     MultiPoleSparseSolve: The corresponding wakefield solver.
     """
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
         """
         Derive the poles and residues as in vector-fitting.

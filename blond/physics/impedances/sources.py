@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import skrf as rf
+from matplotlib import pyplot as plt
 
 from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
@@ -100,9 +101,7 @@ def fit_poles(
 
     poles = vf.poles
     residues = vf.residues
-    if plot_resul:
-        from matplotlib import pyplot as plt
-
+    if plot_resul:  # pragma: no cover
         vf.plot_s_db()  # overlay fit vs original
         plt.show()
     rms_error = vf.get_rms_error()
