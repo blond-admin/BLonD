@@ -802,7 +802,6 @@ class Simulation(Preparable):
 
         See Also
         --------
-        Simulation.__init__ : Initialize Simulation manually.
         prepare_beam : Populate beam phase space.
 
         Notes
@@ -812,6 +811,7 @@ class Simulation(Preparable):
         - All RF stations and drifts must be defined before calling this method.
         - The beam does not need to be prepared yet - use ``sim.prepare_beam()``
           after creating the simulation.
+        - Equivalent to constructing the object directly with ``Simulation(...)``.
 
         Examples
         --------
@@ -904,10 +904,10 @@ class Simulation(Preparable):
 
         See Also
         --------
-        ConstantMagneticCycle : Constant energy cycle.
-        MagneticCyclePerTurn : Energy cycle defined per turn.
-        MagneticCyclePerTurnAllRFStations : Energy cycle with all RF stations.
-        MagneticCycleByTime : Time-based energy cycle.
+        blond.cycles.magnetic_cycle.ConstantMagneticCycle : Constant energy cycle.
+        blond.cycles.magnetic_cycle.MagneticCyclePerTurn : Energy cycle defined per turn.
+        blond.cycles.magnetic_cycle.MagneticCyclePerTurnAllRFStations : Energy cycle with all RF stations.
+        blond.cycles.magnetic_cycle.MagneticCycleByTime : Time-based energy cycle.
         """
         return self._magnetic_cycle
 
@@ -978,10 +978,10 @@ class Simulation(Preparable):
 
         See Also
         --------
-        BiGaussian : Simple Gaussian beam distribution.
-        EmpiricMatcher : Grid-based distribution matching.
-        SemiEmpiricMatcher : Hamiltonian-based matched distribution.
-        XsuiteRFBucketMatcher : XSuite RF bucket matching.
+        blond.beam_preparation.bigaussian.BiGaussian : Simple Gaussian beam distribution.
+        blond.experimental.beam_preparation.empiric_matcher.EmpiricMatcher : Grid-based distribution matching.
+        blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher : Hamiltonian-based matched distribution.
+        blond.interfaces.xsuite.beam_preparation.rfbucket_matching.XsuiteRFBucketMatcher : XSuite RF bucket matching.
 
         Notes
         -----
@@ -1202,7 +1202,6 @@ class Simulation(Preparable):
         See Also
         --------
         prepare_beam : Populate beam with macroparticles.
-        setup_beam : Manually set beam coordinates.
         save_results : Save simulation results to disk.
         load_results : Load previously saved results.
         print_one_turn_execution_order : Display element execution order.
@@ -1316,10 +1315,11 @@ class Simulation(Preparable):
 
         This method is called internally by both ``run_simulation()`` and ``load_results()``
         to set up the simulation state. It:
-            1. Validates the number of turns against the magnetic cycle
-            2. Checks for performance warnings
-            3. Calls ``on_run_simulation()`` hooks on all components
-            4. Prepares observables for data collection
+
+        1. Validates the number of turns against the magnetic cycle
+        2. Checks for performance warnings
+        3. Calls ``on_run_simulation()`` hooks on all components
+        4. Prepares observables for data collection
 
         Users typically don't need to call this method directly.
 
@@ -1700,10 +1700,6 @@ class Simulation(Preparable):
         -------
         t_rev
             Revolution time, in [s].
-
-        See Also
-        --------
-        _update_Trev_and_dErev: Responsible for updating the underlying variable.
         """
         if self._current_t_rev is None:
             raise ValueError(
@@ -1724,10 +1720,6 @@ class Simulation(Preparable):
         -------
         current_turn_dE_tot
             Energy gain in the current turn, in [eV].
-
-        See Also
-        --------
-        _update_Trev_and_dErev: Responsible for updating the underlying variable.
         """
         if self._current_turn_dE_tot is None:
             raise ValueError(

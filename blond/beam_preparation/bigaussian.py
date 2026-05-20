@@ -9,7 +9,7 @@
 # References: Simon Lauber
 # TODO add original author of bigaussian()
 
-"""Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`."""
+"""Functions needed for :class:`~blond.beam_preparation.bigaussian.BiGaussian`."""
 
 from __future__ import annotations
 
@@ -146,7 +146,7 @@ def get_main_harmonic_attributes(
     Parameters
     ----------
     beam
-        Simulation :class:`~blond.core.beam.beam.Beam` object.
+        Simulation :class:`~blond.core.beam.beams.Beam` object.
     simulation
         `Simulation` context manager.
 
@@ -267,7 +267,7 @@ class BiGaussian(MatchingRoutine):
         simulation
             `Simulation` context manager.
         beam
-            Simulation :class:`~blond.core.beam.beam.Beam` object.
+            Simulation :class:`~blond.core.beam.beams.Beam` object.
         """
         from blond.core.backends.backend import backend
         from blond.physics.drifts import DriftSimple

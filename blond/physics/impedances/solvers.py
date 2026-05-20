@@ -998,7 +998,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         """
         Calculate the voltage induced by the beam profile.
 
-        The function will call :func:`_update_potential_sources` and
+        The function will call ``_update_potential_sources`` and
         then compute the induced voltage based on all profiles
         which are in the `_past_profiles` array.
 
