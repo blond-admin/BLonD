@@ -345,6 +345,8 @@ __global__ void loss_box(
 //
 // xoshiro256+ and splitmix64 (used here only for the per-thread seed
 // expansion) by Blackman & Vigna (https://prng.di.unimi.it/,
+// See https://prng.di.unimi.it/xoshiro256starstar.c
+// See https://prng.di.unimi.it/splitmix64.c
 // CC0/public domain).
 // =================================================================
 

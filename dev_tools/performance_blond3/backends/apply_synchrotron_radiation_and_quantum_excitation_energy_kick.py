@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Testing the performance of `apply_synchrotron_radiation_and_quantum_excitation_energy_kick`.
+"""
+Testing the performance of `apply_synchrotron_radiation_and_quantum_excitation_energy_kick`.
 
 Note: `dE` is initialised with zeros, so the damping term contributes nothing
 to the floating-point work — this benchmark primarily stresses the

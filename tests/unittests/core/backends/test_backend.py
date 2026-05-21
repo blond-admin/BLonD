@@ -494,9 +494,7 @@ class TestSpecials(unittest.TestCase):
                 total_energy=total_energy,
                 disable_quantum_excitation=False,
             )
-            dE_after_kick = (
-                beam_dE.get() if special == "cuda" else np.asarray(beam_dE)
-            )
+            dE_after_kick = copy_to_cpu(beam_dE)
             sample_mean = float(dE_after_kick.mean())
             sample_std = float(dE_after_kick.std())
             # 5σ confidence at n=200k → mean error tol ~ 5·σ/√n ≈ 5·1.6e6/√2e5 ≈ 1.8e4
@@ -551,16 +549,8 @@ class TestSpecials(unittest.TestCase):
             backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
                 beam_dE=beam_dE_second_call, **kick_kwargs
             )
-            dE_first_call = (
-                beam_dE_first_call.get()
-                if special == "cuda"
-                else np.asarray(beam_dE_first_call)
-            )
-            dE_second_call = (
-                beam_dE_second_call.get()
-                if special == "cuda"
-                else np.asarray(beam_dE_second_call)
-            )
+            dE_first_call = copy_to_cpu(beam_dE_first_call)
+            dE_second_call = copy_to_cpu(beam_dE_second_call)
             np.testing.assert_array_equal(
                 dE_first_call,
                 dE_second_call,
@@ -598,16 +588,8 @@ class TestSpecials(unittest.TestCase):
             backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
                 beam_dE=beam_dE_second_call, **kick_kwargs
             )
-            dE_first_call = (
-                beam_dE_first_call.get()
-                if special == "cuda"
-                else np.asarray(beam_dE_first_call)
-            )
-            dE_second_call = (
-                beam_dE_second_call.get()
-                if special == "cuda"
-                else np.asarray(beam_dE_second_call)
-            )
+            dE_first_call = copy_to_cpu(beam_dE_first_call)
+            dE_second_call = copy_to_cpu(beam_dE_second_call)
             self.assertFalse(
                 np.array_equal(dE_first_call, dE_second_call),
                 msg=(
@@ -646,9 +628,7 @@ class TestSpecials(unittest.TestCase):
             expected_dE = (
                 1.0 - 2.0 / longitudinal_damping_time
             ) * initial_dE - energy_lost
-            dE_after_kick = beam_dE
-            if special == "cuda":
-                dE_after_kick = dE_after_kick.get()
+            dE_after_kick = copy_to_cpu(beam_dE)
             np.testing.assert_allclose(
                 np.asarray(dE_after_kick),
                 expected_dE * np.ones(1000, dtype=dtype),
@@ -686,7 +666,7 @@ class TestSpecials(unittest.TestCase):
                 msg=f"Inplace contract violated for `{special}`",
             )
             # Value must have actually changed (damping + noise).
-            dE_after_kick = beam_dE.get() if special == "cuda" else beam_dE
+            dE_after_kick = copy_to_cpu(beam_dE)
             self.assertFalse(
                 np.allclose(
                     np.asarray(dE_after_kick),

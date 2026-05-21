@@ -111,7 +111,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         """
         Apply the synchrotron-radiation and quantum-excitation energy kick.
 
-        Mutates ``beam.write_partial_dE()`` in place via
+        Mutates ``beam._dE`` in place via
         ``backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick``.
 
         Parameters

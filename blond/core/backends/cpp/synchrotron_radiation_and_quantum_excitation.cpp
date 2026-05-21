@@ -35,6 +35,8 @@ namespace {
 
 // ---------- xoshiro256+ uniform PRNG ----------
 // xoshiro256+ and splitmix64 by Blackman & Vigna (https://prng.di.unimi.it/, CC0/public domain).
+// See https://prng.di.unimi.it/xoshiro256starstar.c
+// See https://prng.di.unimi.it/splitmix64.c
 struct Xoshiro256p {
     uint64_t s[4];
 };

@@ -420,11 +420,6 @@ class PythonSpecials(Specials):
         """
         Apply the synchrotron-radiation + quantum-excitation energy kick.
 
-        Single-sweep on ``beam_dE``: ``np.multiply(.., out=beam_dE)`` followed
-        by one ``np.add(.., out=beam_dE)`` — naive ``*=``, ``-=``, ``+=``
-        would touch ``beam_dE`` three separate times (3× memory traffic at
-        millions of entries).
-
         Parameters
         ----------
         beam_dE
@@ -445,10 +440,7 @@ class PythonSpecials(Specials):
         """
         damping_factor = 1.0 - 2.0 / longitudinal_damping_time
         if disable_quantum_excitation:
-            # beam_dE := damping_factor * beam_dE - energy_lost
-            # Two passes over beam_dE are unavoidable in pure NumPy (no fma),
-            # but only beam_dE-sized memory is touched.
-            np.multiply(beam_dE, damping_factor, out=beam_dE)
+            beam_dE *= damping_factor
             beam_dE -= energy_lost
         else:
             noise_scale = (
@@ -464,10 +456,10 @@ class PythonSpecials(Specials):
             # `np.random.seed(...)` reproducibility on the Python reference
             # backend.
             noise_term = np.random.standard_normal(size=len(beam_dE))  # NOQA: NPY002
-            np.multiply(noise_term, noise_scale, out=noise_term)
+            noise_term *= noise_scale
             noise_term -= energy_lost
             # One sweep on beam_dE: scale then add the prepared noise_term.
-            np.multiply(beam_dE, damping_factor, out=beam_dE)
+            beam_dE *= damping_factor
             beam_dE += noise_term
 
     @staticmethod
