@@ -281,7 +281,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
         )
 
     def test_all_energy_kicks_are_equal(self):
-        # The three classes (BaseClass/Drift/Section) all share `_apply_kick`
+        # The three synchrotron radiation classes all share `_apply_kick`
         # (defined on the base class) and were constructed with
         # `disable_quantum_excitation=True` — the kick is fully deterministic,
         # so resetting the beam between calls is enough to compare the three
