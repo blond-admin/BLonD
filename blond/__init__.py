@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -35,6 +35,7 @@ __all__ = [
     "BeamObservationInRingElement",
     "MultiHarmonicRFStation",
     "SingleHarmonicRFStation",
+    "BarrierRF",
     "DriftSimple",
     "ReferenceEnergyChange",
     "WakeField",
@@ -99,6 +100,7 @@ from blond.handle_results.observables import (
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
 )
+from blond.physics.barrier_bucket import BarrierRF
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,

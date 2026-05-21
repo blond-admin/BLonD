@@ -1266,6 +1266,7 @@ class TestSpecials(unittest.TestCase):
                 dE=dE,
                 ids=ids,
             )
+            self.assertEqual(n_new, 10 - 3)
             flags = flags[:n_new]
             dt = dt[:n_new]
             dE = dE[:n_new]
@@ -1298,6 +1299,14 @@ class TestSpecials(unittest.TestCase):
 
             result = np.sort(result)  # because of race conditions in
             # parallel execution, the order can not be guaranteed
+            if i == 0:
+                result_n_python = n_new
+            else:
+                self.assertEqual(
+                    n_new,
+                    result_n_python,
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
 
             if i == 0:
                 result_python = result
@@ -1947,6 +1956,388 @@ class TestSpecials(unittest.TestCase):
                 err_msg=f"{special=} {dtype=}",
             )
             self.assertTrue(backend_result.dtype == dtype)
+
+    @pytest.mark.backend_mutation
+    def test_drift_exact_zero_macroparticles(self) -> None:
+        """`drift_exact` must be a no-op (no errors) on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.drift_exact(
+                dt=dt,
+                dE=dE,
+                T=self.t_rev * self.length_ratio,
+                alpha_0=self.alpha_0,
+                higher_alpha=backend.array([1.0, 2.0], dtype=dtype),
+                beta=self.beta,
+                energy=self.energy,
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_drift_simple_zero_macroparticles(self) -> None:
+        """`drift_simple` must be a no-op (no errors) on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.drift_simple(
+                dt=dt,
+                dE=dE,
+                T=self.t_rev * self.length_ratio,
+                eta_0=self.eta_0,
+                beta=self.beta,
+                energy=self.energy,
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_kick_single_harmonic_zero_macroparticles(self) -> None:
+        """`kick_single_harmonic` must be a no-op on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.kick_single_harmonic(
+                dt=dt,
+                dE=dE,
+                voltage=self.voltage_single_harmonic,
+                omega_rf=self.omega_rf_single_harmonic,
+                phi_rf=self.phi_rf_single_harmonic,
+                charge=self.charge,
+                acceleration_kick=self.acceleration_kick,
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_kick_multi_harmonic_zero_macroparticles(self) -> None:
+        """`kick_multi_harmonic` must be a no-op on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.kick_multi_harmonic(
+                dt=dt,
+                dE=dE,
+                voltage=self.voltages,
+                omega_rf=self.omegas,
+                phi_rf=self.phis,
+                charge=self.charge,
+                n_rf=len(self.voltages),
+                acceleration_kick=self.acceleration_kick,
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_kick_multi_harmonic_zero_n_rf(self) -> None:
+        """`n_rf=0` with empty rf arrays: only `acceleration_kick` survives."""
+        dtype = np.float64
+        # Reference result via the python backend (i = 0); compare other modes against it.
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.linspace(1e-9, 10e-9, 10, dtype=backend.float)
+            dE = backend.zeros(10, dtype=backend.float)
+            empty_voltage = backend.zeros(0, dtype=backend.float)
+            empty_omega = backend.zeros(0, dtype=backend.float)
+            empty_phi = backend.zeros(0, dtype=backend.float)
+            backend.specials.kick_multi_harmonic(
+                dt=dt,
+                dE=dE,
+                voltage=empty_voltage,
+                omega_rf=empty_omega,
+                phi_rf=empty_phi,
+                charge=self.charge,
+                n_rf=0,
+                acceleration_kick=self.acceleration_kick,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            # Without any rf harmonic, every particle receives exactly
+            # `acceleration_kick`.
+            expected = np.full(
+                10, float(self.acceleration_kick), dtype=np.float64
+            )
+            np.testing.assert_allclose(
+                np.asarray(result),
+                expected,
+                rtol=self.rtol,
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
+            if i == 0:
+                result_python = np.asarray(result).copy()
+            else:
+                np.testing.assert_allclose(
+                    np.asarray(result),
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_zero_macroparticles(self) -> None:
+        """`kick_interpolated` must be a no-op on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            bin_centers = backend.linspace(-4, 4, 20, dtype=backend.float)
+            voltage = bin_centers**2
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=backend.float(10),
+                acceleration_kick=backend.float(0.5),
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_loss_box_zero_macroparticles(self) -> None:
+        """`loss_box` must be a no-op on empty dt/dE/flags arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            flags = backend.zeros(0, dtype=np.int32)
+            backend.specials.loss_box(
+                e_max=backend.float(1),
+                e_min=backend.float(-1),
+                t_min=backend.float(-10),
+                t_max=backend.float(10),
+                dt=dt,
+                dE=dE,
+                flags=flags,
+            )
+            self.assertEqual(
+                flags.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_move_flagged_elements_to_end_post_loop_branches(self) -> None:
+        """Exercise both post-loop return paths of `move_flagged_elements_to_end`.
+
+        The C++ implementation ends with::
+
+            if (i < n_macroparticles && flags[i] == flag) {
+                return i;     // boundary element matches `flag`
+            }
+            return i + 1;     // boundary element does NOT match `flag`
+
+        Both branches must produce the correct partition count, where the
+        return value equals the number of leading non-flagged elements
+        (equivalently, the index of the first flagged element).
+
+        Scenarios are tuples of (flags, expected_n_new, branch) with `flag=0`:
+        - ([0])          n=1, all flagged     → `return i`   → 0
+        - ([1])          n=1, all non-flagged → `return i+1` → 1
+        - ([0, 0, 0])    all flagged          → `return i`   → 0
+        - ([1, 1, 1])    all non-flagged      → `return i+1` → 3
+        - ([1, 1, 0])    boundary at end      → `return i`   → 2
+        - ([1, 0, 1, 0]) interleaved          → `return i`   → 2
+        """
+        scenarios = [
+            ([0], 0, "return i"),
+            ([1], 1, "return i+1"),
+            ([0, 0, 0], 0, "return i"),
+            ([1, 1, 1], 3, "return i+1"),
+            ([1, 1, 0], 2, "return i"),
+            ([1, 0, 1, 0], 2, "return i"),
+        ]
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            for flags_init, expected_n_new, branch in scenarios:
+                n = len(flags_init)
+                flags = backend.array(flags_init, dtype=np.int32)
+                dt = backend.array(
+                    backend.linspace(0, 1, n), dtype=backend.float
+                )
+                dE = backend.array(
+                    backend.linspace(0, 1, n), dtype=backend.float
+                )
+                ids = backend.arange(0, n, dtype=np.int32)
+                n_new = int(
+                    backend.specials.move_flagged_elements_to_end(
+                        flag=0,
+                        flags=flags,
+                        dt=dt,
+                        dE=dE,
+                        ids=ids,
+                    )
+                )
+                self.assertEqual(
+                    expected_n_new,
+                    n_new,
+                    msg=(
+                        f"Failed `{special}` with {dtype}: "
+                        f"flags={flags_init}, expected branch `{branch}` "
+                        f"→ {expected_n_new}, got {n_new}"
+                    ),
+                )
+                # Post-condition: leading `n_new` entries are non-flagged,
+                # trailing entries are flagged — what the return value means.
+                flags_after = (
+                    flags.get() if special == "cuda" else np.asarray(flags)
+                )
+                self.assertTrue(
+                    bool(np.all(flags_after[:n_new] != 0)),
+                    msg=(
+                        f"Leading slice not fully unflagged for `{special}` "
+                        f"with flags_init={flags_init}: {flags_after}"
+                    ),
+                )
+                self.assertTrue(
+                    bool(np.all(flags_after[n_new:] == 0)),
+                    msg=(
+                        f"Trailing slice not fully flagged for `{special}` "
+                        f"with flags_init={flags_init}: {flags_after}"
+                    ),
+                )
+
+    @pytest.mark.backend_mutation
+    def test_move_flagged_elements_to_end_zero_macroparticles(self) -> None:
+        """`move_flagged_elements_to_end` on empty arrays must return 0.
+
+        Collects results across all special modes before asserting so the
+        failure report names every backend that mishandles the empty case
+        rather than aborting on the first mismatch.
+        """
+        dtype = np.float64
+        offenders: list[str] = []
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            flags = backend.zeros(0, dtype=np.int32)
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            ids = backend.zeros(0, dtype=np.int32)
+            n_new = backend.specials.move_flagged_elements_to_end(
+                flag=0,
+                flags=flags,
+                dt=dt,
+                dE=dE,
+                ids=ids,
+            )
+            if int(n_new) != 0:
+                offenders.append(f"{special} returned n_new={int(n_new)}")
+        self.assertEqual(
+            offenders,
+            [],
+            msg=(
+                "move_flagged_elements_to_end must return 0 on empty arrays; "
+                f"these backends did not: {offenders}"
+            ),
+        )
+
+    @pytest.mark.backend_mutation
+    def test_sum_1d_array_zero_macroparticles(self) -> None:
+        """`sum_1d_array` of an empty array must equal 0."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            empty = backend.zeros(0, dtype=backend.float)
+            result = copy_to_cpu(backend.specials.sum_1d_array(empty))
+            np.testing.assert_allclose(
+                float(result),
+                0.0,
+                atol=0.0,
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_dot_product_1d_array_zero_macroparticles(self) -> None:
+        """`dot_product_1d_array` of two empty arrays must equal 0."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            empty_a = backend.zeros(0, dtype=backend.float)
+            empty_b = backend.zeros(0, dtype=backend.float)
+            result = copy_to_cpu(
+                backend.specials.dot_product_1d_array(empty_a, empty_b)
+            )
+            np.testing.assert_allclose(
+                float(result),
+                0.0,
+                atol=0.0,
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
 
     @multi_backend_testcase
     @pytest.mark.backend_mutation

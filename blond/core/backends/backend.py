@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -375,7 +375,7 @@ class BackendBaseClass(ABC):
     float: type[np.float64]
     complex: type[np.complex128]
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
         float_: type[np.float64],
         complex_: type[np.complex128],
@@ -406,6 +406,7 @@ class BackendBaseClass(ABC):
         self.float = float_
         self.complex = complex_
 
+        self.pi = self.float(np.pi)
         self.twopi = self.float(2 * np.pi)
         self.specials_mode = specials_mode
         self.specials: Specials = None  # type: ignore
@@ -447,6 +448,8 @@ class BackendBaseClass(ABC):
         self.sign: Callable = None  # type: ignore
         self.sin: Callable = None  # type: ignore
         self.cos: Callable = None  # type: ignore
+        self.arctan2: Callable = None  # type: ignore
+        self.sinc: Callable = None  # type: ignore
         self.exp: Callable = None  # type: ignore
         self.any: Callable = None  # type: ignore
         self.abs: Callable = None  # type: ignore
@@ -459,6 +462,7 @@ class BackendBaseClass(ABC):
         self.unique: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
         self.ndarray: type = None  # type: ignore
+        self.where: Callable = None  # type: ignore
         self.hstack: type = None  # type: ignore
 
     def _finalize(self) -> None:
@@ -763,7 +767,7 @@ class NumpyBackend(BackendBaseClass):
         Precision type for complex, e.g. complex128.
     """
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
         float_: type[np.float64],
         complex_: type[np.complex128],
@@ -814,6 +818,8 @@ class NumpyBackend(BackendBaseClass):
         self.sign = np.sign
         self.sin = np.sin
         self.cos = np.cos
+        self.arctan2 = np.arctan2
+        self.sinc = np.sinc
         self.exp = np.exp
         self.any = np.any
         self.abs = np.abs
@@ -826,6 +832,7 @@ class NumpyBackend(BackendBaseClass):
         self.unique = np.unique
         self.repeat = np.repeat
         self.ndarray = np.ndarray
+        self.where = np.where
         self.hstack = np.hstack
 
         self._finalize()
@@ -903,7 +910,7 @@ class CupyBackend(BackendBaseClass):
         Precision type for complex, e.g. complex128.
     """
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
         float_: type[np.float64],
         complex_: type[np.complex128],
@@ -959,6 +966,8 @@ class CupyBackend(BackendBaseClass):
         self.sign = cp.sign
         self.sin = cp.sin
         self.cos = cp.cos
+        self.arctan2 = cp.arctan2
+        self.sinc = cp.sinc
         self.exp = cp.exp
         self.any = cp.any
         self.abs = cp.abs
@@ -971,6 +980,7 @@ class CupyBackend(BackendBaseClass):
         self.unique = cp.unique
         self.repeat = cp.repeat
         self.ndarray = cp.ndarray
+        self.where = cp.where
         self.hstack = cp.hstack
 
         from blond.core.backends.cuda.callables import CudaSpecials

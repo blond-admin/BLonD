@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -995,7 +995,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         """
         Calculate the voltage induced by the beam profile.
 
-        The function will call :func:`_update_potential_sources` and
+        The function will call ``_update_potential_sources`` and
         then compute the induced voltage based on all profiles
         which are in the `_past_profiles` array.
 

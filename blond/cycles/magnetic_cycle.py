@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -12,10 +12,10 @@ Several classes to manage and describe the ramp of the magnets.
 Notes
 -----
 The following classes are currently available:
-- :class:`~blond.cycles.magnetic_cycles.ConstantMagneticCycle`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurn`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
+- :class:`~blond.cycles.magnetic_cycle.ConstantMagneticCycle`
+- :class:`~blond.cycles.magnetic_cycle.MagneticCyclePerTurn`
+- :class:`~blond.cycles.magnetic_cycle.MagneticCyclePerTurnAllRFStations`
+- :class:`~blond.cycles.magnetic_cycle.MagneticCycleByTime`
 
 Authors:
 Simon Lauber
@@ -127,7 +127,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         simulation
             `Simulation` context manager.
         beam
-            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+            Simulation :class:`~blond.core.beam.beams.Beam` object.
         n_turns
             Number of turns to simulate.
         **kwargs
@@ -892,7 +892,7 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         Returns
         -------
         magnetic_cycle
-            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`.
+            Fully initialized :class:`~blond.cycles.magnetic_cycle.MagneticCyclePerTurnAllRFStations`.
         """
         ret = MagneticCyclePerTurnAllRFStations(
             value_init=value_init,
