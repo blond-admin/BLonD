@@ -11,7 +11,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blond"
-dynamic = ["dependencies", "optional-dependencies", "version"]
+dynamic = ["version"]
 description = "CERN code for simulating longitudinal beam dynamics in synchrotrons."
 readme = "README.md"
 license = { file = "LICENSE.txt" }
@@ -31,6 +31,66 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Scientific/Engineering :: Physics",
 ]
+dependencies = [
+  "setuptools>=60",  # packaging utilities
+  "numpy>=2",        # array computing
+  "scipy>=1.15",     # scientific computing algorithms
+  "matplotlib>=3.9", # plotting and visualization
+  "numba>=0.60",     # simple computing backend that compiles everywhere out of the box
+  "tqdm>4",          # nice loading bar
+  "mpi4py>=4",       # distributed computing
+  "mpmath>=1",       # for numba fastmath replacement
+  "sympy>=1.9",      # symbolic math for separatrix calculations, etc.
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9",          # test runner
+  "pre-commit",         # automatic checks before `git commit`
+  "pytest-cov>=6",      # test coverage reporting
+  "mpmath>=1",          # part of the testing against blond2
+  "pytest-randomly>=4", # randomizes test order via `randomly-seed=...`
+  "nbconvert>=6",       # notebook execution in tests
+]
+doc = [
+  "sphinx>=6",                   # documentation generator
+  "sphinx-rtd-theme>=3",         # Read the Docs theme
+  "numpydoc>1",                  # NumPy-style docstring parser
+  "intersphinx_registry>0.2511", # cross-project documentation links
+  "myst-parser>4",               # Markdown support for Sphinx
+  "sphinx_autodoc_typehints>3",  # type hint integration for autodoc
+  "pydata_sphinx_theme>0.16",    # PyData community theme
+  "nbsphinx>=0.9",               # Jupyter notebook integration for Sphinx
+  "nbconvert>=6",                # notebook to documentation conversion
+  "ipython>5",                   # interactive Python shell
+  "notebook>=7",                 # for jupyter-notebooks in the examples
+]
+mpi = [
+  "mpi4py>=4", # MPI bindings for distributed computing
+]
+gpu_cuda12 = [
+  "cupy-cuda12x", # GPU array computing (CUDA 12)
+]
+gpu_cuda13 = [
+  "cupy-cuda13x", # GPU array computing (CUDA 13)
+]
+xsuite = [
+  "xpart>=0.23.9",    # particle objects
+  "xobjects>=0.5.12", # xsuite low-level objects
+  "xtrack>=0.99.5",   # particle tracking
+]
+legacy = [
+  "h5py>=3.11.0,<=3.15.1",      # HDF5 file format
+  "matplotlib>=3.8.0,<=3.10.8", # plotting and visualization
+  "mpmath>=1.0.0,<=1.3.0",      # arbitrary-precision arithmetic
+  "numba>=0.61,<=0.63.1",       # JIT compiler
+  "numpy>=2,<=2.2.6",           # array computing
+  "scipy~=1.15",                # scientific computing algorithms
+  "packaging==26.0",            # version parsing
+]
+all_no_cuda = ["blond[dev,doc,xsuite,mpi]"]
+all_cuda12 = ["blond[dev,doc,xsuite,mpi,gpu_cuda12]"]
+all_cuda13 = ["blond[dev,doc,xsuite,mpi,gpu_cuda13]"]
 
 [tool.setuptools]
 packages = { find = {} }
@@ -49,41 +109,6 @@ blond-compile-cuda = "blond.core.backends.cuda.compile:main_cli"
 [tool.setuptools_scm]
 write_to = 'blond/_version.py' # autogenerates version string using git
 
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
-optional-dependencies = { all_no_cuda = { file = [
-  "requirements.txt",
-  "requirements-dev.txt",
-  "requirements-doc.txt",
-  "blond/interfaces/xsuite/requirements.txt",
-  "requirements-mpi.txt",
-] }, all_cuda12 = { file = [
-  "requirements.txt",
-  "requirements-gpu-cuda12.txt",
-  "requirements-dev.txt",
-  "requirements-doc.txt",
-  "blond/interfaces/xsuite/requirements.txt",
-  "requirements-mpi.txt",
-] }, all_cuda13 = { file = [
-  "requirements.txt",
-  "requirements-gpu-cuda13.txt",
-  "requirements-dev.txt",
-  "requirements-doc.txt",
-  "blond/interfaces/xsuite/requirements.txt",
-  "requirements-mpi.txt",
-] }, gpu_cuda12 = { file = [
-  "requirements-gpu-cuda12.txt",
-] }, gpu_cuda13 = { file = [
-  "requirements-gpu-cuda13.txt",
-] }, dev = { file = [
-  "requirements-dev.txt",
-] }, mpi = { file = [
-  "requirements-mpi.txt",
-] }, legacy = { file = [
-  "legacy/requirements.txt",
-] }, doc = { file = "requirements-doc.txt" }, xsuite = { file = "blond/interfaces/xsuite/requirements.txt" } }
-
-
 [tool.ruff]
 src = ["blond"]                                                       # Source directories
 line-length = 79
@@ -91,7 +116,7 @@ target-version = "py310"                                              # Minimum 
 fix = true                                                            # Enable autofix
 exclude = ["blond/legacy/*", "legacy/*", "integrationtests_blond3/*"]
 [tool.ruff.lint]
-exclude = ["blond/experimental/*", "unittests/*", "blond/examples/*"]
+exclude = ["blond/experimental/*", "tests/*", "blond/examples/*"]
 # Enable broad set of useful lint rules
 select = [
   "E", # pycodestyle errors
@@ -147,7 +172,7 @@ exclude_files = [ # don't process filepaths that match these regex
   '^integrationtests/.*',
   '^integrationtests_blond3/.*',
   '^legacy/.*',
-  '^unittests/.*',
+  '^tests/.*',
   '^blond/legacy/.*',
   '^blond/core/backends/cpp/callables.py',
   '^blond/core/backends/cuda/callables.py',

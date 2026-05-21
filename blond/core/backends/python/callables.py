@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -365,7 +365,7 @@ class PythonSpecials(Specials):
         dt += T * (poly * (1.0 + dE * inv_energy) / (1.0 + beam_delta) - 1.0)
 
     @staticmethod
-    def kick_induced_voltage(
+    def kick_interpolated(
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,

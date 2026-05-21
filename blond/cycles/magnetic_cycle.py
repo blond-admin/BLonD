@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -12,10 +12,10 @@ Several classes to manage and describe the ramp of the magnets.
 Notes
 -----
 The following classes are currently available:
-- :class:`~blond.cycles.magnetic_cycles.ConstantMagneticCycle`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurn`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
+- :class:`~blond.cycles.magnetic_cycle.ConstantMagneticCycle`
+- :class:`~blond.cycles.magnetic_cycle.MagneticCyclePerTurn`
+- :class:`~blond.cycles.magnetic_cycle.MagneticCyclePerTurnAllRFStations`
+- :class:`~blond.cycles.magnetic_cycle.MagneticCycleByTime`
 
 Authors:
 Simon Lauber
@@ -127,7 +127,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         simulation
             `Simulation` context manager.
         beam
-            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+            Simulation :class:`~blond.core.beam.beams.Beam` object.
         n_turns
             Number of turns to simulate.
         **kwargs
@@ -838,7 +838,15 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         total_energy
             Total relativistic energy, in [eV].
         """
+        assert turn_i >= 0, (
+            f"`turn_i` has to be bigger or equal 0 but is {turn_i=}."
+        )
+        assert section_i >= 0, (
+            f"`section_i` has to be bigger or equal 0 but is {section_i=}."
+        )
+
         key = hash(particle_type)
+
         if key not in self._momentum_cached:
             self._momentum_cached[key] = (
                 conversions.magnetic_rigidity_to_momentum(
@@ -884,7 +892,7 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         Returns
         -------
         magnetic_cycle
-            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`.
+            Fully initialized :class:`~blond.cycles.magnetic_cycle.MagneticCyclePerTurnAllRFStations`.
         """
         ret = MagneticCyclePerTurnAllRFStations(
             value_init=value_init,
@@ -923,9 +931,9 @@ class MagneticCycleByTime(MagneticCycleBase):
     ----------
     reference_particle
         Type of particles, e.g. protons.
-    base_time
+    reference_time
         Values of time [s].
-    base_values
+    reference_values
         Values at time in synchrotron in of unit `in_unit`.
     in_unit
         - 'momentum' [eV/c], (no conversion is done)
@@ -956,8 +964,8 @@ class MagneticCycleByTime(MagneticCycleBase):
     >>> energy_ramp = np.linspace(63e9, 313.83e9 * 100, n_turns)
     >>> energy_cycle = MagneticCycleByTime(
     ...     reference_particle=mu_plus,
-    ...     base_time=np.linspace(0, 18 * time_per_turn, n_turns),
-    ...     base_values=energy_ramp,
+    ...     reference_time=np.linspace(0, 18 * time_per_turn, n_turns),
+    ...     reference_values=energy_ramp,
     ...     in_unit="momentum",
     ...     interpolator=scipy.interpolate.Akima1DInterpolator,
     ...     method="makima",
@@ -967,8 +975,8 @@ class MagneticCycleByTime(MagneticCycleBase):
     def __init__(
         self,
         reference_particle: ParticleType,
-        base_time: NumpyArray,
-        base_values: NumpyArray,
+        reference_time: NumpyArray,
+        reference_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
         interpolator: type[
@@ -979,13 +987,15 @@ class MagneticCycleByTime(MagneticCycleBase):
         ] = interp1d,
         **kwargs,
     ):
-        assert not np.any(np.isnan(base_values)), (
-            "NaN occurred in `base_values`"
+        assert not np.any(np.isnan(reference_values)), (
+            "NaN occurred in `reference_values`"
         )
-        assert not np.any(np.isnan(base_time)), "NaN occurred in `base_time`"
+        assert not np.any(np.isnan(reference_time)), (
+            "NaN occurred in `reference_time`"
+        )
 
         base_magnetic_rigidity = _to_magnetic_rigidity(
-            data=base_values,
+            data=reference_values,
             mass=reference_particle.mass,
             charge=reference_particle.charge,
             convert_from=in_unit,
@@ -1000,12 +1010,12 @@ class MagneticCycleByTime(MagneticCycleBase):
             magnetic_rigidity_init=base_magnetic_rigidity[0],
         )
         self._interpolator = interpolator(
-            base_time[:],
+            reference_time[:],
             base_magnetic_rigidity[:],
             **kwargs,
         )
-        self._t_max = base_time.max()
-        self._base_values = base_values[:]  # only for debugging
+        self._t_max = reference_time.max()
+        self._base_values = reference_values[:]  # only for debugging
         self._in_unit = in_unit  # only for debugging
         self._bending_radius = bending_radius  # only for debugging
 
@@ -1190,8 +1200,8 @@ class MagneticCycleByTime(MagneticCycleBase):
         simulation.ring.bending_radius = bending_radius
 
         ret = MagneticCycleByTime(
-            base_time=base_time,
-            base_values=base_values,
+            reference_time=base_time,
+            reference_values=base_values,
             in_unit=in_unit,
             interpolator=interpolator,
             reference_particle=reference_particle,

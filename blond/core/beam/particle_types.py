@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -24,7 +24,10 @@ from scipy.constants import (  # type: ignore[import-untyped]
     physical_constants,
 )
 
+import blond.generals.formatting_ as format
+
 m_mu = physical_constants["muon mass"][0]
+
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -64,6 +67,21 @@ class ParticleType:
         # Quantum radiation constant [m]
         c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (mass * e)
         self._quantum_radiation_constant = c_q
+
+    def __repr__(self) -> str:
+        """
+        String representation of the particle.
+
+        Returns
+        -------
+        string
+            The string representation.
+        """
+        string = (
+            f"Mass: {format.si_format(self._mass)}eV, charge: {self._charge}e, "
+            f"decay rate: {self._user_decay_rate}s^-1"
+        )
+        return string
 
     def __eq__(self, other: Self) -> bool:
         """

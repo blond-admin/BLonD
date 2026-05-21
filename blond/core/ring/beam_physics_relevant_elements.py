@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -482,6 +482,7 @@ class BeamPhysicsRelevantElements(Preparable):
         assert self.count(RFStationBaseClass, section_i=section_index) == 1, (
             f"Only one RF station per section allowed, but got "
             f"{self.count(RFStationBaseClass, section_i=section_index)}"
+            f" in section {section_index}."
         )
         elements_in_section = [
             e for e in self.elements if e.section_index == section_index
