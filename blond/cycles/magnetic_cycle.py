@@ -565,7 +565,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             n_turns_max=n_turns_max,
         )
         self._magnetic_rigidity = _magnetic_rigidity
-        self._total_energy_cached = {}  # wipe cache if the simulation target changes
+        self._total_energy_cached = {}  # wipe cache if the simulation context changes
         self._momentum_cached = {}
 
     def get_target_total_energy(
