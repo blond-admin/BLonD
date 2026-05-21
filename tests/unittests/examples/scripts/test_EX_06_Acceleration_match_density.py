@@ -11,18 +11,18 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_01_Acceleration_match_density(unittest.TestCase):
+class TestEX_06_Acceleration_match_density(unittest.TestCase):
     def _execute(self):
         from blond.examples.scripts import (
-            EX_01_Acceleration_match_density,  # NOQA
+            EX_06_Acceleration_match_density,  # NOQA
         )
 
-        EX_01_Acceleration_match_density.N_TURNS = 10
-        EX_01_Acceleration_match_density.animate_fitting = False
-        EX_01_Acceleration_match_density.plot_result = False
-        EX_01_Acceleration_match_density.n_macroparticles = int(1e5)
+        EX_06_Acceleration_match_density.N_TURNS = 10
+        EX_06_Acceleration_match_density.animate_fitting = False
+        EX_06_Acceleration_match_density.plot_result = False
+        EX_06_Acceleration_match_density.n_macroparticles = int(1e5)
 
-        bunch: Beam = EX_01_Acceleration_match_density.main()
+        bunch: Beam = EX_06_Acceleration_match_density.main()
         fetch_new_pinned_values = False
         if fetch_new_pinned_values:
             print("dt_mean =", bunch._dt.mean())

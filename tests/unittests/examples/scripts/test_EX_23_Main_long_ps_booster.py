@@ -9,20 +9,15 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_09_Semi_empiric_matcher(unittest.TestCase):
+class TestEX_23_Main_long_ps_booster(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
-        self.skipTest("Too slow.")
-
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import EX_09_Semi_empiric_matcher
+        from blond.examples.scripts import EX_23_Main_long_ps_booster
 
         # full script. just checking if it crashes
-        (
-            EX_09_Semi_empiric_matcher.increment_intensity_effects_until_iteration_i
-        ) = 2
-        EX_09_Semi_empiric_matcher.main()
+        EX_23_Main_long_ps_booster.main()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -33,11 +28,8 @@ class TestEX_09_Semi_empiric_matcher(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import EX_09_Semi_empiric_matcher
+        from blond.examples.scripts import EX_23_Main_long_ps_booster
 
         # full script. just checking if it crashes
-        (
-            EX_09_Semi_empiric_matcher.increment_intensity_effects_until_iteration_i
-        ) = 2
-        EX_09_Semi_empiric_matcher.main()
+        EX_23_Main_long_ps_booster.main()
         backend.zeros(100)

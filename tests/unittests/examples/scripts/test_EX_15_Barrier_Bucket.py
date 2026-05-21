@@ -10,7 +10,7 @@ from blond.core.backends.backend import (
 from blond.testing.backend_testing import skip_if_no_cupy
 
 
-class TestEX_11_Barrier_Bucket(unittest.TestCase):
+class TestEX_15_Barrier_Bucket(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.init_backend = type(backend)
@@ -26,11 +26,11 @@ class TestEX_11_Barrier_Bucket(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
         from blond.examples.scripts import (
-            EX_11_Barrier_Bucket,
+            EX_15_Barrier_Bucket,
         )
 
         # full script. just checking if it crashes
-        EX_11_Barrier_Bucket.main(
+        EX_15_Barrier_Bucket.main(
             run_n_turns=10,
             n_macroparticles=100,
         )
@@ -41,11 +41,11 @@ class TestEX_11_Barrier_Bucket(unittest.TestCase):
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
         from blond.examples.scripts import (
-            EX_11_Barrier_Bucket,
+            EX_15_Barrier_Bucket,
         )
 
         # full script. just checking if it crashes
-        EX_11_Barrier_Bucket.main(
+        EX_15_Barrier_Bucket.main(
             run_n_turns=10,
             n_macroparticles=100,
         )

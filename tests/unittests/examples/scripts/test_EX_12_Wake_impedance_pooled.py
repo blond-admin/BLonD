@@ -9,17 +9,15 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_04_Stationary_multistation(unittest.TestCase):
+class TestEX_12_Wake_impedance_pooled(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import (
-            EX_04_Stationary_multistation,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_12_Wake_impedance_pooled
 
         # full script. just checking if it crashes
-        EX_04_Stationary_multistation.main(n_turns=10)
+        EX_12_Wake_impedance_pooled.main(n_turns=2)
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -30,10 +28,8 @@ class TestEX_04_Stationary_multistation(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import (
-            EX_04_Stationary_multistation,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_12_Wake_impedance_pooled
 
         # full script. just checking if it crashes
-        EX_04_Stationary_multistation.main(n_turns=10)
+        EX_12_Wake_impedance_pooled.main(n_turns=2)
         backend.zeros(100)
