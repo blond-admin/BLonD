@@ -22,7 +22,6 @@ from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
     BeamPhysicsRelevant,
-    HasPropertyCache,
     HasSymbolicHamiltonian,
     Schedulable,
 )
@@ -135,9 +134,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
         pass
 
 
-class DriftSimple(
-    DriftBaseClass, Schedulable, HasPropertyCache, HasSymbolicHamiltonian
-):
+class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
     r"""
     Base class to implement beam drifts in synchrotrons.
 
@@ -379,11 +376,6 @@ class DriftSimple(
         blond.core.ring.ring.Ring.momentum_compaction_factor : Orbit-length weighted average for multi-drift setups.
         """
         return self.momentum_compaction_factor
-
-    def invalidate_cache(self):
-        """Delete the stored values of functions with @cached_property."""
-        # super()._invalidate_cache(DriftSimple.cached_props)
-        pass
 
     def get_hamilton_symbolic(
         self, replace_symbols: bool = True

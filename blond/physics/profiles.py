@@ -75,7 +75,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         simulation
             `Simulation` context manager.
         """
-        pass
+        # wipe cached geometry if the simulation context changes
+        self.invalidate_cache()
 
     def on_run_simulation(
         self,
