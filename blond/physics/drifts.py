@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -138,8 +138,19 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
 class DriftSimple(
     DriftBaseClass, Schedulable, HasPropertyCache, HasSymbolicHamiltonian
 ):
-    """
+    r"""
     Base class to implement beam drifts in synchrotrons.
+
+    The arrival-time change over the drift is calculated as:
+
+    .. math::
+        \Delta dt = \frac{L}{\beta c}\,\eta_0\,\frac{dE}{\beta^2 E},
+        \qquad \eta_0 = \alpha_0 - \frac{1}{\gamma^2}
+
+    where :math:`L` is the orbit length, :math:`\beta`, :math:`\gamma` and
+    :math:`E` are the reference beam quantities, :math:`dE` the energy
+    deviation and :math:`\eta_0` the (first-order) phase-slip factor built
+    from the momentum compaction factor :math:`\alpha_0`.
 
     Parameters
     ----------
@@ -153,7 +164,7 @@ class DriftSimple(
     momentum_compaction_factor
         Momentum compaction factor of this drift section. In multi-drift
         setups the ring combines per-section values into a global weighted
-        average; see :attr:`Ring.momentum_compaction_factor`.
+        average; see :attr:`blond.core.ring.ring.Ring.momentum_compaction_factor`.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -182,7 +193,7 @@ class DriftSimple(
         momentum_compaction_factor
             Momentum compaction factor of this drift section. In multi-drift
             setups the ring combines per-section values into a global weighted
-            average; see :attr:`Ring.momentum_compaction_factor`.
+            average; see :attr:`blond.core.ring.ring.Ring.momentum_compaction_factor`.
             Use ``drift.schedule("momentum_compaction_factor", ...)`` to influence
             the parameter along the ramp.
         **kwargs
@@ -365,7 +376,7 @@ class DriftSimple(
 
         See Also
         --------
-        Ring.momentum_compaction_factor : Orbit-length weighted average for multi-drift setups.
+        blond.core.ring.ring.Ring.momentum_compaction_factor : Orbit-length weighted average for multi-drift setups.
         """
         return self.momentum_compaction_factor
 
@@ -377,14 +388,31 @@ class DriftSimple(
     def get_hamilton_symbolic(
         self, replace_symbols: bool = True
     ) -> sympy.Expr:
-        """
+        r"""
         Return the partial Hamiltonian symbolic expression.
+
+        The tracker (see ``DriftSimple._track``) maps
+        ``dt -> dt + T * eta_0 * dE / (beta^2 E)`` with
+
+        .. math::
+
+            T = \frac{L}{\beta c},\qquad
+            \eta_0 = \alpha_0 - \frac{1}{\gamma^2}.
+
+        Hamilton's equation :math:`\partial H/\partial dE = T\,\eta_0\,dE /
+        (\beta^2 E)` integrates to the linearized Hamiltonian
+
+        .. math::
+
+            H = \frac{1}{2}\,\frac{T\,\eta_0}{\beta^2 E}\,dE^2.
 
         Parameters
         ----------
         replace_symbols
             If ``True``, the according variables will be replaced by
             their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
 
         Returns
         -------
@@ -393,11 +421,12 @@ class DriftSimple(
         """
         dE, beta, gamma, E = sympy.symbols("dE beta gamma E", real=True)
 
-        alpha_0 = (
-            float(self.alpha_0)
-            if (self.alpha_0 is not None) and replace_symbols
-            else sympy.Symbol("alpha_0", real=True)
-        )
+        if replace_symbols:
+            assert self.alpha_0 is not None
+            alpha_0 = float(self.alpha_0)
+        else:
+            alpha_0 = sympy.Symbol("alpha_0", real=True)
+
         T = float(self.orbit_length) / (beta * c0)
         eta_0 = alpha_0 - 1 / gamma**2
 
@@ -405,7 +434,7 @@ class DriftSimple(
 
 
 class DriftExact(DriftSimple, HasSymbolicHamiltonian):
-    """
+    r"""
     Drift element using the exact drift formulation.
 
     This replaces the simple drift with the exact solver based on:
@@ -413,18 +442,37 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
       - full alpha(delta) expansion
       - exact (1 + dE/E) / (1 + delta) factor
 
+    The arrival-time change over the drift is calculated as:
+
+    .. math::
+        \Delta dt = \frac{L}{\beta c}\left[
+            \mathrm{poly}(\delta)\,\frac{1 + dE/E}{1 + \delta} - 1
+        \right]
+
+    with
+
+    .. math::
+        \delta(dE) &= \sqrt{1 + \frac{dE^2 + 2\,dE\,E}{\beta^2 E^2}} - 1 \\
+        \mathrm{poly}(\delta) &= 1 + \alpha_0\,\delta
+            + \sum_k \alpha_{k+1}\,\delta^{k+2}
+
+    where :math:`\delta` is the exact relative momentum deviation and
+    :math:`\mathrm{poly}(\delta)` the full momentum-compaction expansion in
+    the momentum compaction factor :math:`\alpha_0` and the higher-order
+    coefficients :math:`\alpha_k`.
+
     Parameters
     ----------
-    orbit_length : float
+    orbit_length
         Length of drift, in [m].
         Length / Velocity => Time to pass the element.
-    section_index : int
+    section_index
         Section index to group elements into sections.
-    momentum_compaction_factor : float
+    momentum_compaction_factor
         Momentum compaction factor.
         Use ``drift.schedule("momentum_compaction_factor", ...)`` to influence
         the parameter along the ramp.
-    higher_order_alpha : NumpyArray
+    higher_order_alpha
         Higher-order alpha array up to desired order.
         Use ``drift.schedule("higher_order_alpha", ...)`` to influence
         the parameter along the ramp.
@@ -467,14 +515,14 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
 
         Parameters
         ----------
-        orbit_length : float
+        orbit_length
             Length of drift, in [m].
             Length / Velocity => Time to pass the element.
-        section_index : int
+        section_index
             Section index to group elements into sections.
-        momentum_compaction_factor : float
+        momentum_compaction_factor
             Momentum compaction factor.
-        higher_order_alpha : NumpyArray
+        higher_order_alpha
             Higher-order alpha array up to desired order.
 
         Returns
@@ -510,7 +558,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         r"""
         Return the partial Hamiltonian symbolic expression.
 
-        The tracker (see :meth:`DriftExact._track`) maps
+        The tracker (see ``DriftExact._track``) maps
         ``dt -> dt + T * F(dE)`` with
 
         .. math::
@@ -532,13 +580,16 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         ``len(higher_order_alpha) + 2`` — the highest order needed to fully
         represent every supplied :math:`\alpha_k` — so the result is a
         polynomial in ``dE`` and ``coeff(dE, n)`` works for downstream
-        consumers like :class:`SymbolicSeparatrixHelper`.
+        consumers like
+        :class:`~blond.utilities.separatrix.symbolic_separatrix.SymbolicSeparatrixHelper`.
 
         Parameters
         ----------
         replace_symbols
             If ``True``, the according variables will be replaced by
             their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
 
         Returns
         -------
@@ -549,16 +600,27 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         # Cast numeric inputs to native Python float: older sympy parses
         # numpy scalars via str(), which on NumPy 2.x yields
         # 'np.float64(...)' and fails Float.__new__.
-        alpha_0 = (
-            float(self.alpha_0)
-            if (self.alpha_0 is not None) and replace_symbols
-            else sympy.Symbol("alpha_0", real=True)
-        )
-        higher = (
-            tuple(float(a) for a in self.higher_order_alpha)
-            if (self.higher_order_alpha is not None) and replace_symbols
-            else ()
-        )
+        if replace_symbols:
+            assert self.alpha_0 is not None
+            assert self.higher_order_alpha is not None
+
+            alpha_0 = float(self.alpha_0)
+            higher = tuple(float(a) for a in self.higher_order_alpha)
+        else:
+            alpha_0 = sympy.Symbol("alpha_0", real=True)
+            # Honor the configured number of higher-order alphas in
+            # symbolic mode -- otherwise the Taylor truncation collapses
+            # to dE**2 and every dE**k (k > 2) contribution is silently
+            # dropped from the analytical Hamiltonian.
+            n_higher = (
+                0
+                if self.higher_order_alpha is None
+                else len(self.higher_order_alpha)
+            )
+            higher = tuple(
+                sympy.Symbol(f"alpha_{k + 1}", real=True)
+                for k in range(n_higher)
+            )
         T = float(self.orbit_length) / (beta * c0)
         truncation = len(higher) + 2
 
@@ -584,7 +646,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
 
         Parameters
         ----------
-        beam : BeamBaseClass
+        beam
             Beam.
         """
         # Apply schedules if active

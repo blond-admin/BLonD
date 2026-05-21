@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -124,7 +124,7 @@ class TimeDomain(ABC):
     """Indication of a source is defined in time domain."""
 
     @abstractmethod  # pragma: no cover
-    def get_wake_impedance(
+    def get_impedance_from_wake(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
@@ -138,7 +138,7 @@ class TimeDomain(ABC):
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -147,7 +147,7 @@ class TimeDomain(ABC):
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Impedance array.
         """
         pass
@@ -167,7 +167,7 @@ class TimeDomainCounterRotation(ABC):
 
         Parameters
         ----------
-        time : NumpyArray
+        time
             Time array at which the wake is calculated [V].
         """
         pass
@@ -181,7 +181,7 @@ class TimeDomainCounterRotation(ABC):
 
         Parameters
         ----------
-        time : NumpyArray
+        time
             Time array at which the wake is calculated, in [s].
 
         Returns
@@ -192,7 +192,7 @@ class TimeDomainCounterRotation(ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_wake_impedance_counter_rotation(
+    def get_impedance_from_wake_counter_rotation(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
@@ -206,7 +206,7 @@ class TimeDomainCounterRotation(ABC):
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -215,7 +215,7 @@ class TimeDomainCounterRotation(ABC):
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Impedance array.
         """
         pass
@@ -238,7 +238,7 @@ class FreqDomain(ABC):
         ----------
         freq_x
             Frequency axis, in [Hz].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -558,7 +558,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
 
         Parameters
         ----------
-        beam : BeamBaseClass
+        beam
             The `Beam` object which state will be updated by this element.
         sources
             List of sources that cause wake-fields.

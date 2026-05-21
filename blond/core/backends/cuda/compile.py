@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -138,23 +138,6 @@ def compile_cuda_library(  # NOQA: PLR0915
     print("CuPy location: ", cupyloc)
 
     libname_double = cuda_libname + f"_sm_{compute_capability_}_double.cubin"
-    libname_single = cuda_libname + f"_sm_{compute_capability_}_single.cubin"
-
-    command = (
-        [nvcc]
-        + nvcc_flags
-        + ["-o", libname_single, "-I" + cupyloc]
-        + ["-DUSEFLOAT"]
-        + cuda_files
-    )
-
-    print("\nCompiling the single-precision (32-bit) CUDA library")
-    ret = run_compile(command, libname_single)
-    if ret != 0:
-        print("There was a compilation error.")
-    else:
-        print("Compiled successfully.")
-
     command = (
         [nvcc]
         + nvcc_flags

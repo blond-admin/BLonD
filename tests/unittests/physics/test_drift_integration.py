@@ -17,7 +17,7 @@ from blond import (
     proton,
     uranium_29,
 )
-from blond.core.backends.backend import Numpy32Bit, backend
+from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.beams import ProbeBeam
 from blond.cycles.magnetic_cycle import (
@@ -29,7 +29,7 @@ from blond.testing.mocks import simulation_mock
 
 class TestDriftIntegration(unittest.TestCase):
     def setUp(self):
-        backend.change_backend(Numpy32Bit)
+        backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
 
     @pytest.mark.backend_mutation

@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -108,6 +108,40 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         super().on_init_simulation(simulation=simulation)
 
         self._turn_i = simulation.turn_i
+        self._magnetic_cycle = simulation.magnetic_cycle
+        self._ring = simulation.ring
+
+    def track_reference(
+        self,
+        reference: ReferenceCoordinates,
+        is_counter_rotating: bool = False,
+    ) -> float:
+        """
+        Update the coordinates of the reference coordinate system.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+        is_counter_rotating
+            Whether the beam is counter rotating or not.
+
+        Returns
+        -------
+        reference_energy_change
+            Change of reference energy [eV].
+        """
+        target_total_energy = self._magnetic_cycle.get_target_total_energy(
+            turn_i=self._turn_i.value,
+            section_i=self.section_index
+            if not is_counter_rotating
+            else len(self._ring.section_lengths) - self.section_index - 1,
+            reference_time=reference.time,
+            particle_type=reference.particle_type,
+        )
+        reference_energy_change = target_total_energy - reference.total_energy
+        reference.total_energy = target_total_energy
+        return reference_energy_change
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -174,6 +208,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        assert n_rf > 0, f"{n_rf=}"
+
         super().__init__(
             section_index=section_index,
             name=name,
@@ -185,7 +221,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             "phi_rf_design",
             "harmonic",
         )
-
         self._n_rf = n_rf
 
         self.cavity_feedback_list: list[
@@ -236,7 +271,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
         # Cached reference-energy change from the most recent _track call.
         # Used by get_hamilton_symbolic to include the acceleration term.
-        self._last_reference_energy_change: float = 0.0
+        self._last_reference_energy_change: float | None = None
 
     @property
     def any_feedback_not_none(self) -> bool:
@@ -311,8 +346,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
-        self._magnetic_cycle = simulation.magnetic_cycle
-        self._ring = simulation.ring
 
         if (self.voltage is None) and "voltage" not in self.schedules:
             raise ValueError(
@@ -355,7 +388,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Additional keyword arguments.
         """
         # set design omega etc. for this turn
-        self._update_beam_based_attributes(beam=beam)
+        self._update_reference_based_attributes(reference=beam.reference)
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic(self) -> float:
@@ -720,17 +753,22 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         return self._n_rf
 
-    def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
+    def _update_reference_based_attributes(
+        self, reference: ReferenceCoordinates
+    ) -> None:
         """
         Update internal data based on the tracked beam.
 
         Parameters
         ----------
-        beam
-            Beam to update the attributes from.
+        reference
+            Reference to update the attributes from.
         """
+        assert self._ring is not None, (
+            "Not available before instancing ``Simulation(...)``"
+        )
         self.omega_rf_design = self.calc_omega_rf_design(
-            beam_beta=beam.reference.beta,
+            beam_beta=reference.beta,
             ring_circumference=self._ring.circumference,
         )
 
@@ -744,9 +782,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Beam class to interact with this element.
         """
         super()._track(beam=beam)
-
-        # set design omega etc. for this turn
-        self._update_beam_based_attributes(beam=beam)
 
         # Correction from cavity loop
         if not isinstance(beam, ProbeBeam) and self.any_feedback_not_none:
@@ -815,6 +850,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         reference_energy_change
             Change of reference energy [eV].
         """
+        # set design omega etc. for this turn
+        self._update_reference_based_attributes(reference=reference)
+
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
             section_i=self.section_index
@@ -961,6 +999,11 @@ class SingleHarmonicRFStation(
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        if voltage is not None:
+            assert voltage >= 0, f"{voltage=}"
+        if harmonic is not None:
+            assert harmonic > 0, f"{harmonic=}"
+
         super().__init__(
             n_rf=1,
             section_index=section_index,
@@ -1278,11 +1321,15 @@ class SingleHarmonicRFStation(
         beam.reference = Mock(ReferenceCoordinates)
         beam.reference.beta = beam_reference_beta
         single_harmonic_rf_station.on_init_simulation(simulation=simulation)
+        single_harmonic_rf_station._update_reference_based_attributes(
+            beam.reference
+        )
         single_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
             n_turns=1,
             beam=beam,
         )
+
         return single_harmonic_rf_station
 
     def get_hamilton_symbolic(
@@ -1295,19 +1342,19 @@ class SingleHarmonicRFStation(
 
         .. math::
 
-            \\Delta dE = q V \\sin(\\omega\\, dt + \\phi)
-                        - \\Delta E_\\mathrm{ref},
+            \Delta dE = q V \sin(\omega\, dt + \phi)
+                        - \Delta E_\mathrm{ref},
 
-        where :math:`\\Delta E_\\mathrm{ref}` is the change of reference
+        where :math:`\Delta E_\mathrm{ref}` is the change of reference
         total energy on this turn (the ``acceleration_kick``). Hamilton's
-        equation :math:`\\Delta dE = -\\partial H/\\partial dt` then gives
+        equation :math:`\Delta dE = -\partial H/\partial dt` then gives
 
         .. math::
 
-            H = \\frac{q V}{\\omega} \\cos(\\omega\\, dt + \\phi)
-                + \\Delta E_\\mathrm{ref}\\, dt.
+            H = \frac{q V}{\omega} \cos(\omega\, dt + \phi)
+                + \Delta E_\mathrm{ref}\, dt.
 
-        :math:`\\Delta E_\\mathrm{ref}` is taken from the most recent
+        :math:`\Delta E_\mathrm{ref}` is taken from the most recent
         ``_track`` call (``self._last_reference_energy_change``); it is
         zero before the first track and for non-accelerating cycles.
 
@@ -1324,22 +1371,19 @@ class SingleHarmonicRFStation(
         """
         dt = sympy.Symbol("dt", real=True)
         q = sympy.Symbol("q", real=True)
+        if replace_symbols:
+            assert self.voltage is not None
+            assert self.omega_rf_design is not None
+            assert self.phi_rf_design is not None
 
-        V = (
-            float(self.voltage)
-            if (self.voltage is not None) and replace_symbols
-            else sympy.Symbol("V")
-        )
-        omega = (
-            float(self.omega_rf_design)
-            if (self.omega_rf_design is not None) and replace_symbols
-            else sympy.Symbol("omega_rf", positive=True)
-        )
-        phi = (
-            float(self.phi_rf_design)
-            if (self.phi_rf_design is not None) and replace_symbols
-            else sympy.Symbol("phi_rf", real=True)
-        )
+            V = float(self.voltage)
+            omega = float(self.omega_rf_design)
+            phi = float(self.phi_rf_design)
+
+        else:
+            V = sympy.Symbol("V")
+            omega = sympy.Symbol("omega_rf", positive=True)
+            phi = sympy.Symbol("phi_rf", real=True)
 
         return (
             q * V / omega * sympy.cos(omega * dt + phi)
@@ -1434,6 +1478,11 @@ class MultiHarmonicRFStation(
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        if voltage is not None:
+            assert np.all(voltage >= 0), f"{voltage=}"
+        if harmonic is not None:
+            assert np.all(harmonic > 0), f"{harmonic=}"
+
         assert main_harmonic_idx < n_harmonics, (
             f"{n_harmonics=}, but {main_harmonic_idx=}."
         )
@@ -1806,7 +1855,9 @@ class MultiHarmonicRFStation(
             beam=beam,
         )
 
-        multi_harmonic_rf_station._update_beam_based_attributes(beam)
+        multi_harmonic_rf_station._update_reference_based_attributes(
+            beam.reference
+        )
         return multi_harmonic_rf_station
 
     def get_hamilton_symbolic(
@@ -1819,20 +1870,20 @@ class MultiHarmonicRFStation(
 
         .. math::
 
-            \\Delta dE = \\sum_j q V_j \\sin(\\omega_j\\, dt + \\phi_j)
-                        - \\Delta E_\\mathrm{ref},
+            \Delta dE = \sum_j q V_j \sin(\omega_j\, dt + \phi_j)
+                        - \Delta E_\mathrm{ref},
 
-        where :math:`\\Delta E_\\mathrm{ref}` is the change of reference
+        where :math:`\Delta E_\mathrm{ref}` is the change of reference
         total energy on this turn. Hamilton's equation
-        :math:`\\Delta dE = -\\partial H/\\partial dt` gives
+        :math:`\Delta dE = -\partial H/\partial dt` gives
 
         .. math::
 
-            H = \\sum_j \\frac{q V_j}{\\omega_j}
-                       \\cos(\\omega_j\\, dt + \\phi_j)
-                + \\Delta E_\\mathrm{ref}\\, dt.
+            H = \sum_j \frac{q V_j}{\omega_j}
+                       \cos(\omega_j\, dt + \phi_j)
+                + \Delta E_\mathrm{ref}\, dt.
 
-        :math:`\\Delta E_\\mathrm{ref}` is taken from the most recent
+        :math:`\Delta E_\mathrm{ref}` is taken from the most recent
         ``_track`` call.
 
         Parameters
@@ -1840,6 +1891,8 @@ class MultiHarmonicRFStation(
         replace_symbols
             If ``True``, the according variables will be replaced by
             their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
 
         Returns
         -------
@@ -1851,21 +1904,19 @@ class MultiHarmonicRFStation(
 
         expr = sympy.Integer(0)
         for rf_idx in range(self.n_rf):
-            V_j = (
-                float(self.voltage[rf_idx])
-                if (self.voltage is not None) and replace_symbols
-                else sympy.Symbol(f"V_{rf_idx}")
-            )
-            omega_j = (
-                float(self.omega_rf_design[rf_idx])
-                if (self.omega_rf_design is not None) and replace_symbols
-                else sympy.Symbol(f"omega_{rf_idx}", positive=True)
-            )
-            phi_j = (
-                float(self.phi_rf_design[rf_idx])
-                if (self.phi_rf_design is not None) and replace_symbols
-                else sympy.Symbol(f"phi_{rf_idx}", real=True)
-            )
+            if replace_symbols:
+                assert self.voltage is not None
+                assert self.omega_rf_design is not None
+                assert self.phi_rf_design is not None
+
+                V_j = float(self.voltage[rf_idx])
+                omega_j = float(self.omega_rf_design[rf_idx])
+                phi_j = float(self.phi_rf_design[rf_idx])
+            else:
+                V_j = sympy.Symbol(f"V_{rf_idx}")
+                omega_j = sympy.Symbol(f"omega_{rf_idx}", positive=True)
+                phi_j = sympy.Symbol(f"phi_{rf_idx}", real=True)
+
             expr += q * V_j / omega_j * sympy.cos(omega_j * dt + phi_j)
 
         return expr + float(self._last_reference_energy_change) * dt

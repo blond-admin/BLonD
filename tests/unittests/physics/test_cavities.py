@@ -4,21 +4,18 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+import sympy
 from matplotlib import pyplot as plt
 from numpy import ndarray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond import (
     ConstantMagneticCycle,
-    Cupy32Bit,
-    Cupy64Bit,
     MagneticCyclePerTurn,
-    Numpy64Bit,
     Ring,
     Simulation,
     StaticProfile,
     positron,
-    proton,
 )
 from blond.acc_math.analytic.hamilton import (
     calc_synchrotron_tune_single_harmonic,
@@ -29,11 +26,11 @@ from blond.acc_math.analytic.simple_math import (
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_energy_loss_per_turn,
 )
-from blond.core.backends.backend import Numpy32Bit, backend
+from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
-from blond.core.beam.particle_types import ParticleType, lead_82
+from blond.core.beam.particle_types import ParticleType, lead_82, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental import PooledInterpolationKick
 from blond.experimental.physics.feedbacks.base import (
@@ -174,7 +171,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             n_harmonics=len(harmonic_index),
             phi_rf=phi_rf,
             main_harmonic_idx=0,
-            harmonic=np.zeros(len(harmonic_index)),
+            harmonic=np.ones(len(harmonic_index)),
         )
         mhc.omega_rf_design = omega_rf
 
@@ -763,6 +760,9 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         self.assertEqual(self.beam.reference.time, 0)  # unchanged
 
         # print(self.beam.dE.tolist())
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(  # changer/ test pinned to some value
             copy_to_cpu(self.beam.dE),
             [
@@ -777,7 +777,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                 -251122.31467230315,
                 3259845.9525205432,
             ],
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
         np.testing.assert_allclose(  # unchanged
@@ -838,8 +838,8 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             )
 
     def test_general_getters(self) -> None:
-        self.multi_harmonic_cavity._update_beam_based_attributes(
-            beam=self.beam
+        self.multi_harmonic_cavity._update_reference_based_attributes(
+            reference=self.beam.reference
         )
         assert (
             self.multi_harmonic_cavity.get_main_harmonic()
@@ -892,10 +892,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_interp_kick_single_harmonic(self):
-        if isinstance(backend, Cupy32Bit):
-            backend.change_backend(Cupy64Bit)
-        if isinstance(backend, Numpy32Bit):
-            backend.change_backend(Numpy64Bit)
         beam = ProbeBeam(
             particle_type=lead_82,
             dt=np.linspace(0, 1, 100),
@@ -950,7 +946,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         np.testing.assert_allclose(
             result_smooth[:-1],
             result_interp[:-1],
-            **allclose_tolerances(result_smooth[:-1], 1e-3),
+            **allclose_tolerances(result_smooth[:-1], 1e-6),
             # FIXME
             #  this tolerance is so low because of the GPU
             #  backend. Reason unknown for now.
@@ -959,10 +955,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_interp_kick_multi_harmonic(self):
-        if isinstance(backend, Cupy32Bit):
-            backend.change_backend(Cupy64Bit)
-        if isinstance(backend, Numpy32Bit):
-            backend.change_backend(Numpy64Bit)
         beam = ProbeBeam(
             particle_type=lead_82,
             dt=np.linspace(0, 1, 100, dtype=backend.float),
@@ -1020,14 +1012,14 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         np.testing.assert_allclose(
             result_smooth[:-1],
             result_interp[:-1],
-            **allclose_tolerances(result_smooth[:-1], 1e-3),
+            **allclose_tolerances(result_smooth[:-1], 1e-6),
             # FIXME
             #  this tolerance is so low because of the GPU
             #  backend. Reason unknown for now.
             #  Use `test_kick_interpolated_bug` to resolve this issue.
         )
 
-    @multi_backend_testcase("Numpy64Bit")
+    @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
     @pytest.mark.backend_mutation
     def test_compare_track_ham(self):
         """The tracker's dE change must equal ``-dH/d(dt)`` from
@@ -1038,9 +1030,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         non-zero acceleration to cover the ``Delta E_ref * dt`` term in
         the multi-harmonic Hamiltonian.
         """
-        import sympy
-
-        from blond.core.beam.particle_types import proton
 
         dt_s, q_s = sympy.symbols("dt q", real=True)
 
@@ -1083,6 +1072,58 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                 )
 
                 np.testing.assert_allclose(actual, predicted, rtol=1e-12)
+
+    def test_get_hamilton_symbolic_replace_symbols_false_keeps_rf_symbols(
+        self,
+    ):
+        """With ``replace_symbols=False`` every harmonic's voltage, RF
+        angular frequency and phase must stay as the free symbols
+        ``V_j``, ``omega_j`` and ``phi_j``; resubstituting their numeric
+        values must reproduce the ``replace_symbols=True`` Hamiltonian.
+        """
+        beam = ProbeBeam(
+            dt=np.linspace(-5e-10, 5e-10, 11),
+            particle_type=proton,
+            reference_total_energy=1e9,
+        )
+        rf = MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([1e6, 5e5]),
+            phi_rf=np.array([np.pi * 0.3, np.pi * 0.7]),
+            harmonic=np.array([10, 30]),
+            main_harmonic_idx=0,
+            circumference=2 * np.pi * 100.0,
+            total_energy=beam.reference.total_energy,
+            beam_reference_beta=beam.reference.beta,
+            local_wakefield=None,
+            cavity_feedback=None,
+            delayed_kick=None,
+            delayed_kick_time_axis=None,
+        )
+        # Populate ``_last_reference_energy_change`` used by the Hamiltonian.
+        rf.track(beam=beam)
+
+        ham_sym = rf.get_hamilton_symbolic(replace_symbols=False)
+        free_names = {s.name for s in ham_sym.free_symbols}
+
+        substitutions = {}
+        for rf_idx in range(rf.n_rf):
+            for name in (f"V_{rf_idx}", f"omega_{rf_idx}", f"phi_{rf_idx}"):
+                self.assertIn(name, free_names)
+            substitutions[sympy.Symbol(f"V_{rf_idx}")] = float(
+                rf.voltage[rf_idx]
+            )
+            substitutions[sympy.Symbol(f"omega_{rf_idx}", positive=True)] = (
+                float(rf.omega_rf_design[rf_idx])
+            )
+            substitutions[sympy.Symbol(f"phi_{rf_idx}", real=True)] = float(
+                rf.phi_rf_design[rf_idx]
+            )
+
+        ham_num = rf.get_hamilton_symbolic(replace_symbols=True)
+        self.assertEqual(
+            sympy.simplify(ham_sym.subs(substitutions) - ham_num), 0
+        )
 
 
 class TestSingleHarmonicRFStation(unittest.TestCase):
@@ -1209,6 +1250,10 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
 
         self.assertEqual(939, self.beam.reference.total_energy)  # incremented
         self.assertEqual(self.beam.reference.time, 0)  # unchanged
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(  # test pinned to some value
             copy_to_cpu(self.beam.dE),
             [
@@ -1223,7 +1268,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
                 1055852.7198949838,
                 1950042.1738763654,
             ],
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
         np.testing.assert_allclose(  # unchanged
@@ -1232,8 +1277,8 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         )
 
     def test_general_getters(self) -> None:
-        self.single_harmonic_cavity._update_beam_based_attributes(
-            beam=self.beam
+        self.single_harmonic_cavity._update_reference_based_attributes(
+            reference=self.beam.reference
         )
         assert (
             self.single_harmonic_cavity.get_main_harmonic()
@@ -1340,7 +1385,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         expected_phi_s = np.pi - np.arcsin(expected_energy_change / 51e6)
         self.assertEqual(phi_s_calculated, expected_phi_s)
 
-    @multi_backend_testcase("Numpy64Bit")
+    @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
     @pytest.mark.backend_mutation
     def test_compare_track_ham(self):
         """The tracker's dE change must equal ``-dH/d(dt)`` from
@@ -1395,6 +1440,52 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
                 )
 
                 np.testing.assert_allclose(actual, predicted, rtol=1e-12)
+
+    def test_get_hamilton_symbolic_replace_symbols_false_keeps_rf_symbols(
+        self,
+    ):
+        """With ``replace_symbols=False`` the voltage, RF angular
+        frequency and phase must stay as the free symbols ``V``,
+        ``omega_rf`` and ``phi_rf``; resubstituting their numeric values
+        must reproduce the ``replace_symbols=True`` Hamiltonian.
+        """
+        beam = ProbeBeam(
+            dt=np.linspace(-5e-10, 5e-10, 11),
+            particle_type=proton,
+            reference_total_energy=1e9,
+        )
+        rf = SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=1e6,
+            phi_rf=np.pi * 0.3,
+            harmonic=10,
+            circumference=2 * np.pi * 100.0,
+            total_energy=beam.reference.total_energy,
+            beam_reference_beta=beam.reference.beta,
+            local_wakefield=None,
+            cavity_feedback=None,
+            delayed_kick=None,
+            delayed_kick_time_axis=None,
+        )
+        # Populate ``_last_reference_energy_change`` used by the Hamiltonian.
+        rf.track(beam=beam)
+
+        ham_sym = rf.get_hamilton_symbolic(replace_symbols=False)
+        free_names = {s.name for s in ham_sym.free_symbols}
+        for name in ("V", "omega_rf", "phi_rf"):
+            self.assertIn(name, free_names)
+
+        ham_num = rf.get_hamilton_symbolic(replace_symbols=True)
+        resubstituted = ham_sym.subs(
+            {
+                sympy.Symbol("V"): float(rf.voltage),
+                sympy.Symbol("omega_rf", positive=True): float(
+                    rf.omega_rf_design
+                ),
+                sympy.Symbol("phi_rf", real=True): float(rf.phi_rf_design),
+            }
+        )
+        self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
 
 
 if __name__ == "__main__":

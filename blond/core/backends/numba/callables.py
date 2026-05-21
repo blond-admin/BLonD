@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -73,7 +73,7 @@ def enforce_return_precision(dtype):
 
 @cache  # or set a limit like maxsize=128
 def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
-    floattype: type[np.float32 | np.float64],
+    floattype: type[np.float64],
 ):
     """
     Helper to recompile `NumbaSpecials` when the backend changed.
@@ -82,7 +82,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     ----------
     floattype
         Float type to compile the backend for.
-        `np.float32` or `np.float64` bit.
+        `np.float64` bit only.
 
     Returns
     -------
@@ -93,14 +93,12 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
 
     nb_i = numba.int32
 
-    if floattype == np.float32:
-        nb_f = numba.float32
-
-    elif floattype == np.float64:
-        nb_f = numba.float64
-
+    # Leave floattype as an option for legacy reasons, also keeps
+    # door open for adding options again in the future.
+    if floattype != np.float64:
+        raise TypeError(f"Only np.float64 can be used, not {floattype}.")
     else:
-        raise TypeError(floattype)
+        nb_f = numba.float64
 
     sig_dt = nb_f[:]
     sig_dE = nb_f[:]
@@ -336,10 +334,10 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             cache=True,
         )
         def loss_box(
-            e_max: np.float32 | np.float64,
-            e_min: np.float32 | np.float64,
-            t_min: np.float32 | np.float64,
-            t_max: np.float32 | np.float64,
+            e_max: np.float64,
+            e_min: np.float64,
+            t_min: np.float64,
+            t_max: np.float64,
             dt: NumpyArray,
             dE: NumpyArray,
             flags: NumpyArray,

@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -10,21 +10,20 @@
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
+
+from blond.physics.cavities import RFStationBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.ring.ring import Ring
 
 
-logger = logging.getLogger(__name__)
-
-
+# Might be refactored as method of Ring if required.
 def _get_omega_min(ring: Ring) -> float:
     """
-    Get the minimum RF frequency presently in the ring.
+    Get the minimum RF angular frequency presently in the ring.
 
     Parameters
     ----------
@@ -36,20 +35,14 @@ def _get_omega_min(ring: Ring) -> float:
     omega_min
         The minimum angular frequency in the `Ring`, in [Hz].
     """
-    from blond import MultiHarmonicRFStation, SingleHarmonicRFStation
-
     omega_min = None
-    shc = ring.elements.get_elements(SingleHarmonicRFStation)
-    mhc = ring.elements.get_elements(MultiHarmonicRFStation)
-    for element in shc + mhc:
+    for element in ring.elements.get_elements(RFStationBaseClass):
         omega_design = element.omega_rf_design
         if omega_design is not None:
-            candidates = np.abs(np.atleast_1d(omega_design))
-            nonzero = candidates[candidates > 0]
-            if nonzero.size:
-                candidate = float(np.min(nonzero))
-                if omega_min is None or candidate < omega_min:
-                    omega_min = candidate
+            candidates = np.atleast_1d(omega_design)
+            candidate = float(np.min(candidates))
+            if omega_min is None or candidate < omega_min:
+                omega_min = candidate
     assert omega_min is not None, (
         "None of the RF stations provided for `omega_min`."
     )

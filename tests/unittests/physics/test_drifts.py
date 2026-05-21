@@ -165,6 +165,9 @@ class TestDriftSimple(unittest.TestCase):
         self.drift_simple.on_init_simulation(simulation=simulation)
 
     def test_track(self):
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
         beam.common_array_size = 1
@@ -200,7 +203,7 @@ class TestDriftSimple(unittest.TestCase):
                 -0.0001832679173685216,
                 -0.00023563017947381346,
             ],
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
         np.testing.assert_allclose(
             copy_to_cpu(beam.dE),
@@ -259,6 +262,26 @@ class TestDriftSimple(unittest.TestCase):
         actual = beam.dt.copy_as_numpy() - dt_before
 
         np.testing.assert_allclose(actual, predicted, rtol=1e-12)
+
+    def test_get_hamilton_symbolic_replace_symbols_false_keeps_alpha_0(self):
+        """With ``replace_symbols=False`` the momentum-compaction factor
+        must stay the free symbol ``alpha_0`` instead of being baked in
+        as a float, and resubstituting its numeric value must reproduce
+        the ``replace_symbols=True`` Hamiltonian.
+        """
+        drift = DriftSimple.headless(
+            momentum_compaction_factor=1e-3,
+            orbit_length=10.0,
+            section_index=0,
+        )
+        alpha_0_s = sympy.Symbol("alpha_0", real=True)
+
+        ham_sym = drift.get_hamilton_symbolic(replace_symbols=False)
+        self.assertIn("alpha_0", {s.name for s in ham_sym.free_symbols})
+
+        ham_num = drift.get_hamilton_symbolic(replace_symbols=True)
+        resubstituted = ham_sym.subs(alpha_0_s, float(drift.alpha_0))
+        self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
 
 
 class TestDriftExact(unittest.TestCase):
@@ -429,6 +452,42 @@ class TestDriftExact(unittest.TestCase):
                 actual = beam.dt.copy_as_numpy() - dt_before
 
                 np.testing.assert_allclose(actual, predicted, rtol=1e-7)
+
+    def test_get_hamilton_symbolic_replace_symbols_false_preserves_higher_alpha(
+        self,
+    ):
+        """
+        With ``replace_symbols=False`` the analytical Hamiltonian must
+        keep one ``dE``-polynomial term per configured higher-order
+        alpha. Regression: an earlier implementation hard-coded
+        ``higher = ()`` in symbolic mode, collapsing the truncation back
+        to ``dE**2`` and silently dropping every ``alpha_k`` (``k >= 1``).
+        """
+        dE_s = sympy.Symbol("dE", real=True)
+
+        for n_alpha in (0, 1, 2, 3):
+            higher_order_alpha = (
+                np.zeros(n_alpha) if n_alpha > 0 else np.array([])
+            )
+            drift = DriftExact.headless(
+                orbit_length=10000.0,
+                section_index=0,
+                momentum_compaction_factor=1e-3,
+                higher_order_alpha=higher_order_alpha,
+            )
+            with self.subTest(n_alpha=n_alpha):
+                ham = drift.get_hamilton_symbolic(replace_symbols=False)
+                # Polynomial degree in dE must reflect every configured
+                # alpha: 2 base + n_alpha higher-order terms.
+                self.assertEqual(
+                    sympy.Poly(ham, dE_s).degree(),
+                    n_alpha + 2,
+                )
+                # Each alpha_k symbol (k = 1..n_alpha) must actually
+                # appear in the expression.
+                free_names = {s.name for s in ham.free_symbols}
+                for k in range(1, n_alpha + 1):
+                    self.assertIn(f"alpha_{k}", free_names)
 
 
 class TestDriftSpecial(unittest.TestCase):
