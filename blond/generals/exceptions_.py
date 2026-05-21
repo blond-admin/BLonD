@@ -27,5 +27,13 @@ class ArrayCastingError(BLonDException, ValueError, TypeError):
     pass
 
 
+class ArrayShapeError(BLonDException, ValueError):
+    """Exception raised when an array is the wrong shape."""
+
+    pass
+
+
 class ArrayPrecisionError(BLonDException, TypeError):
     """Exception raised when array dtype is invalid."""
+
+    pass
