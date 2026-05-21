@@ -35,7 +35,7 @@ cpp_files = [
     "beam_phase.cpp",
     "loss_box.cpp",
     "move_flagged_elements_to_end.cpp",
-    "apply_synchrotron_radiation_and_quantum_excitation_energy_kick.cpp",
+    "synchrotron_radiation_and_quantum_excitation.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
 ]
