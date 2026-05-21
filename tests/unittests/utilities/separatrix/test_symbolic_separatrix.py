@@ -107,9 +107,6 @@ class TestSymbolicSeparatrixHelper(unittest.TestCase):
 
         def custom_action(simulation: Simulation, beam: Beam):
             plt.figure("Dynamic beam")
-            if simulation.turn_i.value % 10 != 0:
-                return
-
             dt = beam.read_partial_dt()
             beam.plot_scatter()
             separatrix_dE = SymbolicSeparatrixHelper.from_simulation(
