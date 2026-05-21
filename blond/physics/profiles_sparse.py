@@ -17,9 +17,10 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import StaticProfile, backend
+from blond import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
+from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -188,6 +189,8 @@ class EquidistantMultiProfile(MultiProfile):
 
         self._continuous_memory_hist_x = None
         self._continuous_memory_hist_y = None
+
+        self.hist_y_to_density_factor: float | None = None
 
     @staticmethod
     def init_from_padded_filling_pattern(
@@ -461,6 +464,8 @@ class EquidistantMultiProfile(MultiProfile):
         """
         if len(beam._dt.array_local) == 0:
             # No particles to track
+            self._continuous_memory_hist_y[:] = 0
+            self.hist_y_to_density_factor = 0.0
             return
         assert self._bucket_index_to_memory_index[-1] + self.profiles[
             0
@@ -477,6 +482,8 @@ class EquidistantMultiProfile(MultiProfile):
             filling_pattern=self._filling_pattern,
             bucket_index_to_memory_index=self._bucket_index_to_memory_index,
         )
+
+        self.hist_y_to_density_factor = 1.0 / beam.common_array_size
 
     def __deepcopy__(self, memo: dict) -> EquidistantMultiProfile:
         """

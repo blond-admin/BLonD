@@ -91,6 +91,7 @@ def reload_cuda_backend(  # NOQA: D102
     _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
     _loss_box = gpu_module.get_function("loss_box")
     _histogram_sparse = gpu_module.get_function("histogram_sparse")
+    _wake_from_pole_residue = gpu_module.get_function("wake_from_pole_residue")
 
     default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
     default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -103,6 +104,18 @@ def reload_cuda_backend(  # NOQA: D102
     block_size = (threads, 1, 1)
 
     class CudaSpecials(Specials):
+        @staticmethod
+        def get_max_threads() -> int:
+            """
+            Return the max number of threads this backend's kernels may use.
+
+            Returns
+            -------
+            max_threads
+                Maximum number of threads this backend's kernels may use.
+            """
+            return 1
+
         @staticmethod
         def loss_box(
             e_max: float,
@@ -123,14 +136,14 @@ def reload_cuda_backend(  # NOQA: D102
                 f"Requires Cupy array, but got {type(flags)}."
             )
 
-            assert dt.dtype == backend.float
-            assert dE.dtype == backend.float
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
             assert flags.dtype == np.int32
 
-            assert isinstance(e_max, backend.float)
-            assert isinstance(e_min, backend.float)
-            assert isinstance(t_min, backend.float)
-            assert isinstance(t_max, backend.float)
+            assert isinstance(e_max, floattype)
+            assert isinstance(e_min, floattype)
+            assert isinstance(t_min, floattype)
+            assert isinstance(t_max, floattype)
 
             _loss_box(
                 args=(
@@ -545,8 +558,8 @@ def reload_cuda_backend(  # NOQA: D102
             #  to have a smaller memory footprint.
             flag = np.int32(flag)
             assert flags.dtype == np.int32
-            assert dt.dtype == backend.float
-            assert dE.dtype == backend.float
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
             assert ids.dtype == np.int32
 
             select = flags == flag
@@ -611,6 +624,154 @@ def reload_cuda_backend(  # NOQA: D102
                 ),
                 block=block_size,
                 grid=grid_size,
+            )
+
+        @staticmethod
+        def wake_from_pole_residue(
+            # read
+            profile: CupyArray,
+            profile_dts: CupyArray,
+            poles: CupyArray,
+            residues: CupyArray,
+            is_counterrotating_beam: bool,
+            counterrotating_pole_signs: CupyArray,
+            update_on_bin: CupyArray,
+            factor: float,
+            # write
+            states: CupyArray,
+            voltage: CupyArray,
+            voltage_threaded: CupyArray,
+        ) -> None:
+            """
+            Apply poles based on the `profile` to generate `voltage`.
+
+            Parameters
+            ----------
+            profile
+                Beam profile histogram.
+            profile_dts
+                Base for time step, connected to `update_on_bin`.
+            poles
+                Complex poles of an equivalent circuit model.
+            residues
+                Complex residues of an equivalent circuit model.
+            is_counterrotating_beam
+                If true, the current beam is counter-rotating.
+            counterrotating_pole_signs
+                Array per pole, -1 if the sign of the impedance is flipped
+                for a counter-rotating beam.
+            update_on_bin
+                Index when to trigger an update of dt. For speedup.
+                E.g. For profile no.: ``0,0,0,1,1,1,1,2,2,2``
+                one needs ``update_on_bin = [0,3,7]``.
+            factor
+                To convert `profile` to current per bin [A].
+            states
+                Complex state vector, length ``n_poles + 1``.
+                The last element stores ``t_start`` in its real part.
+            voltage
+                Output voltage, in [V].
+            voltage_threaded
+                Unused on the CUDA backend (kept for API parity with CPU
+                backends); pole contributions are reduced into `voltage`
+                directly via atomic adds.
+            """
+            assert profile.device != "cpu", (
+                f"Requires Cupy array, but got {type(profile)}."
+            )
+            assert profile_dts.device != "cpu", (
+                f"Requires Cupy array, but got {type(profile_dts)}."
+            )
+            assert poles.device != "cpu", (
+                f"Requires Cupy array, but got {type(poles)}."
+            )
+            assert residues.device != "cpu", (
+                f"Requires Cupy array, but got {type(residues)}."
+            )
+            assert counterrotating_pole_signs.device != "cpu", (
+                f"Requires Cupy array, but got {type(counterrotating_pole_signs)}."
+            )
+            assert states.device != "cpu", (
+                f"Requires Cupy array, but got {type(states)}."
+            )
+            assert voltage.device != "cpu", (
+                f"Requires Cupy array, but got {type(voltage)}."
+            )
+            assert update_on_bin.device != "cpu", (
+                f"Requires Cupy array, but got {type(update_on_bin)}."
+            )
+
+            complex_dtype = (
+                np.complex64 if floattype == np.float32 else np.complex128
+            )
+            assert profile.dtype == floattype
+            assert profile_dts.dtype == floattype
+            assert voltage.dtype == floattype
+            assert counterrotating_pole_signs.dtype == floattype
+            assert poles.dtype == complex_dtype
+            assert residues.dtype == complex_dtype
+            assert states.dtype == complex_dtype
+            assert update_on_bin.dtype == np.int32
+
+            assert profile.flags.c_contiguous
+            assert profile_dts.flags.c_contiguous
+            assert poles.flags.c_contiguous
+            assert residues.flags.c_contiguous
+            assert counterrotating_pole_signs.flags.c_contiguous
+            assert states.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert update_on_bin.flags.c_contiguous
+
+            n_bins = int(profile.shape[0])
+            n_poles = int(poles.shape[0])
+            n_updates = int(update_on_bin.shape[0])
+            n_profile_dts = int(profile_dts.shape[0])
+
+            # states has length n_poles + 1; last entry stores t_start.
+            assert states.shape[0] == n_poles + 1
+            assert residues.shape[0] == n_poles
+            assert counterrotating_pole_signs.shape[0] == n_poles
+            assert voltage.shape[0] == n_bins
+
+            # Output is reduced across poles via atomicAdd; must start at zero.
+            voltage.fill(0)
+
+            if n_poles == 0 or n_bins == 0:
+                return
+
+            # View complex arrays as interleaved real/imag float arrays without
+            # copying. A C-contiguous complex array maps 1:1 to 2*N reals.
+            poles_r = poles.view(floattype)
+            residues_r = residues.view(floattype)
+            states_r = states.view(floattype)
+
+            # One thread per pole. Each thread runs the full n_bins-long state
+            # recurrence sequentially; there is no benefit from oversubscribing.
+            MAX_POLES = 128
+            threads_per_block = MAX_POLES if n_poles >= MAX_POLES else 32
+            blocks_poles = (
+                n_poles + threads_per_block - 1
+            ) // threads_per_block
+
+            _wake_from_pole_residue(
+                args=(
+                    profile,
+                    profile_dts,
+                    poles_r,
+                    residues_r,
+                    np.int32(1 if is_counterrotating_beam else 0),
+                    counterrotating_pole_signs,
+                    update_on_bin,
+                    floattype(factor),
+                    states_r,
+                    voltage,
+                    np.int32(n_bins),
+                    np.int32(n_poles),
+                    np.int32(n_updates),
+                    np.int32(n_profile_dts),
+                ),
+                block=(threads_per_block, 1, 1),
+                grid=(blocks_poles, 1, 1),
             )
 
     return CudaSpecials

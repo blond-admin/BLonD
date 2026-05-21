@@ -41,6 +41,7 @@ dependencies = [
   "mpi4py>=4",       # distributed computing
   "mpmath>=1",       # for numba fastmath replacement
   "sympy>=1.9",      # symbolic math for separatrix calculations, etc.
+  "scikit-rf>1",     # pole fitting of impedances
 ]
 
 [project.optional-dependencies]
