@@ -4,20 +4,18 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+import sympy
 from matplotlib import pyplot as plt
 from numpy import ndarray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond import (
     ConstantMagneticCycle,
-    Cupy64Bit,
     MagneticCyclePerTurn,
-    Numpy64Bit,
     Ring,
     Simulation,
     StaticProfile,
     positron,
-    proton,
 )
 from blond.acc_math.analytic.hamilton import (
     calc_synchrotron_tune_single_harmonic,
@@ -32,7 +30,7 @@ from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
-from blond.core.beam.particle_types import ParticleType, lead_82
+from blond.core.beam.particle_types import ParticleType, lead_82, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental import PooledInterpolationKick
 from blond.experimental.physics.feedbacks.base import (
@@ -49,6 +47,7 @@ from blond.physics.cavities import (
 )
 from blond.physics.drifts import DriftSimple
 from blond.physics.impedances.base import WakeField
+from blond.testing.backend_testing import multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
 
 
@@ -172,7 +171,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             n_harmonics=len(harmonic_index),
             phi_rf=phi_rf,
             main_harmonic_idx=0,
-            harmonic=np.zeros(len(harmonic_index)),
+            harmonic=np.ones(len(harmonic_index)),
         )
         mhc.omega_rf_design = omega_rf
 
@@ -1020,6 +1019,112 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             #  Use `test_kick_interpolated_bug` to resolve this issue.
         )
 
+    @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
+    @pytest.mark.backend_mutation
+    def test_compare_track_ham(self):
+        """The tracker's dE change must equal ``-dH/d(dt)`` from
+        ``get_hamilton_symbolic`` — by Hamilton's equation,
+        ``Delta dE = -dH/d(dt)``.
+
+        Exercised both with ``reference_energy_change == 0`` and with a
+        non-zero acceleration to cover the ``Delta E_ref * dt`` term in
+        the multi-harmonic Hamiltonian.
+        """
+
+        dt_s, q_s = sympy.symbols("dt q", real=True)
+
+        for ref_energy_change in (-1e5, 0.0, 1e5):
+            with self.subTest(reference_energy_change=ref_energy_change):
+                beam = ProbeBeam(
+                    dt=np.linspace(-5e-10, 5e-10, 11),
+                    particle_type=proton,
+                    reference_total_energy=1e9,
+                )
+                rf = MultiHarmonicRFStation.headless(
+                    section_index=0,
+                    voltage=np.array([1e6, 5e5]),
+                    phi_rf=np.array([np.pi * 0.3, np.pi * 0.7]),
+                    harmonic=np.array([10, 30]),
+                    main_harmonic_idx=0,
+                    circumference=2 * np.pi * 100.0,
+                    total_energy=(
+                        beam.reference.total_energy + ref_energy_change
+                    ),
+                    beam_reference_beta=beam.reference.beta,
+                    local_wakefield=None,
+                    cavity_feedback=None,
+                    delayed_kick=None,
+                    delayed_kick_time_axis=None,
+                )
+                dE_before = beam.dE.copy_as_numpy()
+                dt_values = beam.dt.copy_as_numpy()
+
+                rf.track(beam=beam)
+                actual = beam.dE.copy_as_numpy() - dE_before
+
+                dH_ddt = sympy.lambdify(
+                    (dt_s, q_s),
+                    sympy.diff(rf.get_hamilton_symbolic(), dt_s),
+                    modules="numpy",
+                )
+                predicted = -dH_ddt(
+                    dt_values, float(beam.signed_charge_with_direction())
+                )
+
+                np.testing.assert_allclose(actual, predicted, rtol=1e-12)
+
+    def test_get_hamilton_symbolic_replace_symbols_false_keeps_rf_symbols(
+        self,
+    ):
+        """With ``replace_symbols=False`` every harmonic's voltage, RF
+        angular frequency and phase must stay as the free symbols
+        ``V_j``, ``omega_j`` and ``phi_j``; resubstituting their numeric
+        values must reproduce the ``replace_symbols=True`` Hamiltonian.
+        """
+        beam = ProbeBeam(
+            dt=np.linspace(-5e-10, 5e-10, 11),
+            particle_type=proton,
+            reference_total_energy=1e9,
+        )
+        rf = MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([1e6, 5e5]),
+            phi_rf=np.array([np.pi * 0.3, np.pi * 0.7]),
+            harmonic=np.array([10, 30]),
+            main_harmonic_idx=0,
+            circumference=2 * np.pi * 100.0,
+            total_energy=beam.reference.total_energy,
+            beam_reference_beta=beam.reference.beta,
+            local_wakefield=None,
+            cavity_feedback=None,
+            delayed_kick=None,
+            delayed_kick_time_axis=None,
+        )
+        # Populate ``_last_reference_energy_change`` used by the Hamiltonian.
+        rf.track(beam=beam)
+
+        ham_sym = rf.get_hamilton_symbolic(replace_symbols=False)
+        free_names = {s.name for s in ham_sym.free_symbols}
+
+        substitutions = {}
+        for rf_idx in range(rf.n_rf):
+            for name in (f"V_{rf_idx}", f"omega_{rf_idx}", f"phi_{rf_idx}"):
+                self.assertIn(name, free_names)
+            substitutions[sympy.Symbol(f"V_{rf_idx}")] = float(
+                rf.voltage[rf_idx]
+            )
+            substitutions[sympy.Symbol(f"omega_{rf_idx}", positive=True)] = (
+                float(rf.omega_rf_design[rf_idx])
+            )
+            substitutions[sympy.Symbol(f"phi_{rf_idx}", real=True)] = float(
+                rf.phi_rf_design[rf_idx]
+            )
+
+        ham_num = rf.get_hamilton_symbolic(replace_symbols=True)
+        self.assertEqual(
+            sympy.simplify(ham_sym.subs(substitutions) - ham_num), 0
+        )
+
 
 class TestSingleHarmonicRFStation(unittest.TestCase):
     def setUp(self) -> None:
@@ -1279,6 +1384,108 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         expected_energy_change = +energy_loss_per_turn
         expected_phi_s = np.pi - np.arcsin(expected_energy_change / 51e6)
         self.assertEqual(phi_s_calculated, expected_phi_s)
+
+    @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
+    @pytest.mark.backend_mutation
+    def test_compare_track_ham(self):
+        """The tracker's dE change must equal ``-dH/d(dt)`` from
+        ``get_hamilton_symbolic`` — by Hamilton's equation,
+        ``Delta dE = -dH/d(dt)``.
+
+        We exercise both ``reference_energy_change == 0`` and
+        ``reference_energy_change != 0`` to cover the acceleration term
+        ``Delta E_ref * dt`` in the Hamiltonian.
+        """
+        import sympy
+
+        from blond.core.beam.particle_types import proton
+
+        dt_s, q_s = sympy.symbols("dt q", real=True)
+
+        for ref_energy_change in (-1e5, 0.0, 1e5):
+            with self.subTest(reference_energy_change=ref_energy_change):
+                beam = ProbeBeam(
+                    dt=np.linspace(-5e-10, 5e-10, 11),
+                    particle_type=proton,
+                    reference_total_energy=1e9,
+                )
+                rf = SingleHarmonicRFStation.headless(
+                    section_index=0,
+                    voltage=1e6,
+                    phi_rf=np.pi * 0.3,
+                    harmonic=10,
+                    circumference=2 * np.pi * 100.0,
+                    total_energy=(
+                        beam.reference.total_energy + ref_energy_change
+                    ),
+                    beam_reference_beta=beam.reference.beta,
+                    local_wakefield=None,
+                    cavity_feedback=None,
+                    delayed_kick=None,
+                    delayed_kick_time_axis=None,
+                )
+                dE_before = beam.dE.copy_as_numpy()
+                dt_values = beam.dt.copy_as_numpy()
+
+                rf.track(beam=beam)
+                actual = beam.dE.copy_as_numpy() - dE_before
+
+                dH_ddt = sympy.lambdify(
+                    (dt_s, q_s),
+                    sympy.diff(rf.get_hamilton_symbolic(), dt_s),
+                    modules="numpy",
+                )
+                predicted = -dH_ddt(
+                    dt_values, float(beam.signed_charge_with_direction())
+                )
+
+                np.testing.assert_allclose(actual, predicted, rtol=1e-12)
+
+    def test_get_hamilton_symbolic_replace_symbols_false_keeps_rf_symbols(
+        self,
+    ):
+        """With ``replace_symbols=False`` the voltage, RF angular
+        frequency and phase must stay as the free symbols ``V``,
+        ``omega_rf`` and ``phi_rf``; resubstituting their numeric values
+        must reproduce the ``replace_symbols=True`` Hamiltonian.
+        """
+        beam = ProbeBeam(
+            dt=np.linspace(-5e-10, 5e-10, 11),
+            particle_type=proton,
+            reference_total_energy=1e9,
+        )
+        rf = SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=1e6,
+            phi_rf=np.pi * 0.3,
+            harmonic=10,
+            circumference=2 * np.pi * 100.0,
+            total_energy=beam.reference.total_energy,
+            beam_reference_beta=beam.reference.beta,
+            local_wakefield=None,
+            cavity_feedback=None,
+            delayed_kick=None,
+            delayed_kick_time_axis=None,
+        )
+        # Populate ``_last_reference_energy_change`` used by the Hamiltonian.
+        rf.track(beam=beam)
+
+        ham_sym = rf.get_hamilton_symbolic(replace_symbols=False)
+        free_names = {s.name for s in ham_sym.free_symbols}
+        for name in ("V", "omega_rf", "phi_rf"):
+            self.assertIn(name, free_names)
+
+        ham_num = rf.get_hamilton_symbolic(replace_symbols=True)
+        resubstituted = ham_sym.subs(
+            {
+                sympy.Symbol("V"): float(rf.voltage),
+                sympy.Symbol("omega_rf", positive=True): float(
+                    rf.omega_rf_design
+                ),
+                sympy.Symbol("phi_rf", real=True): float(rf.phi_rf_design),
+            }
+        )
+        self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
 
 
 if __name__ == "__main__":
