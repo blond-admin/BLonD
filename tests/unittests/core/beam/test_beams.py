@@ -1,15 +1,23 @@
+import json
 import unittest
 import warnings
+from pathlib import Path
 from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from blond import Beam, Simulation, proton, uranium_29
-from blond.core.beam.base import BeamBaseClass, BeamFlags
+from blond import Beam, Simulation, backend, proton, uranium_29
+from blond.core.backends.backend import NumpyBackend
+from blond.core.beam.base import (
+    _BEAM_SCHEMA_VERSION,
+    BeamBaseClass,
+    BeamFlags,
+)
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.generals.distributed.helpers import (
     MPI_COMM_WORLD,
@@ -424,23 +432,33 @@ class TestWeightenedBeam(unittest.TestCase):
         )
 
 
+def build_reference_beam() -> Beam:
+    """Build a deterministic ``Beam`` (fixed RNG seed).
+
+    Shared by the in-process round-trip tests, the committed golden-fixture
+    generator, and the golden-fixture test so the on-disk fixture always
+    corresponds to a beam the tests can reconstruct in memory.
+    """
+    beam = Beam(
+        intensity=1e12,
+        particle_type=proton,
+        is_counter_rotating=False,
+    )
+    rng = np.random.default_rng(0)
+    beam.setup_beam(
+        dt=rng.normal(0, 1e-10, 64),
+        dE=rng.normal(0, 1e6, 64),
+        reference_time=0.0,
+        reference_total_energy=450e9,
+    )
+    return beam
+
+
 class TestBeamSaveLoad(unittest.TestCase):
     """JSON + ``.npz`` save/load round-trip tests for ``Beam``."""
 
     def _build_beam(self) -> Beam:
-        beam = Beam(
-            intensity=1e12,
-            particle_type=proton,
-            is_counter_rotating=False,
-        )
-        rng = np.random.default_rng(0)
-        beam.setup_beam(
-            dt=rng.normal(0, 1e-10, 64),
-            dE=rng.normal(0, 1e6, 64),
-            reference_time=0.0,
-            reference_total_energy=450e9,
-        )
-        return beam
+        return build_reference_beam()
 
     def test_save_and_load_roundtrip(self):
         import os
@@ -509,6 +527,113 @@ class TestBeamSaveLoad(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 Beam.load(path)
+
+
+class TestBeamGoldenFixture(unittest.TestCase):
+    """Guard the on-disk ``Beam`` format with a frozen, committed fixture.
+
+    Unlike ``TestBeamSaveLoad`` (which saves and loads within a single process
+    and therefore can only ever read a file the current code just wrote), this
+    test loads a *static* ``golden_beam.npz`` that is committed to the repo and
+    produced by ``generate_golden_beam_fixture.py``. That makes it a genuine
+    backward-compatibility check on the save/load pipeline.
+
+    The fixture forces a deliberate decision whenever the format changes. The
+    test fails when:
+
+    * ``_BEAM_SCHEMA_VERSION`` was bumped but the fixture was not regenerated
+      -> ``Beam.load`` rejects the stale version. This is the intended forcing
+      function: bumping the schema version is incomplete until the golden
+      fixture is regenerated and committed.
+    * the save/load pipeline changed incompatibly *without* a schema bump ->
+      the committed file fails to load, or loads but no longer matches the
+      reference beam. That is the signal that the schema version must be
+      incremented (and the fixture regenerated).
+
+    To fix a legitimate format change: bump ``_BEAM_SCHEMA_VERSION`` and run
+    ``python tests/unittests/core/beam/fixtures/
+    generate_golden_beam_fixture.py``, then commit the regenerated file.
+    """
+
+    FIXTURE_PATH = (
+        Path(__file__).resolve().parent / "fixtures" / "golden_beam.npz"
+    )
+
+    def setUp(self):
+        # The fixture is frozen at the default 64-bit NumPy backend; skip on
+        # other backends rather than reporting a spurious mismatch.
+        if (
+            not isinstance(backend, NumpyBackend)
+            or backend.float != np.float64
+        ):
+            self.skipTest(
+                "Golden beam fixture is frozen at the 64-bit NumPy backend."
+            )
+        self.assertTrue(
+            self.FIXTURE_PATH.exists(),
+            f"Missing golden beam fixture {self.FIXTURE_PATH.name}; "
+            "regenerate with generate_golden_beam_fixture.py.",
+        )
+
+    def test_golden_fixture_schema_version_is_current(self):
+        """The committed fixture must carry the current schema version.
+
+        If this fails, ``_BEAM_SCHEMA_VERSION`` was changed without
+        regenerating the fixture (or vice versa).
+        """
+        with np.load(self.FIXTURE_PATH, allow_pickle=False) as archive:
+            metadata = json.loads(str(archive["metadata"]))
+        self.assertEqual(
+            metadata.get("schema_version"),
+            _BEAM_SCHEMA_VERSION,
+            f"Golden beam fixture schema version "
+            f"{metadata.get('schema_version')!r} != current "
+            f"{_BEAM_SCHEMA_VERSION!r}. If you intentionally changed the "
+            "on-disk beam format, regenerate the fixture with "
+            "generate_golden_beam_fixture.py and commit it.",
+        )
+
+    def test_golden_fixture_loads_and_matches_reference(self):
+        """The frozen fixture must still load into the reference beam.
+
+        ``Beam.load`` enforces the schema version, so a stale fixture (after a
+        bump) fails here loudly. A silently incompatible pipeline change
+        instead surfaces as a load error or a mismatch against the in-memory
+        reference beam.
+        """
+        restored = Beam.load(self.FIXTURE_PATH)
+        expected = build_reference_beam()
+
+        self.assertEqual(expected.intensity, restored.intensity)
+        self.assertEqual(
+            expected.is_counter_rotating, restored.is_counter_rotating
+        )
+        self.assertEqual(
+            expected.reference.total_energy, restored.reference.total_energy
+        )
+        self.assertEqual(expected.reference.time, restored.reference.time)
+        self.assertEqual(
+            expected.particle_type.mass, restored.particle_type.mass
+        )
+        self.assertEqual(
+            expected.particle_type.charge, restored.particle_type.charge
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(expected.read_partial_dt()),
+            copy_to_cpu(restored.read_partial_dt()),
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(expected.read_partial_dE()),
+            copy_to_cpu(restored.read_partial_dE()),
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(expected.read_partial_flags()),
+            copy_to_cpu(restored.read_partial_flags()),
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(expected.read_partial_ids()),
+            copy_to_cpu(restored.read_partial_ids()),
+        )
 
 
 if __name__ == "__main__":
