@@ -9,15 +9,18 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_12_Multi_turn_wake(unittest.TestCase):
+class TestEX_07_Acceleration_interrupted(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import EX_12_Multi_turn_wake
+        from blond.examples.scripts import (
+            EX_07_Acceleration_interrupted,  # NOQA will run the
+        )
+
+        EX_07_Acceleration_interrupted.main()
 
         # full script. just checking if it crashes
-        EX_12_Multi_turn_wake.main()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -28,8 +31,11 @@ class TestEX_12_Multi_turn_wake(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import EX_12_Multi_turn_wake
+        from blond.examples.scripts import (
+            EX_07_Acceleration_interrupted,  # NOQA will run the
+        )
+
+        EX_07_Acceleration_interrupted.main()
+        backend.zeros(100)
 
         # full script. just checking if it crashes
-        EX_12_Multi_turn_wake.main()
-        backend.zeros(100)

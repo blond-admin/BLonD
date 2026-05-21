@@ -1,5 +1,6 @@
 import unittest
 
+import matplotlib.pyplot as plt
 import pytest
 
 from blond.core.backends.backend import (
@@ -9,15 +10,20 @@ from blond.core.backends.backend import (
 )
 
 
-class Test_main_user(unittest.TestCase):
+class TestEX_18_Filamentation_Matcher(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import main_user
+        from blond.examples.scripts import (
+            EX_18_Filamentation_Matcher,  # NOQA will run the
+        )
 
+        EX_18_Filamentation_Matcher.animate = False
+        EX_18_Filamentation_Matcher.n_iter = 2
         # full script. just checking if it crashes
-        main_user.main()
+        EX_18_Filamentation_Matcher.main()
+        plt.close()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -28,8 +34,13 @@ class Test_main_user(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import main_user
+        from blond.examples.scripts import (
+            EX_18_Filamentation_Matcher,  # NOQA will run the
+        )
 
+        EX_18_Filamentation_Matcher.animate = False
+        EX_18_Filamentation_Matcher.n_iter = 2
         # full script. just checking if it crashes
-        main_user.main()
+        EX_18_Filamentation_Matcher.main()
+        plt.close()
         backend.zeros(100)

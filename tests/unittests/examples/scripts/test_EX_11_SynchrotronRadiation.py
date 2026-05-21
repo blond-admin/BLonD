@@ -9,22 +9,18 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_01_Acceleration(unittest.TestCase):
+class TestEX_11_Synchrotron_Radiation(unittest.TestCase):
     @pytest.mark.backend_mutation
-    @pytest.mark.mpi
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import (
-            EX_01_Acceleration_revolution_time,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_11_Synchrotron_Radiation
 
-        EX_01_Acceleration_revolution_time.main()
+        EX_11_Synchrotron_Radiation.main(n_turns=100)
 
         # full script. just checking if it crashes
 
     @pytest.mark.backend_mutation
-    @pytest.mark.mpi
     def test_executable_cuda64(self):
         try:
             import cupy  # type: ignore
@@ -33,11 +29,9 @@ class TestEX_01_Acceleration(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import (
-            EX_01_Acceleration_revolution_time,  # NOQA will run the
-        )
+        from blond.examples.scripts import EX_11_Synchrotron_Radiation
 
-        EX_01_Acceleration_revolution_time.main()
+        EX_11_Synchrotron_Radiation.main(n_turns=100)
         backend.zeros(100)
 
         # full script. just checking if it crashes
