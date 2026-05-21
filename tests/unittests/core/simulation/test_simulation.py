@@ -920,8 +920,8 @@ class TestSimulationSaveLoad(unittest.TestCase):
             show_progressbar=False,
             verbose=False,
         )
-        dt_ref = beam_ref.read_partial_dt().copy()
-        dE_ref = beam_ref.read_partial_dE().copy()
+        dt_ref = copy_to_cpu(beam_ref.read_partial_dt())
+        dE_ref = copy_to_cpu(beam_ref.read_partial_dE())
 
         # Save-then-run: simulate "ship to cluster, run there, ship back".
         # Beam is not attached to ``Simulation``, so bundle both.
@@ -939,8 +939,12 @@ class TestSimulationSaveLoad(unittest.TestCase):
             show_progressbar=False,
             verbose=False,
         )
-        np.testing.assert_array_equal(dt_ref, beam_b.read_partial_dt())
-        np.testing.assert_array_equal(dE_ref, beam_b.read_partial_dE())
+        np.testing.assert_array_equal(
+            dt_ref, copy_to_cpu(beam_b.read_partial_dt())
+        )
+        np.testing.assert_array_equal(
+            dE_ref, copy_to_cpu(beam_b.read_partial_dE())
+        )
 
 
 if __name__ == "__main__":
