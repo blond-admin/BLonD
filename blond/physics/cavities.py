@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
+import sympy
 from scipy.constants import speed_of_light as c0
 
 from blond.acc_math.analytic.hamilton import (
@@ -30,6 +31,7 @@ from blond.core.base import (
     AltersReference,
     BeamPhysicsRelevant,
     DynamicParameter,
+    HasSymbolicHamiltonian,
     Schedulable,
 )
 from blond.core.beam.beams import ProbeBeam
@@ -172,6 +174,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        assert n_rf > 0, f"{n_rf=}"
+
         super().__init__(
             section_index=section_index,
             name=name,
@@ -183,7 +187,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             "phi_rf_design",
             "harmonic",
         )
-
         self._n_rf = n_rf
 
         self.cavity_feedback_list: list[
@@ -231,6 +234,10 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         if self._delayed_kick is not None and not self.any_feedback_not_none:
             assert delayed_kick_time_axis is not None
         self._delayed_kick_time_axis = delayed_kick_time_axis
+
+        # Cached reference-energy change from the most recent _track call.
+        # Used by get_hamilton_symbolic to include the acceleration term.
+        self._last_reference_energy_change: float | None = None
 
     @property
     def any_feedback_not_none(self) -> bool:
@@ -824,6 +831,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         )
         reference_energy_change = target_total_energy - reference.total_energy
         reference.total_energy = target_total_energy
+        self._last_reference_energy_change = reference_energy_change
         return reference_energy_change
 
     def calc_omega_rf_design(
@@ -881,6 +889,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 class SingleHarmonicRFStation(
     RFStationBaseClass,
     SupportsPooledInterpolationKickMixIn,
+    HasSymbolicHamiltonian,
 ):
     r"""
     RF station with only one RF wave for beam interaction.
@@ -958,6 +967,11 @@ class SingleHarmonicRFStation(
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        if voltage is not None:
+            assert voltage >= 0, f"{voltage=}"
+        if harmonic is not None:
+            assert harmonic > 0, f"{harmonic=}"
+
         super().__init__(
             n_rf=1,
             section_index=section_index,
@@ -1286,9 +1300,69 @@ class SingleHarmonicRFStation(
 
         return single_harmonic_rf_station
 
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
+        r"""
+        Return the partial Hamiltonian symbolic expression.
+
+        The tracker applies the kick
+
+        .. math::
+
+            \Delta dE = q V \sin(\omega\, dt + \phi)
+                        - \Delta E_\mathrm{ref},
+
+        where :math:`\Delta E_\mathrm{ref}` is the change of reference
+        total energy on this turn (the ``acceleration_kick``). Hamilton's
+        equation :math:`\Delta dE = -\partial H/\partial dt` then gives
+
+        .. math::
+
+            H = \frac{q V}{\omega} \cos(\omega\, dt + \phi)
+                + \Delta E_\mathrm{ref}\, dt.
+
+        :math:`\Delta E_\mathrm{ref}` is taken from the most recent
+        ``_track`` call (``self._last_reference_energy_change``); it is
+        zero before the first track and for non-accelerating cycles.
+
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according symbolic variables will be replaced by
+            their current numeric value.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
+        """
+        dt = sympy.Symbol("dt", real=True)
+        q = sympy.Symbol("q", real=True)
+        if replace_symbols:
+            assert self.voltage is not None
+            assert self.omega_rf_design is not None
+            assert self.phi_rf_design is not None
+
+            V = float(self.voltage)
+            omega = float(self.omega_rf_design)
+            phi = float(self.phi_rf_design)
+
+        else:
+            V = sympy.Symbol("V")
+            omega = sympy.Symbol("omega_rf", positive=True)
+            phi = sympy.Symbol("phi_rf", real=True)
+
+        return (
+            q * V / omega * sympy.cos(omega * dt + phi)
+            + float(self._last_reference_energy_change) * dt
+        )
+
 
 class MultiHarmonicRFStation(
-    RFStationBaseClass, SupportsPooledInterpolationKickMixIn
+    RFStationBaseClass,
+    SupportsPooledInterpolationKickMixIn,
+    HasSymbolicHamiltonian,
 ):
     r"""
     RF station with several RF wave for beam interaction.
@@ -1372,6 +1446,11 @@ class MultiHarmonicRFStation(
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        if voltage is not None:
+            assert np.all(voltage >= 0), f"{voltage=}"
+        if harmonic is not None:
+            assert np.all(harmonic > 0), f"{harmonic=}"
+
         assert main_harmonic_idx < n_harmonics, (
             f"{n_harmonics=}, but {main_harmonic_idx=}."
         )
@@ -1748,3 +1827,64 @@ class MultiHarmonicRFStation(
             beam.reference
         )
         return multi_harmonic_rf_station
+
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
+        r"""
+        Return the partial Hamiltonian symbolic expression.
+
+        The tracker applies the kick
+
+        .. math::
+
+            \Delta dE = \sum_j q V_j \sin(\omega_j\, dt + \phi_j)
+                        - \Delta E_\mathrm{ref},
+
+        where :math:`\Delta E_\mathrm{ref}` is the change of reference
+        total energy on this turn. Hamilton's equation
+        :math:`\Delta dE = -\partial H/\partial dt` gives
+
+        .. math::
+
+            H = \sum_j \frac{q V_j}{\omega_j}
+                       \cos(\omega_j\, dt + \phi_j)
+                + \Delta E_\mathrm{ref}\, dt.
+
+        :math:`\Delta E_\mathrm{ref}` is taken from the most recent
+        ``_track`` call.
+
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according variables will be replaced by
+            their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
+        """
+        dt = sympy.Symbol("dt", real=True)
+        q = sympy.Symbol("q", real=True)
+
+        expr = sympy.Integer(0)
+        for rf_idx in range(self.n_rf):
+            if replace_symbols:
+                assert self.voltage is not None
+                assert self.omega_rf_design is not None
+                assert self.phi_rf_design is not None
+
+                V_j = float(self.voltage[rf_idx])
+                omega_j = float(self.omega_rf_design[rf_idx])
+                phi_j = float(self.phi_rf_design[rf_idx])
+            else:
+                V_j = sympy.Symbol(f"V_{rf_idx}")
+                omega_j = sympy.Symbol(f"omega_{rf_idx}", positive=True)
+                phi_j = sympy.Symbol(f"phi_{rf_idx}", real=True)
+
+            expr += q * V_j / omega_j * sympy.cos(omega_j * dt + phi_j)
+
+        return expr + float(self._last_reference_energy_change) * dt

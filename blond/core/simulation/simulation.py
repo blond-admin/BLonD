@@ -54,6 +54,7 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
 
+    from matplotlib.lines import Line2D
     from numpy.typing import NDArray as NumpyArray
 
     from blond import BiGaussian
@@ -1727,3 +1728,51 @@ class Simulation(Preparable):
             )
         else:
             return self._current_turn_dE_tot
+
+    def plot_separatrix(
+        self,
+        beam: BeamBaseClass,
+        dt: NumpyArray,
+        **kwargs_plot,
+    ) -> list[Line2D]:
+        r"""
+        Plot the longitudinal phase-space separatrix.
+
+        Calls
+        :meth:`~blond.utilities.separatrix.symbolic_separatrix.SymbolicSeparatrixHelper.get_separatrix`
+        and draws both branches on the current
+        matplotlib axes. The label (if given) is applied only to the upper
+        branch so the legend shows a single entry.
+
+        Parameters
+        ----------
+        beam
+            Beam whose reference coordinates supply :math:`\beta`,
+            :math:`\gamma`, :math:`E` and charge.
+        dt
+            Time-deviation grid [s] spanning at least the full RF bucket,
+            including the unstable fixed point.
+        **kwargs_plot
+            Additional keyword arguments forwarded to ``matplotlib.pyplot.plot``
+            (e.g. ``color``, ``linewidth``, ``linestyle``).
+
+        Returns
+        -------
+        artists
+            List of matplotlib objects.
+
+        See Also
+        --------
+        blond.utilities.separatrix.symbolic_separatrix.SymbolicSeparatrixHelper.get_separatrix :
+            Compute the separatrix boundary numerically.
+
+        Notes
+        -----
+        This method does not call ``plt.show()``; call that separately.
+        """
+        from blond.utilities.separatrix.symbolic_separatrix import (  # avoid cyclic imports
+            SymbolicSeparatrixHelper,
+        )
+
+        sep = SymbolicSeparatrixHelper.from_simulation(simulation=self)
+        return sep.plot_separatrix(beam=beam, dt=dt, **kwargs_plot)

@@ -104,13 +104,13 @@ class BoxLosses(LossesBaseClass):
 
     Attributes
     ----------
-    t_min : float
+    t_min
         Macro-particles with ``dt < t_min`` will be labeled/removed, in [s].
-    t_max : float
+    t_max
         Macro-particles with ``dt > t_max`` will be labeled/removed, in [s].
-    e_min : float
+    e_min
         Macro-particles with ``dE < t_min`` will be labeled/removed, in [s].
-    e_max : float
+    e_max
         Macro-particles with ``dE > t_min`` will be labeled/removed, in [s].
     """
 
