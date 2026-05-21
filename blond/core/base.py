@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+import numbers
 import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
@@ -23,6 +24,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Any, TypeVar
 
+    import sympy
     from numpy.typing import NDArray as NumpyArray
     from scipy.interpolate import (
         Akima1DInterpolator,
@@ -766,7 +768,13 @@ class ScheduledInterpolation(ScheduledBaseClass):
         value
             The interpolated value for the current time.
         """
-        return self.interpolator(reference_time)
+        value = self.interpolator(reference_time)
+
+        # Guard against 0D arrays being returned by interpolator
+        if not isinstance(value, numbers.Number) and value.shape == ():
+            value = value[()]
+
+        return value
 
 
 def get_scheduler(
@@ -917,5 +925,31 @@ class AltersReference(ABC):
         -------
         change
             Change of reference time or energy.
+        """
+        pass
+
+
+class HasSymbolicHamiltonian(ABC):
+    """Base class for objects that have an analytic expression."""
+
+    @abstractmethod  # pragma: no cover
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
+        """
+        Return the partial Hamiltonian symbolic expression.
+
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according variables will be replaced by
+            their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
         """
         pass

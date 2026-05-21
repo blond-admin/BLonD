@@ -35,6 +35,7 @@ ASSIGNED_CATEGORIES = {
     "MultiHarmonicRFStation": Categories.LATTICE.value,
     "ReferenceEnergyChange": Categories.LATTICE.value,
     "SingleHarmonicRFStation": Categories.LATTICE.value,
+    "BarrierRF": Categories.LATTICE.value,
     "UserDefinedElement": Categories.LATTICE.value,
     "WakeField": Categories.LATTICE.value,
     "StaticProfile": Categories.LATTICE.value,
@@ -64,6 +65,8 @@ ASSIGNED_CATEGORIES = {
     "DriftObservation": Categories.DIAGNOSTICS.value,
     "SimulationObservation": Categories.DIAGNOSTICS.value,
     "BeamHist2dOncePerTurn": Categories.DIAGNOSTICS.value,
+    "BeamStatisticsOncePerTurn": Categories.DIAGNOSTICS.value,
+    "WakeFieldObservation": Categories.DIAGNOSTICS.value,
     # Plotting
     "AllowPlotting": Categories.PLOTTING.value,
     # Backend / Precision

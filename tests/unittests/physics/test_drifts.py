@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+import sympy
 from scipy.constants import c
 from scipy.constants import speed_of_light as c0
 
@@ -15,6 +16,7 @@ from blond.core.beam.particle_types import lead_82
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftBaseClass, DriftExact, DriftSimple
+from blond.testing.backend_testing import multi_backend_testcase
 
 
 class DriftBaseClassHelper(DriftBaseClass):
@@ -163,6 +165,9 @@ class TestDriftSimple(unittest.TestCase):
         self.drift_simple.on_init_simulation(simulation=simulation)
 
     def test_track(self):
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
         beam.common_array_size = 1
@@ -198,7 +203,7 @@ class TestDriftSimple(unittest.TestCase):
                 -0.0001832679173685216,
                 -0.00023563017947381346,
             ],
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
         np.testing.assert_allclose(
             copy_to_cpu(beam.dE),
@@ -218,6 +223,65 @@ class TestDriftSimple(unittest.TestCase):
         DriftSimple(
             orbit_length=1.0, section_index=0, momentum_compaction_factor=2.5
         )
+
+    @multi_backend_testcase("Numpy64Bit")
+    @pytest.mark.backend_mutation
+    def test_compare_track_ham(self):
+        from blond.core.beam.particle_types import proton
+
+        drift = DriftSimple.headless(
+            momentum_compaction_factor=1e-3,
+            orbit_length=10.0,
+            section_index=0,
+        )
+        dE_values = np.linspace(-1e6, 1e6, 11)
+        beam = ProbeBeam(
+            dE=dE_values,
+            particle_type=proton,
+            reference_total_energy=1e9,
+        )
+        dt_before = beam.dt.copy_as_numpy()
+
+        # Predicted dt change: dH/d(dE) evaluated at each particle's dE.
+        dE_s, beta_s, gamma_s, E_s = sympy.symbols(
+            "dE beta gamma E", real=True
+        )
+        dH_ddE = sympy.lambdify(
+            (dE_s, beta_s, gamma_s, E_s),
+            sympy.diff(drift.get_hamilton_symbolic(), dE_s),
+            modules="numpy",
+        )
+        predicted = dH_ddE(
+            dE_values,
+            beam.reference.beta,
+            beam.reference.gamma,
+            beam.reference.total_energy,
+        )
+
+        drift.track(beam=beam)
+        actual = beam.dt.copy_as_numpy() - dt_before
+
+        np.testing.assert_allclose(actual, predicted, rtol=1e-12)
+
+    def test_get_hamilton_symbolic_replace_symbols_false_keeps_alpha_0(self):
+        """With ``replace_symbols=False`` the momentum-compaction factor
+        must stay the free symbol ``alpha_0`` instead of being baked in
+        as a float, and resubstituting its numeric value must reproduce
+        the ``replace_symbols=True`` Hamiltonian.
+        """
+        drift = DriftSimple.headless(
+            momentum_compaction_factor=1e-3,
+            orbit_length=10.0,
+            section_index=0,
+        )
+        alpha_0_s = sympy.Symbol("alpha_0", real=True)
+
+        ham_sym = drift.get_hamilton_symbolic(replace_symbols=False)
+        self.assertIn("alpha_0", {s.name for s in ham_sym.free_symbols})
+
+        ham_num = drift.get_hamilton_symbolic(replace_symbols=True)
+        resubstituted = ham_sym.subs(alpha_0_s, float(drift.alpha_0))
+        self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
 
 
 class TestDriftExact(unittest.TestCase):
@@ -333,6 +397,97 @@ class TestDriftExact(unittest.TestCase):
         drift.track(beam=beam)
 
         np.testing.assert_allclose(blond2_expected, beam.dt.copy_as_numpy())
+
+    @multi_backend_testcase("Numpy64Bit")
+    @pytest.mark.backend_mutationn
+    def test_compare_track_ham(self):
+        """For ``higher_order_alpha`` lengths 1, 2, 3 (i.e. α_1, α_1..α_2,
+        α_1..α_3 — α_0 is set separately by ``momentum_compaction_factor``),
+        the tracker's dt change must equal ``dH/d(dE)`` from
+        ``get_hamilton_symbolic``.
+
+        ``DriftExact`` symbolically truncates ``H`` at order ``n_alpha + 2``
+        in ``dE``. In principle the residual would shrink as
+        ``(dE/E)**(n_alpha + 1)``, but in practice the dE**2 coefficient
+        ``c1*beta**2 - c2`` suffers catastrophic cancellation near
+        ``beta = 1`` and keeps only ~9 significant digits. That floor —
+        not the truncation tail — sets the tolerance for every ``n_alpha``.
+        """
+        from blond.core.beam.particle_types import proton
+
+        dE_s, beta_s, E_s = sympy.symbols("dE beta E", real=True)
+
+        for higher_order_alpha in (
+            np.array([1.0]),
+            np.array([1.0, 0.5]),
+            np.array([1.0, 0.5, 0.25]),
+        ):
+            with self.subTest(n_alpha=len(higher_order_alpha)):
+                drift = DriftExact.headless(
+                    orbit_length=10000.0,
+                    section_index=0,
+                    momentum_compaction_factor=1e-3,
+                    higher_order_alpha=higher_order_alpha,
+                )
+                dE_values = np.linspace(-1e5, 1e5, 11)
+                beam = ProbeBeam(
+                    dE=dE_values,
+                    particle_type=proton,
+                    reference_total_energy=1e10,
+                )
+                dt_before = beam.dt.copy_as_numpy()
+
+                dH_ddE = sympy.lambdify(
+                    (dE_s, beta_s, E_s),
+                    sympy.diff(drift.get_hamilton_symbolic(), dE_s),
+                    modules="numpy",
+                )
+                predicted = dH_ddE(
+                    dE_values,
+                    beam.reference.beta,
+                    beam.reference.total_energy,
+                )
+
+                drift.track(beam=beam)
+                actual = beam.dt.copy_as_numpy() - dt_before
+
+                np.testing.assert_allclose(actual, predicted, rtol=1e-7)
+
+    def test_get_hamilton_symbolic_replace_symbols_false_preserves_higher_alpha(
+        self,
+    ):
+        """
+        With ``replace_symbols=False`` the analytical Hamiltonian must
+        keep one ``dE``-polynomial term per configured higher-order
+        alpha. Regression: an earlier implementation hard-coded
+        ``higher = ()`` in symbolic mode, collapsing the truncation back
+        to ``dE**2`` and silently dropping every ``alpha_k`` (``k >= 1``).
+        """
+        dE_s = sympy.Symbol("dE", real=True)
+
+        for n_alpha in (0, 1, 2, 3):
+            higher_order_alpha = (
+                np.zeros(n_alpha) if n_alpha > 0 else np.array([])
+            )
+            drift = DriftExact.headless(
+                orbit_length=10000.0,
+                section_index=0,
+                momentum_compaction_factor=1e-3,
+                higher_order_alpha=higher_order_alpha,
+            )
+            with self.subTest(n_alpha=n_alpha):
+                ham = drift.get_hamilton_symbolic(replace_symbols=False)
+                # Polynomial degree in dE must reflect every configured
+                # alpha: 2 base + n_alpha higher-order terms.
+                self.assertEqual(
+                    sympy.Poly(ham, dE_s).degree(),
+                    n_alpha + 2,
+                )
+                # Each alpha_k symbol (k = 1..n_alpha) must actually
+                # appear in the expression.
+                free_names = {s.name for s in ham.free_symbols}
+                for k in range(1, n_alpha + 1):
+                    self.assertIn(f"alpha_{k}", free_names)
 
 
 class TestDriftSpecial(unittest.TestCase):

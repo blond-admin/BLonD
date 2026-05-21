@@ -1,6 +1,7 @@
 import os
 import unittest
 
+import numpy as np
 import pytest
 
 import blond.testing.backend_testing as bend_test
@@ -17,7 +18,7 @@ except (ModuleNotFoundError, ImportError):
 class InvalidBackendTestError(Exception): ...
 
 
-class InvalidBackend(backend.Numpy32Bit):
+class InvalidBackend(backend.Numpy64Bit):
     def __init__(self):
         raise InvalidBackendTestError
 
@@ -119,10 +120,10 @@ class TestBackendTesting(unittest.TestCase):
 
         bend_test.FORCE_ALL_BACKENDS = False
 
-        if self.init_backend == "Numpy32Bit":
-            backend.backend.change_backend(backend.Numpy64Bit)
+        if self.init_backend == "Numpy64Bit":
+            backend.backend.change_backend(backend.Cupy64Bit)
         else:
-            backend.backend.change_backend(backend.Numpy32Bit)
+            backend.backend.change_backend(backend.Numpy64Bit)
 
         test_init_backend = backend.backend.__class__
 
@@ -157,10 +158,10 @@ class TestBackendTesting(unittest.TestCase):
     def test_multi_backend_testcase_failsafe(self):
         bend_test.FORCE_ALL_BACKENDS = False
 
-        if self.init_backend == "Numpy32Bit":
-            backend.backend.change_backend(backend.Numpy64Bit)
+        if self.init_backend == "Numpy64Bit":
+            backend.backend.change_backend(backend.Cupy64Bit)
         else:
-            backend.backend.change_backend(backend.Numpy32Bit)
+            backend.backend.change_backend(backend.Numpy64Bit)
 
         test_init_backend = backend.backend.__class__
 
@@ -172,3 +173,30 @@ class TestBackendTesting(unittest.TestCase):
             a_test(self)
 
         self.assertTrue(backend.backend.__class__ is test_init_backend)
+
+    def test_array_like_scan(self):
+        types = [list, tuple, np.array]
+        if cupy_available:
+            types.append(cupy.array)
+        scanner = bend_test.ArrayLikeScan(types)
+
+        inp_1 = [1, 2, 3]
+        inp_2 = (1, 2, 3)
+        inp_3 = np.array([1, 2, 3])
+
+        inputs = [inp_1, inp_2, inp_3]
+
+        if cupy_available:
+            inp_4 = cupy.array([1, 2, 3])
+            inputs.append(inp_4)
+
+        for input_array_like in inputs:
+            for i, inp_cast in enumerate(scanner):
+                cast = inp_cast(input_array_like)
+
+                if i < 2:
+                    self.assertIsInstance(cast, types[i])
+                elif i == 2:
+                    self.assertIsInstance(cast, np.ndarray)
+                elif i == 3:
+                    self.assertIsInstance(cast, cupy.ndarray)

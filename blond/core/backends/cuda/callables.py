@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -37,7 +37,7 @@ _basepath = str(os.path.join(folder, "compiled", hash_))
 
 
 def reload_cuda_backend(  # NOQA: D102
-    floattype: type[np.float32 | np.float64],
+    floattype: type[np.float64],
 ) -> CudaSpecials:
     """
     Load and link the according CUDA backend.
@@ -55,17 +55,7 @@ def reload_cuda_backend(  # NOQA: D102
 
     """
     if floattype == np.float32:
-        path = os.path.join(
-            _basepath,
-            f"kernels_sm_{_compute_capability}_single.cubin",
-        )
-        if not os.path.isfile(path):
-            raise FileNotFoundError(
-                f"The compiled CUDA backend was notfound at {path=}"
-            )
-        gpu_module = cp.RawModule(
-            path=path,
-        )
+        raise TypeError("32-bit float and 64-bit complex have been removed.")
     elif floattype == np.float64:
         path = os.path.join(
             _basepath,

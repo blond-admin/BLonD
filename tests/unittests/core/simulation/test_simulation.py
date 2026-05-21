@@ -11,7 +11,7 @@ import pytest
 
 from blond import (
     Beam,
-    Cupy32Bit,
+    Cupy64Bit,
     DriftSimple,
     Ring,
     Simulation,
@@ -23,7 +23,7 @@ from blond import (
     mu_plus,
     proton,
 )
-from blond.core.backends.backend import Numpy32Bit, NumpyBackend
+from blond.core.backends.backend import Numpy64Bit, NumpyBackend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
@@ -314,7 +314,7 @@ class TestSimulation(unittest.TestCase):
         SAVE_PINNED = False
 
         if backend.float == np.float32:
-            bits = "32"
+            raise TypeError("32 Bit backends have been removed")
         elif backend.float == np.float64:
             bits = "64"
         else:
@@ -346,10 +346,13 @@ class TestSimulation(unittest.TestCase):
 
         from blond import backend
 
+        if backend.float != np.float64:
+            raise TypeError("32 Bit backends have been removed")
+
         np.testing.assert_allclose(
             potential_well_pinned,
             copy_to_cpu(potential_well),
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            1e-12,
         )
 
     def test_plot_potential_well_empiric(self):
@@ -725,7 +728,7 @@ class TestSimulation(unittest.TestCase):
             self.skipTest(str(exc))
         DEV_DEBUG = False
         results = []
-        for i, backend_type in enumerate((Cupy32Bit, Numpy32Bit)):
+        for i, backend_type in enumerate((Cupy64Bit, Numpy64Bit)):
             backend.change_backend(backend_type)
             from blond.testing.simulation import (
                 SimulationTwoRFStationsWithWake,
@@ -756,10 +759,14 @@ class TestSimulation(unittest.TestCase):
             results.append(copy_to_cpu(potential))
         if DEV_DEBUG:
             plt.show()
+
+        if backend.float == np.float32:
+            raise TypeError("32 Bit backends have been removed")
+
         np.testing.assert_allclose(
             results[0],
             results[1],
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            1e-12,
         )
 
     def test_current_t_rev(self):

@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -16,7 +16,6 @@ import os
 import platform
 import subprocess
 import sys
-import warnings
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
@@ -187,7 +186,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             with_fftw_threads=with_fftw_threads,
         )
 
-        cflags, libname_double, libname_single = _prepare_cflags(
+        cflags, libname_double = _prepare_cflags(
             cflags=cflags,
             compiler=compiler,
             libname=libname,
@@ -221,38 +220,6 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
 
         print("Compiler flags: ", " ".join(cflags))
         print("Extra libraries: ", " ".join(libs_))
-
-        command = (
-            [compiler]
-            + cflags
-            + ["-DUSEFLOAT"]
-            + cpp_files
-            + libs_
-            + ["-o", libname_single]
-        )
-        print("\nCompiling the single-precision (32-bit) C++ library")
-        if with_fftw:
-            msg = (
-                "The FFTW Library is only compiled for  double-precision (64-bit)."
-                " For single-precision, the FFTW Library is ignored."
-            )
-            warnings.warn(msg, stacklevel=1)
-        ret = run_compile(command, libname_single)
-        if ret != 0:
-            print("There was a compilation error.")
-        else:
-            # Verify that the libraries have been compiled
-            try:
-                if ("win" in sys.platform) and hasattr(
-                    os, "add_dll_directory"
-                ):
-                    _ = ctypes.CDLL(libname_single, winmode=0)
-                else:
-                    _ = ctypes.CDLL(libname_single)
-                print("Compiled successfully.")
-            except Exception as exception:
-                print("Compilation failed.")
-                print(exception)
 
         command = (
             [compiler]
@@ -311,8 +278,6 @@ def _prepare_cflags(
         Updated compiler flags.
     libname_double
         Path to double-precision library.
-    libname_single
-        Path to single-precision library.
     """  # TODO undocumented port from BLOND2
     parallel_suffix = "" if parallel else "_noOMP"
     if "posix" in os.name:
@@ -328,9 +293,6 @@ def _prepare_cflags(
         root, ext = os.path.splitext(libname)
         if not ext:
             ext = ".so"
-        libname_single = os.path.abspath(
-            root + "_single" + parallel_suffix + ext
-        )
         libname_double = os.path.abspath(
             root + "_double" + parallel_suffix + ext
         )
@@ -349,9 +311,6 @@ def _prepare_cflags(
         if not ext:
             ext = ".dll"
 
-        libname_single = os.path.abspath(
-            root + "_single" + parallel_suffix + ext
-        )
         libname_double = os.path.abspath(
             root + "_double" + parallel_suffix + ext
         )
@@ -362,7 +321,7 @@ def _prepare_cflags(
 
     else:
         raise NameError(f"Unknown operating system: {sys.platform=}")
-    return cflags, str(libname_double), str(libname_single)
+    return cflags, str(libname_double)
 
 
 def _prepare_fftw(

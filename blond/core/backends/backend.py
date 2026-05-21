@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -311,9 +311,9 @@ class BackendBaseClass(ABC):
     Parameters
     ----------
     float_
-        Precision type for float, e.g. float32, float64.
+        Precision type for float, e.g. float64.
     complex_
-        Precision type for complex, e.g. float32, float64.
+        Precision type for complex, e.g. complex128.
     specials_mode
         Default mode to load special libraries.
     is_gpu
@@ -323,13 +323,13 @@ class BackendBaseClass(ABC):
     """
 
     # type annotations for MyPy
-    float: type[np.float32 | np.float64]
-    complex: type[np.complex128 | np.complex64]
+    float: type[np.float64]
+    complex: type[np.complex128]
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
-        float_: type[np.float32 | np.float64],
-        complex_: type[np.complex128 | np.complex64],
+        float_: type[np.float64],
+        complex_: type[np.complex128],
         specials_mode: Literal[
             "python",
             "cpp",
@@ -344,9 +344,20 @@ class BackendBaseClass(ABC):
 
         self._is_gpu = is_gpu
 
+        if (
+            float_ == np.float32 or complex_ == np.complex64
+        ):  # pragma: no cover
+            warnings.warn(
+                "32 Bit backends have been removed, choosing 32 bit float or "
+                "64 bit complex will give unpredictable and untested "
+                "behaviour.",
+                stacklevel=2,
+            )
+
         self.float = float_
         self.complex = complex_
 
+        self.pi = self.float(np.pi)
         self.twopi = self.float(2 * np.pi)
         self.specials_mode = specials_mode
         self.specials: Specials = None  # type: ignore
@@ -388,6 +399,8 @@ class BackendBaseClass(ABC):
         self.sign: Callable = None  # type: ignore
         self.sin: Callable = None  # type: ignore
         self.cos: Callable = None  # type: ignore
+        self.arctan2: Callable = None  # type: ignore
+        self.sinc: Callable = None  # type: ignore
         self.exp: Callable = None  # type: ignore
         self.any: Callable = None  # type: ignore
         self.abs: Callable = None  # type: ignore
@@ -400,6 +413,7 @@ class BackendBaseClass(ABC):
         self.unique: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
         self.ndarray: type = None  # type: ignore
+        self.where: Callable = None  # type: ignore
         self.hstack: type = None  # type: ignore
 
     def _finalize(self) -> None:
@@ -425,7 +439,7 @@ class BackendBaseClass(ABC):
 
     def change_backend(
         self,
-        new_backend: type[Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit],
+        new_backend: type[Numpy64Bit | Cupy64Bit],
     ) -> None:
         """
         Change the backend precision.
@@ -482,7 +496,7 @@ class BackendBaseClass(ABC):
         Following environment variables can be set:
 
         - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'cuda'
-        - `BLOND_BACKEND_BITS` can be '32' or '64'
+        - `BLOND_BACKEND_BITS` can only be '64'
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
@@ -518,15 +532,9 @@ class BackendBaseClass(ABC):
             "BLOND_BACKEND_BITS",
             DEFAULT_BITS,  # default
         )
-        _allowed_backend_bits_flag = (
-            "32",
-            "64",
-        )
+        _allowed_backend_bits_flag = ("64",)
         if _backend_bits_raw in _allowed_backend_bits_flag:
-            _backend_bits: Literal[
-                "32",
-                "64",
-            ] = _backend_bits_raw  # type: ignore
+            _backend_bits: Literal["64",] = _backend_bits_raw  # type: ignore
         else:
             raise ValueError(
                 f"The environment variable `BLOND_BACKEND_BITS` "
@@ -535,9 +543,7 @@ class BackendBaseClass(ABC):
             )
 
         if _backend_mode == "cuda":
-            if _backend_bits == "32":
-                self.change_backend(Cupy32Bit)
-            elif _backend_bits == "64":
+            if _backend_bits == "64":
                 self.change_backend(Cupy64Bit)
             else:
                 # This statement is not reachable
@@ -546,9 +552,7 @@ class BackendBaseClass(ABC):
                 raise ValueError(_backend_bits)  # pragma: no cover
             self.set_specials(mode=_backend_mode)  # type: ignore
         else:
-            if _backend_bits == "32":
-                self.change_backend(Numpy32Bit)
-            elif _backend_bits == "64":
+            if _backend_bits == "64":
                 self.change_backend(Numpy64Bit)
             else:
                 # This statement is not reachable
@@ -709,15 +713,15 @@ class NumpyBackend(BackendBaseClass):
     Parameters
     ----------
     float_
-        Precision type for float, e.g. float32, float64.
+        Precision type for float, e.g. float64.
     complex_
-        Precision type for complex, e.g. float32, float64.
+        Precision type for complex, e.g. complex128.
     """
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
-        float_: type[np.float32 | np.float64],
-        complex_: type[np.complex128 | np.complex64],
+        float_: type[np.float64],
+        complex_: type[np.complex128],
     ) -> None:
         super().__init__(
             float_,
@@ -765,6 +769,8 @@ class NumpyBackend(BackendBaseClass):
         self.sign = np.sign
         self.sin = np.sin
         self.cos = np.cos
+        self.arctan2 = np.arctan2
+        self.sinc = np.sinc
         self.exp = np.exp
         self.any = np.any
         self.abs = np.abs
@@ -777,6 +783,7 @@ class NumpyBackend(BackendBaseClass):
         self.unique = np.unique
         self.repeat = np.repeat
         self.ndarray = np.ndarray
+        self.where = np.where
         self.hstack = np.hstack
 
         self._finalize()
@@ -830,19 +837,6 @@ class NumpyBackend(BackendBaseClass):
 
 
 @_register_backend
-class Numpy32Bit(NumpyBackend):
-    """Numpy backend with 32 bit precision."""
-
-    def __init__(
-        self,
-    ) -> None:
-        super().__init__(
-            np.float32,
-            np.complex64,
-        )
-
-
-@_register_backend
 class Numpy64Bit(NumpyBackend):
     """Numpy backend with 64 bit precision."""
 
@@ -862,15 +856,15 @@ class CupyBackend(BackendBaseClass):
     Parameters
     ----------
     float_
-        Precision type for float, e.g. float32, float64.
+        Precision type for float, e.g. float64.
     complex_
-        Precision type for complex, e.g. float32, float64.
+        Precision type for complex, e.g. complex128.
     """
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
-        float_: type[np.float32 | np.float64],
-        complex_: type[np.complex128 | np.complex64],
+        float_: type[np.float64],
+        complex_: type[np.complex128],
     ) -> None:
         super().__init__(
             float_,
@@ -923,6 +917,8 @@ class CupyBackend(BackendBaseClass):
         self.sign = cp.sign
         self.sin = cp.sin
         self.cos = cp.cos
+        self.arctan2 = cp.arctan2
+        self.sinc = cp.sinc
         self.exp = cp.exp
         self.any = cp.any
         self.abs = cp.abs
@@ -935,6 +931,7 @@ class CupyBackend(BackendBaseClass):
         self.unique = cp.unique
         self.repeat = cp.repeat
         self.ndarray = cp.ndarray
+        self.where = cp.where
         self.hstack = cp.hstack
 
         from blond.core.backends.cuda.callables import CudaSpecials
@@ -965,19 +962,8 @@ class CupyBackend(BackendBaseClass):
 
 
 @_register_backend
-class Cupy32Bit(CupyBackend):
-    """Cupy backend with 64 bit precision."""
-
-    def __init__(self) -> None:
-        super().__init__(
-            np.float32,
-            np.complex64,
-        )
-
-
-@_register_backend
 class Cupy64Bit(CupyBackend):
-    """Cupy backend with 32 bit precision."""
+    """Cupy backend with 64 bit precision."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -987,7 +973,7 @@ class Cupy64Bit(CupyBackend):
 
 
 default = Numpy64Bit  # use .change_backend(...) to change it anywhere
-backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default()
+backend: Numpy64Bit | Cupy64Bit = default()
 backend.verbose = True
 backend.apply_environment_variables()
 

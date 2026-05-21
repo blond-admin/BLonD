@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -413,10 +413,10 @@ class TimeDomainFftSolver(WakeFieldSolver):
         self._allow_next_fast_len = allow_next_fast_len
 
         self._parent_wakefield: WakeField | None = None
-        self._wake_imp_y: NumpyArray | None = None
+        self._impedance_from_wake_y: NumpyArray | None = None
         self._simulation: Simulation | None = None
 
-        self._wake_imp_y_needs_update = True  # update at least once
+        self._impedance_from_wake_y_needs_update = True  # update at least once
 
     @requires(["MagneticCycleBase"])  # because InductiveImpedance.get_
     def on_wakefield_init_simulation(
@@ -439,7 +439,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
                 DynamicProfileConstCutoff | DynamicProfileConstNBins,
             )
             self._parent_wakefield = parent_wakefield
-            self._wake_imp_y_needs_update = True
+            self._impedance_from_wake_y_needs_update = True
 
             if is_dynamic and self.expect_impedance_change is False:
                 warnings.warn(
@@ -474,14 +474,14 @@ class TimeDomainFftSolver(WakeFieldSolver):
 
     def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
         """
-        Update `_wake_imp_y` array if `self._wake_imp_y_needs_update=True`.
+        Update `_impedance_from_wake_y` array if `self._impedance_from_wake_y_needs_update=True`.
 
         Parameters
         ----------
         beam
             Beam class to interact with this element.
         """
-        if not self._wake_imp_y_needs_update:
+        if not self._impedance_from_wake_y_needs_update:
             return
         _wake_x = self._parent_wakefield.profile.hist_x
         _wake_x = _wake_x - _wake_x.min()
@@ -492,28 +492,30 @@ class TimeDomainFftSolver(WakeFieldSolver):
 
         n_t = (n_fft // 2) + 1
 
-        if (self._wake_imp_y is None) or (
-            (n_t,) != self._wake_imp_y.shape  # tuple vs shape-tuple
+        if (self._impedance_from_wake_y is None) or (
+            (n_t,) != self._impedance_from_wake_y.shape  # tuple vs shape-tuple
         ):
-            self._wake_imp_y = backend.zeros(n_t, dtype=backend.complex)
+            self._impedance_from_wake_y = backend.zeros(
+                n_t, dtype=backend.complex
+            )
         else:
-            self._wake_imp_y[:] = 0 + 0j
+            self._impedance_from_wake_y[:] = 0 + 0j
 
         for source in self._parent_wakefield.sources:
             if isinstance(source, TimeDomain):
                 # get the wake functions in time
                 # but store already fft(wake) for convolution later
-                wake_imp_y_tmp = source.get_wake_impedance(
+                impedance_from_wake_y_tmp = source.get_impedance_from_wake(
                     time=_wake_x,
                     simulation=self._simulation,
                     beam=beam,
                     n_fft=n_fft,
                 )
-                assert not backend.any(backend.isnan(wake_imp_y_tmp)), (
-                    f"{type(source).__name__}"
-                )
-                self._wake_imp_y += backend.array(
-                    wake_imp_y_tmp,
+                assert not backend.any(
+                    backend.isnan(impedance_from_wake_y_tmp)
+                ), f"{type(source).__name__}"
+                self._impedance_from_wake_y += backend.array(
+                    impedance_from_wake_y_tmp,
                     dtype=backend.complex,
                 )
             else:
@@ -521,7 +523,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
                     "Can only accept impedance that support `TimeDomain`"
                 )
 
-        self._wake_imp_y_needs_update = False
+        self._impedance_from_wake_y_needs_update = False
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
@@ -540,7 +542,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
             Induced voltage, in [V].
         """
         if self.expect_impedance_change:
-            self._wake_imp_y_needs_update = True
+            self._impedance_from_wake_y_needs_update = True
         self._update_impedance_sources(beam=beam)
 
         _factor = self._hist_y_to_intensity_factor(
@@ -556,7 +558,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         if self._allow_next_fast_len:
             n_fft = next_fast_len(n_fft)
         induced_voltage = _factor * backend.fft.irfft(
-            self._wake_imp_y
+            self._impedance_from_wake_y
             * self._parent_wakefield.profile.beam_spectrum(n_fft=n_fft)
         )
 
@@ -795,7 +797,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         if backend.float(0).dtype.itemsize * 8 < 64:  # noqa: PLR2004
             raise RuntimeError(
                 "MultiPassResonatorSolver does only run with 64 bit backends."
-            )
+            )  # pragma: no cover (only 64 bit backends now available)
 
         self._simulation = simulation
         if parent_wakefield.profile is None:
@@ -993,7 +995,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         """
         Calculate the voltage induced by the beam profile.
 
-        The function will call :func:`_update_potential_sources` and
+        The function will call ``_update_potential_sources`` and
         then compute the induced voltage based on all profiles
         which are in the `_past_profiles` array.
 

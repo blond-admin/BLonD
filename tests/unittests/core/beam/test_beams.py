@@ -1,4 +1,5 @@
 import unittest
+import warnings
 from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
@@ -11,6 +12,7 @@ from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.generals.distributed.helpers import (
+    MPI_COMM_WORLD,
     MPI_RANK,
     MPI_SIZE,
     mpi_is_distributed,
@@ -257,6 +259,76 @@ class TestBeam(unittest.TestCase):
                 beam._flags.array_local, np.ones(6) * BeamFlags.ACTIVE.value
             )
             np.testing.assert_allclose(beam._ids.array_local, np.arange(6, 12))
+
+    @pytest.mark.mpi
+    def test_ratio_mpi_root_distributes(self) -> None:
+        """Ratio must equal `intensity / global_n_macroparticles` on every rank."""
+        if not mpi_is_distributed():
+            self.skipTest("Only MPI")
+        intensity = 1e12
+        n_macroparticles = 12  # divisible by MPI_SIZE=2 to avoid truncation
+        beam = Beam(intensity=intensity, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.arange(n_macroparticles, dtype=float),
+            dE=np.arange(n_macroparticles, dtype=float),
+            mpi_mode="root-distributes",
+        )
+        # Local chunks shrink with MPI_SIZE; global size stays the same.
+        self.assertEqual(beam._dt.local_size, n_macroparticles // MPI_SIZE)
+        self.assertEqual(beam.common_array_size, n_macroparticles)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            local_ratio = beam.ratio
+        self.assertAlmostEqual(local_ratio, intensity / n_macroparticles)
+        # Ratio must be identical on every rank (no silent divergence).
+        all_ratios = MPI_COMM_WORLD.allgather(local_ratio)
+        self.assertEqual(len(all_ratios), MPI_SIZE)
+        for r in all_ratios:
+            self.assertEqual(r, local_ratio)
+
+    @pytest.mark.mpi
+    def test_ratio_mpi_all_ranks(self) -> None:
+        """`simple_gaussian` distributes locally; ratio must still be global."""
+        if not mpi_is_distributed():
+            self.skipTest("Only MPI")
+        intensity = 1e10
+        n_macroparticles = 1000  # divisible by MPI_SIZE=2
+        beam = Beam.simple_gaussian(
+            n_macroparticles=n_macroparticles,
+            intensity=intensity,
+            particle_type=proton,
+            dt_scale=1e-9,
+            dE_scale=1e9,
+            seed=42,
+        )
+        # `all-ranks` mode: each rank holds only its local chunk.
+        self.assertEqual(beam._dt.local_size, n_macroparticles // MPI_SIZE)
+        self.assertEqual(beam.common_array_size, n_macroparticles)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            local_ratio = beam.ratio
+        self.assertAlmostEqual(local_ratio, intensity / n_macroparticles)
+        all_ratios = MPI_COMM_WORLD.allgather(local_ratio)
+        for r in all_ratios:
+            self.assertEqual(r, local_ratio)
+
+    @pytest.mark.mpi
+    def test_common_array_size_mpi(self) -> None:
+        """`common_array_size` must report the *global* count, not the local one."""
+        if not mpi_is_distributed():
+            self.skipTest("Only MPI")
+        n_macroparticles = 12
+        beam = Beam(intensity=1.0, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.arange(n_macroparticles, dtype=float),
+            dE=np.arange(n_macroparticles, dtype=float),
+            mpi_mode="root-distributes",
+        )
+        sizes = MPI_COMM_WORLD.allgather(beam.common_array_size)
+        for s in sizes:
+            self.assertEqual(s, n_macroparticles)
 
     @pytest.mark.mpi
     def test_plot_hist2d_warns(self) -> None:

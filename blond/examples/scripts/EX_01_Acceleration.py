@@ -1,10 +1,11 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
+
 
 # pragma: no cover
 import logging
@@ -22,6 +23,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    copy_to_cpu,
     momentum_compaction_factor,
     proton,
 )
@@ -98,13 +100,18 @@ def main():
     )
     bunch_observation = BeamObservationOncePerTurn(each_turn_i=1)
 
-    def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
+    def animate_live(simulation: Simulation, beam: Beam):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:
             return
 
         plt.scatter(
-            beam.read_partial_dt(),
-            beam.read_partial_dE(),
+            copy_to_cpu(beam.read_partial_dt()),
+            copy_to_cpu(beam.read_partial_dE()),
+        )
+
+        sim.plot_separatrix(
+            beam=beam,
+            dt=np.linspace(beam.dt.min(), beam.dt.max(), 1000),
         )
         plt.draw()
         plt.pause(0.1)
@@ -124,7 +131,7 @@ def main():
             beams=(beam1,),
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
-            # callbacks=custom_action,
+            callbacks=animate_live,
         )
     ANIMATE = False
     if ANIMATE:  # pragma: no cover

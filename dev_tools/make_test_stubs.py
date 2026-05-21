@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -22,10 +22,10 @@ import re
 from pathlib import Path
 
 COVERAGE_JSON_PATH = (
-    Path(__file__).parent / Path("../../tests/unittests/coverage.json")
+    Path(__file__).parent / Path("../../unittests/coverage.json")
 ).resolve()
 PROJECT_ROOT = (Path(__file__).parent / Path("../")).resolve()
-TEST_ROOT = (Path(__file__).parent / Path("../../tests/unittests")).resolve()
+TEST_ROOT = (Path(__file__).parent / Path("../../unittests")).resolve()
 
 
 def _classname_to_varname(name):
