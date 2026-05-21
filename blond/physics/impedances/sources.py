@@ -202,7 +202,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         ----------
         freq_x
             Frequency axis, in [Hz].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -282,7 +282,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -319,13 +319,13 @@ class Resonators(
 
     Parameters
     ----------
-    shunt_impedances : array-like or float
+    shunt_impedances
         Shunt impedances of the resonant circuits, in [:math:`\omega`].
-    center_frequencies : array-like or float
+    center_frequencies
         Center frequencies of the resonances, in [Hz].
-    quality_factors : array-like or float
+    quality_factors
         Quality factors (Q) of the resonances, dimensionless.
-    shunt_impedances_counter_rotating : array-like or float or None
+    shunt_impedances_counter_rotating
         Shunt impedances for counter-rotating mode.
 
     Notes
@@ -449,7 +449,7 @@ class Resonators(
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -490,7 +490,7 @@ class Resonators(
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
