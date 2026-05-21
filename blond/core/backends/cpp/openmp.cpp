@@ -16,3 +16,10 @@ int omp_get_max_threads() { return 1; }
 int omp_get_num_threads() { return 1; }
 int omp_get_thread_num() { return 0; }
 #endif
+
+// Exposes libblond's own OpenMP max-thread count to the Python side. Needed
+// because numba ships a separate OpenMP runtime, so numba.get_num_threads()
+// can disagree with this libgomp's omp_get_max_threads(); sizing per-thread
+// scratch buffers from the wrong runtime caused heap corruption (see
+// MultiPoleSparseSolve._voltage_threaded).
+extern "C" int blond_omp_get_max_threads() { return omp_get_max_threads(); }
