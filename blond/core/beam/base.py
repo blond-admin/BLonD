@@ -271,7 +271,7 @@ class BeamBaseClass(Preparable, ABC):
         if self._dE is None:
             raise AttributeError(
                 "Beam is not properly initialized. "
-                "You can sse `setup_beam` or the beam preparation methods.."
+                "You can use `setup_beam` or the beam preparation methods.."
             )
         return self._dE
 
@@ -288,7 +288,7 @@ class BeamBaseClass(Preparable, ABC):
         if self._dt is None:
             raise AttributeError(
                 "Beam is not properly initialized. "
-                "You can sse `setup_beam` or the beam preparation methods.."
+                "You can use `setup_beam` or the beam preparation methods.."
             )
         return self._dt
 
@@ -309,7 +309,7 @@ class BeamBaseClass(Preparable, ABC):
         if self._flags is None:
             raise AttributeError(
                 "Beam is not properly initialized. "
-                "You can sse `setup_beam` or the beam preparation methods.."
+                "You can use `setup_beam` or the beam preparation methods.."
             )
         return self._flags
 
@@ -326,7 +326,7 @@ class BeamBaseClass(Preparable, ABC):
         if self._ids is None:
             raise AttributeError(
                 "Beam is not properly initialized. "
-                "You can sse `setup_beam` or the beam preparation methods.."
+                "You can use `setup_beam` or the beam preparation methods.."
             )
         return self._ids
 
