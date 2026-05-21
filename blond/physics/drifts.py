@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -147,7 +147,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     momentum_compaction_factor
         Momentum compaction factor of this drift section. In multi-drift
         setups the ring combines per-section values into a global weighted
-        average; see :attr:`Ring.momentum_compaction_factor`.
+        average; see :attr:`blond.core.ring.ring.Ring.momentum_compaction_factor`.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -176,7 +176,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         momentum_compaction_factor
             Momentum compaction factor of this drift section. In multi-drift
             setups the ring combines per-section values into a global weighted
-            average; see :attr:`Ring.momentum_compaction_factor`.
+            average; see :attr:`blond.core.ring.ring.Ring.momentum_compaction_factor`.
             Use ``drift.schedule("momentum_compaction_factor", ...)`` to influence
             the parameter along the ramp.
         **kwargs
@@ -359,7 +359,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
 
         See Also
         --------
-        Ring.momentum_compaction_factor : Orbit-length weighted average for multi-drift setups.
+        blond.core.ring.ring.Ring.momentum_compaction_factor : Orbit-length weighted average for multi-drift setups.
         """
         return self.momentum_compaction_factor
 

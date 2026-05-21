@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -356,7 +356,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         simulation
             `Simulation` context manager.
         beam
-            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+            Simulation :class:`~blond.core.beam.beams.Beam` object.
         n_turns
             Number of turns to simulate.
         **kwargs
@@ -703,7 +703,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         simulation
             `Simulation` context manager.
         beam
-            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+            Simulation :class:`~blond.core.beam.beams.Beam` object.
         n_turns
             Number of turns to simulate.
         **kwargs
@@ -893,7 +893,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         simulation
             `Simulation` context manager.
         beam
-            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+            Simulation :class:`~blond.core.beam.beams.Beam` object.
         n_turns
             Number of turns to simulate.
         **kwargs
