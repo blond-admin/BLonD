@@ -257,7 +257,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         fastmath=True,
         cache=False,
     )
-    def _apply_sr_without_quantum_excitation(
+    def _apply_sr_without_quantum_excitation(  # pragma: no cover
         beam_dE: NumpyArray,
         damping_factor: float,
         energy_lost: float,
@@ -271,7 +271,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         fastmath=True,
         cache=False,
     )
-    def _apply_sr_with_quantum_excitation(
+    def _apply_sr_with_quantum_excitation(  # pragma: no cover
         beam_dE: NumpyArray,
         damping_factor: float,
         energy_lost: float,

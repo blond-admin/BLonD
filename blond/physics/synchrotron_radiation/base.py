@@ -67,7 +67,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         disable_quantum_excitation: bool = False,
         seed: int | None = None,
     ):
-        if seed is not None:
+        if seed is not None:  # pragma: no cover
             raise NotImplementedError(
                 "`seed` is not supported: the quantum-excitation noise is "
                 "drawn inside the active backend's `specials` implementation "
