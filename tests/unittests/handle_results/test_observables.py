@@ -44,7 +44,7 @@ from blond.physics.impedances.solvers import (
 )
 from blond.physics.impedances.sources import Resonators
 from blond.physics.profiles import DynamicProfileConstNBins
-from blond.utilities.separatrix.symbolic_serapartix import (
+from blond.utilities.separatrix.symbolic_separatrix import (
     SymbolicSeparatrixHelper,
 )
 
