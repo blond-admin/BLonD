@@ -484,16 +484,20 @@ class TestBeamSaveLoad(unittest.TestCase):
             original.particle_type.charge, restored.particle_type.charge
         )
         np.testing.assert_array_equal(
-            original.read_partial_dt(), restored.read_partial_dt()
+            copy_to_cpu(original.read_partial_dt()),
+            copy_to_cpu(restored.read_partial_dt()),
         )
         np.testing.assert_array_equal(
-            original.read_partial_dE(), restored.read_partial_dE()
+            copy_to_cpu(original.read_partial_dE()),
+            copy_to_cpu(restored.read_partial_dE()),
         )
         np.testing.assert_array_equal(
-            original.read_partial_flags(), restored.read_partial_flags()
+            copy_to_cpu(original.read_partial_flags()),
+            copy_to_cpu(restored.read_partial_flags()),
         )
         np.testing.assert_array_equal(
-            original.read_partial_ids(), restored.read_partial_ids()
+            copy_to_cpu(original.read_partial_ids()),
+            copy_to_cpu(restored.read_partial_ids()),
         )
 
     def test_load_rejects_mismatched_schema_version(self):
