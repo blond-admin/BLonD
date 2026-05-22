@@ -27,13 +27,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from blosc2 import NDArray
 
 from blond.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray
+
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
 

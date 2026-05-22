@@ -27,6 +27,8 @@ from blond.physics.feedbacks.beam_feedback import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray
+
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
 
@@ -99,7 +101,7 @@ class PSBeamControl(BeamFeedbackBase):
 
     def __init__(
         self,
-        below_transition: np.ndarray,
+        below_transition: NDArray,
         pl_gain: float = 0,
         rl_gain: float = 0,
         gd_pl: float = 5.704,
