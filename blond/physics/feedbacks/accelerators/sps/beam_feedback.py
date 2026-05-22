@@ -55,7 +55,9 @@ class SPSBeamControl(BeamFeedbackBase):
     global_gain
         Global gain of the beam control.
     action_delay
-        Delay of the action of the beam-phase loop.
+        Delay of the action of the beam-phase loop from the first turn.
+    delay_turns
+        The delay [turns] between measurement at correction from the beam control.
     *args
         Variable positional arguments.
     **kwargs
@@ -73,6 +75,7 @@ class SPSBeamControl(BeamFeedbackBase):
         phi_sync: float | NumpyArray,
         global_gain: float | NumpyArray,
         action_delay: int,
+        delay_turns: int = 2,
         *args,
         **kwargs,
     ):
@@ -89,21 +92,26 @@ class SPSBeamControl(BeamFeedbackBase):
         self.phi_sync = phi_sync
         self.global_gain = global_gain
 
-        self.dphi_z1 = 0
-        self.dphi_z2 = 0
-        self.dphi_z3 = 0
-        self.epsilon_z1 = 0
-        self.epsilon_z2 = 0
-        self.epsilon_z3 = 0
-        self.Zeta = 0
-        self.Alpha = 0
-        self.Alpha_z1 = 0
-        self.Alpha_z2 = 0
-        self.Alpha_z3 = 0
+        self.delay_turns = delay_turns
+
+        self.domega_rf_corr = [0.0] * self.delay_turns
+
+        # Internal feedback parameters
+        self.dphi_prev = 0
+        self.epsilon = 0
+        self.epsilon_prev = 0
+        self.zeta = 0
+        self.alpha = 0
+        self.alpha_prev = 0
 
         self.domega_rf = 0.0
         self.dphi = 0.0
         self.reference = 0.0
+
+        # Frequency corrections
+        self.domega_dphi = 0.0
+        self.domega_sync = 0.0
+        self.domega_freq = 0.0
 
     def on_run_simulation(
         self,
@@ -203,39 +211,38 @@ class SPSBeamControl(BeamFeedbackBase):
         self.beam_phase()
         self.phase_difference(beam)
 
+        # Phase loop
         self.domega_dphi = (
-            -self.k_phi_n[counter] * self.dphi_z2
-            - self.k_phi_nm1[counter] * self.dphi_z3
+            -self.k_phi_n[counter] * self.dphi
+            - self.k_phi_nm1[counter] * self.dphi_prev
         )
 
         # Synchro Loop
         self.epsilon = self.cavities[0].phi_rf - self.phi_sync[counter]
-        self.Zeta += self.epsilon_z1
+        self.zeta += self.epsilon_prev
         self.domega_sync = (
             -self.k_eps_n[counter] * self.epsilon
-            - self.k_z_n[counter] * self.Zeta
+            - self.k_z_n[counter] * self.zeta
         )
 
         # Frequency Loop
         self.domega_freq = (
-            -self.k_a_n[counter] * self.Alpha_z1
-            - self.k_b_n[counter] * self.Alpha_z2
+            -self.k_a_n[counter] * self.alpha
+            - self.k_b_n[counter] * self.alpha_prev
         )
 
         # Total frequency correction
-        self.domega_rf = self.domega_dphi + self.domega_sync + self.domega_freq
+        self.domega_rf_corr = [
+            self.domega_dphi + self.domega_sync + self.domega_freq
+        ] + self.domega_rf_corr[:-1]
+
+        self.domega_rf = self.domega_rf_corr[-1]
 
         # Update some parameters for the next turn
-        self.Alpha_z3 = self.Alpha_z2
-        self.Alpha_z2 = self.Alpha_z1
-        self.Alpha_z1 = self.Alpha
-        self.Alpha = self.domega_rf * t_rev
-        self.epsilon_z3 = self.epsilon_z2
-        self.epsilon_z2 = self.epsilon_z1
-        self.epsilon_z1 = self.epsilon
-        self.dphi_z3 = self.dphi_z2
-        self.dphi_z2 = self.dphi_z1
-        self.dphi_z1 = self.dphi
+        self.alpha_prev = self.alpha
+        self.alpha = self.domega_rf * t_rev
+        self.epsilon_prev = self.epsilon
+        self.dphi_prev = self.dphi
 
         # Apply global gain
         self.domega_rf *= self.global_gain[counter]
