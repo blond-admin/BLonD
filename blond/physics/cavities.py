@@ -191,21 +191,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
-
-    Attributes
-    ----------
-    omega_rf_design
-        Design angular frequency relating to the harmonic numbers, in [rad/s].
-    delta_omega_rf
-        Correction term to omega_rf_design, used by feedbacks, in [rad/s].
-    phi_rf_design
-        Design angular phase, in [rad].
-    delta_phi_rf
-        Correction term for phi_rf_design, used by feedbacks, in [rad].
-    voltage
-        Voltage/s, in [V].
-    harmonic
-        Harmonic number, relating the rf frequency/ies to the revolution frequency.
     """
 
     def __init__(
@@ -996,15 +981,6 @@ class SingleHarmonicRFStation(
         Additional keyword arguments for method
         resolution order of inheriting elements.
 
-    Attributes
-    ----------
-    voltage
-        RF station's effective voltage, in [V].
-    phi_rf_design
-        RF station's design phase, in [rad].
-    harmonic
-        RF station's design harmonic [].
-
     Examples
     --------
     Parameters can be scheduled along the simulation execution
@@ -1493,15 +1469,6 @@ class MultiHarmonicRFStation(
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
-
-    Attributes
-    ----------
-    voltage
-        RF station's effective voltages (per harmonic) in [V].
-    phi_rf_design
-        RF station's design phases (per harmonic) in [rad].
-    harmonic
-        RF station's design harmonics (per harmonic) [].
 
     Examples
     --------

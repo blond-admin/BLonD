@@ -60,15 +60,6 @@ class BeamFeedbackBase(GlobalFeedback):
     sample_de
         Determines which particles to sample for mean energy calculation.
         Every <sample_dE>. particle is sampled.
-
-    Attributes
-    ----------
-    domega_rf
-        The frequency correction of the feedback.
-    dphi
-        The phase shift due to the frequency correction.
-    phi_beam
-        The beam phase [rad].
     """
 
     _parent_rf_station: RFStationBaseClass
