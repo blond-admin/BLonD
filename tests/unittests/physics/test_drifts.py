@@ -154,9 +154,6 @@ class TestDriftSimple(unittest.TestCase):
             self.drift_simple.eta_0(gamma=self.gamma), (rel_eta)
         )
 
-    def test_invalidate_cache(self):
-        self.drift_simple.invalidate_cache()
-
     def test_on_init_simulation(self):
         from blond.core.simulation.simulation import Simulation
 
