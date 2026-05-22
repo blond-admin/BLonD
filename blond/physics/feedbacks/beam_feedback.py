@@ -57,6 +57,9 @@ class BeamFeedbackBase(GlobalFeedback):
         Time offset for the calculation of the beam phase.
     current_thres
         Beam current threshold for gating of the profiles.
+    sample_de
+        Determines which particles to sample for mean energy calculation.
+        Every <sample_dE>. particle is sampled.
 
     Attributes
     ----------
@@ -76,19 +79,24 @@ class BeamFeedbackBase(GlobalFeedback):
         delay: int = 0,
         window_coefficient: float = 0.0,
         time_offset: float | None = None,
-        current_thres=None,
+        current_thres: float = None,
+        sample_de: int = 0,
     ):
         super().__init__(profile=profile)
         self.delay = delay
         self.window_coefficient = window_coefficient
         self.time_offset = time_offset
         self.current_thres = current_thres
+        self.sample_de = sample_de
 
         self.domega_rf = 0
 
         self.dphi: float = 0.0
 
         self.phi_beam: float = 0.0
+
+        self.drho: float = 0.0
+        self.average_de: float = 0.0
 
     @requires(["RFStationBaseClass"])
     def on_run_simulation(
@@ -248,6 +256,30 @@ class BeamFeedbackBase(GlobalFeedback):
                 self.dphi += noiseFB.x * RFnoise.dphi[counter]
             else:
                 self.dphi += RFnoise.dphi[counter]
+
+    def radial_difference(self, beam: BeamBaseClass):
+        """
+        Radial difference between beam and design orbit.
+
+        Parameters
+        ----------
+        beam
+            The beam object used in the simulation.
+        """
+        counter = self.cavities[0]._turn_i.value
+
+        # Correct for design orbit
+        self.average_de = backend.specials.mean(beam.dE[:: self.sample_de])
+
+        self.drho = (
+            self.ring.alpha_0[0, counter]
+            * self.ring.ring_radius
+            * self.average_de
+            / (
+                self.ring.beta[0, counter] ** 2.0
+                * self.ring.energy[0, counter]
+            )
+        )
 
     def _track(self, beam: BeamBaseClass):
         """
