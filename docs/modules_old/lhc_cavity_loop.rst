@@ -8,7 +8,7 @@ LHC Cavity Loop
     :height: 640
 
 The interaction of the LHC cavity loop with the beam is modelled on a turn-by-turn basis. All arrays inside the class
-:py:class:`blond.llrf.cavity_feedback.LHCCavityLoop` are complex arrays with a memory of exactly 2 turns (previous and
+``blond.llrf.cavity_feedback.LHCCavityLoop`` are complex arrays with a memory of exactly 2 turns (previous and
 present). The signals are digitised with a sampling time :math:`T_s` that adapts to the revolution period to have
 exactly
 

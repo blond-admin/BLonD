@@ -324,8 +324,6 @@ class RingAndRFTracker:
         profile: Optional[Profile] = None,
         total_induced_voltage: Optional[TotalInducedVoltage] = None,
     ):
-        if not interpolation and total_induced_voltage is not None:
-            raise RuntimeError("Total induced voltage is not usable without interpolation")
         # Set up logging
         # self.logger = logging.getLogger(__class__.__name__)
         # self.logger.info("Class initialized")
@@ -594,14 +592,9 @@ class RingAndRFTracker:
             if self.rf_params.empty is False:
                 if self.interpolation:
                     self.rf_voltage_calculation()
+                    self.total_voltage = self.rf_voltage
                     if self.totalInducedVoltage is not None:
-                        self.total_voltage = (
-                            self.rf_voltage
-                            + self.totalInducedVoltage.induced_voltage
-                        )
-                    else:
-                        self.total_voltage = self.rf_voltage
-
+                        self.total_voltage += self.totalInducedVoltage.induced_voltage
                     bm.linear_interp_kick(
                         dt=self.beam.dt,
                         dE=self.beam.dE,

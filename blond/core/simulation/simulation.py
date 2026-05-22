@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -40,6 +40,7 @@ from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
@@ -53,13 +54,13 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
 
+    from matplotlib.lines import Line2D
     from numpy.typing import NDArray as NumpyArray
 
     from blond import BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
-    from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.ring.ring import Ring
     from blond.core.simulation.execution_models.base import ExecutionModel
     from blond.experimental.beam_preparation.empiric_matcher import (
@@ -160,9 +161,11 @@ class Simulation(Preparable):
         self.check_circumference: Literal["raise", "warn", "ignore"] = "raise"
 
         self._current_t_rev = None
+        self._current_turn_dE_tot = None
         self._particle_performance_waning_threshold = int(1e3)
         self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
+        self._exec_track_reference()
 
     def profiling(
         self,
@@ -275,6 +278,7 @@ class Simulation(Preparable):
         dt: NumpyArray,
         particle_type: ParticleType,
         subtract_min: bool = True,
+        until_section_index: int = -1,
         **kwargs_plot,
     ) -> None:
         """
@@ -298,6 +302,9 @@ class Simulation(Preparable):
         subtract_min
             If True (default), normalizes the potential so its minimum is at zero.
             If False, normalizes so ``potential_well[0] = 0``.
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
+
         **kwargs_plot
             Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
             for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
@@ -342,6 +349,7 @@ class Simulation(Preparable):
             dt=dt,
             particle_type=particle_type,
             subtract_min=subtract_min,
+            until_section_index=until_section_index,
         )
         plt.plot(
             copy_to_cpu(dt),
@@ -365,7 +373,7 @@ class Simulation(Preparable):
         )
 
         t_rev_before = self._current_t_rev  # prevent side effect
-        self._calculate_current_t_rev(
+        self._update_Trev_and_dErev(
             reference=(
                 ReferenceCoordinates(
                     time=0.0,
@@ -570,10 +578,15 @@ class Simulation(Preparable):
         )
         bunch_before = deepcopy(probe_bunch)
         t_0 = probe_bunch.reference.time
-        deepcopy(self).run_simulation(
+
+        # prevent side effect
+        sim_tmp = deepcopy(self)
+
+        sim_tmp.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             show_progressbar=False,
+            verbose=False,
             until_section_index=until_section_index,
         )
         # Calculate passed time
@@ -737,6 +750,17 @@ class Simulation(Preparable):
             n_turns=n_turns,
         )
 
+    def _exec_track_reference(self):
+        reference = ReferenceCoordinates(
+            time=0.0,
+            total_energy=self.magnetic_cycle.get_total_energy_init(
+                particle_type=self.magnetic_cycle.reference_particle
+            ),
+            particle_type=self.magnetic_cycle.reference_particle,
+        )
+        for element in self.ring.elements.get_elements(AltersReference):
+            element.track_reference(reference=reference)
+
     @staticmethod
     def from_locals(
         locals: dict[str, Any], verbose: bool = False
@@ -779,7 +803,6 @@ class Simulation(Preparable):
 
         See Also
         --------
-        Simulation.__init__ : Initialize Simulation manually.
         prepare_beam : Populate beam phase space.
 
         Notes
@@ -789,6 +812,7 @@ class Simulation(Preparable):
         - All RF stations and drifts must be defined before calling this method.
         - The beam does not need to be prepared yet - use ``sim.prepare_beam()``
           after creating the simulation.
+        - Equivalent to constructing the object directly with ``Simulation(...)``.
 
         Examples
         --------
@@ -881,10 +905,10 @@ class Simulation(Preparable):
 
         See Also
         --------
-        ConstantMagneticCycle : Constant energy cycle.
-        MagneticCyclePerTurn : Energy cycle defined per turn.
-        MagneticCyclePerTurnAllRFStations : Energy cycle with all RF stations.
-        MagneticCycleByTime : Time-based energy cycle.
+        blond.cycles.magnetic_cycle.ConstantMagneticCycle : Constant energy cycle.
+        blond.cycles.magnetic_cycle.MagneticCyclePerTurn : Energy cycle defined per turn.
+        blond.cycles.magnetic_cycle.MagneticCyclePerTurnAllRFStations : Energy cycle with all RF stations.
+        blond.cycles.magnetic_cycle.MagneticCycleByTime : Time-based energy cycle.
         """
         return self._magnetic_cycle
 
@@ -955,10 +979,10 @@ class Simulation(Preparable):
 
         See Also
         --------
-        BiGaussian : Simple Gaussian beam distribution.
-        EmpiricMatcher : Grid-based distribution matching.
-        SemiEmpiricMatcher : Hamiltonian-based matched distribution.
-        XsuiteRFBucketMatcher : XSuite RF bucket matching.
+        blond.beam_preparation.bigaussian.BiGaussian : Simple Gaussian beam distribution.
+        blond.experimental.beam_preparation.empiric_matcher.EmpiricMatcher : Grid-based distribution matching.
+        blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher : Hamiltonian-based matched distribution.
+        blond.interfaces.xsuite.beam_preparation.rfbucket_matching.XsuiteRFBucketMatcher : XSuite RF bucket matching.
 
         Notes
         -----
@@ -1151,7 +1175,7 @@ class Simulation(Preparable):
             Default is None.
         observe
             Tuple of observable objects that record data during the simulation
-            (e.g., ``RFStationPhaseObservation``, ``BeamObservationEndOfTurn``).
+            (e.g., ``RFStationPhaseObservation``, ``BeamObservationOncePerTurn``).
             Each observable is updated according to its own schedule. Default is empty tuple.
         show_progressbar
             If True, displays a progress bar showing simulation progress and turn rate.
@@ -1179,7 +1203,6 @@ class Simulation(Preparable):
         See Also
         --------
         prepare_beam : Populate beam with macroparticles.
-        setup_beam : Manually set beam coordinates.
         save_results : Save simulation results to disk.
         load_results : Load previously saved results.
         print_one_turn_execution_order : Display element execution order.
@@ -1293,10 +1316,11 @@ class Simulation(Preparable):
 
         This method is called internally by both ``run_simulation()`` and ``load_results()``
         to set up the simulation state. It:
-            1. Validates the number of turns against the magnetic cycle
-            2. Checks for performance warnings
-            3. Calls ``on_run_simulation()`` hooks on all components
-            4. Prepares observables for data collection
+
+        1. Validates the number of turns against the magnetic cycle
+        2. Checks for performance warnings
+        3. Calls ``on_run_simulation()`` hooks on all components
+        4. Prepares observables for data collection
 
         Users typically don't need to call this method directly.
 
@@ -1630,9 +1654,9 @@ class Simulation(Preparable):
                 observable.rename(new_common_filepath=common_name)
             observable.from_disk()
 
-    def _calculate_current_t_rev(self, reference: ReferenceCoordinates):
+    def _update_Trev_and_dErev(self, reference: ReferenceCoordinates) -> None:
         """
-        Calculate the revolution time of the current turn, in [s].
+        Calculate the revolution time and energy gain of the current turn.
 
         This method takes the reference frame of the beam at the first element
         and tracks it along one turn back to the first element,
@@ -1645,19 +1669,25 @@ class Simulation(Preparable):
             The reference energy, i.e. velocity, impacts the revolution time
             and might change along the ring when multiple sections are used.
 
-        Returns
-        -------
-        t_rev
-            Revolution time, in [s].
+        See Also
+        --------
+        current_t_rev: API to pick up the results.
+        current_turn_dE_tot: API to pick up the results.
         """
         reference_tmp = copy(reference)
+
         t0 = reference_tmp.time
+        E0 = reference_tmp.total_energy
 
         for element in self.ring.elements.get_elements(AltersReference):
             element: AltersReference
             element.track_reference(reference_tmp)
+
         t1 = reference_tmp.time
+        E1 = reference_tmp.total_energy
+
         self._current_t_rev = t1 - t0
+        self._current_turn_dE_tot = E1 - E0
 
     @property
     def current_t_rev(self) -> float:
@@ -1678,3 +1708,71 @@ class Simulation(Preparable):
             )
         else:
             return self._current_t_rev
+
+    @property
+    def current_turn_dE_tot(self) -> float:
+        """
+        The energy gain in the current turn, in [eV].
+
+        This is the energy change of the total energy (kinetic + mass),
+        calculated from the start to the end of the current turn.
+
+        Returns
+        -------
+        current_turn_dE_tot
+            Energy gain in the current turn, in [eV].
+        """
+        if self._current_turn_dE_tot is None:
+            raise ValueError(
+                "The value of `current_dE` is only available during the simulation execution."
+            )
+        else:
+            return self._current_turn_dE_tot
+
+    def plot_separatrix(
+        self,
+        beam: BeamBaseClass,
+        dt: NumpyArray,
+        **kwargs_plot,
+    ) -> list[Line2D]:
+        r"""
+        Plot the longitudinal phase-space separatrix.
+
+        Calls
+        :meth:`~blond.utilities.separatrix.symbolic_separatrix.SymbolicSeparatrixHelper.get_separatrix`
+        and draws both branches on the current
+        matplotlib axes. The label (if given) is applied only to the upper
+        branch so the legend shows a single entry.
+
+        Parameters
+        ----------
+        beam
+            Beam whose reference coordinates supply :math:`\beta`,
+            :math:`\gamma`, :math:`E` and charge.
+        dt
+            Time-deviation grid [s] spanning at least the full RF bucket,
+            including the unstable fixed point.
+        **kwargs_plot
+            Additional keyword arguments forwarded to ``matplotlib.pyplot.plot``
+            (e.g. ``color``, ``linewidth``, ``linestyle``).
+
+        Returns
+        -------
+        artists
+            List of matplotlib objects.
+
+        See Also
+        --------
+        blond.utilities.separatrix.symbolic_separatrix.SymbolicSeparatrixHelper.get_separatrix :
+            Compute the separatrix boundary numerically.
+
+        Notes
+        -----
+        This method does not call ``plt.show()``; call that separately.
+        """
+        from blond.utilities.separatrix.symbolic_separatrix import (  # avoid cyclic imports
+            SymbolicSeparatrixHelper,
+        )
+
+        sep = SymbolicSeparatrixHelper.from_simulation(simulation=self)
+        return sep.plot_separatrix(beam=beam, dt=dt, **kwargs_plot)

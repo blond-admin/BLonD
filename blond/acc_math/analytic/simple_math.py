@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -178,9 +178,21 @@ def beta_by_momentum(
     return np.sqrt(1 / (1 + (mass / momentum) ** 2))
 
 
+@overload
+def momentum_compaction_factor(transition_gamma: float) -> float: ...  # NOQA
+
+
+@overload
+def momentum_compaction_factor(transition_gamma: complex) -> float: ...  # NOQA
+
+
+@overload
+def momentum_compaction_factor(transition_gamma: NumpyArray) -> NumpyArray: ...  # NOQA
+
+
 def momentum_compaction_factor(
-    transition_gamma: complex | NumpyArray,
-) -> float | NumpyArray:
+    transition_gamma,
+):
     """
     Calculate the momentum compaction factor.
 
@@ -231,3 +243,30 @@ def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
         raise ValueError(
             f"Expected purely real or purely imaginary number, not {val}."
         )
+
+
+def gaussian_distribution(
+    time_array: NumpyArray, sigma_t: float, center: float
+):
+    """
+    Return a gaussian distribution on a given time array.
+
+    Parameters
+    ----------
+    time_array
+        Time array for which the gaussian distribution is to be calculated.
+    sigma_t
+        Standard deviation of the gaussian distribution.
+    center
+        Center of the gaussian distribution.
+
+    Returns
+    -------
+    gauss
+        Gaussian distribution.
+    """
+    return (
+        1
+        / (sigma_t * np.sqrt(2 * np.pi))
+        * np.exp(-((time_array - center) ** 2) / (2 * sigma_t**2))
+    )

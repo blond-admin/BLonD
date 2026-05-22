@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -306,6 +306,8 @@ def _topological_sort(
     sorted_classes
         List of class names in topologically sorted order.
     """
+    # This import is here because of sphinx warning
+    # `list assignment index out of range [autodoc]`
     # Initialize queue with classes that have no dependencies (in-degree 0)
     from collections import deque
 

@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -33,7 +33,7 @@ from blond import (
 )
 
 
-def main():
+def main(n_turns: int = 2000):
     # Simulation parameters -------------------------------------------------------
     p_s = 450.0e9  # Synchronous momentum [eV]
     harmonic_number = 35640  # Harmonic number
@@ -103,7 +103,7 @@ def main():
     # profile_observable = DynamicProfileObservation(each_turn_i=10,
     # profile=profile)
     sim.run_simulation(
-        n_turns=2000,
+        n_turns=n_turns,
         # observe=(profile_observable,),
         beams=(beam,),
     )

@@ -11,6 +11,8 @@ repos:
       - id: check-merge-conflict  # Check for files that contain merge conflict strings.
       - id: check-added-large-files  # Prevent giant files from being committed.
         args: [ '--maxkb=5000' ]
+      - id: no-commit-to-branch # not allowing to directly commit to blonder branch
+        args: [--branch, blonder, --branch, develop, --branch, master]
 
   # Sorts the python import statements
   - repo: https://github.com/PyCQA/isort
