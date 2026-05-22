@@ -27,7 +27,6 @@ def test_kickdrift():
     )
 
     N_TURNS = len(momentum) - 1
-    N_TURNS_SIM = N_TURNS
     CIRCUMFERENCE = 2 * np.pi * 100
     VOLTAGE = 200e3
     HARMONIC = 8
@@ -99,7 +98,7 @@ def test_kickdrift():
 
     sim.run_simulation(
         beams=(beam1,),
-        n_turns=N_TURNS_SIM,
+        n_turns=N_TURNS,
         observe=[cavity_obs, bunch_observation],
         callbacks=_blond3_callback if _DEV_DRAW else None,
     )
@@ -137,7 +136,7 @@ def test_kickdrift():
     time_history_blond2[0] = beam2.dt[0]
     energy_history_blond2[0] = beam2.dE[0]
 
-    for turn in range(N_TURNS_SIM):
+    for turn in range(N_TURNS):
         full_tracker.track()
         time_history_blond2[turn + 1] = beam2.dt[0]
         energy_history_blond2[turn + 1] = beam2.dE[0]
