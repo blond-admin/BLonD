@@ -367,7 +367,10 @@ class ConstantMagneticCycle(MagneticCycleBase):
             n_turns_max=None,
         )
 
-        self._total_energy_cache = {}  # wipe cache if simulation context changes
+    def invalidate_cache(self):
+        """Wipe cached values, e.g. when the simulation context changes."""
+        super().invalidate_cache()
+        self._total_energy_cache = {}
 
     def get_target_total_energy(
         self,
@@ -566,6 +569,12 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         )
         self._magnetic_rigidity = _magnetic_rigidity
         self._total_energy_cached = {}  # wipe cache if the simulation context changes
+        self._momentum_cached = {}
+
+    def invalidate_cache(self):
+        """Wipe cached values, e.g. when the simulation context changes."""
+        super().invalidate_cache()
+        self._total_energy_cached = {}
         self._momentum_cached = {}
 
     def get_target_total_energy(
@@ -813,6 +822,11 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
             magnetic_rigidity_after_rf_station_per_turn
         )
         self._momentum_cached = {}  # wipe cache if simulation context changes
+
+    def invalidate_cache(self):
+        """Wipe cached values, e.g. when the simulation context changes."""
+        super().invalidate_cache()
+        self._momentum_cached = {}
 
     def get_target_total_energy(
         self,
