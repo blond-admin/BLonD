@@ -511,7 +511,7 @@ class Resonators(
                 * (
                     self._shunt_impedances[res_ind]
                     * self._alpha[res_ind]
-                    * backend.exp(-self._alpha[res_ind] * time)
+                    * backend.exp(-self._alpha[res_ind] * time * 2)
                 )
                 * (
                     backend.cos(self._omega_bar[res_ind] * time)
@@ -581,13 +581,13 @@ class Resonators(
 
         for res_ind in range(self._n_resonators):
             wake += (
-                (
+                (2 *
                     heaviside_like
                 )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
                 * (
                     self._shunt_impedances_counter_rotating[res_ind]
                     * self._alpha[res_ind]
-                    * backend.exp(-self._alpha[res_ind] * time)
+                    * backend.exp(-self._alpha[res_ind] * time / 2)
                 )
                 * (
                     backend.cos(self._omega_bar[res_ind] * time)
