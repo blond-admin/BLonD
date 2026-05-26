@@ -219,17 +219,22 @@ def rf_beam_current(
             charges_coarse[ind_fine[0]] = np.sum(charges_fine)
         else:
             # Pick total current within one coarse grid
-            charges_coarse[ind_fine[0]] = np.sum(charges_fine[: indices[0]])
+            charges_coarse[ind_fine[0]] = (
+                np.sum(charges_fine[: indices[0]]) * 2
+            )
 
             for i in range(
                 1, len(indices)
             ):  # TODO: not good for sparse profiles !!!!
                 if i + ind_fine[0] > n_points:
                     raise RuntimeError("yorak")
-                charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
-                    charges_fine[
-                        indices[i - 1] : indices[i]
-                    ]  # TODO: +1 for edges?
+                charges_coarse[(i + ind_fine[0]) % n_points] = (
+                    np.sum(
+                        charges_fine[
+                            indices[i - 1] : indices[i]
+                        ]  # TODO: +1 for edges?
+                    )
+                    * 2
                 )
             # remainder after last indcident
             # charges_coarse[ind_fine[-1]] = np.sum(charges_fine[indices[-1] :])
