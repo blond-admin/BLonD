@@ -1023,12 +1023,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             2.0
             * np.pi
             * self.harmonic
-            # * -self.delta_omega  # makes no difference whatsoever
+            * self.delta_omega  # makes no difference whatsoever
             / self._parent_rf_station.calc_omega_rf_design(
                 beam_beta=self.reference_state_until_tracked.beta,
                 ring_circumference=self.ring.circumference,
             )
         )
+        self.phase_offset_frwrd_next = 0
+        print(self.phase_offset_frwrd_next)
 
         new_rf_centers = self._generate_rf_centers(
             t_rf=(2 * np.pi / self.forward_tracking_omega_rf),

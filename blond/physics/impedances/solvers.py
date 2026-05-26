@@ -1006,6 +1006,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             / (2 * np.pi)
             + self.delta_f
         )
+        print(
+            f"freq updated {self._parent_wakefield.sources[0]._center_frequencies[0]}"
+        )
         self._update_past_profile_wake_functions()
 
     def calc_induced_voltage(

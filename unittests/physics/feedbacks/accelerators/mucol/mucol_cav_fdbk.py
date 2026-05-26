@@ -1,25 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from blond.examples.scripts.EX_09_Semi_empiric_matcher import (
-    bucket_fill_by_emittance_gaussian,
-)
-from blond.experimental import SemiEmpiricMatcher
-from blond.handle_results.observables import IQCavityFeedbackObservation
-from blond.handle_results.observables_as_elements import (
-    BeamObservationInRingElement,
-    BunchObservationMetaParams,
-    InducedVoltageObservationCR,
-)
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
-from blond.physics.impedances.solvers import (
-    MultiPassResonatorSolver,
-    SingleTurnResonatorConvolutionSolver,
-)
 from scipy.constants import elementary_charge, speed_of_light
 from scipy.interpolate import interp1d
-from blond.specifics.muon_collider.beam_preparation import (
-    load_beam_coordinates_from_file,
-)
 
 from blond import (
     Beam,
@@ -34,6 +16,23 @@ from blond import (
     mu_plus,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
+from blond.examples.scripts.EX_09_Semi_empiric_matcher import (
+    bucket_fill_by_emittance_gaussian,
+)
+from blond.experimental import SemiEmpiricMatcher
+from blond.handle_results.observables import IQCavityFeedbackObservation
+from blond.handle_results.observables_as_elements import (
+    BeamObservationInRingElement,
+    BunchObservationMetaParams,
+    InducedVoltageObservationCR,
+)
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.impedances.solvers import (
+    MultiPassResonatorSolver,
+)
+from blond.specifics.muon_collider.beam_preparation import (
+    load_beam_coordinates_from_file,
+)
 
 n_slices = 2**10
 
@@ -81,6 +80,7 @@ def setup_and_run(
     MTW
         If this flag is True, the simulation will be run with a convolution solver and not
         the feedback.
+
     Returns
     -------
 
@@ -91,15 +91,16 @@ def setup_and_run(
         R_over_Q = 518
         # Q_L = 1.29e6
         phi_s = 2.5830872929516078  # 148
+        # phi_s = phi_s - np.pi / 2
         alpha_p = 10.395e-4
-        bunch_intensity = 2.7e5
+        bunch_intensity = 2.7e12
         circumference = 5990
         injection_energy = 63e9
         ejection_energy = 313.8e9
         # f_det = -1040
         harmonic = 25900
         n_turns = 18
-        F_b = 2 * (-0.9496176885609792-0.20292067206919637j)
+        F_b = 2 * (-0.9496176885609792 - 0.20292067206919637j)
 
     elif rcs == "RCS2":
         R_over_Q = 518
@@ -158,8 +159,9 @@ def setup_and_run(
             injection_energy + energy_gain_per_turn / n_stations,
             ejection_energy,
             n_turns * n_stations,
-        ).reshape(n_stations, n_turns, order="F") if acceleration else
-        injection_energy
+        ).reshape(n_stations, n_turns, order="F")
+        if acceleration
+        else injection_energy
         * np.ones(
             n_turns * n_stations,
         ).reshape(n_stations, n_turns, order="F"),
@@ -190,18 +192,18 @@ def setup_and_run(
         * np.abs(F_b)
         * beam_current
         * np.cos(phi_s)
-        / (2 * voltage_per_cavity)
-    ) #  / np.sin(phi_s - np.pi / 2) ** 2
+        / (voltage_per_cavity)
+    ) / np.sin(phi_s - np.pi / 2) ** 2
     # delta_omega = 0
     f_det = delta_omega / (2 * np.pi)
     # phi_s = np.pi / 2
     Q_L = voltage_per_cavity / (
         R_over_Q
         * np.sqrt(
-            (np.abs(F_b) * beam_current * np.sin(phi_s)) ** 2
+            (2 * np.abs(F_b) * beam_current * np.sin(phi_s)) ** 2
             + (
                 -np.abs(F_b) * beam_current * np.cos(phi_s)
-                + voltage_per_cavity * 2 * delta_omega / (omega_rf * R_over_Q)
+                + voltage_per_cavity * delta_omega / (omega_rf * R_over_Q)
             )
             ** 2
         )
@@ -210,9 +212,9 @@ def setup_and_run(
     I_g = (
         voltage_per_cavity
         / (2 * R_over_Q)
-        # * (1 / Q_L - 5.2 / 2 * 1j * delta_omega / omega_rf)
-        * (1 / Q_L - 2j * delta_omega / omega_rf)
-        # + np.abs(F_b) * beam_current * np.exp(-1j * (phi_s - np.pi/2))
+        * (1 / Q_L - 5.2 / 2 * 1j * delta_omega / omega_rf)
+        # * (1 / Q_L - 2j * delta_omega / omega_rf)
+        # + np.abs(F_b) * beam_current * np.exp(1j * (phi_s - np.pi/2)) * 0.125
     )
 
     I_g_ampl = np.abs(I_g)
@@ -248,8 +250,8 @@ def setup_and_run(
     for cavity_i in range(n_stations):
         profile_list.append(
             StaticProfile.from_rad(
-                np.pi * 2,
-                np.pi * 4,
+                np.pi * 1.5,
+                np.pi * 4.5,
                 n_slices,
                 t_rf,
                 section_index=cavity_i,
@@ -267,7 +269,7 @@ def setup_and_run(
                 # solver=SingleTurnResonatorConvolutionSolver(),
                 solver=MultiPassResonatorSolver(
                     decay_fraction_threshold=1e-12,
-                    allow_delta_t_zero=True,
+                    allow_delta_t_zero=False,
                     delta_f=f_det,
                 ),
                 profile=profile_list[-1],
@@ -368,9 +370,7 @@ def setup_and_run(
     beam_freq = np.fft.rfftfreq(
         100 * profile_list[0].n_bins, profile_list[0].hist_step
     )
-    beam_spectrum = profile_list[0].beam_spectrum(
-        100 * profile_list[0].n_bins
-    )
+    beam_spectrum = profile_list[0].beam_spectrum(100 * profile_list[0].n_bins)
     rf_frequency_component = (
         interp1d(beam_freq, beam_spectrum)(omega_rf / (2 * np.pi))
         / beam_spectrum[0]
@@ -527,8 +527,31 @@ def plot_ind_volt_cav_fdbk_voltage(
     plt.plot(np.imag(cav_fdbk_obs_list[1][0].v_ant_coarse[trn_idx]), color="k")
     # plt.plot(np.abs(cav_fdbk_obs_list[1][0].v_ant_coarse[trn_idx]), color="k")
     trn_idx = 1
-    plt.plot(np.real(cav_fdbk_obs_list[1][0].v_ant_coarse[trn_idx]), color="b", ls="--")
-    plt.plot(np.imag(cav_fdbk_obs_list[1][0].v_ant_coarse[trn_idx]), color="b", ls="--")
+    plt.plot(
+        np.real(cav_fdbk_obs_list[1][0].v_ant_coarse[trn_idx]),
+        color="b",
+        ls="--",
+    )
+    plt.plot(
+        np.imag(cav_fdbk_obs_list[1][0].v_ant_coarse[trn_idx]),
+        color="b",
+        ls="--",
+    )
+    # plt.plot(np.abs(cav_fdbk_obs_list[1][0].v_ant_coarse[trn_idx]), color="b", ls="--")
+    plt.show(block=False)
+
+    trn_idx = 0
+    plt.figure("coarse_voltage_2")
+    plt.plot(
+        np.angle(cav_fdbk_obs_list[1][0].v_ant_coarse[trn_idx]), color="k"
+    )
+    trn_idx = 1
+    plt.plot(
+        np.angle(cav_fdbk_obs_list[1][0].v_ant_coarse[trn_idx]),
+        color="b",
+        ls="--",
+    )
+    # plt.plot(np.imag(cav_fdbk_obs_list[1][0].v_ant_coarse[trn_idx]), color="b", ls="--")
     # plt.plot(np.abs(cav_fdbk_obs_list[1][0].v_ant_coarse[trn_idx]), color="b", ls="--")
     plt.show(block=False)
 
@@ -548,6 +571,14 @@ def plot_ind_volt_cav_fdbk_voltage(
             ind_volt_obs_list[0][0].total_voltage[idx]
             - ind_volt_obs_list[0][0].induced_voltage[idx]
         )
+        print(
+            f"feedback argmax {
+                np.argmax(
+                    np.real(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx])
+                    - cavity_voltage_raw
+                )
+            }"
+        )
         ax[0, 1].plot(
             np.real(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx])
             - cavity_voltage_raw,
@@ -561,6 +592,9 @@ def plot_ind_volt_cav_fdbk_voltage(
             ls=":",
             color=clr,
             label="real fdbk",
+        )
+        print(
+            f"ind volt argmax {np.argmax(ind_volt_obs_list[0][0].induced_voltage[idx])}"
         )
         ax[0, 1].plot(
             ind_volt_obs_list[0][0].induced_voltage[idx],
@@ -589,7 +623,7 @@ def plot_ind_volt_cav_fdbk_voltage(
 
 
 if __name__ == "__main__":
-    n_sections = 4
+    n_sections = 1
     bunch_obs_list, n_turns_list, ind_volt_obs_list, cav_fdbk_obs_list = (
         [],
         [],
@@ -612,7 +646,7 @@ if __name__ == "__main__":
             MTW=MTW,
             n_stations=n_sections,
             n_turns_in=n_turns,
-            force_rematch=True,
+            force_rematch=False,
             acceleration=False,
         )
         bunch_obs_list.append(bunch_observation_buf)
