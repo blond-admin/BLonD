@@ -9,15 +9,15 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_05_Wake_impedance_pooled(unittest.TestCase):
+class TestEX_25_main_user(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import EX_05_Wake_impedance_pooled
+        from blond.examples.scripts import EX_25_main_user
 
         # full script. just checking if it crashes
-        EX_05_Wake_impedance_pooled.main(n_turns=2)
+        EX_25_main_user.main()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -28,8 +28,8 @@ class TestEX_05_Wake_impedance_pooled(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import EX_05_Wake_impedance_pooled
+        from blond.examples.scripts import EX_25_main_user
 
         # full script. just checking if it crashes
-        EX_05_Wake_impedance_pooled.main(n_turns=2)
+        EX_25_main_user.main()
         backend.zeros(100)

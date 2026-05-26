@@ -9,22 +9,22 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_09_Semi_empiric_matcher(unittest.TestCase):
+class TestEX_21_Acceleration_revolution_time(unittest.TestCase):
     @pytest.mark.backend_mutation
+    @pytest.mark.mpi
     def test_executable_numba64(self):
-        self.skipTest("Too slow.")
-
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import EX_09_Semi_empiric_matcher
+        from blond.examples.scripts import (
+            EX_21_Acceleration_revolution_time,  # NOQA will run the
+        )
+
+        EX_21_Acceleration_revolution_time.main()
 
         # full script. just checking if it crashes
-        (
-            EX_09_Semi_empiric_matcher.increment_intensity_effects_until_iteration_i
-        ) = 2
-        EX_09_Semi_empiric_matcher.main()
 
     @pytest.mark.backend_mutation
+    @pytest.mark.mpi
     def test_executable_cuda64(self):
         try:
             import cupy  # type: ignore
@@ -33,11 +33,11 @@ class TestEX_09_Semi_empiric_matcher(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import EX_09_Semi_empiric_matcher
+        from blond.examples.scripts import (
+            EX_21_Acceleration_revolution_time,  # NOQA will run the
+        )
+
+        EX_21_Acceleration_revolution_time.main()
+        backend.zeros(100)
 
         # full script. just checking if it crashes
-        (
-            EX_09_Semi_empiric_matcher.increment_intensity_effects_until_iteration_i
-        ) = 2
-        EX_09_Semi_empiric_matcher.main()
-        backend.zeros(100)

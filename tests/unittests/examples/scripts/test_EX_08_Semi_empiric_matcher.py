@@ -9,20 +9,20 @@ from blond.core.backends.backend import (
 )
 
 
-class Test_minimum_working_example(unittest.TestCase):
+class TestEX_08_Semi_empiric_matcher(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
+        self.skipTest("Too slow.")
+
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import (
-            minimum_working_example,  # NOQA will run the
-        )
-
-        minimum_working_example.n_turns = 100
-        minimum_working_example.n_macroparticles = 100
-        minimum_working_example.main()
+        from blond.examples.scripts import EX_08_Semi_empiric_matcher
 
         # full script. just checking if it crashes
+        (
+            EX_08_Semi_empiric_matcher.increment_intensity_effects_until_iteration_i
+        ) = 2
+        EX_08_Semi_empiric_matcher.main()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -33,17 +33,11 @@ class Test_minimum_working_example(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import (
-            minimum_working_example,  # NOQA will run the
-        )
-
-        minimum_working_example.n_turns = 100
-        minimum_working_example.n_macroparticles = 100
-        minimum_working_example.main()
-        backend.zeros(100)
+        from blond.examples.scripts import EX_08_Semi_empiric_matcher
 
         # full script. just checking if it crashes
-
-
-if __name__ == "__main__":
-    unittest.main()
+        (
+            EX_08_Semi_empiric_matcher.increment_intensity_effects_until_iteration_i
+        ) = 2
+        EX_08_Semi_empiric_matcher.main()
+        backend.zeros(100)
