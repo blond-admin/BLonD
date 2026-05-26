@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -116,7 +116,7 @@ class MainloopSingleBeam(ExecutionModel):
 
             simulation.turn_i.value = turn_i
 
-            simulation._calculate_current_t_rev(reference=beam.reference)
+            simulation._update_Trev_and_dErev(reference=beam.reference)
             for element in simulation._ring.elements.elements:
                 simulation.section_i.value = element.section_index
                 if simulation.section_i.value >= until_section_index != -1:

@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import numba  # type: ignore
 import numpy as np
-from numba import njit, prange, void
+from numba import boolean, complex128, int32, njit, prange, void
 
 from blond.core.backends.backend import Specials
 from blond.core.backends.python.callables import (
@@ -73,7 +73,7 @@ def enforce_return_precision(dtype):
 
 @cache  # or set a limit like maxsize=128
 def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
-    floattype: type[np.float32 | np.float64],
+    floattype: type[np.float64],
 ):
     """
     Helper to recompile `NumbaSpecials` when the backend changed.
@@ -82,7 +82,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     ----------
     floattype
         Float type to compile the backend for.
-        `np.float32` or `np.float64` bit.
+        `np.float64` bit only.
 
     Returns
     -------
@@ -93,14 +93,12 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
 
     nb_i = numba.int32
 
-    if floattype == np.float32:
-        nb_f = numba.float32
-
-    elif floattype == np.float64:
-        nb_f = numba.float64
-
+    # Leave floattype as an option for legacy reasons, also keeps
+    # door open for adding options again in the future.
+    if floattype != np.float64:
+        raise TypeError(f"Only np.float64 can be used, not {floattype}.")
     else:
-        raise TypeError(floattype)
+        nb_f = numba.float64
 
     sig_dt = nb_f[:]
     sig_dE = nb_f[:]
@@ -170,7 +168,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         sig_energy,  # energy: float,
     )
 
-    sig_kick_induced_voltage = void(
+    sig_kick_interpolated = void(
         sig_dt,
         sig_dE,
         sig_voltage,
@@ -251,6 +249,18 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     _lost = BeamFlags.LOST.value
 
     class NumbaSpecials(Specials):  # pragma: no cover
+        @staticmethod
+        def get_max_threads() -> int:
+            """
+            Return the max number of threads this backend's kernels may use.
+
+            Returns
+            -------
+            max_threads
+                Maximum number of threads this backend's kernels may use.
+            """
+            return int(numba.get_num_threads())
+
         @staticmethod
         @enforce_precision(floattype)
         @enforce_return_precision(floattype)
@@ -336,10 +346,10 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             cache=True,
         )
         def loss_box(
-            e_max: np.float32 | np.float64,
-            e_min: np.float32 | np.float64,
-            t_min: np.float32 | np.float64,
-            t_max: np.float32 | np.float64,
+            e_max: np.float64,
+            e_min: np.float64,
+            t_min: np.float64,
+            t_max: np.float64,
             dt: NumpyArray,
             dE: NumpyArray,
             flags: NumpyArray,
@@ -500,12 +510,12 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         @staticmethod
         @enforce_precision(floattype)
         @njit(
-            sig_kick_induced_voltage,
+            sig_kick_interpolated,
             parallel=True,
             fastmath=True,
             cache=True,
         )
-        def kick_induced_voltage(
+        def kick_interpolated(
             dt: NumpyArray,
             dE: NumpyArray,
             voltage: NumpyArray,
@@ -640,6 +650,137 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                     array_tmp[thread_i, write_idx] += 1
 
             out[:] = np.sum(array_tmp, axis=0)
+
+        @staticmethod
+        @enforce_precision(floattype)
+        @njit(
+            void(
+                nb_f[:],
+                nb_f[:],
+                complex128[:],
+                complex128[:],
+                boolean,
+                nb_f[:],
+                int32[:],
+                nb_f,
+                complex128[:],
+                nb_f[:],
+                nb_f[:, :],
+            ),
+            parallel=True,
+            fastmath=True,
+            cache=False,
+        )
+        def wake_from_pole_residue(
+            # read
+            profile: NumpyArray,
+            profile_dts: NumpyArray,
+            poles: NumpyArray,
+            residues: NumpyArray,
+            is_counterrotating_beam: bool,
+            counterrotating_pole_signs: NumpyArray,
+            update_on_bin: NumpyArray,
+            factor: float,
+            # write
+            states: NumpyArray,
+            voltage: NumpyArray,
+            voltage_threaded: NumpyArray,
+        ) -> None:
+            """
+            Apply poles based on the `profile` to generate `voltage`.
+
+            Parameters
+            ----------
+            profile
+                Beam profile histogram.
+            profile_dts
+                Base for time step, connected to `update_on_bin`.
+            poles
+                Complex poles of an equivalent circuit model.
+            residues
+                Complex residues of an equivalent circuit model.
+            is_counterrotating_beam
+                If true, the current beam is counter-rotating.
+            counterrotating_pole_signs
+                Array per pole, -1 if the sign of the impedance is flipped
+                for a counter-rotating beam.
+            update_on_bin
+                Index when to trigger an update of dt. For speedup.
+                E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
+                one needs `update_on_bin = [0,3,7]`.
+            factor
+                To convert `profile` to current per bin [A].
+            states
+                Complex state vector, initially ``(0 + 0j)``.
+            voltage
+                Output voltage, in [V].
+            voltage_threaded
+                Cached `voltage` array per thread. For speedup.
+            """
+            n_poles = len(poles)
+            two_factor = 2 * factor
+            n_bins = len(profile)
+
+            voltage[:] = 0  # reset to zero from previous call
+            voltage_threaded[:, :] = 0  # reset to zero from previous call
+            if not (voltage_threaded.shape[0] == numba.get_num_threads()):
+                raise RuntimeError(
+                    "Number of threads does not match voltage threaded shape."
+                )
+            for pole_i in prange(n_poles):
+                thread_i = numba.get_thread_id()
+
+                cr_pole_flip = 1.0
+                if (
+                    is_counterrotating_beam
+                    and counterrotating_pole_signs[pole_i] == -1
+                ):
+                    cr_pole_flip = -1.0
+
+                # y[n] = profile[n] + exp(p * dt) * y[n-1]
+                # V[n] = 2 * Re(r * y[n])
+                # state = 0.0 + 0.0j
+                i_update = 0
+                update_on_bin_i = update_on_bin[i_update]
+
+                pole = complex(poles[pole_i])
+                residue = complex(residues[pole_i])
+                state = complex(states[pole_i])
+
+                t_start = states[-1]
+
+                for bin_i in range(n_bins):
+                    profile_i_half = (
+                        cr_pole_flip * 0.5 * profile[bin_i] * two_factor
+                    )
+
+                    if bin_i == update_on_bin_i:
+                        if bin_i == 0:
+                            t_jump = profile_dts[0] - t_start + 0j
+                        else:
+                            t_jump = (
+                                profile_dts[bin_i]
+                                - profile_dts[bin_i - 1]
+                                + 0j
+                            )
+                        state *= np.exp(pole * t_jump)
+                        dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
+                        decay = np.exp(pole * dt)
+
+                        i_update += 1
+                        if i_update < len(update_on_bin):
+                            update_on_bin_i = update_on_bin[i_update]
+                    else:
+                        state *= decay
+                    state += profile_i_half
+                    amp = float(np.real(residue * state))
+                    voltage_threaded[thread_i, bin_i] += cr_pole_flip * amp
+                    state += profile_i_half
+                states[pole_i] = state
+
+            for thread_i in prange(numba.get_num_threads()):
+                voltage += voltage_threaded[thread_i, :]
+            states[-1] = profile_dts[-1]
 
     return NumbaSpecials
 

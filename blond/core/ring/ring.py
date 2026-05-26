@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -19,7 +19,6 @@ import numpy as np
 
 from blond.core.base import (
     Preparable,
-    SimulationElementBase,
     UnsafeUserElement,
 )
 
@@ -289,10 +288,6 @@ class Ring(Preparable):
         -------
         average_eta_0
             The weighted average slip factor (dimensionless).
-
-        See Also
-        --------
-        eta_0 : Internally used for calculation.
         """
         from blond.physics.drifts import (
             DriftBaseClass,  # prevent circular import
@@ -583,6 +578,8 @@ class Ring(Preparable):
         >>> rf_station = MultiHarmonicRFStation(voltage=1e6, harmonic=400, section_index=0)
         >>> ring.add_element(rf_station)
         """
+        from blond.core.base import SimulationElementBase  # NOQA
+
         if deepcopy:
             element = copy.deepcopy(element)
         if section_index is not None:
