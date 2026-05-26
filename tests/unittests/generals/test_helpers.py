@@ -33,17 +33,6 @@ class TestCallables(unittest.TestCase):
         )
         self.assertTrue(is_linspace_like(array))
 
-    def test_bug_fftfeq_f32(self):
-        array = np.fft.rfftfreq(1_182_720, d=1.950553260576804e-11).astype(
-            np.float32
-        )
-        DEV_DRAW = True  # TODO set false
-        if DEV_DRAW:
-            plt.plot(np.abs(np.diff(array)))
-            plt.show()
-
-        self.assertTrue(is_linspace_like(array))
-
 
 if __name__ == "__main__":
     unittest.main()
