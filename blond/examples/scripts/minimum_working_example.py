@@ -22,7 +22,7 @@ from blond import (
     proton,
 )
 
-n_turns = 1e4
+n_turns = 10_000
 n_macroparticles = 1e6
 
 
