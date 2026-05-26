@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -18,7 +18,6 @@ from blond.core.backends.backend import Specials
 from blond.core.beam.flags import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -73,6 +72,18 @@ def _move_flagged_elements_to_end_py(
 
 class PythonSpecials(Specials):
     """Implementation of backend functions in Python."""
+
+    @staticmethod
+    def get_max_threads() -> int:  # pragma: no cover
+        """
+        Return the max number of threads this backend's kernels may use.
+
+        Returns
+        -------
+        max_threads
+            Maximum number of threads this backend's kernels may use.
+        """
+        return 1
 
     @staticmethod
     def beam_phase(
@@ -164,8 +175,8 @@ class PythonSpecials(Specials):
 
     @staticmethod
     def kick_single_harmonic(
-        dt: NumpyArray | CupyArray,
-        dE: NumpyArray | CupyArray,
+        dt: NumpyArray,
+        dE: NumpyArray,
         voltage: float,
         omega_rf: float,
         phi_rf: float,
@@ -240,6 +251,42 @@ class PythonSpecials(Specials):
         dE[:] += acceleration_kick
 
     @staticmethod
+    def sum_1d_array(array: NumpyArray) -> float:
+        """
+        Return the sum of an 1d array.
+
+        Parameters
+        ----------
+        array
+            Input array 1.
+
+        Returns
+        -------
+        sum_1d_array
+            Sum of a 1d arrays.
+        """
+        return np.sum(array)
+
+    @staticmethod
+    def dot_product_1d_array(array_1: NumpyArray, array_2: NumpyArray):
+        """
+        Return the sum of dot product of two 1d arrays.
+
+        Parameters
+        ----------
+        array_1
+            Input array 1.
+        array_2
+            Input array 2.
+
+        Returns
+        -------
+        dot_product_1d_array
+            Dot product of two 1d arrays.
+        """
+        return np.dot(array_1, array_2)
+
+    @staticmethod
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -273,116 +320,64 @@ class PythonSpecials(Specials):
         dt += T * coeff * dE
 
     @staticmethod
-    def drift_legacy(
-        dt: NumpyArray,
-        dE: NumpyArray,
-        T: float,
-        alpha_order: int,
-        eta_0: float,
-        eta_1: float,
-        eta_2: float,
-        beta: float,
-        energy: float,
-    ) -> None:  # pragma: no cover # TODO
-        r"""
-        Function to apply drift equation of motion.
-
-        Parameters
-        ----------
-        dt
-            Macro-particle time coordinates, in [s].
-        dE
-            Macro-particle energy coordinates, in [eV].
-        T
-            Revolution period, in [s].
-        alpha_order
-            Oder of the alpha parameter.
-        eta_0
-            General synchrotron parameter (zeroth-order slippage factor) [unitless].
-        eta_1
-            General synchrotron parameter (zeroth-order slippage factor) [unitless].
-        eta_2
-            General synchrotron parameter (zeroth-order slippage factor) [unitless].
-        beta
-            Relativistic velocity factor :math:`\beta = v/c` [unitless].
-        energy
-            Total beam energy [eV].
-        """
-        # solver_decoded = solver.decode(encoding='utf_8')
-
-        coeff = 1.0 / (beta * beta * energy)
-        eta0 = eta_0 * coeff
-        eta1 = eta_1 * coeff * coeff
-        eta2 = eta_2 * coeff * coeff * coeff
-
-        if alpha_order == 0:
-            dt += T * (1.0 / (1.0 - eta0 * dE) - 1.0)
-        elif alpha_order == 1:
-            dt += T * (1.0 / (1.0 - eta0 * dE - eta1 * dE * dE) - 1.0)
-        else:
-            dt += T * (
-                1.0 / (1.0 - eta0 * dE - eta1 * dE * dE - eta2 * dE * dE * dE)
-                - 1.0
-            )
-
-    @staticmethod
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
         alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
+        higher_alpha: NumpyArray,
         beta: float,
         energy: float,
-    ) -> None:  # pragma: no cover # TODO
+    ) -> None:  # pragma: no cover
         r"""
-        Function to apply drift equation of motion.
+        Exact drift equation of motion with higher order momentum compaction factors.
 
         Parameters
         ----------
-        dt
+        dt : NumpyArray
             Macro-particle time coordinates, in [s].
-        dE
+        dE : NumpyArray
             Macro-particle energy coordinates, in [eV].
-        T
+        T : float
             Revolution period, in [s].
-        alpha_0
+        alpha_0 : float
             Momentum compaction factor [unitless].
-        alpha_1
-            Momentum compaction factor [unitless].
-        alpha_2
-            Momentum compaction factor [unitless].
+        higher_alpha : NumpyArray
+            Momentum compaction factor to higher orders.
         beta
-            Relativistic velocity factor :math:`\beta = v/c` [unitless].
+            Relativistic velocity factor :math:\beta = v/c [unitless].
         energy
             Total beam energy [eV].
         """
-        # solver_decoded = solver.decode(encoding='utf_8')
+        n_alpha = len(higher_alpha)
+        invbetasq = 1.0 / (beta * beta)
+        inv_energy = 1.0 / energy
+        inv_energy_sq = inv_energy * inv_energy
 
-        invbetasq = 1 / (beta * beta)
-        invenesq = 1 / (energy * energy)
-        # double beam_delta;
-
+        # delta (vectorized)
         beam_delta = (
-            np.sqrt(1.0 + invbetasq * (dE * dE * invenesq + 2.0 * dE / energy))
+            np.sqrt(
+                1.0
+                + invbetasq * (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)
+            )
             - 1.0
         )
 
-        dt += T * (
-            (
-                1.0
-                + alpha_0 * beam_delta
-                + alpha_1 * (beam_delta * beam_delta)
-                + alpha_2 * (beam_delta * beam_delta * beam_delta)
-            )
-            * (1.0 + dE / energy)
-            / (1.0 + beam_delta)
-            - 1.0
-        )
+        # ---- Polynomial evaluation ----
+        poly = 1.0 + alpha_0 * beam_delta
+
+        if n_alpha > 0:
+            delta_power = beam_delta * beam_delta  # δ²
+
+            for k in range(n_alpha):
+                poly += higher_alpha[k] * delta_power
+                delta_power *= beam_delta  # next power
+
+        # ---- Final update ----
+        dt += T * (poly * (1.0 + dE * inv_energy) / (1.0 + beam_delta) - 1.0)
 
     @staticmethod
-    def kick_induced_voltage(
+    def kick_interpolated(
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
@@ -428,10 +423,10 @@ class PythonSpecials(Specials):
     @staticmethod
     def move_flagged_elements_to_end(
         flag: int,
-        flags: NumpyArray | CupyArray,  # also purged
-        dt: NumpyArray | CupyArray,
-        dE: NumpyArray | CupyArray,
-        ids: NumpyArray | CupyArray,
+        flags: NumpyArray,  # also purged
+        dt: NumpyArray,
+        dE: NumpyArray,
+        ids: NumpyArray,
     ):
         """
         Reorder entries where ``flags == flag`` to the array end.
@@ -466,3 +461,164 @@ class PythonSpecials(Specials):
             ids=ids,
         )
         return n_new
+
+    @staticmethod
+    def histogram_sparse(
+        x: NumpyArray,
+        out: NumpyArray,
+        first_left_cut: float,
+        left_cut_distance: float,
+        cut_width: float,
+        bins_per_profile: int,
+        n_active_profiles: int,
+        filling_pattern: NumpyArray,
+        bucket_index_to_memory_index: NumpyArray,
+    ) -> None:
+        """
+        Sparse histogram with strided memory layout (gaps between profiles).
+
+        Parameters
+        ----------
+        x
+            An array, e.g., the particle ``dt`` values.
+        out
+            Output histogram ``(n_filled_buckets * bins_per_profile)``.
+        first_left_cut
+            Start of the first histogram.
+        left_cut_distance
+            Distance between the start of each histogram.
+        cut_width
+            Distance between left and right edge of the histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        n_active_profiles
+            Number of non-empty buckets.
+        filling_pattern
+            Filling pattern as a boolean array
+            where ``True`` means filled bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index.
+            For a ``filling_pattern = [1, 0, 0, 1]``
+            ``bucket_index_to_memory_index = [0, 0, 0, 8]`` with
+            ``bins_per_profile = 8``.
+            Use `_gen_array_bucket_index_to_memory_index` to generate this.
+        """
+        out[:] = 0
+        for bucket_i, active in enumerate(filling_pattern):
+            if not active:
+                continue
+            memory_i = bucket_index_to_memory_index[bucket_i]
+            sel = slice(
+                memory_i,
+                memory_i + bins_per_profile,
+            )
+            hist, _ = np.histogram(
+                x,
+                bins=bins_per_profile,
+                range=(
+                    first_left_cut + bucket_i * left_cut_distance,
+                    first_left_cut + bucket_i * left_cut_distance + cut_width,
+                ),
+            )
+            out[sel] = hist
+
+    @staticmethod
+    def wake_from_pole_residue(
+        # read
+        profile: NumpyArray,
+        profile_dts: NumpyArray,
+        poles: NumpyArray,
+        residues: NumpyArray,
+        is_counterrotating_beam: bool,
+        counterrotating_pole_signs: NumpyArray,
+        update_on_bin: NumpyArray,
+        factor: float,
+        # write
+        states: NumpyArray,
+        voltage: NumpyArray,
+        voltage_threaded: NumpyArray,
+    ) -> None:
+        """
+        Apply poles based on the `profile` to generate `voltage`.
+
+        Parameters
+        ----------
+        profile
+            Beam profile histogram.
+        profile_dts
+            Base for time step, connected to `update_on_bin`.
+        poles
+            Complex poles of an equivalent circuit model.
+        residues
+            Complex residues of an equivalent circuit model.
+        is_counterrotating_beam
+            If true, the current beam is counter-rotating.
+        counterrotating_pole_signs
+            Array per pole, -1 if the sign of the impedance is flipped
+            for a counter-rotating beam.
+        update_on_bin
+            Index when to trigger an update of dt. For speedup.
+            E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
+            one needs `update_on_bin = [0,3,7]`.
+        factor
+            To convert `profile` to current per bin [A].
+        states
+            Complex state vector, initially ``(0 + 0j)``.
+        voltage
+            Output voltage, in [V].
+        voltage_threaded
+            Cached `voltage` array per thread. For speedup.
+        """
+        n_poles = len(poles)
+        two_factor = 2 * factor
+        n_bins = len(profile)
+
+        voltage[:] = 0
+        voltage_threaded[:, :] = 0
+
+        t_start = states[-1]
+
+        for pole_i in range(n_poles):
+            cr_pole_flip = 1.0
+            if (
+                is_counterrotating_beam
+                and counterrotating_pole_signs[pole_i] == -1
+            ):
+                cr_pole_flip = -1.0
+
+            i_update = 0
+            update_on_bin_i = update_on_bin[i_update]
+
+            pole = complex(poles[pole_i])
+            residue = complex(residues[pole_i])
+            state = complex(states[pole_i])
+
+            decay = 0.0 + 0j
+            for bin_i in range(n_bins):
+                profile_i_half = (
+                    cr_pole_flip * 0.5 * profile[bin_i] * two_factor
+                )
+
+                if bin_i == update_on_bin_i:
+                    if bin_i == 0:
+                        t_jump = profile_dts[0] - t_start + 0j
+                    else:
+                        t_jump = (
+                            profile_dts[bin_i] - profile_dts[bin_i - 1] + 0j
+                        )
+                    state *= np.exp(pole * t_jump)
+                    dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
+                    decay = np.exp(pole * dt)
+
+                    i_update += 1
+                    if i_update < len(update_on_bin):
+                        update_on_bin_i = update_on_bin[i_update]
+                else:
+                    state *= decay
+                state += profile_i_half
+                amp = float(np.real(residue * state))
+                voltage[bin_i] += cr_pole_flip * amp
+                state += profile_i_half
+            states[pole_i] = state
+
+        states[-1] = profile_dts[-1]

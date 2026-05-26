@@ -16,3 +16,4 @@ Contents
     modules_old/lhc_cavity_loop
     models_new/potential_well_empiric
     models_new/semi_empiric_matcher
+    models_new/synchrotron_radiation

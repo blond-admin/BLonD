@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -582,7 +582,8 @@ class Beam(BeamBaseClass):
         )
         dEs = (
             mpi_aware_random_generator_cpu(
-                seed=seed, n_forward_per_rank=local_size
+                seed=None if seed is None else seed + 1,
+                n_forward_per_rank=local_size,
             ).standard_normal(size=local_size)
             * dE_scale
             + dE_offset

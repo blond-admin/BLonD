@@ -851,18 +851,24 @@ def rf_volt_comp(
     voltages = voltages.astype(dtype=precision.real_t, order="C", copy=False)
     omega_rf = omega_rf.astype(dtype=precision.real_t, order="C", copy=False)
     phi_rf = phi_rf.astype(dtype=precision.real_t, order="C", copy=False)
+    if len(voltages) > 0:
+        rf_voltage = np.empty(
+            len(bin_centers), dtype=precision.real_t, order="C"
+        )
 
-    rf_voltage = np.empty(len(bin_centers), dtype=precision.real_t, order="C")
-
-    get_libblond().rf_volt_comp(
-        __getPointer(voltages),
-        __getPointer(omega_rf),
-        __getPointer(phi_rf),
-        __getPointer(bin_centers),
-        __getLen(voltages),
-        __getLen(rf_voltage),
-        __getPointer(rf_voltage),
-    )
+        get_libblond().rf_volt_comp(
+            __getPointer(voltages),
+            __getPointer(omega_rf),
+            __getPointer(phi_rf),
+            __getPointer(bin_centers),
+            __getLen(voltages),
+            __getLen(rf_voltage),
+            __getPointer(rf_voltage),
+        )
+    else:
+        rf_voltage = np.zeros(
+            len(bin_centers), dtype=precision.real_t, order="C"
+        )
 
     return rf_voltage
 

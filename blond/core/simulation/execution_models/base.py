@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -46,6 +46,7 @@ class ExecutionModel(ABC):  # pragma: no cover
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the beam dynamics simulation.
@@ -77,6 +78,8 @@ class ExecutionModel(ABC):  # pragma: no cover
             >>>     ...
             >>> my_callback.each_turn_i = 2
             .
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Notes
         -----

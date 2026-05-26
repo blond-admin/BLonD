@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -13,8 +13,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from cupy.typing import NDArray as CupyArray
-from numpy._typing import NDArray as NumpyArray
 
 from blond.core.beam.base import BeamBaseClass
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
@@ -24,6 +22,9 @@ from blond.generals.distributed.helpers import (
 )
 
 if TYPE_CHECKING:
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy._typing import NDArray as NumpyArray
+
     from blond import Beam
 
 

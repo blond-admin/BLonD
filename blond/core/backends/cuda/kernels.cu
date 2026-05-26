@@ -1,6 +1,6 @@
 // Copyright CERN. This software is distributed under the
 // terms of the GNU General Public Licence version 3 (GPL Version 3),
-// copied verbatim in the file LICENCE.txt.
+// copied verbatim in the file LICENSE.txt.
 // In applying this licence, CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization or
 // submit itself to any jurisdiction.
@@ -325,4 +325,208 @@ __global__ void loss_box(
             flags[i] =  -500; // assume (BeamFlags.LOST.value)
         }
         }
+}
+
+extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
+                                       const real_t *__restrict__ beam_dE,
+                                       const real_t T, const real_t alpha_zero,
+                                       const real_t *__restrict__ higher_alpha,
+                                       const int n_alpha, const real_t beta,
+                                       const real_t energy,
+                                       const int n_macroparticles) {
+  const real_t inv_beta_sq = 1.0 / (beta * beta);
+  const real_t inv_energy = 1.0 / energy;
+  const real_t inv_energy_sq = inv_energy * inv_energy;
+
+  int tid = threadIdx.x + blockDim.x * blockIdx.x;
+  for (int i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
+
+    const real_t dE = beam_dE[i];
+
+    const real_t delta = sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy_sq +
+                                                   2.0 * dE * inv_energy)) -
+                         1.0;
+
+    real_t poly = 1.0 + alpha_zero * delta;
+
+    if (n_alpha > 0 && higher_alpha != nullptr) {
+      real_t delta_power = delta * delta; // starts at δ²
+
+      for (int k = 0; k < n_alpha; ++k) {
+        poly += higher_alpha[k] * delta_power;
+        delta_power *= delta; // next power
+      }
+    }
+
+    beam_dt[i] += T * (poly * (1.0 + dE * inv_energy) / (1.0 + delta) - 1.0);
+  }
+}
+
+
+extern "C"
+__global__ void histogram_sparse(
+    const real_t *__restrict__ input,
+    real_t *__restrict__ output,
+    const real_t first_left_cut,
+    const real_t left_cut_distance,
+    const real_t cut_width,
+    const int bins_per_profile,
+    const int n_buckets,
+    const int n_macroparticles,
+    const bool *__restrict__ filling_pattern,
+    const int *__restrict__ bucket_index_to_memory_index)
+{
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+
+    const real_t cut_left0 = first_left_cut;
+    const real_t inv_hist_dist = real_t(1) / left_cut_distance;
+    const real_t inv_bin_width =
+        real_t(bins_per_profile) / cut_width;
+
+
+    // Loop through input particles and update histograms in shared memory
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        const real_t dt = input[i];
+
+        const int bucket_i = (int)((dt - cut_left0) * inv_hist_dist);
+        if (bucket_i >= n_buckets || bucket_i < 0)
+            continue;
+        if (!filling_pattern[bucket_i]){
+            continue;
+        }
+        const real_t cut_left = cut_left0 + bucket_i * left_cut_distance;
+        const real_t cut_right = cut_left + cut_width;
+
+        // Check if the value is within the cut range
+        if (dt == cut_right) {
+            atomicAdd(&output[bucket_index_to_memory_index[bucket_i] + bins_per_profile - 1], 1);
+            continue;
+        }
+        if (dt < cut_left || dt >= cut_right)
+            continue;
+
+        // Calculate the bin index
+        const int bin = (int)((dt - cut_left) * inv_bin_width);
+        if ((unsigned)bin < (unsigned)bins_per_profile) {
+            atomicAdd(&output[bucket_index_to_memory_index[bucket_i] + bin], 1);
+        }
+    }
+    __syncthreads();
+
+
+}
+
+
+// Apply pole-residue (vector fitting) model to a beam profile to generate
+// induced voltage. Mirrors the CPU/OpenMP implementation in cpp/poles.cpp but
+// is parallelized one thread per pole. The per-pole state evolution is
+// sequential across bins; different poles are fully independent and contend
+// only on the output `voltage` buffer via atomicAdd.
+//
+// Complex arrays (poles, residues, states) are stored as interleaved real/imag:
+//   [re0, im0, re1, im1, ...]
+// The last complex element of `states` stores t_start in its real part.
+extern "C" __global__ void wake_from_pole_residue(
+    const real_t * __restrict__ profile,
+    const real_t * __restrict__ profile_dts,
+    const real_t * __restrict__ poles,
+    const real_t * __restrict__ residues,
+    const int is_counterrotating_beam,
+    const real_t * __restrict__ cr_pole_signs,
+    const int * __restrict__ update_on_bin,
+    const real_t factor,
+    real_t * __restrict__ states,
+    real_t * __restrict__ voltage,
+    const int n_bins,
+    const int n_poles,
+    const int n_updates,
+    const int n_profile_dts)
+{
+    const int pole_i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pole_i >= n_poles) return;
+
+    const real_t two_factor = real_t(2) * factor;
+    const real_t t_start = states[2 * n_poles];
+
+    real_t cr_pole_flip = real_t(1);
+    if (is_counterrotating_beam && cr_pole_signs[pole_i] == real_t(-1)) {
+        cr_pole_flip = real_t(-1);
+    }
+
+    const int pole_n = 2 * pole_i;
+    const real_t pole_re = poles[pole_n];
+    const real_t pole_im = poles[pole_n + 1];
+    const real_t res_re  = residues[pole_n];
+    const real_t res_im  = residues[pole_n + 1];
+
+    real_t state_re = states[pole_n];
+    real_t state_im = states[pole_n + 1];
+
+    int i_update = 0;
+    int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
+
+    real_t decay_re = real_t(0);
+    real_t decay_im = real_t(0);
+
+    for (int bin_i = 0; bin_i < n_bins; ++bin_i) {
+        if (bin_i == update_on_bin_i) {
+            const real_t t_jump = (bin_i == 0)
+                ? (profile_dts[0] - t_start)
+                : (profile_dts[bin_i] - profile_dts[bin_i - 1]);
+
+            // state *= exp(pole * t_jump)
+            {
+                const real_t jump_abs  = exp(pole_re * t_jump);
+                const real_t jump_re   = jump_abs * cos(pole_im * t_jump);
+                const real_t jump_im   = jump_abs * sin(pole_im * t_jump);
+                const real_t new_state_re   = state_re * jump_re - state_im * jump_im;
+                const real_t new_state_imag = state_re * jump_im + state_im * jump_re;
+                state_re = new_state_re;
+                state_im = new_state_imag;
+            }
+
+            // decay = exp(pole * dt)
+            const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
+            {
+                const real_t decay_abs   = exp(pole_re * dt);
+                const real_t cos_tmp     = cos(pole_im * dt);
+                const real_t sin_tmp     = sin(pole_im * dt);
+                decay_re = decay_abs * cos_tmp;
+                decay_im = decay_abs * sin_tmp;
+            }
+
+            ++i_update;
+            if (i_update < n_updates) {
+                update_on_bin_i = update_on_bin[i_update];
+            }
+        } else {
+            // state *= decay
+            const real_t new_state_re = state_re * decay_re - state_im * decay_im;
+            const real_t new_state_imag = state_re * decay_im + state_im * decay_re;
+            state_re = new_state_re;
+            state_im = new_state_imag;
+        }
+
+        const real_t half_step = cr_pole_flip * (real_t(0.5) * profile[bin_i]) * two_factor;
+
+        // First half of the trapezoidal rule.
+        state_re += half_step;
+
+        // amp = Re(residue * state)
+        const real_t amp = res_re * state_re - res_im * state_im;
+        atomicAdd(&voltage[bin_i], cr_pole_flip * amp);
+
+        // Second half of the trapezoidal rule.
+        state_re += half_step;
+    }
+
+    // Persist state for the next call.
+    states[pole_n]     = state_re;
+    states[pole_n + 1] = state_im;
+
+    // Only one thread writes t_start for the next call.
+    if (pole_i == 0) {
+        states[2 * n_poles]     = profile_dts[n_profile_dts - 1];
+        states[2 * n_poles + 1] = real_t(0);
+    }
 }

@@ -1,14 +1,14 @@
 # coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
 """
-Unittest for synchrotron_radiation.synchrotron_radiation.py
+Unittest for synchrotron_radiation.synchrotron_radiation_master.py
 
 :Authors: **Markus Schwarz, Konstantinos Iliakis, Lina Valle**
 """

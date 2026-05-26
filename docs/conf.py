@@ -45,6 +45,8 @@ folder = os.path.abspath("modules")
 sys.path.insert(0, folder)
 extensions = [
     "sphinx.ext.autodoc",
+    # napoleon merges the annotation-derived parameter types
+    # (via sphinx_autodoc_typehints) into the rendered parameter list.
     "sphinx.ext.napoleon",
     "numpydoc",
     "sphinx.ext.autosummary",
@@ -71,6 +73,12 @@ nbsphinx_prolog = """
 autosummary_generate = True
 autosummary_imported_members = True
 napoleon_use_param = True
+# Render the return type as a separate field fed from the actual annotation
+# (via sphinx_autodoc_typehints) rather than from the docstring. This stops
+# napoleon from treating a bare "Returns" entry (just a value name, no
+# "name : type") as a cross-referenced type, which otherwise produces a broken
+# reference under nitpicky. The value name is still shown as a labelled return.
+napoleon_use_rtype = False
 
 inheritance_graph_attrs = {
     "rankdir": "TB",  # "TB" = Top → Bottom (vertical)
@@ -264,6 +272,12 @@ suppress_warnings = [
     "ref.python",
     "docutils",
     "python.duplicate_object",
+    "py.duplicate_object",  # Sphinx 6+: inherited members re-documented under child class
+    # matplotlib's `Line2D` annotations transitively reference
+    # `LineStyleType`, which is only declared under `TYPE_CHECKING` in
+    # matplotlib.lines and so isn't importable at runtime. The warning
+    # fires for every signature that returns `list[Line2D]`.
+    "sphinx_autodoc_typehints.forward_reference",
 ]  # remove warning for multiple mentions of the same item
 html_static_path = ["_static"]
 html_css_files = ["css/wide.css"]
@@ -273,9 +287,52 @@ autodoc_default_options = {
     # "imported-members": False,  # breaks import location
     "show-inheritance": True,
     "no-imported-members": True,
+    "inherited-members": True,
 }
 
 show_warning_types = True
+
+# Warn about every broken cross-reference (missing target).
+nitpicky = True
+
+# Cross-references that can never resolve because the target lives in an
+# external library with no (public) intersphinx inventory entry. These are
+# emitted from autodoc-rendered type hints, so they cannot be fixed in our
+# own docstrings.
+nitpick_ignore_regex = [
+    # cupy ships no intersphinx inventory at all.
+    (r"py:.*", r"cupy\..*"),
+    # numpy's private typing internals leak through generic type aliases.
+    (r"py:.*", r"numpy\._typing.*"),
+    # numpy scalar types are not exposed as cross-reference targets.
+    (r"py:.*", r"numpy\.(float|complex|int|uint)\d+"),
+    # matplotlib's canonical (private) class paths are not in its inventory;
+    # only the public re-exports (e.g. matplotlib.axes.Axes) are.
+    (r"py:.*", r"matplotlib\..*\._.*"),
+    # pstats.SortKey (and similar enums) are absent from the stdlib inventory.
+    (r"py:.*", r"pstats\..*"),
+    # Project-internal type aliases for external array types
+    # (NumpyArray = numpy.typing.NDArray, CupyArray = cupy.ndarray). They are
+    # spelled as bare names in annotations/docstrings and have no own page.
+    (r"py:.*", r"(NumpyArray|CupyArray)"),
+    # numpydoc/napoleon type-vocabulary words that are not cross-references
+    # (e.g. ``x : int, optional`` or ``flag : bool, default=False``); they leak
+    # in as bogus ``py:class`` targets.
+    (
+        r"py:class",
+        r"(optional|array[_-]like|callable|string|default(=\S+)?|T)",
+    ),
+    # typing.Union is requested as ``py:data`` but is not in the inventory.
+    (r"py:.*", r"typing\.Union"),
+    # Private (leading-underscore) classes are intentionally undocumented, so
+    # references to them from type hints / inheritance diagrams cannot link.
+    (r"py:.*", r"blond\..*\._[A-Z]\w*"),
+    # Modules deliberately excluded from the docs build (see exclude_patterns):
+    # public API still references their base classes in type hints / inheritance
+    # diagrams, but they have no documented page to link to.
+    (r"py:.*", r"blond\.experimental\..*"),
+    (r"py:.*", r"blond\.interfaces\.xsuite\..*"),
+]
 
 
 # Required to skip instances of _abc_impl, which are present in
@@ -316,6 +373,16 @@ def skip_specific_functions(app, what, name, obj, skip, options):
     """
     if name == "_abc_impl":
         return True
+    # Skip private members (single leading underscore, not dunder).
+    if name.startswith("_") and not name.startswith("__"):
+        return True
+    # Skip built-in str methods inherited by str+Enum classes.
+    # sphinx_autodoc_typehints cannot parse their C-level signatures.
+    # Covers both slot wrappers (__objclass__ is str) and staticmethods like maketrans.
+    if getattr(obj, "__objclass__", None) is str:
+        return True
+    if name in vars(str) and getattr(str, name, None) is obj:
+        return True
     return skip
 
 
@@ -337,5 +404,5 @@ def setup(app):
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = get_intersphinx_mapping(
-    packages=["python", "numpy", "scipy", "sklearn"]
+    packages=["python", "numpy", "scipy", "sklearn", "matplotlib", "sympy"]
 )

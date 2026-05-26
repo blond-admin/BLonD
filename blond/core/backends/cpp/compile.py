@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -16,7 +16,8 @@ import os
 import platform
 import subprocess
 import sys
-import warnings
+
+from blond.generals.hashing_ import hash_in_folder
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
@@ -28,12 +29,16 @@ cpp_files = [
     "drift.cpp",
     "linear_interp_kick.cpp",
     "histogram.cpp",
+    "drift_exact.cpp",
     # "music_track.cpp",
     # "blondmath.cpp",
+    "blondmath_new.cpp",
     # "fast_resonator.cpp",
+    "histogram_sparse.cpp",
     "beam_phase.cpp",
     "loss_box.cpp",
     "move_flagged_elements_to_end.cpp",
+    "poles.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
 ]
@@ -75,7 +80,6 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     boost: str | None = None,
     compiler: str = "g++",
     libs: str = "",
-    parallel: bool = False,
     flags: str = "",
     optimize: bool = False,
     libname: str | None = None,
@@ -101,8 +105,6 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         The C++ compiler to use, e.g., "g++".
     libs : str
         Additional libraries required for compilation, provided as a space-separated string.
-    parallel : bool
-        If True, compile with OpenMP for multi-threaded execution.
     flags : str
         Additional compiler flags as a space-separated string (e.g., "-O2 -Wall").
     optimize : bool
@@ -121,161 +123,134 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     capable of processing the supplied options.
     """
     print("\nTrying to compile C++ backend.")
+    for parallel in (False, True):
+        if libname is None:
+            folder = os.path.dirname(os.path.abspath(__file__))
 
-    if libname is None:
-        from blond.generals.hashing_ import hash_in_folder
+            hash_ = hash_in_folder(
+                folder=folder,
+                extensions=(".py", ".h", ".cpp"),
+                recursive=False,
+            )
+            target = os.path.join(folder, "compiled", hash_)
+            os.makedirs(target, exist_ok=True)
+            libname = os.path.join(target, default_libname)
+        # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
+        #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
 
-        folder = os.path.dirname(os.path.abspath(__file__))
-
-        hash_ = hash_in_folder(
-            folder=folder,
-            extensions=(".py", ".h", ".cpp"),
-            recursive=False,
-        )
-        target = os.path.join(folder, "compiled", hash_)
-        os.makedirs(target, exist_ok=True)
-        libname = os.path.join(target, default_libname)
-    # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
-    #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
-
-    cflags = [
-        "-O3",
-        "-std=c++11",
-        "-shared",
-        "-funroll-loops",  # Aggressive loop unrolling
-    ]
-    # Some additional warning reporting related flags
-    cflags += [
-        "-Wall",
-        "-Wno-unknown-pragmas",
-        # Necessary on windows, as here the M_PI etc.
-        # are not defined by mingw without the flag.
-        "-D_USE_MATH_DEFINES",
-    ]
-
-    for file in cpp_files:
-        assert os.path.isfile(file), f"{file=}"
-
-    with_fftw = any(
-        [
-            with_fftw,
-            with_fftw_threads,
-            with_fftw_omp,
-            with_fftw_lib,
-            with_fftw_header,
+        cflags = [
+            "-O3",
+            "-std=c++11",
+            "-shared",
+            "-funroll-loops",  # Aggressive loop unrolling
+            "-ftree-vectorize",
+            "-march=native",
         ]
-    )
+        # Some additional warning reporting related flags
+        cflags += [
+            "-Wall",
+            "-Wno-unknown-pragmas",
+            # Necessary on windows, as here the M_PI etc.
+            # are not defined by mingw without the flag.
+            "-D_USE_MATH_DEFINES",
+        ]
 
-    # Get boost path
-    boost_path = None
-    if boost is not None:
-        boost_path = os.path.abspath(boost) if boost else ""
-        cflags += ["-I", boost_path, "-DBOOST"]
+        for file in cpp_files:
+            assert os.path.isfile(file), f"{file=}"
 
-    libs_ = libs.split() if libs else []
-
-    if parallel:
-        cflags += ["-fopenmp", "-DPARALLEL", "-D_GLIBCXX_PARALLEL"]
-
-    if flags:
-        cflags += flags.split()
-
-    fftw_cflags, fftw_libs = _prepare_fftw(
-        with_fftw=with_fftw,
-        with_fftw_header=with_fftw_header,
-        with_fftw_lib=with_fftw_lib,
-        with_fftw_omp=with_fftw_omp,
-        with_fftw_threads=with_fftw_threads,
-    )
-
-    cflags, libname_double, libname_single = _prepare_cflags(
-        cflags=cflags,
-        compiler=compiler,
-        libname=libname,
-        optimize=optimize,
-    )
-
-    # Report the compilation options
-    print("Enable Multi-threaded code: ", parallel)
-    print("Use boost: ", boost is not None)
-    if boost is not None:
-        print("Boost installation path: ", boost_path)
-    print("Link with FFTW3: ", with_fftw)
-    if with_fftw:
-        print(
-            "Parallel FFTW3:",
-            with_fftw_threads or with_fftw_omp,
+        with_fftw = any(
+            [
+                with_fftw,
+                with_fftw_threads,
+                with_fftw_omp,
+                with_fftw_lib,
+                with_fftw_header,
+            ]
         )
-    if with_fftw_lib or with_fftw_header:
-        print("FFTW3 Library path: ", with_fftw_lib)
-        print("FFTW3 Headers path: ", with_fftw_header)
-    print("C++ Compiler: ", compiler)
-    compiler_version = (
-        subprocess.run(
-            [compiler, "--version"], capture_output=True, check=False
+
+        # Get boost path
+        boost_path = None
+        if boost is not None:
+            boost_path = os.path.abspath(boost) if boost else ""
+            cflags += ["-I", boost_path, "-DBOOST"]
+
+        libs_ = libs.split() if libs else []
+
+        if parallel:
+            cflags += ["-fopenmp", "-DPARALLEL", "-D_GLIBCXX_PARALLEL"]
+
+        if flags:
+            cflags += flags.split()
+
+        fftw_cflags, fftw_libs = _prepare_fftw(
+            with_fftw=with_fftw,
+            with_fftw_header=with_fftw_header,
+            with_fftw_lib=with_fftw_lib,
+            with_fftw_omp=with_fftw_omp,
+            with_fftw_threads=with_fftw_threads,
         )
-        .stdout.decode()
-        .split("\n")[0]
-    )
-    print("Compiler version: ", compiler_version)
 
-    print("Compiler flags: ", " ".join(cflags))
-    print("Extra libraries: ", " ".join(libs_))
-
-    command = (
-        [compiler]
-        + cflags
-        + ["-DUSEFLOAT"]
-        + cpp_files
-        + libs_
-        + ["-o", libname_single]
-    )
-    print("\nCompiling the single-precision (32-bit) C++ library")
-    if with_fftw:
-        msg = (
-            "The FFTW Library is only compiled for  double-precision (64-bit)."
-            " For single-precision, the FFTW Library is ignored."
+        cflags, libname_double = _prepare_cflags(
+            cflags=cflags,
+            compiler=compiler,
+            libname=libname,
+            optimize=optimize,
+            parallel=parallel,
         )
-        warnings.warn(msg, stacklevel=1)
-    ret = run_compile(command, libname_single)
-    if ret != 0:
-        print("There was a compilation error.")
-    else:
-        # Verify that the libraries have been compiled
-        try:
-            if ("win" in sys.platform) and hasattr(os, "add_dll_directory"):
-                _ = ctypes.CDLL(libname_single, winmode=0)
-            else:
-                _ = ctypes.CDLL(libname_single)
-            print("Compiled successfully.")
-        except Exception as exception:
-            print("Compilation failed.")
-            print(exception)
 
-    command = (
-        [compiler]
-        + cflags
-        + fftw_cflags
-        + cpp_files
-        + libs_
-        + fftw_libs
-        + ["-o", libname_double]
-    )
-    print("\nCompiling the double-precision (64-bit) C++ library")
-    ret = run_compile(command, libname_double)
-    if ret != 0:
-        print("There was a compilation error.")
-    else:
-        # Verify that the libraries have been compiled
-        try:
-            if ("win" in sys.platform) and hasattr(os, "add_dll_directory"):
-                _ = ctypes.CDLL(libname_double, winmode=0)
-            else:
-                _ = ctypes.CDLL(libname_double)
-            print("Compiled successfully.")
-        except Exception as exception:
-            print("Compilation failed.")
-            print(exception)
+        # Report the compilation options
+        print("Enable Multi-threaded code: ", parallel)
+        print("Use boost: ", boost is not None)
+        if boost is not None:
+            print("Boost installation path: ", boost_path)
+        print("Link with FFTW3: ", with_fftw)
+        if with_fftw:
+            print(
+                "Parallel FFTW3:",
+                with_fftw_threads or with_fftw_omp,
+            )
+        if with_fftw_lib or with_fftw_header:
+            print("FFTW3 Library path: ", with_fftw_lib)
+            print("FFTW3 Headers path: ", with_fftw_header)
+        print("C++ Compiler: ", compiler)
+        compiler_version = (
+            subprocess.run(
+                [compiler, "--version"], capture_output=True, check=False
+            )
+            .stdout.decode()
+            .split("\n")[0]
+        )
+        print("Compiler version: ", compiler_version)
+
+        print("Compiler flags: ", " ".join(cflags))
+        print("Extra libraries: ", " ".join(libs_))
+
+        command = (
+            [compiler]
+            + cflags
+            + fftw_cflags
+            + cpp_files
+            + libs_
+            + fftw_libs
+            + ["-o", libname_double]
+        )
+        print("\nCompiling the double-precision (64-bit) C++ library")
+        ret = run_compile(command, libname_double)
+        if ret != 0:
+            print("There was a compilation error.")
+        else:
+            # Verify that the libraries have been compiled
+            try:
+                if ("win" in sys.platform) and hasattr(
+                    os, "add_dll_directory"
+                ):
+                    _ = ctypes.CDLL(libname_double, winmode=0)
+                else:
+                    _ = ctypes.CDLL(libname_double)
+                print("Compiled successfully.")
+            except Exception as exception:
+                print("Compilation failed.")
+                print(exception)
 
 
 def _prepare_cflags(
@@ -283,6 +258,7 @@ def _prepare_cflags(
     compiler: str,
     libname: str,
     optimize: bool,
+    parallel: bool,
 ) -> tuple[list[str], str, str]:
     """
     Prepare compiler flags and library names.
@@ -297,6 +273,8 @@ def _prepare_cflags(
         Base name of the output library.
     optimize
         If True, enable optimization flags.
+    parallel
+        Whether or not to use parallel compiler.
 
     Returns
     -------
@@ -304,9 +282,8 @@ def _prepare_cflags(
         Updated compiler flags.
     libname_double
         Path to double-precision library.
-    libname_single
-        Path to single-precision library.
     """  # TODO undocumented port from BLOND2
+    parallel_suffix = "" if parallel else "_noOMP"
     if "posix" in os.name:
         cflags += ["-fPIC"]
         if optimize:
@@ -320,8 +297,9 @@ def _prepare_cflags(
         root, ext = os.path.splitext(libname)
         if not ext:
             ext = ".so"
-        libname_single = os.path.abspath(root + "_single" + ext)
-        libname_double = os.path.abspath(root + "_double" + ext)
+        libname_double = os.path.abspath(
+            root + "_double" + parallel_suffix + ext
+        )
 
     elif "win" in sys.platform:
         # Add optimization flags for Windows (same as POSIX)
@@ -337,8 +315,9 @@ def _prepare_cflags(
         if not ext:
             ext = ".dll"
 
-        libname_single = os.path.abspath(root + "_single" + ext)
-        libname_double = os.path.abspath(root + "_double" + ext)
+        libname_double = os.path.abspath(
+            root + "_double" + parallel_suffix + ext
+        )
 
         if hasattr(os, "add_dll_directory"):
             directory, _ = os.path.split(libname_double)
@@ -346,7 +325,7 @@ def _prepare_cflags(
 
     else:
         raise NameError(f"Unknown operating system: {sys.platform=}")
-    return cflags, str(libname_double), str(libname_single)
+    return cflags, str(libname_double)
 
 
 def _prepare_fftw(
@@ -458,20 +437,13 @@ def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
     return cflags
 
 
-def main_cli(force_parallel=False) -> None:
-    """
-    Parse arguments from command line.
-
-    Parameters
-    ----------
-    force_parallel
-        If `True`, the backend will be compiled for parallel execution.
-    """
+def main_cli() -> None:
+    """Parse arguments from command line."""
     parser = argparse.ArgumentParser(
         description="Script used to compile the C++ libraries needed by BLonD.",
     )
 
-    parser.add_argument(
+    parser.add_argument(  # todo remove everywhere
         "-p",
         "--parallel",
         action="store_true",
@@ -572,7 +544,6 @@ def main_cli(force_parallel=False) -> None:
         boost=args["boost"],
         compiler=args["compiler"],
         libs=args["libs"],
-        parallel=True if force_parallel else args["parallel"],
         flags=args["flags"],
         optimize=args["optimize"],
         libname=args["libname"],

@@ -1,6 +1,6 @@
 // Copyright CERN. This software is distributed under the
 // terms of the GNU General Public Licence version 3 (GPL Version 3),
-// copied verbatim in the file LICENCE.txt.
+// copied verbatim in the file LICENSE.txt.
 // In applying this licence, CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization or
 // submit itself to any jurisdiction.
@@ -400,22 +400,6 @@ real_t trapz_var_delta(const real_t *__restrict__ f,
     psum += (f[i] + f[i - 1]) * (deltaX[i] - deltaX[i - 1]);
 
   return psum / 2.;
-}
-
-real_t trapz_const_delta(const real_t *__restrict__ f, const real_t deltaX,
-                         const int nsub) {
-  // initialize the partial sum to be f(a)+f(b) and
-  // deltaX to be the step size using nsub subdivisions
-  real_t psum = (f[0] + f[nsub - 1]) / 2.; // f(a)+f(b);
-
-// increment the partial sum
-#pragma omp parallel for reduction(+ : psum)
-  for (int i = 1; i < nsub - 1; ++i)
-    psum += f[i];
-
-  // multiply the sum by the constant deltaX/2.0
-  // return approximation
-  return deltaX * psum;
 }
 
 int min_idx(const real_t *__restrict__ a, int size) {

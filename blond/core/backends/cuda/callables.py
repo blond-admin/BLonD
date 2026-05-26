@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -37,7 +37,7 @@ _basepath = str(os.path.join(folder, "compiled", hash_))
 
 
 def reload_cuda_backend(  # NOQA: D102
-    floattype: type[np.float32 | np.float64],
+    floattype: type[np.float64],
 ) -> CudaSpecials:
     """
     Load and link the according CUDA backend.
@@ -55,29 +55,25 @@ def reload_cuda_backend(  # NOQA: D102
 
     """
     if floattype == np.float32:
-        path = os.path.join(
-            _basepath,
-            f"kernels_sm_{_compute_capability}_single.cubin",
-        )
-        if not os.path.isfile(path):
-            raise FileNotFoundError(
-                f"The compiled CUDA backend was notfound at {path=}"
-            )
-        gpu_module = cp.RawModule(
-            path=path,
-        )
+        raise TypeError("32-bit float and 64-bit complex have been removed.")
     elif floattype == np.float64:
         path = os.path.join(
             _basepath,
             f"kernels_sm_{_compute_capability}_double.cubin",
         )
         if not os.path.isfile(path):
-            raise FileNotFoundError(
-                f"The compiled CUDA backend was not found at {path=}.\n"
-                f"Has the backend been compiled?"
-                f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
-                # make PyCharm automatically link the correct file
-            )
+            from blond.core.backends.cuda.compile import compile_cuda_library
+
+            print("CUDA backend was not found.. Trying to compile.")
+            compile_cuda_library()
+
+            if not os.path.isfile(path):
+                raise FileNotFoundError(
+                    f"The compiled CUDA backend was not found at {path=}.\n"
+                    f"Has the backend been compiled?"
+                    f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to
+                    # make PyCharm automatically link the correct file
+                )
         gpu_module = cp.RawModule(
             path=path,
         )
@@ -85,6 +81,7 @@ def reload_cuda_backend(  # NOQA: D102
         raise TypeError(floattype)
 
     _drift_simple = gpu_module.get_function("drift_simple")
+    _drift_exact = gpu_module.get_function("drift_exact")
     _beam_phase = gpu_module.get_function("beam_phase")
     _kick_multi_harmonic = gpu_module.get_function("kick_multi_harmonic")
     _kick_single_harmonic = gpu_module.get_function("kick_single_harmonic")
@@ -93,6 +90,8 @@ def reload_cuda_backend(  # NOQA: D102
     _gm_linear_interp_kick_help = gpu_module.get_function("lik_only_gm_copy")
     _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
     _loss_box = gpu_module.get_function("loss_box")
+    _histogram_sparse = gpu_module.get_function("histogram_sparse")
+    _wake_from_pole_residue = gpu_module.get_function("wake_from_pole_residue")
 
     default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
     default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -105,6 +104,18 @@ def reload_cuda_backend(  # NOQA: D102
     block_size = (threads, 1, 1)
 
     class CudaSpecials(Specials):
+        @staticmethod
+        def get_max_threads() -> int:
+            """
+            Return the max number of threads this backend's kernels may use.
+
+            Returns
+            -------
+            max_threads
+                Maximum number of threads this backend's kernels may use.
+            """
+            return 1
+
         @staticmethod
         def loss_box(
             e_max: float,
@@ -125,14 +136,14 @@ def reload_cuda_backend(  # NOQA: D102
                 f"Requires Cupy array, but got {type(flags)}."
             )
 
-            assert dt.dtype == backend.float
-            assert dE.dtype == backend.float
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
             assert flags.dtype == np.int32
 
-            assert isinstance(e_max, backend.float)
-            assert isinstance(e_min, backend.float)
-            assert isinstance(t_min, backend.float)
-            assert isinstance(t_max, backend.float)
+            assert isinstance(e_max, floattype)
+            assert isinstance(e_min, floattype)
+            assert isinstance(t_min, floattype)
+            assert isinstance(t_max, floattype)
 
             _loss_box(
                 args=(
@@ -243,6 +254,26 @@ def reload_cuda_backend(  # NOQA: D102
             )
 
         @staticmethod
+        def sum_1d_array(array: CupyArray) -> float:
+            """Return the sum of 1d array."""
+            assert array.device != "cpu", (
+                f"Requires Cupy array, but got {type(array)}."
+            )
+            return cp.sum(array)
+
+        @staticmethod
+        def dot_product_1d_array(array_1: CupyArray, array_2: CupyArray):
+            assert array_1.device != "cpu", (
+                f"Requires Cupy array, but got {type(array_1)}."
+            )
+            assert array_2.device != "cpu", (
+                f"Requires Cupy array, but got {type(array_2)}."
+            )
+
+            """Return the sum of dot product of two 1d arrays."""
+            return cp.dot(array_1, array_2)
+
+        @staticmethod
         def drift_simple(
             dt: CupyArray,
             dE: CupyArray,
@@ -285,37 +316,47 @@ def reload_cuda_backend(  # NOQA: D102
             )
 
         @staticmethod
-        def drift_legacy(
-            dt: CupyArray,
-            dE: CupyArray,
-            T: float,
-            alpha_order: int,
-            eta_0: float,
-            eta_1: float,
-            eta_2: float,
-            beta: float,
-            energy: float,
-        ) -> None:
-            raise NotImplementedError()
-            assert dt.device != "cpu", (
-                f"Requires Cupy array, but got {type(dt)}."
-            )
-            assert dE.device != "cpu", (
-                f"Requires Cupy array, but got {type(dE)}."
-            )
-
-        @staticmethod
         def drift_exact(
             dt: CupyArray,
             dE: CupyArray,
             T: float,
             alpha_0: float,
-            alpha_1: float,
-            alpha_2: float,
+            higher_alpha: CupyArray,
             beta: float,
             energy: float,
         ) -> None:
-            raise NotImplementedError()
+            assert dt.device != "cpu"
+            assert dE.device != "cpu"
+            assert higher_alpha.device != "cpu"
+
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert higher_alpha.dtype == floattype
+
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert higher_alpha.flags.c_contiguous
+
+            T = floattype(T)
+            alpha_0 = floattype(alpha_0)
+            beta = floattype(beta)
+            energy = floattype(energy)
+
+            _drift_exact(
+                args=(
+                    dt,  # beam_dt
+                    dE,  # beam_dE
+                    T,  # t_rev
+                    alpha_0,  # alpha_zero
+                    higher_alpha,  # higher_alpha
+                    np.int32(len(higher_alpha)),  # n_alpha
+                    beta,  # beta
+                    energy,  # energy
+                    np.int32(len(dE)),  # n_macroparticles
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
             assert dt.device != "cpu", (
                 f"Requires Cupy array, but got {type(dt)}."
             )
@@ -324,7 +365,7 @@ def reload_cuda_backend(  # NOQA: D102
             )
 
         @staticmethod
-        def kick_induced_voltage(
+        def kick_interpolated(
             dt: CupyArray,
             dE: CupyArray,
             voltage: CupyArray,
@@ -517,8 +558,8 @@ def reload_cuda_backend(  # NOQA: D102
             #  to have a smaller memory footprint.
             flag = np.int32(flag)
             assert flags.dtype == np.int32
-            assert dt.dtype == backend.float
-            assert dE.dtype == backend.float
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
             assert ids.dtype == np.int32
 
             select = flags == flag
@@ -531,6 +572,207 @@ def reload_cuda_backend(  # NOQA: D102
 
             n_new = len(ids) - cp.sum(select)
             return n_new
+
+        @staticmethod
+        def histogram_sparse(
+            x: CupyArray,
+            out: CupyArray,
+            first_left_cut: float,
+            left_cut_distance: float,
+            cut_width: float,
+            bins_per_profile: int,
+            n_active_profiles: int,
+            filling_pattern: CupyArray,
+            bucket_index_to_memory_index: CupyArray,
+        ) -> None:
+            assert x.device != "cpu", (
+                f"Requires Cupy array, but got {type(x)}."
+            )
+            assert out.device != "cpu", (
+                f"Requires Cupy array, but got {type(out)}."
+            )
+            assert filling_pattern.device != "cpu", (
+                f"Requires Cupy array, but got {type(filling_pattern)}."
+            )
+            assert bucket_index_to_memory_index.device != "cpu", (
+                f"Requires Cupy array, but got {type(bucket_index_to_memory_index)}."
+            )
+
+            assert x.dtype == floattype
+            assert out.dtype == floattype
+            assert filling_pattern.dtype == np.bool
+            assert bucket_index_to_memory_index.dtype == np.int32
+
+            assert x.flags.c_contiguous
+            assert out.flags.c_contiguous
+            assert filling_pattern.flags.c_contiguous
+            assert bucket_index_to_memory_index.flags.c_contiguous
+
+            out[:] = 0
+            _histogram_sparse(
+                args=(
+                    x,  # input
+                    out,  # output
+                    floattype(first_left_cut),  # first_left_cut
+                    floattype(left_cut_distance),  # left_cut_distance
+                    floattype(cut_width),  # cut_width
+                    np.int32(bins_per_profile),  # bins_per_profile
+                    np.int32(len(filling_pattern)),  # n_buckets
+                    np.int32(len(x)),  # n_macroparticles
+                    filling_pattern,  # input
+                    bucket_index_to_memory_index,  # input
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
+
+        @staticmethod
+        def wake_from_pole_residue(
+            # read
+            profile: CupyArray,
+            profile_dts: CupyArray,
+            poles: CupyArray,
+            residues: CupyArray,
+            is_counterrotating_beam: bool,
+            counterrotating_pole_signs: CupyArray,
+            update_on_bin: CupyArray,
+            factor: float,
+            # write
+            states: CupyArray,
+            voltage: CupyArray,
+            voltage_threaded: CupyArray,
+        ) -> None:
+            """
+            Apply poles based on the `profile` to generate `voltage`.
+
+            Parameters
+            ----------
+            profile
+                Beam profile histogram.
+            profile_dts
+                Base for time step, connected to `update_on_bin`.
+            poles
+                Complex poles of an equivalent circuit model.
+            residues
+                Complex residues of an equivalent circuit model.
+            is_counterrotating_beam
+                If true, the current beam is counter-rotating.
+            counterrotating_pole_signs
+                Array per pole, -1 if the sign of the impedance is flipped
+                for a counter-rotating beam.
+            update_on_bin
+                Index when to trigger an update of dt. For speedup.
+                E.g. For profile no.: ``0,0,0,1,1,1,1,2,2,2``
+                one needs ``update_on_bin = [0,3,7]``.
+            factor
+                To convert `profile` to current per bin [A].
+            states
+                Complex state vector, length ``n_poles + 1``.
+                The last element stores ``t_start`` in its real part.
+            voltage
+                Output voltage, in [V].
+            voltage_threaded
+                Unused on the CUDA backend (kept for API parity with CPU
+                backends); pole contributions are reduced into `voltage`
+                directly via atomic adds.
+            """
+            assert profile.device != "cpu", (
+                f"Requires Cupy array, but got {type(profile)}."
+            )
+            assert profile_dts.device != "cpu", (
+                f"Requires Cupy array, but got {type(profile_dts)}."
+            )
+            assert poles.device != "cpu", (
+                f"Requires Cupy array, but got {type(poles)}."
+            )
+            assert residues.device != "cpu", (
+                f"Requires Cupy array, but got {type(residues)}."
+            )
+            assert counterrotating_pole_signs.device != "cpu", (
+                f"Requires Cupy array, but got {type(counterrotating_pole_signs)}."
+            )
+            assert states.device != "cpu", (
+                f"Requires Cupy array, but got {type(states)}."
+            )
+            assert voltage.device != "cpu", (
+                f"Requires Cupy array, but got {type(voltage)}."
+            )
+            assert update_on_bin.device != "cpu", (
+                f"Requires Cupy array, but got {type(update_on_bin)}."
+            )
+
+            complex_dtype = (
+                np.complex64 if floattype == np.float32 else np.complex128
+            )
+            assert profile.dtype == floattype
+            assert profile_dts.dtype == floattype
+            assert voltage.dtype == floattype
+            assert counterrotating_pole_signs.dtype == floattype
+            assert poles.dtype == complex_dtype
+            assert residues.dtype == complex_dtype
+            assert states.dtype == complex_dtype
+            assert update_on_bin.dtype == np.int32
+
+            assert profile.flags.c_contiguous
+            assert profile_dts.flags.c_contiguous
+            assert poles.flags.c_contiguous
+            assert residues.flags.c_contiguous
+            assert counterrotating_pole_signs.flags.c_contiguous
+            assert states.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert update_on_bin.flags.c_contiguous
+
+            n_bins = int(profile.shape[0])
+            n_poles = int(poles.shape[0])
+            n_updates = int(update_on_bin.shape[0])
+            n_profile_dts = int(profile_dts.shape[0])
+
+            # states has length n_poles + 1; last entry stores t_start.
+            assert states.shape[0] == n_poles + 1
+            assert residues.shape[0] == n_poles
+            assert counterrotating_pole_signs.shape[0] == n_poles
+            assert voltage.shape[0] == n_bins
+
+            # Output is reduced across poles via atomicAdd; must start at zero.
+            voltage.fill(0)
+
+            if n_poles == 0 or n_bins == 0:
+                return
+
+            # View complex arrays as interleaved real/imag float arrays without
+            # copying. A C-contiguous complex array maps 1:1 to 2*N reals.
+            poles_r = poles.view(floattype)
+            residues_r = residues.view(floattype)
+            states_r = states.view(floattype)
+
+            # One thread per pole. Each thread runs the full n_bins-long state
+            # recurrence sequentially; there is no benefit from oversubscribing.
+            MAX_POLES = 128
+            threads_per_block = MAX_POLES if n_poles >= MAX_POLES else 32
+            blocks_poles = (
+                n_poles + threads_per_block - 1
+            ) // threads_per_block
+
+            _wake_from_pole_residue(
+                args=(
+                    profile,
+                    profile_dts,
+                    poles_r,
+                    residues_r,
+                    np.int32(1 if is_counterrotating_beam else 0),
+                    counterrotating_pole_signs,
+                    update_on_bin,
+                    floattype(factor),
+                    states_r,
+                    voltage,
+                    np.int32(n_bins),
+                    np.int32(n_poles),
+                    np.int32(n_updates),
+                    np.int32(n_profile_dts),
+                ),
+                block=(threads_per_block, 1, 1),
+                grid=(blocks_poles, 1, 1),
+            )
 
     return CudaSpecials
 

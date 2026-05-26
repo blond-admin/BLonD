@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -14,6 +14,7 @@ import logging
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
+from unittest import mock
 from unittest.mock import Mock
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -106,13 +107,20 @@ def _find(
     found = set()
     seen = set()
 
-    def _walk(
+    def _walk(  # noqa: PLR0912
         obj: Any,
         skip_list,
         where,
     ):
         if id(obj) in seen:
             return
+        # todo remove no cover when Python11 is the main CI tester.
+        #  in Python10 this line is never hit..
+        if (  # pragma: no cover
+            type(obj) is mock._Call
+        ):  # prevent crash on `hash(obj)` with mocks...
+            return
+
         seen.add(id(obj))
         is_mock = isinstance(obj, Mock)
         if hasattr(obj, "skip_find_instances_attributes") and not is_mock:
@@ -183,10 +191,6 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     found_instances
         Set of instances that have the specified method.
 
-    See Also
-    --------
-    _find: Internal method used.
-
     Examples
     --------
     Class attributes that should not be searched for `method_name`
@@ -234,10 +238,6 @@ def find_instances_by_class(root: Any, class_: type[T]) -> T:
     -------
     found_instances
         Set of instances that are a ``isinstance(element, class_)``.
-
-    See Also
-    --------
-    _find: Internal method used.
     """
 
     def _matches_class(obj):

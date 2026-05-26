@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -11,8 +11,10 @@
 from __future__ import annotations
 
 import logging
+import numbers
+import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -22,6 +24,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Any, TypeVar
 
+    import sympy
     from numpy.typing import NDArray as NumpyArray
     from scipy.interpolate import (
         Akima1DInterpolator,
@@ -40,10 +43,18 @@ logger = logging.getLogger(__name__)
 
 
 class Preparable(ABC):
-    """Internal Mix-in for a class to make it preparable by the `Simulation` object."""
+    """
+    Internal Mix-in for a class to make it preparable by the `Simulation` object.
 
-    def __init__(self) -> None:
-        super().__init__()
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+    """
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
     @abstractmethod  # pragma: no cover
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -86,6 +97,12 @@ class MainLoopRelevant(Preparable):
     """
     Base class for objects that are relevant for the simulation main loop.
 
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+
     Attributes
     ----------
     each_turn_i
@@ -93,8 +110,8 @@ class MainLoopRelevant(Preparable):
         callable each n-th turn.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.each_turn_i = 1
         self.active = True
 
@@ -122,6 +139,12 @@ class Schedulable:
     """
     Base class for objects with schedule parameters.
 
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+
     Attributes
     ----------
     schedules
@@ -129,10 +152,26 @@ class Schedulable:
         via `apply_schedules`
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.schedules: dict[str, SchedulerBaseClass] = {}
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.intended_for_scheduling = set()
+        self.schedules: dict[str, ScheduledBaseClass] = {}
         self.schedule_active = False
+
+    def _add_intended_schedule(self, *names: str) -> None:
+        """
+        Add a variable name to the intended schedules.
+
+        When scheduling anything different as an intended variable,
+        this class will issue a `UserWarning`.
+
+        Parameters
+        ----------
+        *names
+            Names of a variable.
+        """
+        for name in names:
+            self.intended_for_scheduling.add(str(name))
 
     def schedule(
         self,
@@ -177,10 +216,17 @@ class Schedulable:
         - Once a schedule is applied, the `schedule_active` flag is set to True.
         - For convenience, non-explicit types are automatically converted using `get_scheduler`.
         """
+        if attribute not in self.intended_for_scheduling:
+            warnings.warn(
+                f"'{attribute}' is not intended to be scheduled. "
+                f"This can result in bugs. Use at your own risk.",
+                UserWarning,
+                stacklevel=2,
+            )
         assert hasattr(self, attribute), (
             f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
-        if isinstance(value, SchedulerBaseClass):
+        if isinstance(value, ScheduledBaseClass):
             # explicit declaration
             self.schedules[attribute] = value
         else:
@@ -440,7 +486,7 @@ class BeamPhysicsRelevant(SimulationElementBase):
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
-        super().__init__(section_index, name)
+        super().__init__(section_index, name, **kwargs)
 
 
 class BeamObservationElement(SimulationElementBase):
@@ -524,7 +570,62 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
         pass
 
 
-class SchedulerBaseClass(ABC):
+# n.b.:  runtime_checkable will check the method is present, but does
+# not validate the signature.
+@runtime_checkable
+class _Trackable(Protocol):
+    def track(self, beam): ...
+
+
+class UnsafeUserElement(UserDefinedElement):
+    """
+    Class to wrap around an arbitrary user defined element.
+
+    Used to sanitise non-standard objects defined by the user, should
+    not be used for production code.
+
+    The given `.track` method will be called on every turn, and the
+    element will be taken as part of section 0.  For any other
+    behaviour, inheriting from `UserDefinedElement` is essential.
+
+    Parameters
+    ----------
+    element
+        The element defined by the user, must implement a
+        `.track(self, beam)` method.
+
+    Examples
+    --------
+    >>> class Test:
+    ...    def track(self, beam):
+    ...        print("This is a test")
+    >>> ring.add_element(Test())
+    """
+
+    def __init__(self, element: _Trackable):
+        if not isinstance(element, _Trackable):
+            raise TypeError(
+                "Arbitrary user elements must at minimum "
+                "define a `.track(self, beam)` method,"
+                f" but {element.__class__.__name__} does not provide it."
+            )
+        else:
+            warnings.warn(
+                f"Element {element} (class name {element.__class__.__name__}) "
+                "is not recognised, attempting to coerce it to a usable form, "
+                "but results are not guaranteed. Inheriting from "
+                "`UserDefinedElement` is strongly recommended.",
+                stacklevel=2,
+            )
+
+        super().__init__()
+        self._element = element
+
+    def _track(self, beam: BeamBaseClass):
+        self._element.track(beam)
+
+
+class ScheduledBaseClass(ABC):
     """Base class to create objects used for scheduling of parameters."""
 
     @abstractmethod  # pragma: no cover
@@ -546,7 +647,7 @@ class SchedulerBaseClass(ABC):
         pass
 
 
-class ScheduledArray(SchedulerBaseClass):
+class ScheduledArray(ScheduledBaseClass):
     """
     Schedule values that change per turn.
 
@@ -584,7 +685,7 @@ class ScheduledArray(SchedulerBaseClass):
         return self.values[turn_i]
 
 
-class ScheduledInterpolation(SchedulerBaseClass):
+class ScheduledInterpolation(ScheduledBaseClass):
     """
     Schedule values that change along time.
 
@@ -667,12 +768,18 @@ class ScheduledInterpolation(SchedulerBaseClass):
         value
             The interpolated value for the current time.
         """
-        return self.interpolator(reference_time)
+        value = self.interpolator(reference_time)
+
+        # Guard against 0D arrays being returned by interpolator
+        if not isinstance(value, numbers.Number) and value.shape == ():
+            value = value[()]
+
+        return value
 
 
 def get_scheduler(
     value: NumpyArray | tuple[NumpyArray, NumpyArray],
-) -> SchedulerBaseClass:
+) -> ScheduledBaseClass:
     """
     Auto-select the correct class of the schedulers.
 
@@ -800,5 +907,31 @@ class AltersReference(ABC):
         -------
         change
             Change of reference time or energy.
+        """
+        pass
+
+
+class HasSymbolicHamiltonian(ABC):
+    """Base class for objects that have an analytic expression."""
+
+    @abstractmethod  # pragma: no cover
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
+        """
+        Return the partial Hamiltonian symbolic expression.
+
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according variables will be replaced by
+            their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
         """
         pass
