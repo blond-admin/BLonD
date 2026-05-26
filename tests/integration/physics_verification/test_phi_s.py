@@ -27,11 +27,8 @@ def test_phi_s():
         Ring,
         Simulation,
         SingleHarmonicRFStation,
-        backend,
     )
     from blond.core.beam.particle_types import ParticleType, c, e, m_p
-
-    backend.set_specials("cpp")
 
     if _DEV_DRAW:
         plt.figure(figsize=(10, 10))

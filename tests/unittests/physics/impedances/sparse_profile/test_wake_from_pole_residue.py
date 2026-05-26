@@ -121,7 +121,7 @@ class TestPole(unittest.TestCase):
             voltage_threaded=backend.zeros(
                 (backend.specials.get_max_threads(), n), dtype=float
             ),
-            update_on_bin=np.zeros(1, dtype=np.int32),
+            update_on_bin=backend.array(np.zeros(1, dtype=np.int32)),
             factor=1.0,
         )
         voltage_full_cpu = copy_to_cpu(voltage)
@@ -151,7 +151,7 @@ class TestPole(unittest.TestCase):
                 (backend.specials.get_max_threads(), len(voltage_masked)),
                 dtype=float,
             ),
-            update_on_bin=np.array([0, start], dtype=np.int32),
+            update_on_bin=backend.array(np.array([0, start], dtype=np.int32)),
             factor=1.0,
         )
         voltage[mask_b] = voltage_masked
@@ -270,7 +270,7 @@ class TestPole(unittest.TestCase):
             voltage_threaded=backend.zeros(
                 (backend.specials.get_max_threads(), n), dtype=float
             ),
-            update_on_bin=np.zeros(1, dtype=np.int32),
+            update_on_bin=backend.array(np.zeros(1, dtype=np.int32)),
             factor=1.0,
         )
         DEV_PLOT = False
@@ -334,7 +334,7 @@ class TestWakeFromPoleResidueBranches(unittest.TestCase):
                 voltage_threaded=backend.zeros(
                     (backend.specials.get_max_threads(), n), dtype=float
                 ),
-                update_on_bin=np.zeros(1, dtype=np.int32),
+                update_on_bin=backend.array(np.zeros(1, dtype=np.int32)),
                 factor=1.0,
             )
             return voltage
@@ -393,7 +393,7 @@ class TestWakeFromPoleResidueBranches(unittest.TestCase):
             voltage_threaded=backend.zeros(
                 (backend.specials.get_max_threads(), n), dtype=float
             ),
-            update_on_bin=np.zeros(1, dtype=np.int32),
+            update_on_bin=backend.array(np.zeros(1, dtype=np.int32)),
             factor=1.0,
         )
 
@@ -417,7 +417,7 @@ class TestWakeFromPoleResidueBranches(unittest.TestCase):
             voltage_threaded=backend.zeros(
                 (backend.specials.get_max_threads(), n), dtype=float
             ),
-            update_on_bin=np.array([0, k], dtype=np.int32),
+            update_on_bin=backend.array(np.array([0, k], dtype=np.int32)),
             factor=1.0,
         )
 
