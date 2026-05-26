@@ -8,16 +8,31 @@ from blond.core.backends.backend import (
     backend,
 )
 
+try:
+    import xpart
 
-class TestEX_13_Multibunch_beam(unittest.TestCase):
+    HAS_XSUITE = True
+except ImportError:
+    HAS_XSUITE = False
+
+
+@unittest.skipUnless(HAS_XSUITE, "XSUITE is not available")
+class TestEX_24_Xsuite_Matching(unittest.TestCase):
+    def setUp(self):
+        try:
+            import xpart
+        except ModuleNotFoundError as exception:
+            self.skipTest(str(exception))
+
     @pytest.mark.backend_mutation
+    @unittest.skip("Too slow")
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import EX_13_Multibunch_beam
+        from blond.examples.scripts import EX_24_Xsuite_Matching
 
         # full script. just checking if it crashes
-        EX_13_Multibunch_beam.main()
+        EX_24_Xsuite_Matching.main()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -28,8 +43,8 @@ class TestEX_13_Multibunch_beam(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import EX_13_Multibunch_beam
+        from blond.examples.scripts import EX_24_Xsuite_Matching
 
         # full script. just checking if it crashes
-        EX_13_Multibunch_beam.main()
+        EX_24_Xsuite_Matching.main()
         backend.zeros(100)

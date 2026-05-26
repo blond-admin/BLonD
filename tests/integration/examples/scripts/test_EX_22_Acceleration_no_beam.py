@@ -9,15 +9,20 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_08_MuCol_asynchronous_ramp(unittest.TestCase):
+class TestEX_22_Acceleration_no_beam(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import EX_08_MuCol_asynchronous_ramp
+        from blond.examples.scripts import (
+            EX_22_Acceleration_no_beam,  # NOQA will run
+        )
+
+        # the
+        EX_22_Acceleration_no_beam.n_turns = 10  # for testing
+        EX_22_Acceleration_no_beam.main()
 
         # full script. just checking if it crashes
-        EX_08_MuCol_asynchronous_ramp.main()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -28,8 +33,13 @@ class TestEX_08_MuCol_asynchronous_ramp(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import EX_08_MuCol_asynchronous_ramp
+        from blond.examples.scripts import (
+            EX_22_Acceleration_no_beam,  # NOQA will run
+        )
+
+        # the
+        EX_22_Acceleration_no_beam.n_turns = 10  # for testing
+        EX_22_Acceleration_no_beam.main()
+        backend.zeros(100)
 
         # full script. just checking if it crashes
-        EX_08_MuCol_asynchronous_ramp.main()
-        backend.zeros(100)
