@@ -307,6 +307,7 @@ class _CompareBlond23:
 
 
 @pytest.mark.integration
+@pytest.mark.backend_mutation
 def test_compare_inductive_impedance():
     comparison = _CompareBlond23()
     iv2, hy2, iv3, hy3 = comparison.execute()
