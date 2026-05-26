@@ -14,11 +14,10 @@ import numpy as np
 import pytest
 
 from blond import copy_to_cpu, setup_backend
+from blond.examples import scripts
 
 _DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
-_RESOURCES = (
-    Path(__file__).parents[4] / "blond" / "examples" / "scripts" / "resources"
-)
+_RESOURCES = Path(scripts.__path__[0]) / "resources"
 
 ind_volt_freq_active = False
 steps_active = True
@@ -190,7 +189,6 @@ class _CompareBlond23:
             SingleHarmonicRFStation,
             StaticProfile,
             WakeField,
-            backend,
             proton,
         )
 
