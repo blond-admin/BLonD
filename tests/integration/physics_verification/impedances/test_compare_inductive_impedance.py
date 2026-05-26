@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from blond import copy_to_cpu, setup_backend
+
 _DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
 _RESOURCES = (
     Path(__file__).parents[4] / "blond" / "examples" / "scripts" / "resources"
@@ -192,7 +194,7 @@ class _CompareBlond23:
             proton,
         )
 
-        backend.set_specials("cpp")
+        setup_backend("auto")
 
         ring = Ring(circumference=self.circumference)
         beam = Beam(intensity=self.n_particles, particle_type=proton)
@@ -275,7 +277,7 @@ class _CompareBlond23:
             total_voltage += steps.induced_voltage
         if dir_space_charge_active:
             total_voltage += dir_space_charge.induced_voltage
-        return total_voltage, profile.hist_y
+        return copy_to_cpu(total_voltage), copy_to_cpu(profile.hist_y)
 
     def execute(self):
         induced_voltage_blond2, hist_y_blond2, dt_init, dE_init = (
