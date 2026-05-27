@@ -139,11 +139,12 @@ def setup_and_run(
     voltage_per_cavity = 31140000.0
     energy_gain_per_turn = (ejection_energy - injection_energy) / n_turns / 20
     # phi_s = 170 * np.pi / 180
-    harmonic /= 1
+    scalor = 1
+    harmonic /= scalor
     harmonic = int(
         harmonic - harmonic % (n_stations * 2)
     )  # every half drift has integer number of drifts
-    circumference /= 1
+    circumference /= scalor
     total_voltage = energy_gain_per_turn / np.sin(phi_s)
     # total_voltage = 1e9
     voltage_per_station = total_voltage / n_stations
@@ -212,8 +213,8 @@ def setup_and_run(
     I_g = (
         voltage_per_cavity
         / (2 * R_over_Q)
-        * (1 / Q_L - 5.2 / 2 * 1j * delta_omega / omega_rf)
-        # * (1 / Q_L - 2j * delta_omega / omega_rf)
+        # * (1 / Q_L - 5.2 / 2 * 1j * delta_omega / omega_rf)
+        * (1 / Q_L - 2j * delta_omega / omega_rf)
         # + np.abs(F_b) * beam_current * np.exp(1j * (phi_s - np.pi/2)) * 0.125
     )
 
@@ -574,8 +575,10 @@ def plot_ind_volt_cav_fdbk_voltage(
         print(
             f"feedback argmax {
                 np.argmax(
-                    np.real(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx])
-                    - cavity_voltage_raw
+                    np.real(
+                        cav_fdbk_obs_list[1][0].kick_voltage_fine[idx][0:300]
+                    )
+                    - cavity_voltage_raw[0:300]
                 )
             }"
         )
@@ -594,7 +597,7 @@ def plot_ind_volt_cav_fdbk_voltage(
             label="real fdbk",
         )
         print(
-            f"ind volt argmax {np.argmax(ind_volt_obs_list[0][0].induced_voltage[idx])}"
+            f"ind volt argmax {np.argmax(ind_volt_obs_list[0][0].induced_voltage[idx][0:300])}"
         )
         ax[0, 1].plot(
             ind_volt_obs_list[0][0].induced_voltage[idx],
@@ -631,7 +634,7 @@ if __name__ == "__main__":
         [],
     )
 
-    n_turns = 3
+    n_turns = 4
     for MTW in [
         True,
         False,
