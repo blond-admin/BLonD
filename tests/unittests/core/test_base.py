@@ -14,6 +14,7 @@ from blond.core.base import (
     Preparable,
     Schedulable,
     ScheduledArray,
+    ScheduledFunctional,
     ScheduledInterpolation,
     UnsafeUserElement,
     UserDefinedElement,
@@ -104,6 +105,29 @@ class TestScheduledInterpolation(unittest.TestCase):
                 interpolator=scipy.interpolate.PchipInterpolator,
             )
             scheduler.get_scheduled(5, 1.0)  # should not crash
+
+
+class TestScheduledFunctional(unittest.TestCase):
+    def test_calls_function_with_turn_and_time(self):
+        received = {}
+
+        def func(turn_i, reference_time):
+            received["turn_i"] = turn_i
+            received["reference_time"] = reference_time
+            return 42.0
+
+        scheduler = ScheduledFunctional(func)
+        value = scheduler.get_scheduled(turn_i=5, reference_time=1.5)
+
+        self.assertEqual(value, 42.0)
+        self.assertEqual(received, {"turn_i": 5, "reference_time": 1.5})
+
+    def test_passes_arguments_by_keyword(self):
+        # Function only uses reference_time but must accept both keywords.
+        scheduler = ScheduledFunctional(
+            lambda turn_i, reference_time: 2.0 * reference_time
+        )
+        self.assertEqual(scheduler.get_scheduled(0, 3.0), 6.0)
 
 
 class BeamObservationElementTester(BeamObservationElement):
@@ -265,8 +289,11 @@ class TestFunctions(unittest.TestCase):
         sched2 = get_scheduler(
             (np.ones(10), np.ones(10)),
         )
+        sched3 = get_scheduler(lambda turn_i, reference_time: 1.0)
         self.assertEqual(type(sched1), ScheduledArray)
         self.assertEqual(type(sched2), ScheduledInterpolation)
+        self.assertEqual(type(sched3), ScheduledFunctional)
+        self.assertEqual(sched3.get_scheduled(0, 0.0), 1.0)
         with self.assertRaises(TypeError):
             get_scheduler(
                 "a string",
