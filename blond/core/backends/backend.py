@@ -1025,9 +1025,7 @@ class CupyBackend(BackendBaseClass):
             One of the available backend modes.
         """
         if mode == "cuda":
-            from blond.core.backends.cuda.callables import reload_cuda_backend
-
-            CudaSpecials = reload_cuda_backend(self.float)
+            from blond.core.backends.cuda.callables import CudaSpecials
 
             self.specials = CudaSpecials()
         else:
