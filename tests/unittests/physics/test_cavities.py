@@ -36,7 +36,6 @@ from blond.experimental import PooledInterpolationKick
 from blond.experimental.physics.feedbacks.base import (
     LocalFeedback,
 )
-from blond.experimental.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
@@ -46,6 +45,7 @@ from blond.physics.cavities import (
     SingleHarmonicRFStation,
 )
 from blond.physics.drifts import DriftSimple
+from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.testing.backend_testing import multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
