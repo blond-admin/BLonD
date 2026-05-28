@@ -1,24 +1,24 @@
-# Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENSE.txt.
-# In applying this licence, CERN does not waive the privileges and immunities
-# granted to it by virtue of its status as an Intergovernmental Organization or
-# submit itself to any jurisdiction.
-# Project website: http://blond.web.cern.ch/
+"""BLonD2 vs BLonD3 regression: inductive impedance comparison.
 
-"""Comparison of 'EX_02_Main_long_ps_booster.py'."""
+Resources (EX_02_Ekicker_1.4GeV.txt, EX_02_Finemet.txt) are read from
+blond/examples/scripts/resources/ which ships with the package.
 
-import time
+Authors: Simon Lauber
+"""
+
+import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.constants import c, e, m_p
-from tqdm import tqdm
+import pytest
 
-resources = (
-    "/home/slauber/PycharmProjects/deleteme/blonder/legacy"
-    "/__EXAMPLES/input_files"
-)
+from blond import copy_to_cpu, setup_backend
+from blond.examples import scripts
+
+_DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
+_RESOURCES = Path(scripts.__path__[0]) / "resources"
+
 ind_volt_freq_active = False
 steps_active = True
 dir_space_charge_active = False
@@ -26,40 +26,32 @@ dir_space_charge_active = False
 
 class _CompareBlond23:
     def __init__(self):
-        # SIMULATION PARAMETERS -------------------------------------------------------
-
-        # Beam parameters
         self.n_particles = 1e11
         self.n_macroparticles = int(5e5)
-        self.sigma_dt = 180e-9 / 4  # [s]
-        self.kin_beam_energy = 1.4e9  # [eV]
+        self.sigma_dt = 180e-9 / 4
+        self.kin_beam_energy = 1.4e9
 
-        # Machine and RF parameters
         self.radius = 25
-        self.gamma_transition = 4.4  # [1]
-        self.circumference = 2 * np.pi * self.radius  # [m]
+        self.gamma_transition = 4.4
+        self.circumference = 2 * np.pi * self.radius
 
-        # Tracking details
         self.n_turns = 12
         self.n_turns_between_two_plots = 1
 
-        # Derived parameters
-        self.E_0 = m_p * c**2 / e  # [eV]
-        self.tot_beam_energy = self.E_0 + self.kin_beam_energy  # [eV]
-        self.sync_momentum = np.sqrt(
-            self.tot_beam_energy**2 - self.E_0**2
-        )  # [eV / c]
-        self.momentum_compaction = 1 / self.gamma_transition**2  # [1]
+        from scipy.constants import c, e, m_p
 
-        # Cavities parameters
+        self.E_0 = m_p * c**2 / e
+        self.tot_beam_energy = self.E_0 + self.kin_beam_energy
+        self.sync_momentum = np.sqrt(self.tot_beam_energy**2 - self.E_0**2)
+        self.momentum_compaction = 1 / self.gamma_transition**2
+
         self.n_rf_systems = 1
         self.harmonic_number = 1
-        self.voltage = 8e3  # [V]
+        self.voltage = 8e3
         self.phi_offset = np.pi
 
-        # ejection kicker
         self.Ekicker = np.loadtxt(
-            resources + "/EX_02_Ekicker_1.4GeV.txt",
+            _RESOURCES / "EX_02_Ekicker_1.4GeV.txt",
             skiprows=1,
             dtype=complex,
             encoding="utf-8",
@@ -77,19 +69,16 @@ class _CompareBlond23:
             },
         )
 
-        # Finemet cavity
         F_C = np.loadtxt(
-            resources + "/EX_02_Finemet.txt",
+            _RESOURCES / "EX_02_Finemet.txt",
             dtype=float,
             skiprows=1,
         )
-
         F_C[:, 3], F_C[:, 5], F_C[:, 7] = (
             np.pi * F_C[:, 3] / 180,
             np.pi * F_C[:, 5] / 180,
             np.pi * F_C[:, 7] / 180,
         )
-
         Re_Z = F_C[:, 2] * np.cos(F_C[:, 5])
         Im_Z = F_C[:, 2] * np.sin(F_C[:, 5])
         self.Re_z = 13 * Re_Z
@@ -113,7 +102,7 @@ class _CompareBlond23:
         from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
         from blond.legacy.blond2.utils import bmath as bm
 
-        bm.use_cpp()
+        bm.use_cpu()
 
         ring = Ring(
             self.circumference,
@@ -122,7 +111,6 @@ class _CompareBlond23:
             Proton(),
             self.n_turns,
         )
-
         RF_sct_par = RFStation(
             ring,
             [self.harmonic_number],
@@ -130,16 +118,11 @@ class _CompareBlond23:
             [self.phi_offset],
             self.n_rf_systems,
         )
-
         my_beam = Beam(ring, self.n_macroparticles, self.n_particles)
-
         ring_RF_section = RingAndRFTracker(RF_sct_par, my_beam)
-
-        # DEFINE BEAM------------------------------------------------------------------
         bigaussian(ring, RF_sct_par, my_beam, self.sigma_dt, seed=1)
         dt_init = my_beam.dt.copy()
         dE_init = my_beam.dE.copy()
-        # DEFINE SLICES----------------------------------------------------------------
         slice_beam = Profile(
             my_beam,
             CutOptions(
@@ -148,16 +131,12 @@ class _CompareBlond23:
                 n_slices=10000,
             ),
         )
-
         Ekicker_table = InputTable(
             self.Ekicker[:, 0].real,
             self.Ekicker[:, 1].real,
             self.Ekicker[:, 1].imag,
         )
-
         F_C_table = InputTable(self.F_z, self.Re_z, self.Im_z)
-
-        # steps
         steps = InductiveImpedance(
             my_beam,
             slice_beam,
@@ -165,22 +144,16 @@ class _CompareBlond23:
             RF_sct_par,
             deriv_mode="diff",
         )
-        # direct space charge
         dir_space_charge = InductiveImpedance(
             my_beam,
             slice_beam,
             -376.730313462 / (ring.beta[0] * ring.gamma[0] ** 2),
             RF_sct_par,
         )
-
-        # INDUCED VOLTAGE FROM IMPEDANCE------------------------------------------------
-
         imp_list = [Ekicker_table, F_C_table]
-
         ind_volt_freq = InducedVoltageFreq(
             my_beam, slice_beam, imp_list, frequency_resolution=2e5
         )
-
         induced_voltage_list = []
         if ind_volt_freq_active:
             induced_voltage_list.append(ind_volt_freq)
@@ -191,14 +164,10 @@ class _CompareBlond23:
         total_induced_voltage = TotalInducedVoltage(
             my_beam, slice_beam, induced_voltage_list
         )
-
         map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam]
-        t0 = time.time()
-        for _ in tqdm(range(1, self.n_turns + 1), desc="Blond 2"):
+        for _ in range(1, self.n_turns + 1):
             for m in map_:
                 m.track()
-        t1 = time.time()
-        print("\n\nRuntime BLonD2", t1 - t0, "s\n\n")
         return (
             total_induced_voltage.induced_voltage,
             slice_beam.n_macroparticles,
@@ -220,11 +189,10 @@ class _CompareBlond23:
             SingleHarmonicRFStation,
             StaticProfile,
             WakeField,
-            backend,
             proton,
         )
 
-        backend.set_specials("cpp")
+        setup_backend("auto")
 
         ring = Ring(circumference=self.circumference)
         beam = Beam(intensity=self.n_particles, particle_type=proton)
@@ -252,20 +220,20 @@ class _CompareBlond23:
             cut_right=5.72984173562e-7,
             n_bins=10000,
         )
-
         ind_volt_freq = WakeField(
             sources=(
                 ImpedanceTableFreq(
-                    freq_x=self.Ekicker[:, 0].real, freq_y=self.Ekicker[:, 1]
+                    freq_x=self.Ekicker[:, 0].real,
+                    freq_y=self.Ekicker[:, 1],
                 ),
                 ImpedanceTableFreq(
-                    freq_x=self.F_z, freq_y=self.Re_z + 1j * self.Im_z
+                    freq_x=self.F_z,
+                    freq_y=self.Re_z + 1j * self.Im_z,
                 ),
             ),
             solver=PeriodicFreqSolver(t_periodicity=1 / 2e5),
             profile=profile,
         )
-
         f_rev = 1 / cycle.get_t_rev_init(ring.circumference)
         steps = WakeField(
             sources=(
@@ -274,7 +242,6 @@ class _CompareBlond23:
             solver=InductiveImpedanceSolver(),
             profile=profile,
         )
-
         dir_space_charge = WakeField(
             sources=(
                 InductiveImpedance(
@@ -285,11 +252,9 @@ class _CompareBlond23:
             solver=InductiveImpedanceSolver(),
             profile=profile,
         )
-
         ind_volt_freq.track_profile = False
         steps.track_profile = False
         dir_space_charge.track_profile = False
-
         ring.add_elements(
             (
                 ind_volt_freq if ind_volt_freq_active else None,
@@ -300,15 +265,9 @@ class _CompareBlond23:
                 profile,
             )
         )
-
-        simulatuion = Simulation(ring=ring, magnetic_cycle=cycle)
-
+        simulation = Simulation(ring=ring, magnetic_cycle=cycle)
         profile.track(beam=beam)
-
-        t0 = time.time()
-        simulatuion.run_simulation(beams=beam, n_turns=self.n_turns)
-        t1 = time.time()
-        print("\n\nRuntime BLonD3", t1 - t0, "s\n\n")
+        simulation.run_simulation(beams=beam, n_turns=self.n_turns)
         total_voltage = 0
         if ind_volt_freq_active:
             total_voltage += ind_volt_freq.induced_voltage
@@ -316,27 +275,50 @@ class _CompareBlond23:
             total_voltage += steps.induced_voltage
         if dir_space_charge_active:
             total_voltage += dir_space_charge.induced_voltage
-        return total_voltage, profile.hist_y
+        return copy_to_cpu(total_voltage), copy_to_cpu(profile.hist_y)
 
     def execute(self):
-        for _ in range(3):
-            induced_voltage_blond2, hist_y_blond2, dt_init, dE_init = (
-                self._exec_blond2()
+        induced_voltage_blond2, hist_y_blond2, dt_init, dE_init = (
+            self._exec_blond2()
+        )
+        induced_voltage_blond3, hist_y_blond3 = self._exec_blond3(
+            dt_init, dE_init
+        )
+        if _DEV_DRAW:
+            plt.subplot(2, 1, 1)
+            plt.plot(hist_y_blond2, label="blond2")
+            plt.plot(hist_y_blond3, "--", label="blond3")
+            plt.legend()
+            plt.subplot(2, 1, 2)
+            plt.plot(induced_voltage_blond2, label="induced_voltage_blond2")
+            plt.plot(
+                induced_voltage_blond3, "--", label="induced_voltage_blond3"
             )
-            induced_voltage_blond3, hist_y_blond3 = self._exec_blond3(
-                dt_init, dE_init
-            )
-        plt.subplot(2, 1, 1)
-        plt.plot(hist_y_blond2, label="blond2")
-        plt.plot(hist_y_blond3, "--", label="blond3")
-        plt.legend()
-        plt.subplot(2, 1, 2)
-        plt.plot(induced_voltage_blond2, label="induced_voltage_blond2")
-        plt.plot(induced_voltage_blond3, "--", label="induced_voltage_blond3")
-        plt.legend()
-        plt.show()
+            plt.legend()
+            plt.show()
+        return (
+            induced_voltage_blond2,
+            hist_y_blond2,
+            induced_voltage_blond3,
+            hist_y_blond3,
+        )
 
 
-if __name__ == "__main__":
-    comparison_of_inductive_impedance = _CompareBlond23()
-    comparison_of_inductive_impedance.execute()
+@pytest.mark.integration
+@pytest.mark.backend_mutation
+def test_compare_inductive_impedance():
+    comparison = _CompareBlond23()
+    iv2, hy2, iv3, hy3 = comparison.execute()
+    np.testing.assert_allclose(
+        hy3,
+        hy2,
+        rtol=1e-5,
+        err_msg="BLonD3 profile histogram diverges from BLonD2 reference",
+    )
+    np.testing.assert_allclose(
+        iv3,
+        iv2,
+        rtol=1e-5,
+        atol=1e-10,
+        err_msg="BLonD3 induced voltage diverges from BLonD2 reference",
+    )
