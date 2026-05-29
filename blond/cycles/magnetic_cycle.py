@@ -1096,7 +1096,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         Inject ``n_turns_max=None`` into the base configure chain.
 
         ``n_turns_max`` is calculated separately via
-        :meth:`_calc_n_turns_max` when the full simulation context is available.
+        ``_calc_n_turns_max`` when the full simulation context is available.
 
         Parameters
         ----------
