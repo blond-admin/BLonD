@@ -2,6 +2,23 @@ import unittest
 
 import numpy as np
 
+from blond import (
+    Beam,
+    BiGaussian,
+    ConstantMagneticCycle,
+    DriftSimple,
+    MultiHarmonicRFStation,
+    Ring,
+    Simulation,
+    StaticProfile,
+    backend,
+    proton,
+)
+from blond.core.backends.backend import Numpy64Bit
+from blond.physics.feedbacks.accelerators.lhc import (
+    LHCBeamControl,
+)
+
 circumference = 26658.8832  # [m]
 momentum = 450e9
 intensity = 1.6e11
@@ -18,24 +35,7 @@ reference = -20
 
 
 class TestLHCBeamFeedback(unittest.TestCase):
-    def setUp(self):
-        from blond import (
-            Beam,
-            BiGaussian,
-            ConstantMagneticCycle,
-            DriftSimple,
-            MultiHarmonicRFStation,
-            Ring,
-            Simulation,
-            StaticProfile,
-            backend,
-            proton,
-        )
-        from blond.core.backends.backend import Numpy64Bit
-        from blond.physics.feedbacks.accelerators.lhc import (
-            LHCBeamControl,
-        )
-
+    def create_scenario(self, open_synchro: bool = False):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
 
@@ -80,7 +80,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
         )
         self.beam_control = LHCBeamControl(
             pl_gain=1 / (5 * t_rev) * 1,
-            sl_gain=1 / (5 * t_rev) / 10,
+            sl_gain=1 / (5 * t_rev) / 10 * int(not open_synchro),
             profile=self.profile,
         )
 
@@ -114,7 +114,9 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         self.beam_control.track(beam)
 
-    def test_lhc_beam_control_init(self):
+    def test_lhc_beam_control_synchro_closed(self):
+        self.create_scenario(open_synchro=False)
+
         # Checks the correction calculation of the recursion parameters for the synchronization loop
         self.assertAlmostEqual(self.beam_control.lhc_t[0], 0.0177111)
 
@@ -122,7 +124,6 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         self.assertAlmostEqual(self.beam_control.lhc_a[0], 2.64280271)
 
-    def test_lhc_beam_phase_loop(self):
         # Checks the calculation done by the beam phase loop for the first turn
         self.assertAlmostEqual(
             self.beam_control.dphi * 180 / np.pi,
@@ -135,7 +136,6 @@ class TestLHCBeamFeedback(unittest.TestCase):
             785.0284369961593,
         )
 
-    def test_lhc_synchronization_loop(self):
         # Checks the calculation done for the synchro loop for the first turn
         dphi_rf = self.beam_control.cavities[0].delta_phi_rf
 
@@ -149,8 +149,47 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         self.assertAlmostEqual(self.beam_control.lhc_y[0], 0.01015636)
 
-    def test_correction_calculation(self):
         # Checks the correct calculation of the corrections for the next turn
         self.assertAlmostEqual(
             self.beam_control.domega_rf[0] / 2 / np.pi, -91.91940957997551
+        )
+
+    def test_lhc_beam_control_synchro_open(self):
+        self.create_scenario(open_synchro=True)
+
+        # Checks the correction calculation of the recursion parameters for the synchronization loop
+        self.assertAlmostEqual(self.beam_control.lhc_t[0], 0.0)
+
+        self.assertAlmostEqual(self.lhc_y_init, 0)
+
+        self.assertAlmostEqual(self.beam_control.lhc_a[0], 0.0)
+
+        # Checks the calculation done by the beam phase loop for the first turn
+        self.assertAlmostEqual(
+            self.beam_control.dphi * 180 / np.pi,
+            injection_offset_phase,
+            places=2,
+        )
+
+        self.assertAlmostEqual(
+            self.beam_control.pl_gain * self.beam_control.dphi,
+            785.0284369961593,
+        )
+
+        # Checks the calculation done for the synchro loop for the first turn
+        dphi_rf = self.beam_control.cavities[0].delta_phi_rf
+
+        synch_corr = self.beam_control.sl_gain * (
+            self.lhc_y_init
+            + self.beam_control.lhc_a[0]
+            * (dphi_rf + self.beam_control.reference)
+        )
+
+        self.assertAlmostEqual(synch_corr[0], 0.0)
+
+        self.assertAlmostEqual(self.beam_control.lhc_y[0], 0.0)
+
+        # Checks the correct calculation of the corrections for the next turn
+        self.assertAlmostEqual(
+            self.beam_control.domega_rf[0] / 2 / np.pi, -124.94115621564328
         )
