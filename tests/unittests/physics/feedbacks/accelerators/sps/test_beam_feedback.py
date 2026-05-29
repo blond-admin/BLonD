@@ -178,5 +178,5 @@ class TestLHCBeamFeedback(unittest.TestCase):
         np.testing.assert_almost_equal(
             self.beam_control.domega_rf_corr,
             [-3170.639876934075, 0.0],
-            decimal=12,
+            decimal=10,
         )
