@@ -56,7 +56,6 @@ class Preparable(ABC):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-    @abstractmethod  # pragma: no cover
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -68,7 +67,6 @@ class Preparable(ABC):
         """
         pass
 
-    @abstractmethod  # pragma: no cover
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -365,8 +363,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         """
         return self._section_index
 
-    @abstractmethod  # pragma: no cover
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -374,16 +371,22 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
+        # TODO:  We should be able to remove this, since it does nothing
+        # and it is defined in `Preparable`.  If we remove it, or replace
+        # it with a call to `super().on_init_simulation`, the testing
+        # pipeline breaks with an error in `_check_executor_in_pipeline`
+        # for the kick pooling.
         pass
 
-    @abstractmethod  # pragma: no cover
     def on_run_simulation(
         self,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs,
+        **kwargs: dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -397,9 +400,9 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted kwargs collected by the MRO chain.
         """
-        pass
+        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
 
     def info_string(self, prefix="") -> str:
         """
@@ -534,40 +537,6 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
     ...         dt = beam.write_partial_dt()
     ...         dt += backend.random.rand(len(dt))
     """
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        pass
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
 
 
 # n.b.:  runtime_checkable will check the method is present, but does
