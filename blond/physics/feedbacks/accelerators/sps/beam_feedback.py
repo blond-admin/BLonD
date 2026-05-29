@@ -52,8 +52,8 @@ class SPSBeamControl(BeamFeedbackBase):
         Bla bla.
     phi_sync
         Synchronous phase of the beam [rad].
-    global_gain
-        Global gain of the beam control.
+    pl_gain
+        Beam-phase loop gain of the beam control.
     action_delay
         Delay of the action of the beam-phase loop from the first turn.
     delay_turns
@@ -73,7 +73,7 @@ class SPSBeamControl(BeamFeedbackBase):
         k_a_n: float | NumpyArray,
         k_b_n: float | NumpyArray,
         phi_sync: float | NumpyArray,
-        global_gain: float | NumpyArray,
+        pl_gain: float | NumpyArray,
         action_delay: int,
         delay_turns: int = 2,
         *args,
@@ -90,7 +90,7 @@ class SPSBeamControl(BeamFeedbackBase):
         self.action_delay = action_delay
 
         self.phi_sync = phi_sync
-        self.global_gain = global_gain
+        self.pl_gain = pl_gain
 
         self.delay_turns = delay_turns
 
@@ -170,8 +170,8 @@ class SPSBeamControl(BeamFeedbackBase):
         if isinstance(self.phi_sync, float):
             self.phi_sync = convert_to_array(self.phi_sync)
 
-        if isinstance(self.global_gain, float):
-            self.global_gain = convert_to_array(self.global_gain)
+        if isinstance(self.pl_gain, float):
+            self.pl_gain = convert_to_array(self.pl_gain)
 
     def get_beam_attribute(self, beam: BeamBaseClass):
         """
@@ -188,7 +188,7 @@ class SPSBeamControl(BeamFeedbackBase):
         """
         self.beam_phase()
 
-    def apply_corrections(self, beam: BeamBaseClass):
+    def compute_correction(self, beam: BeamBaseClass):
         """
         Calculate the frequency correction from the beam control.
 
@@ -203,12 +203,11 @@ class SPSBeamControl(BeamFeedbackBase):
         counter = self.cavities[0]._turn_i.value
 
         t_rev = float(
-            (2 * np.pi * self.cavities[0].harmonic[0])
+            (2 * np.pi * self.cavities[0].get_main_harmonic())
             / self.cavities[0].get_main_harmonic_omega_rf_design()
         )
 
         # Phase loop
-        self.beam_phase()
         self.phase_difference(beam)
 
         # Phase loop
@@ -218,7 +217,10 @@ class SPSBeamControl(BeamFeedbackBase):
         )
 
         # Synchro Loop
-        self.epsilon = self.cavities[0].phi_rf - self.phi_sync[counter]
+        self.epsilon = (
+            self.cavities[0].get_main_harmonic_phi_rf()
+            - self.phi_sync[counter]
+        )
         self.zeta += self.epsilon_prev
         self.domega_sync = (
             -self.k_eps_n[counter] * self.epsilon
@@ -245,4 +247,4 @@ class SPSBeamControl(BeamFeedbackBase):
         self.dphi_prev = self.dphi
 
         # Apply global gain
-        self.domega_rf *= self.global_gain[counter]
+        self.domega_rf *= self.pl_gain[counter]
