@@ -312,8 +312,8 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             copy_to_cpu(dE_after_section_kick),
         )
 
-    def test_update_beam_energy(self):
-        # `_update_beam_energy` is a thin wrapper around `_apply_kick`, so
+    def test_apply_kick2(self):
+        # `_apply_kick` is a thin wrapper around `_apply_kick`, so
         # invoking either on identical starting states must produce identical
         # post-kick dE arrays (deterministic with QE disabled).
         initial_dE = self.beam.read_partial_dE().copy()
@@ -322,7 +322,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
         dE_after_apply_kick = self.beam.read_partial_dE().copy()
 
         self.beam.write_partial_dE()[:] = initial_dE
-        self.SRB._update_beam_energy(beam=self.beam)
+        self.SRB._apply_kick(beam=self.beam)
         dE_after_update = self.beam.read_partial_dE().copy()
 
         np.testing.assert_array_equal(

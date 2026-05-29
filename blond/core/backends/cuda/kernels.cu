@@ -343,11 +343,11 @@ __global__ void loss_box(
 //     + 1 log per *two* samples (cached spare), no sincos. About 21%
 //     of (u, v) pairs fall outside the unit disc and are rejected.
 //
-// xoshiro256+ and splitmix64 (used here only for the per-thread seed
-// expansion) by Blackman & Vigna (https://prng.di.unimi.it/,
-// See https://prng.di.unimi.it/xoshiro256starstar.c
+// xoshiro256+ by Blackman & Vigna; splitmix64 by Vigna (used here only
+// for the per-thread seed expansion). https://prng.di.unimi.it/,
+// CC0/public domain.
+// See https://prng.di.unimi.it/xoshiro256plus.c
 // See https://prng.di.unimi.it/splitmix64.c
-// CC0/public domain).
 // =================================================================
 
 #include <stdint.h>

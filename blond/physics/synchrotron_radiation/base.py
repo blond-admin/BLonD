@@ -143,25 +143,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             disable_quantum_excitation=self._disable_quantum_excitation,
         )
 
-    def _update_beam_energy(
-        self,
-        beam: BeamBaseClass,
-    ) -> None:
-        """
-        Update the beam partial energy with radiation damping and excitation.
-
-        Function to update the beam partial energy including the energy lost by
-        synchrotron radiation, its damping effect and the quantum
-        excitation. Energy kick computed from self._calculate_kick method.
-
-        Parameters
-        ----------
-        beam
-            BeamBaseClass object.
-        """
-        # TODO write C++ routine
-        self._apply_kick(beam=beam)
-
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -201,4 +182,4 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         beam
             Beam class to interact with this element.
         """
-        self._update_beam_energy(beam)
+        self._apply_kick(beam)
