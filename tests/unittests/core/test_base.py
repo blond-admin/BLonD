@@ -256,6 +256,30 @@ class TestPreparable(unittest.TestCase):
     def test_on_run_simulation(self):
         pass
 
+    def test_configure_accepts_no_kwargs(self):
+        # base terminator must not raise when nothing is left over
+        self.preparable.configure()
+
+    def test_configure_raises_on_unexpected_kwargs(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            r"PreparableHelper\.configure\(\) received unexpected "
+            r"keyword arguments: \['typo'\]",
+        ):
+            self.preparable.configure(typo=1)
+
+    def test_configure_run_accepts_known_kwargs(self):
+        # beam and n_turns are consumed explicitly, nothing left over
+        self.preparable.configure_run(beam=object(), n_turns=10)
+
+    def test_configure_run_raises_on_unexpected_kwargs(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            r"PreparableHelper\.configure_run\(\) received unexpected "
+            r"keyword arguments: \['typo'\]",
+        ):
+            self.preparable.configure_run(beam=object(), n_turns=10, typo=1)
+
 
 class TestFunctions(unittest.TestCase):
     def test_get_scheduler_1(self):

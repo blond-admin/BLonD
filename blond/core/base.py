@@ -56,7 +56,7 @@ class Preparable(ABC):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-    def on_init_simulation(self, simulation: Simulation) -> None:  # NOQA: B027
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -64,10 +64,32 @@ class Preparable(ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        pass
+        self.configure(**kwargs)
 
-    def on_run_simulation(  # NOQA: B027
+    def configure(self, **kwargs) -> None:
+        """
+        Set attributes that would otherwise come from the simulation context.
+
+        Each MRO level declares its own explicit keyword parameters and passes
+        the remainder via ``super().configure(**kwargs)``.  This base
+        implementation is the chain terminator: it raises if any unexpected
+        kwargs remain, guarding against typos or missing levels.
+
+        Parameters
+        ----------
+        **kwargs
+            Must be empty when reaching this base implementation.
+        """
+        if kwargs:
+            raise TypeError(
+                f"{type(self).__name__}.configure() received unexpected "
+                f"keyword arguments: {list(kwargs)}"
+            )
+
+    def on_run_simulation(
         self,
         simulation: Simulation,
         beam: BeamBaseClass,
@@ -86,9 +108,38 @@ class Preparable(ABC):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted kwargs collected by the MRO chain.
         """
-        pass
+        self.configure_run(beam=beam, n_turns=n_turns, **kwargs)
+
+    def configure_run(
+        self,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Set run-specific state for each simulation run.
+
+        Mirrors :meth:`configure` for the ``on_run_simulation`` lifecycle.
+        ``beam`` and ``n_turns`` are passed explicitly (as in
+        ``on_run_simulation``); any values extracted from ``simulation``
+        are collected in ``**kwargs`` and distributed down the MRO chain.
+
+        Parameters
+        ----------
+        beam
+            The beam being simulated.
+        n_turns
+            Number of turns for this run.
+        **kwargs
+            Simulation-extracted values; must be empty at the base.
+        """
+        if kwargs:
+            raise TypeError(
+                f"{type(self).__name__}.configure_run() received unexpected "
+                f"keyword arguments: {list(kwargs)}"
+            )
 
 
 class MainLoopRelevant(Preparable):
@@ -374,12 +425,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         **kwargs
             Configure parameters collected by the MRO chain.
         """
-        # TODO:  We should be able to remove this, since it does nothing
-        # and it is defined in `Preparable`.  If we remove it, or replace
-        # it with a call to `super().on_init_simulation`, the testing
-        # pipeline breaks with an error in `_check_executor_in_pipeline`
-        # for the kick pooling.
-        pass
+        super().on_init_simulation(simulation=simulation, **kwargs)
 
     def on_run_simulation(
         self,

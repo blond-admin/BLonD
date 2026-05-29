@@ -350,13 +350,30 @@ class BeamBaseClass(Preparable, ABC):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Configure-run parameters collected by the MRO chain.
         """
         super().on_run_simulation(
-            beam=beam,
             simulation=simulation,
+            beam=beam,
             n_turns=n_turns,
+            total_energy_init=simulation.magnetic_cycle.get_total_energy_init(
+                particle_type=self.particle_type,
+            ),
+            **kwargs,
         )
+
+    def configure_run(self, *, total_energy_init: float, **kwargs) -> None:
+        """
+        Validate beam arrays and set the reference total energy.
+
+        Parameters
+        ----------
+        total_energy_init
+            Initial total energy in [eV] from the magnetic cycle.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure_run(**kwargs)
         msg = (
             "Beam was not initialized. This is possible using"
             " `simulation.prepare_beam(...)` or"
@@ -366,15 +383,10 @@ class BeamBaseClass(Preparable, ABC):
         assert self._dE is not None, msg
         assert self._flags is not None, msg
         assert self._ids is not None, msg
-        total_energy_init = simulation.magnetic_cycle.get_total_energy_init(
-            particle_type=self.particle_type,
-        )
         if (
             self.reference._total_energy != total_energy_init
             and self.reference._total_energy is not None
         ):
-            # Display a warning when the reference energy is overwritten,
-            # but not when None is overwritten.
             msg = (
                 f"`Bunch` was prepared for"
                 f" total_energy = {self.reference._total_energy} eV,"

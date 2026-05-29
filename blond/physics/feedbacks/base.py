@@ -165,7 +165,7 @@ class GlobalFeedback(FeedbackBaseClass):
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
     @requires(["RFStationBaseClass"])
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -173,9 +173,29 @@ class GlobalFeedback(FeedbackBaseClass):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
         from blond.physics.cavities import RFStationBaseClass
 
-        self.cavities = simulation.ring.elements.get_elements(
-            RFStationBaseClass, recursive=False
+        super().on_init_simulation(
+            simulation,
+            cavities=simulation.ring.elements.get_elements(
+                RFStationBaseClass, recursive=False
+            ),
+            **kwargs,
         )
+
+    def configure(self, *, cavities, **kwargs) -> None:
+        """
+        Store the RF station list.
+
+        Parameters
+        ----------
+        cavities
+            List of RF stations in the ring section.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self.cavities = cavities
