@@ -93,7 +93,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
-        self._turn_i: DynamicParameter | None = None
+        self._turn_counter: DynamicParameter | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -108,20 +108,22 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         super().on_init_simulation(
             simulation,
-            turn_i=simulation.turn_i,
+            turn_counter=simulation.turn_counter,
             magnetic_cycle=simulation.magnetic_cycle,
             ring=simulation.ring,
             **kwargs,
         )
 
-    def configure(self, *, turn_i, magnetic_cycle, ring, **kwargs) -> None:
+    def configure(
+        self, *, turn_counter, magnetic_cycle, ring, **kwargs
+    ) -> None:
         """
         Store the runtime references needed during tracking.
 
         Parameters
         ----------
-        turn_i
-            Live turn counter; accessed as ``turn_i.value`` each track call.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
         magnetic_cycle
             Energy program; provides ``get_target_total_energy``.
         ring
@@ -130,7 +132,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Passed to the next level in the MRO chain.
         """
         super().configure(**kwargs)
-        self._turn_i = turn_i
+        self._turn_counter = turn_counter
         self._magnetic_cycle = magnetic_cycle
         self._ring = ring
 
@@ -155,7 +157,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Change of reference energy [eV].
         """
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
+            turn_i=self._turn_counter.value,
             section_i=self.section_index
             if not is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
@@ -178,7 +180,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         super()._track(beam=beam)
         if self.schedule_active:
             self.apply_schedules(
-                turn_i=self._turn_i.value,
+                turn_i=self._turn_counter.value,
                 reference_time=float(beam.reference.time),
             )
 
@@ -741,7 +743,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
+            turn_i=self._turn_counter.value,
             section_i=self.section_index
             if not beam.is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
@@ -899,7 +901,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         self._update_reference_based_attributes(reference=reference)
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
+            turn_i=self._turn_counter.value,
             section_i=self.section_index
             if not is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
@@ -1343,7 +1345,7 @@ class SingleHarmonicRFStation(
         )
 
         single_harmonic_rf_station.configure(
-            turn_i=SimpleNamespace(value=0),
+            turn_counter=SimpleNamespace(value=0),
             magnetic_cycle=SimpleNamespace(
                 get_target_total_energy=lambda **_: total_energy
             ),
@@ -1856,7 +1858,7 @@ class MultiHarmonicRFStation(
         )
 
         multi_harmonic_rf_station.configure(
-            turn_i=SimpleNamespace(value=0),
+            turn_counter=SimpleNamespace(value=0),
             magnetic_cycle=SimpleNamespace(
                 get_target_total_energy=lambda **_: total_energy
             ),

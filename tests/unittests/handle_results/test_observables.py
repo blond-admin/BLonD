@@ -53,8 +53,8 @@ simulation.ring.section_lengths = [250, 250]
 simulation.ring.circumference = 500
 simulation.section_i = DynamicParameter(None)
 simulation.section_i.current_group = 0
-simulation.turn_i = DynamicParameter(None)
-simulation.turn_i.value = 0
+simulation.turn_counter = DynamicParameter(None)
+simulation.turn_counter.value = 0
 simulation.current_t_rev = 123
 beam = Mock(BeamBaseClass)
 beam._dE = Mock(DistributedArray)
@@ -611,7 +611,7 @@ class TestStaticProfileObservation(unittest.TestCase):
             n_turns=100,
         )
         simulation.section_i.value = 0
-        simulation.turn_i.value = 0
+        simulation.turn_counter.value = 0
         self.static_profile_observation.update()
         self.static_profile_observation.to_disk()
 
@@ -838,7 +838,7 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
             n_turns=100,
         )
         simulation.section_i.value = 0
-        simulation.turn_i.value = 0
+        simulation.turn_counter.value = 0
         self.static_multi_profile_observation.update()
 
         self.static_multi_profile_observation.to_disk()
@@ -858,7 +858,7 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
             len(self.static_multi_profile_observation.hist_y[0]) == 2
         )  # two profiles per turn
 
-        simulation.turn_i.value = 1
+        simulation.turn_counter.value = 1
         self.static_multi_profile_observation.update()
         assert len(self.static_multi_profile_observation.hist_y) == 2
 

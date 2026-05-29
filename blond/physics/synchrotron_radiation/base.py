@@ -125,7 +125,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         super().__init__(name=name, section_index=section_index)
 
         self._simulation: Simulation | None = None
-        self._turn_i: DynamicParameter | int = 0
+        self._turn_counter: DynamicParameter | int = 0
         self._share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
@@ -229,7 +229,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             Configure parameters collected by the MRO chain.
         """
         super().on_init_simulation(
-            simulation, turn_i=simulation.turn_i, **kwargs
+            simulation, turn_i=simulation.turn_counter, **kwargs
         )
 
     def configure(self, *, turn_i, **kwargs) -> None:
@@ -239,7 +239,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         Parameters
         ----------
         turn_i
-            Live turn counter; accessed as ``turn_i.value`` each track call.
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
         **kwargs
             Passed to the next level in the MRO chain.
         """

@@ -339,7 +339,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 # this might get changed by the simulation
                 beam_reference_time = beam.reference.time
                 beam_reference_total_energy = beam.reference.total_energy
-                turn_i_org = int(sim_tmp.turn_i.value)
+                turn_i_org = int(sim_tmp.turn_counter.value)
                 section_i_org = int(sim_tmp.section_i.value)
 
                 sim_tmp.run_simulation(
@@ -353,7 +353,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 # reset to original value before simulation
                 beam.reference.time = beam_reference_time
                 beam.reference.total_energy = beam_reference_total_energy
-                sim_tmp.turn_i.value = turn_i_org
+                sim_tmp.turn_counter.value = turn_i_org
                 sim_tmp.section_i.value = section_i_org
 
                 # Prevent the profiles from updating.
@@ -424,7 +424,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
-        assert simulation.turn_i.value == 0
+        assert simulation.turn_counter.value == 0
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
                 dt=np.linspace(

@@ -220,7 +220,7 @@ class BarrierRF(RFManipulationBaseClass):
         """
         super()._track(beam=beam)
 
-        turn = self._turn_i.value
+        turn = self._turn_counter.value
         time = beam.reference.time
 
         beta = beam.reference.beta

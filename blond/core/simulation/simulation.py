@@ -105,7 +105,7 @@ class Simulation(Preparable):
 
     Attributes
     ----------
-    turn_i
+    turn_counter
         Counter tracking the current turn number during simulation. Can be subscribed
         to for notifications when the turn changes. Value is ``None`` when not running.
     section_i
@@ -154,7 +154,7 @@ class Simulation(Preparable):
         self._ring: Ring = ring
         self._magnetic_cycle: MagneticCycleBase = magnetic_cycle
 
-        self.turn_i = DynamicParameter(0)
+        self.turn_counter = DynamicParameter(0)
         self.section_i = DynamicParameter(0)
         self.intensity_effect_manager = IntensityEffectManager(simulation=self)
 
@@ -250,7 +250,7 @@ class Simulation(Preparable):
             beam
                 The `Beam` object.
             """
-            if simulation.turn_i.value == start_turn_i:
+            if simulation.turn_counter.value == start_turn_i:
                 pr.enable()
 
         end_turn = start_turn_i + int_from_float_with_warning(
@@ -1032,7 +1032,7 @@ class Simulation(Preparable):
         >>> matcher.prepare_beam(sim, beam)
         """
         logger.info("Running `prepare_beam`")
-        self.turn_i.value = turn_i
+        self.turn_counter.value = turn_i
         preparation_routine.prepare_beam(simulation=self, beam=beam)
 
     def mainloop(

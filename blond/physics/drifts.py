@@ -221,7 +221,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             d.schedule(
                 "momentum_compaction_factor", momentum_compaction_factor
             )
-        d.configure(turn_i=SimpleNamespace(value=0))
+        d.configure(turn_counter=SimpleNamespace(value=0))
         return d
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
@@ -236,7 +236,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             Configure parameters collected by the MRO chain.
         """
         super().on_init_simulation(
-            simulation, turn_i=simulation.turn_i, **kwargs
+            simulation, turn_counter=simulation.turn_counter, **kwargs
         )
         if (
             self.momentum_compaction_factor is None
@@ -246,19 +246,19 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
                 "or `.schedule(attribute='momentum_compaction_factor', value=...)`"
             )
 
-    def configure(self, *, turn_i, **kwargs) -> None:
+    def configure(self, *, turn_counter, **kwargs) -> None:
         """
         Store the turn counter needed for schedule application during tracking.
 
         Parameters
         ----------
-        turn_i
-            Live turn counter; accessed as ``turn_i.value`` each track call.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
         **kwargs
             Passed to the next level in the MRO chain.
         """
         super().configure(**kwargs)
-        self._turn_i = turn_i
+        self._turn_counter = turn_counter
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -273,7 +273,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
         if self.schedule_active:
             self.apply_schedules(
-                turn_i=self._turn_i.value,
+                turn_i=self._turn_counter.value,
                 reference_time=beam.reference.time,
             )
 
@@ -500,7 +500,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
             momentum_compaction_factor=momentum_compaction_factor,
             higher_order_alpha=higher_order_alpha,
         )
-        drift.configure(turn_i=SimpleNamespace(value=0))
+        drift.configure(turn_counter=SimpleNamespace(value=0))
         return drift
 
     def get_hamilton_symbolic(
@@ -603,7 +603,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         # Apply schedules if active
         if self.schedule_active:
             self.apply_schedules(
-                turn_i=self._simulation.turn_i.value,
+                turn_i=self._simulation.turn_counter.value,
                 reference_time=beam.reference.time,
             )
 

@@ -44,7 +44,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
 
     Attributes
     ----------
-    _turn_i
+    _turn_counter
         Current simulation turn number (initialized during simulation).
     _magnetic_cycle
         Reference to the simulation's magnetic cycle.
@@ -67,7 +67,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
             **kwargs,
         )
 
-        self._turn_i: DynamicParameter | None = None
+        self._turn_counter: DynamicParameter | None = None
         self._magnetic_cycle: MagneticCycleBase | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
@@ -83,7 +83,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
         """
         super().on_init_simulation(
             simulation,
-            turn_i=simulation.turn_i,
+            turn_counter=simulation.turn_counter,
             magnetic_cycle=simulation.magnetic_cycle,
             **kwargs,
         )
@@ -92,21 +92,21 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
                 f"Expected MagneticCycleByTime, got {type(self._magnetic_cycle).__name__}"
             )
 
-    def configure(self, *, turn_i, magnetic_cycle, **kwargs) -> None:
+    def configure(self, *, turn_counter, magnetic_cycle, **kwargs) -> None:
         """
         Store the runtime references needed during tracking.
 
         Parameters
         ----------
-        turn_i
-            Live turn counter; accessed as ``turn_i.value`` each track call.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
         magnetic_cycle
             Energy program; must be a :class:`MagneticCycleByTime`.
         **kwargs
             Passed to the next level in the MRO chain.
         """
         super().configure(**kwargs)
-        self._turn_i = turn_i
+        self._turn_counter = turn_counter
         self._magnetic_cycle = magnetic_cycle
 
     def track_reference(
@@ -129,7 +129,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
             Change of reference time or energy.
         """
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
+            turn_i=self._turn_counter.value,
             section_i=self.section_index,
             reference_time=reference.time,
             particle_type=reference.particle_type,

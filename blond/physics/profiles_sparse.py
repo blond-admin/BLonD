@@ -316,7 +316,7 @@ class EquidistantMultiProfile(MultiProfile):
             section_index=section_index,
             name=name,
         )
-        d.configure(turn_i=SimpleNamespace(value=0), t_rev=t_rev)
+        d.configure(turn_counter=SimpleNamespace(value=0), t_rev=t_rev)
         return d
 
     @requires(["RFStationBaseClass"])  # for `get_t_rev_init`
@@ -333,18 +333,18 @@ class EquidistantMultiProfile(MultiProfile):
         """
         super().on_init_simulation(
             simulation,
-            turn_i=simulation.turn_i,
+            turn_counter=simulation.turn_counter,
             t_rev=simulation.get_t_rev_init(),
             **kwargs,
         )
 
-    def configure(self, *, turn_i, t_rev: float, **kwargs) -> None:
+    def configure(self, *, turn_counter, t_rev: float, **kwargs) -> None:
         """
         Build profile time axes from the revolution period.
 
         Parameters
         ----------
-        turn_i
+        turn_counter
             Live turn counter.
         t_rev
             Revolution period in [s].
@@ -352,7 +352,7 @@ class EquidistantMultiProfile(MultiProfile):
             Passed to the next level in the MRO chain.
         """
         super().configure(**kwargs)
-        self._turn_i = turn_i
+        self._turn_counter = turn_counter
         n_slots = len(self._filling_pattern)
 
         # Turn     |-----------|
