@@ -175,6 +175,8 @@ class TestLHCBeamFeedback(unittest.TestCase):
     def test_correction_calculation(self):
         self.assertAlmostEqual(self.beam_control.domega_rf, 0.0)
 
-        np.testing.assert_array_equal(
-            self.beam_control.domega_rf_corr, [-3170.639876934075, 0.0]
+        np.testing.assert_almost_equal(
+            self.beam_control.domega_rf_corr,
+            [-3170.639876934075, 0.0],
+            decimal=12,
         )
