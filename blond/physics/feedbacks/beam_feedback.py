@@ -257,19 +257,20 @@ class BeamFeedbackBase(GlobalFeedback):
         beam
             The beam object used in the simulation.
         """
-        counter = self.cavities[0]._turn_i.value
+        # Calculate alpha
+        alpha = self.cavities[0]._ring.momentum_compaction_factor
+        ring_radius = self.cavities[0]._ring.closed_orbit_length
 
         # Correct for design orbit
-        self.average_de = backend.specials.mean(beam.dE[:: self.sample_de])
+        self.average_de = backend.specials.mean(
+            beam.read_partial_dE()[:: self.sample_de]
+        )
 
         self.drho = (
-            self.ring.alpha_0[0, counter]
-            * self.ring.ring_radius
+            alpha
+            * ring_radius
             * self.average_de
-            / (
-                self.ring.beta[0, counter] ** 2.0
-                * self.ring.energy[0, counter]
-            )
+            / (beam.reference.beta**2.0 * beam.reference.total_energy)
         )
 
     def _track(self, beam: BeamBaseClass):

@@ -106,7 +106,6 @@ class SPSBeamControl(BeamFeedbackBase):
 
         self.domega_rf = 0.0
         self.dphi = 0.0
-        self.reference = 0.0
 
         # Frequency corrections
         self.domega_dphi = 0.0
