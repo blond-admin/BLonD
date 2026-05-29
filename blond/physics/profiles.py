@@ -66,7 +66,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
         self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -74,31 +74,42 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        # wipe cached geometry if the simulation context changes
+        super().on_init_simulation(simulation=simulation, **kwargs)
+
+    def configure(self, **kwargs) -> None:
+        """
+        Invalidate the geometry cache whenever configure is called.
+
+        Parameters
+        ----------
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
         self.invalidate_cache()
 
-    def on_run_simulation(
+    def configure_run(
         self,
-        simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called.
+        Validate histogram arrays and invalidate cache at run start.
 
         Parameters
         ----------
-        simulation
-            `Simulation` context manager.
         beam
-            Simulation `Beam` object.
+            The beam being simulated.
         n_turns
-            Number of turns to simulate.
+            Number of turns for this run.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted values; passed to the next MRO level.
         """
+        super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
         assert self._hist_x is not None
         assert self._hist_y is not None
         self.invalidate_cache()
@@ -615,9 +626,32 @@ class DynamicProfile(ProfileBaseClass):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted kwargs collected by the MRO chain.
+        """
+        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
+
+    def configure_run(
+        self,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Update histogram limits from the beam at run start.
+
+        Parameters
+        ----------
+        beam
+            The beam being simulated.
+        n_turns
+            Number of turns for this run.
+        **kwargs
+            Simulation-extracted values; passed to the next MRO level.
         """
         self.update_attributes(beam=beam)
+        # super call after attribute updates, because it also checks
+        # whether the attributes are set correctly.
+        super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
 
     @abstractmethod  # pragma: no cover
     def update_attributes(self, beam: BeamBaseClass) -> None:
