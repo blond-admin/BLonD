@@ -2,6 +2,23 @@ import unittest
 
 import numpy as np
 
+from blond import (
+    Beam,
+    BiGaussian,
+    ConstantMagneticCycle,
+    DriftSimple,
+    MultiHarmonicRFStation,
+    Ring,
+    Simulation,
+    StaticProfile,
+    backend,
+    proton,
+)
+from blond.core.backends.backend import Numpy64Bit
+from blond.physics.feedbacks.accelerators.sps import (
+    SPSBeamControl,
+)
+
 circumference = 2 * np.pi * 1100.009  # [m]
 momentum = 25.92e9
 intensity = 1.6e11
@@ -29,26 +46,18 @@ k_b_n = 0.0
 action_delay = 0
 
 
-class TestLHCBeamFeedback(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        from blond import (
-            Beam,
-            BiGaussian,
-            ConstantMagneticCycle,
-            DriftSimple,
-            MultiHarmonicRFStation,
-            Ring,
-            Simulation,
-            StaticProfile,
-            backend,
-            proton,
-        )
-        from blond.core.backends.backend import Numpy64Bit
-        from blond.physics.feedbacks.accelerators.sps import (
-            SPSBeamControl,
-        )
-
+class TestSPSBeamFeedback(unittest.TestCase):
+    def create_scenario(
+        self,
+        k_phi_n,
+        k_phi_nm1,
+        k_eps_n,
+        k_z_n,
+        k_a_n,
+        k_b_n,
+        phi_sync,
+        pl_gain,
+    ):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
 
@@ -82,7 +91,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
         t_rf = 1 / f_rf
         t_rev = 1 / f_rev
 
-        cls.profile = StaticProfile(
+        self.profile = StaticProfile(
             cut_left=-1.5 * t_rf,
             cut_right=2.5 * t_rf,
             n_bins=4 * 2**6,
@@ -91,27 +100,27 @@ class TestLHCBeamFeedback(unittest.TestCase):
         bigaussian = BiGaussian(
             n_macroparticles, sigma_dt=tau_bunch / 4, seed=1234
         )
-        cls.beam_control = SPSBeamControl(
-            profile=cls.profile,
+        self.beam_control = SPSBeamControl(
+            profile=self.profile,
             k_phi_n=k_phi_n,
             k_phi_nm1=k_phi_nm1,
             k_eps_n=k_eps_n,
             k_z_n=k_z_n,
             k_a_n=k_a_n,
             k_b_n=k_b_n,
-            phi_sync=reference * np.pi / 180,
-            pl_gain=1.0,
+            phi_sync=phi_sync,
+            pl_gain=pl_gain,
             action_delay=action_delay,
         )
 
-        cavity.attach_beam_feedback(cls.beam_control)
+        cavity.attach_beam_feedback(self.beam_control)
 
         ring = Ring(
             circumference,
         )
 
         ring.add_elements(
-            [cls.profile, cavity, cls.beam_control, lattice],
+            [self.profile, cavity, self.beam_control, lattice],
         )
 
         simulation = Simulation(
@@ -123,17 +132,28 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         beam._dt.array_local += injection_offset_phase * t_rf / 360
 
-        cls.profile.track(beam)
+        self.profile.track(beam)
 
         simulation.finalize(
             (beam,),
             n_turns,
         )
-        cls.beam_control.reference = reference * np.pi / 180
+        self.beam_control.reference = reference * np.pi / 180
 
-        cls.beam_control.track(beam)
+        self.beam_control.track(beam)
 
-    def test_sps_beam_control_init(self):
+    def test_sps_beam_control_with_single_values(self):
+        self.create_scenario(
+            k_phi_n=k_phi_n,
+            k_phi_nm1=k_phi_nm1,
+            k_eps_n=k_eps_n,
+            k_z_n=k_z_n,
+            k_a_n=k_a_n,
+            k_b_n=k_b_n,
+            phi_sync=reference * np.pi / 180,
+            pl_gain=1.0,
+        )
+
         # Checks the correction calculation of the recursion parameters for the synchronization loop
         np.testing.assert_array_equal(
             self.beam_control.k_phi_n, k_phi_n * np.ones(n_turns + 1)
@@ -159,20 +179,20 @@ class TestLHCBeamFeedback(unittest.TestCase):
             self.beam_control.k_b_n, k_b_n * np.ones(n_turns + 1)
         )
 
-    def test_beam_phase_loop(self):
+        # Beam-phase loop output
         self.assertAlmostEqual(
             self.beam_control.domega_dphi, -3073.547859760765
         )
 
-    def test_synchro_loop(self):
+        # Synchro loop output
         self.assertAlmostEqual(
             self.beam_control.domega_sync, -97.09201717330986
         )
 
-    def test_frequency_loop(self):
+        # Frequency loop output
         self.assertAlmostEqual(self.beam_control.domega_freq, -0.0)
 
-    def test_correction_calculation(self):
+        # Total correction from beam control
         self.assertAlmostEqual(self.beam_control.domega_rf, 0.0)
 
         np.testing.assert_almost_equal(
@@ -180,3 +200,159 @@ class TestLHCBeamFeedback(unittest.TestCase):
             [-3170.639876934075, 0.0],
             decimal=10,
         )
+
+    def test_sps_beam_control_with_arrays(self):
+        self.create_scenario(
+            k_phi_n=k_phi_n * np.ones(n_turns + 1),
+            k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
+            k_eps_n=k_eps_n * np.ones(n_turns + 1),
+            k_z_n=k_z_n * np.ones(n_turns + 1),
+            k_a_n=k_a_n * np.ones(n_turns + 1),
+            k_b_n=k_b_n * np.ones(n_turns + 1),
+            phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
+            pl_gain=1.0 * np.ones(n_turns + 1),
+        )
+
+        # Checks the correction calculation of the recursion parameters for the synchronization loop
+        np.testing.assert_array_equal(
+            self.beam_control.k_phi_n, k_phi_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_phi_nm1, k_phi_nm1 * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_eps_n, k_eps_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_z_n, k_z_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_a_n, k_a_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_b_n, k_b_n * np.ones(n_turns + 1)
+        )
+
+        # Beam-phase loop output
+        self.assertAlmostEqual(
+            self.beam_control.domega_dphi, -3073.547859760765
+        )
+
+        # Synchro loop output
+        self.assertAlmostEqual(
+            self.beam_control.domega_sync, -97.09201717330986
+        )
+
+        # Frequency loop output
+        self.assertAlmostEqual(self.beam_control.domega_freq, -0.0)
+
+        # Total correction from beam control
+        self.assertAlmostEqual(self.beam_control.domega_rf, 0.0)
+
+        np.testing.assert_almost_equal(
+            self.beam_control.domega_rf_corr,
+            [-3170.639876934075, 0.0],
+            decimal=10,
+        )
+
+    def test_sps_beam_control_incorrect_arrays(self):
+        with self.assertRaises(ValueError):
+            self.create_scenario(
+                k_phi_n=k_phi_n * np.ones(n_turns),
+                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
+                k_eps_n=k_eps_n * np.ones(n_turns + 1),
+                k_z_n=k_z_n * np.ones(n_turns + 1),
+                k_a_n=k_a_n * np.ones(n_turns + 1),
+                k_b_n=k_b_n * np.ones(n_turns + 1),
+                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
+                pl_gain=1.0 * np.ones(n_turns + 1),
+            )
+
+        with self.assertRaises(ValueError):
+            self.create_scenario(
+                k_phi_n=k_phi_n * np.ones(n_turns + 1),
+                k_phi_nm1=k_phi_nm1 * np.ones(n_turns),
+                k_eps_n=k_eps_n * np.ones(n_turns + 1),
+                k_z_n=k_z_n * np.ones(n_turns + 1),
+                k_a_n=k_a_n * np.ones(n_turns + 1),
+                k_b_n=k_b_n * np.ones(n_turns + 1),
+                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
+                pl_gain=1.0 * np.ones(n_turns + 1),
+            )
+
+        with self.assertRaises(ValueError):
+            self.create_scenario(
+                k_phi_n=k_phi_n * np.ones(n_turns + 1),
+                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
+                k_eps_n=k_eps_n * np.ones(n_turns),
+                k_z_n=k_z_n * np.ones(n_turns + 1),
+                k_a_n=k_a_n * np.ones(n_turns + 1),
+                k_b_n=k_b_n * np.ones(n_turns + 1),
+                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
+                pl_gain=1.0 * np.ones(n_turns + 1),
+            )
+
+        with self.assertRaises(ValueError):
+            self.create_scenario(
+                k_phi_n=k_phi_n * np.ones(n_turns + 1),
+                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
+                k_eps_n=k_eps_n * np.ones(n_turns + 1),
+                k_z_n=k_z_n * np.ones(n_turns),
+                k_a_n=k_a_n * np.ones(n_turns + 1),
+                k_b_n=k_b_n * np.ones(n_turns + 1),
+                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
+                pl_gain=1.0 * np.ones(n_turns + 1),
+            )
+
+        with self.assertRaises(ValueError):
+            self.create_scenario(
+                k_phi_n=k_phi_n * np.ones(n_turns + 1),
+                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
+                k_eps_n=k_eps_n * np.ones(n_turns + 1),
+                k_z_n=k_z_n * np.ones(n_turns + 1),
+                k_a_n=k_a_n * np.ones(n_turns),
+                k_b_n=k_b_n * np.ones(n_turns + 1),
+                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
+                pl_gain=1.0 * np.ones(n_turns + 1),
+            )
+
+        with self.assertRaises(ValueError):
+            self.create_scenario(
+                k_phi_n=k_phi_n * np.ones(n_turns + 1),
+                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
+                k_eps_n=k_eps_n * np.ones(n_turns + 1),
+                k_z_n=k_z_n * np.ones(n_turns + 1),
+                k_a_n=k_a_n * np.ones(n_turns + 1),
+                k_b_n=k_b_n * np.ones(n_turns),
+                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
+                pl_gain=1.0 * np.ones(n_turns + 1),
+            )
+
+        with self.assertRaises(ValueError):
+            self.create_scenario(
+                k_phi_n=k_phi_n * np.ones(n_turns + 1),
+                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
+                k_eps_n=k_eps_n * np.ones(n_turns + 1),
+                k_z_n=k_z_n * np.ones(n_turns + 1),
+                k_a_n=k_a_n * np.ones(n_turns + 1),
+                k_b_n=k_b_n * np.ones(n_turns + 1),
+                phi_sync=reference * np.pi / 180 * np.ones(n_turns),
+                pl_gain=1.0 * np.ones(n_turns + 1),
+            )
+
+        with self.assertRaises(ValueError):
+            self.create_scenario(
+                k_phi_n=k_phi_n * np.ones(n_turns + 1),
+                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
+                k_eps_n=k_eps_n * np.ones(n_turns + 1),
+                k_z_n=k_z_n * np.ones(n_turns + 1),
+                k_a_n=k_a_n * np.ones(n_turns + 1),
+                k_b_n=k_b_n * np.ones(n_turns + 1),
+                phi_sync=reference * np.pi / 180 * np.ones(n_turns),
+                pl_gain=1.0 * np.ones(n_turns),
+            )

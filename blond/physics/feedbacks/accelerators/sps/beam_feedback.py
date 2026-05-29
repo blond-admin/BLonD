@@ -12,6 +12,7 @@ Implementation of the SPS beam control.
 Notes
 -----
 Authors:
+Danilo Quartullo
 Leandro Intelisano
 """
 
@@ -146,31 +147,40 @@ class SPSBeamControl(BeamFeedbackBase):
             )
             return parameter * np.ones(n_turns + 1) * delay_action
 
-        if isinstance(self.k_phi_nm1, float):
-            self.k_phi_nm1 = convert_to_array(
-                self.k_phi_nm1, self.action_delay
-            )
+        def ensure_array_length(_value, _name, _delay):
+            if isinstance(_value, float):
+                return convert_to_array(_value, _delay)
 
-        if isinstance(self.k_phi_n, float):
-            self.k_phi_n = convert_to_array(self.k_phi_n, self.action_delay)
+            if len(_value) < n_turns + 1:
+                raise ValueError(
+                    f"Array `{_name}` is not the correct length, `n_turns + 1` or longer"
+                )
 
-        if isinstance(self.k_eps_n, float):
-            self.k_eps_n = convert_to_array(self.k_eps_n)
+            return _value
 
-        if isinstance(self.k_z_n, float):
-            self.k_z_n = convert_to_array(self.k_z_n)
+        fields_with_delay = [
+            ("k_phi_nm1", self.action_delay),
+            ("k_phi_n", self.action_delay),
+        ]
 
-        if isinstance(self.k_a_n, float):
-            self.k_a_n = convert_to_array(self.k_a_n)
+        fields_no_delay = [
+            "k_eps_n",
+            "k_z_n",
+            "k_a_n",
+            "k_b_n",
+            "phi_sync",
+            "pl_gain",
+        ]
 
-        if isinstance(self.k_b_n, float):
-            self.k_b_n = convert_to_array(self.k_b_n)
+        # handle delayed parameters
+        for name, delay in fields_with_delay:
+            value = getattr(self, name)
+            setattr(self, name, ensure_array_length(value, name, delay))
 
-        if isinstance(self.phi_sync, float):
-            self.phi_sync = convert_to_array(self.phi_sync)
-
-        if isinstance(self.pl_gain, float):
-            self.pl_gain = convert_to_array(self.pl_gain)
+        # handle non-delayed parameters
+        for name in fields_no_delay:
+            value = getattr(self, name)
+            setattr(self, name, ensure_array_length(value, name, 0))
 
     def get_beam_attribute(self, beam: BeamBaseClass):
         """
