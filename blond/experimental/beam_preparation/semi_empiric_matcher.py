@@ -340,7 +340,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 beam_reference_time = beam.reference.time
                 beam_reference_total_energy = beam.reference.total_energy
                 turn_i_org = int(sim_tmp.turn_counter.value)
-                section_i_org = int(sim_tmp.section_i.value)
+                section_i_org = int(sim_tmp.section_counter.value)
 
                 sim_tmp.run_simulation(
                     beams=(beam,),
@@ -354,7 +354,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 beam.reference.time = beam_reference_time
                 beam.reference.total_energy = beam_reference_total_energy
                 sim_tmp.turn_counter.value = turn_i_org
-                sim_tmp.section_i.value = section_i_org
+                sim_tmp.section_counter.value = section_i_org
 
                 # Prevent the profiles from updating.
                 sim_tmp.intensity_effect_manager.set_profiles(active=False)

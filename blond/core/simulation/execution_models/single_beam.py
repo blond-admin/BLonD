@@ -119,8 +119,12 @@ class MainloopSingleBeam(ExecutionModel):
 
             simulation._update_Trev_and_dErev(reference=beam.reference)
             for element in simulation._ring.elements.elements:
-                simulation.section_i.value = element.section_index
-                if simulation.section_i.value >= until_section_index != -1:
+                simulation.section_counter.value = element.section_index
+                if (
+                    simulation.section_counter.value
+                    >= until_section_index
+                    != -1
+                ):
                     return
                 if element.is_active_this_turn(
                     turn_i=simulation.turn_counter.value
@@ -137,7 +141,7 @@ class MainloopSingleBeam(ExecutionModel):
 
         # make possible to run two main-loops after each other
         simulation.turn_counter.value += 1
-        simulation.section_i.value = 0
+        simulation.section_counter.value = 0
 
     @staticmethod
     def _add_progressbar_info(

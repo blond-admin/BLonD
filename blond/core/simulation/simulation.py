@@ -108,7 +108,7 @@ class Simulation(Preparable):
     turn_counter
         Counter tracking the current turn number during simulation. Can be subscribed
         to for notifications when the turn changes. Value is ``None`` when not running.
-    section_i
+    section_counter
         Counter tracking the current section (element) within a turn. Value is ``None``
         when not running.
     check_circumference
@@ -155,7 +155,7 @@ class Simulation(Preparable):
         self._magnetic_cycle: MagneticCycleBase = magnetic_cycle
 
         self.turn_counter = DynamicParameter(0)
-        self.section_i = DynamicParameter(0)
+        self.section_counter = DynamicParameter(0)
         self.intensity_effect_manager = IntensityEffectManager(simulation=self)
 
         self.check_circumference: Literal["raise", "warn", "ignore"] = "raise"
