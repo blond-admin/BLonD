@@ -23,7 +23,6 @@ from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond import Ring
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
 
@@ -49,8 +48,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
         Current simulation turn number (initialized during simulation).
     _magnetic_cycle
         Reference to the simulation's magnetic cycle.
-    _ring
-        Reference to the ring being simulated.
 
     Examples
     --------
@@ -72,9 +69,8 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
 
         self._turn_i: DynamicParameter | None = None
         self._magnetic_cycle: MagneticCycleBase | None = None
-        self._ring: Ring | None = None
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -82,38 +78,36 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._turn_i = simulation.turn_i
-        self._magnetic_cycle = simulation.magnetic_cycle
+        super().on_init_simulation(
+            simulation,
+            turn_i=simulation.turn_i,
+            magnetic_cycle=simulation.magnetic_cycle,
+            **kwargs,
+        )
         if not isinstance(self._magnetic_cycle, MagneticCycleByTime):
             raise TypeError(
                 f"Expected MagneticCycleByTime, got {type(self._magnetic_cycle).__name__}"
             )
-        self._ring = simulation.ring
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs,
-    ) -> None:
+    def configure(self, *, turn_i, magnetic_cycle, **kwargs) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called.
+        Store the runtime references needed during tracking.
 
         Parameters
         ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation beam object.
-        n_turns
-            Number of turns to simulate.
+        turn_i
+            Live turn counter; accessed as ``turn_i.value`` each track call.
+        magnetic_cycle
+            Energy program; must be a :class:`MagneticCycleByTime`.
         **kwargs
-            Additional keyword arguments.
+            Passed to the next level in the MRO chain.
         """
-        pass
+        super().configure(**kwargs)
+        self._turn_i = turn_i
+        self._magnetic_cycle = magnetic_cycle
 
     def track_reference(
         self, reference: ReferenceCoordinates, **kwargs
@@ -161,5 +155,4 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
         reference_energy_change = self.track_reference(
             reference=beam.reference,
         )
-        dE = beam.write_partial_dE()
-        dE -= reference_energy_change
+        beam.dE.array_local -= reference_energy_change

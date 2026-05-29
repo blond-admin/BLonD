@@ -270,7 +270,6 @@ class TestEnergyCycleBase(unittest.TestCase):
     def test_on_init_simulation(self):
         self.magnetic_cycle_base.on_init_simulation(
             simulation=simulation_ex1,
-            magnetic_rigidity_init=11,
             n_turns_max=10,
         )
 
@@ -531,10 +530,6 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
     def test_on_init_simulation(self):
         self.magnetic_cycle_per_turn_all_cavities.on_init_simulation(
             simulation=simulation_ex1,
-            momentum_init=11,
-            momentum=np.ones(
-                (1, 10),
-            ),
         )
         assert_allclose(
             self.momentum,

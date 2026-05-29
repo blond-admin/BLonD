@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import abc
 from abc import ABC
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import sympy
 from scipy.constants import speed_of_light as c0
@@ -211,8 +211,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         drift_simple
             DriftSimple object without simulation context.
         """
-        from blond.core.base import DynamicParameter
-
         d = DriftSimple(
             orbit_length=orbit_length,
             section_index=section_index,
@@ -223,21 +221,10 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             d.schedule(
                 "momentum_compaction_factor", momentum_compaction_factor
             )
-        from blond.core.beam.base import BeamBaseClass
-        from blond.core.simulation.simulation import Simulation
-
-        simulation = Mock(Simulation)
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
-        d.on_init_simulation(simulation=simulation)
-        d.on_run_simulation(
-            simulation=simulation,
-            n_turns=1,
-            beam=Mock(BeamBaseClass),
-        )
+        d.configure(turn_i=SimpleNamespace(value=0))
         return d
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -245,9 +232,12 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._simulation = simulation
+        super().on_init_simulation(
+            simulation, turn_i=simulation.turn_i, **kwargs
+        )
         if (
             self.momentum_compaction_factor is None
         ) and "momentum_compaction_factor" not in self.schedules:
@@ -255,6 +245,20 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
                 "You need to define `momentum_compaction_factor` via `.momentum_compaction_factor=...` "
                 "or `.schedule(attribute='momentum_compaction_factor', value=...)`"
             )
+
+    def configure(self, *, turn_i, **kwargs) -> None:
+        """
+        Store the turn counter needed for schedule application during tracking.
+
+        Parameters
+        ----------
+        turn_i
+            Live turn counter; accessed as ``turn_i.value`` each track call.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self._turn_i = turn_i
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -269,7 +273,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
         if self.schedule_active:
             self.apply_schedules(
-                turn_i=self._simulation.turn_i.value,
+                turn_i=self._turn_i.value,
                 reference_time=beam.reference.time,
             )
 
@@ -488,7 +492,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         drift_exact
             ``DriftExact`` object.
         """
-        from blond import Beam, Simulation
+        from types import SimpleNamespace
 
         drift = DriftExact(
             orbit_length=orbit_length,
@@ -496,18 +500,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
             momentum_compaction_factor=momentum_compaction_factor,
             higher_order_alpha=higher_order_alpha,
         )
-        mock_simulation = Mock(Simulation)
-        mock_beam = Mock(Beam)
-
-        drift.on_init_simulation(
-            simulation=mock_simulation,
-        )
-        drift.on_run_simulation(
-            simulation=mock_simulation,
-            beam=mock_beam,
-            n_turns=1,
-        )
-
+        drift.configure(turn_i=SimpleNamespace(value=0))
         return drift
 
     def get_hamilton_symbolic(

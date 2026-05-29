@@ -24,7 +24,6 @@ from blond.core.base import (
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
-    from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -83,7 +82,7 @@ class Ring(Preparable):
         self._radiation_integrals = radiation_integrals
         self._momentum_compaction_factor = None
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Initialize the ring when a simulation is created.
 
@@ -95,7 +94,10 @@ class Ring(Preparable):
         ----------
         simulation
             The `Simulation` context manager that owns this ring.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
+        super().on_init_simulation(simulation=simulation, **kwargs)
         if self.n_rf_stations > 1:
             assert (
                 len(self.elements.get_sections_indices()) == self.n_rf_stations

@@ -217,7 +217,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         dE = beam.write_partial_dE()
         dE[:] += energy_change
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -225,27 +225,26 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._simulation = simulation
-        self._turn_i = simulation.turn_i
+        super().on_init_simulation(
+            simulation, turn_i=simulation.turn_i, **kwargs
+        )
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        **kwargs,
-    ) -> None:
+    def configure(self, *, turn_i, **kwargs) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called.
+        Store the turn counter needed during tracking.
 
         Parameters
         ----------
-        simulation
-            `Simulation` context manager.
+        turn_i
+            Live turn counter; accessed as ``turn_i.value`` each track call.
         **kwargs
-            Additional keyword arguments for simulation setup.
+            Passed to the next level in the MRO chain.
         """
-        pass
+        super().configure(**kwargs)
+        self._turn_i = turn_i
 
     def _track(self, beam: BeamBaseClass) -> None:
         """

@@ -122,7 +122,10 @@ class TestDriftSimple(unittest.TestCase):
         self.drift_simple.track(beam=beam)
 
     def test_error_throwing_on_unscheduled(self):
+        from types import SimpleNamespace
+
         simulation = Mock(Simulation)
+        simulation.turn_i = SimpleNamespace(value=0)
         self.drift_simple = DriftSimple(
             section_index=1, orbit_length=0
         )  # will raise Exception because of missing transition gamma
@@ -155,9 +158,12 @@ class TestDriftSimple(unittest.TestCase):
         )
 
     def test_on_init_simulation(self):
+        from types import SimpleNamespace
+
         from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
+        simulation.turn_i = SimpleNamespace(value=0)
         simulation.ring.circumference = 10
         self.drift_simple.on_init_simulation(simulation=simulation)
 
