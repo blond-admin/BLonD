@@ -51,8 +51,8 @@ simulation = Mock(
 simulation.ring.n_rf_stations = 2
 simulation.ring.section_lengths = [250, 250]
 simulation.ring.circumference = 500
-simulation.section_i = DynamicParameter(None)
-simulation.section_i.current_group = 0
+simulation.section_counter = DynamicParameter(None)
+simulation.section_counter.current_group = 0
 simulation.turn_counter = DynamicParameter(None)
 simulation.turn_counter.value = 0
 simulation.current_t_rev = 123
@@ -610,7 +610,7 @@ class TestStaticProfileObservation(unittest.TestCase):
             beam=beam,
             n_turns=100,
         )
-        simulation.section_i.value = 0
+        simulation.section_counter.value = 0
         simulation.turn_counter.value = 0
         self.static_profile_observation.update()
         self.static_profile_observation.to_disk()
@@ -629,7 +629,7 @@ class TestStaticProfileObservation(unittest.TestCase):
         self.static_profile_observation._section_indices_to_observe = np.array(
             [0]
         )
-        simulation.section_i.value = 0
+        simulation.section_counter.value = 0
         self.static_profile_observation.update()
         with self.assertRaisesRegex(
             RuntimeError,
@@ -684,7 +684,7 @@ class TestWakeFieldObservation(unittest.TestCase):
             side_effect=AttributeError("ind_volt_calc_failed")
         )
 
-        simulation.section_i.value = 0
+        simulation.section_counter.value = 0
         wf_obs.update()
 
         with self.assertRaises(AttributeError):
@@ -703,7 +703,7 @@ class TestWakeFieldObservation(unittest.TestCase):
             beam=beam,
             n_turns=100,
         )
-        simulation.section_i.value = 0
+        simulation.section_counter.value = 0
         self.wake_field_observation.update()
         self.wake_field_observation.to_disk()
         self.wake_field_observation.from_disk()
@@ -837,7 +837,7 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
             beam=beam,
             n_turns=100,
         )
-        simulation.section_i.value = 0
+        simulation.section_counter.value = 0
         simulation.turn_counter.value = 0
         self.static_multi_profile_observation.update()
 
