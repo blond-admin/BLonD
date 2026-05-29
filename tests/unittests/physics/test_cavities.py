@@ -854,6 +854,12 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             / self.multi_harmonic_cavity.get_main_harmonic_omega_rf()
         )
         assert (
+            self.multi_harmonic_cavity.get_main_harmonic_t_rf()
+            == 2
+            * np.pi
+            / self.multi_harmonic_cavity.get_main_harmonic_omega_rf_design()
+        )
+        assert (
             self.multi_harmonic_cavity.calc_main_harmonic_t_rf(
                 beam_beta=self.beam.reference.beta, ring_circumference=456
             )
