@@ -227,8 +227,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
+        simulation.turn_counter = Mock(DynamicParameter)
+        simulation.turn_counter.value = 0
         d.on_init_simulation(simulation=simulation)
         d.on_run_simulation(
             simulation=simulation,
@@ -269,7 +269,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
         if self.schedule_active:
             self.apply_schedules(
-                turn_i=self._simulation.turn_i.value,
+                turn_i=self._simulation.turn_counter.value,
                 reference_time=beam.reference.time,
             )
 
@@ -610,7 +610,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         # Apply schedules if active
         if self.schedule_active:
             self.apply_schedules(
-                turn_i=self._simulation.turn_i.value,
+                turn_i=self._simulation.turn_counter.value,
                 reference_time=beam.reference.time,
             )
 

@@ -116,7 +116,7 @@ class TestSymbolicSeparatrixHelper(unittest.TestCase):
                 beam=beam,
                 dt=np.linspace(*trange0_, 1000),
             )
-            if simulation.turn_i.value == 0:
+            if simulation.turn_counter.value == 0:
                 separatrix_dE_pinned = np.loadtxt(
                     callers_relative_path(
                         "resources/separatrix_dE_pinned.txt", stacklevel=1

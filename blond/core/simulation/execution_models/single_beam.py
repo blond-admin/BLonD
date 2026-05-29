@@ -101,7 +101,8 @@ class MainloopSingleBeam(ExecutionModel):
         callbacks = simulation._sanitize_callbacks(callbacks)
 
         iterator = range(
-            simulation.turn_i.value, simulation.turn_i.value + n_turns
+            simulation.turn_counter.value,
+            simulation.turn_counter.value + n_turns,
         )
         if show_progressbar:
             # Get particle count for throughput calculation
@@ -114,18 +115,20 @@ class MainloopSingleBeam(ExecutionModel):
                     iterator, n_particles, show_progressbar
                 )
 
-            simulation.turn_i.value = turn_i
+            simulation.turn_counter.value = turn_i
 
             simulation._update_Trev_and_dErev(reference=beam.reference)
             for element in simulation._ring.elements.elements:
                 simulation.section_i.value = element.section_index
                 if simulation.section_i.value >= until_section_index != -1:
                     return
-                if element.is_active_this_turn(turn_i=simulation.turn_i.value):
+                if element.is_active_this_turn(
+                    turn_i=simulation.turn_counter.value
+                ):
                     element.track(beam=beam)
             for observable in observe:
                 if observable.is_active_this_turn(
-                    turn_i=simulation.turn_i.value
+                    turn_i=simulation.turn_counter.value
                 ):
                     observable.update()
             for callback in callbacks:
@@ -133,7 +136,7 @@ class MainloopSingleBeam(ExecutionModel):
                     callback(simulation, beam)
 
         # make possible to run two main-loops after each other
-        simulation.turn_i.value += 1
+        simulation.turn_counter.value += 1
         simulation.section_i.value = 0
 
     @staticmethod
