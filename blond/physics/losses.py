@@ -19,9 +19,6 @@ from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
-
-    from blond import Simulation
     from blond.core.beam.base import BeamBaseClass
 
 
@@ -153,40 +150,6 @@ class BoxLosses(LossesBaseClass):
         self.t_max = float(t_max)
         self.e_min = float(e_min)
         self.e_max = float(e_max)
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager.
-        """
-        pass
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager.
-        beam
-            Simulation beam object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
