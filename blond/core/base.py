@@ -365,8 +365,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         """
         return self._section_index
 
-    @abstractmethod  # pragma: no cover
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -374,16 +373,17 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
         pass
 
-    @abstractmethod  # pragma: no cover
     def on_run_simulation(
         self,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs,
+        **kwargs: dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -397,9 +397,9 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted kwargs collected by the MRO chain.
         """
-        pass
+        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
 
     def info_string(self, prefix="") -> str:
         """

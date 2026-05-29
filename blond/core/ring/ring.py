@@ -119,32 +119,6 @@ class Ring(Preparable):
                 stacklevel=1,
             )
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Prepare the ring when simulation execution begins.
-
-        This method is automatically called
-        when ``simulation.run_simulation()`` starts.
-
-        Parameters
-        ----------
-        simulation
-            The `Simulation` context manager.
-        beam
-            The beam object being simulated.
-        n_turns
-            Total number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
-
     @property
     def circumference(self) -> float:
         """
