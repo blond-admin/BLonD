@@ -101,7 +101,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
         turn_counter
             Live turn counter; accessed as ``turn_counter.value`` each track call.
         magnetic_cycle
-            Energy program; must be a :class:`MagneticCycleByTime`.
+            Energy program; must be a :class:`~blond.cycles.magnetic_cycle.MagneticCycleByTime`.
         **kwargs
             Passed to the next level in the MRO chain.
         """
