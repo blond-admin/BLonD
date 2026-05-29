@@ -20,6 +20,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 RNG = np.random.default_rng()
 
+try:
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
 
 # --------------- Similar to kick.cpp -----------------
 def kick(
