@@ -430,7 +430,7 @@ class PythonSpecials(Specials):
         disable_quantum_excitation: bool = False,
     ) -> None:
         """
-        Apply the synchrotron-radiation + quantum-excitation energy kick.
+        Apply synchrotron radiation and quantum excitation energy kicks.
 
         Parameters
         ----------

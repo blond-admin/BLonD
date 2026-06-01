@@ -364,7 +364,7 @@ class Specials(ABC):
         disable_quantum_excitation: bool = False,
     ) -> None:
         r"""
-        Apply the synchrotron-radiation + quantum-excitation energy kick.
+        Apply synchrotron radiation and quantum excitation energy kicks.
 
         Updates ``beam_dE`` in place with
 

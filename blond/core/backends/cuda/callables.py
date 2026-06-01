@@ -505,7 +505,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         disable_quantum_excitation: bool = False,
     ) -> None:
         """
-        Apply the synchrotron-radiation + quantum-excitation energy kick.
+        Apply synchrotron radiation and quantum excitation energy kicks.
 
         Single fused CUDA kernel — one launch, one pass over ``beam_dE``,
         no auxiliary noise buffer. The Gaussian noise is generated in
