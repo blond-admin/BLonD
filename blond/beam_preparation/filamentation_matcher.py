@@ -276,6 +276,7 @@ class FilamentationMatcher(MatchingRoutine):
             # --------------------------------------------------
         for i in range(self.n_iter):
             sim_copy = deepcopy(simulation)
+            sim_copy.turn_i.value = 0
             sim_copy.run_simulation(
                 beams=[beam], n_turns=1, show_progressbar=False
             )
