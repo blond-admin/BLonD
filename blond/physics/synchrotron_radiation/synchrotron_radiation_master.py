@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -11,8 +11,7 @@ Collection to include synchrotron radiation and quantum excitation effects.
 
 Notes
 -----
-Authors:
-L. Valle
+Author: L. Valle
 """
 
 from __future__ import annotations
@@ -490,7 +489,7 @@ class SynchrotronRadiationMaster(Schedulable):
         ring either:
         - before the drifts if track_before_element_type is ``None``
           or `DriftBaseClass`. In that case, `_SynchrotronRadiationDrift`
-         trackers will be inserted in the ring before each drift.
+          trackers will be inserted in the ring before each drift.
         - after the RF cavities if track_before_element_type is `RFStationBaseClass`.
           In that case, `_SynchrotronRadiationSection` trackers will be
           inserted in the ring.
