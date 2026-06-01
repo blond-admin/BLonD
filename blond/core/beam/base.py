@@ -459,7 +459,7 @@ class BeamBaseClass(Preparable, ABC):
         """
         Per-macro-particle weights as a distributed array, or ``None``.
 
-        Returns ``None`` by default. :class:`WeightenedBeam` overrides this
+        Returns ``None`` by default. :class:`~blond.experimental.beam_with_weights.WeightenedBeam` overrides this
         to return the full :class:`~blond.generals.distributed.distributed_array.DistributedArray`,
         which profiles and collective-effect elements use to build a weighted
         histogram.  Callers that need the local portion should access
