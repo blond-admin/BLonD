@@ -103,6 +103,8 @@ class TestDriftSimple(unittest.TestCase):
             ),  # highly relativistic
             orbit_length=0.25 * 25,
             section_index=0,
+            # array input is scheduled, so a live turn_counter is required
+            turn_counter=DynamicParameter(value_init=0),
         )
 
         beam = Mock(BeamBaseClass)
