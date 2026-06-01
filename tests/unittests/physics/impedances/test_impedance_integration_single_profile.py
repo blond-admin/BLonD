@@ -24,6 +24,7 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
@@ -33,11 +34,13 @@ from blond.physics.impedances.solvers import (
 from blond.physics.impedances.sources import (
     TravelingWaveCavity,
 )
+from blond.testing.backend_testing import multi_backend_testcase
 
 DEV_DRAW = False
 
 
 def plot_diff_if_failed(actual, expected, save: str | None = None):
+    actual = copy_to_cpu(actual)
     if save is not None:
         np.savetxt(
             save,
@@ -107,9 +110,8 @@ class TestWakeFields(unittest.TestCase):
         simulation.print_one_turn_execution_order()
         self.simulation = simulation
 
-    @pytest.mark.backend_mutation
+    @multi_backend_testcase
     def test_source_InductiveImpedance(self):
-        backend.change_backend(Numpy64Bit)
         makers = ["s", "o", "1", "2", "3", "."]
         solvers = (
             InductiveImpedanceSolver(),
@@ -149,6 +151,7 @@ class TestWakeFields(unittest.TestCase):
             plt.legend()
             plt.show()
 
+    @multi_backend_testcase
     def test_source_TravelingWaveCavity(self):
         makers = ["s", "o", "1", "2", "3", "."]
         solvers = (
@@ -195,6 +198,7 @@ class TestWakeFields(unittest.TestCase):
             plt.legend()
             plt.show()
 
+    @multi_backend_testcase
     def test_source_Resonators(self):
         makers = ["s", "o", "1", "2", "3", "."]
         solvers = (
