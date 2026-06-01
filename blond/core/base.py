@@ -844,7 +844,9 @@ class ScheduledFunctional(ScheduledBaseClass):
 
 
 def get_scheduler(
-    value: NumpyArray | tuple[NumpyArray, NumpyArray] | Callable[[int, float], Any],
+    value: NumpyArray
+    | tuple[NumpyArray, NumpyArray]
+    | Callable[[int, float], Any],
 ) -> ScheduledBaseClass:
     """
     Auto-select the correct class of the schedulers.
