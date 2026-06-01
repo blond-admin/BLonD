@@ -1338,7 +1338,7 @@ class SingleHarmonicRFStation(
             If ``None`` (default), no reference-energy update is performed:
             the beam reference is left untouched and only the RF kick is
             applied (e.g. a pure RF kick, or when an external code such as
-            xsuite owns the reference). Pass a :class:`MagneticCycleBase`
+            xsuite owns the reference). Pass a :class:`~blond.cycles.magnetic_cycle.MagneticCycleBase`
             (e.g. ``ConstantMagneticCycle(..., in_unit="total energy")``) to
             accelerate towards a target total energy.
         local_wakefield
@@ -1856,7 +1856,7 @@ class MultiHarmonicRFStation(
             If ``None`` (default), no reference-energy update is performed:
             the beam reference is left untouched and only the RF kick is
             applied (e.g. a pure RF kick, or when an external code such as
-            xsuite owns the reference). Pass a :class:`MagneticCycleBase`
+            xsuite owns the reference). Pass a :class:`~blond.cycles.magnetic_cycle.MagneticCycleBase`
             (e.g. ``ConstantMagneticCycle(..., in_unit="total energy")``) to
             accelerate towards a target total energy.
         local_wakefield
