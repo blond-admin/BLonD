@@ -75,7 +75,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         simulation
             `Simulation` context manager.
         """
-        pass
+        # wipe cached geometry if the simulation context changes
+        self.invalidate_cache()
 
     def on_run_simulation(
         self,
@@ -344,7 +345,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             raise NotImplementedError(
                 "Implement histogram on distributed array"
             )
-        else:
+        elif beam.common_array_size > 0:
             # `_hist_x`, `_hist_y` could be None, which is not handled and
             # causes a MyPy type error,
             # This is intentionally ignored, we want to get an exception.
@@ -359,6 +360,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             # this factor is used to reproduce the behaviour
             # of np.hist(..., density=True)
             self.hist_y_to_density_factor = 1.0 / beam.common_array_size
+        else:
+            self._hist_y[:] = 0
+            self.hist_y_to_density_factor = 0.0
+
         self.invalidate_cache()
 
     @staticmethod
@@ -704,6 +709,19 @@ class DynamicProfileConstNBins(DynamicProfile):
             name=name,
         )
         self.n_bins = int_from_float_with_warning(n_bins, warning_stacklevel=2)
+
+    def invalidate_cache(self) -> None:
+        """Delete the stored values of functions with @cached_property."""
+        self._invalidate_cache(
+            props=(
+                "gradient_hist_y",
+                "hist_step",
+                "cut_left",
+                "cut_right",
+                "bin_edges",
+                # n_bins is excluded: it's a user-set constant, not a cached computed value
+            )
+        )
 
     def update_attributes(self, beam: BeamBaseClass) -> None:
         """

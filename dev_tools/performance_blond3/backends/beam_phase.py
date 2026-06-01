@@ -30,10 +30,8 @@ def main():  # pragma: no cover
     backend.change_backend(Numpy64Bit)
     from blond.core.backends.cpp.callables import CppSpecials
     from blond.core.backends.cuda.callables import CudaSpecials
-    from blond.core.backends.numba.callables import recompile_numba_backend
+    from blond.core.backends.numba.callables import NumbaSpecials
     from blond.core.backends.python.callables import PythonSpecials
-
-    NumbaSpecials = recompile_numba_backend(backend.float)
 
     print(f"Testing `beam_phase` for {len(hist_x)} bins..")
     functions = (

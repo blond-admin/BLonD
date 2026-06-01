@@ -15,6 +15,8 @@ import os
 import subprocess
 from typing import TYPE_CHECKING
 
+from blond.generals.hashing_ import hash_in_folder
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
 
@@ -72,8 +74,6 @@ def compile_cuda_library(  # NOQA: PLR0915
         "-maxrregcount",
         "32",
     ]
-
-    from blond.generals.hashing_ import hash_in_folder
 
     folder = os.path.dirname(os.path.abspath(__file__))
 

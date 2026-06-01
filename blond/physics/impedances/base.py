@@ -138,7 +138,7 @@ class TimeDomain(ABC):
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -167,7 +167,7 @@ class TimeDomainCounterRotation(ABC):
 
         Parameters
         ----------
-        time : NumpyArray
+        time
             Time array at which the wake is calculated [V].
         """
         pass
@@ -181,7 +181,7 @@ class TimeDomainCounterRotation(ABC):
 
         Parameters
         ----------
-        time : NumpyArray
+        time
             Time array at which the wake is calculated, in [s].
 
         Returns
@@ -206,7 +206,7 @@ class TimeDomainCounterRotation(ABC):
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -238,7 +238,7 @@ class FreqDomain(ABC):
         ----------
         freq_x
             Frequency axis, in [Hz].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -558,7 +558,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
 
         Parameters
         ----------
-        beam : BeamBaseClass
+        beam
             The `Beam` object which state will be updated by this element.
         sources
             List of sources that cause wake-fields.
@@ -592,3 +592,30 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
             n_turns=1,
         )
         return wf
+
+
+class SupportsVectorFittedModel(ABC):
+    """
+    Mixin to define sources with poles.
+
+    See Also
+    --------
+    blond.physics.impedances.solvers.MultiPoleSparseSolve : The corresponding wakefield solver.
+    """
+
+    @abstractmethod  # pragma: no cover
+    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
+        """
+        Derive the poles and residues as in vector-fitting.
+
+        Returns
+        -------
+        poles
+            Complex poles of an equivalent circuit model.
+        residues
+            Complex residues of an equivalent circuit model.
+        counterrotation_signs
+            Signs of the poles to deal with higher order oscillators
+            in counterrotation. Default is ``1``.
+        """
+        pass

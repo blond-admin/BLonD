@@ -273,6 +273,11 @@ suppress_warnings = [
     "docutils",
     "python.duplicate_object",
     "py.duplicate_object",  # Sphinx 6+: inherited members re-documented under child class
+    # matplotlib's `Line2D` annotations transitively reference
+    # `LineStyleType`, which is only declared under `TYPE_CHECKING` in
+    # matplotlib.lines and so isn't importable at runtime. The warning
+    # fires for every signature that returns `list[Line2D]`.
+    "sphinx_autodoc_typehints.forward_reference",
 ]  # remove warning for multiple mentions of the same item
 html_static_path = ["_static"]
 html_css_files = ["css/wide.css"]
@@ -399,5 +404,5 @@ def setup(app):
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = get_intersphinx_mapping(
-    packages=["python", "numpy", "scipy", "sklearn", "matplotlib"]
+    packages=["python", "numpy", "scipy", "sklearn", "matplotlib", "sympy"]
 )
