@@ -58,7 +58,12 @@ static inline uint64_t xoshiro_next(Xoshiro256p& rng) {
     return result;
 }
 
-// Seed via splitmix64 (the recommended xoshiro initializer).
+// Seed the 256-bit xoshiro state (4 x uint64) from a single 64-bit seed by
+// running splitmix64's next() four times -- one call per state word. This is
+// the initializer recommended by the xoshiro authors. splitmix64.c only ships
+// the single-value next(); the loop body below is that function inlined (`z`
+// is the carried splitmix64 state), and the constants are splitmix64's verbatim
+// (hex literals are case-insensitive, so the uppercase here matches the site).
 static inline void xoshiro_seed(Xoshiro256p& rng, uint64_t seed_val) {
     uint64_t z = seed_val;
     for (int i = 0; i < 4; ++i) {
