@@ -47,7 +47,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     share_of_radiation_integrals
         Share of synchrotron radiation integrals.
     disable_quantum_excitation
-        Expert user only. Disables the quantum excitation kick.
+       Disables the quantum excitation kick.
     seed
         Currently unsupported and must be left as ``None``. The
         quantum-excitation noise is generated inside

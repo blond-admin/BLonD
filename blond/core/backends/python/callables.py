@@ -448,7 +448,7 @@ class PythonSpecials(Specials):
         total_energy
             Beam total reference energy, in [eV].
         disable_quantum_excitation
-            Expert user only. Disables the quantum excitation kick.
+           Disables the quantum excitation kick.
         """
         damping_factor = 1.0 - 2.0 / longitudinal_damping_time
         if disable_quantum_excitation:

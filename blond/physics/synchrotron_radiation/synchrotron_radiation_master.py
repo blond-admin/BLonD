@@ -66,7 +66,7 @@ class SynchrotronRadiationMaster(Schedulable):
         BeamPhysicsRelevant element class for which synchrotron radiation
         should be tracked.
     disable_quantum_excitation
-        Expert user only. Disables the quantum excitation kick.
+       Disables the quantum excitation kick.
 
     Examples
     --------
@@ -651,7 +651,7 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
     share_of_radiation_integrals
         Share of synchrotron radiation integrals.
     disable_quantum_excitation
-        Expert user only. Disables the quantum excitation kick.
+       Disables the quantum excitation kick.
     """
 
     def __init__(

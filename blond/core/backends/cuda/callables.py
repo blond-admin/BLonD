@@ -527,7 +527,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         total_energy
             Beam total reference energy, in [eV].
         disable_quantum_excitation
-            Expert user only. Disables the quantum excitation kick.
+           Disables the quantum excitation kick.
         """
         assert beam_dE.device != "cpu", (
             f"Requires Cupy array, but got {type(beam_dE)}."
