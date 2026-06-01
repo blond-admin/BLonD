@@ -42,14 +42,16 @@ def _get_dE_from_dt_core(
     harmonic: float,
     omega_rf: float,
     particle_charge: float,
-    phi_rf: float,
     phi_s: float,
     voltage: float,
 ) -> float:
-    # RF wave is shifted by Pi below transition
-    if eta0 < 0:
-        phi_rf -= np.pi
-    # Calculate dE_amplitude from dt_amplitude using single-harmonic Hamiltonian
+    # Match the dt amplitude onto the same single-harmonic Hamiltonian contour
+    # to obtain the dE amplitude. ``phi_s`` is the absolute synchronous phase,
+    # so the bracket already encodes the above/below-transition orientation (it
+    # is positive above transition, negative below). Combined with the *signed*
+    # ``eta0`` (negative below transition) and the *signed* charge in
+    # ``voltage`` the radicand stays non-negative for either charge sign --
+    # taking ``abs`` of ``eta0`` here would make it negative below transition.
     voltage = particle_charge * voltage
     phi_b = omega_rf * dt_amplitude + phi_s
     dE_amplitude = np.sqrt(
@@ -57,7 +59,7 @@ def _get_dE_from_dt_core(
         * energy
         * beta**2
         * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
-        / (np.pi * harmonic * np.fabs(eta0))
+        / (np.pi * harmonic * eta0)
     )
     return dE_amplitude
 
@@ -91,7 +93,7 @@ def _get_dE_from_dt(
     )
     above_transition = not simulation.ring.is_below_transition(beam=beam)
 
-    harmonic, omega_rf, phi_rf, voltage = get_main_harmonic_attributes(
+    harmonic, omega_rf, _phi_rf, voltage = get_main_harmonic_attributes(
         beam=beam,
         simulation=simulation,
     )
@@ -99,20 +101,20 @@ def _get_dE_from_dt(
     energy = beam.reference.total_energy
     beta = beam.reference.beta
 
-    phi_s = (
-        calc_phi_s_single_harmonic(
-            charge=beam.particle_type.charge,
-            voltage=voltage,
-            energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-                turn_i=0,
-                section_i=0,
-                reference_time=0,
-                particle_type=beam.particle_type,
-            )
-            - beam.reference.total_energy,
-            above_transition=above_transition,
+    # Absolute synchronous phase: the single-harmonic Hamiltonian below already
+    # references its oscillation to ``phi_s`` directly, so no ``phi_rf`` offset
+    # must be folded in here.
+    phi_s = calc_phi_s_single_harmonic(
+        charge=beam.particle_type.charge,
+        voltage=voltage,
+        energy_gain=simulation.magnetic_cycle.get_target_total_energy(
+            turn_i=0,
+            section_i=0,
+            reference_time=0,
+            particle_type=beam.particle_type,
         )
-        - phi_rf
+        - beam.reference.total_energy,
+        above_transition=above_transition,
     )
 
     eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
@@ -131,7 +133,6 @@ def _get_dE_from_dt(
         harmonic=float(harmonic),
         omega_rf=float(omega_rf),
         particle_charge=particle_charge,
-        phi_rf=float(phi_rf),
         phi_s=float(phi_s),
         voltage=float(voltage),
     )
@@ -297,6 +298,12 @@ class BiGaussian(MatchingRoutine):
         else:
             sigma_dE = self._sigma_dE
 
+        # Absolute synchronous phase. The stable fixed point of the
+        # single-harmonic Hamiltonian sits at ``dt = (phi_s - phi_rf)/omega_rf``
+        # (see ``single_rf_sin_hamiltonian``: ``phi_b = omega_rf*dt + phi_rf``
+        # is stationary at ``phi_b = phi_s``). The transition orientation is
+        # handled inside that Hamiltonian via ``phase_modulo_*``, so no manual
+        # ``pi`` shift of ``phi_rf`` is applied here.
         phi_s = float(
             calc_phi_s_single_harmonic(
                 charge=beam.particle_type.charge,
@@ -310,7 +317,6 @@ class BiGaussian(MatchingRoutine):
                 - beam.reference.total_energy,
                 above_transition=above_transition,
             )
-            - phi_rf
         )
         # call to legacy
         eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
@@ -318,10 +324,6 @@ class BiGaussian(MatchingRoutine):
             f"Expected all `eta0` to be the same, but got {eta0}."
         )
         eta0 = eta0[0]
-
-        # RF wave is shifted by Pi below transition
-        if eta0 < 0:
-            phi_rf -= np.pi
 
         rng_dt_cpu_only = mpi_aware_random_generator_cpu(
             seed=(self._seed + 0) if self._seed is not None else None,

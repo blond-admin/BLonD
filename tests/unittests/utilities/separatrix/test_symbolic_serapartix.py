@@ -676,5 +676,150 @@ class TestSymbolicSeparatrixHelperFromSimulation(unittest.TestCase):
             SymbolicSeparatrixHelper.from_simulation(simulation=simulation)
 
 
+class TestGetStableFixedPoint(unittest.TestCase):
+    """
+    Cover ``SymbolicSeparatrixHelper.get_stable_fixed_point``.
+
+    The stable fixed point (SFP) is where a matched bunch must centre. It is
+    validated here against the analytic synchronous phase
+    :func:`calc_phi_s_single_harmonic`, which is independent of the symbolic
+    Hamiltonian machinery, so the two cross-check each other.
+    """
+
+    HARMONIC = 35640
+    VOLTAGE = 6e6
+
+    @staticmethod
+    def _wrap(x: float, period: float) -> float:
+        """Map ``x`` into ``[-period/2, period/2)`` for modulo comparison."""
+        return (x + period / 2.0) % period - period / 2.0
+
+    def _build(
+        self,
+        transition_gamma: float,
+        phi_rf: float = 0.0,
+        dp_per_turn: float = 0.0,
+        voltage: float = VOLTAGE,
+    ):
+        from blond import (
+            Beam,
+            BiGaussian,
+            DriftSimple,
+            MagneticCyclePerTurn,
+            Ring,
+            Simulation,
+            SingleHarmonicRFStation,
+            momentum_compaction_factor,
+            proton,
+        )
+
+        ring = Ring(26658.883)
+        rf_station = SingleHarmonicRFStation(
+            harmonic=self.HARMONIC, voltage=voltage, phi_rf=phi_rf
+        )
+        drift = DriftSimple(orbit_length=26658.883)
+        drift.momentum_compaction_factor = momentum_compaction_factor(
+            transition_gamma=transition_gamma,
+        )
+        n_turns = 10
+        energy_cycle = MagneticCyclePerTurn.init_from_linspace(
+            values=np.linspace(
+                450e9, 450e9 + dp_per_turn * n_turns, n_turns + 1
+            ),
+            reference_particle=proton,
+        )
+        ring.add_elements((drift, rf_station))
+        sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
+        beam = Beam(intensity=1e9, particle_type=proton)
+        # Explicit ``sigma_dE`` only initialises ``beam.reference``; it does
+        # not exercise the (separately tested) dt->dE matching path.
+        sim.prepare_beam(
+            beam=beam,
+            preparation_routine=BiGaussian(
+                sigma_dt=1e-10,
+                sigma_dE=1e8,
+                reinsertion=False,
+                seed=1,
+                n_macroparticles=10,
+            ),
+        )
+        return sim, beam, rf_station
+
+    def _t_rf(self, rf_station) -> float:
+        return 2.0 * np.pi / float(rf_station.omega_rf_design)
+
+    def test_above_transition_stationary_sfp_at_half_period(self):
+        """No acceleration, above transition -> ``phi_s = pi`` -> dt = T_rf/2."""
+        sim, beam, rf_station = self._build(transition_gamma=18.0)
+        helper = SymbolicSeparatrixHelper.from_simulation(simulation=sim)
+        sfp = helper.get_stable_fixed_point(beam=beam)
+        t_rf = self._t_rf(rf_station)
+        np.testing.assert_allclose(
+            self._wrap(sfp - t_rf / 2.0, t_rf), 0.0, atol=1e-3 * t_rf
+        )
+
+    def test_below_transition_stationary_sfp_at_zero(self):
+        """No acceleration, below transition -> ``phi_s = 0`` -> dt = 0."""
+        sim, beam, rf_station = self._build(transition_gamma=900.0)
+        helper = SymbolicSeparatrixHelper.from_simulation(simulation=sim)
+        sfp = helper.get_stable_fixed_point(beam=beam)
+        t_rf = self._t_rf(rf_station)
+        np.testing.assert_allclose(
+            self._wrap(sfp, t_rf), 0.0, atol=1e-3 * t_rf
+        )
+
+    def test_accelerating_sfp_matches_analytic_phi_s(self):
+        """Accelerating + ``phi_rf != 0`` above and below transition.
+
+        The SFP must equal ``(phi_s - phi_rf) / omega_rf`` (modulo T_rf) where
+        ``phi_s`` is the analytic synchronous phase.
+        """
+        from blond.acc_math.analytic.hamilton import (
+            calc_phi_s_single_harmonic,
+        )
+
+        for transition_gamma, above in ((18.0, True), (900.0, False)):
+            with self.subTest(above_transition=above):
+                phi_rf = 0.3
+                sim, beam, rf_station = self._build(
+                    transition_gamma=transition_gamma,
+                    phi_rf=phi_rf,
+                    dp_per_turn=2e6,
+                )
+                omega = float(rf_station.omega_rf_design)
+                t_rf = 2.0 * np.pi / omega
+                energy_gain = (
+                    sim.magnetic_cycle.get_target_total_energy(
+                        turn_i=0,
+                        section_i=0,
+                        reference_time=0,
+                        particle_type=beam.particle_type,
+                    )
+                    - beam.reference.total_energy
+                )
+                phi_s = calc_phi_s_single_harmonic(
+                    charge=beam.particle_type.charge,
+                    voltage=self.VOLTAGE,
+                    energy_gain=energy_gain,
+                    above_transition=above,
+                )
+                expected = (phi_s - phi_rf) / omega
+                helper = SymbolicSeparatrixHelper.from_simulation(
+                    simulation=sim
+                )
+                sfp = helper.get_stable_fixed_point(beam=beam)
+                np.testing.assert_allclose(
+                    self._wrap(sfp - expected, t_rf),
+                    0.0,
+                    atol=2e-3 * t_rf,
+                )
+
+    def test_voltage_zero_returns_nan(self):
+        """No RF potential -> no bucket -> SFP is ``NaN``."""
+        sim, beam, _ = self._build(transition_gamma=18.0, voltage=0.0)
+        helper = SymbolicSeparatrixHelper.from_simulation(simulation=sim)
+        self.assertTrue(np.isnan(helper.get_stable_fixed_point(beam=beam)))
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

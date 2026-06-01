@@ -20,7 +20,6 @@ class TestFunctions(unittest.TestCase):
             harmonic=1,
             omega_rf=400e3,
             particle_charge=1,
-            phi_rf=2,
             phi_s=2,
             voltage=1e3,
         )

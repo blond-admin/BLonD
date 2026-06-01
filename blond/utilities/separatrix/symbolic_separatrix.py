@@ -187,6 +187,75 @@ class SymbolicSeparatrixHelper:
         )
         return np.stack([dE_upper, dE_lower])
 
+    def get_stable_fixed_point(self, beam: BeamBaseClass) -> float:
+        r"""
+        Locate the stable fixed point (SFP) of the canonical RF bucket.
+
+        The SFP is the longitudinal position ``dt`` (at ``dE = 0``) where a
+        matched bunch must center -- the synchronous particle. It sits at the
+        extremum of the potential ``U(dt)`` whose curvature has the same sign
+        as the kinetic coefficient ``c_2`` (so the fixed point is an elliptic
+        centre rather than the hyperbolic saddle / unstable fixed point):
+
+        ===============   ==========================   =====================
+        ``sign(c_2)``     stable fixed point (SFP)     unstable fixed point
+        ===============   ==========================   =====================
+        ``> 0`` (above)   local **min** of ``U(dt)``   local **max** of ``U``
+        ``< 0`` (below)   local **max** of ``U(dt)``   local **min** of ``U``
+        ===============   ==========================   =====================
+
+        Returned modulo the RF period: successive SFPs are spaced by exactly
+        ``2*pi/omega_min`` in ``dt`` (the periodic part of ``U`` repeats, even
+        under the linear acceleration tilt), so any single representative
+        characterises the bunch centre. For a multi-harmonic potential with
+        several stable points per period the deepest one (lowest ``U`` for
+        ``c_2 > 0``, highest ``U`` for ``c_2 < 0``) is returned.
+
+        Parameters
+        ----------
+        beam
+            Beam whose reference coordinates supply :math:`\beta`,
+            :math:`\gamma`, :math:`E` and charge.
+
+        Returns
+        -------
+        sfp_dt
+            Time deviation [s] of the stable fixed point, modulo the RF
+            period. ``NaN`` when no RF bucket exists (e.g. ``voltage = 0`` or
+            the acceleration tilt removed every extremum), mirroring
+            :meth:`get_separatrix`.
+        """
+        kinetic_coeffs, potential = self._substitute_symbols(beam=beam)
+        kinetic_coeff = self._dE_squared_coefficient(kinetic_coeffs)
+        if kinetic_coeff == 0.0:
+            return float("nan")
+
+        period = 2.0 * np.pi / self._omega_min
+        # The SFP is the stable-type extremum of ``U`` (min for c_2 > 0, max
+        # for c_2 < 0). ``_interior_extrema`` selects that type when called
+        # with the *flipped* sign. A symmetric (phi_rf = 0) potential can place
+        # the extremum exactly on a window boundary, where it is not "interior";
+        # offsetting the window by half a period guarantees it is interior to
+        # at least one of the two scans.
+        for period_start in (0.0, 0.5 * period):
+            scan_dt = np.linspace(
+                period_start,
+                period_start + period,
+                self._CANONICAL_SCAN_RESOLUTION + 1,
+            )
+            scan_potential = np.asarray(potential(scan_dt), dtype=float)
+            sfp_indices = self._interior_extrema(
+                scan_potential, kinetic_coeff=-kinetic_coeff
+            )
+            if sfp_indices.size == 0:
+                continue
+            if kinetic_coeff > 0:
+                sfp_index = sfp_indices[np.argmin(scan_potential[sfp_indices])]
+            else:
+                sfp_index = sfp_indices[np.argmax(scan_potential[sfp_indices])]
+            return float(scan_dt[sfp_index])
+        return float("nan")
+
     def plot_separatrix(
         self,
         beam: BeamBaseClass,
