@@ -899,10 +899,9 @@ class NumpyBackend(BackendBaseClass):
             self.specials_mode = mode
         elif mode == "numba":
             from blond.core.backends.numba.callables import (
-                recompile_numba_backend,
+                NumbaSpecials,
             )
 
-            NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         else:
@@ -1025,9 +1024,7 @@ class CupyBackend(BackendBaseClass):
             One of the available backend modes.
         """
         if mode == "cuda":
-            from blond.core.backends.cuda.callables import reload_cuda_backend
-
-            CudaSpecials = reload_cuda_backend(self.float)
+            from blond.core.backends.cuda.callables import CudaSpecials
 
             self.specials = CudaSpecials()
         else:

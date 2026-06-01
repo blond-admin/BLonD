@@ -25,9 +25,7 @@ def main():  # pragma: no cover
 
     backend.change_backend(Numpy64Bit)
     from blond.core.backends.cpp.callables import CppSpecials
-    from blond.core.backends.numba.callables import recompile_numba_backend
-
-    NumbaSpecials = recompile_numba_backend(backend.float)
+    from blond.core.backends.numba.callables import NumbaSpecials
 
     functions = (
         NumbaSpecials().kick_interpolated,
