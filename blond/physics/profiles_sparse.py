@@ -313,7 +313,6 @@ class EquidistantMultiProfile(MultiProfile):
         """
         super().on_init_simulation(
             simulation,
-            turn_counter=simulation.turn_counter,
             t_rev=simulation.get_t_rev_init(),
             **kwargs,
         )
