@@ -1295,6 +1295,7 @@ class SingleHarmonicRFStation(
         cavity_feedback: LocalFeedback | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> SingleHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1325,6 +1326,8 @@ class SingleHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
@@ -1800,6 +1803,7 @@ class MultiHarmonicRFStation(
         beam_feedback: BeamFeedbackBase | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> MultiHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1835,6 +1839,8 @@ class MultiHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
