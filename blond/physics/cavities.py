@@ -1295,6 +1295,7 @@ class SingleHarmonicRFStation(
         cavity_feedback: LocalFeedback | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> SingleHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1325,6 +1326,8 @@ class SingleHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
@@ -1344,10 +1347,13 @@ class SingleHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
+        if turn_counter is None:
+            turn_counter = single_harmonic_rf_station._get_null_turn_counter()
+
         single_harmonic_rf_station.configure(
-            turn_counter=SimpleNamespace(value=0),
+            turn_counter=turn_counter,
             magnetic_cycle=SimpleNamespace(
-                get_target_total_energy=lambda **_: total_energy
+                get_target_total_energy=lambda **_: total_energy  # TODO rework
             ),
             ring=SimpleNamespace(
                 circumference=circumference,
@@ -1800,6 +1806,7 @@ class MultiHarmonicRFStation(
         beam_feedback: BeamFeedbackBase | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> MultiHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1835,6 +1842,8 @@ class MultiHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
@@ -1857,10 +1866,13 @@ class MultiHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
+        if turn_counter is None:
+            turn_counter = multi_harmonic_rf_station._get_null_turn_counter()
+
         multi_harmonic_rf_station.configure(
-            turn_counter=SimpleNamespace(value=0),
+            turn_counter=turn_counter,
             magnetic_cycle=SimpleNamespace(
-                get_target_total_energy=lambda **_: total_energy
+                get_target_total_energy=lambda **_: total_energy  # TODO better handling
             ),
             ring=SimpleNamespace(
                 circumference=circumference,

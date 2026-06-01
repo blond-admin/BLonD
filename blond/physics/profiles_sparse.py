@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import copy
 from abc import ABC
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -316,7 +315,7 @@ class EquidistantMultiProfile(MultiProfile):
             section_index=section_index,
             name=name,
         )
-        d.configure(turn_counter=SimpleNamespace(value=0), t_rev=t_rev)
+        d.configure(t_rev=t_rev)
         return d
 
     @requires(["RFStationBaseClass"])  # for `get_t_rev_init`
@@ -338,21 +337,19 @@ class EquidistantMultiProfile(MultiProfile):
             **kwargs,
         )
 
-    def configure(self, *, turn_counter, t_rev: float, **kwargs) -> None:
+    def configure(self, *, t_rev: float, **kwargs) -> None:
         """
         Build profile time axes from the revolution period.
 
         Parameters
         ----------
-        turn_counter
-            Live turn counter.
         t_rev
             Revolution period in [s].
         **kwargs
             Passed to the next level in the MRO chain.
         """
         super().configure(**kwargs)
-        self._turn_counter = turn_counter
+
         n_slots = len(self._filling_pattern)
 
         # Turn     |-----------|
