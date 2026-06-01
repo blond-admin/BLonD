@@ -25,7 +25,7 @@ from blond import (
     mu_plus,
     uranium_29,
 )
-from blond.core.backends.backend import Cupy32Bit, Numpy32Bit, backend
+from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
@@ -353,10 +353,12 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
             -9.054900733733384e-07,
             -9.179795916267638e-07,
         ]
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
         np.testing.assert_allclose(
             copy_to_cpu(induced_voltage),
             induced_voltage_pinned,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
     def test_on_wakefield_init_simulation(self):
@@ -444,7 +446,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             )
         )["induced_voltage"]
 
-        np.testing.assert_allclose(pinned_values, induced_voltage, rtol=1e-5)
+        np.testing.assert_allclose(pinned_values, induced_voltage, rtol=1e-12)
 
         # np.savez(callers_relative_path("resources/induced_voltage_periodic_freq_solver.npz", stacklevel=1), induced_voltage=induced_voltage)
         DEV_PLOT = False
@@ -719,10 +721,13 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             )
             plt.plot(copy_to_cpu(td_solver[0 : len(initial_voltage)]), "--")
             plt.show()
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
         np.testing.assert_allclose(
             copy_to_cpu(initial_voltage) + offset,
             copy_to_cpu(td_solver[0 : len(initial_voltage)]) + offset,
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
     def test_warns_on_edge_bins(self):
@@ -1175,33 +1180,6 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             local_solv._parent_wakefield = None
             local_solv._determine_storage_time()
-
-    @skip_if_no_cupy
-    def test_start_with_32_bit_backend_gpu(self):
-        backend.change_backend(Cupy32Bit)
-
-        simulation = Mock(Simulation)
-        with self.assertRaisesRegex(
-            RuntimeError,
-            "MultiPassResonatorSolver does only run with 64 bit backends.",
-        ):
-            self.multi_pass_resonator_solver.on_wakefield_init_simulation(
-                simulation=simulation,
-                parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
-            )
-
-    @pytest.mark.backend_mutation
-    def test_start_with_32_bit_backend_cpu(self):
-        backend.change_backend(Numpy32Bit)
-        simulation = Mock(Simulation)
-        with self.assertRaisesRegex(
-            RuntimeError,
-            "MultiPassResonatorSolver does only run with 64 bit backends.",
-        ):
-            self.multi_pass_resonator_solver.on_wakefield_init_simulation(
-                simulation=simulation,
-                parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
-            )
 
     def test_determine_storage_time_multi_res(self):
         # Check for mixing with multiple resonators
@@ -3471,10 +3449,14 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             plt.plot(wf_mutli.induced_voltage - wf_single.induced_voltage)
             plt.legend()
             plt.show()
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             copy_to_cpu(wf_mutli.induced_voltage + offset),
             copy_to_cpu(wf_single.induced_voltage + offset),
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
     def test_calc_induced_voltage_multi_turn(self):
@@ -3560,10 +3542,14 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             )
             plt.legend()
             plt.show()
+
+        if backend.float == np.float32:
+            raise TypeError("32 bit backends have been removed.")
+
         np.testing.assert_allclose(
             copy_to_cpu(wf_mutli.induced_voltage + offset),
             copy_to_cpu(wf_single.induced_voltage[-128:] + offset),
-            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            rtol=1e-12,
         )
 
 

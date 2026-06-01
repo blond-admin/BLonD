@@ -6,15 +6,13 @@ import pytest
 
 from blond import copy_to_cpu
 from blond.core.backends.backend import (
-    Cupy32Bit,
     Cupy64Bit,
     CupyBackend,
-    Numpy32Bit,
     Numpy64Bit,
     NumpyBackend,
     backend,
 )
-from blond.core.backends.numba.callables import recompile_numba_backend
+from blond.core.backends.numba.callables import NumbaSpecials
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     multi_backend_testcase,
@@ -43,7 +41,7 @@ class TestBackendBaseClass(unittest.TestCase):
         backend.set_specials(backend_specials_mode_org)
 
     def setUp(self) -> None:
-        self.backend_base_class = Numpy32Bit()
+        self.backend_base_class = Numpy64Bit()
 
     @pytest.mark.backend_mutation
     def test___init__(self):
@@ -72,7 +70,7 @@ class TestBackendBaseClass(unittest.TestCase):
         import os
 
         backend_modes = ["python", "cpp", "cpp_single_core", "numba", "fail"]
-        backend_bits = ["32", "64", "fail"]
+        backend_bits = ["64", "fail"]
         try:
             import cupy
 
@@ -103,14 +101,14 @@ class TestBackendBaseClass(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test__finalize(self):
-        some_backend = Numpy32Bit()
+        some_backend = Numpy64Bit()
         some_backend.array = None
         with self.assertRaises(AttributeError):
             some_backend._finalize()
 
     @pytest.mark.backend_mutation
     def test_change_backend(self):
-        some_backend = Numpy32Bit()
+        some_backend = Numpy64Bit()
         some_backend.change_backend(some_backend)  # shouldnt do anything
 
     @pytest.mark.backend_mutation
@@ -130,14 +128,6 @@ class TestBackendBaseClass(unittest.TestCase):
         backend.change_backend(backend_org)
 
 
-class TestCupy32Bit(unittest.TestCase):
-    @pytest.mark.backend_mutation
-    def test___init__(self) -> None:
-        if not cupy_available:
-            self.skipTest(f"{cupy_available=}")
-        self.cupy32_bit = Cupy32Bit()
-
-
 class TestCupy64Bit(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test___init__(self) -> None:
@@ -152,7 +142,7 @@ class TestCupyBackend(unittest.TestCase):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, complex_=np.complex64
+            float_=np.float64, complex_=np.complex128
         )
 
     @pytest.mark.backend_mutation
@@ -160,7 +150,7 @@ class TestCupyBackend(unittest.TestCase):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, complex_=np.complex64
+            float_=np.float64, complex_=np.complex128
         )
         self.cupy_backend.set_specials(mode="cuda")
 
@@ -169,7 +159,7 @@ class TestCupyBackend(unittest.TestCase):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, complex_=np.complex64
+            float_=np.float64, complex_=np.complex128
         )
         with self.assertRaises(ValueError):
             self.cupy_backend.set_specials("doesnt exist")
@@ -187,8 +177,8 @@ class TestNumpy64Bit(unittest.TestCase):
 class TestNumpyBackend(unittest.TestCase):
     def setUp(self) -> None:
         self.numpy_backend = NumpyBackend(
-            float_=np.float32,
-            complex_=np.complex64,
+            float_=np.float64,
+            complex_=np.complex128,
         )
 
     @pytest.mark.backend_mutation
@@ -251,12 +241,12 @@ class TestSpecials(unittest.TestCase):
             "numba",
         ):
             if dtype == np.float32:
-                backend.change_backend(Numpy32Bit)
+                raise TypeError("32 Bit backends have been removed")
             else:
                 backend.change_backend(Numpy64Bit)
         elif special_mode in ("cuda",):
             if dtype == np.float32:
-                backend.change_backend(Cupy32Bit)
+                raise TypeError("32 Bit backends have been removed")
             else:
                 backend.change_backend(Cupy64Bit)
         else:
@@ -294,7 +284,7 @@ class TestSpecials(unittest.TestCase):
         self.charge = backend.float(1)
         self.acceleration_kick = backend.float(-1)
         if backend.float == np.float32:
-            self.rtol = 1e-6
+            raise TypeError("32 bit backends have been removed.")
         elif backend.float == np.float64:
             self.rtol = 1e-12
         else:
@@ -306,152 +296,122 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_drift_exact(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                for _ in range(2):
-                    backend.specials.drift_exact(
-                        dt=self.dt,
-                        dE=self.dE,
-                        T=self.t_rev * self.length_ratio,
-                        alpha_0=self.alpha_0,
-                        higher_alpha=backend.array([1.0, 2.0], dtype=dtype),
-                        beta=self.beta,
-                        energy=self.energy,
-                    )
-                result = self.dt
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"Failed test `{special}` with {dtype}",
-                    )
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            for _ in range(2):
+                backend.specials.drift_exact(
+                    dt=self.dt,
+                    dE=self.dE,
+                    T=self.t_rev * self.length_ratio,
+                    alpha_0=self.alpha_0,
+                    higher_alpha=backend.array([1.0, 2.0], dtype=dtype),
+                    beta=self.beta,
+                    energy=self.energy,
+                )
+            result = self.dt
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
 
     @unittest.skip
     @pytest.mark.backend_mutation
     def test_drift_legacy(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                backend.specials.drift_legacy(
-                    dt=self.dt,
-                    dE=self.dE,
-                    T=self.t_rev * self.length_ratio,
-                    alpha_order=self.alpha_order,
-                    eta_0=self.eta_0,
-                    eta_1=self.eta_1,
-                    eta_2=self.eta_2,
-                    beta=self.beta,
-                    energy=self.energy,
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            backend.specials.drift_legacy(
+                dt=self.dt,
+                dE=self.dE,
+                T=self.t_rev * self.length_ratio,
+                alpha_order=self.alpha_order,
+                eta_0=self.eta_0,
+                eta_1=self.eta_1,
+                eta_2=self.eta_2,
+                beta=self.beta,
+                energy=self.energy,
+            )
+            result = self.dt
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
                 )
-                result = self.dt
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"Failed test `{special}` with {dtype}",
-                    )
 
     @pytest.mark.backend_mutation
     def test_drift_simple(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                backend.specials.drift_simple(
-                    dt=self.dt,
-                    dE=self.dE,
-                    T=self.t_rev * self.length_ratio,
-                    eta_0=self.eta_0,
-                    beta=self.beta,
-                    energy=self.energy,
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            backend.specials.drift_simple(
+                dt=self.dt,
+                dE=self.dE,
+                T=self.t_rev * self.length_ratio,
+                eta_0=self.eta_0,
+                beta=self.beta,
+                energy=self.energy,
+            )
+            result = self.dt
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                if backend.float == np.float32:
+                    raise TypeError("32 bit backends have been removed.")
+
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=1e-12,
+                    err_msg=f"Failed test `{special}` with {dtype}",
                 )
-                result = self.dt
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=1e-5 if dtype == np.float32 else 1e-12,
-                        err_msg=f"Failed test `{special}` with {dtype}",
-                    )
 
     @pytest.mark.backend_mutation
     def test_kick_multi_harmonic(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for n_voltages in (1, 2, 3, 4, 5):
-                for i, special in enumerate(self.special_modes):
-                    self.n_voltages = n_voltages
-                    try:
-                        self._setUp(dtype=dtype, special_mode=special)
-                    except (FileNotFoundError, OSError):
-                        print(
-                            f"Could not perform `{special}` test for {dtype}"
-                        )
-                        continue
-                    backend.specials.kick_multi_harmonic(
-                        dt=self.dt,
-                        dE=self.dE,
-                        voltage=self.voltages,
-                        omega_rf=self.omegas,
-                        phi_rf=self.phis,
-                        charge=self.charge,
-                        n_rf=len(self.voltages),
-                        acceleration_kick=self.acceleration_kick,
-                    )
-                    result = self.dE
-                    if special == "cuda":
-                        result = result.get()
-                    if i == 0:
-                        result_python = result
-                    else:
-                        np.testing.assert_allclose(
-                            result,
-                            result_python,
-                            rtol=self.rtol,
-                            err_msg=f"Failed test `{special}` with {dtype}",
-                        )
-
-    @pytest.mark.backend_mutation
-    def test_kick_single_harmonic(self) -> None:
-        for dtype in (np.float32, np.float64):
+        dtype = np.float64
+        for n_voltages in (1, 2, 3, 4, 5):
             for i, special in enumerate(self.special_modes):
+                self.n_voltages = n_voltages
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                backend.specials.kick_single_harmonic(
+                backend.specials.kick_multi_harmonic(
                     dt=self.dt,
                     dE=self.dE,
-                    voltage=self.voltage_single_harmonic,
-                    omega_rf=self.omega_rf_single_harmonic,
-                    phi_rf=self.phi_rf_single_harmonic,
+                    voltage=self.voltages,
+                    omega_rf=self.omegas,
+                    phi_rf=self.phis,
                     charge=self.charge,
+                    n_rf=len(self.voltages),
                     acceleration_kick=self.acceleration_kick,
                 )
                 result = self.dE
@@ -463,81 +423,115 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(
                         result,
                         result_python,
-                        rtol=1e-5 if dtype == np.float32 else 1e-12,
+                        rtol=self.rtol,
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
+
+    @pytest.mark.backend_mutation
+    def test_kick_single_harmonic(self) -> None:
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            backend.specials.kick_single_harmonic(
+                dt=self.dt,
+                dE=self.dE,
+                voltage=self.voltage_single_harmonic,
+                omega_rf=self.omega_rf_single_harmonic,
+                phi_rf=self.phi_rf_single_harmonic,
+                charge=self.charge,
+                acceleration_kick=self.acceleration_kick,
+            )
+            result = self.dE
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                if backend.float == np.float32:
+                    raise TypeError("32 bit backends have been removed.")
+
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=1e-12,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                dt = backend.linspace(-5, 5, 20, dtype=backend.float)
-                dE = backend.zeros_like(dt, dtype=backend.float)
-                bin_centers = backend.linspace(-4, 4, 20, dtype=backend.float)
-                voltage = bin_centers**2
-                charge = backend.float(10)
-                acceleration_kick = backend.float(0.5)
-                backend.specials.kick_interpolated(
-                    dt=dt,
-                    dE=dE,
-                    voltage=voltage,
-                    bin_centers=bin_centers,
-                    charge=charge,
-                    acceleration_kick=acceleration_kick,
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.linspace(-5, 5, 20, dtype=backend.float)
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            bin_centers = backend.linspace(-4, 4, 20, dtype=backend.float)
+            voltage = bin_centers**2
+            charge = backend.float(10)
+            acceleration_kick = backend.float(0.5)
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
                 )
-                result = dE
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"Failed test `{special}` with {dtype}",
-                    )
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated_edges(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                dt = backend.linspace(-5, 5, 20, dtype=backend.float)
-                dE = backend.zeros_like(dt, dtype=backend.float)
-                bin_centers = dt.copy()
-                voltage = bin_centers**2
-                charge = float(10)
-                acceleration_kick = 0.5
-                backend.specials.kick_interpolated(
-                    dt=dt,
-                    dE=dE,
-                    voltage=voltage,
-                    bin_centers=bin_centers,
-                    charge=charge,
-                    acceleration_kick=acceleration_kick,
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.linspace(-5, 5, 20, dtype=backend.float)
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            bin_centers = dt.copy()
+            voltage = bin_centers**2
+            charge = float(10)
+            acceleration_kick = float(0.5)
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
                 )
-                result = dE
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"Failed test `{special}` with {dtype}",
-                    )
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated_bug(self) -> None:
@@ -953,537 +947,536 @@ class TestSpecials(unittest.TestCase):
             "charge": 82.0,
             "acceleration_kick": 0.0,
         }
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                dt = backend.array(
-                    kwargs["dt"],
-                    dtype=backend.float,
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.array(
+                kwargs["dt"],
+                dtype=backend.float,
+            )
+            dE = backend.array(
+                kwargs["dE"],
+                dtype=backend.float,
+            )
+            bin_centers = backend.array(
+                kwargs["bin_centers"],
+                dtype=backend.float,
+            )
+            voltage = backend.array(
+                kwargs["voltage"],
+                dtype=backend.float,
+            )
+            charge = kwargs["charge"]
+            acceleration_kick = kwargs["acceleration_kick"]
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    **allclose_tolerances(result_python, 1e-6),
+                    # FIXME
+                    #  this tolerance is so low because of the GPU
+                    #  backend. Reason unknown for now.
+                    err_msg=f"Failed test `{special}` with {dtype}",
                 )
-                dE = backend.array(
-                    kwargs["dE"],
-                    dtype=backend.float,
-                )
-                bin_centers = backend.array(
-                    kwargs["bin_centers"],
-                    dtype=backend.float,
-                )
-                voltage = backend.array(
-                    kwargs["voltage"],
-                    dtype=backend.float,
-                )
-                charge = kwargs["charge"]
-                acceleration_kick = kwargs["acceleration_kick"]
-                backend.specials.kick_interpolated(
-                    dt=dt,
-                    dE=dE,
-                    voltage=voltage,
-                    bin_centers=bin_centers,
-                    charge=charge,
-                    acceleration_kick=acceleration_kick,
-                )
-                result = dE
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        **allclose_tolerances(result_python, 1e-3),
-                        # FIXME
-                        #  this tolerance is so low because of the GPU
-                        #  backend. Reason unknown for now.
-                        err_msg=f"Failed test `{special}` with {dtype}",
-                    )
 
     @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end(self):
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                flag = 0
-                flags = backend.ones(10, dtype=np.int32)
-                flags[[0, 1, -1]] = 0
-                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
-                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), np.int32)
-                n_new = backend.specials.move_flagged_elements_to_end(
-                    flag=flag,
-                    flags=flags,
-                    dt=dt,
-                    dE=dE,
-                    ids=ids,
-                )
-                flags = flags[:n_new]
-                dt = dt[:n_new]
-                dE = dE[:n_new]
-                ids = ids[:n_new]
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            flag = 0
+            flags = backend.ones(10, dtype=np.int32)
+            flags[[0, 1, -1]] = 0
+            dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+            dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+            ids = backend.array(backend.arange(0, 10), np.int32)
+            n_new = backend.specials.move_flagged_elements_to_end(
+                flag=flag,
+                flags=flags,
+                dt=dt,
+                dE=dE,
+                ids=ids,
+            )
+            self.assertEqual(n_new, 10 - 3)
+            flags = flags[:n_new]
+            dt = dt[:n_new]
+            dE = dE[:n_new]
+            ids = ids[:n_new]
 
-                result = dt  # could be any of the 4 arrays
-                self.assertEqual(
-                    7,
-                    len(flags),
-                    msg=f"Failed test `{special}` with {dtype}",
-                )
-                self.assertTrue(np.all(flags == np.ones_like(flags)))
-                self.assertEqual(
-                    7,
-                    len(dt),
-                    msg=f"Failed test `{special}` with {dtype}",
-                )
-                self.assertEqual(
-                    7,
-                    len(dE),
-                    msg=f"Failed test `{special}` with {dtype}",
-                )
-                self.assertEqual(
-                    7,
-                    len(ids),
-                    msg=f"Failed test `{special}` with {dtype}",
-                )
-                if special == "cuda":
-                    result = result.get()
+            result = dt  # could be any of the 4 arrays
+            self.assertEqual(
+                7,
+                len(flags),
+                msg=f"Failed test `{special}` with {dtype}",
+            )
+            self.assertTrue(np.all(flags == np.ones_like(flags)))
+            self.assertEqual(
+                7,
+                len(dt),
+                msg=f"Failed test `{special}` with {dtype}",
+            )
+            self.assertEqual(
+                7,
+                len(dE),
+                msg=f"Failed test `{special}` with {dtype}",
+            )
+            self.assertEqual(
+                7,
+                len(ids),
+                msg=f"Failed test `{special}` with {dtype}",
+            )
+            if special == "cuda":
+                result = result.get()
 
-                result = np.sort(result)  # because of race conditions in
-                # parallel execution, the order can not be guaranteed
+            result = np.sort(result)  # because of race conditions in
+            # parallel execution, the order can not be guaranteed
+            if i == 0:
+                result_n_python = n_new
+            else:
+                self.assertEqual(
+                    n_new,
+                    result_n_python,
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
 
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"Failed test `{special}` with {dtype}",
-                    )
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
 
     @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_potentially_race_conditions(self):
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                flag = 0
-                flags = backend.ones(int(1e6), dtype=np.int32)
-                np.random.seed(0)
-                flags[np.random.randint(0, len(flags), int(1e5))] = 0
-                dt = backend.array(
-                    backend.linspace(0, 10, len(flags)), backend.float
-                )
-                dE = backend.array(
-                    backend.linspace(0, 10, len(flags)), backend.float
-                )
-                ids = backend.array(backend.arange(0, len(flags)), np.int32)
-                n_new = backend.specials.move_flagged_elements_to_end(
-                    flag=flag,
-                    flags=flags,
-                    dt=dt,
-                    dE=dE,
-                    ids=ids,
-                )
-                assert np.all(flags[:n_new] != 0)
-                assert np.all(flags[n_new:] == 0)
-                flags = flags[:n_new]
-                dt = dt[:n_new]
-                dE = dE[:n_new]
-                ids = ids[:n_new]
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            flag = 0
+            flags = backend.ones(int(1e6), dtype=np.int32)
+            np.random.seed(0)
+            flags[np.random.randint(0, len(flags), int(1e5))] = 0
+            dt = backend.array(
+                backend.linspace(0, 10, len(flags)), backend.float
+            )
+            dE = backend.array(
+                backend.linspace(0, 10, len(flags)), backend.float
+            )
+            ids = backend.array(backend.arange(0, len(flags)), np.int32)
+            n_new = backend.specials.move_flagged_elements_to_end(
+                flag=flag,
+                flags=flags,
+                dt=dt,
+                dE=dE,
+                ids=ids,
+            )
+            assert np.all(flags[:n_new] != 0)
+            assert np.all(flags[n_new:] == 0)
+            flags = flags[:n_new]
+            dt = dt[:n_new]
+            dE = dE[:n_new]
+            ids = ids[:n_new]
 
-                result = dt  # could be any of the 4 arrays
-                if special == "cuda":
-                    result = result.get()
+            result = dt  # could be any of the 4 arrays
+            if special == "cuda":
+                result = result.get()
 
-                result = np.sort(result)  # because of race conditions in
-                # parallel execution, the order can not be guaranteed
+            result = np.sort(result)  # because of race conditions in
+            # parallel execution, the order can not be guaranteed
 
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"Failed test `{special}` with {dtype}",
-                    )
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
 
     @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_none_flagged(self):
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                flag = 0
-                flags = backend.ones(10, dtype=np.int32)
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            flag = 0
+            flags = backend.ones(10, dtype=np.int32)
 
-                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
-                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), np.int32)
-                n_new = backend.specials.move_flagged_elements_to_end(
-                    flag=flag,
-                    flags=flags,
-                    dt=dt,
-                    dE=dE,
-                    ids=ids,
-                )
+            dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+            dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+            ids = backend.array(backend.arange(0, 10), np.int32)
+            n_new = backend.specials.move_flagged_elements_to_end(
+                flag=flag,
+                flags=flags,
+                dt=dt,
+                dE=dE,
+                ids=ids,
+            )
 
-                self.assertEqual(
-                    10,
-                    n_new,
-                    msg=f"Failed test `{special}` with {dtype}",
-                )
+            self.assertEqual(
+                10,
+                n_new,
+                msg=f"Failed test `{special}` with {dtype}",
+            )
 
     @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_all_but_one_flagged(self):
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                flag = 0
-                flags = backend.zeros(10, dtype=np.int32)
-                flags[1] = 1
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            flag = 0
+            flags = backend.zeros(10, dtype=np.int32)
+            flags[1] = 1
 
-                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
-                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), np.int32)
-                n_new = backend.specials.move_flagged_elements_to_end(
-                    flag=flag,
-                    flags=flags,
-                    dt=dt,
-                    dE=dE,
-                    ids=ids,
-                )
+            dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+            dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+            ids = backend.array(backend.arange(0, 10), np.int32)
+            n_new = backend.specials.move_flagged_elements_to_end(
+                flag=flag,
+                flags=flags,
+                dt=dt,
+                dE=dE,
+                ids=ids,
+            )
 
-                self.assertEqual(
-                    1,
-                    n_new,
-                    msg=f"Failed test `{special}` with {dtype}",
-                )
+            self.assertEqual(
+                1,
+                n_new,
+                msg=f"Failed test `{special}` with {dtype}",
+            )
 
     @pytest.mark.backend_mutation
     def test_move_flagged_elements_to_end_all_flagged(self):
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                flag = 0
-                flags = backend.zeros(10, dtype=np.int32)
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            flag = 0
+            flags = backend.zeros(10, dtype=np.int32)
 
-                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
-                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), np.int32)
-                n_new = backend.specials.move_flagged_elements_to_end(
-                    flag=flag,
-                    flags=flags,
-                    dt=dt,
-                    dE=dE,
-                    ids=ids,
-                )
+            dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+            dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+            ids = backend.array(backend.arange(0, 10), np.int32)
+            n_new = backend.specials.move_flagged_elements_to_end(
+                flag=flag,
+                flags=flags,
+                dt=dt,
+                dE=dE,
+                ids=ids,
+            )
 
-                self.assertEqual(
-                    0,
-                    n_new,
-                    msg=f"Failed test `{special}` with {dtype}",
-                )
+            self.assertEqual(
+                0,
+                n_new,
+                msg=f"Failed test `{special}` with {dtype}",
+            )
 
     @pytest.mark.backend_mutation
     def test_loss_box(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
 
-                e_max = backend.float(1)
-                e_min = backend.float(-1)
-                t_min = backend.float(-10)
-                t_max = backend.float(10)
-                dt = backend.linspace(-20, 20, dtype=backend.float)
-                dE = backend.linspace(-2, 2, dtype=backend.float)
-                flags = backend.arange(len(dt), dtype=np.int32)
-                result = flags
+            e_max = backend.float(1)
+            e_min = backend.float(-1)
+            t_min = backend.float(-10)
+            t_max = backend.float(10)
+            dt = backend.linspace(-20, 20, dtype=backend.float)
+            dE = backend.linspace(-2, 2, dtype=backend.float)
+            flags = backend.arange(len(dt), dtype=np.int32)
+            result = flags
 
-                backend.specials.loss_box(
-                    e_max=e_max,
-                    e_min=e_min,
-                    t_min=t_min,
-                    t_max=t_max,
-                    dt=dt,
-                    dE=dE,
-                    flags=flags,
+            backend.specials.loss_box(
+                e_max=e_max,
+                e_min=e_min,
+                t_min=t_min,
+                t_max=t_max,
+                dt=dt,
+                dE=dE,
+                flags=flags,
+            )
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
                 )
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"Failed test `{special}` with {dtype}",
-                    )
 
     @pytest.mark.backend_mutation
     def test_beam_phase(self) -> None:
-        for dtype in (
-            np.float32,
-            np.float64,
-        ):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                result = backend.specials.beam_phase(
-                    hist_x=backend.linspace(-10, 10, 21, dtype=backend.float),
-                    hist_y=10**2
-                    - backend.linspace(-10, 10, 21, dtype=backend.float) ** 2,
-                    alpha=backend.float(1.5),
-                    omega_rf=backend.float(2.5),
-                    phi_rf=backend.float(3.5),
-                    bin_size=backend.float(1.0),
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            result = backend.specials.beam_phase(
+                hist_x=backend.linspace(-10, 10, 21, dtype=backend.float),
+                hist_y=10**2
+                - backend.linspace(-10, 10, 21, dtype=backend.float) ** 2,
+                alpha=backend.float(1.5),
+                omega_rf=backend.float(2.5),
+                phi_rf=backend.float(3.5),
+                bin_size=backend.float(1.0),
+            )
+            if i == 0:
+                result_python = result
+            else:
+                if backend.float == np.float32:
+                    raise TypeError("32 bit backends have been removed.")
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
                 )
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        # There is some numerical reason, why 32-bit C++ and
-                        # Numba returns slightly different results than
-                        # Python.
-                        # The Fortran port of the C++ code works fine,
-                        # so it's not an algorithmic problem, but something
-                        # governed by the compiler.
-                        # The accuracy for 32-bit test is therefore lowered
-                        # to 1e-5 instead of 1e-6, hopefully without
-                        # consequences.
-                        rtol=1e-5 if dtype is np.float32 else self.rtol,
-                        err_msg=f"Failed test `{special}` with {dtype}",
-                    )
 
     @pytest.mark.backend_mutation
     def test_histogram(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                array_write = backend.ones(21, dtype=backend.float)
-                for _ in range(2):
-                    backend.specials.histogram(
-                        array_read=backend.linspace(
-                            -10, 10, 21, dtype=backend.float
-                        ),
-                        array_write=array_write,
-                        start=backend.float(-12),
-                        stop=backend.float(8.0),
-                    )
-                result = array_write
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            array_write = backend.ones(21, dtype=backend.float)
+            for _ in range(2):
+                backend.specials.histogram(
+                    array_read=backend.linspace(
+                        -10, 10, 21, dtype=backend.float
+                    ),
+                    array_write=array_write,
+                    start=backend.float(-12),
+                    stop=backend.float(8.0),
+                )
+            result = array_write
 
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"{special=} {dtype=}",
-                    )
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
 
     @pytest.mark.backend_mutation
     def test_histogram_sparse(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                bins_per_profile = 3
-                n_profiles = 3
-                array_write = backend.ones(
-                    bins_per_profile * n_profiles, dtype=backend.float
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            bins_per_profile = 3
+            n_profiles = 3
+            array_write = backend.ones(
+                bins_per_profile * n_profiles, dtype=backend.float
+            )
+            filling_pattern = backend.array([1, 0, 1, 0, 1, 0], dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                [0, 0, 3, 3, 6, 6],
+                dtype=np.int32,
+            )
+            for _ in range(2):
+                backend.specials.histogram_sparse(
+                    x=backend.linspace(-10, 10, 21, dtype=backend.float),
+                    out=array_write,
+                    first_left_cut=-12,
+                    left_cut_distance=8,
+                    cut_width=4,
+                    bins_per_profile=bins_per_profile,
+                    n_active_profiles=n_profiles,
+                    filling_pattern=filling_pattern,
+                    bucket_index_to_memory_index=bucket_index_to_memory_index,
                 )
-                filling_pattern = backend.array([1, 0, 1, 0, 1, 0], dtype=bool)
-                bucket_index_to_memory_index = backend.array(
-                    [0, 0, 3, 3, 6, 6],
-                    dtype=np.int32,
-                )
-                for _ in range(2):
-                    backend.specials.histogram_sparse(
-                        x=backend.linspace(-10, 10, 21, dtype=backend.float),
-                        out=array_write,
-                        first_left_cut=-12,
-                        left_cut_distance=8,
-                        cut_width=4,
-                        bins_per_profile=bins_per_profile,
-                        n_active_profiles=n_profiles,
-                        filling_pattern=filling_pattern,
-                        bucket_index_to_memory_index=bucket_index_to_memory_index,
-                    )
-                result = array_write
+            result = array_write
 
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"{special=} {dtype=}",
-                    )
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
 
     @pytest.mark.backend_mutation
     def test_histogram_sparse_left_edged(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                bins_per_profile = 4
-                n_profiles = 3
-                array_write = backend.ones(
-                    bins_per_profile * n_profiles, dtype=backend.float
-                )
-                filling_pattern = backend.array([1, 0, 1, 0, 1, 0], dtype=bool)
-                bucket_index_to_memory_index = backend.array(
-                    [0, 0, 4, 4, 8, 8],
-                    dtype=np.int32,
-                )
-                particles_x = []
-                # mark all left and right edges
-                for left_edge in (-12, -12 + 2 * 8, -12 + 4 * 8):
-                    for _ in range(2):
-                        particles_x.append(left_edge)
-                for right_edge in (-12 + 4, -12 + 2 * 8 + 4, -12 + 4 * 8 + 4):
-                    for _ in range(1):
-                        particles_x.append(right_edge)
-                particles_x = backend.array(particles_x, backend.float)
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            bins_per_profile = 4
+            n_profiles = 3
+            array_write = backend.ones(
+                bins_per_profile * n_profiles, dtype=backend.float
+            )
+            filling_pattern = backend.array([1, 0, 1, 0, 1, 0], dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                [0, 0, 4, 4, 8, 8],
+                dtype=np.int32,
+            )
+            particles_x = []
+            # mark all left and right edges
+            for left_edge in (-12, -12 + 2 * 8, -12 + 4 * 8):
                 for _ in range(2):
-                    backend.specials.histogram_sparse(
-                        x=particles_x,
-                        out=array_write,
-                        first_left_cut=-12,
-                        left_cut_distance=8,
-                        cut_width=4,
-                        bins_per_profile=bins_per_profile,
-                        n_active_profiles=n_profiles,
-                        filling_pattern=filling_pattern,
-                        bucket_index_to_memory_index=bucket_index_to_memory_index,
-                    )
-                print(backend.specials_mode, array_write)
-                result = array_write
+                    particles_x.append(left_edge)
+            for right_edge in (-12 + 4, -12 + 2 * 8 + 4, -12 + 4 * 8 + 4):
+                for _ in range(1):
+                    particles_x.append(right_edge)
+            particles_x = backend.array(particles_x, backend.float)
+            for _ in range(2):
+                backend.specials.histogram_sparse(
+                    x=particles_x,
+                    out=array_write,
+                    first_left_cut=-12,
+                    left_cut_distance=8,
+                    cut_width=4,
+                    bins_per_profile=bins_per_profile,
+                    n_active_profiles=n_profiles,
+                    filling_pattern=filling_pattern,
+                    bucket_index_to_memory_index=bucket_index_to_memory_index,
+                )
+            print(backend.specials_mode, array_write)
+            result = array_write
 
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"{special=} {dtype=}",
-                    )
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
 
     @pytest.mark.backend_mutation
     def test_histogram_long_profiles(self) -> None:
         """Specifically to test edge effects at beginning and end."""
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                array_write = backend.ones(3, dtype=backend.float)
-                spac = backend.linspace(0, 10, 50, dtype=backend.float)
-                for _ in range(2):
-                    backend.specials.histogram(
-                        array_read=spac,
-                        array_write=array_write,
-                        start=backend.float(2),
-                        stop=backend.float(4),
-                    )
-                result = array_write
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            array_write = backend.ones(3, dtype=backend.float)
+            spac = backend.linspace(0, 10, 50, dtype=backend.float)
+            for _ in range(2):
+                backend.specials.histogram(
+                    array_read=spac,
+                    array_write=array_write,
+                    start=backend.float(2),
+                    stop=backend.float(4),
+                )
+            result = array_write
 
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"{special=} {dtype=}",
-                    )
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
 
     @pytest.mark.backend_mutation
     def test_histogram_short_profile(self) -> None:
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                array_write = backend.ones(21, dtype=backend.float)
-                for _ in range(2):
-                    backend.specials.histogram(
-                        array_read=backend.linspace(
-                            -5, 5, 51, dtype=backend.float
-                        ),
-                        array_write=array_write,
-                        start=backend.float(-10),
-                        stop=backend.float(10),
-                    )
-                result = array_write
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            array_write = backend.ones(21, dtype=backend.float)
+            for _ in range(2):
+                backend.specials.histogram(
+                    array_read=backend.linspace(
+                        -5, 5, 51, dtype=backend.float
+                    ),
+                    array_write=array_write,
+                    start=backend.float(-10),
+                    stop=backend.float(10),
+                )
+            result = array_write
 
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"{special=} {dtype=}",
-                    )
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"{special=} {dtype=}",
+                )
 
     @pytest.mark.backend_mutation
     def test_histogram_race_conditions(self) -> None:
@@ -1491,39 +1484,39 @@ class TestSpecials(unittest.TestCase):
         array_read = (
             np.random.random_sample(size=1024) - 0.5
         ) * 20  # common sample data from -10 to 10
-        for dtype in (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                set_num_threads(8)
-                array_write = backend.ones(21, dtype=backend.float)
-                backend.specials.histogram(
-                    array_read=backend.array(
-                        array_read, dtype=backend.float
-                    ),  # casting to correct data type
-                    array_write=array_write,
-                    start=backend.float(-12),
-                    stop=backend.float(8.0),
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            set_num_threads(8)
+            array_write = backend.ones(21, dtype=backend.float)
+            backend.specials.histogram(
+                array_read=backend.array(
+                    array_read, dtype=backend.float
+                ),  # casting to correct data type
+                array_write=array_write,
+                start=backend.float(-12),
+                stop=backend.float(8.0),
+            )
+            result = array_write
+
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+                print(result_python.tolist())
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"{special=} {dtype=}",
                 )
-                result = array_write
 
-                if special == "cuda":
-                    result = result.get()
-                if i == 0:
-                    result_python = result
-                    print(result_python.tolist())
-                else:
-                    np.testing.assert_allclose(
-                        result,
-                        result_python,
-                        rtol=self.rtol,
-                        err_msg=f"{special=} {dtype=}",
-                    )
-
-    @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    @multi_backend_testcase("Numpy64Bit")
     @pytest.mark.backend_mutation
     def test_cast_float_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.float)
@@ -1595,7 +1588,7 @@ class TestSpecials(unittest.TestCase):
         unchanged = backend.cast_arr_float_if_needed(target)
         self.assertTrue(target is unchanged)
 
-    @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    @multi_backend_testcase("Numpy64Bit")
     @pytest.mark.backend_mutation
     def test_cast_complex_arr_np_only(self):
         target = backend.array([1, 2, 3], dtype=backend.complex)
@@ -1669,51 +1662,798 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_sum_1d_array(self) -> None:
-        for dtype in (np.float32, np.float64):
-            x = np.random.rand(10_000).astype(dtype)
-            reference_sum = np.sum(x)
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                np.testing.assert_allclose(
-                    copy_to_cpu(
-                        backend.specials.sum_1d_array(backend.array(x))
-                    ),
-                    reference_sum,
-                    # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
-                    rtol=self.rtol * 8 if dtype == np.float32 else self.rtol,
-                    err_msg=f"{special=} {dtype=}",
-                )
+        dtype = np.float64
+        x = np.random.rand(10_000).astype(dtype)
+        reference_sum = np.sum(x)
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            np.testing.assert_allclose(
+                copy_to_cpu(backend.specials.sum_1d_array(backend.array(x))),
+                reference_sum,
+                # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
+                rtol=self.rtol,
+                err_msg=f"{special=} {dtype=}",
+            )
 
     @pytest.mark.backend_mutation
     def test_dot_product_1d_array(self) -> None:
-        for dtype in (np.float64, np.float32):
-            x = np.random.rand(10_000).astype(dtype)
-            y = np.random.rand(10_000).astype(dtype)
-            reference_dot = np.dot(x, y)
-            for i, special in enumerate(self.special_modes):
-                try:
-                    self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError):
-                    print(f"Could not perform `{special}` test for {dtype}")
-                    continue
-                backend_result = backend.specials.dot_product_1d_array(
-                    backend.array(x),
-                    backend.array(y),
-                )
-                backend_result = copy_to_cpu(backend_result)
+        dtype = np.float64
+        x = np.random.rand(10_000).astype(dtype)
+        y = np.random.rand(10_000).astype(dtype)
+        reference_dot = np.dot(x, y)
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            backend_result = backend.specials.dot_product_1d_array(
+                backend.array(x),
+                backend.array(y),
+            )
+            backend_result = copy_to_cpu(backend_result)
 
+            if backend.float == np.float32:
+                raise TypeError("32 bit backends have been removed.")
+
+            np.testing.assert_allclose(
+                backend_result,
+                reference_dot,
+                # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
+                rtol=self.rtol,
+                err_msg=f"{special=} {dtype=}",
+            )
+            self.assertTrue(backend_result.dtype == dtype)
+
+    @pytest.mark.backend_mutation
+    def test_drift_exact_zero_macroparticles(self) -> None:
+        """`drift_exact` must be a no-op (no errors) on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.drift_exact(
+                dt=dt,
+                dE=dE,
+                T=self.t_rev * self.length_ratio,
+                alpha_0=self.alpha_0,
+                higher_alpha=backend.array([1.0, 2.0], dtype=dtype),
+                beta=self.beta,
+                energy=self.energy,
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_drift_simple_zero_macroparticles(self) -> None:
+        """`drift_simple` must be a no-op (no errors) on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.drift_simple(
+                dt=dt,
+                dE=dE,
+                T=self.t_rev * self.length_ratio,
+                eta_0=self.eta_0,
+                beta=self.beta,
+                energy=self.energy,
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_kick_single_harmonic_zero_macroparticles(self) -> None:
+        """`kick_single_harmonic` must be a no-op on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.kick_single_harmonic(
+                dt=dt,
+                dE=dE,
+                voltage=self.voltage_single_harmonic,
+                omega_rf=self.omega_rf_single_harmonic,
+                phi_rf=self.phi_rf_single_harmonic,
+                charge=self.charge,
+                acceleration_kick=self.acceleration_kick,
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_kick_multi_harmonic_zero_macroparticles(self) -> None:
+        """`kick_multi_harmonic` must be a no-op on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.kick_multi_harmonic(
+                dt=dt,
+                dE=dE,
+                voltage=self.voltages,
+                omega_rf=self.omegas,
+                phi_rf=self.phis,
+                charge=self.charge,
+                n_rf=len(self.voltages),
+                acceleration_kick=self.acceleration_kick,
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_kick_multi_harmonic_zero_n_rf(self) -> None:
+        """`n_rf=0` with empty rf arrays: only `acceleration_kick` survives."""
+        dtype = np.float64
+        # Reference result via the python backend (i = 0); compare other modes against it.
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.linspace(1e-9, 10e-9, 10, dtype=backend.float)
+            dE = backend.zeros(10, dtype=backend.float)
+            empty_voltage = backend.zeros(0, dtype=backend.float)
+            empty_omega = backend.zeros(0, dtype=backend.float)
+            empty_phi = backend.zeros(0, dtype=backend.float)
+            backend.specials.kick_multi_harmonic(
+                dt=dt,
+                dE=dE,
+                voltage=empty_voltage,
+                omega_rf=empty_omega,
+                phi_rf=empty_phi,
+                charge=self.charge,
+                n_rf=0,
+                acceleration_kick=self.acceleration_kick,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            # Without any rf harmonic, every particle receives exactly
+            # `acceleration_kick`.
+            expected = np.full(
+                10, float(self.acceleration_kick), dtype=np.float64
+            )
+            np.testing.assert_allclose(
+                np.asarray(result),
+                expected,
+                rtol=self.rtol,
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
+            if i == 0:
+                result_python = np.asarray(result).copy()
+            else:
                 np.testing.assert_allclose(
-                    backend_result,
-                    reference_dot,
-                    # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
-                    rtol=self.rtol * 8 if dtype == np.float32 else self.rtol,
-                    err_msg=f"{special=} {dtype=}",
+                    np.asarray(result),
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
                 )
-                self.assertTrue(backend_result.dtype == dtype)
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_zero_macroparticles(self) -> None:
+        """`kick_interpolated` must be a no-op on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            bin_centers = backend.linspace(-4, 4, 20, dtype=backend.float)
+            voltage = bin_centers**2
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=backend.float(10),
+                acceleration_kick=backend.float(0.5),
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_loss_box_zero_macroparticles(self) -> None:
+        """`loss_box` must be a no-op on empty dt/dE/flags arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            flags = backend.zeros(0, dtype=np.int32)
+            backend.specials.loss_box(
+                e_max=backend.float(1),
+                e_min=backend.float(-1),
+                t_min=backend.float(-10),
+                t_max=backend.float(10),
+                dt=dt,
+                dE=dE,
+                flags=flags,
+            )
+            self.assertEqual(
+                flags.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_move_flagged_elements_to_end_post_loop_branches(self) -> None:
+        """Exercise both post-loop return paths of `move_flagged_elements_to_end`.
+
+        The C++ implementation ends with::
+
+            if (i < n_macroparticles && flags[i] == flag) {
+                return i;     // boundary element matches `flag`
+            }
+            return i + 1;     // boundary element does NOT match `flag`
+
+        Both branches must produce the correct partition count, where the
+        return value equals the number of leading non-flagged elements
+        (equivalently, the index of the first flagged element).
+
+        Scenarios are tuples of (flags, expected_n_new, branch) with `flag=0`:
+        - ([0])          n=1, all flagged     → `return i`   → 0
+        - ([1])          n=1, all non-flagged → `return i+1` → 1
+        - ([0, 0, 0])    all flagged          → `return i`   → 0
+        - ([1, 1, 1])    all non-flagged      → `return i+1` → 3
+        - ([1, 1, 0])    boundary at end      → `return i`   → 2
+        - ([1, 0, 1, 0]) interleaved          → `return i`   → 2
+        """
+        scenarios = [
+            ([0], 0, "return i"),
+            ([1], 1, "return i+1"),
+            ([0, 0, 0], 0, "return i"),
+            ([1, 1, 1], 3, "return i+1"),
+            ([1, 1, 0], 2, "return i"),
+            ([1, 0, 1, 0], 2, "return i"),
+        ]
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            for flags_init, expected_n_new, branch in scenarios:
+                n = len(flags_init)
+                flags = backend.array(flags_init, dtype=np.int32)
+                dt = backend.array(
+                    backend.linspace(0, 1, n), dtype=backend.float
+                )
+                dE = backend.array(
+                    backend.linspace(0, 1, n), dtype=backend.float
+                )
+                ids = backend.arange(0, n, dtype=np.int32)
+                n_new = int(
+                    backend.specials.move_flagged_elements_to_end(
+                        flag=0,
+                        flags=flags,
+                        dt=dt,
+                        dE=dE,
+                        ids=ids,
+                    )
+                )
+                self.assertEqual(
+                    expected_n_new,
+                    n_new,
+                    msg=(
+                        f"Failed `{special}` with {dtype}: "
+                        f"flags={flags_init}, expected branch `{branch}` "
+                        f"→ {expected_n_new}, got {n_new}"
+                    ),
+                )
+                # Post-condition: leading `n_new` entries are non-flagged,
+                # trailing entries are flagged — what the return value means.
+                flags_after = (
+                    flags.get() if special == "cuda" else np.asarray(flags)
+                )
+                self.assertTrue(
+                    bool(np.all(flags_after[:n_new] != 0)),
+                    msg=(
+                        f"Leading slice not fully unflagged for `{special}` "
+                        f"with flags_init={flags_init}: {flags_after}"
+                    ),
+                )
+                self.assertTrue(
+                    bool(np.all(flags_after[n_new:] == 0)),
+                    msg=(
+                        f"Trailing slice not fully flagged for `{special}` "
+                        f"with flags_init={flags_init}: {flags_after}"
+                    ),
+                )
+
+    @pytest.mark.backend_mutation
+    def test_move_flagged_elements_to_end_zero_macroparticles(self) -> None:
+        """`move_flagged_elements_to_end` on empty arrays must return 0.
+
+        Collects results across all special modes before asserting so the
+        failure report names every backend that mishandles the empty case
+        rather than aborting on the first mismatch.
+        """
+        dtype = np.float64
+        offenders: list[str] = []
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            flags = backend.zeros(0, dtype=np.int32)
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            ids = backend.zeros(0, dtype=np.int32)
+            n_new = backend.specials.move_flagged_elements_to_end(
+                flag=0,
+                flags=flags,
+                dt=dt,
+                dE=dE,
+                ids=ids,
+            )
+            if int(n_new) != 0:
+                offenders.append(f"{special} returned n_new={int(n_new)}")
+        self.assertEqual(
+            offenders,
+            [],
+            msg=(
+                "move_flagged_elements_to_end must return 0 on empty arrays; "
+                f"these backends did not: {offenders}"
+            ),
+        )
+
+    @pytest.mark.backend_mutation
+    def test_sum_1d_array_zero_macroparticles(self) -> None:
+        """`sum_1d_array` of an empty array must equal 0."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            empty = backend.zeros(0, dtype=backend.float)
+            result = copy_to_cpu(backend.specials.sum_1d_array(empty))
+            np.testing.assert_allclose(
+                float(result),
+                0.0,
+                atol=0.0,
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_dot_product_1d_array_zero_macroparticles(self) -> None:
+        """`dot_product_1d_array` of two empty arrays must equal 0."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            empty_a = backend.zeros(0, dtype=backend.float)
+            empty_b = backend.zeros(0, dtype=backend.float)
+            result = copy_to_cpu(
+                backend.specials.dot_product_1d_array(empty_a, empty_b)
+            )
+            np.testing.assert_allclose(
+                float(result),
+                0.0,
+                atol=0.0,
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue(self) -> None:
+        """Cross-backend parity for `wake_from_pole_residue` voltage output.
+
+        Scoped to float64: numba's kernel signature is hard-coded to
+        ``complex128``, and the real caller in ``solvers.py`` always
+        allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
+        ``float64`` the only precision all backends consistently accept.
+        """
+        import numba as _nb
+
+        n_bins = 64
+        n_poles = 3
+        dt_val = 1e-9
+
+        # Reference inputs; each backend builds its own arrays from these.
+        profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
+        profile_dts_np = np.linspace(0, n_bins * dt_val, n_bins + 1)
+        # Stable poles (Re < 0); decay magnitude per bin exp(Re*dt) in (0, 1).
+        poles_np = np.array(
+            [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j],
+            dtype=np.complex128,
+        )
+        residues_np = np.array(
+            [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j],
+            dtype=np.complex128,
+        )
+        update_on_bin_np = np.array([0], dtype=np.int32)
+
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            profile = backend.array(profile_np, dtype=backend.float)
+            profile_dts = backend.array(profile_dts_np, dtype=backend.float)
+            poles = backend.array(poles_np, dtype=np.complex128)
+            residues = backend.array(residues_np, dtype=np.complex128)
+            cr_flags = backend.ones(n_poles, dtype=backend.float)
+            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            voltage = backend.zeros(n_bins, dtype=backend.float)
+            voltage_threaded = backend.zeros(
+                (_nb.get_num_threads(), n_bins), dtype=backend.float
+            )
+            update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
+
+            backend.specials.wake_from_pole_residue(
+                profile=profile,
+                profile_dts=profile_dts,
+                poles=poles,
+                residues=residues,
+                is_counterrotating_beam=False,
+                counterrotating_pole_signs=cr_flags,
+                states=states,
+                voltage=voltage,
+                voltage_threaded=voltage_threaded,
+                update_on_bin=update_on_bin,
+                factor=backend.float(1.0),
+            )
+
+            result = np.asarray(copy_to_cpu(voltage))
+
+            if i == 0:
+                result_reference = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_reference,
+                    rtol=1e-10,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+            result2 = np.asarray(copy_to_cpu(states))
+
+            if i == 0:
+                result2_reference = result2
+            else:
+                np.testing.assert_allclose(
+                    result2,
+                    result2_reference,
+                    rtol=1e-10,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_charge_counterrotation(self) -> None:
+        """Cross-backend parity for `wake_from_pole_residue` voltage output.
+
+        Scoped to float64: numba's kernel signature is hard-coded to
+        ``complex128``, and the real caller in ``solvers.py`` always
+        allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
+        ``float64`` the only precision all backends consistently accept.
+        """
+        import numba as _nb
+
+        for charge in (-1, 1):
+            for is_counterrotating_beam in (False, True):
+                for cr_flags_sign in (-1, 1):
+                    n_bins = 64
+                    n_poles = 3
+                    dt_val = 1e-9
+
+                    # Reference inputs; each backend builds its own arrays from these.
+                    profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
+                    profile_dts_np = np.linspace(
+                        0, n_bins * dt_val, n_bins + 1
+                    )
+                    # Stable poles (Re < 0); decay magnitude per bin exp(Re*dt) in (0, 1).
+                    poles_np = np.array(
+                        [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j],
+                        dtype=np.complex128,
+                    )
+                    residues_np = np.array(
+                        [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j],
+                        dtype=np.complex128,
+                    )
+                    update_on_bin_np = np.array([0], dtype=np.int32)
+
+                    dtype = np.float64
+                    for i, special in enumerate(self.special_modes):
+                        try:
+                            self._setUp(dtype=dtype, special_mode=special)
+                        except (FileNotFoundError, OSError):
+                            print(
+                                f"Could not perform `{special}` test for {dtype}"
+                            )
+                            continue
+
+                        profile = backend.array(
+                            profile_np, dtype=backend.float
+                        )
+                        profile_dts = backend.array(
+                            profile_dts_np, dtype=backend.float
+                        )
+                        poles = backend.array(poles_np, dtype=np.complex128)
+                        residues = backend.array(
+                            residues_np, dtype=np.complex128
+                        )
+                        cr_flags = backend.ones(n_poles, dtype=backend.float)
+                        cr_flags[-1] *= cr_flags_sign
+                        states = backend.zeros(
+                            n_poles + 1, dtype=np.complex128
+                        )
+                        voltage = backend.zeros(n_bins, dtype=backend.float)
+                        voltage_threaded = backend.zeros(
+                            (_nb.get_num_threads(), n_bins),
+                            dtype=backend.float,
+                        )
+                        update_on_bin = backend.array(
+                            update_on_bin_np, dtype=np.int32
+                        )
+
+                        backend.specials.wake_from_pole_residue(
+                            profile=profile,
+                            profile_dts=profile_dts,
+                            poles=poles,
+                            residues=residues,
+                            is_counterrotating_beam=is_counterrotating_beam,
+                            counterrotating_pole_signs=cr_flags,
+                            states=states,
+                            voltage=voltage,
+                            voltage_threaded=voltage_threaded,
+                            update_on_bin=update_on_bin,
+                            factor=backend.float(charge * 1.0),
+                        )
+
+                        result = np.asarray(copy_to_cpu(voltage))
+
+                        if i == 0:
+                            result_reference = result
+                        else:
+                            np.testing.assert_allclose(
+                                result,
+                                result_reference,
+                                rtol=1e-10,
+                                err_msg=f"Failed test `{special}` with {dtype}",
+                            )
+                        result2 = np.asarray(copy_to_cpu(states))
+
+                        if i == 0:
+                            result2_reference = result2
+                        else:
+                            np.testing.assert_allclose(
+                                result2,
+                                result2_reference,
+                                rtol=1e-10,
+                                err_msg=f"Failed test `{special}` with {dtype}",
+                            )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_cr_flip_invariance(self) -> None:
+        """Voltage is invariant under ``cr_pole_flip`` sign flips.
+
+        For a flipped pole the internal state picks up an overall ``-1``
+        by induction, but the output voltage multiplies the state by that
+        same ``cr_flip`` — the two sign flips cancel in ``Re(res * state)``.
+        Starting from zero state, the per-backend voltage must therefore
+        be identical with and without flipped poles.
+        """
+        import numba as _nb
+
+        n_bins = 64
+        n_poles = 3
+        dt_val = 1e-9
+
+        profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
+        profile_dts_np = np.linspace(0, n_bins * dt_val, n_bins + 1)
+        poles_np = np.array(
+            [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j],
+            dtype=np.complex128,
+        )
+        residues_np = np.array(
+            [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j],
+            dtype=np.complex128,
+        )
+        update_on_bin_np = np.array([0], dtype=np.int32)
+        flipped_signs_np = np.array([1.0, -1.0, 1.0])
+
+        def _run(flag: bool, flags_np: np.ndarray) -> np.ndarray:
+            profile = backend.array(profile_np, dtype=backend.float)
+            profile_dts = backend.array(profile_dts_np, dtype=backend.float)
+            poles = backend.array(poles_np, dtype=np.complex128)
+            residues = backend.array(residues_np, dtype=np.complex128)
+            cr_flags = backend.array(flags_np, dtype=backend.float)
+            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            voltage = backend.zeros(n_bins, dtype=backend.float)
+            voltage_threaded = backend.zeros(
+                (_nb.get_num_threads(), n_bins), dtype=backend.float
+            )
+            update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
+
+            # Positional args: see note in `test_wake_from_pole_residue`.
+            backend.specials.wake_from_pole_residue(
+                profile,
+                profile_dts,
+                poles,
+                residues,
+                flag,
+                cr_flags,
+                update_on_bin,
+                backend.float(1.0),
+                states,
+                voltage,
+                voltage_threaded,
+            )
+            return np.asarray(copy_to_cpu(voltage)).copy()
+
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            voltage_baseline = _run(flag=False, flags_np=np.ones(n_poles))
+            voltage_flipped = _run(flag=True, flags_np=flipped_signs_np)
+
+            np.testing.assert_allclose(
+                voltage_flipped,
+                voltage_baseline,
+                rtol=1e-10,
+                err_msg=(
+                    "cr_pole_flip must leave voltage invariant "
+                    f"(`{special}` with {dtype})"
+                ),
+            )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_multiple_dt_updates(self) -> None:
+        """Cross-backend parity with several ``update_on_bin`` entries.
+
+        Exercises the dt-update branches that a single-bucket profile
+        (``update_on_bin = [0]``) never reaches: the dt jump at a non-zero
+        bin, and advancing ``i_update`` onto a further update bin. The
+        profile is two concatenated sub-profiles with a time gap between
+        them, so the jump at the boundary is physically meaningful. Scoped
+        to float64 for the same reason as `test_wake_from_pole_residue`.
+        """
+        import numba as _nb
+
+        n_bins = 64
+        n_poles = 3
+        dt_val = 1e-9
+        boundary = n_bins // 2
+
+        profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
+        # Second sub-profile (bins >= `boundary`) is shifted later in time,
+        # creating a discontinuity that the ``bin_i != 0`` dt-jump branch
+        # must absorb.
+        profile_dts_np = np.linspace(0, n_bins * dt_val, n_bins + 1)
+        profile_dts_np[boundary:] += 10 * dt_val
+        poles_np = np.array(
+            [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j],
+            dtype=np.complex128,
+        )
+        residues_np = np.array(
+            [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j],
+            dtype=np.complex128,
+        )
+        # `[0, boundary]`: the update at bin 0 advances ``i_update`` to the
+        # second entry (covers ``i_update < len(update_on_bin)``); the
+        # update at `boundary` then takes the ``bin_i != 0`` jump branch.
+        update_on_bin_np = np.array([0, boundary], dtype=np.int32)
+
+        result_reference = None
+        states_reference = None
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            profile = backend.array(profile_np, dtype=backend.float)
+            profile_dts = backend.array(profile_dts_np, dtype=backend.float)
+            poles = backend.array(poles_np, dtype=np.complex128)
+            residues = backend.array(residues_np, dtype=np.complex128)
+            cr_flags = backend.ones(n_poles, dtype=backend.float)
+            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            voltage = backend.zeros(n_bins, dtype=backend.float)
+            voltage_threaded = backend.zeros(
+                (_nb.get_num_threads(), n_bins), dtype=backend.float
+            )
+            update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
+
+            backend.specials.wake_from_pole_residue(
+                profile=profile,
+                profile_dts=profile_dts,
+                poles=poles,
+                residues=residues,
+                is_counterrotating_beam=False,
+                counterrotating_pole_signs=cr_flags,
+                update_on_bin=update_on_bin,
+                factor=backend.float(1.0),
+                states=states,
+                voltage=voltage,
+                voltage_threaded=voltage_threaded,
+            )
+
+            result = np.asarray(copy_to_cpu(voltage))
+            states_result = np.asarray(copy_to_cpu(states))
+
+            if result_reference is None:
+                result_reference = result
+                states_reference = states_result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_reference,
+                    rtol=1e-10,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+                np.testing.assert_allclose(
+                    states_result,
+                    states_reference,
+                    rtol=1e-10,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
 
     @multi_backend_testcase
     @pytest.mark.backend_mutation
@@ -1729,13 +2469,6 @@ class TestSpecials(unittest.TestCase):
 
     def test_import(self):
         pass
-
-
-class TestNumbaCompilation(unittest.TestCase):
-    @pytest.mark.backend_mutation
-    def test_raising_of_error(self) -> None:
-        with self.assertRaises(TypeError):
-            recompile_numba_backend(floattype=np.float16)
 
 
 if __name__ == "__main__":

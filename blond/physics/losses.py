@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -104,13 +104,13 @@ class BoxLosses(LossesBaseClass):
 
     Attributes
     ----------
-    t_min : float
+    t_min
         Macro-particles with ``dt < t_min`` will be labeled/removed, in [s].
-    t_max : float
+    t_max
         Macro-particles with ``dt > t_max`` will be labeled/removed, in [s].
-    e_min : float
+    e_min
         Macro-particles with ``dE < t_min`` will be labeled/removed, in [s].
-    e_max : float
+    e_max
         Macro-particles with ``dE > t_min`` will be labeled/removed, in [s].
     """
 

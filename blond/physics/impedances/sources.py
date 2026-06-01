@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -29,6 +29,8 @@ from os import PathLike
 from typing import TYPE_CHECKING
 
 import numpy as np
+import skrf as rf
+from matplotlib import pyplot as plt
 
 from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
@@ -46,6 +48,65 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+
+
+def fit_poles(
+    freqs: NumpyArray,
+    Z: NumpyArray,
+    n_pole: int,
+    max_iterations: int | None = None,
+    plot_result: bool = False,
+):
+    """
+    Use vector fitting to get a `VectorFittedModel`.
+
+    Parameters
+    ----------
+    freqs
+        Frequency array to be fitted, in [Hz].
+    Z
+        Impedance array to be fitted, in [Ω].
+    n_pole
+        Number of poles to fit.
+    max_iterations
+        Maximum number of iterations.
+    plot_result
+        Whether to plot the result (needs ``plt.show()``).
+
+    Returns
+    -------
+    poles
+        Complex poles of an equivalent circuit model.
+    residues
+        Complex residues of an equivalent circuit model.
+    rms_error
+        Root mean square error of the fit.
+    proportional_coeff
+        Proportional coefficient.
+    constant_coeff
+        Constant coefficient.
+    """
+    freq = rf.Frequency.from_f(freqs, unit="Hz")
+    ntwk = rf.Network(frequency=freq, s=Z.reshape(-1, 1, 1))
+
+    vf = rf.VectorFitting(ntwk)
+    if max_iterations is not None:
+        vf.max_iterations = max_iterations
+    vf.vector_fit(
+        n_poles_real=0,
+        n_poles_cmplx=n_pole,
+        fit_constant=True,
+        fit_proportional=True,
+    )
+
+    poles = vf.poles
+    residues = vf.residues
+    if plot_result:  # pragma: no cover
+        vf.plot_s_db()  # overlay fit vs original
+        plt.show()
+    rms_error = vf.get_rms_error()
+
+    return poles, residues, rms_error, vf.proportional_coeff, vf.constant_coeff
 
 
 def get_hash(array1d: NumpyArray | CupyArray) -> int:
@@ -141,7 +202,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         ----------
         freq_x
             Frequency axis, in [Hz].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -221,7 +282,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -258,13 +319,13 @@ class Resonators(
 
     Parameters
     ----------
-    shunt_impedances : array-like or float
+    shunt_impedances
         Shunt impedances of the resonant circuits, in [:math:`\omega`].
-    center_frequencies : array-like or float
+    center_frequencies
         Center frequencies of the resonances, in [Hz].
-    quality_factors : array-like or float
+    quality_factors
         Quality factors (Q) of the resonances, dimensionless.
-    shunt_impedances_counter_rotating : array-like or float or None
+    shunt_impedances_counter_rotating
         Shunt impedances for counter-rotating mode.
 
     Notes
@@ -388,7 +449,7 @@ class Resonators(
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -429,7 +490,7 @@ class Resonators(
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -709,6 +770,48 @@ class Resonators(
         self._cache_impedance_hash = hash_
         self._cache_impedance = impedance
         return impedance
+
+    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
+        """
+        Derive the poles and residues as in vector-fitting.
+
+        Returns
+        -------
+        poles
+            The complex poles.
+        residues
+            The complex residues.
+        counterrotation_signs
+            Signs of the poles to deal with higher order oscillators
+            in counterrotation. Default is ``1``.
+        """
+        Q = self._quality_factors
+        omega = self._omega
+        R_s = self._shunt_impedances
+
+        # Impedances and Wakes in High Energy Particle Accelerators
+        # Bruno W Zotter and Semyon Kheifets
+        # https://www.worldscientific.com/doi/epdf/10.1142/3068
+        # Page 84 visible (Page 104 with PDF tool)
+        Qbar = Q * np.sqrt(1 - 1 / 4 / Q**2)
+        omega1 = omega / Q * (1j / 2 + Qbar)
+        # omega2 = omega / Q * (1j / 2 - Qbar)
+        residues1 = R_s * omega1 / (2 * Qbar)
+        # residues2 = - R_s * omega2 / (2 * Qbar)
+        # because ``j * (1 + 2j) = 1j - 2``
+        poles1 = 1j * omega1
+        # poles2 = 1j * np.real(omega2) - np.imag(omega2)
+        if self._shunt_impedances_counter_rotating is None:
+            cr_signs = np.ones(len(poles1), dtype=backend.float)
+        else:
+            # np.sign(0) == 0, which the backends treat as +1; require a
+            # well-defined sign so the counter-rotating flip is unambiguous.
+            assert np.all(self._shunt_impedances_counter_rotating != 0), (
+                "Counter-rotating shunt impedances must be non-zero to have a "
+                "well-defined sign."
+            )
+            cr_signs = np.sign(self._shunt_impedances_counter_rotating)
+        return poles1, residues1, cr_signs
 
 
 class ImpedanceTable(WakeFieldSource):

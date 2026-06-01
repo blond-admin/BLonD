@@ -4,6 +4,7 @@ results
 logs
 /docs/_build/
 /docs/build/
+/docs/examples/
 /docs/modules/*.rst
 /__EXAMPLES/*output_files/
 /__BENCHMARKS/debug.log

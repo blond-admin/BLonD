@@ -21,7 +21,7 @@
 BLonD also features **parallel backends** for efficient execution on both **CPUs** and **GPUs**, enabling scalable and high-performance simulations.
 
 
-### Dependencies
+## Dependencies
 
 * [Python 3.10+](https://www.python.org/downloads/)
 * [Git](https://git-scm.com/)
@@ -49,7 +49,7 @@ pip install blond[gpu_cuda13]
 
 ### Configuration
 Optional backends can be compiled after installation using the commands `blond-compile-cpp --parallel` or `blond-compile-cuda`
-for improved performance. The backend can be selected in Python using ```backend.set_specials(...)```.
+for improved performance. The backend can be selected in Python using ```setup_backend(...)```.
 
 NB: check your cuda version with `nvidia-smi`, to ensure you select the correct optional dependency.
 
@@ -59,7 +59,9 @@ See full documentation [here](https://blond-code.docs.cern.ch/).
 
 
 ## Usage
+A collection of examples can be found in the folder [blond/examples](blond/examples).
 
+Below, a basic example for a beam in LHC at flat-bottom is given.
 ```python
 import matplotlib.pyplot as plt
 
@@ -72,10 +74,11 @@ from blond import (
     DriftSimple,
     Beam,
     BiGaussian,
-    backend,
+    setup_backend,
+    momentum_compaction_factor,
 )
 
-backend.set_specials("cpp")  # set any backend you want
+setup_backend("auto")  # set any backend you want
 
 ring = Ring(26658.883)  # general definition of ring
 rf_station_1 = SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0)
@@ -112,7 +115,7 @@ dts += 0.05e-9
 sim.run_simulation(
     beams=(beam1,),
 
-    n_turns=1e4,
+    n_turns=10_000,
 )
 plt.figure(0)
 plt.subplot(2, 1, 2)
@@ -138,8 +141,8 @@ See the [Developer Guide](CONTRIBUTING.md) if you want to contribute.
 
 ## Copyright Notice
 
-*Copyright 2019 CERN. This software is distributed under the terms of the
+*Copyright 2019-2026 CERN. This software is distributed under the terms of the
 GNU General Public Licence version 3 (GPL Version 3), copied verbatim in
-the file LICENCE.txt. In applying this licence, CERN does not waive the
+the file LICENSE.txt. In applying this licence, CERN does not waive the
 privileges and immunities granted to it by virtue of its status as an
 Intergovernmental Organization or submit itself to any jurisdiction.*

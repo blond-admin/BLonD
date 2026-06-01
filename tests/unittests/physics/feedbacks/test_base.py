@@ -10,6 +10,7 @@ from blond import (
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
+    proton,
 )
 from blond.core.beam.base import BeamBaseClass
 from blond.physics.feedbacks.base import GlobalFeedback, LocalFeedback
@@ -82,7 +83,9 @@ class TestGlobalFeedbackBase(unittest.TestCase):
             phi_rf=np.array([1]),
         )
         ring.add_element(mhc)
-        sim = Simulation(ring=ring, magnetic_cycle=Mock(ConstantMagneticCycle))
+        sim = Simulation(
+            ring=ring, magnetic_cycle=ConstantMagneticCycle(proton, 1e12)
+        )
 
         fdbk.on_init_simulation(simulation=sim)
         assert mhc in fdbk.cavities

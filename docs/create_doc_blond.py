@@ -21,6 +21,7 @@ API Documentation
    blond.performance_blond3
    blond.physics
    blond.specifics
+   blond.utilities
 """
 
 

@@ -37,7 +37,7 @@ f_res = resonator_data[:, 0] * 10**9
 Q_factor = resonator_data[:, 1]
 
 
-class MyTestCase(unittest.TestCase):
+class TestSparseProfileIntegration(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_compare_both_profiles(self):
         backend.change_backend(Numpy64Bit)
@@ -49,11 +49,16 @@ class MyTestCase(unittest.TestCase):
         if DEV_DRAW:
             plt.figure("compare")
             ax1 = plt.subplot(3, 1, 1)
+            plt.xlim(4e-8, 6e-8)
             plt.plot(
                 profile._continuous_memory_hist_x,
                 profile._continuous_memory_hist_y,
                 "o",
             )
+
+        if DEV_DRAW:
+            plt.figure("compare")
+            ax1 = plt.subplot(3, 1, 1)
             plt.plot(profile_wanted._hist_x, profile_wanted._hist_y, "x")
             plt.xlim(4e-8, 6e-8)
             plt.axvline(4.9940e-8)

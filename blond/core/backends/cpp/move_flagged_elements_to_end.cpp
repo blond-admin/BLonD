@@ -1,6 +1,6 @@
 // Copyright CERN. This software is distributed under the
 // terms of the GNU General Public Licence version 3 (GPL Version 3),
-// copied verbatim in the file LICENCE.txt.
+// copied verbatim in the file LICENSE.txt.
 // In applying this licence, CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization or
 // submit itself to any jurisdiction.
@@ -21,6 +21,11 @@ extern "C" int move_flagged_elements_to_end(
     int* __restrict__ ids,
     const int n_macroparticles
 ) {
+
+    // Empty input: nothing to partition, no flagged elements.
+    if (n_macroparticles == 0) {
+        return 0;
+    }
 
     // Set j to the end of the array.
     // Later every entry matching the flag is put to the end of the array
