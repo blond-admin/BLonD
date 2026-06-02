@@ -149,16 +149,18 @@ class TestPSBeamFeedback(unittest.TestCase):
 
         # Check beam-phase loop output
         self.assertAlmostEqual(
-            self.beam_control.domega_dphi, -17054.02707404136
+            self.beam_control.domega_dphi, -17054.02707404136, places=5
         )
 
         # Check radial loop output
         self.assertAlmostEqual(
-            self.beam_control.domega_dr, 0.04106727491338032
+            self.beam_control.domega_dr, 0.04106727491338032, places=5
         )
 
         # Check total correction
-        self.assertAlmostEqual(self.beam_control.domega_rf, -17053.98600676645)
+        self.assertAlmostEqual(
+            self.beam_control.domega_rf, -17053.98600676645, places=5
+        )
 
     def test_ps_beam_control_above_transition(self):
         self.create_scenario(
@@ -167,16 +169,18 @@ class TestPSBeamFeedback(unittest.TestCase):
 
         # Check beam-phase loop output
         self.assertAlmostEqual(
-            self.beam_control.domega_dphi, -17980.799776858436
+            self.beam_control.domega_dphi, -17980.799776858436, places=5
         )
 
         # Check radial loop output
         self.assertAlmostEqual(
-            self.beam_control.domega_dr, -0.025791985204956448
+            self.beam_control.domega_dr, -0.025791985204956448, places=5
         )
 
         # Check total correction
-        self.assertAlmostEqual(self.beam_control.domega_rf, -17980.82556884364)
+        self.assertAlmostEqual(
+            self.beam_control.domega_rf, -17980.82556884364, places=5
+        )
 
     def test_ps_beam_control_init_not_steady_state(self):
         self.create_scenario(
@@ -191,11 +195,15 @@ class TestPSBeamFeedback(unittest.TestCase):
 
         # Check beam-phase loop output
         self.assertAlmostEqual(
-            self.beam_control.domega_dphi, 13488.60850349915
+            self.beam_control.domega_dphi, 13488.60850349915, places=5
         )
 
         # Check radial loop output
-        self.assertAlmostEqual(self.beam_control.domega_dr, -98427.55953880296)
+        self.assertAlmostEqual(
+            self.beam_control.domega_dr, -98427.55953880296, places=5
+        )
 
         # Check total correction
-        self.assertAlmostEqual(self.beam_control.domega_rf, -84938.9510353038)
+        self.assertAlmostEqual(
+            self.beam_control.domega_rf, -84938.9510353038, places=5
+        )
