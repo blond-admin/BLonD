@@ -164,12 +164,16 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Change of reference energy [eV].
         """
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value
-            if self._turn_counter is not None
-            else None,  # should use 0 only with ConstantMagneticCycle
-            section_i=self.section_index
-            if not is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),  # should use 0 only with ConstantMagneticCycle
+            section_i=(
+                self.section_index
+                if not is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=reference.time,
             particle_type=reference.particle_type,
         )
@@ -755,12 +759,16 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value
-            if self._turn_counter is not None
-            else None,  # should use 0 only with ConstantMagneticCycle
-            section_i=self.section_index
-            if not beam.is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),  # should use 0 only with ConstantMagneticCycle
+            section_i=(
+                self.section_index
+                if not beam.is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=float(beam.reference.time),
             particle_type=beam.particle_type,
         )
@@ -915,12 +923,16 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         self._update_reference_based_attributes(reference=reference)
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value
-            if self._turn_counter is not None
-            else None,  # should use 0 only with ConstantMagneticCycle
-            section_i=self.section_index
-            if not is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),  # should use 0 only with ConstantMagneticCycle
+            section_i=(
+                self.section_index
+                if not is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=reference.time,
             particle_type=reference.particle_type,
         )
