@@ -22,6 +22,7 @@ Helga Timko
 from blond import (
     Beam,
     BiGaussian,
+    BoxLosses,
     ConstantMagneticCycle,
     DriftSimple,
     DynamicProfileConstNBins,

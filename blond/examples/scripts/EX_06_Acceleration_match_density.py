@@ -186,9 +186,9 @@ def main():
             plt.draw()
             plt.pause(0.1)
 
-        plt.show()
     return beam1
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()

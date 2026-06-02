@@ -185,8 +185,8 @@ def main():
             profile.hist_x, VindGauss, label="analytical_gaussian_resonator"
         )
     plt.legend()
-    # plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()

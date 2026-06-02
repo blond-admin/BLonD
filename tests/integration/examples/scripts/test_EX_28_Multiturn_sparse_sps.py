@@ -9,16 +9,16 @@ from blond.core.backends.backend import (
 )
 
 
-class Test_multiturn_sparse_sps(unittest.TestCase):
+class Test_EX_28_Multiturn_sparse_sps(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
         from blond.examples.scripts import (
-            multiturn_sparse_sps,  # NOQA will run the
+            EX_28_Multiturn_sparse_sps,  # NOQA will run the
         )
 
-        multiturn_sparse_sps.main()
+        EX_28_Multiturn_sparse_sps.main()
 
         # full script. just checking if it crashes
 
@@ -32,10 +32,10 @@ class Test_multiturn_sparse_sps(unittest.TestCase):
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
         from blond.examples.scripts import (
-            multiturn_sparse_sps,  # NOQA will run the
+            EX_28_Multiturn_sparse_sps,  # NOQA will run the
         )
 
-        multiturn_sparse_sps.main()
+        EX_28_Multiturn_sparse_sps.main()
         backend.zeros(100)
 
         # full script. just checking if it crashes

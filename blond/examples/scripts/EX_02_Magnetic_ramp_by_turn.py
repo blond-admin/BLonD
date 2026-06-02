@@ -153,8 +153,7 @@ def main():
             plt.draw()
             plt.pause(0.1)
 
-        plt.show()
-
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()
