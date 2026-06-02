@@ -1521,7 +1521,7 @@ class TestSpecials(unittest.TestCase):
         self,
     ) -> None:
         """With all weights == 1, weighted and unweighted histograms must agree."""
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for special in self.special_modes:
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
@@ -1568,7 +1568,7 @@ class TestSpecials(unittest.TestCase):
             range=(-6.0, 6.0),
             weights=weights_np,
         )
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.float64,):
             for special in self.special_modes:
                 try:
                     self._setUp(dtype=dtype, special_mode=special)

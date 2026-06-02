@@ -132,6 +132,21 @@ class BeamBaseClassTester(BeamBaseClass):
     def rms_emittance(self) -> int:
         pass
 
+    def dE_mean(self):
+        pass
+
+    def dE_std(self):
+        pass
+
+    def dt_mean(self):
+        pass
+
+    def dt_std(self):
+        pass
+
+    def is_set_up(self):
+        pass
+
 
 class TestSynchrotronRadiationBaseClass(unittest.TestCase):
     def setUp(self) -> None:
