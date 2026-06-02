@@ -480,6 +480,44 @@ class TestRFStationBaseClass(unittest.TestCase):
         shc.track(beam=self.beam)
         wf.track.assert_called_once()
 
+    def test_track_reference_without_magnetic_cycle_returns_zero(self):
+        # A headless station with ``magnetic_cycle=None`` (e.g. when an
+        # external code such as xsuite owns the reference) leaves the
+        # reference untouched and applies no acceleration kick.
+        shc = SingleHarmonicRFStation.headless(
+            section_index=0,
+            harmonic=1,
+            voltage=1,
+            phi_rf=1,
+            circumference=456,
+            beam_reference_beta=self.beam.reference.beta,
+            magnetic_cycle=None,
+        )
+        original_total_energy = self.beam.reference.total_energy
+        reference_energy_change = shc.track_reference(
+            reference=self.beam.reference
+        )
+        self.assertEqual(reference_energy_change, 0.0)
+        self.assertEqual(
+            self.beam.reference.total_energy, original_total_energy
+        )
+
+    def test_calc_phi_s_main_harmonic_without_magnetic_cycle_raises(self):
+        # The synchronous phase requires an energy program; a headless station
+        # created without one (``magnetic_cycle=None``) must raise rather than
+        # silently return a meaningless value.
+        shc = SingleHarmonicRFStation.headless(
+            section_index=0,
+            harmonic=1,
+            voltage=1,
+            phi_rf=1,
+            circumference=456,
+            beam_reference_beta=self.beam.reference.beta,
+            magnetic_cycle=None,
+        )
+        with self.assertRaisesRegex(ValueError, "magnetic_cycle"):
+            shc.calc_phi_s_main_harmonic(beam=self.beam)
+
     def test_tune_main_harmonic(self):
         mhc = MultiHarmonicRFStation(
             section_index=1,
