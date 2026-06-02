@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy import dtype, ndarray
+from numpy import ndarray
 
 from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
