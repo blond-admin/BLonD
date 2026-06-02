@@ -22,7 +22,12 @@ from blond import (
     StaticProfile,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 logging.basicConfig(level=logging.INFO)
 

@@ -22,9 +22,14 @@ from blond import (
     SingleHarmonicRFStation,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.core.beam.beams import EmptyBeam
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 logging.basicConfig(level=logging.INFO)
 

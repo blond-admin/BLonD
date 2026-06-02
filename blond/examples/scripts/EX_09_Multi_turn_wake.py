@@ -49,11 +49,16 @@ from blond import (
     WakeField,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.handle_results.observables import WakeFieldObservation
 from blond.physics.impedances.solvers import (
     ContinuousMultiTurnTimeDomainSolver,
 )
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 N_TURNS_MTW = 5  # turns included in the multi-turn window
 
