@@ -222,23 +222,6 @@ class Schedulable:
         for name in names:
             self.intended_for_scheduling.add(str(name))
 
-    def _get_null_turn_counter(self) -> DynamicParameter:
-        """
-        Get a turn counter that is at turn 0.
-
-        Returns
-        -------
-        turn_counter
-            A turn counter that is set up for turn 0.
-        """
-        if self.schedule_active:
-            raise ValueError(
-                f"Your {self.__class__.__name__} has schedules activated. "
-                f"Please supply a `turn_counter` to handle scheduling."
-            )
-        turn_counter = DynamicParameter(value_init=0)
-        return turn_counter
-
     def schedule(
         self,
         attribute: str,

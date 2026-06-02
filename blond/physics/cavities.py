@@ -93,6 +93,8 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
+        self._ring: Ring | None = None
+        self._magnetic_cycle: MagneticCycleBase | None = None
         self._turn_counter: DynamicParameter | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
@@ -115,7 +117,12 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         )
 
     def configure(
-        self, *, turn_counter, magnetic_cycle, ring, **kwargs
+        self,
+        *,
+        turn_counter: DynamicParameter | None,
+        magnetic_cycle: MagneticCycleBase,
+        ring: Ring,
+        **kwargs,
     ) -> None:
         """
         Store the runtime references needed during tracking.
@@ -163,10 +170,16 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             return 0.0
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
-            section_i=self.section_index
-            if not is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),  # should use 0 only with ConstantMagneticCycle
+            section_i=(
+                self.section_index
+                if not is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=reference.time,
             particle_type=reference.particle_type,
         )
@@ -185,6 +198,9 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         super()._track(beam=beam)
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
                 turn_i=self._turn_counter.value,
                 reference_time=float(beam.reference.time),
@@ -755,10 +771,16 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 "(`magnetic_cycle=None`)."
             )
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
-            section_i=self.section_index
-            if not beam.is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),  # should use 0 only with ConstantMagneticCycle
+            section_i=(
+                self.section_index
+                if not beam.is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=float(beam.reference.time),
             particle_type=beam.particle_type,
         )
@@ -920,10 +942,16 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             return 0.0
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
-            section_i=self.section_index
-            if not is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),  # should use 0 only with ConstantMagneticCycle
+            section_i=(
+                self.section_index
+                if not is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=reference.time,
             particle_type=reference.particle_type,
         )
@@ -1371,9 +1399,6 @@ class SingleHarmonicRFStation(
             delayed_kick=delayed_kick,
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
-
-        if turn_counter is None:
-            turn_counter = single_harmonic_rf_station._get_null_turn_counter()
 
         single_harmonic_rf_station.configure(
             turn_counter=turn_counter,
@@ -1894,9 +1919,6 @@ class MultiHarmonicRFStation(
             delayed_kick=delayed_kick,
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
-
-        if turn_counter is None:
-            turn_counter = multi_harmonic_rf_station._get_null_turn_counter()
 
         multi_harmonic_rf_station.configure(
             turn_counter=turn_counter,
