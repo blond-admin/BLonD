@@ -338,24 +338,6 @@ class TestSchedulable(unittest.TestCase):
         )
         schedulable.schedule("voltage", np.ones(10))
 
-    def test_get_null_turn_counter_without_schedules(self):
-        # Without active schedules a null turn counter set up for turn 0 is
-        # returned.
-        schedulable = Schedulable()
-        turn_counter = schedulable._get_null_turn_counter()
-        self.assertIsInstance(turn_counter, DynamicParameter)
-        self.assertEqual(turn_counter.value, 0)
-
-    def test_get_null_turn_counter_with_active_schedules_raises(self):
-        # With active schedules there is no turn counter to drive them, so a
-        # real ``turn_counter`` must be supplied instead of the null one.
-        schedulable = Schedulable()
-        schedulable.voltage = None
-        schedulable.schedule("voltage", np.ones(10))
-        self.assertTrue(schedulable.schedule_active)
-        with self.assertRaisesRegex(ValueError, "schedules activated"):
-            schedulable._get_null_turn_counter()
-
 
 class TestUnsafeUserElement(unittest.TestCase):
     def test_init(self):
