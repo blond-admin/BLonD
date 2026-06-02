@@ -70,17 +70,6 @@ class BeamObservationInRingElement(
 
         self._beam_id_filter = None if beam is None else id(beam)
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        pass
-
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -309,17 +298,6 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             shape,
         )
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager.
-        """
-        pass
-
     def _track(
         self,
         beam: BeamBaseClass,
@@ -504,17 +482,6 @@ class InducedVoltageObservationCR(
             f"{self.common_filepath}_beam_reference_time",
             n_entries,
         )
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager.
-        """
-        pass
 
     @property  # as readonly attributes
     def induced_voltage(self):

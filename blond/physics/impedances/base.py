@@ -23,8 +23,6 @@ from blond.experimental.physics.kick_pooling import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
-
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
@@ -302,29 +300,6 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         -------
         induced_voltage
             Induced voltage, in [V].
-        """
-        pass
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
         """
         pass
 

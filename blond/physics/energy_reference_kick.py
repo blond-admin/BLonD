@@ -92,29 +92,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
             )
         self._ring = simulation.ring
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs,
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation beam object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
-
     def track_reference(
         self, reference: ReferenceCoordinates, **kwargs
     ) -> float:

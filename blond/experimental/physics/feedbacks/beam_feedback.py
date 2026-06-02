@@ -54,15 +54,6 @@ class BeamFeedbackBase(GlobalFeedback):
 
         self.phi_beam: float = 0.0
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs,
-    ) -> None:
-        pass
-
     @abstractmethod
     def get_beam_attribute(self, beam: BeamBaseClass):
         # could be mean energy, mean phase or whatever
