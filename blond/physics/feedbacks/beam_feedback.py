@@ -186,8 +186,9 @@ class BeamFeedbackBase(GlobalFeedback):
                 self.profile.hist_step,
             )
 
+        # TODO: Figure out how to handle the +pi above and below transition
         # Project beam phase to (pi/2,3pi/2) range
-        self.phi_beam = np.arctan(coeff) + np.pi
+        self.phi_beam = np.arctan(coeff)  # + np.pi
 
     def phase_difference(
         self, beam: BeamBaseClass, RFnoise=None, noiseFB=None
@@ -211,9 +212,12 @@ class BeamFeedbackBase(GlobalFeedback):
         """
         # Correct for design stable phase
         counter = self.cavities[0]._turn_i.value
-        self.dphi = self.phi_beam - self.cavities[0].calc_phi_s_main_harmonic(
-            beam
-        )
+        # TODO: a priori the beam control does not know about the synchronous phase?
+        self.dphi = (
+            self.phi_beam
+        )  # - self.cavities[0].calc_phi_s_main_harmonic(
+        #    beam
+        # )
 
         # TODO: Generalize to multiple harmonics and multiple rf stations
         # Phase offset due to beam loading
@@ -262,9 +266,7 @@ class BeamFeedbackBase(GlobalFeedback):
         ring_radius = self.cavities[0]._ring.closed_orbit_length
 
         # Correct for design orbit
-        self.average_de = backend.specials.mean(
-            beam.read_partial_dE()[:: self.sample_de]
-        )
+        self.average_de = beam.read_partial_dE()[:: self.sample_de].mean()
 
         self.drho = (
             alpha
