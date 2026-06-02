@@ -164,7 +164,7 @@ class SymbolicSeparatrixHelper:
         )
         beam.reference.total_energy = total_energy
         kinetic_coeffs, potential = self._substitute_symbols(beam=beam)
-        ham = self._substitute_symbols2(beam=beam)
+        callable_hamiltonian = self._get_callable_hamiltonian(beam=beam)
         H_sep_per_dt = self._H_sep_per_dt(
             dt=np.array(
                 [float(dt.mean())]
@@ -183,7 +183,7 @@ class SymbolicSeparatrixHelper:
         # synchronous particle itself as outside below transition, making
         # ``BiGaussian`` reinsertion loop forever.
         kinetic_coeff = self._dE_squared_coefficient(kinetic_coeffs)
-        ham_values = ham(dt, dE)
+        ham_values = callable_hamiltonian(dt, dE)
         if kinetic_coeff < 0:
             mask = ham_values > H_sep_per_dt
         else:
@@ -426,7 +426,7 @@ class SymbolicSeparatrixHelper:
 
         return kinetic_coeffs, potential
 
-    def _substitute_symbols2(
+    def _get_callable_hamiltonian(
         self, beam: BeamBaseClass
     ) -> tuple[
         tuple[float, ...], Callable[[NumpyArray, NumpyArray], NumpyArray]
@@ -460,7 +460,7 @@ class SymbolicSeparatrixHelper:
         dt_sym, dE_sym = sympy.symbols("dt dE", real=True)
         ham_lambda = sympy.lambdify((dt_sym, dE_sym), ham, modules="numpy")
 
-        def potential(dt: NumpyArray, dE: NumpyArray) -> NumpyArray:
+        def ham_callable(dt: NumpyArray, dE: NumpyArray) -> NumpyArray:
             # ``sympy.lambdify`` collapses a constant ``U_expr`` (e.g.
             # ``voltage=0`` and no acceleration tilt) to a scalar-valued
             # callable. Broadcast so downstream code can rely on an
@@ -470,7 +470,7 @@ class SymbolicSeparatrixHelper:
                 np.shape(np.asarray(dt)),
             )
 
-        return potential
+        return ham_callable
 
     def _substitute_beam_reference(self, beam: BeamBaseClass) -> Expr:
         beta_sym, gamma_sym, E_sym, q_sym = sympy.symbols(

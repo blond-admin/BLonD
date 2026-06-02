@@ -52,8 +52,7 @@ def _get_dE_from_dt_core(
     # so the bracket already encodes the above/below-transition orientation (it
     # is positive above transition, negative below). Combined with the *signed*
     # ``eta0`` (negative below transition) and the *signed* charge in
-    # ``voltage`` the radicand stays non-negative for either charge sign --
-    # taking ``abs`` of ``eta0`` here would make it negative below transition.
+    # ``voltage`` the radicand stays non-negative for either charge sign
     voltage = particle_charge * voltage
     phi_b = omega_rf * dt_amplitude + phi_s
     dE_amplitude = np.sqrt(
@@ -63,7 +62,7 @@ def _get_dE_from_dt_core(
         * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
         / (np.pi * harmonic * eta0)
     )
-    return dE_amplitude
+    return abs(dE_amplitude)
 
 
 def _get_dE_from_dt(
