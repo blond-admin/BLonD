@@ -821,5 +821,50 @@ class TestGetStableFixedPoint(unittest.TestCase):
         self.assertTrue(np.isnan(helper.get_stable_fixed_point(beam=beam)))
 
 
+class TestIsInSeparatrix(TestGetStableFixedPoint):
+    """
+    Cover ``SymbolicSeparatrixHelper.is_in_separatrix``.
+
+    The ``is_in_separatrix`` membership test must agree with the
+    ``get_stable_fixed_point`` / ``get_separatrix`` geometry in *both*
+    transition regimes. Below transition the kinetic coefficient ``c_2`` is
+    negative: the stable fixed point is a local **maximum** of ``U`` and the
+    bounding UFPs are local **minima**, so a particle is inside the bucket
+    when ``H > H_sep`` -- the opposite of the above-transition ``H < H_sep``.
+    A sign-agnostic comparison reports the synchronous particle itself as
+    outside the bucket below transition, which makes ``BiGaussian``'s
+    reinsertion loop spin forever.
+    """
+
+    def _is_sfp_inside(self, transition_gamma: float) -> bool:
+        sim, beam, _ = self._build(
+            transition_gamma=transition_gamma, phi_rf=0.3, dp_per_turn=2e6
+        )
+        helper = SymbolicSeparatrixHelper.from_simulation(simulation=sim)
+        sfp = helper.get_stable_fixed_point(beam=beam)
+        self.assertTrue(np.isfinite(sfp))
+        # The synchronous particle sits at the SFP with dE = 0; both branches
+        # of ``get_separatrix`` must bracket it (a cross-check independent of
+        # ``is_in_separatrix``).
+        upper, lower = helper.get_separatrix(beam=beam, dt=np.array([sfp]))
+        self.assertTrue(
+            lower[0] < 0.0 < upper[0], "SFP not inside get_separatrix"
+        )
+        mask = helper.is_in_separatrix(
+            dt=np.array([sfp]),
+            dE=np.array([0.0]),
+            particle_type=beam.particle_type,
+            total_energy=beam.reference.total_energy,
+            intensity=beam.intensity,
+        )
+        return bool(mask[0])
+
+    def test_sfp_inside_above_transition(self):
+        self.assertTrue(self._is_sfp_inside(transition_gamma=18.0))
+
+    def test_sfp_inside_below_transition(self):
+        self.assertTrue(self._is_sfp_inside(transition_gamma=900.0))
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

@@ -172,7 +172,22 @@ class SymbolicSeparatrixHelper:
             kinetic_coeffs=kinetic_coeffs,
             potential=potential,
         )
-        mask = ham(dt, dE) < H_sep_per_dt
+        # Whether ``H`` is below or above the separatrix level inside the
+        # bucket depends on the sign of the kinetic coefficient ``c_2``
+        # (i.e. on the transition state), exactly as in ``get_separatrix`` /
+        # ``_H_sep_per_dt``. Above transition (``c_2 > 0``) the bounding UFPs
+        # are maxima of ``U`` and the interior satisfies ``H < H_sep``; below
+        # transition (``c_2 < 0``) the stable fixed point is a maximum of
+        # ``U`` while the UFPs are minima, so the interior satisfies
+        # ``H > H_sep``. A fixed ``<`` comparison would wrongly classify the
+        # synchronous particle itself as outside below transition, making
+        # ``BiGaussian`` reinsertion loop forever.
+        kinetic_coeff = self._dE_squared_coefficient(kinetic_coeffs)
+        ham_values = ham(dt, dE)
+        if kinetic_coeff < 0:
+            mask = ham_values > H_sep_per_dt
+        else:
+            mask = ham_values < H_sep_per_dt
         if single_bucket:
             bucket = self._find_canonical_bucket(
                 period_start=float(np.min(dt)),

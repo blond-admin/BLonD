@@ -49,7 +49,7 @@ from blond.utilities.separatrix.symbolic_separatrix import (
 # ``pytest -m "not integration"`` still excludes them.
 pytestmark = pytest.mark.integration
 
-_DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
+_DEV_DRAW = False
 
 
 class TestBiGaussianCenterOnStableFixedPoint(unittest.TestCase):

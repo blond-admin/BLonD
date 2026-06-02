@@ -273,23 +273,19 @@ class BiGaussian(MatchingRoutine):
             Simulation :class:`~blond.core.beam.beams.Beam` object.
         """
         from blond.core.backends.backend import backend
-        from blond.physics.drifts import DriftSimple
 
         super().prepare_beam(
             simulation=simulation,
             beam=beam,
         )
-        above_transition = not simulation.ring.is_below_transition(beam=beam)
-        harmonic, omega_rf, phi_rf, voltage = get_main_harmonic_attributes(
-            beam=beam,
+        sep_helper = SymbolicSeparatrixHelper.from_simulation(
             simulation=simulation,
         )
-
-        drifts: tuple[DriftSimple, ...] = (
-            simulation.ring.elements.get_elements(DriftSimple, recursive=False)
-        )
+        stable_fixed_point = sep_helper.get_stable_fixed_point(beam=beam)
 
         if self._sigma_dE is None:
+            # todo one could obtain this from `SymbolicSeparatrixHelper` too
+            #  but to be implemented..
             sigma_dE = _get_dE_from_dt(
                 beam=beam,
                 simulation=simulation,
@@ -299,33 +295,6 @@ class BiGaussian(MatchingRoutine):
             assert not backend.isnan(sigma_dE), "BUG, fix phi_s"
         else:
             sigma_dE = self._sigma_dE
-
-        # Absolute synchronous phase. The stable fixed point of the
-        # single-harmonic Hamiltonian sits at ``dt = (phi_s - phi_rf)/omega_rf``
-        # (see ``single_rf_sin_hamiltonian``: ``phi_b = omega_rf*dt + phi_rf``
-        # is stationary at ``phi_b = phi_s``). The transition orientation is
-        # handled inside that Hamiltonian via ``phase_modulo_*``, so no manual
-        # ``pi`` shift of ``phi_rf`` is applied here.
-        phi_s = float(
-            calc_phi_s_single_harmonic(
-                charge=beam.particle_type.charge,
-                voltage=voltage,
-                energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-                    turn_i=0,
-                    section_i=0,
-                    reference_time=0,
-                    particle_type=beam.particle_type,
-                )
-                - beam.reference.total_energy,
-                above_transition=above_transition,
-            )
-        )
-        # call to legacy
-        eta0 = [drift.eta_0(gamma=beam.reference.gamma) for drift in drifts]
-        assert all_equal(eta0), (
-            f"Expected all `eta0` to be the same, but got {eta0}."
-        )
-        eta0 = eta0[0]
 
         rng_dt_cpu_only = mpi_aware_random_generator_cpu(
             seed=(self._seed + 0) if self._seed is not None else None,
@@ -341,7 +310,7 @@ class BiGaussian(MatchingRoutine):
                 size=self._n_macroparticles_local,
                 dtype=backend.float,
             )
-            + (phi_s - phi_rf) / omega_rf,
+            + stable_fixed_point,
             copy=False,
         )
         dE = backend.array(  # potentially on GPU
@@ -355,10 +324,6 @@ class BiGaussian(MatchingRoutine):
 
         # Re-insert if necessary
         if self._reinsertion:
-            sep_helper = SymbolicSeparatrixHelper.from_simulation(
-                simulation=simulation,
-            )
-
             while True:
                 sel = ~sep_helper.is_in_separatrix(
                     dt=dt,
@@ -377,7 +342,7 @@ class BiGaussian(MatchingRoutine):
                         size=n_new,
                         dtype=backend.float,
                     )
-                    + (phi_s - phi_rf) / omega_rf,
+                    + stable_fixed_point,
                     copy=False,
                 )
 
