@@ -103,9 +103,6 @@ def _get_dE_from_dt(
     energy = beam.reference.total_energy
     beta = beam.reference.beta
 
-    # Absolute synchronous phase: the single-harmonic Hamiltonian below already
-    # references its oscillation to ``phi_s`` directly, so no ``phi_rf`` offset
-    # must be folded in here.
     phi_s = calc_phi_s_single_harmonic(
         charge=beam.particle_type.charge,
         voltage=voltage,

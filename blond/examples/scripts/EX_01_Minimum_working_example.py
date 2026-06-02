@@ -24,9 +24,6 @@ from blond import (
     setup_backend,
 )
 from blond.testing import pytest_active
-from blond.utilities.separatrix.symbolic_separatrix import (
-    SymbolicSeparatrixHelper,
-)
 
 if not pytest_active():  # pragma: no cover
     setup_backend("auto")
@@ -77,12 +74,7 @@ def main():
             reinsertion=True,
         ),
     )
-    beam1.plot_hist2d()
-    sep_helper = SymbolicSeparatrixHelper.from_simulation(
-        simulation=sim,
-    )
-    sep_helper.plot_separatrix(beam=beam1, zorder=10)
-    plt.show()
+    print(f"{beam1.reference.gamma}")
 
     plt.figure(0)
     plt.subplot(2, 1, 1)
@@ -93,10 +85,15 @@ def main():
     dts = beam1.write_partial_dt()
     dts += 0.05e-9
 
-    sim.run_simulation(
-        beams=(beam1,),
-        n_turns=n_turns,
-    )
+    def callback(sim, beam):
+        plt.figure("live")
+        beam.plot_hist2d()
+        sim.plot_separatrix(beam=beam, zorder=10)
+        plt.draw()
+        plt.pause(0.1)
+        plt.cla()
+
+    sim.run_simulation(beams=(beam1,), n_turns=n_turns, callbacks=callback)
     plt.figure(0)
     plt.subplot(2, 1, 2)
     plt.title("Beam after simulation")
