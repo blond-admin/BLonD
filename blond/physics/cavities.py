@@ -170,7 +170,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_counter.value
             if self._turn_counter is not None
-            else 0,  # should use 0 only with ConstantMagneticCycle
+            else None,  # should use 0 only with ConstantMagneticCycle
             section_i=self.section_index
             if not is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
@@ -765,7 +765,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_counter.value
             if self._turn_counter is not None
-            else 0,  # should use 0 only with ConstantMagneticCycle
+            else None,  # should use 0 only with ConstantMagneticCycle
             section_i=self.section_index
             if not beam.is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
@@ -930,7 +930,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_counter.value
             if self._turn_counter is not None
-            else 0,  # should use 0 only with ConstantMagneticCycle
+            else None,  # should use 0 only with ConstantMagneticCycle
             section_i=self.section_index
             if not is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
