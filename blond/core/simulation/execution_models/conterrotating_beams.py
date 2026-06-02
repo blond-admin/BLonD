@@ -126,13 +126,9 @@ class MainloopCounterRotatingBeams(ExecutionModel):
                 simulation._ring.elements.elements
             ):
                 simulation.turn_counter.value = turn_i
-                simulation.section_counter.value = element.section_index
+                section = element.section_index
 
-                if (
-                    simulation.section_counter.value
-                    >= until_section_index
-                    != -1
-                ):
+                if section >= until_section_index != -1:
                     return
 
                 if element.is_active_this_turn(
