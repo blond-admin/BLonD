@@ -136,7 +136,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         ring
             Ring geometry; provides ``circumference`` and ``section_lengths``.
         **kwargs
-            Passed to the next levnel in the MRO chain.
+            Passed to the next level in the MRO chain.
         """
         super().configure(**kwargs)
         self._turn_counter = turn_counter
