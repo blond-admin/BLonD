@@ -178,6 +178,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             radiation_integrals=radiation_integrals,
             **kwargs,  # for MRO of fused elements
         )
+
+        self._turn_counter: DynamicParameter | None = None
+
         self._add_intended_schedule("momentum_compaction_factor")
 
         self._simulation: Simulation | None = None
@@ -226,9 +229,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             d.schedule(
                 "momentum_compaction_factor", momentum_compaction_factor
             )
-
-        if turn_counter is None:
-            turn_counter = d._get_null_turn_counter()
 
         d.configure(turn_counter=turn_counter)
 
@@ -282,6 +282,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         super()._track(beam=beam)
 
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
                 turn_i=self._turn_counter.value,
                 reference_time=beam.reference.time,

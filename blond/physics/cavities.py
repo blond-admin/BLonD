@@ -48,7 +48,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Ring
+    from blond import ConstantMagneticCycle, Ring
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
@@ -93,6 +93,8 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
+        self._ring: Ring | None = None
+        self._magnetic_cycle: MagneticCycleBase | None = None
         self._turn_counter: DynamicParameter | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
@@ -115,7 +117,12 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         )
 
     def configure(
-        self, *, turn_counter, magnetic_cycle, ring, **kwargs
+        self,
+        *,
+        turn_counter: DynamicParameter | None,
+        magnetic_cycle: MagneticCycleBase,
+        ring: Ring,
+        **kwargs,
     ) -> None:
         """
         Store the runtime references needed during tracking.
@@ -156,8 +163,14 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         reference_energy_change
             Change of reference energy [eV].
         """
+        if not isinstance(self._magnetic_cycle, ConstantMagneticCycle):
+            assert self._turn_counter is not None, (
+                f"Turn counter is required for {self._magnetic_cycle.__class__.__name__}"
+            )
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
+            turn_i=self._turn_counter.value
+            if self._turn_counter is not None
+            else 0,  # should use 0 only with ConstantMagneticCycle
             section_i=self.section_index
             if not is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
@@ -179,6 +192,9 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         super()._track(beam=beam)
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
                 turn_i=self._turn_counter.value,
                 reference_time=float(beam.reference.time),
@@ -741,9 +757,15 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         phi_s_main_harmonic
             Synchronous phase for the current RF parameters, in [rad].
         """
+        if not isinstance(self._magnetic_cycle, ConstantMagneticCycle):
+            assert self._turn_counter is not None, (
+                f"Turn counter is required for {self._magnetic_cycle.__class__.__name__}"
+            )
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
+            turn_i=self._turn_counter.value
+            if self._turn_counter is not None
+            else 0,  # should use 0 only with ConstantMagneticCycle
             section_i=self.section_index
             if not beam.is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
@@ -900,8 +922,15 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         # set design omega etc. for this turn
         self._update_reference_based_attributes(reference=reference)
 
+        if not isinstance(self._magnetic_cycle, ConstantMagneticCycle):
+            assert self._turn_counter is not None, (
+                f"Turn counter is required for {self._magnetic_cycle.__class__.__name__}"
+            )
+
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
+            turn_i=self._turn_counter.value
+            if self._turn_counter is not None
+            else 0,  # should use 0 only with ConstantMagneticCycle
             section_i=self.section_index
             if not is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
@@ -1348,9 +1377,9 @@ class SingleHarmonicRFStation(
         )
 
         single_harmonic_rf_station.configure(
-            turn_counter=SimpleNamespace(value=0),
+            turn_counter=turn_counter,
             magnetic_cycle=SimpleNamespace(
-                get_target_total_energy=lambda **_: total_energy
+                get_target_total_energy=lambda **_: total_energy  # TODO rework
             ),
             ring=SimpleNamespace(
                 circumference=circumference,
