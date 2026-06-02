@@ -1538,6 +1538,7 @@ class TestSpecials(unittest.TestCase):
                     start=backend.float(-10),
                     stop=backend.float(10),
                 )
+                print(f"{special=} {dtype=}")
                 backend.specials.histogram_weighted(
                     array_read=array_read,
                     array_write=array_write_weighted,
@@ -1545,6 +1546,7 @@ class TestSpecials(unittest.TestCase):
                     start=backend.float(-10),
                     stop=backend.float(10),
                 )
+                print(f"{special=} {dtype=} sucessful")
                 if special == "cuda":
                     array_write_unweighted = array_write_unweighted.get()
                     array_write_weighted = array_write_weighted.get()
