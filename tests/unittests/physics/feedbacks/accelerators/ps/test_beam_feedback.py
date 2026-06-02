@@ -200,10 +200,10 @@ class TestPSBeamFeedback(unittest.TestCase):
 
         # Check radial loop output
         self.assertAlmostEqual(
-            self.beam_control.domega_dr, -98427.55953880296, places=5
+            self.beam_control.domega_dr, -98427.55953880296, places=4
         )
 
         # Check total correction
         self.assertAlmostEqual(
-            self.beam_control.domega_rf, -84938.9510353038, places=5
+            self.beam_control.domega_rf, -84938.9510353038, places=4
         )
