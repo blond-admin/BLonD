@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy import dtype, ndarray
 
 from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
@@ -262,6 +263,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self._prelast_potential_well: NumpyArray | CupyArray | None = None
         self.debug_helper: DebuggingEndpoints | None = None
 
+        # Can be potentially replaced like `hamilton_to_density_function`,
+        #  for example using the `SymbolicSeparatrixHelper`.
+        self._get_hamilton = self._get_ham_semianalytic
+
         if debug:
             self.debug_helper = DebuggingEndpoints()
 
@@ -337,8 +342,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 sim_tmp.intensity_effect_manager.unfreeze_wakefields()
 
                 # this might get changed by the simulation
-                beam_reference_time = beam.reference.time
-                beam_reference_total_energy = beam.reference.total_energy
+                beam_reference_time_org = beam.reference.time
+                beam_reference_total_energy_org = beam.reference.total_energy
                 turn_i_org = int(sim_tmp.turn_i.value)
                 section_i_org = int(sim_tmp.section_i.value)
 
@@ -351,8 +356,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 )
 
                 # reset to original value before simulation
-                beam.reference.time = beam_reference_time
-                beam.reference.total_energy = beam_reference_total_energy
+                beam.reference.time = beam_reference_time_org
+                beam.reference.total_energy = beam_reference_total_energy_org
                 sim_tmp.turn_i.value = turn_i_org
                 sim_tmp.section_i.value = section_i_org
 
@@ -424,6 +429,39 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
+        deltaE_grid, hamilton_2D, time_grid = self._get_hamilton(
+            beam=beam, simulation=simulation, ts=ts
+        )
+        density = self.hamilton_to_density_function(
+            time_grid=time_grid,
+            deltaE_grid=deltaE_grid,
+            hamilton_2D=hamilton_2D,
+            **self.hamilton_to_density_kwargs,
+        )  # type: ignore
+
+        if self.debug_helper is not None:
+            self.debug_helper.last_density = density
+            self.debug_helper.last_hamilton_2D = hamilton_2D
+
+        populate_beam(
+            beam=beam,
+            time_grid=time_grid.T,
+            deltaE_grid=deltaE_grid.T,
+            density_grid=density.T,
+            n_macroparticles=self.n_macroparticles,
+            seed=self.seed,
+        )
+
+    def _get_ham_semianalytic(
+        self,
+        beam: BeamBaseClass,
+        simulation: Simulation,
+        ts: NumpyArray,
+    ) -> tuple[
+        NumpyArray,
+        NumpyArray,
+        NumpyArray,
+    ]:
         assert simulation.turn_i.value == 0
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
@@ -447,7 +485,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             avg_pot_well = potential_well
         else:
             avg_pot_well = (potential_well + self._prelast_potential_well) / 2
-
+        self.debug_helper.last_potential_well = avg_pot_well
         deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
             ts=ts,
             potential_well=avg_pot_well,
@@ -458,26 +496,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ),
             shape=self.internal_grid_shape,
         )
-        density = self.hamilton_to_density_function(
-            time_grid=time_grid,
-            deltaE_grid=deltaE_grid,
-            hamilton_2D=hamilton_2D,
-            **self.hamilton_to_density_kwargs,
-        )  # type: ignore
-
-        if self.debug_helper is not None:
-            self.debug_helper.last_potential_well = avg_pot_well
-            self.debug_helper.last_density = density
-            self.debug_helper.last_hamilton_2D = hamilton_2D
-
-        populate_beam(
-            beam=beam,
-            time_grid=time_grid.T,
-            deltaE_grid=deltaE_grid.T,
-            density_grid=density.T,
-            n_macroparticles=self.n_macroparticles,
-            seed=self.seed,
-        )
+        return deltaE_grid, hamilton_2D, time_grid
 
     def _plot_current_state(
         self,
