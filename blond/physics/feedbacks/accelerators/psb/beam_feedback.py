@@ -19,7 +19,8 @@ Implementation of the PSB beam control.
 
 Notes
 -----
-None.
+Authors:
+Danilo Quartullo
 """
 
 from __future__ import annotations
@@ -54,6 +55,8 @@ class PSBBeamControl(BeamFeedbackBase):
         The gain of the radial loop.
     period
         TBW.
+    coefficients
+        Bla bla.
     *args
         Variable positional arguments.
     **kwargs
@@ -65,14 +68,13 @@ class PSBBeamControl(BeamFeedbackBase):
         pl_gain: float,
         rl_gain: list[float] = None,
         period: float = 10.0e-6,
+        coefficients: list[float] = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
         self.pl_gain = pl_gain
-
-        self.lhc_y = 0
 
         self.domega_rf = 0.0
         self.dphi = 0.0
@@ -92,7 +94,7 @@ class PSBBeamControl(BeamFeedbackBase):
         self.on_time = np.array([])
 
         #: | *Array of transfer function coefficients.*
-        if "coefficients" not in self.config:
+        if coefficients is None:
             self.coefficients = [
                 0.999019,
                 -0.999019,
@@ -102,7 +104,7 @@ class PSBBeamControl(BeamFeedbackBase):
                 0.0,
             ]
         else:
-            self.coefficients = self.config["coefficients"]
+            self.coefficients = coefficients
 
         #: | *Memory of previous phase correction, for phase loop.*
         self.dphi_sum = 0.0
@@ -223,10 +225,7 @@ class PSBBeamControl(BeamFeedbackBase):
                 - self.on_time[self.PL_counter - 1]
             )
 
-            if self.RFnoise is not None:
-                self.dphi_av += self.RFnoise.dphi[counter]
-
-            self.domega_PL = 0.99803799 * self.domega_PL + self.gain[
+            self.domega_PL = 0.99803799 * self.domega_PL + self.pl_gain[
                 counter
             ] * (0.99901903 * self.dphi_av - 0.99901003 * self.dphi_av_prev)
 
@@ -235,15 +234,15 @@ class PSBBeamControl(BeamFeedbackBase):
 
             # Radial loop
             self.dR_over_R = (
-                self.rf_station.omega_rf[0, counter]
-                - self.rf_station.omega_rf_d[0, counter]
+                self.cavities[0].get_main_harmonic_omega_rf()
+                - self.cavities[0].get_main_harmonic_omega_rf_design()
             ) / (
-                self.rf_station.omega_rf_d[0, counter]
+                self.cavities[0].get_main_harmonic_omega_rf_design()
                 * (
                     1.0
                     / (
-                        self.ring.alpha_0[0, counter]
-                        * self.rf_station.gamma[counter] ** 2
+                        self.cavities[0]._ring.momentum_compaction_factor
+                        * beam.reference.gamma**2
                     )
                     - 1.0
                 )
@@ -251,9 +250,9 @@ class PSBBeamControl(BeamFeedbackBase):
 
             self.domega_RL = (
                 self.domega_RL
-                + self.gain2[0][counter]
+                + self.rl_gain[0][counter]
                 * (self.dR_over_R - self.dR_over_R_prev)
-                + self.gain2[1][counter] * self.dR_over_R
+                + self.rl_gain[1][counter] * self.dR_over_R
             )
 
             self.dR_over_R_prev = self.dR_over_R
