@@ -485,7 +485,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             avg_pot_well = potential_well
         else:
             avg_pot_well = (potential_well + self._prelast_potential_well) / 2
-        self.debug_helper.last_potential_well = avg_pot_well
+        if self.debug_helper is not None:
+            self.debug_helper.last_potential_well = avg_pot_well
         deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
             ts=ts,
             potential_well=avg_pot_well,
