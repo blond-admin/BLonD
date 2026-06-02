@@ -20,8 +20,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from blond.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
 )
@@ -81,8 +79,6 @@ class PSBeamControl(BeamFeedbackBase):
         Hardware determined integral gain of the phase loop.
     g_rl
         Hardware determined radial loop gain parameter.
-    phase_target_offset
-        Bla bla.
     radial_reference
         Reference radial offset for the radial loop.
     initialize_steady_state
@@ -107,7 +103,6 @@ class PSBeamControl(BeamFeedbackBase):
         gd_pl: float = 5.704,
         gi_pl: float = 1 - 8.66e-5,
         g_rl: float = 1 - 1.853e-1,
-        phase_target_offset: float = 0,
         radial_reference: float = 0,
         initialize_steady_state: bool = True,
         prev_in_phase: float | None = 0,
@@ -131,7 +126,6 @@ class PSBeamControl(BeamFeedbackBase):
         self.dphi = 0.0
         self.reference = 0.0
 
-        self.phase_target_offset = phase_target_offset
         self.radial_reference = radial_reference
 
         self.initialize_steady_state = initialize_steady_state
@@ -178,11 +172,6 @@ class PSBeamControl(BeamFeedbackBase):
             n_turns=n_turns,
             **kwargs,
         )
-
-        if not isinstance(self.phase_target_offset, list | tuple | np.ndarray):
-            self.phase_target_offset = self.phase_target_offset * np.ones(
-                n_turns + 1
-            )
 
     def pre_calculate_offsets(self, beam: BeamBaseClass):
         """
