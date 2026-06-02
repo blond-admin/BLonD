@@ -36,7 +36,6 @@ from blond.core.base import (
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
-from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 from blond.experimental.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
@@ -164,10 +163,6 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         reference_energy_change
             Change of reference energy [eV].
         """
-        if not isinstance(self._magnetic_cycle, ConstantMagneticCycle):
-            assert self._turn_counter is not None, (
-                f"Turn counter is required for {self._magnetic_cycle.__class__.__name__}"
-            )
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_counter.value
             if self._turn_counter is not None
@@ -758,10 +753,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         phi_s_main_harmonic
             Synchronous phase for the current RF parameters, in [rad].
         """
-        if not isinstance(self._magnetic_cycle, ConstantMagneticCycle):
-            assert self._turn_counter is not None, (
-                f"Turn counter is required for {self._magnetic_cycle.__class__.__name__}"
-            )
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_counter.value
@@ -922,11 +913,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         # set design omega etc. for this turn
         self._update_reference_based_attributes(reference=reference)
-
-        if not isinstance(self._magnetic_cycle, ConstantMagneticCycle):
-            assert self._turn_counter is not None, (
-                f"Turn counter is required for {self._magnetic_cycle.__class__.__name__}"
-            )
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_counter.value
