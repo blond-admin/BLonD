@@ -108,9 +108,6 @@ class Simulation(Preparable):
     turn_counter
         Counter tracking the current turn number during simulation. Can be subscribed
         to for notifications when the turn changes. Value is ``None`` when not running.
-    section_counter
-        Counter tracking the current section (element) within a turn. Value is ``None``
-        when not running.
     check_circumference
         Behaviour, if  the drifts don't sum up to the ring.circumference.
         - "raise": Raise an exception.
@@ -184,24 +181,6 @@ class Simulation(Preparable):
             stacklevel=1,
         )
         self.turn_counter = value
-
-    @property
-    def section_i(self) -> DynamicParameter:  # NOQA: D102
-        warnings.warn(
-            "`section_i` will be removed in future, use `section_counter` instead!",
-            DeprecationWarning,
-            stacklevel=1,
-        )
-        return self.section_counter
-
-    @section_i.setter
-    def section_i(self, value: DynamicParameter) -> None:  # NOQA: D102
-        warnings.warn(
-            "section_i will be removed in future, use section_counter instead!",
-            DeprecationWarning,
-            stacklevel=1,
-        )
-        self.section_counter = value
 
     def profiling(
         self,
