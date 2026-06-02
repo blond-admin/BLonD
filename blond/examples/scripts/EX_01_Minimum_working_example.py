@@ -9,18 +9,27 @@
 """A minimum working example of how to start a simulation with BLonD."""
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from blond import (
     Beam,
     BiGaussian,
-    ConstantMagneticCycle,
     DriftSimple,
+    MagneticCyclePerTurn,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
+from blond.testing import pytest_active
+from blond.utilities.separatrix.symbolic_separatrix import (
+    SymbolicSeparatrixHelper,
+)
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 n_turns = 10_000
 n_macroparticles = 1e6
@@ -29,7 +38,7 @@ n_macroparticles = 1e6
 def main():
     ring = Ring(26658.883)  # general definition of ring
     rf_station_1 = SingleHarmonicRFStation(
-        harmonic=35640, voltage=6e6, phi_rf=0
+        harmonic=35640, voltage=6e6, phi_rf=np.deg2rad(-10)
     )
     drift1 = DriftSimple(
         orbit_length=26658.883,
@@ -42,8 +51,12 @@ def main():
     )  # add elements that resemble one turn
 
     # Define the ramp
-    magnetic_cycle = ConstantMagneticCycle(
-        value=450e9, reference_particle=proton
+    n_turns = 10_000
+    magnetic_cycle = MagneticCyclePerTurn.init_from_linspace(
+        reference_particle=proton,
+        values=np.linspace(
+            450e9, 450e9 + rf_station_1.voltage / 10 * n_turns, n_turns + 1
+        ),
     )
 
     # Define the general beam properties
@@ -59,9 +72,17 @@ def main():
     sim.prepare_beam(
         beam=beam1,
         preparation_routine=BiGaussian(
-            sigma_dt=0.1e-9, n_macroparticles=n_macroparticles
+            sigma_dt=0.1e-9,
+            n_macroparticles=n_macroparticles,
+            reinsertion=True,
         ),
     )
+    beam1.plot_hist2d()
+    sep_helper = SymbolicSeparatrixHelper.from_simulation(
+        simulation=sim,
+    )
+    sep_helper.plot_separatrix(beam=beam1, zorder=10)
+    plt.show()
 
     plt.figure(0)
     plt.subplot(2, 1, 1)

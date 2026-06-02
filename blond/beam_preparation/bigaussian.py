@@ -19,7 +19,6 @@ import numpy as np
 
 from blond.acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
-    is_in_separatrix,
 )
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning
@@ -28,6 +27,9 @@ from blond.generals.distributed.helpers import (
     mpi_local_size,
 )
 from blond.generals.iterables_ import all_equal
+from blond.utilities.separatrix.symbolic_separatrix import (
+    SymbolicSeparatrixHelper,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
@@ -353,23 +355,17 @@ class BiGaussian(MatchingRoutine):
 
         # Re-insert if necessary
         if self._reinsertion:
+            sep_helper = SymbolicSeparatrixHelper.from_simulation(
+                simulation=simulation,
+            )
+
             while True:
-                sel = (
-                    is_in_separatrix(
-                        charge=beam.particle_type.charge,
-                        harmonic=harmonic,
-                        voltage=voltage,
-                        omega_rf=omega_rf,
-                        phi_rf_d=phi_rf,
-                        phi_s=phi_s,
-                        etas=[eta0],
-                        beta=beam.reference.beta,
-                        total_energy=beam.reference.total_energy,
-                        ring_circumference=simulation.ring.circumference,
-                        dt=dt,
-                        dE=dE,
-                    )
-                    == False
+                sel = ~sep_helper.is_in_separatrix(
+                    dt=dt,
+                    dE=dE,
+                    particle_type=beam.particle_type,
+                    total_energy=beam.reference.total_energy,
+                    intensity=beam.intensity,
                 )
 
                 n_new = int(backend.sum(sel))

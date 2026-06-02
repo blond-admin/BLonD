@@ -17,15 +17,19 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy
+from sympy import Expr
 
 from blond.core.base import HasSymbolicHamiltonian
+from blond.core.beam.beams import Beam
 from blond.utilities.separatrix.helpers import _get_omega_min
 
 if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from matplotlib.lines import Line2D
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
 
 
@@ -140,6 +144,47 @@ class SymbolicSeparatrixHelper:
             if omega_min is None
             else float(omega_min),
         )
+
+    def is_in_separatrix(
+        self,
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        particle_type: ParticleType,
+        total_energy: float,
+        intensity: float,
+        single_bucket: bool = False,
+    ):
+        # todo optimize performance of this script
+
+        # Use beam as a shortcut for defining what is
+        # needed for `_substitute_symbols`.
+        beam = Beam(
+            intensity=intensity,
+            particle_type=particle_type,
+        )
+        beam.reference.total_energy = total_energy
+        kinetic_coeffs, potential = self._substitute_symbols(beam=beam)
+        ham = self._substitute_symbols2(beam=beam)
+        H_sep_per_dt = self._H_sep_per_dt(
+            dt=np.array(
+                [float(dt.mean())]
+            ),  # FIXME, relies on mean dt being in a bucket..
+            kinetic_coeffs=kinetic_coeffs,
+            potential=potential,
+        )
+        mask = ham(dt, dE) < H_sep_per_dt
+        if single_bucket:
+            bucket = self._find_canonical_bucket(
+                period_start=float(np.min(dt)),
+                kinetic_coeff=self._dE_squared_coefficient(kinetic_coeffs),
+                potential=potential,
+            )
+            bucket_idx = self._bucket_index(dt=dt, bucket=bucket)
+            main_bucket = int(
+                round(np.mean(bucket_idx), 0)
+            )  # FIXME, relies on mean dt being in a bucket..
+            mask &= bucket_idx == main_bucket
+        return mask
 
     def get_separatrix(
         self,
@@ -259,7 +304,7 @@ class SymbolicSeparatrixHelper:
     def plot_separatrix(
         self,
         beam: BeamBaseClass,
-        dt: NumpyArray,
+        dt: NumpyArray | None = None,
         **kwargs_plot,
     ) -> list[Line2D]:
         r"""
@@ -290,6 +335,12 @@ class SymbolicSeparatrixHelper:
         -----
         This method does not call ``plt.show()``; call that separately.
         """
+        if dt is None:
+            s0, s1 = beam.dt_min, beam.dt_max
+            r = s1 - s0
+            dt = np.linspace(
+                s0 - r, s1 + r, self._CANONICAL_SCAN_RESOLUTION + 1
+            )
         kwargs_plot.setdefault("color", "red")
         kwargs_plot.setdefault("linestyle", "dashed")
 
@@ -337,18 +388,8 @@ class SymbolicSeparatrixHelper:
         potential
             Numpy-vectorized callable for ``H(dt, dE=0)``.
         """
+        ham = self._substitute_beam_reference(beam)
         dt_sym, dE_sym = sympy.symbols("dt dE", real=True)
-        beta_sym, gamma_sym, E_sym, q_sym = sympy.symbols(
-            "beta gamma E q", real=True
-        )
-        ham = self._hamiltonian.subs(
-            {
-                beta_sym: float(beam.reference.beta),
-                gamma_sym: float(beam.reference.gamma),
-                E_sym: float(beam.reference.total_energy),
-                q_sym: float(beam.particle_type.charge),
-            }
-        )
         U_expr = ham.subs(dE_sym, 0)
         K_expr = sympy.expand(ham - U_expr)
         if K_expr == 0:
@@ -369,6 +410,66 @@ class SymbolicSeparatrixHelper:
             )
 
         return kinetic_coeffs, potential
+
+    def _substitute_symbols2(
+        self, beam: BeamBaseClass
+    ) -> tuple[
+        tuple[float, ...], Callable[[NumpyArray, NumpyArray], NumpyArray]
+    ]:
+        r"""
+        Substitute beam scalars into the Hamiltonian.
+
+        The Hamiltonian decomposes as ``H(dt, dE) = K(dE) + U(dt)``: the
+        kinetic part ``K`` is a polynomial in ``dE`` with coefficients
+        independent of ``dt`` (degree 2 for the simple drift, degree
+        ``2 + len(higher_order_alpha)`` for the exact drift), and the
+        potential part ``U`` is a function of ``dt`` only.
+
+        Parameters
+        ----------
+        beam
+            Beam whose reference coordinates supply :math:`\beta`,
+            :math:`\gamma`, :math:`E` and charge.
+
+        Returns
+        -------
+        kinetic_coeffs
+            Coefficients of ``K(dE)`` in descending degree order
+            (``c_n, c_{n-1}, ..., c_2, c_1, c_0``). For physical
+            Hamiltonians ``c_0`` and ``c_1`` are zero.
+        potential
+            Numpy-vectorized callable for ``H(dt, dE=0)``.
+        """
+        ham = self._substitute_beam_reference(beam)
+
+        dt_sym, dE_sym = sympy.symbols("dt dE", real=True)
+        ham_lambda = sympy.lambdify((dt_sym, dE_sym), ham, modules="numpy")
+
+        def potential(dt: NumpyArray, dE: NumpyArray) -> NumpyArray:
+            # ``sympy.lambdify`` collapses a constant ``U_expr`` (e.g.
+            # ``voltage=0`` and no acceleration tilt) to a scalar-valued
+            # callable. Broadcast so downstream code can rely on an
+            # array of the same shape as ``dt``.
+            return np.broadcast_to(
+                np.asarray(ham_lambda(dt, dE), dtype=float),
+                np.shape(np.asarray(dt)),
+            )
+
+        return potential
+
+    def _substitute_beam_reference(self, beam: BeamBaseClass) -> Expr:
+        beta_sym, gamma_sym, E_sym, q_sym = sympy.symbols(
+            "beta gamma E q", real=True
+        )
+        ham = self._hamiltonian.subs(
+            {
+                beta_sym: float(beam.reference.beta),
+                gamma_sym: float(beam.reference.gamma),
+                E_sym: float(beam.reference.total_energy),
+                q_sym: float(beam.particle_type.charge),
+            }
+        )
+        return ham
 
     @classmethod
     def _dE_sep_branches(
