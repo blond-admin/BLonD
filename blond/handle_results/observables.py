@@ -227,17 +227,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
                 f" Was this observation added twice?",
             )
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        pass
-
     def on_run_simulation(
         self,
         simulation: Simulation,

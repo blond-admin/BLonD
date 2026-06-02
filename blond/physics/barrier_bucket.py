@@ -246,23 +246,6 @@ class BarrierRF(RFManipulationBaseClass):
             acceleration_kick=-reference_energy_change,
         )
 
-    def on_run_simulation(self, simulation, beam, n_turns, **kwargs):
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
-
 
 def compute_sin_barrier(
     center: float,

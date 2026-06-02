@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.base import Preparable
-from blond.core.beam.base import BeamBaseClass
 from blond.core.helpers import find_instances_by_class
 from blond.core.ring.helpers import filter_elements
 from blond.core.simulation.simulation import Simulation
@@ -120,29 +119,6 @@ class BeamPhysicsRelevantElements(Preparable):
                     raise RuntimeError(
                         f"Missing drift in section {section_index}"
                     )
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
 
     def get_sections_indices(self) -> tuple[int, ...]:
         """
