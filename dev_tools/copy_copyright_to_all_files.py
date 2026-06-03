@@ -5,6 +5,15 @@ from pathlib import Path
 
 EXCLUDE = "legacy"
 
+# Third-party (vendored) files that are not ours; we must not add our license.
+# e.g. the C++ sources hardcopied from CERN's external rf-noise-cpp project.
+THIRD_PARTY_FILENAMES = frozenset(
+    {
+        "rf_noise_wrapper.cpp",
+        "varigen.h",
+    }
+)
+
 
 def perform_check():
     """Check the copyright notice in all files."""
@@ -21,6 +30,8 @@ def perform_check():
             if (
                 name == "_version.py"
             ):  # is dynamically written during pip install
+                continue
+            if name in THIRD_PARTY_FILENAMES:  # vendored, keep upstream header
                 continue
             is_python_file = name.endswith(".py")
             is_cpp_file = (
