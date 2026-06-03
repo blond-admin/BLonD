@@ -23,7 +23,6 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from blond import Simulation
 from blond.physics.feedbacks.base import (
     GlobalFeedback,
 )

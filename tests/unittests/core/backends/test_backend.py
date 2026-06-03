@@ -12,7 +12,6 @@ from blond.core.backends.backend import (
     NumpyBackend,
     backend,
 )
-from blond.core.backends.numba.callables import NumbaSpecials
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     multi_backend_testcase,
