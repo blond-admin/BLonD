@@ -495,6 +495,126 @@ class ConstantMagneticCycle(MagneticCycleBase):
         return ret
 
 
+class ExternalReferenceCycle(MagneticCycleBase):
+    """
+    Magnetic cycle whose reference total energy is supplied externally.
+
+    Intended for co-simulation where another framework owns the reference
+    energy (e.g. an xsuite ``Line`` that BLonD elements are embedded in).
+    Call :meth:`set_total_energy` each turn before tracking; the embedded
+    BLonD element then reads this value through the usual
+    :meth:`get_target_total_energy` interface, with no mocking.
+
+    Parameters
+    ----------
+    reference_particle
+        Type of particles, e.g. protons.
+    total_energy_init
+        Initial reference total energy, in [eV].
+    """
+
+    def __init__(
+        self,
+        reference_particle: ParticleType,
+        total_energy_init: float,
+    ):
+        magnetic_rigidity_init = _to_magnetic_rigidity(
+            data=total_energy_init,
+            mass=reference_particle.mass,
+            charge=reference_particle.charge,
+            convert_from="total energy",
+        )
+        super().__init__(
+            reference_particle=reference_particle,
+            magnetic_rigidity_init=magnetic_rigidity_init,
+        )
+        self._total_energy = float(total_energy_init)
+
+    def set_total_energy(self, total_energy: float) -> None:
+        """
+        Set the reference total energy used on subsequent turns.
+
+        Parameters
+        ----------
+        total_energy
+            Reference total energy, in [eV].
+        """
+        self._total_energy = float(total_energy)
+
+    def on_init_simulation(
+        self,
+        simulation: Simulation,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_init_simulation(
+            simulation=simulation,
+            n_turns_max=None,
+        )
+
+    def get_target_total_energy(
+        self,
+        turn_i: int,
+        section_i: int,
+        reference_time: float,
+        particle_type: ParticleType,
+    ) -> float:
+        """
+        Return the externally-supplied reference total energy [eV].
+
+        Parameters
+        ----------
+        turn_i
+            Current turn index (unused; energy is set externally).
+        section_i
+            Current section index (unused).
+        reference_time
+            Current reference time (unused).
+        particle_type
+            Type of particles (unused).
+
+        Returns
+        -------
+        total_energy
+            The most recently set reference total energy, in [eV].
+        """
+        return self._total_energy
+
+    @staticmethod
+    def headless(
+        total_energy_init: float,
+        particle_type: ParticleType = proton,
+    ) -> ExternalReferenceCycle:
+        """
+        Initialize object without simulation context.
+
+        Parameters
+        ----------
+        total_energy_init
+            Initial reference total energy, in [eV].
+        particle_type
+            Type of particles, e.g. protons.
+
+        Returns
+        -------
+        external_reference_cycle
+            Initialized ExternalReferenceCycle instance.
+        """
+        return ExternalReferenceCycle(
+            reference_particle=particle_type,
+            total_energy_init=total_energy_init,
+        )
+
+
 class MagneticCyclePerTurn(MagneticCycleBase):
     """
     Magnetic cycle per turn.
