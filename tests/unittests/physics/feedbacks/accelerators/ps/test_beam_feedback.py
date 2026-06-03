@@ -64,7 +64,7 @@ class TestPSBeamFeedback(unittest.TestCase):
         else:
             phase = np.pi
 
-        beam = Beam(
+        self.beam = Beam(
             intensity,
             proton,
         )
@@ -125,24 +125,24 @@ class TestPSBeamFeedback(unittest.TestCase):
             [self.profile, cavity, self.beam_control, lattice],
         )
 
-        simulation = Simulation(
+        self.simulation = Simulation(
             ring,
             cycle,
         )
 
-        simulation.prepare_beam(beam, bigaussian)
+        self.simulation.prepare_beam(self.beam, bigaussian)
 
-        beam._dt.array_local += injection_offset_phase * t_rf / 360
+        self.beam._dt.array_local += injection_offset_phase * t_rf / 360
 
-        self.profile.track(beam)
+        self.profile.track(self.beam)
 
-        simulation.finalize(
-            (beam,),
+        self.simulation.finalize(
+            (self.beam,),
             n_turns,
         )
         self.beam_control.reference = reference * np.pi / 180
 
-        self.beam_control.track(beam)
+        self.beam_control.track(self.beam)
 
     def test_ps_beam_control_below_transition(self):
         self.create_scenario(pl_gain=PL_gain, rl_gain=RL_gain, momentum=2.79e9)
@@ -160,6 +160,49 @@ class TestPSBeamFeedback(unittest.TestCase):
         # Check total correction
         self.assertAlmostEqual(
             self.beam_control.domega_rf, -17053.98600676645, places=5
+        )
+
+        # Check one-turn memory variables
+        self.assertAlmostEqual(
+            self.beam_control.prev_in_phase, 0.34361169648638407, places=5
+        )
+        self.assertAlmostEqual(
+            self.beam_control.prev_out_phase, 1.9599611167583346, places=5
+        )
+        self.assertAlmostEqual(
+            self.beam_control.prev_out_radial,
+            -4.1459265367821724e-08,
+            places=5,
+        )
+
+        # Track the next turn
+        self.simulation.turn_i.value = 1
+        self.beam_control.track(self.beam)
+
+        # Check one-turn memory variables
+        self.assertAlmostEqual(
+            self.beam_control.prev_in_phase, 0.3457107638511323, places=5
+        )
+        self.assertAlmostEqual(
+            self.beam_control.prev_out_phase, 1.9597913841256231, places=5
+        )
+        self.assertAlmostEqual(
+            self.beam_control.prev_out_radial, -8.265613504513051e-08, places=5
+        )
+
+        # Check beam-phase loop output
+        self.assertAlmostEqual(
+            self.beam_control.domega_dphi, -17052.550195296746, places=5
+        )
+
+        # Check radial loop output
+        self.assertAlmostEqual(
+            self.beam_control.domega_dr, 0.08187463504383385, places=5
+        )
+
+        # Check total correction
+        self.assertAlmostEqual(
+            self.beam_control.domega_rf, -17052.4683206617, places=5
         )
 
     def test_ps_beam_control_above_transition(self):
