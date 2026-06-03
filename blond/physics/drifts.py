@@ -99,40 +99,6 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
         """
         pass
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        super().on_init_simulation(simulation=simulation)
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
-
 
 class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
     r"""

@@ -230,23 +230,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._simulation = simulation
         self._turn_i = simulation.turn_i
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        **kwargs,
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        **kwargs
-            Additional keyword arguments for simulation setup.
-        """
-        pass
-
     def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
