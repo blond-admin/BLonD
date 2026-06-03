@@ -22,6 +22,7 @@ from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
+from blond.generals.array_helpers import is_linspace_like
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -187,6 +188,13 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
+        # A single scalar `hist_step` only makes sense for a uniformly spaced
+        # grid. Everything downstream (gradient_hist_y, bin_edges, the rfft
+        # solvers via ``d=hist_step``) inherits this assumption, so guard it
+        # once here (cached, so no per-turn cost).
+        assert is_linspace_like(self._hist_x), (
+            "`hist_x` (the bin centers) must be like ``np.linspace(...)``."
+        )
         first_hist_x = self._hist_x[0]  # type: ignore
         second_hist_x = self._hist_x[1]  # type: ignore
         if backend.is_gpu:

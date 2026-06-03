@@ -465,6 +465,9 @@ class Resonators(
         impedance_from_wake
             Wake impedance in frequency domain.
         """
+        assert is_linspace_like(time), (
+            "`time` must be like ``np.linspace(...)``."
+        )
         # Recalculate only if `time` has changed
         hash_ = get_hash(time)
         if hash_ == self._cache_impedance_from_wake_hash:
@@ -506,6 +509,9 @@ class Resonators(
         impedance_from_wake
             Wake impedance in frequency domain for counter-rotating mode.
         """
+        assert is_linspace_like(time), (
+            "`time` must be like ``np.linspace(...)``."
+        )
         # Recalculate only if `time` has changed
         hash_ = get_hash(time + 1)  # to distinguish between counterrotation
         if hash_ == self._cache_impedance_from_wake_counter_rotation_hash:
@@ -1010,6 +1016,9 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         impedance_from_wake
             Wake impedance in frequency domain.
         """
+        assert is_linspace_like(time), (
+            "`time` must be like ``np.linspace(...)``."
+        )
         hash_ = get_hash(time)
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
@@ -1171,6 +1180,9 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         impedance_from_wake
             Wake impedance in frequency domain.
         """
+        assert is_linspace_like(time), (
+            "`time` must be like ``np.linspace(...)``."
+        )
         wake = self.wake_calc(time=time)
         impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
         return impedance_from_wake

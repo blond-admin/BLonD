@@ -35,6 +35,7 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
+from blond.generals.array_helpers import is_linspace_like
 from blond.physics.impedances.base import (
     FreqDomain,
     SupportsVectorFittedModel,
@@ -1292,6 +1293,13 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
         self._states = backend.zeros(len(self._poles) + 1, complex)
         hist_x = hist_x_profile
+        # `bin_dt` is taken as a single uniform step (and the C++ state machine
+        # advances bin-by-bin), so the profile grid must be a linspace. This
+        # also covers the `EquidistantMultiProfile._continuous_memory_hist_x`
+        # path, which does not go through `ProfileBaseClass.hist_step`.
+        assert is_linspace_like(hist_x), (
+            "profile `hist_x` must be like ``np.linspace(...)``."
+        )
         bin_dt = float(hist_x[1] - hist_x[0])
         # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
         # on the first call (C++ now uses edge-based rather than centre-based

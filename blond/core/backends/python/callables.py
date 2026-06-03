@@ -405,6 +405,15 @@ class PythonSpecials(Specials):
             This is intended to subtract the target energy from the RF
             energy gain in one common call.
         """
+        # Index-by-offset interpolation: `fbin` is derived from a single
+        # `inv_bin_width`, so `bin_centers` must be uniformly spaced.
+        # Local import to avoid a circular import during backend init
+        # (array_helpers imports the backend singleton).
+        from blond.generals.array_helpers import is_linspace_like
+
+        assert is_linspace_like(bin_centers), (
+            "`bin_centers` must be like ``np.linspace(...)``."
+        )
         n_slices = len(bin_centers)
         inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 

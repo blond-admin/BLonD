@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 import scipy.constants as cont
 
 from blond.core.backends.backend import backend
+from blond.generals.array_helpers import is_linspace_like
 from blond.generals.exceptions_ import ArrayShapeError
 from blond.physics.cavities import RFManipulationBaseClass
 
@@ -287,6 +288,12 @@ def compute_sin_barrier(
     bin_centers = backend._asarray_if_needed(bin_centers)
     if len(bin_centers.shape) != 1:
         raise ArrayShapeError("bin_centers array must be 1-dimensional.")
+
+    # `t_step` is taken as a single uniform step below, so `bin_centers`
+    # must be uniformly spaced.
+    assert is_linspace_like(bin_centers), (
+        "`bin_centers` must be like ``np.linspace(...)``."
+    )
 
     barrier_waveform = backend.zeros_like(bin_centers, dtype=backend.float)
 
