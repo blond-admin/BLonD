@@ -173,7 +173,7 @@ class PSBeamControl(BeamFeedbackBase):
             **kwargs,
         )
 
-    def pre_calculate_offsets(self, beam: BeamBaseClass):
+    def calculate_offsets(self, beam: BeamBaseClass):
         """
         Calculate the offsets of the beam.
 
@@ -214,8 +214,7 @@ class PSBeamControl(BeamFeedbackBase):
         """
         counter = self.cavities[0]._turn_i.value
 
-        self.phase_difference(beam=beam)
-        self.radial_difference(beam=beam)
+        self.calculate_offsets(beam=beam)
 
         if (
             self.initialize_steady_state and counter == 1
