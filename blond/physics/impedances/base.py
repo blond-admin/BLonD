@@ -13,6 +13,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from generals.array_helpers import is_linspace_like
 from scipy.constants import elementary_charge as e
 
 from blond.core.backends.backend import backend
@@ -502,6 +503,9 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         )
         voltage = induced_voltage.astype(backend.float)
         bin_centers = self.profile.hist_x  # base for induced voltage
+
+        assert is_linspace_like(bin_centers)
+
         if self._delayed_kick is not None:
             # Relies on PooledInterpolationKick.track()
             # being called later.

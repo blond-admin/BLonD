@@ -1293,13 +1293,15 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
         self._states = backend.zeros(len(self._poles) + 1, complex)
         hist_x = hist_x_profile
-        # `bin_dt` is taken as a single uniform step (and the C++ state machine
-        # advances bin-by-bin), so the profile grid must be a linspace. This
-        # also covers the `EquidistantMultiProfile._continuous_memory_hist_x`
-        # path, which does not go through `ProfileBaseClass.hist_step`.
-        assert is_linspace_like(hist_x), (
-            "profile `hist_x` must be like ``np.linspace(...)``."
-        )
+        if type(self._parent_wakefield.profile) is not EquidistantMultiProfile:
+            # `bin_dt` is taken as a single uniform step, so a plain profile
+            # grid must be a global linspace. Sparse multi-bunch profiles are
+            # only piecewise-equidistant (per-bunch windows separated by
+            # spacer bins); their per-window jumps are handled via the
+            # bucket-index mechanism, so they are exempt from this check.
+            assert is_linspace_like(hist_x), (
+                "profile `hist_x` must be like ``np.linspace(...)``."
+            )
         bin_dt = float(hist_x[1] - hist_x[0])
         # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
         # on the first call (C++ now uses edge-based rather than centre-based

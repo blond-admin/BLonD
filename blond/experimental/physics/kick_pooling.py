@@ -22,6 +22,8 @@ import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
 
+from generals.array_helpers import is_linspace_like
+
 from blond import backend
 from blond.core.base import BeamPhysicsRelevant, Preparable
 
@@ -130,6 +132,8 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         voltage
             Voltage along the time axis, in [V].
         """
+
+        assert is_linspace_like(time_axis)
 
         key = id(time_axis)
 
