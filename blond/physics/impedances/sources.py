@@ -298,6 +298,9 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         impedance_from_wake
             Wake impedance.
         """
+        assert is_linspace_like(time), (
+            "`time` must be like ``np.linspace(...)``."
+        )
         # Recalculate only if `time` is changed
 
         hash_ = get_hash(time)
@@ -542,6 +545,9 @@ class Resonators(
         frequency_array
             Frequency array corresponding to the wake impedance.
         """
+        assert is_linspace_like(time), (
+            "`time` must be like ``np.linspace(...)``."
+        )
         return backend.fft.rfftfreq(
             len(self._cache_impedance_from_wake), time[1] - time[0]
         )

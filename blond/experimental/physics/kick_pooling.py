@@ -22,10 +22,9 @@ import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
 
-from generals.array_helpers import is_linspace_like
-
 from blond import backend
 from blond.core.base import BeamPhysicsRelevant, Preparable
+from blond.generals.array_helpers import is_linspace_like
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import TypeVar
