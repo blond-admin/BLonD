@@ -165,7 +165,7 @@ class Simulation(Preparable):
         self._exec_track_reference()
 
     @property
-    def turn_i(self) -> DynamicParameter:  # NOQA: D102
+    def turn_i(self) -> DynamicParameter:  # NOQA: D102 # pragma: no cover
         warnings.warn(
             "`turn_i` will be removed in future, use `turn_counter` instead!",
             DeprecationWarning,
@@ -174,7 +174,7 @@ class Simulation(Preparable):
         return self.turn_counter
 
     @turn_i.setter
-    def turn_i(self, value: DynamicParameter) -> None:  # NOQA: D102
+    def turn_i(self, value: DynamicParameter) -> None:  # NOQA: D102 # pragma: no cover
         warnings.warn(
             "`turn_i` will be removed in future, use `turn_counter` instead!",
             DeprecationWarning,
