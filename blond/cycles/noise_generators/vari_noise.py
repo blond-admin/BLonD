@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.cycles.noise_generators.base import NoiseGenerator
-from blond.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -34,8 +33,9 @@ class VariNoise(NoiseGenerator):
     Band-limited RF phase noise from CERN's ``VariNoise`` generator.
 
     The generated noise occupies, at each turn, the frequency band between
-    ``frequency_low`` and ``frequency_high``; its spectral shape inside the
-    band is given by ``gain_x``/``gain_y`` and is constant along time.
+    ``frequency_low`` and ``frequency_high``; its relative amplitude shape
+    inside the band is given by ``gain_x``/``gain_y`` and is constant along
+    time.
 
     The underlying algorithm is the external CERN ``rf-noise-cpp`` library,
     which must be available (prebuilt, or buildable from source). It is loaded
@@ -45,30 +45,42 @@ class VariNoise(NoiseGenerator):
     Parameters
     ----------
     frequency_high
-        Array of the frequency upper limit along time, in [Hz]. Its length
-        defines the number of turns produced by :meth:`get_noise`.
+        Frequency upper limit along time, in [Hz]. Its length defines the
+        number of turns produced by :meth:`get_noise`. The band must satisfy
+        ``0 <= frequency_low < frequency_high <= sampling_rate / 2``
+        element-wise; the upper bound is the Nyquist frequency (exceeding it
+        gives an ill-defined spectral shape and rms).
     frequency_low
-        Array of the frequency lower limit along time, in [Hz]. Same length as
-        ``frequency_high``; element-wise smaller than it.
+        Frequency lower limit along time, in [Hz]. Same length as
+        ``frequency_high``, element-wise smaller than it and ``>= 0``.
     gain_y
-        Spectral density distribution between the low and high limits, constant
-        along time. Must be supplied by the caller (e.g. a machine-specific
-        spectrum).
+        Relative *amplitude* shape of the spectrum across the band (local rms
+        amplitude, not power/PSD), constant along time. Must be supplied by the
+        caller (e.g. a machine-specific spectrum).
     sampling_rate
         Play-back clock frequency, in [Hz] (machine-specific, e.g. the
         revolution frequency). Required.
     gain_x
-        Array from 0 (``frequency_low``) to 1 (``frequency_high``) giving the
-        positions of ``gain_y``. Defaults to ``linspace(0, 1, len(gain_y))``.
+        Positions of ``gain_y`` on the normalized band, from 0
+        (``frequency_low``) to 1 (``frequency_high``). Defaults to
+        ``linspace(0, 1, len(gain_y))``.
     n_source
-        Minimum number of elementary harmonic noise sources.
+        Minimum number of elementary harmonic noise sources; the frequency
+        resolution is roughly ``(frequency_high - frequency_low) / n_source``
+        (the value actually used may be slightly larger to keep the FFT length
+        small-prime-factorable).
     n_pnt_min
-        Minimum number of steps to express the highest-frequency oscillation.
+        Minimum number of steps to express the highest-frequency oscillation
+        (forced to at least 6).
     r_seed
-        If ``< 0`` use a clock seed (non-reproducible); if ``>= 0`` use it as a
-        reproducible starting seed.
+        Starting seed for the (reproducible) random sequence. The underlying
+        library takes it as an unsigned value, so a fixed ``r_seed`` always
+        reproduces the same noise; negative values are reinterpreted as large
+        fixed seeds rather than a clock seed.
     rms
-        RMS value of the total time-domain output stream, in [rad].
+        RMS amplitude of the total time-domain output stream, in [rad]. Kept
+        constant when the band limits change, so wider bands have lower
+        amplitude density.
     """
 
     def __init__(
@@ -114,6 +126,10 @@ class VariNoise(NoiseGenerator):
         noise
             Phase-noise array of length ``n_turns``, in [rad].
         """
+        from blond.interfaces.rf_noise_cpp.wrap_rf_noise import (
+            rf_noise,  # delay crash to last moment
+        )
+
         assert len(self.frequency_high) == n_turns, (
             f"{len(self.frequency_high)=} must equal {n_turns=}"
         )

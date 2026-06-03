@@ -69,6 +69,30 @@ class TestVariNoiseConfig(unittest.TestCase):
         with self.assertRaises(AssertionError):
             noise.get_noise(n_turns=n_turns)
 
+    def test_negative_frequency_low_raises(self):
+        # frequency_low must be >= 0.
+        n_turns = 10
+        noise = VariNoise(
+            frequency_high=np.full(n_turns, 200.0),
+            frequency_low=np.full(n_turns, -1.0),
+            gain_y=_flat_spectrum(),
+            sampling_rate=_SAMPLING_RATE,
+        )
+        with self.assertRaises(AssertionError):
+            noise.get_noise(n_turns=n_turns)
+
+    def test_frequency_above_nyquist_raises(self):
+        # frequency_high must be <= sampling_rate / 2 (Nyquist).
+        n_turns = 10
+        noise = VariNoise(
+            frequency_high=np.full(n_turns, 200.0),  # > 100 Hz Nyquist
+            frequency_low=np.full(n_turns, 50.0),
+            gain_y=_flat_spectrum(),
+            sampling_rate=200.0,  # Nyquist = 100 Hz
+        )
+        with self.assertRaises(AssertionError):
+            noise.get_noise(n_turns=n_turns)
+
     def test_gain_x_out_of_range_raises(self):
         n_turns = 10
         noise = self._make(

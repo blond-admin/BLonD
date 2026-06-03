@@ -32,8 +32,8 @@ import platform
 import re
 import subprocess
 import sys
+import warnings
 from typing import TYPE_CHECKING
-from warnings import warn
 
 import numpy as np
 
@@ -304,10 +304,11 @@ def rf_noise(
     frequency_low
         Array of the frequency lower limit along time, in [Hz].
     gain_x
-        Array from 0 (``frequency_low``) to 1 (``frequency_high``).
+        Positions of ``gain_y`` on the normalized band, from 0
+        (``frequency_low``) to 1 (``frequency_high``).
     gain_y
-        Frequency density distribution between the high and low limits.
-        Stays the same along time.
+        Relative *amplitude* shape of the spectrum across the band (local rms
+        amplitude, not power/PSD). Stays the same along time.
     n_source
         Minimum number of elementary harmonic noise sources. To allow a
         reasonable FFT with small prime factors the finally used number might
@@ -319,12 +320,15 @@ def rf_noise(
         slightly higher so that ``n_source * n_pnt`` factorises into small
         primes (the FFT length).
     r_seed
-        If ``< 0`` use a clock seed (every call differs); if ``>= 0`` use the
-        given starting seed to reproduce the same noise.
+        Starting seed for the (reproducible) random sequence. The library takes
+        it as an unsigned value, so a fixed ``r_seed`` always reproduces the
+        same noise; negative values are reinterpreted as large fixed seeds
+        rather than a clock seed.
     sampling_rate
-        Play-back clock frequency, in [Hz].
+        Play-back clock frequency, in [Hz]. The band must satisfy
+        ``0 <= f_low < f_high <= sampling_rate / 2`` (Nyquist).
     rms
-        RMS value of the total time-domain output stream. Independent of the
+        RMS amplitude of the total time-domain output stream. Independent of the
         limit frequencies (wider bands get lower amplitudes).
     phase_array
         Optional pre-allocated output array. If given, the result is written
@@ -340,19 +344,29 @@ def rf_noise(
 
     # Coerce dtypes, warning on mismatch (mirrors legacy behaviour).
     if frequency_high.dtype != np.double:
-        warn(f"{frequency_high.dtype=}, but should be np.double", stacklevel=2)
+        warnings.warn(
+            f"{frequency_high.dtype=}, but should be np.double", stacklevel=2
+        )
     frequency_high = frequency_high.astype(np.double)
     if frequency_low.dtype != np.double:
-        warn(f"{frequency_low.dtype=}, but should be np.double", stacklevel=2)
+        warnings.warn(
+            f"{frequency_low.dtype=}, but should be np.double", stacklevel=2
+        )
     frequency_low = frequency_low.astype(np.double)
     if gain_x.dtype != np.double:
-        warn(f"{gain_x.dtype=}, but should be np.double", stacklevel=2)
+        warnings.warn(
+            f"{gain_x.dtype=}, but should be np.double", stacklevel=2
+        )
     gain_x = gain_x.astype(np.double)
     if gain_y.dtype != np.double:
-        warn(f"{gain_y.dtype=}, but should be np.double", stacklevel=2)
+        warnings.warn(
+            f"{gain_y.dtype=}, but should be np.double", stacklevel=2
+        )
     gain_y = gain_y.astype(np.double)
     if phase_array.dtype != np.double:
-        warn(f"{phase_array.dtype=}, but should be np.double", stacklevel=2)
+        warnings.warn(
+            f"{phase_array.dtype=}, but should be np.double", stacklevel=2
+        )
     phase_array = phase_array.astype(np.double)
 
     # Validate shapes and ranges.
@@ -363,8 +377,23 @@ def rf_noise(
         f"{len(frequency_high)=}, {len(frequency_low)=}"
     )
     assert len(gain_x) == len(gain_y), f"{len(gain_x)=}, {len(gain_y)=}"
+    # Band must satisfy 0 <= f_low < f_high <= sampling_rate / 2 (Nyquist).
+    assert np.all(frequency_low >= 0.0), (
+        "All 'frequency_low' must be >= 0 Hz, but got"
+        f" min(frequency_low)={float(np.min(frequency_low))} Hz."
+    )
     assert np.all(frequency_low < frequency_high), (
-        "All 'frequency_low' must be smaller than 'frequency_high'"
+        "All 'frequency_low' must be smaller than 'frequency_high', but"
+        " at least one bin violates this"
+        f" (min(frequency_high - frequency_low)"
+        f"={float(np.min(frequency_high - frequency_low))} Hz)."
+    )
+    nyquist = sampling_rate / 2.0
+    assert np.all(frequency_high <= nyquist), (
+        "All 'frequency_high' must be <= the Nyquist frequency"
+        f" sampling_rate / 2 = {nyquist} Hz, but got"
+        f" max(frequency_high)={float(np.max(frequency_high))} Hz."
+        " Increase 'sampling_rate' or lower 'frequency_high'."
     )
     assert np.min(gain_x) >= 0.0, (
         f"'gain_x' must be within 0.0 and 1.0, but got {np.min(gain_x)=}"
