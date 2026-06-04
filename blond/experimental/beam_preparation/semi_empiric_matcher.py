@@ -433,7 +433,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
-        deltaE_grid, hamilton_2D, time_grid = self._get_hamilton(
+        time_grid, deltaE_grid, hamilton_2D = self._get_hamilton(
             beam=beam, simulation=simulation, ts=ts
         )
         density = self.hamilton_to_density_function(
@@ -466,6 +466,42 @@ class SemiEmpiricMatcher(MatchingRoutine):
         NumpyArray,
         NumpyArray,
     ]:
+        r"""Build the semi-analytic 2D Hamiltonian for the current beam.
+
+        Queries the empirically determined potential well from the
+        simulation, averages it with the potential well of the previous
+        call to damp oscillations between successive matching iterations,
+        and feeds the result into :func:`get_hamilton_semi_analytic` to
+        obtain :math:`H_{2D}(t, \Delta E)`.
+
+        The potential well is sampled on a finer grid (oversampled by
+        ``_POTENTIAL_WELL_OVERSAMPLING``) and then down-sampled to the
+        resolution of ``ts`` to improve the accuracy of the empiric
+        estimate. Must be called on turn zero only.
+
+        Parameters
+        ----------
+        beam : BeamBaseClass
+            Beam whose particle type, intensity and reference parameters
+            (total energy, ``beta``, ``gamma``) define the potential well
+            and the analytic drift term.
+        simulation : Simulation
+            Simulation providing the empiric potential well via
+            :meth:`Simulation.get_potential_well_empiric` and the ring used
+            to compute the average slippage factor :math:`\eta_0`.
+        ts : ndarray
+            Time coordinates at which the Hamiltonian is evaluated [s].
+
+        Returns
+        -------
+        time_grid : ndarray
+            2D grid of time coordinates :math:`t` [s].
+        deltaE_grid : ndarray
+            2D grid of energy differences :math:`\Delta E` [eV].
+        hamilton_2D : ndarray
+            2D semi-analytic Hamiltonian evaluated on the grid [eV].
+
+        """
         assert simulation.turn_i.value == 0
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
@@ -501,7 +537,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ),
             shape=self.internal_grid_shape,
         )
-        return deltaE_grid, hamilton_2D, time_grid
+        return time_grid, deltaE_grid, hamilton_2D
 
     def _plot_current_state(
         self,
