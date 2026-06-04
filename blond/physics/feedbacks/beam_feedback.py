@@ -71,7 +71,7 @@ class BeamFeedbackBase(GlobalFeedback):
         window_coefficient: float = 0.0,
         time_offset: float | None = None,
         current_thres: float = None,
-        sample_de: int = 0,
+        sample_de: int = 1,
     ):
         super().__init__(profile=profile)
         self.delay = delay
@@ -263,7 +263,7 @@ class BeamFeedbackBase(GlobalFeedback):
         """
         # Calculate alpha
         alpha = self.cavities[0]._ring.momentum_compaction_factor
-        ring_radius = self.cavities[0]._ring.closed_orbit_length
+        ring_radius = self.cavities[0]._ring.circumference / (2 * np.pi)
 
         # Correct for design orbit
         self.average_de = beam.read_partial_dE()[:: self.sample_de].mean()
