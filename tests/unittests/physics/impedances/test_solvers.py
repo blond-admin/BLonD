@@ -45,7 +45,6 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
-from blond.testing.backend_testing import skip_if_no_cupy
 from blond.testing.helpers import enforce_64_bit_backend
 
 

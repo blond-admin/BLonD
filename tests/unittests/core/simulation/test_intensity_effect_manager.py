@@ -24,8 +24,8 @@ class TestIntensityEffectManager(unittest.TestCase):
             wakefield_profile_mock,
         ]
         simulation_mock.ring.elements._get_element_cache = {}
-        simulation_mock.ring.elements.get_elements = (
-            lambda x, recursive: BeamPhysicsRelevantElements.get_elements(
+        simulation_mock.ring.elements.get_elements = lambda x, recursive: (
+            BeamPhysicsRelevantElements.get_elements(
                 self=simulation_mock.ring.elements,
                 class_=x,
                 recursive=recursive,
