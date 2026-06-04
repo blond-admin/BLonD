@@ -5,14 +5,17 @@ from pathlib import Path
 
 EXCLUDE = "legacy"
 
-# Third-party (vendored) files that are not ours; we must not add our license.
-# e.g. the C++ sources hardcopied from CERN's external rf-noise-cpp project.
-THIRD_PARTY_FILENAMES = frozenset(
-    {
-        "rf_noise_wrapper.cpp",
-        "varigen.h",
-    }
-)
+
+def load_third_party_filenames(this_dir: Path) -> frozenset[str]:
+    """Load the list of vendored files that must keep their upstream header.
+
+    These are third-party files that are not ours; we must not add our
+    license. e.g. the C++ sources hardcopied from CERN's external
+    rf-noise-cpp project. The filenames are read from
+    ``copyright_excule.txt``, one per line.
+    """
+    with open(this_dir / "copyright_excule.txt") as file:
+        return frozenset(line.strip() for line in file if line.strip())
 
 
 def perform_check():
@@ -20,6 +23,7 @@ def perform_check():
     this_dir = Path(__file__).parent
     ROOT = (this_dir / "../blond/").resolve()
     assert ROOT.exists(), str(ROOT)
+    third_party_filenames = load_third_party_filenames(this_dir)
     with open(this_dir / "copyright_notice.txt") as file:
         text_py = file.read() + "\n"
     text_cpp = text_py.replace("#", r"//")
@@ -33,7 +37,7 @@ def perform_check():
                 name == "_version.py"
             ):  # is dynamically written during pip install
                 continue
-            if name in THIRD_PARTY_FILENAMES:  # vendored, keep upstream header
+            if name in third_party_filenames:  # vendored, keep upstream header
                 continue
             is_python_file = name.endswith(".py")
             is_cpp_file = (

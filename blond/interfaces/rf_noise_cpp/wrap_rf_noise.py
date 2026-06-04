@@ -185,10 +185,15 @@ def _compile_rf_noise_library(
     ]
     if os.name == "posix":
         command.append("-fPIC")
+
+    rf_noise_wrapper_cpp = _src_path / "rf_noise_wrapper.cpp"
+
+    assert rf_noise_wrapper_cpp.exists()
+
     command += [
         "-o",
         str(target_library),
-        str(_src_path / "rf_noise_wrapper.cpp"),
+        str(rf_noise_wrapper_cpp),
         *cpp_files,
         f"-I{rf_noise_src}",
     ]
@@ -282,6 +287,14 @@ def rf_noise_library_available() -> bool:
     return True
 
 
+def _cast_double(arr):
+    if arr.dtype != np.double:
+        warnings.warn(
+            f"{arr.dtype=}, but should be ``np.double``", stacklevel=2
+        )
+    return arr.astype(np.double)
+
+
 def rf_noise(
     frequency_high: NumpyArray,
     frequency_low: NumpyArray,
@@ -343,40 +356,25 @@ def rf_noise(
         phase_array = np.empty(len(frequency_high), dtype=np.double)
 
     # Coerce dtypes, warning on mismatch (mirrors legacy behaviour).
-    if frequency_high.dtype != np.double:
-        warnings.warn(
-            f"{frequency_high.dtype=}, but should be np.double", stacklevel=2
-        )
-    frequency_high = frequency_high.astype(np.double)
-    if frequency_low.dtype != np.double:
-        warnings.warn(
-            f"{frequency_low.dtype=}, but should be np.double", stacklevel=2
-        )
-    frequency_low = frequency_low.astype(np.double)
-    if gain_x.dtype != np.double:
-        warnings.warn(
-            f"{gain_x.dtype=}, but should be np.double", stacklevel=2
-        )
-    gain_x = gain_x.astype(np.double)
-    if gain_y.dtype != np.double:
-        warnings.warn(
-            f"{gain_y.dtype=}, but should be np.double", stacklevel=2
-        )
-    gain_y = gain_y.astype(np.double)
-    if phase_array.dtype != np.double:
-        warnings.warn(
-            f"{phase_array.dtype=}, but should be np.double", stacklevel=2
-        )
-    phase_array = phase_array.astype(np.double)
+
+    frequency_high = _cast_double(frequency_high)
+    frequency_low = _cast_double(frequency_low)
+
+    gain_x = _cast_double(gain_x)
+    gain_y = _cast_double(gain_y)
+
+    phase_array = _cast_double(phase_array)
 
     # Validate shapes and ranges.
     assert len(frequency_high) == len(phase_array), (
-        f"{len(frequency_high)=}, {len(phase_array)=}"
+        f"Length should be equal, but got {len(frequency_high)=}, {len(phase_array)=}"
     )
     assert len(frequency_high) == len(frequency_low), (
-        f"{len(frequency_high)=}, {len(frequency_low)=}"
+        f"Length should be equal, but got {len(frequency_high)=}, {len(frequency_low)=}"
     )
-    assert len(gain_x) == len(gain_y), f"{len(gain_x)=}, {len(gain_y)=}"
+    assert len(gain_x) == len(gain_y), (
+        f"Length should be equal, but got {len(gain_x)=}, {len(gain_y)=}"
+    )
     # Band must satisfy 0 <= f_low < f_high <= sampling_rate / 2 (Nyquist).
     assert np.all(frequency_low >= 0.0), (
         "All 'frequency_low' must be >= 0 Hz, but got"

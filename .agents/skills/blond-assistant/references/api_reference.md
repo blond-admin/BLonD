@@ -582,8 +582,8 @@ with AllowPlotting():
 
 Generate phase noise schedules for RF stations:
 ```python
-from blond.experimental import VariNoise
-noise_array = VariNoise().get_noise(n_turns=200)
+from blond.cycles.noise_generators.vari_noise import VariNoise
+noise_array = VariNoise(...).get_noise(n_turns=200)
 rf.schedule("phi_rf_design", noise_array)
 ```
 

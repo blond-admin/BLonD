@@ -11,15 +11,11 @@
 __all__ = [
     "FilamentationMatcher",
     "SemiEmpiricMatcher",
-    "VariNoise",
     "ProfileMatcherAddon",
     "PooledInterpolationKick",
 ]
 import warnings
 
-# VariNoise graduated to blond.cycles.noise_generators; re-exported here for
-# backwards compatibility.
-from blond.cycles.noise_generators import VariNoise
 from blond.experimental.beam_preparation.filamentation_matcher import (
     FilamentationMatcher,
 )
