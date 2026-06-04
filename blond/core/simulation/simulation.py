@@ -1663,7 +1663,7 @@ class Simulation(Preparable):
     def plot_separatrix(
         self,
         beam: BeamBaseClass,
-        dt: NumpyArray,
+        dt: NumpyArray | None = None,
         **kwargs_plot,
     ) -> list[Line2D]:
         r"""
