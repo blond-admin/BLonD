@@ -45,11 +45,16 @@ from blond import (
     backend,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.handle_results.helpers import callers_relative_path
 from blond.legacy.blond2.impedances.induced_voltage_analytical import (
     analytical_gaussian_resonator,
 )
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 
 def main():
@@ -180,8 +185,8 @@ def main():
             profile.hist_x, VindGauss, label="analytical_gaussian_resonator"
         )
     plt.legend()
-    # plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()

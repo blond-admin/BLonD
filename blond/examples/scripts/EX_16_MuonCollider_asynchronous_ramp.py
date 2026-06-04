@@ -23,6 +23,7 @@ from blond import (
     Simulation,
     SingleHarmonicRFStation,
     mu_plus,
+    setup_backend,
 )
 from blond.core.beam.particle_types import mu_minus
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
@@ -30,6 +31,9 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
 )
 from blond.handle_results.observables import BeamStatisticsOncePerTurn
 from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 
 def main():
