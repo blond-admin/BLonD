@@ -6,14 +6,6 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-# Copyright CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
-# In applying this licence, CERN does not waive the privileges and immunities
-# granted to it by virtue of its status as an Intergovernmental Organization or
-# submit itself to any jurisdiction.
-# Project website: http://blond.web.cern.ch/
-
 """
 Implementation of the PSB beam control.
 
@@ -34,8 +26,6 @@ from blond.physics.feedbacks.beam_feedback import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray
-
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
 
@@ -155,9 +145,9 @@ class PSBBeamControl(BeamFeedbackBase):
         self.rl_gain[0] = self.rl_gain[0] * np.ones(n_turns + 1)
         self.rl_gain[1] = self.rl_gain[1] * np.ones(n_turns + 1)
 
-        # self.precalculate_time(simulation.ring.)
+        self.precalculate_time(n_turns)
 
-    def precalculate_time(self, t_rev: NDArray):
+    def precalculate_time(self, n_turns: int):
         """
         Calculate the PL action before running the simuliaton.
 
@@ -166,23 +156,26 @@ class PSBBeamControl(BeamFeedbackBase):
 
         Parameters
         ----------
-        t_rev
-            The design revolution period turn by turn during the simulation.
+        n_turns
+            Number of turns of the simulation.
         """
         if self.dt > 0:
             n = self.delay + 1
-            while n < t_rev.size:
+            while n < n_turns + 1:
                 summa = 0
                 while summa < self.dt:
                     try:
-                        summa += t_rev[n]
+                        summa += (
+                            self.cavities[0].get_main_harmonic_t_rf()
+                            * self.cavities[0].get_main_harmonic()
+                        )
                         n += 1
                     except Exception:
                         self.on_time = np.append(self.on_time, 0)
                         return
                 self.on_time = np.append(self.on_time, n - 1)
         else:
-            self.on_time = np.arange(t_rev.size)
+            self.on_time = np.arange(n_turns + 1)
 
     def get_beam_attribute(self, beam: BeamBaseClass):
         """
