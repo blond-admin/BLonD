@@ -85,7 +85,6 @@ class TestObservables(unittest.TestCase):
             dynamic_profile_const_n_bins_observation,
         )
         simulation = Simulation.from_locals(locals())
-        simulation.print_one_turn_execution_order()
         n_turns = 12
         n_turns_half = n_turns // each_turn_i
         simulation.run_simulation(

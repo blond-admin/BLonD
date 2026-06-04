@@ -43,7 +43,11 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
-from blond.physics.impedances.sources import InductiveImpedance, Resonators
+from blond.physics.impedances.sources import (
+    InductiveImpedance,
+    Resonators,
+    get_hash,
+)
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
@@ -352,7 +356,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
             profile=self._parent_wakefield.profile,
         )
 
-        key = len(self._freq_y)  # todo
+        key = get_hash(self._freq_y)
         if key in self._induced_voltage_buffer:
             # use `out` variable of fft to avoid array creation
             if backend.is_gpu:
@@ -404,7 +408,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         plt.legend()
         plt.subplot(2, 1, 2)
 
-        key = len(self._freq_y)  # todo
+        key = get_hash(self._freq_y)
 
         plt.plot(self._induced_voltage_buffer[key])
         plt.plot(
@@ -412,7 +416,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 : self._parent_wakefield.profile.n_bins
             ]
         )
-        plt.ylabel("Votlage")
+        plt.ylabel("Voltage")
         plt.xlabel("Time")
 
 

@@ -107,18 +107,17 @@ class TestWakeFields(unittest.TestCase):
         self.profile = profile
 
         simulation = Simulation.from_locals(locals())
-        simulation.print_one_turn_execution_order()
         self.simulation = simulation
 
     @multi_backend_testcase
     def test_source_InductiveImpedance(self):
-        makers = ["s", "o", "1", "2", "3", "."]
+        markers = ["s", "o", "1", "2", "3", "."]
         solvers = (
             InductiveImpedanceSolver(),
             PeriodicFreqSolver(),
             TimeDomainFftSolver(),
             # SingleTurnResonatorConvolutionSolver(), # not applicable with `InductiveImpedance`
-            # MultiPassResonatorSolver(), # nTravelingWaveCavitySolver not applicable with `InductiveImpedance`
+            # MultiPassResonatorSolver(), # TravelingWaveCavitySolver not applicable with `InductiveImpedance`
             # ContinuousMultiTurnTimeDomainSolver(n_turns=2),
             # not applicable with `short profile`
         )
@@ -139,7 +138,7 @@ class TestWakeFields(unittest.TestCase):
             if DEV_DRAW:
                 plt.plot(
                     self.wake_field.induced_voltage,
-                    makers[i],
+                    markers[i],
                     label=type(solver).__name__,
                 )
             plot_diff_if_failed(
@@ -205,9 +204,8 @@ class TestWakeFields(unittest.TestCase):
             # InductiveImpedanceSolver(),
             PeriodicFreqSolver(t_periodicity=26658.883 / c),
             TimeDomainFftSolver(),
-            SingleTurnResonatorConvolutionSolver(),  # not applicable with `InductiveImpedance`
-            MultiPassResonatorSolver(),  # not applicable with
-            # `InductiveImpedance`
+            SingleTurnResonatorConvolutionSolver(),
+            MultiPassResonatorSolver(),
             # ContinuousMultiTurnTimeDomainSolver(n_turns=2),
             # not applicable with `short profile`
         )
