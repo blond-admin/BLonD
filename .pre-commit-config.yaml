@@ -2,7 +2,7 @@ exclude: ^(legacy|blond3/legacy/|builds)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace  # Trims trailing whitespace.
       - id: end-of-file-fixer  # Makes sure files end in a newline and only a newline.
@@ -16,7 +16,7 @@ repos:
 
   # Sorts the python import statements
   - repo: https://github.com/PyCQA/isort
-    rev: 6.0.1
+    rev: 8.0.1
     hooks:
       - id: isort
         args: ["--profile", "black", "--line-length", "79"] # otherwise not compatible with Ruf
@@ -24,7 +24,7 @@ repos:
   # https://pre-commit.com/
   # use `ruff check` to debug this hook
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.11  # Replace with the latest version
+    rev: v0.15.15  # Replace with the latest version
     hooks:
       - id: ruff-format  # This runs `ruff format`
       - id: ruff-check  # This runs `ruff check`
