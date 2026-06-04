@@ -9,16 +9,16 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_Synchrotron_Radiation_Matched(unittest.TestCase):
+class TestEX_27_Synchrotron_Radiation_Matched(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
         from blond.examples.scripts import (
-            EX_Synchrotron_Radiation_Matched,  # NOQA will run the
+            EX_27_Synchrotron_Radiation_Matched,  # NOQA will run the
         )
 
-        EX_Synchrotron_Radiation_Matched.main()
+        EX_27_Synchrotron_Radiation_Matched.main()
 
         # full script. just checking if it crashes
 
@@ -32,10 +32,10 @@ class TestEX_Synchrotron_Radiation_Matched(unittest.TestCase):
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
         from blond.examples.scripts import (
-            EX_Synchrotron_Radiation_Matched,  # NOQA will run the
+            EX_27_Synchrotron_Radiation_Matched,  # NOQA will run the
         )
 
-        EX_Synchrotron_Radiation_Matched.main()
+        EX_27_Synchrotron_Radiation_Matched.main()
         backend.zeros(100)
 
         # full script. just checking if it crashes

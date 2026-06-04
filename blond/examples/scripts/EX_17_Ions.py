@@ -44,9 +44,14 @@ from blond import (
     Simulation,
     SingleHarmonicRFStation,
     momentum_compaction_factor,
+    setup_backend,
 )
 from blond.core.beam.particle_types import ParticleType
 from blond.handle_results.observables import BeamStatisticsOncePerTurn
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 # U-28+ at SIS100 (GSI): fully stripped uranium is U-92+, injection uses U-28+
 atomic_mass_unit_eV = physical_constants[

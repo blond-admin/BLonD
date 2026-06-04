@@ -21,6 +21,7 @@ from blond import (
     Simulation,
     SingleHarmonicRFStation,
     positron,
+    setup_backend,
 )
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
@@ -33,8 +34,10 @@ from blond.handle_results.observables import BeamStatisticsOncePerTurn
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
+from blond.testing import pytest_active
 
-# logging.basicConfig(level=logging.INFO)
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 
 class SynchrotronRadiationSimulation:

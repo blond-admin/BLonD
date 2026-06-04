@@ -39,8 +39,13 @@ from blond import (
     SingleHarmonicRFStation,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.cycles.noise_generators import VariNoise
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 

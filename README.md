@@ -19,6 +19,7 @@
 * Beam and cavity feedback mechanisms
 
 BLonD also features **parallel backends** for efficient execution on both **CPUs** and **GPUs**, enabling scalable and high-performance simulations.
+It also ships with the [**BLonD Assistant**](#blond-assistant-ai-helper), an AI skill that helps you set up and debug simulations effectively.
 
 
 ## Dependencies
@@ -124,6 +125,43 @@ beam1.plot_hist2d()
 plt.tight_layout()
 plt.show()
 ```
+
+## BLonD Assistant (AI helper)
+
+This repository ships a **`blond-assistant`** agent skill (in `.agents/skills/`)
+that turns an AI coding assistant into a BLonD expert.
+It knows the simulation building blocks (`Ring`, RF stations, `Drift`, `Beam`,
+`MagneticCycle`, `WakeField`, profiles, observations, …) and the idiomatic way
+to assemble them, and points to the relevant `blond/examples/` and docs.
+
+Use it to:
+
+* scaffold a new simulation input file,
+* debug or explain an existing BLonD script,
+* add intensity effects (wakes/impedances), backends, or observations,
+* look up the exact parameters of a BLonD class.
+
+It works with any assistant that supports the skill format — **Claude Code**,
+**GitHub Copilot CLI**, **Gemini CLI**, and **Codex** — and activates
+automatically when you mention BLonD topics.
+
+### Installing the assistant
+
+The skill is bundled in `.agents/skills/blond-assistant/`. Most tools discover
+skills from their own directory, so "installing" means making the skill visible
+there. Copy (or symlink) the folder into your assistant's skills directory:
+
+```bash
+# Claude Code (project-local)
+cp -r .agents/skills/blond-assistant .claude/skills/
+
+# or symlink so it stays in sync with the repo
+ln -s ../../.agents/skills/blond-assistant .claude/skills/blond-assistant
+```
+
+For other assistants, point them at `.agents/skills/` or copy the folder into
+their respective skills directory (e.g. Copilot CLI / Gemini CLI plugin paths).
+No additional dependencies are required — the skill is plain Markdown.
 
 ## Contributing
 
