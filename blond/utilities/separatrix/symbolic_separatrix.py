@@ -190,7 +190,7 @@ class SymbolicSeparatrixHelper:
     def plot_separatrix(
         self,
         beam: BeamBaseClass,
-        dt: NumpyArray,
+        dt: NumpyArray | None = None,
         **kwargs_plot,
     ) -> list[Line2D]:
         r"""
@@ -221,6 +221,13 @@ class SymbolicSeparatrixHelper:
         -----
         This method does not call ``plt.show()``; call that separately.
         """
+        if dt is None:  # todo test
+            s0, s1 = beam.dt_min, beam.dt_max
+            r = s1 - s0
+            dt = np.linspace(
+                s0 - r, s1 + r, self._CANONICAL_SCAN_RESOLUTION + 1
+            )
+
         kwargs_plot.setdefault("color", "red")
         kwargs_plot.setdefault("linestyle", "dashed")
 
