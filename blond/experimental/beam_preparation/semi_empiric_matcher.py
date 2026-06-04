@@ -497,7 +497,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         time_grid : ndarray
             2D grid of time coordinates :math:`t` [s].
         deltaE_grid : ndarray
-            2D grid of energy differences :math:`\Delta E` [eV].
+            2D grid of energy offset :math:`\Delta E` [eV].
         hamilton_2D : ndarray
             2D semi-analytic Hamiltonian evaluated on the grid [eV].
 
