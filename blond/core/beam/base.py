@@ -244,7 +244,7 @@ class BeamBaseClass(Preparable, ABC):
 
         - ``dt``, ``dE``, ``flags``, ``ids``: the particle coordinate arrays
         - ``metadata``: a 0-D array holding a JSON string with the schema
-          version, intensity, particle-type physical constants, reference
+          version, intensity, particle-type, physical constants, reference
           coordinates and counter-rotation flag.
 
         Unlike pickle, this format is explicit and robust to Python / BLonD

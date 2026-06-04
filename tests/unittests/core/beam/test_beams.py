@@ -576,7 +576,7 @@ class TestBeamGoldenFixture(unittest.TestCase):
         self.assertTrue(
             self.FIXTURE_PATH.exists(),
             f"Missing golden beam fixture {self.FIXTURE_PATH.name}; "
-            "regenerate with generate_golden_beam_fixture.py.",
+            "regenerate with ./fixtures/generate_golden_beam_fixture.py.",
         )
 
     def test_golden_fixture_schema_version_is_current(self):
@@ -594,7 +594,7 @@ class TestBeamGoldenFixture(unittest.TestCase):
             f"{metadata.get('schema_version')!r} != current "
             f"{_BEAM_SCHEMA_VERSION!r}. If you intentionally changed the "
             "on-disk beam format, regenerate the fixture with "
-            "generate_golden_beam_fixture.py and commit it.",
+            "./fixtures/generate_golden_beam_fixture.py and commit it.",
         )
 
     def test_golden_fixture_loads_and_matches_reference(self):
