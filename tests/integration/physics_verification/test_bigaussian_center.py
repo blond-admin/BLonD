@@ -40,6 +40,7 @@ from blond import (
     mu_minus,
     mu_plus,
 )
+from blond.beam_preparation.bigaussian import _get_stable_fixed_point_single_rf
 from blond.convenience.single_section_setup import single_section_simulation
 from blond.utilities.separatrix.symbolic_separatrix import (
     SymbolicSeparatrixHelper,
@@ -146,7 +147,9 @@ class TestBiGaussianCenterOnStableFixedPoint(unittest.TestCase):
         helper = SymbolicSeparatrixHelper.from_simulation(
             simulation=simulation
         )
-        sfp_dt = helper.get_stable_fixed_point(beam=beam)
+        sfp_dt, _ = _get_stable_fixed_point_single_rf(
+            beam=beam, simulation=simulation
+        )
         return simulation, beam, helper, sfp_dt
 
     def _draw(self, simulation, beam, helper, sfp_dt, title):
@@ -213,39 +216,42 @@ class TestBiGaussianCenterOnStableFixedPoint(unittest.TestCase):
     def test_reinsertion_keeps_center_and_stays_in_bucket(self):
         """``reinsertion=True``: whole bunch inside the separatrix and its
         centre still on the SFP (reinsertion must not bias the centre)."""
-        for above_transition in (True, False):
-            with self.subTest(above_transition=above_transition):
-                simulation, beam, helper, sfp_dt = self._prepare_and_measure(
-                    mu_plus,
-                    above_transition=above_transition,
-                    reinsertion=True,
-                )
-                self.assertTrue(np.isfinite(sfp_dt), "oracle found no bucket")
+        for particle, name in ((mu_plus, "mu+"), (mu_minus, "mu-")):
+            with self.subTest(particle=name):
+                for above_transition in (True, False):
+                    with self.subTest(above_transition=above_transition):
+                        simulation, beam, helper, sfp_dt = (
+                            self._prepare_and_measure(
+                                mu_plus,
+                                above_transition=above_transition,
+                                reinsertion=True,
+                            )
+                        )
 
-                dt = np.asarray(beam.read_partial_dt())
-                dE = np.asarray(beam.read_partial_dE())
-                # Every particle must lie between the two separatrix branches.
-                upper, lower = helper.get_separatrix(beam=beam, dt=dt)
-                inside = (
-                    np.isfinite(upper)
-                    & np.isfinite(lower)
-                    & (dE < upper)
-                    & (dE > lower)
-                )
-                self.assertTrue(
-                    inside.all(),
-                    f"{(~inside).sum()} / {dt.size} reinserted particles fall "
-                    f"outside the separatrix",
-                )
+                        dt = np.asarray(beam.read_partial_dt())
+                        dE = np.asarray(beam.read_partial_dE())
+                        # Every particle must lie between the two separatrix branches.
+                        upper, lower = helper.get_separatrix(beam=beam, dt=dt)
+                        inside = (
+                            np.isfinite(upper)
+                            & np.isfinite(lower)
+                            & (dE < upper)
+                            & (dE > lower)
+                        )
+                        self.assertTrue(
+                            inside.all(),
+                            f"{(~inside).sum()} / {dt.size} reinserted particles fall "
+                            f"outside the separatrix",
+                        )
 
-                regime = "above" if above_transition else "below"
-                self._assert_center_on_sfp(
-                    simulation,
-                    beam,
-                    helper,
-                    sfp_dt,
-                    f"BiGaussian reinsertion mu+ {regime} transition",
-                )
+                        regime = "above" if above_transition else "below"
+                        self._assert_center_on_sfp(
+                            simulation,
+                            beam,
+                            helper,
+                            sfp_dt,
+                            f"BiGaussian reinsertion mu+ {regime} transition",
+                        )
 
 
 if __name__ == "__main__":  # pragma: no cover

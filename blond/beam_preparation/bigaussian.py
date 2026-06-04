@@ -6,7 +6,6 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-# References: Simon Lauber
 # TODO add original author of bigaussian()
 
 """Functions needed for :class:`~blond.beam_preparation.bigaussian.BiGaussian`."""
@@ -15,6 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blond.acc_math.analytic.hamilton import (
@@ -203,6 +203,43 @@ def get_main_harmonic_attributes(
     return harmonic, omega_rf, phi_rf, voltage
 
 
+def _get_stable_fixed_point_single_rf(
+    beam: BeamBaseClass, simulation: Simulation
+):
+    _, omega_rf, _phi_rf, voltage = get_main_harmonic_attributes(
+        beam=beam,
+        simulation=simulation,
+    )
+    charge = beam.particle_type.charge
+    is_below_transition = simulation.ring.is_below_transition(beam=beam)
+    plt.title(f"{is_below_transition=}")
+
+    energy_gain_per_turn = (
+        simulation.magnetic_cycle.get_target_total_energy(
+            turn_i=0,
+            section_i=0,
+            reference_time=0,
+            particle_type=simulation.magnetic_cycle.reference_particle,
+        )
+        - simulation.magnetic_cycle.get_total_energy_init()
+    )
+    sfp = (np.arcsin((energy_gain_per_turn) / voltage)) / omega_rf
+    period = 2 * np.pi / omega_rf
+
+    if is_below_transition:
+        pass
+    else:
+        sfp = period / 2 - sfp
+
+    if charge < 0:
+        sfp += period / 2
+
+    sfp -= (
+        _phi_rf / omega_rf
+    )  # rf offset is independant from charge and period
+    return float(sfp), float(period)
+
+
 class BiGaussian(MatchingRoutine):
     """
     Beam matching routine to generate a 2D Gaussian particle distribution.
@@ -252,6 +289,7 @@ class BiGaussian(MatchingRoutine):
         self._sigma_dE = sigma_dE
         self._reinsertion = reinsertion
         self._seed = seed
+        self._maxiter = 500
 
     def prepare_beam(
         self,
@@ -277,7 +315,15 @@ class BiGaussian(MatchingRoutine):
         sep_helper = SymbolicSeparatrixHelper.from_simulation(
             simulation=simulation,
         )
-        stable_fixed_point = sep_helper.get_stable_fixed_point(beam=beam)
+        stable_fixed_point, period = _get_stable_fixed_point_single_rf(
+            beam=beam, simulation=simulation
+        )
+        sep_helper.plot_separatrix(
+            beam=beam,
+            dt=np.linspace(
+                stable_fixed_point - period, stable_fixed_point + period
+            ),
+        )
 
         if self._sigma_dE is None:
             # todo one could obtain this from `SymbolicSeparatrixHelper` too
@@ -320,13 +366,19 @@ class BiGaussian(MatchingRoutine):
 
         # Re-insert if necessary
         if self._reinsertion:
+            iteration = 0
             while True:
+                iteration += 1
+                # todo clip to single bucket with sft + period
                 sel = ~sep_helper.is_in_separatrix(
                     dt=dt,
                     dE=dE,
                     particle_type=beam.particle_type,
                     total_energy=beam.reference.total_energy,
                     intensity=beam.intensity,
+                )
+                sel |= (dt > (stable_fixed_point + period)) | (
+                    dt < (stable_fixed_point - period)
                 )
 
                 n_new = int(backend.sum(sel))
@@ -350,6 +402,11 @@ class BiGaussian(MatchingRoutine):
                     ),
                     copy=False,
                 )
+                if iteration > self._maxiter:
+                    raise Exception(
+                        f"Failed to fill the bucket within "
+                        f"{self._maxiter} iterations"
+                    )
         beam.setup_beam(
             dt=dt,
             dE=dE,
