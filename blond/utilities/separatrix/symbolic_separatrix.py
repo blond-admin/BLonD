@@ -154,6 +154,44 @@ class SymbolicSeparatrixHelper:
         intensity: float,
         single_bucket: bool = False,
     ):
+        r"""
+        Test which phase-space points lie inside the separatrix.
+
+        Evaluates the symbolic Hamiltonian at each ``(dt, dE)`` coordinate
+        and compares it against the separatrix level ``H_sep`` of the
+        bucket. The direction of the comparison depends on the transition
+        state: above transition (``kinetic_coeff > 0``) the interior
+        satisfies ``H < H_sep``, while below transition
+        (``kinetic_coeff < 0``) it satisfies ``H > H_sep``. Using a fixed
+        ``<`` comparison would misclassify the synchronous particle below
+        transition and make ``BiGaussian`` reinsertion loop forever.
+
+        Parameters
+        ----------
+        dt
+            Time-deviation coordinates [s] of the points to test.
+        dE
+            Energy-deviation coordinates [eV] of the points to test, paired
+            element-wise with ``dt``.
+        particle_type
+            Particle species, used to build the reference beam for symbol
+            substitution.
+        total_energy
+            Reference total energy :math:`E_0` [eV] of the beam.
+        intensity
+            Beam intensity [number of charges], used for symbol
+            substitution.
+        single_bucket
+            If ``True``, restrict the result to the canonical (central) RF
+            bucket, excluding points captured in neighbouring buckets.
+
+        Returns
+        -------
+        mask
+            Boolean array, ``True`` where the corresponding ``(dt, dE)``
+            point lies inside the separatrix. Same shape and device
+            (NumPy or CuPy) as the inputs.
+        """
         # todo optimize performance of this script
 
         # Use beam as a shortcut for defining what is
