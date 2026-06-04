@@ -33,6 +33,7 @@ import re
 import subprocess
 import sys
 import warnings
+from importlib.resources import files
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -114,9 +115,12 @@ def _get_rf_noise_dir() -> pathlib.Path:
         BLonD repository.
     """
     if "RF_NOISE_DIR" in os.environ:
-        return pathlib.Path(os.environ["RF_NOISE_DIR"]).resolve()
-    # Assume it sits next to the BLonD repository.
-    return (_local_path / "../../../../rf-noise-cpp/").resolve()
+        path = pathlib.Path(os.environ["RF_NOISE_DIR"]).resolve()
+    else:
+        path = files("blond").parent.parent / "rf-noise-cpp"
+    assert path.is_dir(), f"{str(path)} is not a directory."
+
+    return path
 
 
 def _compile_rf_noise_library(
@@ -242,7 +246,9 @@ def _load_rf_noise() -> ctypes.CDLL:
         _compile_rf_noise_library(_get_rf_noise_dir(), target_library)
 
     # On Windows the loader must find the mingw runtime DLLs next to the lib.
-    if "win" in sys.platform and hasattr(os, "add_dll_directory"):
+    if "win" in sys.platform and hasattr(
+        os, "add_dll_directory"
+    ):  # pragma: no cover
         os.add_dll_directory(str(target_library.parent))
         library = ctypes.CDLL(str(target_library), winmode=0)
     else:
