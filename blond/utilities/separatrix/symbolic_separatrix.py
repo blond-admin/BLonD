@@ -221,7 +221,7 @@ class SymbolicSeparatrixHelper:
         -----
         This method does not call ``plt.show()``; call that separately.
         """
-        if dt is None:  # todo test
+        if dt is None:
             s0, s1 = beam.dt_min, beam.dt_max
             r = s1 - s0
             dt = np.linspace(
