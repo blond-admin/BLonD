@@ -6,7 +6,6 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-import logging
 import os
 
 import matplotlib.pyplot as plt
@@ -15,7 +14,6 @@ from scipy.constants import c
 
 from blond import (
     Beam,
-    Cupy64Bit,
     DriftSimple,
     MagneticCyclePerTurn,
     RFStationPhaseObservation,
