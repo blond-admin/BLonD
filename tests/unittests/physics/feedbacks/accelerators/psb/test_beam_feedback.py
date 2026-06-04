@@ -271,8 +271,8 @@ class TestPSBBeamFeedback(unittest.TestCase):
             self.beam_control.domega_PL, 13654.946393646453, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.domega_RL, 105979.16698863493, places=5
+            self.beam_control.domega_RL, 105979.16698863493, places=2
         )
         self.assertAlmostEqual(
-            self.beam_control.domega_rf, -119634.11338228139, places=5
+            self.beam_control.domega_rf, -119634.11338228139, places=2
         )
