@@ -40,7 +40,7 @@ from blond.physics.impedances.base import (
 )
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import EquidistantMultiProfile
-from blond.testing.helpers import pytest_active
+from blond.testing import pytest_active
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray

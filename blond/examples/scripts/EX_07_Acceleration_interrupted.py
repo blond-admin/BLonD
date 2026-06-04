@@ -31,10 +31,15 @@ from blond import (
     SingleHarmonicRFStation,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.experimental import (
     SemiEmpiricMatcher,
 )
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 logging.basicConfig(level=logging.INFO)
 
@@ -157,8 +162,7 @@ def main():
             plt.draw()
             plt.pause(0.1)
 
-        plt.show()
-
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()
