@@ -265,7 +265,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
         # Can be potentially replaced like `hamilton_to_density_function`,
         #  for example using the `SymbolicSeparatrixHelper`.
-        self._get_hamilton = self._get_ham_semianalytic
+        self._get_hamilton = self._get_hamiltonian_semianalytic
 
         if debug:
             self.debug_helper = DebuggingEndpoints()
@@ -305,7 +305,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self._match_beam(beam, sim_tmp, ts)
 
         # iterate solution with intensity effects
-        intensity_org = beam.intensity
+        intensity_original = beam.intensity
 
         # Get decimal places from the tolerance (e.g., 1e-6 → 6)
         tolerance_decimal_places = abs(
@@ -334,7 +334,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     )  # t
                 else:
                     scalar = 1.0
-                beam.intensity = scalar * intensity_org
+                beam.intensity = scalar * intensity_original
 
                 # run simulation with beam to collect the actual profiles
                 # that cause the wake-fields
@@ -342,10 +342,12 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 sim_tmp.intensity_effect_manager.unfreeze_wakefields()
 
                 # this might get changed by the simulation
-                beam_reference_time_org = beam.reference.time
-                beam_reference_total_energy_org = beam.reference.total_energy
-                turn_i_org = int(sim_tmp.turn_i.value)
-                section_i_org = int(sim_tmp.section_i.value)
+                beam_reference_time_original = beam.reference.time
+                beam_reference_total_energy_original = (
+                    beam.reference.total_energy
+                )
+                turn_i_original = int(sim_tmp.turn_i.value)
+                section_i_original = int(sim_tmp.section_i.value)
 
                 sim_tmp.run_simulation(
                     beams=(beam,),
@@ -356,10 +358,12 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 )
 
                 # reset to original value before simulation
-                beam.reference.time = beam_reference_time_org
-                beam.reference.total_energy = beam_reference_total_energy_org
-                sim_tmp.turn_i.value = turn_i_org
-                sim_tmp.section_i.value = section_i_org
+                beam.reference.time = beam_reference_time_original
+                beam.reference.total_energy = (
+                    beam_reference_total_energy_original
+                )
+                sim_tmp.turn_i.value = turn_i_original
+                sim_tmp.section_i.value = section_i_original
 
                 # Prevent the profiles from updating.
                 sim_tmp.intensity_effect_manager.set_profiles(active=False)
@@ -404,7 +408,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     ):
                         break
 
-            beam.intensity = intensity_org
+            beam.intensity = intensity_original
 
     def _match_beam(
         self,
@@ -437,7 +441,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             deltaE_grid=deltaE_grid,
             hamilton_2D=hamilton_2D,
             **self.hamilton_to_density_kwargs,
-        )  # type: ignore
+        )
 
         if self.debug_helper is not None:
             self.debug_helper.last_density = density
@@ -452,7 +456,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             seed=self.seed,
         )
 
-    def _get_ham_semianalytic(
+    def _get_hamiltonian_semianalytic(
         self,
         beam: BeamBaseClass,
         simulation: Simulation,
