@@ -1,5 +1,6 @@
 # General imports
 import unittest
+from unittest.mock import Mock
 
 import numpy as np
 import numpy.testing as nptest
@@ -7,6 +8,7 @@ import numpy.testing as nptest
 # BLonD imports
 import blond.physics.barrier_bucket as bbuck
 from blond.core.backends.backend import CupyBackend, backend
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.exceptions_ import ArrayShapeError
 from blond.testing.backend_testing import ArrayLikeScan, multi_backend_testcase
 
@@ -539,6 +541,30 @@ class TestBarrierBucketGenerator(unittest.TestCase):
 
             self.assertAlmostEqual(bin_cents[high], c + w / 4)
             self.assertAlmostEqual(bin_cents[low], c - w / 4)
+
+
+class TestBarrierRFTrackReference(unittest.TestCase):
+    def test_track_reference_without_magnetic_cycle_returns_zero(self):
+        # ``BarrierRF`` uses the base ``RFManipulationBaseClass.track_reference``
+        # (it does not override it). With ``magnetic_cycle=None`` (e.g. an
+        # external code such as xsuite owns the reference) the reference is
+        # left untouched and no acceleration kick is applied.
+        barrier = bbuck.BarrierRF(
+            t_center=500e-9, t_width=100e-9, peak_voltage=1e3
+        )
+        barrier.configure(
+            turn_counter=Mock(),
+            magnetic_cycle=None,
+            ring=Mock(),
+        )
+
+        reference = Mock(ReferenceCoordinates)
+        reference.total_energy = 938e6
+
+        reference_energy_change = barrier.track_reference(reference=reference)
+
+        self.assertEqual(reference_energy_change, 0.0)
+        self.assertEqual(reference.total_energy, 938e6)
 
 
 if __name__ == "__main__":
