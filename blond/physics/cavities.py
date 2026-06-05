@@ -156,6 +156,12 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         reference_energy_change
             Change of reference energy [eV].
         """
+        # No energy program (e.g. created via ``headless(magnetic_cycle=None)``,
+        # or an external code such as xsuite owns the reference): the reference
+        # is left untouched and no acceleration kick is applied.
+        if self._magnetic_cycle is None:
+            return 0.0
+
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_counter.value,
             section_i=self.section_index
@@ -742,6 +748,12 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Synchronous phase for the current RF parameters, in [rad].
         """
         # TODO rewrite for efficiency
+        if self._magnetic_cycle is None:
+            raise ValueError(
+                "Synchronous phase requires a `magnetic_cycle`; this RF station "
+                "was created via `headless(...)` without one "
+                "(`magnetic_cycle=None`)."
+            )
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_counter.value,
             section_i=self.section_index
@@ -897,8 +909,15 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         reference_energy_change
             Change of reference energy [eV].
         """
-        # set design omega etc. for this turn
+        # set design omega etc. for this turn (independent of the energy program)
         self._update_reference_based_attributes(reference=reference)
+
+        # No energy program (e.g. created via ``headless(magnetic_cycle=None)``,
+        # or an external code such as xsuite owns the reference): the reference
+        # is left untouched and no acceleration kick is applied.
+        if self._magnetic_cycle is None:
+            self._last_reference_energy_change = 0.0
+            return 0.0
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_counter.value,
@@ -1289,8 +1308,8 @@ class SingleHarmonicRFStation(
         phi_rf: float,
         harmonic: float,
         circumference: float,
-        total_energy: float,
         beam_reference_beta: float,
+        magnetic_cycle: MagneticCycleBase | None = None,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
@@ -1311,10 +1330,16 @@ class SingleHarmonicRFStation(
             RF station's design harmonic [].
         circumference
             Synchrotron circumference in [m].
-        total_energy
-            Target total energy in [eV].
         beam_reference_beta
             Beam velocity as a fraction of the speed of light [1].
+        magnetic_cycle
+            Energy program driving the reference-energy update.
+            If ``None`` (default), no reference-energy update is performed:
+            the beam reference is left untouched and only the RF kick is
+            applied (e.g. a pure RF kick, or when an external code such as
+            xsuite owns the reference). Pass a :class:`~blond.cycles.magnetic_cycle.MagneticCycleBase`
+            (e.g. ``ConstantMagneticCycle(..., in_unit="total energy")``) to
+            accelerate towards a target total energy.
         local_wakefield
             Optional wakefield to interact with beam.
         cavity_feedback
@@ -1346,9 +1371,7 @@ class SingleHarmonicRFStation(
 
         single_harmonic_rf_station.configure(
             turn_counter=SimpleNamespace(value=0),
-            magnetic_cycle=SimpleNamespace(
-                get_target_total_energy=lambda **_: total_energy
-            ),
+            magnetic_cycle=magnetic_cycle,
             ring=SimpleNamespace(
                 circumference=circumference,
                 section_lengths=np.array([circumference]),
@@ -1792,9 +1815,9 @@ class MultiHarmonicRFStation(
         phi_rf: NumpyArray,
         harmonic: NumpyArray,
         circumference: float,
-        total_energy: float,
         main_harmonic_idx: int,
         beam_reference_beta: float,
+        magnetic_cycle: MagneticCycleBase | None = None,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
@@ -1816,13 +1839,19 @@ class MultiHarmonicRFStation(
             RF station's design harmonics (per harmonic) [].
         circumference
             Synchrotron circumference in [m].
-        total_energy
-            Target total energy in [eV].
         main_harmonic_idx
             Index of the cavity's main harmonic
             Used to calculate attributes that rely on only one harmonic.
         beam_reference_beta
             Beam reference fraction of speed of light (v/c0) [].
+        magnetic_cycle
+            Energy program driving the reference-energy update.
+            If ``None`` (default), no reference-energy update is performed:
+            the beam reference is left untouched and only the RF kick is
+            applied (e.g. a pure RF kick, or when an external code such as
+            xsuite owns the reference). Pass a :class:`~blond.cycles.magnetic_cycle.MagneticCycleBase`
+            (e.g. ``ConstantMagneticCycle(..., in_unit="total energy")``) to
+            accelerate towards a target total energy.
         local_wakefield
             Optional wakefield to interact with beam.
         cavity_feedback
@@ -1859,9 +1888,7 @@ class MultiHarmonicRFStation(
 
         multi_harmonic_rf_station.configure(
             turn_counter=SimpleNamespace(value=0),
-            magnetic_cycle=SimpleNamespace(
-                get_target_total_energy=lambda **_: total_energy
-            ),
+            magnetic_cycle=magnetic_cycle,
             ring=SimpleNamespace(
                 circumference=circumference,
                 section_lengths=np.array([circumference]),
