@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.base import UserDefinedElement
+from blond.core.beam.flags import BeamFlags
 from blond.interfaces.xsuite.elements.helpers import (
     ReferenceFrame,
     dE_to_ptau,
@@ -38,7 +39,10 @@ class WrapXsuite4Blond(UserDefinedElement):
     2. Converts the beam ``(dt, dE)`` into a reusable xsuite ``Particles``
        buffer (``zeta``, ``ptau``).
     3. Calls ``element.track(particles)`` on the wrapped guest.
-    4. Writes the updated coordinates back into the beam.
+    4. Writes the updated coordinates back into the beam, flags slots whose
+       xsuite particle was lost, and — if the guest advanced
+       ``particles.energy0`` (e.g. via an attached energy program) — pushes the
+       new reference total energy into ``beam.reference``.
 
     Parameters
     ----------
@@ -71,14 +75,27 @@ class WrapXsuite4Blond(UserDefinedElement):
 
         self._xs.track(self._particles)
 
-        # FIXME what if some particles get lost in xsuite?
+        # Pick up any reference advance the xsuite guest performed (energy
+        # program, ReferenceEnergyIncrease, ...) so subsequent BLonD elements
+        # see the new reference.
+        new_energy0 = float(np.asarray(self._particles.energy0).flat[0])
+        if new_energy0 != energy0:
+            beam.reference.total_energy = new_energy0
+            frame = ReferenceFrame(
+                beta0=float(np.asarray(self._particles.beta0).flat[0]),
+                energy0=new_energy0,
+            )
 
-        beam.dt.array_local[:] = zeta_to_dt(
-            np.asarray(self._particles.zeta), frame
+        active = np.asarray(self._particles.state) > 0
+        beam.dt.array_local[active] = zeta_to_dt(
+            np.asarray(self._particles.zeta)[active], frame
         )
-        beam.dE.array_local[:] = ptau_to_dE(
-            np.asarray(self._particles.ptau), frame
+        beam.dE.array_local[active] = ptau_to_dE(
+            np.asarray(self._particles.ptau)[active], frame
         )
+        if not active.all():
+            flags = beam.flags.array_local
+            flags[~active] = BeamFlags.LOST.value
 
     def _build_particles(
         self, beam: BeamBaseClass, energy0: float, n: int

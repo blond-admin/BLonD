@@ -14,7 +14,6 @@ import numpy as np
 
 from blond.core.beam.beams import Beam
 from blond.core.beam.particle_types import ParticleType
-from blond.cycles.magnetic_cycle import ExternalReferenceCycle
 from blond.interfaces.xsuite.elements.helpers import (
     ReferenceFrame,
     beam_to_particles,
@@ -34,42 +33,40 @@ class WrapBlond4Xsuite:
     """
     Track a single BLonD trackable inside an xsuite ``Line``.
 
-    The wrapper implements xsuite's element interface (``track(particles)``).
-    Each call:
+    Universal wrapper: it knows nothing about the wrapped element. The xsuite
+    line is the source of truth for the reference, and each call to
+    :meth:`track`:
 
-    1. Reads the reference frame from xsuite (``particles.beta0[0]``,
-       ``particles.energy0[0]``) — xsuite is the source of truth.
-    2. If the wrapped element holds an :class:`ExternalReferenceCycle`, pushes
-       the new reference total energy into it so the element follows the ramp.
+    1. Reads the live reference from ``particles`` (``beta0[0]``, ``energy0[0]``).
+    2. Writes that reference total energy into the BLonD ``beam.reference`` so
+       any element that reads ``beam.reference.beta``/``gamma`` (e.g. an RF
+       station computing ``omega_rev``) follows the xsuite ramp.
     3. Converts active particle coordinates into a reusable BLonD ``Beam``.
     4. Calls ``element.track(beam)``.
-    5. Writes the updated coordinates back into the active particles, leaving
-       lost particles untouched.
+    5. Writes the updated coordinates back, leaving lost particles untouched.
 
     Parameters
     ----------
     element
         A BLonD trackable, typically constructed via the element's
-        ``headless(...)`` factory. If it owns an
-        :class:`~blond.cycles.magnetic_cycle.ExternalReferenceCycle`, the
-        reference energy is driven from ``particles.energy0`` each turn.
+        ``headless(...)`` factory. Elements that would otherwise advance the
+        reference themselves (RF stations) must be constructed with
+        ``magnetic_cycle=None`` so xsuite remains the sole driver of the
+        reference energy.
 
     Notes
     -----
     The reference frame is read from ``particles`` (live state), not from
-    ``line.particle_ref`` (design state). xsuite updates the particles'
-    ``beta0``/``energy0``/``p0c`` in place when a ramping element such as
-    ``ReferenceEnergyIncrease`` fires earlier in the line, so by the time this
-    wrapper is reached the particles already carry the current reference.
+    ``line.particle_ref`` (design state). xsuite advances the particles'
+    ``beta0``/``energy0``/``p0c`` between turns when ``line.energy_program`` is
+    attached, or in-line when an explicit ``ReferenceEnergyIncrease`` element
+    fires — by the time this wrapper runs, ``particles`` already carries the
+    current reference.
     """
 
     def __init__(self, element):
         self._element = element
         self._beam: Beam | None = None
-        cycle = getattr(element, "_magnetic_cycle", None)
-        self._cycle = (
-            cycle if isinstance(cycle, ExternalReferenceCycle) else None
-        )
 
     def track(self, particles) -> None:
         """
@@ -82,15 +79,13 @@ class WrapBlond4Xsuite:
         """
         beta0 = _scalar(particles.beta0)
         energy0 = _scalar(particles.energy0)
-        if self._cycle is not None:
-            self._cycle.set_total_energy(energy0)
-
         frame = ReferenceFrame(beta0=beta0, energy0=energy0)
 
         n = int(np.asarray(particles.zeta).shape[0])
         if self._beam is None or len(self._beam.read_partial_dt()) != n:
             self._build_beam(particles, energy0, n)
 
+        self._beam.reference.total_energy = energy0
         active = particles_to_beam(particles, self._beam, frame)
         self._element.track(self._beam)
         beam_to_particles(self._beam, particles, frame, active)

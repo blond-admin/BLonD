@@ -8,6 +8,7 @@ xt = pytest.importorskip("xtrack")
 
 from blond import Beam, proton  # noqa: E402
 from blond.core.base import UserDefinedElement  # noqa: E402
+from blond.core.beam.flags import BeamFlags  # noqa: E402
 from blond.interfaces.xsuite.elements.wrap_xsuite_elelemt import (  # noqa: E402
     WrapXsuite4Blond,
 )
@@ -74,3 +75,49 @@ def test_wrapper_zero_offset_particles_unchanged_by_drift():
     wrapper.track(beam)
     np.testing.assert_allclose(beam.read_partial_dt(), [0.0], atol=1e-15)
     np.testing.assert_allclose(beam.read_partial_dE(), [0.0], atol=1e-15)
+
+
+class _KillSlot:
+    """Test guest that drops one slot to ``state=0`` to mimic an aperture cut."""
+
+    def __init__(self, index: int):
+        self._index = index
+
+    def track(self, particles):
+        particles.state[self._index] = 0
+
+
+def test_wrapper_flags_lost_particles_from_xsuite():
+    """Particles xsuite marks state<=0 must end up flagged LOST in the beam."""
+    beam = _blond_beam([1e-9, 2e-9, 3e-9], [0.0, 0.0, 0.0], 1e9)
+    wrapper = WrapXsuite4Blond(_KillSlot(index=1))
+    wrapper.track(beam)
+
+    flags = beam.read_partial_flags()
+    assert flags[0] == BeamFlags.ACTIVE.value
+    assert flags[1] == BeamFlags.LOST.value
+    assert flags[2] == BeamFlags.ACTIVE.value
+
+
+class _BumpReference:
+    """Test guest that advances ``particles.energy0`` / ``beta0`` in place."""
+
+    def __init__(self, target_energy0: float, mass0: float):
+        self._target = target_energy0
+        self._mass0 = mass0
+
+    def track(self, particles):
+        new_p0c = float(np.sqrt(self._target**2 - self._mass0**2))
+        particles.energy0[:] = self._target
+        particles.p0c[:] = new_p0c
+        particles.beta0[:] = new_p0c / self._target
+
+
+def test_wrapper_propagates_energy_program_to_beam_reference():
+    """A guest that advances particles.energy0 must update beam.reference."""
+    new_energy0 = 1.2e9
+    beam = _blond_beam([0.0], [0.0], 1e9)
+    wrapper = WrapXsuite4Blond(_BumpReference(new_energy0, proton.mass))
+    wrapper.track(beam)
+
+    assert beam.reference.total_energy == pytest.approx(new_energy0, rel=1e-10)
