@@ -414,42 +414,6 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         """
         return self._section_index
 
-    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        **kwargs
-            Configure parameters collected by the MRO chain.
-        """
-        super().on_init_simulation(simulation=simulation, **kwargs)
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Simulation-extracted kwargs collected by the MRO chain.
-        """
-        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
-
     def info_string(self, prefix="") -> str:
         """
         Print the state of the object.
