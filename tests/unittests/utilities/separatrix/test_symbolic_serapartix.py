@@ -676,6 +676,87 @@ class TestSymbolicSeparatrixHelperFromSimulation(unittest.TestCase):
             SymbolicSeparatrixHelper.from_simulation(simulation=simulation)
 
 
+class TestPlotSeparatrix(unittest.TestCase):
+    """Cover `SymbolicSeparatrixHelper.plot_separatrix`."""
+
+    def _beam(self) -> Mock:
+        beam = Mock()
+        beam.reference.beta = 1.0
+        beam.reference.gamma = 1.0
+        beam.reference.total_energy = 1.0
+        beam.particle_type.charge = 1.0
+        beam.dt_min = 0.2
+        beam.dt_max = 0.8
+        return beam
+
+    def _helper(self) -> SymbolicSeparatrixHelper:
+        # Cosine potential -> a real RF bucket; omega_min = 1 rad/s sets the
+        # canonical scan period to 2*pi.
+        dt_sym, dE_sym = sympy.symbols("dt dE", real=True)
+        return SymbolicSeparatrixHelper(
+            hamiltonian=2.5 * dE_sym**2 + sympy.cos(dt_sym),
+            omega_min=1.0,
+        )
+
+    def setUp(self):
+        self._figure = plt.figure("test_plot_separatrix")
+
+    def tearDown(self):
+        plt.close(self._figure)
+
+    def test_dt_none_defaults_to_beam_window(self):
+        """``dt=None`` derives the window from ``beam.dt_min/dt_max``.
+
+        The default grid spans ``[s0 - r, s1 + r]`` with ``r = s1 - s0`` and
+        has ``_CANONICAL_SCAN_RESOLUTION + 1`` points; both branches are
+        drawn over exactly that window.
+        """
+        beam = self._beam()
+        helper = self._helper()
+
+        artists = helper.plot_separatrix(beam=beam, dt=None)
+
+        # Upper and lower branch -> two Line2D artists.
+        self.assertEqual(len(artists), 2)
+
+        s0, s1 = beam.dt_min, beam.dt_max
+        r = s1 - s0
+        n_points = helper._CANONICAL_SCAN_RESOLUTION + 1
+        for artist in artists:
+            xdata = artist.get_xdata()
+            self.assertEqual(len(xdata), n_points)
+            np.testing.assert_allclose(xdata.min(), s0 - r)
+            np.testing.assert_allclose(xdata.max(), s1 + r)
+
+        self.assertEqual(plt.gca().get_xlabel(), "Time [s]")
+        self.assertEqual(plt.gca().get_ylabel(), "Energy offset [eV]")
+
+    def test_explicit_dt_is_used_verbatim(self):
+        """An explicit ``dt`` bypasses the default-window branch."""
+        beam = self._beam()
+        helper = self._helper()
+        dt = np.linspace(0.0, 2.0 * np.pi, 257)
+
+        artists = helper.plot_separatrix(beam=beam, dt=dt)
+
+        # The given grid is plotted verbatim (default-window branch skipped).
+        np.testing.assert_allclose(artists[0].get_xdata(), dt)
+        np.testing.assert_allclose(artists[1].get_xdata(), dt)
+
+    def test_label_applied_to_upper_branch_only(self):
+        """The legend label goes on the upper branch, not the lower one."""
+        beam = self._beam()
+        helper = self._helper()
+        dt = np.linspace(-np.pi, 3.0 * np.pi, 513)
+
+        artists = helper.plot_separatrix(beam=beam, dt=dt, label="separatrix")
+
+        self.assertEqual(artists[0].get_label(), "separatrix")
+        self.assertNotEqual(artists[1].get_label(), "separatrix")
+        # Both branches share a color despite the label only being on one.
+        self.assertEqual(artists[0].get_color(), artists[1].get_color())
+
+
 class TestGetStableFixedPoint(unittest.TestCase):
     """
     Cover ``SymbolicSeparatrixHelper.get_stable_fixed_point``.

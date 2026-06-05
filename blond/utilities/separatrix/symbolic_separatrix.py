@@ -311,6 +311,7 @@ class SymbolicSeparatrixHelper:
             dt = np.linspace(
                 s0 - r, s1 + r, self._CANONICAL_SCAN_RESOLUTION + 1
             )
+
         kwargs_plot.setdefault("color", "red")
         kwargs_plot.setdefault("linestyle", "dashed")
 
