@@ -1,5 +1,6 @@
 import unittest
 from copy import deepcopy
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import numpy as np
@@ -59,7 +60,6 @@ def _fixed_total_energy_cycle(total_energy: float):
     reject. ``headless(magnetic_cycle=...)`` only needs the
     ``get_target_total_energy`` interface.
     """
-    from types import SimpleNamespace
 
     return SimpleNamespace(get_target_total_energy=lambda **_: total_energy)
 

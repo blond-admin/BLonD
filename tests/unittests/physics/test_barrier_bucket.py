@@ -542,8 +542,6 @@ class TestBarrierBucketGenerator(unittest.TestCase):
             self.assertAlmostEqual(bin_cents[high], c + w / 4)
             self.assertAlmostEqual(bin_cents[low], c - w / 4)
 
-
-class TestBarrierRFTrackReference(unittest.TestCase):
     def test_track_reference_without_magnetic_cycle_returns_zero(self):
         # ``BarrierRF`` uses the base ``RFManipulationBaseClass.track_reference``
         # (it does not override it). With ``magnetic_cycle=None`` (e.g. an
