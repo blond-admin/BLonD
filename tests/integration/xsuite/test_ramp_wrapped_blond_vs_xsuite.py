@@ -82,12 +82,19 @@ def _build_common_line(p0c_init: float = P0C_INIT) -> xt.Line:
     return line
 
 
-def _attach_energy_program(line: xt.Line, n_turns: int) -> None:
-    n_program = n_turns + 2  # margin past the last tracked turn
+def _attach_energy_program(line: xt.Line, p0c_ramp: np.ndarray) -> None:
+    """Attach an ``EnergyProgram`` sampled at one node per turn."""
+    n_program = len(p0c_ramp)
     t_rev = CIRCUMFERENCE / c
-    p0c_ramp = np.linspace(P0C_INIT, P0C_FINAL, n_program)
     t_s = np.linspace(0.0, t_rev * (n_program - 1), n_program)
-    line.energy_program = xt.EnergyProgram(t_s=t_s, p0c=p0c_ramp)
+    line.energy_program = xt.EnergyProgram(
+        t_s=t_s, p0c=np.asarray(p0c_ramp, dtype=float)
+    )
+
+
+def _smooth_ramp(n_turns: int) -> np.ndarray:
+    """Linear p0c ramp with two-turn margin past the last tracked turn."""
+    return np.linspace(P0C_INIT, P0C_FINAL, n_turns + 2)
 
 
 def _initial_distribution(line: xt.Line) -> dict[str, np.ndarray]:
@@ -106,13 +113,15 @@ def _build_particles(line: xt.Line, dist: dict[str, np.ndarray]):
     return line.build_particles(**dist)
 
 
-def _run_pure_xsuite(dist: dict[str, np.ndarray]):
-    line = _build_common_line()
-    _attach_energy_program(line, N_TURNS)
+def _run_pure_xsuite(
+    dist: dict[str, np.ndarray], p0c_ramp: np.ndarray, n_turns: int
+):
+    line = _build_common_line(p0c_init=float(p0c_ramp[0]))
+    _attach_energy_program(line, p0c_ramp)
 
-    # Cavity frequency tracks the ramp's per-turn revolution frequency.
+    # Cavity frequency tracks the program's per-turn revolution frequency.
     t_rev = CIRCUMFERENCE / c
-    n_program = N_TURNS + 2
+    n_program = len(p0c_ramp)
     t_rf = np.linspace(0.0, t_rev * (n_program - 1), n_program)
     f_rev = line.energy_program.get_frev_at_t_s(t_rf)
     f_rf = HARMONIC * f_rev
@@ -132,7 +141,7 @@ def _run_pure_xsuite(dist: dict[str, np.ndarray]):
 
     particles = _build_particles(line, dist)
     line.track(
-        particles=particles, num_turns=N_TURNS, turn_by_turn_monitor=True
+        particles=particles, num_turns=n_turns, turn_by_turn_monitor=True
     )
     return (
         line.record_last_track.zeta.copy(),
@@ -140,9 +149,11 @@ def _run_pure_xsuite(dist: dict[str, np.ndarray]):
     )
 
 
-def _run_wrapped_blond(dist: dict[str, np.ndarray]):
-    line = _build_common_line()
-    _attach_energy_program(line, N_TURNS)
+def _run_wrapped_blond(
+    dist: dict[str, np.ndarray], p0c_ramp: np.ndarray, n_turns: int
+):
+    line = _build_common_line(p0c_init=float(p0c_ramp[0]))
+    _attach_energy_program(line, p0c_ramp)
 
     beta0_init = float(line.particle_ref.beta0[0])
     blond_cavity = SingleHarmonicRFStation.headless(
@@ -162,7 +173,7 @@ def _run_wrapped_blond(dist: dict[str, np.ndarray]):
 
     particles = _build_particles(line, dist)
     line.track(
-        particles=particles, num_turns=N_TURNS, turn_by_turn_monitor=True
+        particles=particles, num_turns=n_turns, turn_by_turn_monitor=True
     )
     return (
         line.record_last_track.zeta.copy(),
@@ -174,9 +185,12 @@ def _plot_comparison(zeta_x, ptau_x, zeta_w, ptau_w) -> None:
     """Render comparison plots (DEV_PLOT only). Side-effect heavy, opens windows."""
     import matplotlib.pyplot as plt
 
-    snapshots = [0, N_TURNS // 2, N_TURNS - 1]
-    fig, axes = plt.subplots(1, len(snapshots), figsize=(4 * len(snapshots), 4))
-    for ax, turn in zip(axes, snapshots):
+    n_turns = zeta_x.shape[1]
+    snapshots = sorted({0, n_turns // 2, n_turns - 1})
+    fig, axes = plt.subplots(
+        1, len(snapshots), figsize=(4 * len(snapshots), 4), squeeze=False
+    )
+    for ax, turn in zip(axes[0], snapshots):
         ax.scatter(zeta_x[:, turn], ptau_x[:, turn], label="xsuite", marker="x")
         ax.scatter(
             zeta_w[:, turn], ptau_w[:, turn], label="wrapped BLonD", marker="o",
@@ -190,7 +204,7 @@ def _plot_comparison(zeta_x, ptau_x, zeta_w, ptau_w) -> None:
     fig.tight_layout()
 
     fig2, (ax_z, ax_p) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
-    turns = np.arange(N_TURNS)
+    turns = np.arange(n_turns)
     dz_max = np.max(np.abs(zeta_w - zeta_x), axis=0)
     dp_max = np.max(np.abs(ptau_w - ptau_x), axis=0)
     ax_z.semilogy(turns, dz_max + 1e-300)
@@ -204,36 +218,76 @@ def _plot_comparison(zeta_x, ptau_x, zeta_w, ptau_w) -> None:
     plt.show()
 
 
-def test_wrapped_blond_matches_pure_xsuite_under_ramp():
-    """Wrapped BLonD cavity tracks identically to a pure xt.Cavity under a ramp."""
-    dist = _initial_distribution(_build_common_line())
-
-    zeta_x, ptau_x = _run_pure_xsuite(dist)
-    zeta_w, ptau_w = _run_wrapped_blond(dist)
-
-    if DEV_PLOT:
-        _plot_comparison(zeta_x, ptau_x, zeta_w, ptau_w)
-
+def _assert_phase_space_match(
+    zeta_w, ptau_w, zeta_x, ptau_x, n_turns, rtol=1e-5
+):
+    """Compare wrapped vs reference run turn-by-turn with amplitude-scaled atol."""
     assert zeta_w.shape == zeta_x.shape
     assert ptau_w.shape == ptau_x.shape
-
-    # Compare each turn against the xsuite reference. zeta crosses zero so use
-    # an amplitude-scaled atol; the synchrotron amplitude grows during the
-    # ramp, hence the per-turn rescaling.
-    for turn in range(N_TURNS):
+    for turn in range(n_turns):
         zeta_amp = float(np.max(np.abs(zeta_x[:, turn])))
         ptau_amp = float(np.max(np.abs(ptau_x[:, turn])))
         np.testing.assert_allclose(
             zeta_w[:, turn],
             zeta_x[:, turn],
-            atol=max(zeta_amp * 1e-5, 1e-12),
+            atol=max(zeta_amp * rtol, 1e-12),
             rtol=0.0,
             err_msg=f"zeta mismatch on turn {turn}",
         )
         np.testing.assert_allclose(
             ptau_w[:, turn],
             ptau_x[:, turn],
-            atol=max(ptau_amp * 1e-5, 1e-15),
+            atol=max(ptau_amp * rtol, 1e-15),
             rtol=0.0,
             err_msg=f"ptau mismatch on turn {turn}",
         )
+
+
+def test_wrapped_blond_matches_pure_xsuite_under_ramp():
+    """Wrapped BLonD cavity tracks identically to a pure xt.Cavity under a ramp."""
+    dist = _initial_distribution(_build_common_line())
+    p0c_ramp = _smooth_ramp(N_TURNS)
+
+    zeta_x, ptau_x = _run_pure_xsuite(dist, p0c_ramp, N_TURNS)
+    zeta_w, ptau_w = _run_wrapped_blond(dist, p0c_ramp, N_TURNS)
+
+    if DEV_PLOT:
+        _plot_comparison(zeta_x, ptau_x, zeta_w, ptau_w)
+
+    _assert_phase_space_match(zeta_w, ptau_w, zeta_x, ptau_x, N_TURNS)
+
+
+# Discontinuous schedule: tiny ramp up turn-by-turn followed by a sharp drop
+# back to the initial energy. A wrapper that reads the energy program with the
+# wrong turn index (off-by-one) will diverge on the discontinuity, where smooth
+# ramps would silently mask the bug. Indices align with track-turn boundaries:
+# program[i] is the reference energy used during turn ``i``.
+P0C_JUMP_SCHEDULE = np.array(
+    [
+        450.000e9,  # turn 0
+        450.001e9,  # turn 1
+        450.002e9,  # turn 2
+        450.003e9,  # turn 3
+        450.000e9,  # turn 4: SHARP DROP back to baseline
+        450.000e9,  # margin
+        450.000e9,  # margin
+    ]
+)
+N_TURNS_JUMP = 5
+
+
+def test_wrapped_blond_matches_pure_xsuite_through_jump():
+    """Off-by-one detector: a sharp drop in the energy program must not skew turn alignment."""
+    dist = _initial_distribution(_build_common_line(p0c_init=P0C_JUMP_SCHEDULE[0]))
+
+    zeta_x, ptau_x = _run_pure_xsuite(dist, P0C_JUMP_SCHEDULE, N_TURNS_JUMP)
+    zeta_w, ptau_w = _run_wrapped_blond(
+        dist, P0C_JUMP_SCHEDULE, N_TURNS_JUMP
+    )
+
+    if DEV_PLOT:
+        _plot_comparison(zeta_x, ptau_x, zeta_w, ptau_w)
+
+    _assert_phase_space_match(
+        zeta_w, ptau_w, zeta_x, ptau_x, N_TURNS_JUMP
+    )
