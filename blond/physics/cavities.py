@@ -168,7 +168,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
                 self._turn_counter.value
                 if self._turn_counter is not None
                 else None
-            ),  # should use 0 only with ConstantMagneticCycle
+            ),
             section_i=(
                 self.section_index
                 if not is_counter_rotating
@@ -763,7 +763,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 self._turn_counter.value
                 if self._turn_counter is not None
                 else None
-            ),  # should use 0 only with ConstantMagneticCycle
+            ),
             section_i=(
                 self.section_index
                 if not beam.is_counter_rotating
@@ -927,7 +927,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 self._turn_counter.value
                 if self._turn_counter is not None
                 else None
-            ),  # should use 0 only with ConstantMagneticCycle
+            ),
             section_i=(
                 self.section_index
                 if not is_counter_rotating
