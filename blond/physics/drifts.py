@@ -22,6 +22,7 @@ from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
     BeamPhysicsRelevant,
+    DynamicParameter,
     HasSymbolicHamiltonian,
     Schedulable,
 )
@@ -177,6 +178,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             radiation_integrals=radiation_integrals,
             **kwargs,  # for MRO of fused elements
         )
+
+        self._turn_counter: DynamicParameter | None = None
+
         self._add_intended_schedule("momentum_compaction_factor")
 
         self._simulation: Simulation | None = None
@@ -192,6 +196,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         momentum_compaction_factor: NumpyArray | tuple[NumpyArray, NumpyArray],
         orbit_length: float,
         section_index: int = 0,
+        turn_counter: DynamicParameter | None = None,
     ) -> DriftSimple:
         """
         Initialize object without simulation context.
@@ -205,6 +210,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             Length / Velocity => Time to pass the element.
         section_index
             Section index to group elements into sections.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
@@ -215,13 +222,16 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             orbit_length=orbit_length,
             section_index=section_index,
         )
+
         if isinstance(momentum_compaction_factor, int | float):
             d.momentum_compaction_factor = float(momentum_compaction_factor)
         else:
             d.schedule(
                 "momentum_compaction_factor", momentum_compaction_factor
             )
-        d.configure(turn_counter=SimpleNamespace(value=0))
+
+        d.configure(turn_counter=turn_counter)
+
         return d
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
@@ -272,6 +282,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         super()._track(beam=beam)
 
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
                 turn_i=self._turn_counter.value,
                 reference_time=beam.reference.time,
@@ -492,8 +505,6 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         drift_exact
             ``DriftExact`` object.
         """
-        from types import SimpleNamespace
-
         drift = DriftExact(
             orbit_length=orbit_length,
             section_index=section_index,
