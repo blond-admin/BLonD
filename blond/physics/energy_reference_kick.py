@@ -45,7 +45,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
 
     Attributes
     ----------
-    _turn_i
+    _turn_counter
         Current simulation turn number (initialized during simulation).
     _magnetic_cycle
         Reference to the simulation's magnetic cycle.
@@ -70,7 +70,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
             **kwargs,
         )
 
-        self._turn_i: DynamicParameter | None = None
+        self._turn_counter: DynamicParameter | None = None
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
 
@@ -84,36 +84,13 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
             `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
-        self._turn_i = simulation.turn_i
+        self._turn_counter = simulation.turn_counter
         self._magnetic_cycle = simulation.magnetic_cycle
         if not isinstance(self._magnetic_cycle, MagneticCycleByTime):
             raise TypeError(
                 f"Expected MagneticCycleByTime, got {type(self._magnetic_cycle).__name__}"
             )
         self._ring = simulation.ring
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs,
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation beam object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
 
     def track_reference(
         self, reference: ReferenceCoordinates, **kwargs
@@ -135,7 +112,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
             Change of reference time or energy.
         """
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
+            turn_i=self._turn_counter.value,
             section_i=self.section_index,
             reference_time=reference.time,
             particle_type=reference.particle_type,

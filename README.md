@@ -19,9 +19,10 @@
 * Beam and cavity feedback mechanisms
 
 BLonD also features **parallel backends** for efficient execution on both **CPUs** and **GPUs**, enabling scalable and high-performance simulations.
+It also ships with the [**BLonD Assistant**](#blond-assistant-ai-helper), an AI skill that helps you set up and debug simulations effectively.
 
 
-### Dependencies
+## Dependencies
 
 * [Python 3.10+](https://www.python.org/downloads/)
 * [Git](https://git-scm.com/)
@@ -49,7 +50,7 @@ pip install blond[gpu_cuda13]
 
 ### Configuration
 Optional backends can be compiled after installation using the commands `blond-compile-cpp --parallel` or `blond-compile-cuda`
-for improved performance. The backend can be selected in Python using ```backend.set_specials(...)```.
+for improved performance. The backend can be selected in Python using ```setup_backend(...)```.
 
 NB: check your cuda version with `nvidia-smi`, to ensure you select the correct optional dependency.
 
@@ -74,11 +75,11 @@ from blond import (
     DriftSimple,
     Beam,
     BiGaussian,
-    backend,
+    setup_backend,
     momentum_compaction_factor,
 )
 
-backend.set_specials("cpp")  # set any backend you want
+setup_backend("auto")  # set any backend you want
 
 ring = Ring(26658.883)  # general definition of ring
 rf_station_1 = SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0)
@@ -115,7 +116,7 @@ dts += 0.05e-9
 sim.run_simulation(
     beams=(beam1,),
 
-    n_turns=1e4,
+    n_turns=10_000,
 )
 plt.figure(0)
 plt.subplot(2, 1, 2)
@@ -124,6 +125,43 @@ beam1.plot_hist2d()
 plt.tight_layout()
 plt.show()
 ```
+
+## BLonD Assistant (AI helper)
+
+This repository ships a **`blond-assistant`** agent skill (in `.agents/skills/`)
+that turns an AI coding assistant into a BLonD expert.
+It knows the simulation building blocks (`Ring`, RF stations, `Drift`, `Beam`,
+`MagneticCycle`, `WakeField`, profiles, observations, …) and the idiomatic way
+to assemble them, and points to the relevant `blond/examples/` and docs.
+
+Use it to:
+
+* scaffold a new simulation input file,
+* debug or explain an existing BLonD script,
+* add intensity effects (wakes/impedances), backends, or observations,
+* look up the exact parameters of a BLonD class.
+
+It works with any assistant that supports the skill format — **Claude Code**,
+**GitHub Copilot CLI**, **Gemini CLI**, and **Codex** — and activates
+automatically when you mention BLonD topics.
+
+### Installing the assistant
+
+The skill is bundled in `.agents/skills/blond-assistant/`. Most tools discover
+skills from their own directory, so "installing" means making the skill visible
+there. Copy (or symlink) the folder into your assistant's skills directory:
+
+```bash
+# Claude Code (project-local)
+cp -r .agents/skills/blond-assistant .claude/skills/
+
+# or symlink so it stays in sync with the repo
+ln -s ../../.agents/skills/blond-assistant .claude/skills/blond-assistant
+```
+
+For other assistants, point them at `.agents/skills/` or copy the folder into
+their respective skills directory (e.g. Copilot CLI / Gemini CLI plugin paths).
+No additional dependencies are required — the skill is plain Markdown.
 
 ## Contributing
 
@@ -141,7 +179,7 @@ See the [Developer Guide](CONTRIBUTING.md) if you want to contribute.
 
 ## Copyright Notice
 
-*Copyright 2019 CERN. This software is distributed under the terms of the
+*Copyright 2019-2026 CERN. This software is distributed under the terms of the
 GNU General Public Licence version 3 (GPL Version 3), copied verbatim in
 the file LICENSE.txt. In applying this licence, CERN does not waive the
 privileges and immunities granted to it by virtue of its status as an

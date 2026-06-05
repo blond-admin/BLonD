@@ -99,40 +99,6 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
         """
         pass
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        super().on_init_simulation(simulation=simulation)
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
-
 
 class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
     r"""
@@ -261,8 +227,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
+        simulation.turn_counter = Mock(DynamicParameter)
+        simulation.turn_counter.value = 0
         d.on_init_simulation(simulation=simulation)
         d.on_run_simulation(
             simulation=simulation,
@@ -303,7 +269,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
         if self.schedule_active:
             self.apply_schedules(
-                turn_i=self._simulation.turn_i.value,
+                turn_i=self._simulation.turn_counter.value,
                 reference_time=beam.reference.time,
             )
 
@@ -644,7 +610,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         # Apply schedules if active
         if self.schedule_active:
             self.apply_schedules(
-                turn_i=self._simulation.turn_i.value,
+                turn_i=self._simulation.turn_counter.value,
                 reference_time=beam.reference.time,
             )
 

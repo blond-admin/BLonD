@@ -125,7 +125,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         super().__init__(name=name, section_index=section_index)
 
         self._simulation: Simulation | None = None
-        self._turn_i: DynamicParameter | int = 0
+        self._turn_counter: DynamicParameter = 0
         self._share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
@@ -226,26 +226,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         simulation
             `Simulation` context manager.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._simulation = simulation
-        self._turn_i = simulation.turn_i
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        **kwargs,
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        **kwargs
-            Additional keyword arguments for simulation setup.
-        """
-        pass
+        super().on_init_simulation(simulation)
 
     def _track(self, beam: BeamBaseClass) -> None:
         """

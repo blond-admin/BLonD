@@ -50,44 +50,6 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
     ) -> None:
         super().__init__(section_index, name)
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Initialize the ring when a simulation is created.
-
-        This method is automatically called during simulation initialization to
-        validate the ring configuration. It checks that RF stations are properly
-        configured and section indices are correctly ordered.
-
-        Parameters
-        ----------
-        simulation
-            The `Simulation` context manager that owns this ring.
-        """
-        pass  # pragma: no cover
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs,
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass  # pragma: no cover
-
 
 def _gen_array_bucket_index_to_memory_index(
     filling_pattern: NumpyArray, bins_per_profile: int
@@ -341,8 +303,8 @@ class EquidistantMultiProfile(MultiProfile):
         from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
+        simulation.turn_counter = Mock(DynamicParameter)
+        simulation.turn_counter.value = 0
         simulation.get_t_rev_init.return_value = t_rev
         d.on_init_simulation(simulation=simulation)
         d.on_run_simulation(

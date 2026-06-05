@@ -122,8 +122,12 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     This function assumes the presence of a Makefile or equivalent build system
     capable of processing the supplied options.
     """
-    print("\nTrying to compile C++ backend.")
     for parallel in (False, True):
+        if parallel:
+            print("\nTrying to compile parallel C++ backend.")
+        else:
+            print("\nTrying to compile single core C++ backend.")
+
         if libname is None:
             folder = os.path.dirname(os.path.abspath(__file__))
 

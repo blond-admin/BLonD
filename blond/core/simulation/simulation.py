@@ -105,12 +105,9 @@ class Simulation(Preparable):
 
     Attributes
     ----------
-    turn_i
+    turn_counter
         Counter tracking the current turn number during simulation. Can be subscribed
         to for notifications when the turn changes. Value is ``None`` when not running.
-    section_i
-        Counter tracking the current section (element) within a turn. Value is ``None``
-        when not running.
     check_circumference
         Behaviour, if  the drifts don't sum up to the ring.circumference.
         - "raise": Raise an exception.
@@ -154,8 +151,8 @@ class Simulation(Preparable):
         self._ring: Ring = ring
         self._magnetic_cycle: MagneticCycleBase = magnetic_cycle
 
-        self.turn_i = DynamicParameter(0)
-        self.section_i = DynamicParameter(0)
+        self.turn_counter = DynamicParameter(0)
+        self.section_counter = DynamicParameter(0)
         self.intensity_effect_manager = IntensityEffectManager(simulation=self)
 
         self.check_circumference: Literal["raise", "warn", "ignore"] = "raise"
@@ -166,6 +163,24 @@ class Simulation(Preparable):
         self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
         self._exec_track_reference()
+
+    @property
+    def turn_i(self) -> DynamicParameter:  # NOQA: D102 # pragma: no cover
+        warnings.warn(
+            "`turn_i` will be removed in future, use `turn_counter` instead!",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+        return self.turn_counter
+
+    @turn_i.setter
+    def turn_i(self, value: DynamicParameter) -> None:  # NOQA: D102 # pragma: no cover
+        warnings.warn(
+            "`turn_i` will be removed in future, use `turn_counter` instead!",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+        self.turn_counter = value
 
     def profiling(
         self,
@@ -250,7 +265,7 @@ class Simulation(Preparable):
             beam
                 The `Beam` object.
             """
-            if simulation.turn_i.value == start_turn_i:
+            if simulation.turn_counter.value == start_turn_i:
                 pr.enable()
 
         end_turn = start_turn_i + int_from_float_with_warning(
@@ -626,75 +641,6 @@ class Simulation(Preparable):
             tilt_dt_per_dE,
         )
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Hook called when the Simulation object is initialized.
-
-        This is used by simulation elements to perform
-        initialization tasks. It is called automatically
-        when ``Simulation.__init__()`` is executed.
-
-        All objects in the simulation hierarchy that have an ``on_init_simulation``
-        method will have it called in a specific dependency order.
-
-        Parameters
-        ----------
-        simulation
-            The simulation instance being initialized (usually ``self``).
-
-        See Also
-        --------
-        on_run_simulation : Hook called when run_simulation is invoked.
-
-        Notes
-        -----
-        - This is called once when the Simulation is created, before any beams are prepared.
-        - Subclasses and simulation elements can override this to set up initial state.
-        - The base implementation does nothing.
-        """
-        pass
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Hook called when ``run_simulation`` is invoked.
-
-        This is a lifecycle hook that can be overridden by subclasses or used by
-        simulation elements to perform setup tasks before the main simulation loop
-        begins. It is called automatically by ``finalize()``.
-
-        All objects in the simulation hierarchy that have an ``on_run_simulation``
-        method will have it called in a specific dependency order.
-
-        Parameters
-        ----------
-        simulation
-            The simulation instance (usually ``self``).
-        beam
-            The first beam that will be tracked (primary beam in multi-beam scenarios).
-        n_turns
-            Number of turns that will be simulated.
-        **kwargs
-            Additional keyword arguments for extendability.
-
-        See Also
-        --------
-        on_init_simulation : Hook called when Simulation is initialized.
-        finalize : Finalize setup before running simulation.
-
-        Notes
-        -----
-        - This is called before each ``run_simulation()`` or ``load_results()`` call.
-        - Useful for pre-allocating arrays, resetting state, or computing derived parameters.
-        - The base implementation does nothing.
-        """
-        pass
-
     def _exec_all_in_tree(self, method: str, **kwargs) -> None:
         """
         Execute all methods that are somewhere in the attribute hierarchy of `Simulation`.
@@ -1032,7 +978,7 @@ class Simulation(Preparable):
         >>> matcher.prepare_beam(sim, beam)
         """
         logger.info("Running `prepare_beam`")
-        self.turn_i.value = turn_i
+        self.turn_counter.value = turn_i
         preparation_routine.prepare_beam(simulation=self, beam=beam)
 
     def mainloop(
@@ -1732,7 +1678,7 @@ class Simulation(Preparable):
     def plot_separatrix(
         self,
         beam: BeamBaseClass,
-        dt: NumpyArray,
+        dt: NumpyArray | None = None,
         **kwargs_plot,
     ) -> list[Line2D]:
         r"""

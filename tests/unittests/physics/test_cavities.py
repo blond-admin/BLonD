@@ -313,12 +313,12 @@ class TestRFStationBaseClass(unittest.TestCase):
             cavity_feedback=cavity_feedback_good,
         )
 
-        mhc._turn_i = 1
+        mhc._turn_counter = 1
         mhc._ring = Mock(Ring)
         mhc._ring.circumference = 456
 
         simulation = Mock(Simulation)
-        simulation.turn_i = DynamicParameter(1)
+        simulation.turn_counter = DynamicParameter(1)
         simulation.ring.circumference = 456
         simulation.ring.section_lengths = np.array(
             [simulation.ring.circumference]
@@ -369,12 +369,12 @@ class TestRFStationBaseClass(unittest.TestCase):
             cavity_feedback=cavity_feedback_good,
         )
 
-        mhc._turn_i = 1
+        mhc._turn_counter = 1
         mhc._ring = Mock(Ring)
         mhc._ring.circumference = 456
 
         simulation = Mock(Simulation)
-        simulation.turn_i = DynamicParameter(1)
+        simulation.turn_counter = DynamicParameter(1)
         simulation.ring.circumference = 456
         simulation.ring.section_lengths = np.array(
             [simulation.ring.circumference]
@@ -430,7 +430,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
 
         simulation = Mock(Simulation)
-        simulation.turn_i = DynamicParameter(1)
+        simulation.turn_counter = DynamicParameter(1)
         simulation.ring.circumference = 456
         simulation.ring.section_lengths = np.array(
             [simulation.ring.circumference]
@@ -461,7 +461,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             phi_rf=1,
             local_wakefield=wf,
         )
-        shc._turn_i = DynamicParameter(0)
+        shc._turn_counter = DynamicParameter(0)
         shc._ring = Mock(Ring)
         shc._ring.circumference = 456
         with self.assertRaises(AttributeError):
@@ -830,7 +830,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     def test_on_init_simulation_fails(self) -> None:
         simulation = Mock(Simulation)
-        simulation.turn_i = DynamicParameter(0)
+        simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
             self.multi_harmonic_cavity.voltage = None
             self.multi_harmonic_cavity.on_init_simulation(
@@ -877,7 +877,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     def test_on_init_simulation_fails2(self) -> None:
         simulation = Mock(Simulation)
-        simulation.turn_i = DynamicParameter(0)
+        simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
             self.multi_harmonic_cavity.phi_rf_design = None
             self.multi_harmonic_cavity.on_init_simulation(
@@ -886,7 +886,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     def test_on_init_simulation_fails3(self) -> None:
         simulation = Mock(Simulation)
-        simulation.turn_i = DynamicParameter(0)
+        simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
             self.multi_harmonic_cavity.harmonic = None
             self.multi_harmonic_cavity.on_init_simulation(
@@ -1317,7 +1317,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
 
     def test_on_init_simulation_fails(self) -> None:
         simulation = Mock(Simulation)
-        simulation.turn_i = DynamicParameter(0)
+        simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
             self.single_harmonic_cavity.voltage = None
             self.single_harmonic_cavity.on_init_simulation(
@@ -1326,7 +1326,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
 
     def test_on_init_simulation_fails2(self) -> None:
         simulation = Mock(Simulation)
-        simulation.turn_i = DynamicParameter(0)
+        simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
             self.single_harmonic_cavity.phi_rf_design = None
             self.single_harmonic_cavity.on_init_simulation(
@@ -1335,7 +1335,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
 
     def test_on_init_simulation_fails3(self) -> None:
         simulation = Mock(Simulation)
-        simulation.turn_i = DynamicParameter(0)
+        simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
             self.single_harmonic_cavity.harmonic = None
             self.single_harmonic_cavity.on_init_simulation(

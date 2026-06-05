@@ -12,7 +12,6 @@ from blond.core.backends.backend import (
     NumpyBackend,
     backend,
 )
-from blond.core.backends.numba.callables import recompile_numba_backend
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     multi_backend_testcase,
@@ -2469,16 +2468,6 @@ class TestSpecials(unittest.TestCase):
 
     def test_import(self):
         pass
-
-
-class TestNumbaCompilation(unittest.TestCase):
-    @pytest.mark.backend_mutation
-    def test_raising_of_error(self) -> None:
-        with self.assertRaises(TypeError):
-            recompile_numba_backend(floattype=np.float16)
-
-        with self.assertRaises(TypeError):
-            recompile_numba_backend(floattype=np.float32)
 
 
 if __name__ == "__main__":
