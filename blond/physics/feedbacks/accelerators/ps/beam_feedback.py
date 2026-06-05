@@ -212,7 +212,7 @@ class PSBeamControl(BeamFeedbackBase):
         beam
             A beam object to extract the beam attribute from.
         """
-        counter = self.cavities[0]._turn_i.value
+        counter = self.cavities[0]._turn_counter.value
 
         self.calculate_offsets(beam=beam)
 

@@ -211,7 +211,7 @@ class BeamFeedbackBase(GlobalFeedback):
             Noise feedback object, e.g. used for controlled longitudinal emittance blow-up.
         """
         # Correct for design stable phase
-        counter = self.cavities[0]._turn_i.value
+        counter = self.cavities[0]._turn_counter.value
         # TODO: a priori the beam control does not know about the synchronous phase?
         self.dphi = (
             self.phi_beam
@@ -296,7 +296,7 @@ class BeamFeedbackBase(GlobalFeedback):
         )
 
         # TODO: generalize to multiple rf stations around the ring?
-        if self.cavities[0]._turn_i.value >= self.delay:
+        if self.cavities[0]._turn_counter.value >= self.delay:
             # TODO incorrect for simulations that start later
             # domega_rf is updated later
             # this means domega_rf is effectively from last turn

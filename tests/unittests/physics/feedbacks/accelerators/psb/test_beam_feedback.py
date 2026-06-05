@@ -136,7 +136,7 @@ class TestPSBBeamFeedback(unittest.TestCase):
         self.beam_control.reference = reference * np.pi / 180
 
         for i in range(n_tracks):
-            self.simulation.turn_i.value = i
+            self.simulation.turn_counter.value = i
 
             for element in ring.elements.elements:
                 element.track(self.beam)

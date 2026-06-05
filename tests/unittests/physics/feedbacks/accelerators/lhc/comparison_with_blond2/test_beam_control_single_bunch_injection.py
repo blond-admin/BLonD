@@ -239,7 +239,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
         )
 
         for i in range(n_turns):
-            simulation.turn_i.value = i
+            simulation.turn_counter.value = i
 
             omega_rf[i] = cavity.omega_rf[0]
 
