@@ -63,7 +63,7 @@ ALPHA = 0.00034849575112251314
 HARMONIC = 35640
 P0C_INIT = 450e9
 P0C_FINAL = 450.05e9
-N_TURNS = 200
+N_TURNS = 2000
 N_PART = 16
 SEED = 0
 
@@ -269,5 +269,6 @@ def test_blond_owned_ramp_matches_pure_xsuite_drift():
 
     if DEV_PLOT:
         _plot_comparison(zeta_x, ptau_x, zeta_b, ptau_b)
-
+    # todo fix this test. in the plot one can see that even in turn 0 the
+    #  blond owned particles sit lower than the xsuite pure ones
     _assert_phase_space_match(zeta_b, ptau_b, zeta_x, ptau_x, N_TURNS)

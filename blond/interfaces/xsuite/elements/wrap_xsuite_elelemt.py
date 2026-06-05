@@ -27,14 +27,18 @@ from blond.interfaces.xsuite.elements.helpers import (
     zeta_to_dt,
 )
 from blond.physics.drifts import (
-    DriftBaseClass,
-)  # todo is this the correct way?
+    DriftBaseClass,  # todo is this the correct way?
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
 
+# todo architectural decisions..
 
-class WrapXsuite4Blond(UserDefinedElement, DriftBaseClass):
+
+class WrapXsuite4Blond(
+    UserDefinedElement, DriftBaseClass
+):  # todo should this be RfStationBaseClass too maybe?
     """
     Track an xsuite element or ``Line`` inside a BLonD ``Ring``.
 
@@ -58,12 +62,14 @@ class WrapXsuite4Blond(UserDefinedElement, DriftBaseClass):
     """
 
     # prevent on_init resolution breaking with magic __getattribute__ from xsuite
-    skip_find_instances_attributes = [
-        "_xsuite_element"
-    ]
+    skip_find_instances_attributes = ["_xsuite_element"]
 
-    def __init__(self, xsuite_element: xt.Line | xt.LineSegmentMap | xt.BeamElement):
-        super().__init__(orbit_length=float(xsuite_element.length))
+    def __init__(
+        self, xsuite_element: xt.Line | xt.LineSegmentMap | xt.BeamElement
+    ):  # todo should this work for all xsuite elements?
+        super().__init__(
+            orbit_length=float(xsuite_element.length)
+        )  # todo  this only works for `LineSegmentMap`
         self._xsuite_element = xsuite_element
         self._particles = None
 
@@ -77,7 +83,7 @@ class WrapXsuite4Blond(UserDefinedElement, DriftBaseClass):
         n0 = 1 / np.square(gamma_t) - 1 / np.square(gamma)
         return n0
 
-    def track_reference(self, reference: ReferenceCoordinates, **kwargs): #
+    def track_reference(self, reference: ReferenceCoordinates, **kwargs):  #
         # todo think about the architecture of blond and if its a good idea
         #  to have DrifBaseClass and RfStationBaseClass used explicitly,
         #  if an Xsuite
@@ -99,7 +105,9 @@ class WrapXsuite4Blond(UserDefinedElement, DriftBaseClass):
             # the stale reference from the build call.
             mass = float(beam.particle_type.mass)
             new_p0c = float(np.sqrt(energy0**2 - mass**2))
-            self._particles.update_p0c(np.full(n, new_p0c))
+            self._particles.update_p0c(
+                np.full(n, new_p0c)
+            )  # todo n particles? thats a lot for a reference update
 
         self._particles.zeta[:] = dt_to_zeta(
             np.asarray(beam.dt.array_local), frame
