@@ -129,7 +129,7 @@ def test_induced_voltage():
         plt.twinx()
         plt.plot(
             wf.induced_voltage,
-            label=f"BLonD3 {simulation.turn_i.value=}",
+            label=f"BLonD3 {simulation.turn_counter .value=}",
         )
 
     sim.run_simulation(

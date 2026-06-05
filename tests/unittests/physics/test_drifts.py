@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import numpy as np
@@ -123,6 +124,7 @@ class TestDriftSimple(unittest.TestCase):
 
     def test_error_throwing_on_unscheduled(self):
         simulation = Mock(Simulation)
+        simulation.turn_counter = SimpleNamespace(value=0)
         self.drift_simple = DriftSimple(
             section_index=1, orbit_length=0
         )  # will raise Exception because of missing transition gamma
@@ -158,6 +160,7 @@ class TestDriftSimple(unittest.TestCase):
         from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
+        simulation.turn_counter = SimpleNamespace(value=0)
         simulation.ring.circumference = 10
         self.drift_simple.on_init_simulation(simulation=simulation)
 
@@ -312,7 +315,7 @@ class TestDriftExact(unittest.TestCase):
         beam.write_partial_dt.return_value = beam.dt
         beam.read_partial_dE.return_value = beam.dE
         self.drift_exact._simulation = Mock(Simulation)
-        self.drift_exact._simulation.turn_i = DynamicParameter(1)
+        self.drift_exact._simulation.turn_counter = DynamicParameter(1)
 
         self.drift_exact.schedule(
             "higher_order_alpha",
@@ -334,7 +337,7 @@ class TestDriftExact(unittest.TestCase):
         beam.reference.gamma = float(np.sqrt(1 - 0.25))
         beam.reference.total_energy = float(938)
         self.drift_exact._simulation = Mock(Simulation)
-        self.drift_exact._simulation.turn_i = DynamicParameter(1)
+        self.drift_exact._simulation.turn_counter = DynamicParameter(1)
         self.drift_exact.schedule(
             "higher_order_alpha",
             np.array([[1.49, 23], [1.49, 24]]),
