@@ -1921,7 +1921,7 @@ class MultiHarmonicRFStation(
         )
 
         multi_harmonic_rf_station.configure(
-            turn_counter=SimpleNamespace(value=0),
+            turn_counter=turn_counter,
             magnetic_cycle=magnetic_cycle,
             ring=SimpleNamespace(
                 circumference=circumference,
