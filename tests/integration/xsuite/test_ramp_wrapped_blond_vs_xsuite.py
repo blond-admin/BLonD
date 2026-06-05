@@ -61,6 +61,9 @@ LAG_DEG = 45.0
 DEV_PLOT = True # TODO false  # set True to render comparison plots; pytest
 # leaves this off
 
+# TODO do the cavities change their frequency with the energy ramp? this is
+#  a essential feature of the cavities.. (maybe xsuite misses that?)
+#  blond should do it automatically already, make sure it happens.
 
 def _build_common_line(p0c_init: float = P0C_INIT) -> xt.Line:
     matrix = xt.LineSegmentMap(

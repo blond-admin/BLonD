@@ -147,6 +147,7 @@ def _run_blond_simulation(p0c_ramp: np.ndarray, n_turns: int, dist):
     # output at the initial reference, so the initial state matches the
     # pure-xsuite run bit for bit.
     seed_line = _build_common_line(p0c_init=float(p0c_ramp[0]))
+    # todo recycle the converters that we already have. dont redo these converseions here
     seed = seed_line.build_particles(**dist)
     zeta_init = np.asarray(seed.zeta).copy()
     ptau_init = np.asarray(seed.ptau).copy()
@@ -184,7 +185,8 @@ def _run_blond_simulation(p0c_ramp: np.ndarray, n_turns: int, dist):
     sim.run_simulation(
         beams=(beam,), n_turns=n_turns, observe=(bunch_obs,)
     )
-
+    # todo is the problem for the failure of the tests? the arrays do not
+    #  include here before first turn.
     dts = np.asarray(bunch_obs.dts)  # shape (n_turns, n_part)
     dEs = np.asarray(bunch_obs.dEs)
     ref_E = np.asarray(bunch_obs.reference_total_energy)  # shape (n_turns,)
