@@ -31,7 +31,6 @@ def _headless_cavity(*, phi_rf, total_energy, magnetic_cycle):
         phi_rf=phi_rf,
         harmonic=HARMONIC,
         circumference=CIRCUMFERENCE,
-        total_energy=total_energy,
         beam_reference_beta=beta0,
         magnetic_cycle=magnetic_cycle,
     )

@@ -1,4 +1,5 @@
 """Tests for injecting a magnetic cycle into a headless RF station."""
+import unittest
 
 from blond import SingleHarmonicRFStation, proton
 from blond.cycles.magnetic_cycle import ExternalReferenceCycle
@@ -11,7 +12,6 @@ def _headless(**overrides):
         phi_rf=0.0,
         harmonic=35640,
         circumference=26658.883,
-        total_energy=450e9,
         beam_reference_beta=0.9999,
     )
     kwargs.update(overrides)
@@ -37,8 +37,6 @@ def test_injected_cycle_drives_reference_energy():
     )
 
 
-def test_headless_default_cycle_returns_constant_energy():
-    rf = _headless()
-    assert (
-        rf._magnetic_cycle.get_target_total_energy(0, 0, 0.0, proton) == 450e9
-    )
+
+if __name__ == "__main__":
+    unittest.main()

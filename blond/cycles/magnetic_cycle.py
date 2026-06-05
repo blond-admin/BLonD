@@ -592,7 +592,7 @@ class ExternalReferenceCycle(MagneticCycleBase):
     @staticmethod
     def headless(
         total_energy_init: float,
-        particle_type: ParticleType = proton,
+        particle_type: ParticleType,
     ) -> ExternalReferenceCycle:
         """
         Initialize object without simulation context.

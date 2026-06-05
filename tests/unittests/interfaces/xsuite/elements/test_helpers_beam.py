@@ -1,4 +1,5 @@
 """Tests for beam<->particle converters (require xsuite)."""
+import unittest
 
 import numpy as np
 import pytest
@@ -102,3 +103,6 @@ def test_beam_to_particles_leaves_lost_untouched():
         particles.zeta[[0, 2]], dt_to_zeta(np.array([1e-9, 1e-9]), frame),
         rtol=1e-12,
     )
+
+if __name__ == "__main__":
+    unittest.main()
