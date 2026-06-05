@@ -488,8 +488,10 @@ class BackendBaseClass(ABC):
         self.unique: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
         self.ndarray: type = None  # type: ignore
+        self.broadcast_to: type = None  # type: ignore
+        self.asarray: type = None  # type: ignore
         self.where: Callable = None  # type: ignore
-        self.hstack: type = None  # type: ignore
+        self.hstack: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -858,6 +860,8 @@ class NumpyBackend(BackendBaseClass):
         self.unique = np.unique
         self.repeat = np.repeat
         self.ndarray = np.ndarray
+        self.broadcast_to = np.broadcast_to
+        self.asarray = np.asarray
         self.where = np.where
         self.hstack = np.hstack
 
@@ -1005,6 +1009,8 @@ class CupyBackend(BackendBaseClass):
         self.unique = cp.unique
         self.repeat = cp.repeat
         self.ndarray = cp.ndarray
+        self.broadcast_to = cp.broadcast_to
+        self.asarray = cp.asarray
         self.where = cp.where
         self.hstack = cp.hstack
 

@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from blond.acc_math.analytic.hamilton import (
@@ -212,7 +211,6 @@ def _get_stable_fixed_point_single_rf(
     )
     charge = beam.particle_type.charge
     is_below_transition = simulation.ring.is_below_transition(beam=beam)
-    plt.title(f"{is_below_transition=}")
 
     energy_gain_per_turn = (
         simulation.magnetic_cycle.get_target_total_energy(
@@ -317,12 +315,6 @@ class BiGaussian(MatchingRoutine):
         )
         stable_fixed_point, period = _get_stable_fixed_point_single_rf(
             beam=beam, simulation=simulation
-        )
-        sep_helper.plot_separatrix(
-            beam=beam,
-            dt=np.linspace(
-                stable_fixed_point - period, stable_fixed_point + period
-            ),
         )
 
         if self._sigma_dE is None:

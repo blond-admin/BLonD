@@ -88,10 +88,12 @@ def main():
     def callback(sim, beam):
         plt.figure("live")
         beam.plot_hist2d()
-        sim.plot_separatrix(beam=beam, zorder=10)
+        sim.plot_separatrix(beam=beam)
         plt.draw()
         plt.pause(0.1)
         plt.cla()
+
+    callback.each_turn_i = 20
 
     sim.run_simulation(beams=(beam1,), n_turns=n_turns, callbacks=callback)
     plt.figure(0)

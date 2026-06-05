@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sympy
 
+from blond.core.backends.backend import backend
 from blond.core.base import HasSymbolicHamiltonian
 from blond.core.beam.beams import Beam
 from blond.utilities.separatrix.helpers import _get_omega_min
@@ -219,9 +220,9 @@ class SymbolicSeparatrixHelper:
         kinetic_coeff = self._dE_squared_coefficient(kinetic_coeffs)
         ham_values = callable_hamiltonian(dt, dE)
         if kinetic_coeff < 0:
-            mask = ham_values > H_sep_per_dt
+            mask = ham_values > backend.array(H_sep_per_dt)
         else:
-            mask = ham_values < H_sep_per_dt
+            mask = ham_values < backend.array(H_sep_per_dt)
         return mask
 
     def get_separatrix(
@@ -414,14 +415,18 @@ class SymbolicSeparatrixHelper:
         dt_sym, dE_sym = sympy.symbols("dt dE", real=True)
         ham_lambda = sympy.lambdify((dt_sym, dE_sym), ham, modules="numpy")
 
-        def ham_callable(dt: NumpyArray, dE: NumpyArray) -> NumpyArray:
+        def ham_callable(
+            dt: NumpyArray | CupyArray, dE: NumpyArray | CupyArray
+        ) -> NumpyArray | CupyArray:
             # ``sympy.lambdify`` collapses a constant ``U_expr`` (e.g.
             # ``voltage=0`` and no acceleration tilt) to a scalar-valued
             # callable. Broadcast so downstream code can rely on an
-            # array of the same shape as ``dt``.
-            return np.broadcast_to(
-                np.asarray(ham_lambda(dt, dE), dtype=float),
-                np.shape(np.asarray(dt)),
+            # array of the same shape as ``dt``. Dispatch on the input's
+            # array module so the result stays on the same device (a plain
+            # ``np.asarray`` would raise on a CuPy array).
+            return backend.broadcast_to(
+                backend.asarray(ham_lambda(dt, dE), dtype=float),
+                backend.asarray(dt).shape,
             )
 
         return ham_callable
