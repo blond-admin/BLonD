@@ -18,6 +18,7 @@ Danilo Quartullo
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from warnings import warn
 
 import numpy as np
 
@@ -170,7 +171,12 @@ class PSBBeamControl(BeamFeedbackBase):
                             * self.cavities[0].get_main_harmonic()
                         )
                         n += 1
-                    except Exception:
+                    except Exception as e:
+                        warn(
+                            f"Exception during precalculating_time: {e}",
+                            UserWarning,
+                            stacklevel=2,
+                        )
                         self.on_time = np.append(self.on_time, 0)
                         return
                 self.on_time = np.append(self.on_time, n - 1)
