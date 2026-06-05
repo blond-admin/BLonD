@@ -13,9 +13,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+import xtrack as xt
 
+from blond import backend
 from blond.core.base import UserDefinedElement
 from blond.core.beam.flags import BeamFlags
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.interfaces.xsuite.elements.helpers import (
     ReferenceFrame,
     dE_to_ptau,
@@ -23,12 +26,15 @@ from blond.interfaces.xsuite.elements.helpers import (
     ptau_to_dE,
     zeta_to_dt,
 )
+from blond.physics.drifts import (
+    DriftBaseClass,
+)  # todo is this the correct way?
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
 
 
-class WrapXsuite4Blond(UserDefinedElement):
+class WrapXsuite4Blond(UserDefinedElement, DriftBaseClass):
     """
     Track an xsuite element or ``Line`` inside a BLonD ``Ring``.
 
@@ -51,10 +57,31 @@ class WrapXsuite4Blond(UserDefinedElement):
         ``xtrack.Drift``, an ``xtrack.Line``, ...).
     """
 
-    def __init__(self, xsuite_element):
-        super().__init__()
-        self._xs = xsuite_element
+    # prevent on_init resolution breaking with magic __getattribute__ from xsuite
+    skip_find_instances_attributes = [
+        "_xsuite_element"
+    ]
+
+    def __init__(self, xsuite_element: xt.Line | xt.LineSegmentMap | xt.BeamElement):
+        super().__init__(orbit_length=float(xsuite_element.length))
+        self._xsuite_element = xsuite_element
         self._particles = None
+
+    def eta_0(self, gamma: float) -> backend.float:
+        # todo think about the
+        #  architecture of blond and if its a good idea to have DrifBaseClass
+        #  and RfStationBaseClass used explicitly, if an Xsuite
+        tw = self._xsuite_element.twiss()
+
+        gamma_t = tw.gamma_transition
+        n0 = 1 / np.square(gamma_t) - 1 / np.square(gamma)
+        return n0
+
+    def track_reference(self, reference: ReferenceCoordinates, **kwargs): #
+        # todo think about the architecture of blond and if its a good idea
+        #  to have DrifBaseClass and RfStationBaseClass used explicitly,
+        #  if an Xsuite
+        pass
 
     def _track(self, beam: BeamBaseClass) -> None:
         beta0 = float(beam.reference.beta)
@@ -65,6 +92,14 @@ class WrapXsuite4Blond(UserDefinedElement):
 
         if self._particles is None or self._particles.zeta.shape[0] != n:
             self._build_particles(beam, energy0, n)
+        else:
+            # Push BLonD's current reference into the cached Particles so the
+            # guest sees the same (beta0, p0c, energy0) as BLonD. Without this,
+            # multi-turn tracking with a BLonD-owned ramp would feed the guest
+            # the stale reference from the build call.
+            mass = float(beam.particle_type.mass)
+            new_p0c = float(np.sqrt(energy0**2 - mass**2))
+            self._particles.update_p0c(np.full(n, new_p0c))
 
         self._particles.zeta[:] = dt_to_zeta(
             np.asarray(beam.dt.array_local), frame
@@ -73,20 +108,23 @@ class WrapXsuite4Blond(UserDefinedElement):
             np.asarray(beam.dE.array_local), frame
         )
 
-        self._xs.track(self._particles)
+        self._xsuite_element.track(self._particles)
 
         # Pick up any reference advance the xsuite guest performed (energy
         # program, ReferenceEnergyIncrease, ...) so subsequent BLonD elements
-        # see the new reference.
-        new_energy0 = float(np.asarray(self._particles.energy0).flat[0])
-        if new_energy0 != energy0:
-            beam.reference.total_energy = new_energy0
-            frame = ReferenceFrame(
-                beta0=float(np.asarray(self._particles.beta0).flat[0]),
-                energy0=new_energy0,
-            )
-
+        # see the new reference. Read from an active slot — update_p0c masks
+        # on state>0 so lost slots may hold a stale value.
         active = np.asarray(self._particles.state) > 0
+        if active.any():
+            i = int(np.argmax(active))
+            new_energy0 = float(np.asarray(self._particles.energy0)[i])
+            if new_energy0 != energy0:
+                beam.reference.total_energy = new_energy0
+                frame = ReferenceFrame(
+                    beta0=float(np.asarray(self._particles.beta0)[i]),
+                    energy0=new_energy0,
+                )
+
         beam.dt.array_local[active] = zeta_to_dt(
             np.asarray(self._particles.zeta)[active], frame
         )

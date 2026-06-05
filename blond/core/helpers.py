@@ -123,7 +123,8 @@ def _find(
 
         seen.add(id(obj))
         is_mock = isinstance(obj, Mock)
-        if hasattr(obj, "skip_find_instances_attributes") and not is_mock:
+        # objects magic `__getattribute__`
+        if "skip_find_instances_attributes" in dir(obj) and not is_mock:
             skip_list.extend(obj.skip_find_instances_attributes)
 
         # Check if object has the desired method
