@@ -17,8 +17,8 @@ Danilo Quartullo
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
-from warnings import warn
 
 import numpy as np
 
@@ -172,10 +172,9 @@ class PSBBeamControl(BeamFeedbackBase):
                         )
                         n += 1
                     except Exception as e:
-                        warn(
+                        warnings.warn(
                             f"Exception during precalculating_time: {e}",
-                            UserWarning,
-                            stacklevel=2,
+                            stacklevel=1,
                         )
                         self.on_time = np.append(self.on_time, 0)
                         return
