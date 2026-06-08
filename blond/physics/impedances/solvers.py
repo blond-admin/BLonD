@@ -62,7 +62,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         super().__init__()
         self._beam: BeamBaseClass | None = None
         self._Z_over_n: float | None = None
-        self._turn_i: DynamicParameter | None = None
+        self._turn_counter: DynamicParameter | None = None
         self._parent_wakefield: WakeField | None = None
         self._simulation: Simulation | None = None
 
@@ -85,7 +85,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         )
         impedances: tuple[InductiveImpedance, ...] = parent_wakefield.sources
         self._Z_over_n = float(sum(o.Z_over_n for o in impedances))
-        self._turn_i = simulation.turn_i
+        self._turn_counter = simulation.turn_counter
         self._simulation = simulation
 
     def calc_induced_voltage(

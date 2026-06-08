@@ -218,9 +218,9 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
 
     def update(self) -> None:
         """Update memory with new values."""
-        if self._last_turn_i_observed != self._simulation.turn_i.value:
+        if self._last_turn_i_observed != self._simulation.turn_counter.value:
             self._update()
-            self._last_turn_i_observed = self._simulation.turn_i.value
+            self._last_turn_i_observed = self._simulation.turn_counter.value
         else:
             raise RuntimeError(
                 f"{self} already called update in this turn for turn {self._last_turn_i_observed}."

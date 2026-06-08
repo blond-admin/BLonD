@@ -159,11 +159,11 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
         )
         # To test the tracking methods
         self.SRB._simulation = Mock(SimulationElementBase)
-        self.SRB._simulation.turn_i = 0
+        self.SRB._simulation.turn_counter = 0
         self.SRD._simulation = Mock(SimulationElementBase)
-        self.SRD._simulation.turn_i = 0
+        self.SRD._simulation.turn_counter = 0
         self.SRS._simulation = Mock(SimulationElementBase)
-        self.SRS._simulation.turn_i = 0
+        self.SRS._simulation.turn_counter = 0
 
         self.beam = BeamBaseClassTester(
             intensity=1e12,

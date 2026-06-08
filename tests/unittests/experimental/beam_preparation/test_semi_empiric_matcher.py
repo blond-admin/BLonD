@@ -42,22 +42,22 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             data[:, :] = np.nan
 
             def my_callback(simulation: Simulation, beam: Beam):
-                if simulation.turn_i.value % 1 != 0:
+                if simulation.turn_counter.value % 1 != 0:
                     return
                 plt.subplot(2, 1, 1)
                 plt.cla()
                 beam.plot_hist2d(range=((0.7e-9, 1.8e-9), (-3.5e8, 3.5e8)))
-                data[simulation.turn_i.value % data.shape[0], 0] = (
+                data[simulation.turn_counter.value % data.shape[0], 0] = (
                     sim.beam1.read_partial_dt()[idx]
                 )
-                data[simulation.turn_i.value % data.shape[0], 1] = (
+                data[simulation.turn_counter.value % data.shape[0], 1] = (
                     sim.beam1.read_partial_dE()[idx]
                 )
                 plt.plot(data[:, 0], data[:, 1], ".")
                 plt.axhline(beam.read_partial_dE().mean())
                 plt.axvline(beam.read_partial_dt().mean())
                 plt.subplot(2, 1, 2)
-                if simulation.turn_i.value == 0:
+                if simulation.turn_counter.value == 0:
                     plt.cla()
                 plt.hist(
                     beam.read_partial_dt(),
@@ -108,7 +108,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         if DEV_PLOT:
 
             def my_callback(simulation: Simulation, beam: Beam):
-                if simulation.turn_i.value % 10 != 0:
+                if simulation.turn_counter.value % 10 != 0:
                     return
                 plt.subplot(2, 1, 1)
                 plt.cla()
@@ -126,7 +126,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 plt.draw()
                 plt.pause(0.1)
 
-            sim.simulation.turn_i.value = 0
+            sim.simulation.turn_counter.value = 0
             my_callback(simulation=sim.simulation, beam=sim.beam1)
             sim.simulation.run_simulation(
                 beams=(sim.beam1,), callbacks=my_callback
@@ -189,22 +189,22 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             data[:, :] = np.nan
 
             def my_callback(simulation: Simulation, beam: Beam):
-                if simulation.turn_i.value % 1 != 0:
+                if simulation.turn_counter.value % 1 != 0:
                     return
                 plt.subplot(2, 1, 1)
                 plt.cla()
                 beam.plot_hist2d()
-                data[simulation.turn_i.value % data.shape[0], 0] = (
+                data[simulation.turn_counter.value % data.shape[0], 0] = (
                     sim.beam1.read_partial_dt()[idx]
                 )
-                data[simulation.turn_i.value % data.shape[0], 1] = (
+                data[simulation.turn_counter.value % data.shape[0], 1] = (
                     sim.beam1.read_partial_dE()[idx]
                 )
                 plt.plot(data[:, 0], data[:, 1], ".")
                 plt.axhline(beam.read_partial_dE().mean())
                 plt.axvline(beam.read_partial_dt().mean())
                 plt.subplot(2, 1, 2)
-                if simulation.turn_i.value == 0:
+                if simulation.turn_counter.value == 0:
                     plt.cla()
                 plt.hist(
                     beam.read_partial_dt(),
@@ -248,7 +248,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         if DEV_PLOT:
 
             def my_callback(simulation: Simulation, beam: Beam):
-                if simulation.turn_i.value % 10 != 0:
+                if simulation.turn_counter.value % 10 != 0:
                     return
                 plt.subplot(2, 1, 1)
                 plt.cla()
@@ -266,7 +266,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 plt.draw()
                 plt.pause(0.1)
 
-            sim.simulation.turn_i.value = 0
+            sim.simulation.turn_counter.value = 0
             my_callback(simulation=sim.simulation, beam=sim.beam1)
             sim.simulation.run_simulation(
                 beams=(sim.beam1,), callbacks=my_callback

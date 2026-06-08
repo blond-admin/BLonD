@@ -303,8 +303,8 @@ class EquidistantMultiProfile(MultiProfile):
         from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
+        simulation.turn_counter = Mock(DynamicParameter)
+        simulation.turn_counter.value = 0
         simulation.get_t_rev_init.return_value = t_rev
         d.on_init_simulation(simulation=simulation)
         d.on_run_simulation(

@@ -105,12 +105,9 @@ class Simulation(Preparable):
 
     Attributes
     ----------
-    turn_i
+    turn_counter
         Counter tracking the current turn number during simulation. Can be subscribed
         to for notifications when the turn changes. Value is ``None`` when not running.
-    section_i
-        Counter tracking the current section (element) within a turn. Value is ``None``
-        when not running.
     check_circumference
         Behaviour, if  the drifts don't sum up to the ring.circumference.
         - "raise": Raise an exception.
@@ -154,8 +151,8 @@ class Simulation(Preparable):
         self._ring: Ring = ring
         self._magnetic_cycle: MagneticCycleBase = magnetic_cycle
 
-        self.turn_i = DynamicParameter(0)
-        self.section_i = DynamicParameter(0)
+        self.turn_counter = DynamicParameter(0)
+        self.section_counter = DynamicParameter(0)
         self.intensity_effect_manager = IntensityEffectManager(simulation=self)
 
         self.check_circumference: Literal["raise", "warn", "ignore"] = "raise"
@@ -166,6 +163,24 @@ class Simulation(Preparable):
         self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
         self._exec_track_reference()
+
+    @property
+    def turn_i(self) -> DynamicParameter:  # NOQA: D102 # pragma: no cover
+        warnings.warn(
+            "`turn_i` will be removed in future, use `turn_counter` instead!",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+        return self.turn_counter
+
+    @turn_i.setter
+    def turn_i(self, value: DynamicParameter) -> None:  # NOQA: D102 # pragma: no cover
+        warnings.warn(
+            "`turn_i` will be removed in future, use `turn_counter` instead!",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+        self.turn_counter = value
 
     def profiling(
         self,
@@ -250,7 +265,7 @@ class Simulation(Preparable):
             beam
                 The `Beam` object.
             """
-            if simulation.turn_i.value == start_turn_i:
+            if simulation.turn_counter.value == start_turn_i:
                 pr.enable()
 
         end_turn = start_turn_i + int_from_float_with_warning(
@@ -963,7 +978,7 @@ class Simulation(Preparable):
         >>> matcher.prepare_beam(sim, beam)
         """
         logger.info("Running `prepare_beam`")
-        self.turn_i.value = turn_i
+        self.turn_counter.value = turn_i
         preparation_routine.prepare_beam(simulation=self, beam=beam)
 
     def mainloop(
@@ -1663,7 +1678,7 @@ class Simulation(Preparable):
     def plot_separatrix(
         self,
         beam: BeamBaseClass,
-        dt: NumpyArray,
+        dt: NumpyArray | None = None,
         **kwargs_plot,
     ) -> list[Line2D]:
         r"""

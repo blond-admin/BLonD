@@ -94,7 +94,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
-        self._turn_i: DynamicParameter | None = None
+        self._turn_counter: DynamicParameter | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -107,7 +107,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         super().on_init_simulation(simulation=simulation)
 
-        self._turn_i = simulation.turn_i
+        self._turn_counter = simulation.turn_counter
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
@@ -132,7 +132,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Change of reference energy [eV].
         """
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
+            turn_i=self._turn_counter.value,
             section_i=self.section_index
             if not is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
@@ -155,7 +155,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         super()._track(beam=beam)
         if self.schedule_active:
             self.apply_schedules(
-                turn_i=self._turn_i.value,
+                turn_i=self._turn_counter.value,
                 reference_time=float(beam.reference.time),
             )
 
@@ -696,7 +696,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
+            turn_i=self._turn_counter.value,
             section_i=self.section_index
             if not beam.is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
@@ -854,7 +854,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         self._update_reference_based_attributes(reference=reference)
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
+            turn_i=self._turn_counter.value,
             section_i=self.section_index
             if not is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
@@ -1314,8 +1314,8 @@ class SingleHarmonicRFStation(
         simulation = Mock(Simulation)
         simulation.ring = ring
         simulation.magnetic_cycle = energy_cycle
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
+        simulation.turn_counter = Mock(DynamicParameter)
+        simulation.turn_counter.value = 0
 
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
@@ -1843,8 +1843,8 @@ class MultiHarmonicRFStation(
         simulation = Mock(Simulation)
         simulation.ring = ring
         simulation.magnetic_cycle = energy_cycle
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
+        simulation.turn_counter = Mock(DynamicParameter)
+        simulation.turn_counter.value = 0
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
         beam.reference.beta = beam_reference_beta

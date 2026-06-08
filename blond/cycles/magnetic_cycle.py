@@ -690,7 +690,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         bending_radius: float | None = None,
     ) -> MagneticCyclePerTurn:
         """
-        Magnetic cycle per turn.
+        Magnetic cycle per turn (supply ``n_turns + 1`` values).
 
         Parameters
         ----------

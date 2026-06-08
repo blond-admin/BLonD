@@ -22,7 +22,7 @@ import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
 
-from blond import backend
+from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, Preparable
 
 if TYPE_CHECKING:  # pragma: no cover
