@@ -559,7 +559,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         profile,
         R_over_Q: float,
         Q_L: float,
-        generator_current: float,
+        generator_current: complex,
         n_cavities: int | float,
         initial_voltage: float = 30.0e6,
         n_rf_periods_per_coarse_grid: int = 1,
@@ -623,16 +623,74 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self.generator_current_constant = generator_current
 
+        self._beam_kick_warning_issued = False
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
-        Dummy.
+        Checks that the per-step decay is not too large.
+
+        Checks that the per-step decay and detuning-induced phase rotation
+        are small, since cavity_response() advances the antenna voltage by
+        the forward-Euler factor
+        ``(1 - 0.5 * omega * dt / Q_L + 1j * delta_omega * dt)``,
+        which is only a good approximation of the exact propagator
+        ``exp((-omega / (2 * Q_L) + 1j * delta_omega) * dt)``
+        when ``omega * dt / Q_L`` and ``delta_omega * dt`` are << 1.
 
         Parameters
         ----------
         simulation
             Simulation object to initialise on.
         """
-        pass
+        max_step_angle = 0.1  # rad, heuristic threshold for Euler validity
+        # Beyond this, the forward-Euler decay factor
+        # (1 - 0.5 * omega * dt / Q_L) becomes negative, i.e. the
+        # discretized cavity would *invert* the antenna voltage every step
+        # instead of merely damping it -- a clearly unphysical, divergent
+        # discretization rather than just an inaccurate one.
+        max_step_angle_hard = 2.0
+
+        omega_dt = self.omega_carrier * self.sampling_time_coarse
+        decay_per_step = 0.5 * omega_dt / self.Q_L
+        detuning_phase_per_step = self.delta_omega * self.sampling_time_coarse
+
+        if decay_per_step > max_step_angle_hard:
+            raise ValueError(
+                f"{decay_per_step=:.3g} > {max_step_angle_hard}: the "
+                "forward-Euler decay factor (1 - 0.5 * omega * dt / Q_L) "
+                "used in cavity_response() would be negative, making the "
+                "discretized cavity response unphysical/divergent. "
+                "Increase Q_L or decrease n_rf_periods_per_coarse_grid."
+            )
+        if decay_per_step > max_step_angle:
+            warnings.warn(
+                f"{decay_per_step=:.3g} is not << 1: the forward-Euler "
+                "approximation of the cavity decay "
+                "(1 - 0.5 * omega * dt / Q_L) used in cavity_response() "
+                "may be inaccurate; consider increasing Q_L or decreasing "
+                "n_rf_periods_per_coarse_grid.",
+                stacklevel=2,
+            )
+        if abs(detuning_phase_per_step) > max_step_angle_hard:
+            raise ValueError(
+                f"{detuning_phase_per_step=:.3g} > {max_step_angle_hard}: "
+                "the forward-Euler approximation of the detuning-induced "
+                "phase rotation (1 + 1j * delta_omega * dt) used in "
+                "cavity_response() rotates the antenna voltage by more "
+                "than one step's worth of angle per coarse-grid sample, "
+                "i.e. the discretization can no longer track the cavity "
+                "phase. Decrease delta_omega or "
+                "n_rf_periods_per_coarse_grid."
+            )
+        if abs(detuning_phase_per_step) > max_step_angle:
+            warnings.warn(
+                f"{detuning_phase_per_step=:.3g} is not << 1: the "
+                "forward-Euler approximation of the detuning-induced phase "
+                "rotation (1 + 1j * delta_omega * dt) used in "
+                "cavity_response() may be inaccurate; consider decreasing "
+                "delta_omega or n_rf_periods_per_coarse_grid.",
+                stacklevel=2,
+            )
 
     def on_run_simulation(
         self,
@@ -1108,6 +1166,56 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 new_rf_centers,
             )
 
+    def plot_antenna_voltage(self, show: bool = True):
+        """
+        Debug helper: plot the coarse-grid antenna voltage (real, imaginary
+        and absolute value) against the rf_centers time base.
+
+        Only sensible to call after circuit_track() has populated
+        antenna_voltage_coarse_grid; intended to be used with debug=True
+        to inspect the cavity-voltage evolution (amplitude decay/buildup
+        and detuning-induced phase rotation) turn by turn.
+
+        Parameters
+        ----------
+        show
+            If True, calls plt.show() at the end (blocking).
+        """
+        import matplotlib.pyplot as plt
+
+        if (
+            self.antenna_voltage_coarse_grid is None
+            or len(self.rf_centers) == 0
+        ):
+            warnings.warn(
+                "Nothing to plot, antenna_voltage_coarse_grid/rf_centers empty",
+                stacklevel=2,
+            )
+            return
+
+        n = min(len(self.rf_centers), len(self.antenna_voltage_coarse_grid))
+        t = self.rf_centers[-n:]
+        v = self.antenna_voltage_coarse_grid[-n:]
+
+        fig, (ax_re, ax_abs) = plt.subplots(2, 1, sharex=True)
+        fig.suptitle("IQCavityFeedbackTimingClass: antenna voltage (coarse grid)")
+
+        ax_re.plot(t, np.real(v), label="real")
+        ax_re.plot(t, np.imag(v), label="imag")
+        ax_re.set_ylabel("V_antenna [V]")
+        ax_re.legend()
+
+        ax_abs.plot(t, np.abs(v), label="abs")
+        ax_abs2 = ax_abs.twinx()
+        ax_abs2.plot(t, np.unwrap(np.angle(v)), color="C1", label="phase")
+        ax_abs.set_xlabel("time [s]")
+        ax_abs.set_ylabel("|V_antenna| [V]")
+        ax_abs2.set_ylabel("phase [rad]")
+
+        fig.tight_layout()
+        if show:
+            plt.show()
+
     def circuit_track(
         self,
         omega_input: float,
@@ -1212,6 +1320,82 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 relative_detuning=relative_detuning,
             )
 
+    def _check_beam_kick_magnitude(
+        self,
+        beam_current: complex,
+        omega_times_T_s: float,
+        previous_voltage: complex,
+    ) -> None:
+        """
+        Warn (once) if the beam-induced voltage kick within a single
+        coarse-grid step is not small compared to the antenna voltage
+        it is added to.
+
+        The beam-loading term ``-I_beam * 0.5 * R_over_Q * omega * dt`` is,
+        like the cavity decay/detuning terms, a forward-Euler increment.
+        It is only an accurate discretization of the underlying ODE if it
+        represents a small relative change of the antenna voltage per step;
+        a large beam current (or large step size) violates that assumption
+        in the same way an excessive ``omega * dt / Q_L`` or
+        ``delta_omega * dt`` would.
+
+        Parameters
+        ----------
+        beam_current
+            Beam current sample used for this step [A].
+        omega_times_T_s
+            Angular frequency times sampling time for this step.
+        previous_voltage
+            Antenna voltage of the previous coarse-grid step, which the
+            kick is added to/subtracted from.
+        """
+        if beam_current == 0:
+            return
+
+        max_relative_kick = 0.1  # heuristic threshold for Euler validity
+        # Beyond this, the single-step beam kick exceeds the antenna
+        # voltage it is being subtracted from/added to: the discretized
+        # update can flip the sign of the antenna voltage within one
+        # coarse-grid step purely due to the beam, which the underlying
+        # continuous cavity equation cannot do -- a divergent/unphysical
+        # discretization rather than just an inaccurate one.
+        max_relative_kick_hard = 1.0
+
+        beam_kick = beam_current * 0.5 * self.R_over_Q * omega_times_T_s
+        previous_voltage_abs = np.abs(previous_voltage)
+        if previous_voltage_abs == 0:
+            return
+
+        relative_kick = np.abs(beam_kick) / previous_voltage_abs
+        if relative_kick > max_relative_kick_hard:
+            raise ValueError(
+                f"{relative_kick=:.3g} > {max_relative_kick_hard}: the "
+                "beam-induced voltage kick per coarse-grid step "
+                "(beam_current * 0.5 * R_over_Q * omega * dt) exceeds the "
+                "antenna voltage it acts on, i.e. the forward-Euler update "
+                "in cavity_response() can flip the sign of the antenna "
+                "voltage within a single step -- unphysical for the "
+                "underlying cavity ODE. Decrease "
+                "n_rf_periods_per_coarse_grid or check whether the beam "
+                "current/intensity is physically reasonable for this "
+                "cavity."
+            )
+        if self._beam_kick_warning_issued:
+            return
+        if relative_kick > max_relative_kick:
+            self._beam_kick_warning_issued = True
+            warnings.warn(
+                f"{relative_kick=:.3g} is not << 1: the beam-induced "
+                "voltage kick per coarse-grid step "
+                "(beam_current * 0.5 * R_over_Q * omega * dt) is large "
+                "compared to the antenna voltage. The forward-Euler update "
+                "in cavity_response() may be inaccurate; consider "
+                "decreasing n_rf_periods_per_coarse_grid or checking "
+                "whether the beam current/intensity is physically "
+                "reasonable for this cavity.",
+                stacklevel=2,
+            )
+
     def cavity_response(
         self,
         omega_times_T_s: float,
@@ -1243,6 +1427,13 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 beam_current = self.beam_current_forward_coarse_grid[
                     coarse_grid_index_to_update - forward_offset
                 ]
+            self._check_beam_kick_magnitude(
+                beam_current=beam_current,
+                omega_times_T_s=omega_times_T_s,
+                previous_voltage=self.antenna_voltage_coarse_grid[
+                    coarse_grid_index_to_update - 1
+                ],
+            )
             self.antenna_voltage_coarse_grid[coarse_grid_index_to_update] = (
                 self.generator_current_coarse_grid[
                     coarse_grid_index_to_update - 1
