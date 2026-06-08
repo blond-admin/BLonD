@@ -7,3 +7,17 @@
 # Project website: http://blond.web.cern.ch/
 
 """LHC VariNoise data (spectral-shape ``gain_y`` for band-limited RF noise)."""
+
+__all__ = ["lhc_spectrum_gain_y"]
+
+import os
+from importlib.resources import as_file, files
+
+import numpy as np
+
+this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
+
+with as_file(
+    files("blond.specifics.cern.lhc.varinoise") / "lhc_spectrum_gain_y.txt"
+) as spectrum_file:
+    lhc_spectrum_gain_y = np.loadtxt(spectrum_file)

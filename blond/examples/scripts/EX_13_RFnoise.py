@@ -42,6 +42,7 @@ from blond import (
     setup_backend,
 )
 from blond.cycles.noise_generators import VariNoise
+from blond.specifics.cern.lhc.varinoise import lhc_spectrum_gain_y
 from blond.testing import pytest_active
 
 if not pytest_active():  # pragma: no cover
@@ -58,10 +59,7 @@ def main():
     # Band-limited phase noise: a fixed frequency band along the cycle, with an
     # (LHC) spectral shape supplied by the caller. Requires the external
     # rf-noise-cpp library.
-    with as_file(
-        files("blond.specifics.cern.lhc.varinoise") / "lhc_spectrum_gain_y.txt"
-    ) as spectrum_file:
-        gain_y = np.loadtxt(spectrum_file)
+    gain_y = lhc_spectrum_gain_y
     noise = VariNoise(
         frequency_high=np.full(n_turns, 200.0),
         frequency_low=np.full(n_turns, 100.0),
