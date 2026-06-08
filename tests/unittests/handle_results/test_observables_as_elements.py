@@ -33,10 +33,8 @@ simulation.ring.elements = Mock(BeamPhysicsRelevantElements)
 simulation.ring.n_rf_stations = 2
 simulation.ring.section_lengths = [250, 250]
 simulation.ring.circumference = 500
-simulation.section_i = DynamicParameter(None)
-simulation.section_i.current_group = 0
-simulation.turn_i = DynamicParameter(None)
-simulation.turn_i.value = 0
+simulation.turn_counter = DynamicParameter(None)
+simulation.turn_counter.value = 0
 
 beam = Mock(BeamBaseClass)
 beam.reference = Mock(ReferenceCoordinates)

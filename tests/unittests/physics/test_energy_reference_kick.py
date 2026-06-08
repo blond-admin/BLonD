@@ -15,19 +15,19 @@ from blond.testing.mocks import cycle_const_mock, simulation_mock
 class TestEnergyReferenceKick(unittest.TestCase):
     def setUp(self):
         self.simulation = simulation_mock
-        self.simulation.turn_i = Mock(DynamicParameter)
+        self.simulation.turn_counter = Mock(DynamicParameter)
         self.simulation.magnetic_cycle = cycle_const_mock
 
         # Bypass __init__ TypeError by manually setting magnetic_cycle after creation
         self.energy_kick = ReferenceEnergyChange(section_index=0)
         self.energy_kick._magnetic_cycle = self.simulation.magnetic_cycle
-        self.energy_kick._turn_i = self.simulation.turn_i
+        self.energy_kick._turn_counter = self.simulation.turn_counter
         self.energy_kick._ring = self.simulation.ring
 
     def test_init_raises_typeerror(self):
         """Test that using an invalid magnetic cycle raises a TypeError when required."""
         simulation = MagicMock()
-        simulation.turn_i = Mock(DynamicParameter)
+        simulation.turn_counter = Mock(DynamicParameter)
         simulation.magnetic_cycle = object()  # invalid type
         simulation.ring = MagicMock()
 
@@ -43,7 +43,7 @@ class TestEnergyReferenceKick(unittest.TestCase):
         beam = ProbeBeam(
             dE=np.zeros(1), particle_type=proton, reference_total_energy=0.5e12
         )
-        self.simulation.turn_i.value = 5
+        self.simulation.turn_counter.value = 5
 
         self.energy_kick.schedule_active = False  # No schedules applied
 

@@ -82,7 +82,7 @@ def test_kickdrift():
     )
 
     def _blond3_callback(simulation: Simulation):
-        if not _DEV_DRAW or not simulation.turn_i.value:
+        if not _DEV_DRAW or not simulation.turn_counter.value:
             return
         plt.scatter(beam1._dt[-100:], beam1._dE[-100:], marker="x", c="C1")
         plt.scatter(

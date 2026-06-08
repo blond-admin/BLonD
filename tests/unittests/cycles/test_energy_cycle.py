@@ -364,7 +364,7 @@ class TestEnergyCycleByTime(unittest.TestCase):
             ),
         )
         self.assertEqual(cycle._n_turns_max, 13)
-        self.assertEqual(sim.turn_i.value, 13)
+        self.assertEqual(sim.turn_counter.value, 13)
 
     def _make_two_section_setup(self):
         ring = Ring(
@@ -419,7 +419,7 @@ class TestEnergyCycleByTime(unittest.TestCase):
                 )
             ),
         )
-        n_turns_auto = sim.turn_i.value
+        n_turns_auto = sim.turn_counter.value
 
         self.assertEqual(n_turns_explicit, 6)
         self.assertEqual(n_turns_explicit, n_turns_auto)
