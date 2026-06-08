@@ -18,12 +18,27 @@ Author: Simon Lauber
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from blond.cycles.noise_generators.base import NoiseGenerator
 
+try:
+    from blond.interfaces.rf_noise_cpp.wrap_rf_noise import (
+        rf_noise,  # delay crash to last moment
+    )
+
+    _delayed_import_error = None
+except Exception as _delayed_import_error:
+    warnings.warn(
+        "Import of `rf-noise-cpp` lib failed and will later "
+        "result in crash of VariNoise(...).get_noise(...)."
+        f"The reason was for the failing import is:\n'"
+        f"{str(_delayed_import_error)}'.",
+        stacklevel=1,
+    )
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
@@ -126,9 +141,8 @@ class VariNoise(NoiseGenerator):
         noise
             Phase-noise array of length ``n_turns``, in [rad].
         """
-        from blond.interfaces.rf_noise_cpp.wrap_rf_noise import (
-            rf_noise,  # delay crash to last moment
-        )
+        if _delayed_import_error is not None:
+            raise _delayed_import_error
 
         assert len(self.frequency_high) == n_turns, (
             f"{len(self.frequency_high)=} must equal {n_turns=}"
