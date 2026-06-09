@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -17,6 +17,8 @@ import platform
 import subprocess
 import sys
 
+from blond.generals.hashing_ import hash_in_folder
+
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 
@@ -29,12 +31,14 @@ cpp_files = [
     "histogram.cpp",
     "drift_exact.cpp",
     # "music_track.cpp",
-    "blondmath.cpp",
+    # "blondmath.cpp",
+    "blondmath_new.cpp",
     # "fast_resonator.cpp",
     "histogram_sparse.cpp",
     "beam_phase.cpp",
     "loss_box.cpp",
     "move_flagged_elements_to_end.cpp",
+    "poles.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
 ]
@@ -118,11 +122,13 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     This function assumes the presence of a Makefile or equivalent build system
     capable of processing the supplied options.
     """
-    print("\nTrying to compile C++ backend.")
     for parallel in (False, True):
-        if libname is None:
-            from blond.generals.hashing_ import hash_in_folder
+        if parallel:
+            print("\nTrying to compile parallel C++ backend.")
+        else:
+            print("\nTrying to compile single core C++ backend.")
 
+        if libname is None:
             folder = os.path.dirname(os.path.abspath(__file__))
 
             hash_ = hash_in_folder(
@@ -141,6 +147,8 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             "-std=c++11",
             "-shared",
             "-funroll-loops",  # Aggressive loop unrolling
+            "-ftree-vectorize",
+            "-march=native",
         ]
         # Some additional warning reporting related flags
         cflags += [

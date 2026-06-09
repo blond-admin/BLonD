@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -44,6 +44,26 @@ def _register_backend(bd: BackendBaseClass) -> BackendBaseClass:
 
 class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def get_max_threads() -> int:
+        """
+        Return the max number of threads this backend's kernels may use.
+
+        Used to size per-thread scratch buffers (e.g. ``voltage_threaded`` in
+        ``MultiPoleSparseSolve``). Each backend must report the count from the
+        runtime its own kernels will actually use, since numba and the cpp
+        backend's libgomp maintain independent thread pools.
+
+        Returns
+        -------
+        max_threads
+            Maximum number of threads this backend's kernels may use.
+        """
+        raise NotImplementedError(
+            "Abstract method `get_max_threads` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -277,6 +297,61 @@ class Specials(ABC):
             ``bins_per_profile = 8``.
             Use `_gen_array_bucket_index_to_memory_index` to generate this.
         """
+        raise NotImplementedError(
+            "The backend for `histogram_sparse` is missing."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def wake_from_pole_residue(
+        # read
+        profile: NumpyArray | CupyArray,
+        profile_dts: NumpyArray | CupyArray,
+        poles: NumpyArray | CupyArray,
+        residues: NumpyArray | CupyArray,
+        is_counterrotating_beam: bool,
+        counterrotating_pole_signs: NumpyArray | CupyArray,
+        update_on_bin: NumpyArray | CupyArray,
+        factor: float,
+        # write
+        states: NumpyArray | CupyArray,
+        voltage: NumpyArray | CupyArray,
+        voltage_threaded: NumpyArray | CupyArray,
+    ) -> None:
+        """
+        Apply poles based on the `profile` to generate `voltage`.
+
+        Parameters
+        ----------
+        profile
+            Beam profile histogram.
+        profile_dts
+            Base for time step, connected to `update_on_bin`.
+        poles
+            Complex poles of an equivalent circuit model.
+        residues
+            Complex residues of an equivalent circuit model.
+        is_counterrotating_beam
+            If true, the current beam is counter-rotating.
+        counterrotating_pole_signs
+            Array per pole, -1 if the sign of the impedance is flipped
+            for a counter-rotating beam.
+        update_on_bin
+            Index when to trigger an update of dt. For speedup.
+            E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
+            one needs `update_on_bin = [0,3,7]`.
+        factor
+            To convert `profile` to current per bin [A].
+        states
+            Complex state vector, initially ``(0 + 0j)``.
+        voltage
+            Output voltage, in [V].
+        voltage_threaded
+            Cached `voltage` array per thread. For speedup.
+        """
+        raise NotImplementedError(
+            "The backend for `wake_from_pole_residue` is missing."
+        )
 
 
 class _ModeSwitchHelper:
@@ -326,7 +401,7 @@ class BackendBaseClass(ABC):
     float: type[np.float64]
     complex: type[np.complex128]
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
         float_: type[np.float64],
         complex_: type[np.complex128],
@@ -357,6 +432,7 @@ class BackendBaseClass(ABC):
         self.float = float_
         self.complex = complex_
 
+        self.pi = self.float(np.pi)
         self.twopi = self.float(2 * np.pi)
         self.specials_mode = specials_mode
         self.specials: Specials = None  # type: ignore
@@ -398,6 +474,8 @@ class BackendBaseClass(ABC):
         self.sign: Callable = None  # type: ignore
         self.sin: Callable = None  # type: ignore
         self.cos: Callable = None  # type: ignore
+        self.arctan2: Callable = None  # type: ignore
+        self.sinc: Callable = None  # type: ignore
         self.exp: Callable = None  # type: ignore
         self.any: Callable = None  # type: ignore
         self.abs: Callable = None  # type: ignore
@@ -410,6 +488,7 @@ class BackendBaseClass(ABC):
         self.unique: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
         self.ndarray: type = None  # type: ignore
+        self.where: Callable = None  # type: ignore
         self.hstack: type = None  # type: ignore
 
     def _finalize(self) -> None:
@@ -714,7 +793,7 @@ class NumpyBackend(BackendBaseClass):
         Precision type for complex, e.g. complex128.
     """
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
         float_: type[np.float64],
         complex_: type[np.complex128],
@@ -765,6 +844,8 @@ class NumpyBackend(BackendBaseClass):
         self.sign = np.sign
         self.sin = np.sin
         self.cos = np.cos
+        self.arctan2 = np.arctan2
+        self.sinc = np.sinc
         self.exp = np.exp
         self.any = np.any
         self.abs = np.abs
@@ -777,6 +858,7 @@ class NumpyBackend(BackendBaseClass):
         self.unique = np.unique
         self.repeat = np.repeat
         self.ndarray = np.ndarray
+        self.where = np.where
         self.hstack = np.hstack
 
         self._finalize()
@@ -817,10 +899,9 @@ class NumpyBackend(BackendBaseClass):
             self.specials_mode = mode
         elif mode == "numba":
             from blond.core.backends.numba.callables import (
-                recompile_numba_backend,
+                NumbaSpecials,
             )
 
-            NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         else:
@@ -854,7 +935,7 @@ class CupyBackend(BackendBaseClass):
         Precision type for complex, e.g. complex128.
     """
 
-    def __init__(  # noqa: PLR0915
+    def __init__(  # NOQA: PLR0915
         self,
         float_: type[np.float64],
         complex_: type[np.complex128],
@@ -910,6 +991,8 @@ class CupyBackend(BackendBaseClass):
         self.sign = cp.sign
         self.sin = cp.sin
         self.cos = cp.cos
+        self.arctan2 = cp.arctan2
+        self.sinc = cp.sinc
         self.exp = cp.exp
         self.any = cp.any
         self.abs = cp.abs
@@ -922,6 +1005,7 @@ class CupyBackend(BackendBaseClass):
         self.unique = cp.unique
         self.repeat = cp.repeat
         self.ndarray = cp.ndarray
+        self.where = cp.where
         self.hstack = cp.hstack
 
         from blond.core.backends.cuda.callables import CudaSpecials
@@ -940,9 +1024,7 @@ class CupyBackend(BackendBaseClass):
             One of the available backend modes.
         """
         if mode == "cuda":
-            from blond.core.backends.cuda.callables import reload_cuda_backend
-
-            CudaSpecials = reload_cuda_backend(self.float)
+            from blond.core.backends.cuda.callables import CudaSpecials
 
             self.specials = CudaSpecials()
         else:

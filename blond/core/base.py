@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+import numbers
 import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
@@ -23,6 +24,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Any, TypeVar
 
+    import sympy
     from numpy.typing import NDArray as NumpyArray
     from scipy.interpolate import (
         Akima1DInterpolator,
@@ -54,8 +56,7 @@ class Preparable(ABC):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-    @abstractmethod  # pragma: no cover
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -63,10 +64,31 @@ class Preparable(ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        pass
+        self.configure(**kwargs)
 
-    @abstractmethod  # pragma: no cover
+    def configure(self, **kwargs) -> None:
+        """
+        Set attributes that would otherwise come from the simulation context.
+
+        Each MRO level declares its own explicit keyword parameters and passes
+        the remainder via ``super().configure(**kwargs)``.  This base
+        implementation is the chain terminator: it raises if any unexpected
+        kwargs remain, guarding against typos or missing levels.
+
+        Parameters
+        ----------
+        **kwargs
+            Must be empty when reaching this base implementation.
+        """
+        if kwargs:
+            raise TypeError(
+                f"{type(self).__name__}.configure() received unexpected "
+                f"keyword arguments: {list(kwargs)}"
+            )
+
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -86,9 +108,38 @@ class Preparable(ABC):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted kwargs collected by the MRO chain.
         """
-        pass
+        self.configure_run(beam=beam, n_turns=n_turns, **kwargs)
+
+    def configure_run(
+        self,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Set run-specific state for each simulation run.
+
+        Mirrors :meth:`configure` for the ``on_run_simulation`` lifecycle.
+        ``beam`` and ``n_turns`` are passed explicitly (as in
+        ``on_run_simulation``); any values extracted from ``simulation``
+        are collected in ``**kwargs`` and distributed down the MRO chain.
+
+        Parameters
+        ----------
+        beam
+            The beam being simulated.
+        n_turns
+            Number of turns for this run.
+        **kwargs
+            Simulation-extracted values; must be empty at the base.
+        """
+        if kwargs:
+            raise TypeError(
+                f"{type(self).__name__}.configure_run() received unexpected "
+                f"keyword arguments: {list(kwargs)}"
+            )
 
 
 class MainLoopRelevant(Preparable):
@@ -363,42 +414,6 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         """
         return self._section_index
 
-    @abstractmethod  # pragma: no cover
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        pass
-
-    @abstractmethod  # pragma: no cover
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs,
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
-
     def info_string(self, prefix="") -> str:
         """
         Print the state of the object.
@@ -532,40 +547,6 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
     ...         dt = beam.write_partial_dt()
     ...         dt += backend.random.rand(len(dt))
     """
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        pass
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
 
 
 # n.b.:  runtime_checkable will check the method is present, but does
@@ -766,7 +747,13 @@ class ScheduledInterpolation(ScheduledBaseClass):
         value
             The interpolated value for the current time.
         """
-        return self.interpolator(reference_time)
+        value = self.interpolator(reference_time)
+
+        # Guard against 0D arrays being returned by interpolator
+        if not isinstance(value, numbers.Number) and value.shape == ():
+            value = value[()]
+
+        return value
 
 
 def get_scheduler(
@@ -899,5 +886,31 @@ class AltersReference(ABC):
         -------
         change
             Change of reference time or energy.
+        """
+        pass
+
+
+class HasSymbolicHamiltonian(ABC):
+    """Base class for objects that have an analytic expression."""
+
+    @abstractmethod  # pragma: no cover
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
+        """
+        Return the partial Hamiltonian symbolic expression.
+
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according variables will be replaced by
+            their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
         """
         pass

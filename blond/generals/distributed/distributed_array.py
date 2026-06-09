@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -431,9 +431,9 @@ def concatenate(
         Raised if the `is_distributed` flags of the two arrays do not
         match.
     ArrayPrecisionError
-        Raised if the `dtype`s of the local arrays do not match.
+        Raised if the ``dtype`` values of the local arrays do not match.
     TypeError
-        Raised if the `type`s of the local arrays do not match.
+        Raised if the ``type`` values of the local arrays do not match.
     """
     # Check both distributed, mismatch probably not possible
     if array_1.is_distributed != array_2.is_distributed:  # pragma: no cover

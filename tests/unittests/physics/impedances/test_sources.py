@@ -11,7 +11,7 @@ from scipy.constants import pi
 from scipy.constants import speed_of_light as c0
 from scipy.signal import find_peaks
 
-from blond import Cupy64Bit, Numpy64Bit, backend
+from blond import Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.simulation.simulation import Simulation
@@ -28,6 +28,7 @@ from blond.physics.impedances.sources import (
     InductiveImpedance,
     Resonators,
     TravelingWaveCavity,
+    fit_poles,
 )
 
 
@@ -776,6 +777,108 @@ class TestResonators(unittest.TestCase):
             self.resonators._shunt_impedances_counter_rotating = None
             self.resonators.get_wake_counter_rotation(time=time)
         self.resonators._shunt_impedances_counter_rotating = save_cr_wake_imp
+
+    def test_get_vectorfit(self):
+        from blond.testing.helpers import allclose_tolerances
+
+        DEV_PLOT = False  # todo false
+        resonators = Resonators(
+            shunt_impedances=np.array(
+                [
+                    1e6,
+                ]
+            ),
+            center_frequencies=np.array([1e9]),
+            quality_factors=np.array(
+                [
+                    500,
+                ]
+            ),
+        )  # values chosen such that they are easily reproducible in test of test_get_impedance
+
+        freq = np.linspace(0, 4 * 1e9, 1000)
+        imp = copy_to_cpu(
+            resonators.get_impedance(backend.array(freq), None, None, False)
+        )
+        poles, residues, _ = resonators.get_vectorfit()
+        imp2 = residues[0] / (1j * 2 * np.pi * freq - poles[0])
+        imp2 += np.conjugate(residues[0]) / (
+            1j * 2 * np.pi * freq - np.conjugate(poles[0])
+        )
+        if DEV_PLOT:
+            plt.subplot(2, 1, 1)
+            plt.plot(freq, imp.real)
+            plt.plot(freq, imp2.real, "--")
+            plt.subplot(2, 1, 2)
+            plt.plot(freq, imp.imag)
+            plt.plot(freq, imp2.imag, "--")
+            plt.show()
+
+        np.testing.assert_allclose(
+            imp.real,
+            imp2.real,
+            **allclose_tolerances(imp.real),
+        )
+        np.testing.assert_allclose(
+            imp.imag,
+            imp2.imag,
+            **allclose_tolerances(imp.imag),
+        )
+
+
+class TestFitPoles(unittest.TestCase):
+    def test_recovers_resonator_impedance(self):
+        resonators = Resonators(
+            shunt_impedances=np.array([1e6]),
+            center_frequencies=np.array([1e9]),
+            quality_factors=np.array([500]),
+        )
+        freq = np.linspace(0, 4e9, 1000)
+        Z = copy_to_cpu(
+            resonators.get_impedance(backend.array(freq), None, None, False)
+        )
+
+        poles, residues, rms_error, prop_coeff, const_coeff = fit_poles(
+            freqs=freq,
+            Z=Z,
+            n_pole=1,
+            max_iterations=20,
+        )
+
+        self.assertEqual(len(poles), 1)
+        self.assertEqual(residues.shape, (1, 1))
+        # rms_error is normalized — small value means a good fit
+        self.assertLess(rms_error, 1e-3)
+
+        # Reconstruct and compare to the analytical impedance
+        residue = residues[0, 0]
+        pole = poles[0]
+        omega = 2j * np.pi * freq
+        imp_fit = (
+            residue / (omega - pole)
+            + np.conjugate(residue) / (omega - np.conjugate(pole))
+            + prop_coeff * 1j * 2 * np.pi * freq
+            + const_coeff
+        )
+        # Compare on the resonance peak where amplitude is large
+        peak = int(np.argmax(np.abs(Z)))
+        sel = slice(max(0, peak - 50), min(len(freq), peak + 50))
+        np.testing.assert_allclose(
+            np.abs(imp_fit[sel]), np.abs(Z[sel]), rtol=0.05
+        )
+
+    def test_max_iterations_branch(self):
+        resonators = Resonators(
+            shunt_impedances=np.array([1e6]),
+            center_frequencies=np.array([1e9]),
+            quality_factors=np.array([500]),
+        )
+        freq = np.linspace(0, 4e9, 200)
+        Z = copy_to_cpu(
+            resonators.get_impedance(backend.array(freq), None, None, False)
+        )
+        # max_iterations=None branch
+        _ = fit_poles(freqs=freq, Z=Z, n_pole=1)
 
 
 class TestTravelingWaveCavity(unittest.TestCase):

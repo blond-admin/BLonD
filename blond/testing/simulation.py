@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -85,7 +85,7 @@ class ExampleSimulation01:
         # bunch_observation = BunchObservation(each_turn_i=10, batch_size=)
         # batches
         def my_callback(simulation: Simulation, beam: Beam):
-            if simulation.turn_i.value % 10 != 0:
+            if simulation.turn_counter.value % 10 != 0:
                 return
 
             plt.scatter(

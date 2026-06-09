@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -14,6 +14,8 @@ import argparse
 import os
 import subprocess
 from typing import TYPE_CHECKING
+
+from blond.generals.hashing_ import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -72,8 +74,6 @@ def compile_cuda_library(  # NOQA: PLR0915
         "-maxrregcount",
         "32",
     ]
-
-    from blond.generals.hashing_ import hash_in_folder
 
     folder = os.path.dirname(os.path.abspath(__file__))
 
