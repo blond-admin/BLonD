@@ -245,6 +245,10 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
         mhc.attach_cavity_feedback(cavity_feedback_good)
 
+        self.assertEqual(
+            cavity_feedback_good, mhc.get_main_harmonic_cavity_feedback()
+        )
+
         mhc = MultiHarmonicRFStation(
             section_index=1,
             local_wakefield=None,
@@ -311,6 +315,10 @@ class TestRFStationBaseClass(unittest.TestCase):
             harmonic=25000,
             phi_rf=0,
             cavity_feedback=cavity_feedback_good,
+        )
+
+        self.assertEqual(
+            cavity_feedback_good, mhc.get_main_harmonic_cavity_feedback()
         )
 
         mhc._turn_counter = 1
