@@ -14,7 +14,6 @@ import warnings
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import numpy as np
 import sympy
@@ -95,8 +94,10 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             **kwargs,  # for MRO of fused elements
         )
         self._turn_counter: DynamicParameter | None = None
+        self._magnetic_cycle: MagneticCycleBase | None = None
+        self._ring: Ring | None = None
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -104,12 +105,43 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
+        super().on_init_simulation(
+            simulation,
+            turn_counter=simulation.turn_counter,
+            magnetic_cycle=simulation.magnetic_cycle,
+            ring=simulation.ring,
+            **kwargs,
+        )
 
-        self._turn_counter = simulation.turn_counter
-        self._magnetic_cycle = simulation.magnetic_cycle
-        self._ring = simulation.ring
+    def configure(
+        self,
+        *,
+        turn_counter: DynamicParameter | None = None,
+        magnetic_cycle: MagneticCycleBase | None = None,
+        ring: None,
+        **kwargs,
+    ) -> None:
+        """
+        Store the runtime references needed during tracking.
+
+        Parameters
+        ----------
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
+        magnetic_cycle
+            Energy program; provides ``get_target_total_energy``.
+        ring
+            Ring geometry; provides ``circumference`` and ``section_lengths``.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self._turn_counter = turn_counter
+        self._magnetic_cycle = magnetic_cycle
+        self._ring = ring
 
     def track_reference(
         self,
@@ -336,7 +368,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             "`phi_rf` can not be set, use `phi_rf_design` instead!"
         )
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -344,8 +376,10 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
+        super().on_init_simulation(simulation=simulation, **kwargs)
 
         if (self.voltage is None) and "voltage" not in self.schedules:
             raise ValueError(
@@ -385,9 +419,30 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted kwargs collected by the MRO chain.
         """
-        # set design omega etc. for this turn
+        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
+
+    def configure_run(
+        self,
+        *,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Update design RF frequencies and phases from the beam reference.
+
+        Parameters
+        ----------
+        beam
+            The beam being simulated; provides ``beam.reference``.
+        n_turns
+            Number of turns for this run.
+        **kwargs
+            Simulation-extracted values; passed to the next MRO level.
+        """
+        super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
         self._update_reference_based_attributes(reference=beam.reference)
 
     @abstractmethod  # pragma: no cover
@@ -1330,10 +1385,7 @@ class SingleHarmonicRFStation(
         rf_station
             Initialized RF station object.
         """
-        from blond.core.beam.base import BeamBaseClass
-        from blond.core.ring.ring import Ring
-        from blond.core.simulation.simulation import Simulation
-        from blond.cycles.magnetic_cycle import ConstantMagneticCycle
+        from types import SimpleNamespace
 
         single_harmonic_rf_station = SingleHarmonicRFStation(
             section_index=section_index,
@@ -1346,36 +1398,23 @@ class SingleHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
-        ring = Mock(Ring)
-        ring.circumference = circumference
-        ring.section_lengths = np.array(
-            [
-                circumference,
-            ]
+        single_harmonic_rf_station.configure(
+            turn_counter=SimpleNamespace(value=0),
+            magnetic_cycle=SimpleNamespace(
+                get_target_total_energy=lambda **_: total_energy
+            ),
+            ring=SimpleNamespace(
+                circumference=circumference,
+                section_lengths=np.array([circumference]),
+            ),
         )
 
-        energy_cycle = Mock(ConstantMagneticCycle)
-        energy_cycle.get_target_total_energy.return_value = total_energy
-
-        simulation = Mock(Simulation)
-        simulation.ring = ring
-        simulation.magnetic_cycle = energy_cycle
-        simulation.turn_counter = Mock(DynamicParameter)
-        simulation.turn_counter.value = 0
-
-        beam = Mock(BeamBaseClass)
-        beam.reference = Mock(ReferenceCoordinates)
-        beam.reference.beta = beam_reference_beta
-        single_harmonic_rf_station.on_init_simulation(simulation=simulation)
-        single_harmonic_rf_station._update_reference_based_attributes(
-            beam.reference
-        )
-        single_harmonic_rf_station.on_run_simulation(
-            simulation=simulation,
+        single_harmonic_rf_station.configure_run(
+            beam=SimpleNamespace(
+                reference=SimpleNamespace(beta=beam_reference_beta)
+            ),
             n_turns=1,
-            beam=beam,
         )
-
         return single_harmonic_rf_station
 
     def get_hamilton_symbolic(
@@ -1878,10 +1917,7 @@ class MultiHarmonicRFStation(
         rf_station
             Initialized RF station object.
         """
-        from blond.core.beam.base import BeamBaseClass
-        from blond.core.ring.ring import Ring
-        from blond.core.simulation.simulation import Simulation
-        from blond.cycles.magnetic_cycle import ConstantMagneticCycle
+        from types import SimpleNamespace
 
         multi_harmonic_rf_station = MultiHarmonicRFStation(
             harmonic=np.array(harmonic, dtype=float),
@@ -1897,34 +1933,21 @@ class MultiHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
-        ring = Mock(Ring)
-        ring.circumference = circumference
-        ring.section_lengths = np.array(
-            [
-                circumference,
-            ]
+        multi_harmonic_rf_station.configure(
+            turn_counter=SimpleNamespace(value=0),
+            magnetic_cycle=SimpleNamespace(
+                get_target_total_energy=lambda **_: total_energy
+            ),
+            ring=SimpleNamespace(
+                circumference=circumference,
+                section_lengths=np.array([circumference]),
+            ),
         )
-
-        energy_cycle = Mock(ConstantMagneticCycle)
-        energy_cycle.get_target_total_energy.return_value = total_energy
-
-        simulation = Mock(Simulation)
-        simulation.ring = ring
-        simulation.magnetic_cycle = energy_cycle
-        simulation.turn_counter = Mock(DynamicParameter)
-        simulation.turn_counter.value = 0
-        beam = Mock(BeamBaseClass)
-        beam.reference = Mock(ReferenceCoordinates)
-        beam.reference.beta = beam_reference_beta
-        multi_harmonic_rf_station.on_init_simulation(simulation=simulation)
-        multi_harmonic_rf_station.on_run_simulation(
-            simulation=simulation,
+        multi_harmonic_rf_station.configure_run(
+            beam=SimpleNamespace(
+                reference=SimpleNamespace(beta=beam_reference_beta)
+            ),
             n_turns=1,
-            beam=beam,
-        )
-
-        multi_harmonic_rf_station._update_reference_based_attributes(
-            beam.reference
         )
         return multi_harmonic_rf_station
 
