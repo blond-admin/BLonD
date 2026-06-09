@@ -41,3 +41,7 @@ class TestEX_21_Acceleration_revolution_time(unittest.TestCase):
         backend.zeros(100)
 
         # full script. just checking if it crashes
+
+
+if __name__ == "__main__":
+    unittest.main()
