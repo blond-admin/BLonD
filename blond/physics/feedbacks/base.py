@@ -23,6 +23,8 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
 
@@ -179,3 +181,34 @@ class GlobalFeedback(FeedbackBaseClass):
         self.cavities = simulation.ring.elements.get_elements(
             RFStationBaseClass, recursive=False
         )
+
+    def get_from_all_rf_stations(
+        self, method_or_attr: str, *args, **kwargs
+    ) -> NumpyArray:
+        """
+        Call method or attribute from all rf station instances.
+
+        This method calls a certain attribute or method from all
+        RF station instances associated with this beam feedback instance.
+
+        Parameters
+        ----------
+        method_or_attr
+            The name of the method or attribute to call.
+        *args
+            Variable positional arguments.
+        **kwargs
+            Variable keyword arguments.
+
+        Returns
+        -------
+        output_per_station
+            Array containing the output of the method or attribute from
+            each rf station.
+        """
+
+        def invoke(obj):
+            value = getattr(obj, method_or_attr)
+            return value(*args, **kwargs) if callable(value) else value
+
+        return np.array(list(map(invoke, self.cavities)))

@@ -32,6 +32,8 @@ from blond.physics.feedbacks.base import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray as NumpyArray
+
     from blond.core.beam.base import BeamBaseClass
     from blond.physics.cavities import RFStationBaseClass
     from blond.physics.profiles import ProfileBaseClass
@@ -88,6 +90,7 @@ class BeamFeedbackBase(GlobalFeedback):
 
         self.drho: float = 0.0
         self.average_de: float = 0.0
+        self.main_rf_stations_mask: NumpyArray = None
 
     @requires(["RFStationBaseClass"])
     def on_run_simulation(
@@ -274,6 +277,36 @@ class BeamFeedbackBase(GlobalFeedback):
             * self.average_de
             / (beam.reference.beta**2.0 * beam.reference.total_energy)
         )
+
+    def update_main_rf_stations(self, main_harmonic: int = None):
+        """
+        Update which rf stations are ones with the main harmonic.
+
+        This function updates the mask over the rf stations associated
+        with the beam control which have the global main harmonic.
+
+        Parameters
+        ----------
+        main_harmonic
+            The new main harmonic number. If no number is passed then
+            the new main harmonic will be the main harmonic of the first
+            rf station.
+        """
+        harmonics = self.get_from_all_rf_stations(
+            method_or_attr="get_main_harmonic"
+        )
+        if main_harmonic is not None:
+            ref_harmonic = main_harmonic
+        else:
+            ref_harmonic = harmonics[0]
+
+        self.main_rf_stations_mask = np.zeros(harmonics.shape, dtype=bool)
+
+        for i, harm in enumerate(harmonics):
+            self.main_rf_stations_mask[i] = harm == ref_harmonic
+
+        if not np.any(self.main_rf_stations_mask):
+            raise RuntimeError("No RF stations are on the main harmonic")
 
     def _track(self, beam: BeamBaseClass):
         """
