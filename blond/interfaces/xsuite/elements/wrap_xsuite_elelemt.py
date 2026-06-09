@@ -244,7 +244,9 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
         **kwargs
             Forwarded to the base hook.
         """
-        super(RFStationBaseClass, self).on_init_simulation( # FIXME not only RFStationBaseClass
+        super(
+            RFStationBaseClass, self
+        ).on_init_simulation(  # FIXME not only RFStationBaseClass
             simulation=simulation, **kwargs
         )
 
@@ -263,7 +265,9 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
         **kwargs
             Forwarded to the base hook.
         """
-        super(RFStationBaseClass, self).configure_run(  # FIXME not only RFStationBaseClass
+        super(
+            RFStationBaseClass, self
+        ).configure_run(  # FIXME not only RFStationBaseClass
             beam=beam, n_turns=n_turns, **kwargs
         )
 
@@ -386,7 +390,20 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
                 "the wrapped xsuite element is tracked in a single orbit "
                 "direction only."
             )
-        # fixme why twice? xsuite and local calculations
+        # Time is computed locally, energy is probed from xsuite — the two
+        # quantities have two different (irreducible) sources:
+        #   * Time-of-flight: xsuite has no clock coordinate (a tracked probe
+        #     only advances ``s`` and ``zeta``; the synchronous particle's
+        #     ``zeta`` stays 0), so the reference time advance can only be the
+        #     geometric ``orbit_length / (beta c)``.
+        #   * Energy: the guest may accelerate the reference in ways BLonD
+        #     cannot predict, so it is *observed* by tracking a probe.
+        # This method runs on a particle-less *copy* of the reference inside
+        # ``Simulation._update_Trev_and_dErev`` to precompute the turn's
+        # ``current_t_rev``/``current_turn_dE_tot``; that copy path is the only
+        # place we have no real particles to read the energy from, hence the
+        # probe. During the real per-turn track, ``_track`` advances the live
+        # reference itself (time geometrically, energy from the real beam).
         reference_time_change = self.orbit_length / reference.velocity
         reference.time += reference_time_change
 
@@ -433,6 +450,16 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
         beta0 = float(beam.reference.beta)
         energy0 = float(beam.reference.total_energy)
         frame = ReferenceFrame(beta0=beta0, energy0=energy0)
+
+        # Advance the *live* reference clock by this element's time-of-flight,
+        # exactly as ``DriftSimple._track`` does. ``_update_Trev_and_dErev``
+        # only mutates a throwaway copy of the reference, so each element must
+        # advance the real ``reference.time`` itself during its track or the
+        # xsuite block would contribute nothing to the revolution period. Time
+        # only here: energy is picked up from the real particles below (no
+        # probe), so we must not call ``track_reference`` (it would re-track a
+        # probe and double-set the energy).
+        beam.reference.time += self.orbit_length / beam.reference.velocity
 
         n = len(beam.dt.array_local)
 
