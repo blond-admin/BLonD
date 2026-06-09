@@ -1,0 +1,286 @@
+"""Compare the multi-turn induced voltage with a non-driven cavity feedback.
+
+A single static profile (a noisy Gaussian with zeroed leading/trailing bins)
+drives two models of the *same* single cavity
+(``R_shunt = R_over_Q * Q_L``, ``f_res = 1 / t_rf``):
+
+* a :class:`MultiPassResonatorSolver` -- the multi-turn resonator convolution,
+  evaluated for a single pass, and
+* a *non-driven* :class:`IQCavityFeedbackTimingClass` -- generator current
+  ``I_g = 0``, initial antenna voltage ``V_init = 0`` and ``n_cavities = 1``.
+
+With the beam as the only excitation, the feedback's antenna voltage is purely
+the beam-induced voltage. Both objects are driven directly on the static
+profile; no ``Beam`` tracking and no full ``Simulation`` run is required, which
+mirrors the mock/patch style of ``test_mucol_cav_fdbk.py``.
+
+The feedback works with the complex (I/Q) envelope of the antenna voltage,
+while the solver returns the real, lab-frame induced voltage. Projecting the
+envelope back to the lab frame recovers the solver result to < 1 %::
+
+    v_induced_solver  ~=  -Im[ V_ant * exp(i * omega_rf * t) ]
+
+The 90-degree rotation is the ``exp(i * pi / 2)`` demodulation convention
+applied inside :func:`rf_beam_current`, which both the feedback and this test
+go through. Over the bunch window the cavity decay (``~ exp(-omega t / Q_L)``
+with ``Q_L ~ 1e6``) is negligible, so the two formulations agree to the
+discretization error of the forward-Euler cavity response.
+"""
+
+import os
+import unittest
+
+import numpy as np
+
+from blond import Resonators, StaticProfile, WakeField, mu_plus
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.helpers import rf_beam_current
+from blond.physics.impedances.solvers import MultiPassResonatorSolver
+
+
+class _StubReference:
+    """Minimal beam reference frame (deepcopy-able)."""
+
+    def __init__(self, time: float = 0.0, beta: float = 1.0):
+        self.time = time
+        self.beta = beta
+
+
+class _StubBeam:
+    """Minimal beam exposing only what the two models read."""
+
+    def __init__(self, intensity: float):
+        self.particle_type = mu_plus
+        self.intensity = intensity
+        self.is_counter_rotating = False
+        self.reference = _StubReference()
+
+
+class _StubRFStation:
+    """Minimal RF station for the solver's reference/frequency bookkeeping."""
+
+    def __init__(self, omega_rf: float):
+        self._omega_rf = omega_rf
+
+    def track_reference(self, reference, is_counter_rotating):
+        # Static profile, single pass: the reference does not advance.
+        pass
+
+    def calc_omega_rf_design(self, beam_beta, ring_circumference):
+        return self._omega_rf
+
+
+class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
+    """Multi-turn induced voltage vs a non-driven IQ cavity feedback."""
+
+    def setUp(self):
+        """Build a noisy-Gaussian static profile and shared cavity parameters."""
+        # RCS1-like single-cavity parameters.
+        self.R_over_Q = 518.0
+        self.Q_L = 1.29e6
+        self.t_rf = 1.0e-9
+        self.omega_rf = 2.0 * np.pi / self.t_rf
+        self.f_res = 1.0 / self.t_rf
+        self.circumference = 5990.0
+        self.intensity = 2.7e12
+        self.n_slices = 1024
+
+        # Static profile spanning 1.5 RF periods, cut_left > 0 as the feedback
+        # requires.
+        self.profile = StaticProfile.from_rad(
+            np.pi * 1.5, np.pi * 4.5, self.n_slices, self.t_rf
+        )
+        t = self.profile.hist_x
+        t0 = 0.5 * (t[0] + t[-1])
+        sigma = 0.08 * self.t_rf
+
+        rng = np.random.default_rng(12345)
+        hist_y = np.exp(-0.5 * ((t - t0) / sigma) ** 2)
+        hist_y = hist_y + 0.05 * rng.standard_normal(self.n_slices)
+        hist_y = np.clip(hist_y, 0.0, None)
+        # The resonator solver warns / can go unstable with charge in the
+        # leading or trailing edge bins, so force them to zero.
+        hist_y[:5] = 0.0
+        hist_y[-5:] = 0.0
+
+        self.profile._hist_y = hist_y
+        self.profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+
+        self.beam = _StubBeam(self.intensity)
+
+    def _multi_turn_induced_voltage(self) -> np.ndarray:
+        """Induced voltage from a single pass of the multi-turn solver."""
+        resonator = Resonators(
+            shunt_impedances=self.R_over_Q * self.Q_L,
+            center_frequencies=self.f_res,
+            quality_factors=self.Q_L,
+        )
+        solver = MultiPassResonatorSolver(
+            decay_fraction_threshold=1e-12, delta_f=0.0
+        )
+        wakefield = WakeField(
+            sources=(resonator,),
+            solver=solver,
+            profile=self.profile,
+            parent_rf_station=_StubRFStation(self.omega_rf),
+        )
+        # Wire up the bits normally set in on_wakefield_init_simulation so the
+        # solver can run without a full Simulation.
+        solver._parent_wakefield = wakefield
+        solver.circumference = self.circumference
+        solver._maximum_storage_time = 1.0  # >> t_rf, keeps the single pass
+        solver._last_reference_time = -np.finfo(float).eps
+
+        return np.asarray(solver.calc_induced_voltage(self.beam))
+
+    def _non_driven_feedback_induced_voltage(self) -> np.ndarray:
+        """Lab-frame beam-induced voltage from the non-driven feedback."""
+        feedback = IQCavityFeedbackTimingClass(
+            profile=self.profile,
+            R_over_Q=self.R_over_Q,
+            Q_L=self.Q_L,
+            generator_current=0.0,  # non-driven: no generator current
+            n_cavities=1,
+            initial_voltage=0.0,  # antenna voltage starts at zero
+            n_rf_periods_per_coarse_grid=1,
+            delta_omega=0.0,
+        )
+
+        # Beam current on the fine grid, exactly as the feedback computes it
+        # internally (rf_beam_current, then divide by the bin width).
+        charges_fine = rf_beam_current(
+            beam=self.beam,
+            profile=self.profile,
+            omega_c=self.omega_rf,
+            T_rev=self.t_rf,
+            use_lowpass_filter=False,
+            external_reference=True,
+            dT=0.0,
+        )
+        feedback.beam_current_fine_grid = charges_fine / self.profile.hist_step
+        feedback.generator_current_fine_grid = np.zeros_like(
+            feedback.beam_current_fine_grid
+        )
+
+        # Drive the cavity response on the fine grid with zero initial
+        # conditions and no generator current.
+        feedback.cavity_response_fine(
+            initial_voltage_fine_grid=0.0,
+            initial_voltage_gradient_fine_grid=0.0,
+            initial_generator_current_fine_grid=0.0,
+            samples_per_rf_fine_grid=self.omega_rf * self.profile.hist_step,
+            relative_detuning=0.0,
+        )
+
+        v_ant = feedback.antenna_voltage_fine_grid
+        # Project the I/Q envelope back to the lab-frame induced voltage.
+        return -np.imag(
+            v_ant * np.exp(1j * self.omega_rf * self.profile.hist_x)
+        )
+
+    def _maybe_plot_induced_voltage(self, v_solver, v_feedback):
+        """Save a debug plot of the induced voltage vs time along the bunch.
+
+        Disabled by default. Enable with the ``BLOND_TEST_PLOTS`` environment
+        variable (set it to ``show`` to also open an interactive window)::
+
+            BLOND_TEST_PLOTS=1     <pytest invocation>   # save a PNG
+            BLOND_TEST_PLOTS=show  <pytest invocation>   # save and display
+        """
+        mode = os.environ.get("BLOND_TEST_PLOTS")
+        if not mode:
+            return
+        import matplotlib
+
+        if mode != "show":
+            matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        t_ns = self.profile.hist_x * 1e9
+        fig, (ax_v, ax_diff) = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
+        fig.suptitle("Induced voltage along the bunch")
+        ax_v.plot(t_ns, v_solver, color="C0", label="MultiPassResonatorSolver")
+        ax_v.plot(
+            t_ns, v_feedback, color="C1", ls="--", label="non-driven feedback"
+        )
+        ax_v.set_ylabel("induced voltage [V]")
+        ax_v.legend(loc="best")
+        ax_diff.plot(t_ns, v_feedback - v_solver, color="C3")
+        ax_diff.set_ylabel("feedback - solver [V]")
+        ax_diff.set_xlabel("time [ns]")
+        fig.tight_layout()
+
+        out = os.path.join(
+            os.path.dirname(__file__), "induced_voltage_over_time.png"
+        )
+        fig.savefig(out, dpi=120)
+        print(f"\n[debug plot] induced voltage over time saved to {out}")
+        if mode == "show":
+            plt.show()
+        plt.close(fig)
+
+    def test_induced_voltage_matches_non_driven_feedback(self):
+        """The two models agree on the induced voltage to < 1 %."""
+        v_solver = self._multi_turn_induced_voltage()
+        v_feedback = self._non_driven_feedback_induced_voltage()
+
+        # Debug plot (opt-in) before the assertions.
+        self._maybe_plot_induced_voltage(v_solver, v_feedback)
+
+        peak = np.max(np.abs(v_solver))
+        self.assertGreater(peak, 0.0)
+
+        # Pointwise: every sample within 1 % of the peak induced voltage.
+        np.testing.assert_allclose(
+            v_feedback, v_solver, atol=0.01 * peak, rtol=0.0
+        )
+
+        # Overall shape: relative L2 difference well below 1 %.
+        rel_l2 = np.linalg.norm(v_feedback - v_solver) / np.linalg.norm(
+            v_solver
+        )
+        self.assertLess(rel_l2, 0.01)
+
+        # Peak amplitude agreement within 1 %.
+        self.assertAlmostEqual(
+            np.max(np.abs(v_feedback)) / peak, 1.0, delta=0.01
+        )
+
+    def test_zeroed_profile_edges_remain_zero(self):
+        """Guard the precondition that the edge bins carry no charge."""
+        self.assertEqual(self.profile.hist_y[0], 0.0)
+        self.assertEqual(self.profile.hist_y[-1], 0.0)
+
+    def test_feedback_without_beam_or_generator_is_silent(self):
+        """A non-driven feedback with zero initial voltage induces nothing."""
+        feedback = IQCavityFeedbackTimingClass(
+            profile=self.profile,
+            R_over_Q=self.R_over_Q,
+            Q_L=self.Q_L,
+            generator_current=0.0,
+            n_cavities=1,
+            initial_voltage=0.0,
+            n_rf_periods_per_coarse_grid=1,
+            delta_omega=0.0,
+        )
+        feedback.beam_current_fine_grid = np.zeros(
+            self.n_slices, dtype=complex
+        )
+        feedback.generator_current_fine_grid = np.zeros(
+            self.n_slices, dtype=complex
+        )
+        feedback.cavity_response_fine(
+            initial_voltage_fine_grid=0.0,
+            initial_voltage_gradient_fine_grid=0.0,
+            initial_generator_current_fine_grid=0.0,
+            samples_per_rf_fine_grid=self.omega_rf * self.profile.hist_step,
+            relative_detuning=0.0,
+        )
+        np.testing.assert_array_equal(
+            feedback.antenna_voltage_fine_grid,
+            np.zeros(self.n_slices, dtype=complex),
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

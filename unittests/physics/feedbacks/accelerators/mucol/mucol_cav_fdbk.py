@@ -29,8 +29,10 @@ from blond.handle_results.observables_as_elements import (
     InducedVoltageObservationCR,
 )
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.helpers import rf_beam_current
 from blond.physics.impedances.solvers import (
     MultiPassResonatorSolver,
+    SingleTurnResonatorConvolutionSolver,
 )
 from blond.specifics.muon_collider.beam_preparation import (
     load_beam_coordinates_from_file,
@@ -677,6 +679,204 @@ def plot_ind_volt_cav_fdbk_voltage(
     plt.show()
 
     pass
+
+
+# Sign relating the cavity IQ envelope reconstruction
+# Re[V_ant * exp(i*omega_rf*t)] to the resonator induced voltage.
+# Determined empirically; see benchmark_single_turn_fine_grid_vs_resonator.
+_CAVITY_TO_INDUCED_VOLTAGE_SIGN = -1.0
+
+
+def compute_single_turn_fine_grid_vs_resonator(
+    delta_omega: float = 0.0,
+    seed: int = 0,
+    R_over_Q: float = 518.0,
+    Q_L: float = 1287601.7251526634,
+    f_rf: float = 1.3e9,
+    intensity: float = 2.7e12,
+    n_macroparticles: int = int(1e6),
+    n_bins: int = 2**12,
+    sigma_t_frac: float = 0.06,
+    noise_fraction: float = 0.1,
+):
+    r"""
+    Benchmark the single-turn (fine-grid) cavity beam-loading response.
+
+    The fine-grid response of :class:`IQCavityFeedbackTimingClass`
+    (``cavity_response_fine``) is solved for a real Gaussian-plus-noise beam
+    profile with the generator current set to zero, so the antenna voltage is
+    purely the beam-induced (beam-loading) voltage envelope.
+
+    This is compared against an independent reference: the induced voltage of
+    a :class:`Resonators` source (``R_s = R_over_Q * Q_L``, ``Q = Q_L``,
+    ``f_r = f_rf + delta_omega / 2 / pi``) convolved with the same beam
+    profile via :class:`SingleTurnResonatorConvolutionSolver`.
+
+    The cavity result is a complex IQ envelope demodulated at ``omega_rf``;
+    it is remodulated to the lab frame as
+    ``Re[V_ant * exp(i * omega_rf * t)]`` (times a fixed sign convention) so
+    it can be compared directly to the real resonator induced voltage.
+
+    Parameters
+    ----------
+    delta_omega
+        Cavity detuning in [rad/s]. The reference resonator is detuned by the
+        same amount, so this exercises the detuning phase shift.
+    seed
+        Seed for the random beam distribution.
+    R_over_Q, Q_L, f_rf, intensity, n_macroparticles, n_bins
+        Cavity / beam / discretization parameters.
+    sigma_t_frac
+        Bunch RMS length as a fraction of the RF period.
+    noise_fraction
+        Fraction of macroparticles distributed uniformly (noise) instead of
+        Gaussian.
+
+    Returns
+    -------
+    result
+        Dict with ``hist_x``, ``v_resonator``, ``v_cavity_lab`` and the
+        agreement metrics ``scale``, ``nrmse`` and ``corr``.
+    """
+    from unittest.mock import Mock
+
+    from scipy.signal import hilbert  # noqa: F401  (kept for env diagnostics)
+
+    rng = np.random.default_rng(seed)
+
+    t_rf = 1.0 / f_rf
+    omega_rf = 2.0 * np.pi * f_rf
+
+    # Profile covering 3 RF periods with the bunch in the central one.
+    profile = StaticProfile.from_rad(0.5 * np.pi, 3.5 * np.pi, n_bins, t_rf)
+    t_center = t_rf  # one RF period into the window
+    sigma_t = sigma_t_frac * t_rf
+
+    n_noise = int(noise_fraction * n_macroparticles)
+    n_gauss = n_macroparticles - n_noise
+    dt = np.concatenate(
+        [
+            rng.normal(t_center, sigma_t, n_gauss),
+            rng.uniform(
+                t_center - 4 * sigma_t, t_center + 4 * sigma_t, n_noise
+            ),
+        ]
+    )
+    beam = Beam(
+        intensity=intensity,
+        particle_type=mu_plus,
+        is_counter_rotating=False,
+    )
+    beam.setup_beam(dt=dt, dE=np.zeros_like(dt), mpi_mode="root-distributes")
+    profile.track(beam=beam)
+
+    # --- cavity fine-grid beam-induced response (generator current = 0) ---
+    charges_fine = rf_beam_current(
+        beam=beam,
+        profile=profile,
+        omega_c=omega_rf,
+        T_rev=t_rf,
+        use_lowpass_filter=False,
+        external_reference=False,
+    )
+    cav = IQCavityFeedbackTimingClass(
+        profile=profile,
+        R_over_Q=R_over_Q,
+        Q_L=Q_L,
+        generator_current=0.0 + 0.0j,
+        n_cavities=1,
+        initial_voltage=0.0,
+        delta_omega=delta_omega,
+    )
+    cav.beam_current_fine_grid = charges_fine / profile.hist_step
+    cav.generator_current_fine_grid = np.zeros(n_bins, dtype=complex)
+    cav.cavity_response_fine(
+        initial_voltage_fine_grid=0.0,
+        initial_voltage_gradient_fine_grid=0.0,
+        initial_generator_current_fine_grid=0.0,
+        samples_per_rf_fine_grid=omega_rf * profile.hist_step,
+        relative_detuning=delta_omega / omega_rf,
+    )
+    v_cavity_lab = _CAVITY_TO_INDUCED_VOLTAGE_SIGN * np.real(
+        cav.antenna_voltage_fine_grid * np.exp(1j * omega_rf * profile.hist_x)
+    )
+
+    # --- resonator induced-voltage reference ---
+    res = Resonators(
+        shunt_impedances=R_over_Q * Q_L,
+        quality_factors=Q_L,
+        center_frequencies=f_rf + delta_omega / (2.0 * np.pi),
+    )
+    wf = WakeField(
+        sources=(res,),
+        solver=SingleTurnResonatorConvolutionSolver(),
+        profile=profile,
+    )
+    wf.solver.on_wakefield_init_simulation(Mock(), wf)
+    v_resonator = np.asarray(wf.solver.calc_induced_voltage(beam=beam))
+
+    scale = float(
+        np.dot(v_resonator, v_cavity_lab) / np.dot(v_cavity_lab, v_cavity_lab)
+    )
+    nrmse = float(
+        np.sqrt(np.mean((v_resonator - scale * v_cavity_lab) ** 2))
+        / np.abs(v_resonator).max()
+    )
+    corr = float(np.corrcoef(v_cavity_lab, v_resonator)[0, 1])
+
+    return {
+        "hist_x": profile.hist_x,
+        "v_resonator": v_resonator,
+        "v_cavity_lab": v_cavity_lab,
+        "scale": scale,
+        "nrmse": nrmse,
+        "corr": corr,
+    }
+
+
+def benchmark_single_turn_fine_grid_vs_resonator(
+    delta_omega_list=(0.0, 5e6, -2e7),
+):
+    """
+    Plot and report the single-turn fine-grid vs resonator benchmark.
+
+    Parameters
+    ----------
+    delta_omega_list
+        Detuning values [rad/s] to benchmark, one subplot each.
+    """
+    fig, axes = plt.subplots(
+        len(delta_omega_list), 1, sharex=True, figsize=(8, 9)
+    )
+    if len(delta_omega_list) == 1:
+        axes = [axes]
+
+    for ax, delta_omega in zip(axes, delta_omega_list):
+        r = compute_single_turn_fine_grid_vs_resonator(delta_omega=delta_omega)
+        print(
+            f"delta_omega={delta_omega:+.3e} rad/s | "
+            f"scale={r['scale']:+.4f}  nrmse={r['nrmse']:.3e}  "
+            f"corr={r['corr']:+.6f}"
+        )
+        ax.plot(r["hist_x"], r["v_resonator"], label="resonator induced V")
+        ax.plot(
+            r["hist_x"],
+            r["scale"] * r["v_cavity_lab"],
+            ls="--",
+            label="cavity fine-grid (scaled)",
+        )
+        ax.set_title(
+            f"delta_omega = {delta_omega:+.2e} rad/s   "
+            f"(nrmse={r['nrmse']:.2e}, corr={r['corr']:+.4f})"
+        )
+        ax.set_ylabel("voltage [V]")
+        ax.legend(loc="upper right")
+    axes[-1].set_xlabel("time [s]")
+    fig.suptitle(
+        "Single-turn fine-grid cavity response vs resonator induced voltage"
+    )
+    fig.tight_layout()
+    plt.show()
 
 
 if __name__ == "__main__":

@@ -914,7 +914,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 # Since we are in the previous turn, we need to decrease this manually
                 # and increase it afterwards (only for cavities in case of scheduled acceleration).
                 # this is not strictly true for all cases, but only cases, where the reference crosses the turn border on the forward tracking
-                element._turn_i._value += reference_turn_offset
+                element._turn_counter._value += reference_turn_offset
                 element.track_reference(
                     self.reference_state_until_tracked,
                     beam.is_counter_rotating,
@@ -924,7 +924,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     self.reference_state_until_tracked
                 )  # no need for CR flag
             if isinstance(element, RFStationBaseClass):
-                element._turn_i._value -= reference_turn_offset
+                element._turn_counter._value -= reference_turn_offset
 
             omega_list.append(
                 self._parent_rf_station.calc_omega_rf_design(
@@ -1326,9 +1326,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
     def _check_beam_kick_magnitude(
         self,
-        beam_current: complex,
-        omega_times_T_s: float,
-        previous_voltage: complex,
+        beam_current: complex | float | int,
+        omega_times_T_s: float | int,
+        previous_voltage: complex | float | int,
     ) -> None:
         """
         Warn (once) if the beam-induced voltage kick is too large.
@@ -1358,6 +1358,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             return
 
         max_relative_kick = 0.1  # heuristic threshold for Euler validity
+
         # Beyond this, the single-step beam kick exceeds the antenna
         # voltage it is being subtracted from/added to: the discretized
         # update can flip the sign of the antenna voltage within one
@@ -1519,7 +1520,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 is not self._parent_rf_station
             ):  # otherwise, the full turn was already tracked
                 self.calculate_rf_centers_for_reverse_direction(beam=beam)
-        elif self._parent_rf_station._turn_i.value == 0:
+        elif self._parent_rf_station._turn_counter.value == 0:
             # at first call, this always needs to be tracked, since the values from the start of the simulation until now are not retrieved yet.
             self.calculate_rf_centers_for_reverse_direction(beam=beam)
 
