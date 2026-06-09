@@ -21,6 +21,7 @@ Oleksandr Naumenko
 from __future__ import annotations
 
 from abc import abstractmethod
+from itertools import compress
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -90,7 +91,9 @@ class BeamFeedbackBase(GlobalFeedback):
 
         self.drho: float = 0.0
         self.average_de: float = 0.0
-        self.main_rf_stations_mask: NumpyArray = None
+        self.main_rf_stations_mask: NumpyArray | None = None
+        self.main_cavities: list[RFStationBaseClass] | None = None
+        self.main_harmonic: int | None = None
 
     @requires(["RFStationBaseClass"])
     def on_run_simulation(
@@ -114,9 +117,10 @@ class BeamFeedbackBase(GlobalFeedback):
         **kwargs
             Additional keyword arguments.
         """
+        self.update_main_rf_stations()
         if (
             self.current_thres is None
-            and self.cavities[0].any_feedback_not_none
+            and self.main_cavities[0].any_feedback_not_none
         ):
             raise RuntimeError(
                 "The filled slots in the machine is needed to compute the cavity sum phase"
@@ -166,8 +170,8 @@ class BeamFeedbackBase(GlobalFeedback):
         profile object.
         """
         # Main RF frequency at the present turn
-        omega_rf = self.cavities[0].get_main_harmonic_omega_rf()
-        phi_rf = self.cavities[0].get_main_harmonic_phi_rf()
+        omega_rf = self.main_cavities[0].get_main_harmonic_omega_rf()
+        phi_rf = self.main_cavities[0].get_main_harmonic_phi_rf()
 
         if self.time_offset is None:
             coeff = backend.specials.beam_phase(
@@ -189,9 +193,7 @@ class BeamFeedbackBase(GlobalFeedback):
                 self.profile.hist_step,
             )
 
-        # TODO: Figure out how to handle the +pi above and below transition
-        # Project beam phase to (pi/2,3pi/2) range
-        self.phi_beam = np.arctan(coeff)  # + np.pi
+        self.phi_beam = np.arctan(coeff)
 
     def phase_difference(
         self, beam: BeamBaseClass, RFnoise=None, noiseFB=None
@@ -214,14 +216,11 @@ class BeamFeedbackBase(GlobalFeedback):
             Noise feedback object, e.g. used for controlled longitudinal emittance blow-up.
         """
         # Correct for design stable phase
-        counter = self.cavities[0]._turn_counter.value
+        counter = self.main_cavities[0]._turn_counter.value
         # TODO: a priori the beam control does not know about the synchronous phase?
-        self.dphi = (
-            self.phi_beam
-        )  # - self.cavities[0].calc_phi_s_main_harmonic(
-        #    beam
-        # )
+        self.dphi = self.phi_beam
 
+        """
         # TODO: Generalize to multiple harmonics and multiple rf stations
         # Phase offset due to beam loading
         if self.cavities[0].any_feedback_not_none:
@@ -247,6 +246,7 @@ class BeamFeedbackBase(GlobalFeedback):
             else:
                 phi_mean = 0
             self.dphi = self.dphi + phi_mean
+        """
 
         # Possibility to add RF phase noise through the PL
         if RFnoise is not None:
@@ -254,6 +254,48 @@ class BeamFeedbackBase(GlobalFeedback):
                 self.dphi += noiseFB.x * RFnoise.dphi[counter]
             else:
                 self.dphi += RFnoise.dphi[counter]
+
+    def cavity_sum_phase(self):
+        """
+        Calculate the cavity sum phase when tracking with cavity feedbacks.
+
+        This method sums the cavity gap voltage over all rf stations having
+        the main harmonic and that have a cavity feedback model acting the
+        main harmonic. Cavity sum phase is then added to `dphi`.
+        """
+        filled_slots: NumpyArray | None = None
+        cavity_sum: NumpyArray | None = None
+
+        # iterate over rf stations on the main harmonic
+        for cav in self.main_cavities:
+            # Get cavity feedback on main harmonic for every rf station
+            _cavity_feedback = cav.get_main_harmonic_cavity_feedback()
+
+            # If the cavity is not None then add its contribution to the cavity sum
+            if _cavity_feedback is not None and filled_slots is None:
+                filled_slots = (
+                    np.abs(
+                        _cavity_feedback.I_BEAM_COARSE[
+                            -_cavity_feedback.n_coarse :
+                        ]
+                    )
+                    > self.current_thres
+                )
+
+                cavity_sum = _cavity_feedback.V_ANT_COARSE[
+                    -_cavity_feedback.n_coarse :
+                ]
+
+            elif _cavity_feedback is not None and filled_slots is not None:
+                cavity_sum += _cavity_feedback.V_ANT_COARSE[
+                    -_cavity_feedback.n_coarse :
+                ]
+
+        if cavity_sum is not None:
+            cavity_sum_phase = np.angle(cavity_sum)
+            cavity_sum_phase = cavity_sum_phase[filled_slots]
+
+            self.dphi = self.dphi + np.mean(cavity_sum_phase)
 
     def radial_difference(self, beam: BeamBaseClass):
         """
@@ -265,8 +307,8 @@ class BeamFeedbackBase(GlobalFeedback):
             The beam object used in the simulation.
         """
         # Calculate alpha
-        alpha = self.cavities[0]._ring.momentum_compaction_factor
-        ring_radius = self.cavities[0]._ring.circumference / (2 * np.pi)
+        alpha = self.main_cavities[0]._ring.momentum_compaction_factor
+        ring_radius = self.main_cavities[0]._ring.circumference / (2 * np.pi)
 
         # Correct for design orbit
         self.average_de = beam.read_partial_dE()[:: self.sample_de].mean()
@@ -278,7 +320,7 @@ class BeamFeedbackBase(GlobalFeedback):
             / (beam.reference.beta**2.0 * beam.reference.total_energy)
         )
 
-    def update_main_rf_stations(self, main_harmonic: int = None):
+    def update_main_rf_stations(self, harmonic: int = None):
         """
         Update which rf stations are ones with the main harmonic.
 
@@ -287,7 +329,7 @@ class BeamFeedbackBase(GlobalFeedback):
 
         Parameters
         ----------
-        main_harmonic
+        harmonic
             The new main harmonic number. If no number is passed then
             the new main harmonic will be the main harmonic of the first
             rf station.
@@ -295,18 +337,22 @@ class BeamFeedbackBase(GlobalFeedback):
         harmonics = self.get_from_all_rf_stations(
             method_or_attr="get_main_harmonic"
         )
-        if main_harmonic is not None:
-            ref_harmonic = main_harmonic
+        if harmonic is not None:
+            self.main_harmonic = harmonic
         else:
-            ref_harmonic = harmonics[0]
+            self.main_harmonic = harmonics[0]
 
         self.main_rf_stations_mask = np.zeros(harmonics.shape, dtype=bool)
 
         for i, harm in enumerate(harmonics):
-            self.main_rf_stations_mask[i] = harm == ref_harmonic
+            self.main_rf_stations_mask[i] = harm == self.main_harmonic
 
         if not np.any(self.main_rf_stations_mask):
             raise RuntimeError("No RF stations are on the main harmonic")
+
+        self.main_cavities = list(
+            compress(self.cavities, self.main_rf_stations_mask)
+        )
 
     def _track(self, beam: BeamBaseClass):
         """
@@ -328,16 +374,14 @@ class BeamFeedbackBase(GlobalFeedback):
             beam=beam,
         )
 
-        # TODO: generalize to multiple rf stations around the ring?
         if self.cavities[0]._turn_counter.value >= self.delay:
             # TODO incorrect for simulations that start later
-            # domega_rf is updated later
-            # this means domega_rf is effectively from last turn
-            omega_increment = (
-                self.domega_rf
-                * self.cavities[0].harmonic[:]
-                / self.cavities[
-                    0
-                ].get_main_harmonic()  # dynamically updated by `update_domega_rf`
-            )
-            self.cavities[0].delta_omega_rf = omega_increment
+            for cav in self.cavities:
+                # domega_rf is updated later
+                # this means domega_rf is effectively from last turn
+                omega_increment = (
+                    self.domega_rf
+                    * cav.harmonic[:]
+                    / self.main_harmonic  # dynamically updated by `update_domega_rf`
+                )
+                cav.delta_omega_rf = omega_increment
