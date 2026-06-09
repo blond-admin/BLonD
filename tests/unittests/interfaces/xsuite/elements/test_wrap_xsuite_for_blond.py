@@ -228,13 +228,13 @@ def test_wrapper_reuses_cached_buffers_across_turns():
     wrapper = WrapXsuite4Blond(xt.Drift(length=1.0))
     wrapper.track(beam)
     particles_after_first = wrapper._particles
-    p0c_buf_after_first = wrapper._p0c_buf
+    p0c_buf_after_first = wrapper._p0c_bufffer
 
     wrapper.track(beam)
     # Same object, not rebuilt — proves the build/refresh branch is taken
     # and we're not reallocating a fresh ``Particles`` every turn.
     assert wrapper._particles is particles_after_first
-    assert wrapper._p0c_buf is p0c_buf_after_first
+    assert wrapper._p0c_bufffer is p0c_buf_after_first
 
 
 def test_wrapper_rebuilds_particles_on_size_change():
@@ -246,7 +246,7 @@ def test_wrapper_rebuilds_particles_on_size_change():
     wrapper.track(_blond_beam([0.0, 0.0, 0.0, 0.0], [0.0] * 4, 1e9))
     assert wrapper._particles is not particles_n2
     assert wrapper._particles.zeta.shape == (4,)
-    assert wrapper._p0c_buf.shape == (4,)
+    assert wrapper._p0c_bufffer.shape == (4,)
 
 
 def test_wrapper_propagates_reference_energy_increase():

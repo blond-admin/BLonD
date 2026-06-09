@@ -42,10 +42,16 @@ from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from xtrack import Particles
+    from xtrack import BeamElement, Line, Particles
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+    from blond.core.simulation.simulation import Simulation
+
+    # Any xsuite guest the wrapper accepts: a single beam element (Drift,
+    # Cavity, Multipole, ReferenceEnergyIncrease, … — all subclass
+    # ``BeamElement``) or a full ``Line``. Both expose ``track(particles)``.
+    XsuiteTrackable = BeamElement | Line
 
 
 def _to_numpy(array) -> np.ndarray:
@@ -72,7 +78,7 @@ def _to_numpy(array) -> np.ndarray:
     return np.asarray(array)
 
 
-def _extract_length(element) -> float:
+def _extract_length(element: XsuiteTrackable) -> float:
     r"""
     Return a finite drift length for an xsuite guest, or raise ``TypeError``.
 
@@ -176,11 +182,13 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
     counts_as_rf_station = False  # FIXME 20260609.0
 
     def __init__(
-        self, xsuite_element, orbit_length: float | None = None
+        self,
+        xsuite_element: XsuiteTrackable,
+        orbit_length: float | None = None,
     ) -> None:
         self._xsuite_element = xsuite_element
         self._particles: Particles | None = None
-        self._p0c_buf: np.ndarray | None = None
+        self._p0c_bufffer: np.ndarray | None = None
 
         # Refuse a wrapped ``xt.Line`` that carries its own ``EnergyProgram``:
         # BLonD owns the reference here and the wrapper's per-turn refresh
@@ -223,7 +231,9 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
     # base configure_run.
     # ------------------------------------------------------------------
 
-    def on_init_simulation(self, simulation, **kwargs) -> None:
+    def on_init_simulation(
+        self, simulation: Simulation, **kwargs: Any
+    ) -> None:
         """
         Run the base init-simulation hook, skipping RF-station setup.
 
@@ -234,11 +244,13 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
         **kwargs
             Forwarded to the base hook.
         """
-        super(RFStationBaseClass, self).on_init_simulation(
+        super(RFStationBaseClass, self).on_init_simulation( # FIXME not only RFStationBaseClass
             simulation=simulation, **kwargs
         )
 
-    def configure_run(self, beam, n_turns, **kwargs) -> None:
+    def configure_run(
+        self, beam: BeamBaseClass, n_turns: int, **kwargs: Any
+    ) -> None:
         """
         Run the base configure-run hook, skipping RF-station setup.
 
@@ -251,7 +263,7 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
         **kwargs
             Forwarded to the base hook.
         """
-        super(RFStationBaseClass, self).configure_run(
+        super(RFStationBaseClass, self).configure_run(  # FIXME not only RFStationBaseClass
             beam=beam, n_turns=n_turns, **kwargs
         )
 
@@ -374,6 +386,7 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
                 "the wrapped xsuite element is tracked in a single orbit "
                 "direction only."
             )
+        # fixme why twice? xsuite and local calculations
         reference_time_change = self.orbit_length / reference.velocity
         reference.time += reference_time_change
 
@@ -414,7 +427,7 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
             zeta=np.zeros(n),
             ptau=np.zeros(n),
         )
-        self._p0c_buf = np.full(n, p0c)
+        self._p0c_bufffer = np.full(n, p0c)
 
     def _track(self, beam: BeamBaseClass) -> None:
         beta0 = float(beam.reference.beta)
@@ -428,13 +441,15 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
         else:
             mass = float(beam.particle_type.mass)
             new_p0c = float(math.sqrt(energy0**2 - mass**2))
-            self._p0c_buf.fill(new_p0c)
-            self._particles.update_p0c(self._p0c_buf)
+            self._p0c_bufffer.fill(new_p0c)
+            self._particles.update_p0c(self._p0c_bufffer)
 
         # xsuite Particles are numpy in our wrapper (we build them with
         # ``np.zeros``), so ``particles.*`` reads are plain numpy.
         # BLonD-side ``beam.*.array_local`` may be cupy if BLonD's backend
         # is GPU — ``_to_numpy`` handles that via ``.get()``.
+        # FIXME we want xsuite backend gpu when blond backend is gpu,
+        #  then this shouldn't be necessary..
         pid_in = np.asarray(self._particles.particle_id)
         blond_flags = _to_numpy(beam.flags.array_local)
         blond_dt = _to_numpy(beam.dt.array_local)
