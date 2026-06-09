@@ -270,7 +270,6 @@ class TestEnergyCycleBase(unittest.TestCase):
     def test_on_init_simulation(self):
         self.magnetic_cycle_base.on_init_simulation(
             simulation=simulation_ex1,
-            magnetic_rigidity_init=11,
             n_turns_max=10,
         )
 
@@ -364,7 +363,7 @@ class TestEnergyCycleByTime(unittest.TestCase):
             ),
         )
         self.assertEqual(cycle._n_turns_max, 13)
-        self.assertEqual(sim.turn_i.value, 13)
+        self.assertEqual(sim.turn_counter.value, 13)
 
     def _make_two_section_setup(self):
         ring = Ring(
@@ -419,7 +418,7 @@ class TestEnergyCycleByTime(unittest.TestCase):
                 )
             ),
         )
-        n_turns_auto = sim.turn_i.value
+        n_turns_auto = sim.turn_counter.value
 
         self.assertEqual(n_turns_explicit, 6)
         self.assertEqual(n_turns_explicit, n_turns_auto)
@@ -531,10 +530,6 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
     def test_on_init_simulation(self):
         self.magnetic_cycle_per_turn_all_cavities.on_init_simulation(
             simulation=simulation_ex1,
-            momentum_init=11,
-            momentum=np.ones(
-                (1, 10),
-            ),
         )
         assert_allclose(
             self.momentum,

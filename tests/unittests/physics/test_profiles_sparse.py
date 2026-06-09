@@ -34,6 +34,9 @@ class TestEquidistantMultiProfile(unittest.TestCase):
             particle_type=uranium_29,
         )
 
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
     def test_init_from_padded_filling_pattern(self):
         sparse_profile = (
             EquidistantMultiProfile.init_from_padded_filling_pattern(

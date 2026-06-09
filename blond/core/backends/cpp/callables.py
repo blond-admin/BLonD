@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials, backend
+from blond.generals.hashing_ import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
@@ -89,8 +90,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         libblond_path_ = os.environ.get("LIBBLOND", None)
-
-        from blond.generals.hashing_ import hash_in_folder
 
         folder = os.path.dirname(os.path.abspath(__file__))
 
@@ -169,8 +168,22 @@ def reload_cpp_backend(  # NOQA: PLR0915
     _LIBBLOND.beam_phase.restype = c_real_t(floattype)
     _LIBBLOND.sum_1d_array.restype = c_real_t(floattype)
     _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype)
+    _LIBBLOND.blond_omp_get_max_threads.restype = ct.c_int
+    _LIBBLOND.blond_omp_get_max_threads.argtypes = []
 
     class CppSpecials(Specials):
+        @staticmethod
+        def get_max_threads() -> int:
+            """
+            Return the max number of threads this backend's kernels may use.
+
+            Returns
+            -------
+            max_threads
+                Maximum number of threads this backend's kernels may use.
+            """
+            return int(_LIBBLOND.blond_omp_get_max_threads())
+
         @staticmethod
         def beam_phase(
             hist_x: NumpyArray,
@@ -273,6 +286,13 @@ def reload_cpp_backend(  # NOQA: PLR0915
             dE: NumpyArray,
             flags: NumpyArray,
         ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert flags.dtype == np.int32
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert flags.flags.c_contiguous
+
             _LIBBLOND.loss_box(
                 c_real(e_max, floattype),
                 c_real(e_min, floattype),
@@ -358,6 +378,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
         @staticmethod
         def sum_1d_array(array: NumpyArray) -> float:
             assert array.dtype == floattype
+            assert array.flags.c_contiguous
             # requires setting of _LIBBLOND.sum_1d_array.restype = c_real_t(floattype) in
             # reload function
             return floattype(
@@ -371,6 +392,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
         ) -> float:
             assert array_1.dtype == floattype
             assert array_2.dtype == floattype
+            assert array_1.flags.c_contiguous
+            assert array_2.flags.c_contiguous
             assert len(array_1) == len(array_2)
 
             # requires setting of _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype) in
@@ -546,6 +569,96 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _getPointer(
                     bucket_index_to_memory_index
                 ),  # bucket_index_to_memory_index
+            )
+
+        @staticmethod
+        def wake_from_pole_residue(
+            # read
+            profile: NumpyArray,
+            profile_dts: NumpyArray,
+            poles: NumpyArray,
+            residues: NumpyArray,
+            is_counterrotating_beam: bool,
+            counterrotating_pole_signs: NumpyArray,
+            update_on_bin: NumpyArray,
+            factor: float,
+            # write
+            states: NumpyArray,
+            voltage: NumpyArray,
+            voltage_threaded: NumpyArray,
+        ) -> None:
+            """
+            Apply poles based on the `profile` to generate `voltage`.
+
+            Parameters
+            ----------
+            profile
+                Beam profile histogram.
+            profile_dts
+                Base for time step, connected to `update_on_bin`.
+            poles
+                Complex poles of an equivalent circuit model.
+            residues
+                Complex residues of an equivalent circuit model.
+            is_counterrotating_beam
+                If true, the current beam is counter-rotating.
+            counterrotating_pole_signs
+                Array per pole, -1 if the sign of the impedance is flipped
+                for a counter-rotating beam.
+            update_on_bin
+                Index when to trigger an update of dt. For speedup.
+                E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
+                one needs `update_on_bin = [0,3,7]`.
+            factor
+                To convert `profile` to current per bin [A].
+            states
+                Complex state vector, initially ``(0 + 0j)``.
+            voltage
+                Output voltage, in [V].
+            voltage_threaded
+                Cached `voltage` array per thread. For speedup.
+            """
+            complextype = (
+                np.complex64 if floattype == np.float32 else np.complex128
+            )
+
+            assert profile.dtype == floattype
+            assert profile_dts.dtype == floattype
+            assert poles.dtype == complextype
+            assert residues.dtype == complextype
+            assert counterrotating_pole_signs.dtype == floattype
+            assert states.dtype == complextype
+            assert voltage.dtype == floattype
+            assert voltage_threaded.dtype == floattype
+            assert update_on_bin.dtype == np.int32
+
+            assert profile.flags.c_contiguous
+            assert profile_dts.flags.c_contiguous
+            assert poles.flags.c_contiguous
+            assert residues.flags.c_contiguous
+            assert counterrotating_pole_signs.flags.c_contiguous
+            assert states.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert voltage_threaded.flags.c_contiguous
+            assert update_on_bin.flags.c_contiguous
+
+            _LIBBLOND.wake_from_pole_residue(
+                _getPointer(profile),
+                _getPointer(profile_dts),
+                _getPointer(poles),
+                _getPointer(residues),
+                ct.c_bool(is_counterrotating_beam),
+                _getPointer(counterrotating_pole_signs),
+                _getPointer(update_on_bin),
+                c_real(factor, floattype),
+                _getPointer(states),
+                _getPointer(voltage),
+                _getPointer(voltage_threaded),
+                ct.c_int(len(profile)),  # n_bins
+                ct.c_int(len(poles)),  # n_poles
+                ct.c_int(voltage_threaded.shape[0]),  # n_threads
+                ct.c_int(len(update_on_bin)),  # n_updates
+                ct.c_int(len(profile_dts)),  # n_profile_dts
             )
 
     return CppSpecials

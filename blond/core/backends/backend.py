@@ -47,6 +47,26 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
+    def get_max_threads() -> int:
+        """
+        Return the max number of threads this backend's kernels may use.
+
+        Used to size per-thread scratch buffers (e.g. ``voltage_threaded`` in
+        ``MultiPoleSparseSolve``). Each backend must report the count from the
+        runtime its own kernels will actually use, since numba and the cpp
+        backend's libgomp maintain independent thread pools.
+
+        Returns
+        -------
+        max_threads
+            Maximum number of threads this backend's kernels may use.
+        """
+        raise NotImplementedError(
+            "Abstract method `get_max_threads` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
     def loss_box(  # NOQA: D102
         e_max: float,
         e_min: float,
@@ -277,6 +297,61 @@ class Specials(ABC):
             ``bins_per_profile = 8``.
             Use `_gen_array_bucket_index_to_memory_index` to generate this.
         """
+        raise NotImplementedError(
+            "The backend for `histogram_sparse` is missing."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def wake_from_pole_residue(
+        # read
+        profile: NumpyArray | CupyArray,
+        profile_dts: NumpyArray | CupyArray,
+        poles: NumpyArray | CupyArray,
+        residues: NumpyArray | CupyArray,
+        is_counterrotating_beam: bool,
+        counterrotating_pole_signs: NumpyArray | CupyArray,
+        update_on_bin: NumpyArray | CupyArray,
+        factor: float,
+        # write
+        states: NumpyArray | CupyArray,
+        voltage: NumpyArray | CupyArray,
+        voltage_threaded: NumpyArray | CupyArray,
+    ) -> None:
+        """
+        Apply poles based on the `profile` to generate `voltage`.
+
+        Parameters
+        ----------
+        profile
+            Beam profile histogram.
+        profile_dts
+            Base for time step, connected to `update_on_bin`.
+        poles
+            Complex poles of an equivalent circuit model.
+        residues
+            Complex residues of an equivalent circuit model.
+        is_counterrotating_beam
+            If true, the current beam is counter-rotating.
+        counterrotating_pole_signs
+            Array per pole, -1 if the sign of the impedance is flipped
+            for a counter-rotating beam.
+        update_on_bin
+            Index when to trigger an update of dt. For speedup.
+            E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
+            one needs `update_on_bin = [0,3,7]`.
+        factor
+            To convert `profile` to current per bin [A].
+        states
+            Complex state vector, initially ``(0 + 0j)``.
+        voltage
+            Output voltage, in [V].
+        voltage_threaded
+            Cached `voltage` array per thread. For speedup.
+        """
+        raise NotImplementedError(
+            "The backend for `wake_from_pole_residue` is missing."
+        )
 
 
 class _ModeSwitchHelper:
@@ -824,10 +899,9 @@ class NumpyBackend(BackendBaseClass):
             self.specials_mode = mode
         elif mode == "numba":
             from blond.core.backends.numba.callables import (
-                recompile_numba_backend,
+                NumbaSpecials,
             )
 
-            NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         else:
@@ -950,9 +1024,7 @@ class CupyBackend(BackendBaseClass):
             One of the available backend modes.
         """
         if mode == "cuda":
-            from blond.core.backends.cuda.callables import reload_cuda_backend
-
-            CudaSpecials = reload_cuda_backend(self.float)
+            from blond.core.backends.cuda.callables import CudaSpecials
 
             self.specials = CudaSpecials()
         else:
