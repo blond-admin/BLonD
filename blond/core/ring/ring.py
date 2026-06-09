@@ -307,16 +307,29 @@ class Ring(Preparable):
     @property
     def n_rf_stations(self) -> int:
         """
-        Get the total number of RF stations in the ring.
+        Get the number of *accelerating* RF stations in the ring.
+
+        Counts ``RFStationBaseClass`` elements, excluding any that opt out via
+        ``counts_as_rf_station = False``. A black-box ``WrapXsuite4Blond`` is
+        an RF station by type but does not drive BLonD's reference energy, so
+        it must not inflate this count: ``MagneticCyclePerTurn`` divides each
+        turn's energy increment across ``n_rf_stations`` and the
+        one-station-per-section check compares against it.
 
         Returns
         -------
         n_rf_stations
-            The count of all RF station elements currently in the ring.
+            The count of accelerating RF station elements in the ring.
         """
         from blond.physics.cavities import RFStationBaseClass
-
-        return self.elements.count(RFStationBaseClass)
+        # FIXME 20260609.0 rollback this as soon as we have the correct
+        #  xsuite factories
+        return sum(
+            getattr(element, "counts_as_rf_station", True)
+            for element in self.elements.get_elements(
+                RFStationBaseClass, recursive=False
+            )
+        )
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:

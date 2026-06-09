@@ -58,12 +58,21 @@ SEED = 0
 PHI_RF = np.pi / 4
 LAG_DEG = 45.0
 
-DEV_PLOT = True # TODO false  # set True to render comparison plots; pytest
-# leaves this off
+DEV_PLOT = False  # set True locally to render comparison plots
 
-# TODO do the cavities change their frequency with the energy ramp? this is
-#  a essential feature of the cavities.. (maybe xsuite misses that?)
-#  blond should do it automatically already, make sure it happens.
+# Cavity frequency under a ramp
+# -----------------------------
+# Neither framework auto-tracks the cavity's RF frequency with the energy
+# program:
+#   * xsuite: ``xt.Cavity.frequency`` is static; this test wires it explicitly
+#     to ``line.energy_program.get_frev_at_t_s`` via ``FunctionPieceWiseLinear``.
+#   * BLonD: ``SingleHarmonicRFStation.omega_rf_design`` is computed once in
+#     ``configure_run`` from the *initial* ``beam_reference_beta`` and is not
+#     refreshed in ``_track``.
+# For the tiny ramp used here (Δβ/β ≲ 1e-10) the BLonD-side omega drift is
+# well below ``rtol=1e-5``. For a real LHC injection→flat-top ramp it would
+# show up — see the dedicated discussion note (item F in
+# ``docs/superpowers/notes/2026-06-05-xsuite-interop-discussion.md``).
 
 def _build_common_line(p0c_init: float = P0C_INIT) -> xt.Line:
     matrix = xt.LineSegmentMap(
@@ -185,7 +194,8 @@ def _run_wrapped_blond(
 
 
 def _plot_comparison(zeta_x, ptau_x, zeta_w, ptau_w) -> None:
-    """Render comparison plots (DEV_PLOT only). Side-effect heavy, opens windows."""
+    """Render comparison plots (DEV_PLOT only). No-op under headless backends."""
+    import matplotlib
     import matplotlib.pyplot as plt
 
     n_turns = zeta_x.shape[1]
@@ -218,7 +228,9 @@ def _plot_comparison(zeta_x, ptau_x, zeta_w, ptau_w) -> None:
     ax_p.set_xlabel("turn")
     ax_p.grid(True, which="both", alpha=0.3)
     fig2.tight_layout()
-    plt.show()
+
+    if matplotlib.get_backend().lower() != "agg":
+        plt.show()
 
 
 def _assert_phase_space_match(

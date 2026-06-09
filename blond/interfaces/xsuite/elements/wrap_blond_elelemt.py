@@ -13,6 +13,7 @@ from __future__ import annotations
 import numpy as np
 
 from blond.core.beam.beams import Beam
+from blond.core.beam.flags import BeamFlags
 from blond.core.beam.particle_types import ParticleType
 from blond.interfaces.xsuite.elements.helpers import (
     ReferenceFrame,
@@ -41,9 +42,14 @@ class WrapBlond4Xsuite:
     2. Writes that reference total energy into the BLonD ``beam.reference`` so
        any element that reads ``beam.reference.beta``/``gamma`` (e.g. an RF
        station computing ``omega_rev``) follows the xsuite ramp.
-    3. Converts active particle coordinates into a reusable BLonD ``Beam``.
+    3. Converts active particle coordinates into a reusable BLonD ``Beam``,
+       marking xsuite-lost slots as LOST in the beam flags.
     4. Calls ``element.track(beam)``.
-    5. Writes the updated coordinates back, leaving lost particles untouched.
+    5. Propagates any *new* LOST flags the BLonD element raised during track
+       back into ``particles.state`` so downstream xsuite elements also skip
+       those slots.
+    6. Writes the updated coordinates back into the active particles, leaving
+       lost particles' coordinates untouched.
 
     Parameters
     ----------
@@ -86,9 +92,24 @@ class WrapBlond4Xsuite:
             self._build_beam(particles, energy0, n)
 
         self._beam.reference.total_energy = energy0
-        active = particles_to_beam(particles, self._beam, frame)
+        active_at_input = particles_to_beam(particles, self._beam, frame)
         self._element.track(self._beam)
-        beam_to_particles(self._beam, particles, frame, active)
+
+        # The BLonD element may have flagged additional particles LOST
+        # during its track (loss boxes, energy cuts, ...). Propagate those
+        # losses back into xsuite's state so subsequent xsuite elements
+        # also skip them — and only write coordinates back for slots that
+        # survived BLonD's track.
+        blond_active_now = (
+            np.asarray(self._beam.read_partial_flags())
+            == BeamFlags.ACTIVE.value
+        )
+        newly_lost = active_at_input & ~blond_active_now
+        if newly_lost.any():
+            particles.state[newly_lost] = -1
+        beam_to_particles(
+            self._beam, particles, frame, active_at_input & blond_active_now
+        )
 
     def _build_beam(self, particles, energy0: float, n: int) -> None:
         particle_type = ParticleType(

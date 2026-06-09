@@ -113,3 +113,34 @@ def test_wrapper_propagates_lost_particles_unchanged():
 
     assert particles.zeta[1] == zeta_lost_before
     assert particles.ptau[1] == 0.0
+
+
+class _BlondElementKillingMiddleSlot:
+    """BLonD-side fake element that flags beam slot 1 LOST during its track.
+
+    Stands in for any BLonD element that drops particles via the flag array
+    (loss box, energy cut, ...); used to verify ``WrapBlond4Xsuite`` reflects
+    those losses into the xsuite ``particles.state`` after the call.
+    The wrapper only needs ``.track(beam)`` on the guest, so this is
+    intentionally a duck-typed shim, not a real ``UserDefinedElement``.
+    """
+
+    def track(self, beam):
+        from blond.core.beam.flags import BeamFlags as _Flags
+
+        flags = beam.write_partial_flags()
+        flags[1] = _Flags.LOST.value
+
+
+def test_wrapper_propagates_blond_losses_back_to_xsuite():
+    """A BLonD element that marks a slot LOST mid-track must update particles.state."""
+    energy0 = 450e9
+    wrapper = WrapBlond4Xsuite(element=_BlondElementKillingMiddleSlot())
+
+    zeta_in = np.array([-0.2, 0.0, 0.3])
+    particles = _xsuite_particles(zeta_in, np.zeros(3), energy0)
+    wrapper.track(particles)
+
+    assert int(particles.state[0]) > 0
+    assert int(particles.state[1]) <= 0
+    assert int(particles.state[2]) > 0
