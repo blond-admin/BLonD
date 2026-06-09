@@ -93,21 +93,25 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
     """
     Black-box wrapper of any xsuite element/line for use inside a BLonD ring.
 
-    The wrapper participates in BLonD's ring accounting via two
-    capability mixins only:
+    The wrapper subclasses both :class:`RFStationBaseClass` and
+    :class:`DriftBaseClass`, so it is, by type, a first-class BLonD element
+    that can stand in for an xsuite drift *or* cavity. For now only the
+    transport path is mapped — ``_track`` (coordinate round-trip),
+    ``track_reference`` (time advance + reference-energy probe) and
+    ``orbit_length`` are real; everything else inherited from the two base
+    classes (``eta_0``, ``get_main_harmonic*``,
+    ``calc_main_harmonic_omega_rf_design``) raises
+    :class:`NotImplementedError` until the richer cavity/optics features
+    land.
 
-    * :class:`~blond.core.base.OrbitLength` — contributes the element's
-      length to the ring's circumference sum.
-    * :class:`~blond.core.base.ReferenceTimeAdvance` — advances
-      ``reference.time`` by ``orbit_length / β c`` each turn.
-
-    It does **not** claim :class:`~blond.core.base.Drift`,
-    :class:`~blond.core.base.PhysicsKick`,
-    :class:`~blond.core.base.RFCharacteristics`, or any other
-    capability — the wrapped xsuite element is opaque to BLonD's
-    longitudinal-physics analytics. If you need ``phi_s`` or eta_0
-    averaging, add parallel BLonD elements (a ``SingleHarmonicRFStation``,
-    a ``DriftSimple``) carrying the matching parameters.
+    Because the wrapped element is opaque to BLonD's longitudinal analytics
+    (``phi_s``, slip-factor averaging, voltage sums), the wrapper does not
+    drive the reference energy and opts out of RF-station accounting via
+    ``counts_as_rf_station = False`` — it must not inflate
+    ``Ring.n_rf_stations``, which splits the magnetic-cycle energy increment
+    per station. If you need ``phi_s`` or eta_0 averaging that includes the
+    xsuite block, add parallel BLonD elements (a ``SingleHarmonicRFStation``,
+    a ``DriftSimple``) carrying the matching parameters alongside it.
 
     Each call to ``_track``:
 
