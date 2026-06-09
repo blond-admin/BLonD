@@ -18,7 +18,6 @@ from numpy import ndarray
 
 from blond.beam_preparation.base import MatchingRoutine
 from blond.beam_preparation.helpers import populate_beam
-from blond.core.backends.backend import backend
 from blond.core.backends.backend import (
     backend,
 )
