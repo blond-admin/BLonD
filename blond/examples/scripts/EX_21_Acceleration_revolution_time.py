@@ -60,7 +60,9 @@ def main() -> None:
     sim = Simulation.from_locals(locals())
     sim.print_one_turn_execution_order()
 
-    observe_simulation = SimulationObservation(each_turn_i=1)
+    observe_simulation = SimulationObservation(
+        each_turn_i=1, separatrix_lim=(0, 2e-9)
+    )
     observe_rf = RFStationPhaseObservation(
         each_turn_i=1, rf_station=rf_station
     )
