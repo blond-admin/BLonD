@@ -126,7 +126,7 @@ class BeamFeedbackBase(GlobalFeedback):
                 "The filled slots in the machine is needed to compute the cavity sum phase"
             )
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_beam_attribute(self, beam: BeamBaseClass):
         """
         Calculate the beam-based measurement.
@@ -144,7 +144,7 @@ class BeamFeedbackBase(GlobalFeedback):
         # could be mean energy, mean phase or whatever
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def compute_correction(self, beam: BeamBaseClass):
         """
         Calculate the frequency corrections from the feedback.

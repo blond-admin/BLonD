@@ -528,7 +528,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
         """
         Return the LocalFeedback acting on the main harmonic.
