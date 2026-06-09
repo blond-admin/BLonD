@@ -23,8 +23,7 @@ Simon Lauber
 from __future__ import annotations
 
 import warnings
-from copy import deepcopy
-from copy import copy
+from copy import copy, deepcopy
 from typing import TYPE_CHECKING
 
 import numpy as np

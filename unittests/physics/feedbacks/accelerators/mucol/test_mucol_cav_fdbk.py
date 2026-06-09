@@ -1,3 +1,5 @@
+"""Unit tests for the muon collider cavity feedback timing class."""
+
 import unittest
 import warnings
 from unittest.mock import Mock, PropertyMock, patch
@@ -7,18 +9,24 @@ import numpy as np
 from blond import StaticProfile
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 
+
 class TestCavityFeedback(unittest.TestCase):
+    """Tests for IQCavityFeedbackTimingClass step-size sanity checks."""
+
     def setUp(self):
+        """Build a cavity feedback instance with RCS1 4-station parameters."""
         # RCS1 4 stations
         self.prof = Mock(StaticProfile)
-        self.prof.hist_x = np.linspace(5.791514370530446e-10, 1.7351942079901463e-09, num=1024)
+        self.prof.hist_x = np.linspace(
+            5.791514370530446e-10, 1.7351942079901463e-09, num=1024
+        )
         self.prof.hist_y = np.zeros(1024)
         self.prof.cut_left = self.prof.hist_x[0]
 
         self.R_over_Q = 518
         self.Q_L = 1287601.7251526634
         self.n_cavities = 42.217908605563096
-        self.generator_current = (0.0233441090290177+0.04958176818202371j)
+        self.generator_current = 0.0233441090290177 + 0.04958176818202371j
         self.initial_voltage = 30e6
         self.n_rf_periods_per_coarse_grid = 1  # TODO: check for 2 and 0.5
         self.delta_omega = -6717.47508329349
@@ -36,6 +44,8 @@ class TestCavityFeedback(unittest.TestCase):
 
     def test_circuit_track_applies_delta_omega_phase_shift(self):
         """
+        Check circuit_track() applies the delta_omega phase shift.
+
         circuit_track() feeds `relative_detuning = delta_omega / omega_input`
         into cavity_response(), which advances the antenna voltage each
         coarse-grid step by a complex factor containing `1j * relative_detuning
@@ -62,13 +72,17 @@ class TestCavityFeedback(unittest.TestCase):
         # `(1 - 0.5*omega*dt/Q_L + 1j*relative_detuning*omega*dt)` term
         # governs the antenna voltage evolution.
         self.cav_fdbk.generator_current_constant = 0.0 + 0.0j
-        self.cav_fdbk.generator_current_coarse_grid = np.zeros(n_steps, dtype=complex)
+        self.cav_fdbk.generator_current_coarse_grid = np.zeros(
+            n_steps, dtype=complex
+        )
         self.cav_fdbk.last_val_generator_current = 0.0 + 0.0j
         self.cav_fdbk.last_val_beam_current = 0.0 + 0.0j
 
         v0 = self.initial_voltage + 0.0j
         self.cav_fdbk.last_val_ant_voltage = v0
-        self.cav_fdbk.antenna_voltage_coarse_grid = np.zeros(n_steps, dtype=complex)
+        self.cav_fdbk.antenna_voltage_coarse_grid = np.zeros(
+            n_steps, dtype=complex
+        )
 
         self.cav_fdbk.circuit_track(
             omega_input=omega_input,
@@ -81,9 +95,7 @@ class TestCavityFeedback(unittest.TestCase):
 
         omega_times_T_s = omega_input * dt
         expected_multiplier = (
-            1
-            - 0.5 * omega_times_T_s / self.Q_L
-            + 1j * self.delta_omega * dt
+            1 - 0.5 * omega_times_T_s / self.Q_L + 1j * self.delta_omega * dt
         )
         expected = v0 * expected_multiplier ** np.arange(1, n_steps + 1)
 
@@ -106,6 +118,7 @@ class TestCavityFeedback(unittest.TestCase):
         )
 
     def test_on_init_simulation_warns_for_large_decay_per_step(self):
+        """Warn when the per-step decay is between the soft and hard limits."""
         # 0.5 * omega * dt / Q_L should be between the soft (0.1) and hard
         # (2.0) thresholds: large enough to warn, small enough not to raise
         omega_carrier = 2 * np.pi * 1e9
@@ -116,12 +129,12 @@ class TestCavityFeedback(unittest.TestCase):
         patch_omega, patch_dt = self._patched_carrier_props(
             omega_carrier, sampling_time_coarse
         )
-        with patch_omega, patch_dt:
-            with self.assertWarns(UserWarning) as cm:
-                self.cav_fdbk.on_init_simulation(simulation=Mock())
+        with patch_omega, patch_dt, self.assertWarns(UserWarning) as cm:
+            self.cav_fdbk.on_init_simulation(simulation=Mock())
         self.assertIn("decay_per_step", str(cm.warning))
 
     def test_on_init_simulation_warns_for_large_detuning_phase_per_step(self):
+        """Warn when the per-step detuning phase exceeds the soft limit."""
         # delta_omega * dt should clearly exceed the 0.1 threshold
         omega_carrier = 2 * np.pi * 1e9
         sampling_time_coarse = 1e-6
@@ -131,12 +144,12 @@ class TestCavityFeedback(unittest.TestCase):
         patch_omega, patch_dt = self._patched_carrier_props(
             omega_carrier, sampling_time_coarse
         )
-        with patch_omega, patch_dt:
-            with self.assertWarns(UserWarning) as cm:
-                self.cav_fdbk.on_init_simulation(simulation=Mock())
+        with patch_omega, patch_dt, self.assertWarns(UserWarning) as cm:
+            self.cav_fdbk.on_init_simulation(simulation=Mock())
         self.assertIn("detuning_phase_per_step", str(cm.warning))
 
     def test_on_init_simulation_no_warning_for_small_step_parameters(self):
+        """Do not warn when both per-step parameters are well below the limit."""
         # both 0.5 * omega * dt / Q_L and delta_omega * dt are well below 0.1
         omega_carrier = 2 * np.pi * 1e9
         sampling_time_coarse = 1e-9
@@ -146,13 +159,17 @@ class TestCavityFeedback(unittest.TestCase):
         patch_omega, patch_dt = self._patched_carrier_props(
             omega_carrier, sampling_time_coarse
         )
-        with patch_omega, patch_dt:
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
-                self.cav_fdbk.on_init_simulation(simulation=Mock())
+        with (
+            patch_omega,
+            patch_dt,
+            warnings.catch_warnings(record=True) as caught,
+        ):
+            warnings.simplefilter("always")
+            self.cav_fdbk.on_init_simulation(simulation=Mock())
         self.assertEqual(caught, [])
 
     def test_cavity_response_warns_for_large_beam_kick(self):
+        """Warn when the relative beam kick is between the soft and hard limits."""
         # relative_kick should be between the soft (0.1) and hard (1.0)
         # thresholds: large enough to warn, small enough not to raise
         omega_times_T_s = 1.0
@@ -178,6 +195,7 @@ class TestCavityFeedback(unittest.TestCase):
         self.assertIn("relative_kick", str(cm.warning))
 
     def test_cavity_response_no_warning_for_small_beam_kick(self):
+        """Do not warn when the relative beam kick is negligibly small."""
         # beam_current * 0.5 * R_over_Q * omega_times_T_s is a tiny fraction
         # of the previous antenna voltage
         omega_times_T_s = 1e-9
@@ -204,6 +222,7 @@ class TestCavityFeedback(unittest.TestCase):
         self.assertEqual(caught, [])
 
     def test_on_init_simulation_raises_for_unphysical_decay_per_step(self):
+        """Raise when the per-step decay exceeds the hard limit."""
         # 0.5 * omega * dt / Q_L > 2.0 makes the Euler decay factor negative
         omega_carrier = 2 * np.pi * 1e9
         sampling_time_coarse = 1e-3
@@ -213,14 +232,14 @@ class TestCavityFeedback(unittest.TestCase):
         patch_omega, patch_dt = self._patched_carrier_props(
             omega_carrier, sampling_time_coarse
         )
-        with patch_omega, patch_dt:
-            with self.assertRaises(ValueError) as cm:
-                self.cav_fdbk.on_init_simulation(simulation=Mock())
+        with patch_omega, patch_dt, self.assertRaises(ValueError) as cm:
+            self.cav_fdbk.on_init_simulation(simulation=Mock())
         self.assertIn("decay_per_step", str(cm.exception))
 
     def test_on_init_simulation_raises_for_unphysical_detuning_phase_per_step(
         self,
     ):
+        """Raise when the per-step detuning phase exceeds the hard limit."""
         # delta_omega * dt > 2.0 makes the per-step rotation exceed one
         # step's worth of phase -- the discretization can no longer track
         # the cavity phase
@@ -232,12 +251,12 @@ class TestCavityFeedback(unittest.TestCase):
         patch_omega, patch_dt = self._patched_carrier_props(
             omega_carrier, sampling_time_coarse
         )
-        with patch_omega, patch_dt:
-            with self.assertRaises(ValueError) as cm:
-                self.cav_fdbk.on_init_simulation(simulation=Mock())
+        with patch_omega, patch_dt, self.assertRaises(ValueError) as cm:
+            self.cav_fdbk.on_init_simulation(simulation=Mock())
         self.assertIn("detuning_phase_per_step", str(cm.exception))
 
     def test_cavity_response_raises_for_unphysical_beam_kick(self):
+        """Raise when the beam kick exceeds the previous antenna voltage."""
         # beam-induced kick exceeds the previous antenna voltage itself,
         # i.e. the Euler step would flip the sign of the antenna voltage
         omega_times_T_s = 1.0

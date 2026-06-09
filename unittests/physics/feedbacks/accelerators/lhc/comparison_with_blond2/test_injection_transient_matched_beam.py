@@ -1,3 +1,5 @@
+"""Compare blond3 and blond2 injection transient for a matched beam."""
+
 import unittest
 
 import matplotlib.pyplot as plt
@@ -36,8 +38,13 @@ tau_o = 110e-6
 
 
 class TestInjectionMatchedBeam(unittest.TestCase):
+    """Compare blond3 and blond2 injection-transient signals for a matched beam."""
+
     @classmethod
-    def setUpClass(cls):
+    # TODO: split this setup into helpers and remove the PLR0915 noqa
+    def setUpClass(cls):  # noqa: PLR0915
+        """Run both the blond3 and blond2 matched-beam injection simulations."""
+
         def setup_blond2():
             from blond.legacy.blond2.beam.beam import Beam, Proton
             from blond.legacy.blond2.beam.distributions import (
@@ -332,6 +339,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         setup_blond3()
 
     def test_line_density(self):
+        """Check the line density matches blond2."""
         np.testing.assert_allclose(
             self.line_density,
             self.line_density_blond2,
@@ -340,6 +348,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         )
 
     def test_beam_current(self):
+        """Check the real and imaginary beam current match blond2."""
         # Real part
         if DEBUG_PLOTTING:
             end_bin = 500
@@ -368,6 +377,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         )
 
     def test_gap_voltage(self):
+        """Check the real and imaginary gap voltage match blond2."""
         np.testing.assert_allclose(
             self.v_ant.real,
             self.v_ant_blond2.real,
@@ -382,6 +392,7 @@ class TestInjectionMatchedBeam(unittest.TestCase):
         )
 
     def test_generator_power_demand(self):
+        """Check the real and imaginary generator RF power match blond2."""
         np.testing.assert_allclose(
             self.rf_power.real,
             self.rf_power_blond2.real,

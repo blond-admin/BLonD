@@ -642,8 +642,8 @@ class Resonators(
 
         for res_ind in range(self._n_resonators):
             wake += (
-                (2 *
-                    heaviside_like
+                (
+                    2 * heaviside_like
                 )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
                 * (
                     self._shunt_impedances_counter_rotating[res_ind]

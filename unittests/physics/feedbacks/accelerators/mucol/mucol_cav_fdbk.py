@@ -1,3 +1,5 @@
+"""Muon collider RCS cavity-feedback simulation setup and plotting helpers."""
+
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import elementary_charge, speed_of_light
@@ -38,6 +40,18 @@ n_slices = 2**10
 
 
 def match_beam(simulation, t_rf, beam):
+    """
+    Match the beam into the bucket using the semi-empiric matcher.
+
+    Parameters
+    ----------
+    simulation
+        Simulation object to prepare the beam on.
+    t_rf
+        RF period used to define the matching time limits.
+    beam
+        Beam object to be matched.
+    """
     simulation.prepare_beam(
         preparation_routine=SemiEmpiricMatcher(
             time_limit=[1.2 * t_rf, t_rf * 2.0],
@@ -62,7 +76,8 @@ def match_beam(simulation, t_rf, beam):
     )
 
 
-def setup_and_run(
+# TODO: split this setup into helpers and remove the PLR0915 noqa
+def setup_and_run(  # noqa: PLR0915
     rcs: str = "RCS1",
     MTW: bool = False,
     n_stations: int = 8,
@@ -72,18 +87,36 @@ def setup_and_run(
     acceleration: bool = True,
 ):
     """
+    Set up and run a muon collider RCS cavity-feedback simulation.
 
     Parameters
     ----------
     rcs
         RCS string, like `RCS1` or `RCS2`.
     MTW
-        If this flag is True, the simulation will be run with a convolution solver and not
-        the feedback.
+        If this flag is True, the simulation will be run with a convolution
+        solver and not the feedback.
+    n_stations
+        Number of RF stations around the ring.
+    beam_observation
+        If True, enable per-turn beam observation.
+    n_turns_in
+        Number of turns to run; -1 uses the default for the chosen RCS.
+    force_rematch
+        If True, force a rematch of the beam before tracking.
+    acceleration
+        If True, run with an accelerating magnetic cycle.
 
     Returns
     -------
-
+    bunch_observation
+        Observation object holding the tracked bunch quantities.
+    n_turns
+        Number of turns the simulation was run for.
+    ind_volt_obs_list
+        List of induced-voltage observations.
+    cav_fdbk_obs_list
+        List of cavity-feedback observations.
     """
     backend.set_specials("cpp")
 
@@ -218,8 +251,8 @@ def setup_and_run(
         # + np.abs(F_b) * beam_current * np.exp(1j * (phi_s - np.pi/2)) * 0.125
     )
 
-    I_g_ampl = np.abs(I_g)
-    I_g_angle = np.angle(I_g)
+    _I_g_ampl = np.abs(I_g)
+    _I_g_angle = np.angle(I_g)
 
     # initial_voltage = voltage_per_cavity + (
     #             -voltage_per_cavity / (2 * Q_L / omega_rf) + R_over_Q * omega_rf * I_g_ampl * np.cos(np.angle)) * t_rf * harmonic / 2
@@ -235,7 +268,7 @@ def setup_and_run(
 
     bunch_observation = BunchObservationMetaParams(each_turn_i=1, beam=beam)
 
-    beam_observation_full_corot = (
+    _beam_observation_full_corot = (
         None
         if not beam_observation
         else BeamObservationInRingElement(beam=beam, each_turn_i=1)
@@ -372,7 +405,7 @@ def setup_and_run(
         100 * profile_list[0].n_bins, profile_list[0].hist_step
     )
     beam_spectrum = profile_list[0].beam_spectrum(100 * profile_list[0].n_bins)
-    rf_frequency_component = (
+    _rf_frequency_component = (
         interp1d(beam_freq, beam_spectrum)(omega_rf / (2 * np.pi))
         / beam_spectrum[0]
     )  # needs to be multiplied by two for F_b
@@ -393,6 +426,18 @@ def setup_and_run(
 
 
 def plot_results(bunch_obs_list, n_turns_list, ind_volt_obs_list):
+    """
+    Plot the bunch length (sigma_dt) for the MTW and feedback runs.
+
+    Parameters
+    ----------
+    bunch_obs_list
+        List of bunch observations; index 0 is MTW, index 1 the feedback run.
+    n_turns_list
+        Number of turns per run (unused in the plot itself).
+    ind_volt_obs_list
+        List of induced-voltage observations (unused in the plot itself).
+    """
     plt.title("sigma_dt")
     plt.plot(bunch_obs_list[0].sigma_dt, label="MTW")
     plt.plot(bunch_obs_list[1].sigma_dt, ls="--", label="fdbk")
@@ -427,6 +472,20 @@ def plot_results(bunch_obs_list, n_turns_list, ind_volt_obs_list):
 def plot_ind_volt_cav_fdbk_voltage(
     ind_volt_obs_list, cav_fdbk_obs_list, n_turns_in: int, n_stations: int
 ):
+    """
+    Plot induced voltage against the cavity-feedback voltage per station.
+
+    Parameters
+    ----------
+    ind_volt_obs_list
+        List of induced-voltage observations.
+    cav_fdbk_obs_list
+        List of cavity-feedback observations.
+    n_turns_in
+        Number of turns that were simulated.
+    n_stations
+        Number of RF stations around the ring.
+    """
     # plt.clf()
     # fix, ax = plt.subplots()
     # plt.title("ind_volt vs fdbk_kick")
@@ -572,16 +631,11 @@ def plot_ind_volt_cav_fdbk_voltage(
             ind_volt_obs_list[0][0].total_voltage[idx]
             - ind_volt_obs_list[0][0].induced_voltage[idx]
         )
-        print(
-            f"feedback argmax {
-                np.argmax(
-                    np.real(
-                        cav_fdbk_obs_list[1][0].kick_voltage_fine[idx][0:300]
-                    )
-                    - cavity_voltage_raw[0:300]
-                )
-            }"
+        feedback_argmax = np.argmax(
+            np.real(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx][0:300])
+            - cavity_voltage_raw[0:300]
         )
+        print(f"feedback argmax {feedback_argmax}")
         ax[0, 1].plot(
             np.real(cav_fdbk_obs_list[1][0].kick_voltage_fine[idx])
             - cavity_voltage_raw,

@@ -1,3 +1,5 @@
+"""Compare blond3 and blond2 LHC cavity feedback for the full machine."""
+
 import unittest
 
 import matplotlib.pyplot as plt
@@ -82,9 +84,15 @@ batch_spacings = np.array(
 
 
 class TestLHCFullMachine(unittest.TestCase):
+    """Compare blond3 and blond2 cavity feedback signals for the full LHC."""
+
     @classmethod
-    def setUpClass(cls):
+    # TODO: split this setup into helpers and remove the PLR0915 noqa
+    def setUpClass(cls):  # noqa: PLR0915
+        """Run both the blond3 and blond2 full-machine simulations."""
+
         def setup_blond3():
+            """Run the blond3 full-machine simulation and store its results."""
             from blond import (
                 Beam,
                 BiGaussian,
@@ -242,7 +250,9 @@ class TestLHCFullMachine(unittest.TestCase):
                 -profile.n_bins :
             ]
 
-        def setup_blond2():
+        # TODO: split this setup into helpers and remove the PLR0915 noqa
+        def setup_blond2():  # noqa: PLR0915
+            """Run the blond2 full-machine simulation and store its results."""
             from blond.legacy.blond2.beam.beam import Beam, Proton
             from blond.legacy.blond2.beam.distributions import (
                 bigaussian,
@@ -396,6 +406,7 @@ class TestLHCFullMachine(unittest.TestCase):
         setup_blond3()
 
     def test_tuner_algorithm(self):
+        """Check the tuner-algorithm detunings match blond2."""
         np.testing.assert_allclose(
             self.detunings,
             self.detunings_blond2,
@@ -404,6 +415,7 @@ class TestLHCFullMachine(unittest.TestCase):
         )
 
     def test_rf_power(self):
+        """Check the real and imaginary RF power match blond2."""
         # Real part
         np.testing.assert_allclose(
             self.rf_power.real,
@@ -420,6 +432,7 @@ class TestLHCFullMachine(unittest.TestCase):
         )
 
     def test_rf_voltage(self):
+        """Check the real and imaginary RF voltage match blond2."""
         # Real part
         np.testing.assert_allclose(
             self.rf_voltage.real,
@@ -436,6 +449,7 @@ class TestLHCFullMachine(unittest.TestCase):
         )
 
     def test_rf_beam_current_coarse(self):
+        """Check the real and imaginary coarse-grid RF beam current match blond2."""
         # Real part
         np.testing.assert_allclose(
             self.rf_beam_current.real,
@@ -452,6 +466,7 @@ class TestLHCFullMachine(unittest.TestCase):
         )
 
     def test_rf_beam_current_fine(self):
+        """Check the real and imaginary fine-grid RF beam current match blond2."""
         # Real part
         np.testing.assert_allclose(
             self.rf_beam_current_fine.real,
@@ -468,6 +483,7 @@ class TestLHCFullMachine(unittest.TestCase):
         )
 
     def test_set_point_voltage(self):
+        """Check the real and imaginary set-point voltage match blond2."""
         # Real part
         np.testing.assert_allclose(
             self.set_point.real,

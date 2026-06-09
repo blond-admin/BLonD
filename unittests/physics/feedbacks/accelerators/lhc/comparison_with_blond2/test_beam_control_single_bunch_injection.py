@@ -1,3 +1,5 @@
+"""Compare blond3 and blond2 beam control for a single-bunch injection."""
+
 import unittest
 
 import matplotlib.pyplot as plt
@@ -22,9 +24,15 @@ bunch_spacing = 10  # Bunch spacing [number of rf buckets]
 
 
 class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
+    """Compare blond3 and blond2 phase-loop signals on single-bunch injection."""
+
     @classmethod
-    def setUpClass(cls):
+    # TODO: split this setup into helpers and remove the PLR0915 noqa
+    def setUpClass(cls):  # noqa: PLR0915
+        """Run both the blond3 and blond2 single-bunch injection simulations."""
+
         def setup_blond3():
+            """Run the blond3 single-bunch injection and store its results."""
             from blond import (
                 Beam,
                 BiGaussian,
@@ -135,7 +143,9 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
                     cavity.phase_correction_frequency_offset[0] * 180 / np.pi
                 )
 
-        def setup_blond2():
+        # TODO: split this setup into helpers and remove the PLR0915 noqa
+        def setup_blond2():  # noqa: PLR0915
+            """Run the blond2 single-bunch injection and store its results."""
             from tqdm import tqdm
 
             from blond.legacy.blond2.beam.beam import Beam, Proton
@@ -274,6 +284,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
         setup_blond3()
 
     def test_phase_loop_error(self):
+        """Check the phase-loop error signal matches blond2."""
         np.testing.assert_allclose(
             self.pl_error_blond3,
             self.beam_loop_error_blond2,
@@ -282,6 +293,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
         )
 
     def test_synchronization_loop_error(self):
+        """Check the synchronization-loop error signal matches blond2."""
         np.testing.assert_allclose(
             self.delta_phi_rf_blond3,
             self.synchro_loop_error_blond2,
@@ -290,6 +302,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
         )
 
     def test_rf_frequency_swing(self):
+        """Check the RF frequency swing matches blond2."""
         np.testing.assert_allclose(
             self.omega_rf_blond3,
             self.omega_rf_blond2,
@@ -298,6 +311,7 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
         )
 
     def test_rf_phase_swing(self):
+        """Check the RF phase swing matches blond2."""
         np.testing.assert_allclose(
             self.phi_rf_blond3,
             self.phi_rf_blond2,

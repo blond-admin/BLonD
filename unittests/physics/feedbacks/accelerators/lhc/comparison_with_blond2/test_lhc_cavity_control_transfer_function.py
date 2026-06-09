@@ -33,7 +33,23 @@ class TestLHCTransferFunction(unittest.TestCase):
     def measure_transfer_function_blond3(
         open_loop: bool = False, open_otfb: bool = False
     ):
-        """Measure full transfer function in blond3."""
+        """
+        Measure full transfer function in blond3.
+
+        Parameters
+        ----------
+        open_loop
+            If True, open the main feedback loop during the measurement.
+        open_otfb
+            If True, open the one-turn feedback (OTFB) during the measurement.
+
+        Returns
+        -------
+        H_est
+            Estimated transfer function.
+        f_est
+            Frequency points at which the transfer function is estimated.
+        """
         from blond import (
             StaticProfile,
         )

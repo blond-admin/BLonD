@@ -1,0 +1,1 @@
+"""Muon Collider feedback package."""
