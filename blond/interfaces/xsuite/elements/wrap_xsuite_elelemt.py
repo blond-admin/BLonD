@@ -47,12 +47,23 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def _to_numpy(array) -> np.ndarray:
-    """Return a host numpy view of ``array``, copying off-GPU if needed.
+    """
+    Return a host numpy view of ``array``, copying off-GPU if needed.
 
     BLonD's ``beam.*.array_local`` storage is cupy when the backend is GPU;
     xsuite ``Particles`` in this wrapper are always numpy. ``.get()`` pulls a
     cupy array back to host; plain numpy / array-likes pass through
     ``np.asarray`` unchanged.
+
+    Parameters
+    ----------
+    array
+        A cupy array, numpy array or array-like.
+
+    Returns
+    -------
+    numpy.ndarray
+        A host numpy array.
     """
     if hasattr(array, "get"):
         return array.get()
@@ -60,12 +71,23 @@ def _to_numpy(array) -> np.ndarray:
 
 
 def _extract_length(element) -> float:
-    """Return a finite drift length for an xsuite guest, or raise ``TypeError``.
+    r"""
+    Return a finite drift length for an xsuite guest, or raise ``TypeError``.
 
     Works for single elements with ``.length`` (``xt.Drift``,
-    ``xt.LineSegmentMap``, …) and for full ``xt.Line``\\s via
+    ``xt.LineSegmentMap``, …) and for full ``xt.Line``\s via
     ``get_length()``. Raises for guests with no defined length (markers,
     apertures) — pass ``orbit_length=`` explicitly in that case.
+
+    Parameters
+    ----------
+    element
+        An xsuite element or line to measure.
+
+    Returns
+    -------
+    float
+        The orbit length [m].
     """
     length = getattr(element, "length", None)
     if length is not None:
@@ -198,11 +220,33 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
     # ------------------------------------------------------------------
 
     def on_init_simulation(self, simulation, **kwargs) -> None:
+        """
+        Run the base init-simulation hook, skipping RF-station setup.
+
+        Parameters
+        ----------
+        simulation
+            The simulation being initialised.
+        **kwargs
+            Forwarded to the base hook.
+        """
         super(RFStationBaseClass, self).on_init_simulation(
             simulation=simulation, **kwargs
         )
 
     def configure_run(self, beam, n_turns, **kwargs) -> None:
+        """
+        Run the base configure-run hook, skipping RF-station setup.
+
+        Parameters
+        ----------
+        beam
+            The beam to be tracked.
+        n_turns
+            Number of turns to be tracked.
+        **kwargs
+            Forwarded to the base hook.
+        """
         super(RFStationBaseClass, self).configure_run(
             beam=beam, n_turns=n_turns, **kwargs
         )
@@ -222,19 +266,30 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
     )
 
     def eta_0(self, gamma: float):
+        """
+        Not mapped by this black-box wrapper (raises).
+
+        Parameters
+        ----------
+        gamma
+            Reference relativistic gamma [1].
+        """
         raise NotImplementedError(self._NOT_MAPPED.format(name="eta_0"))
 
     def get_main_harmonic(self) -> float:
+        """Not mapped by this black-box wrapper (raises)."""
         raise NotImplementedError(
             self._NOT_MAPPED.format(name="get_main_harmonic")
         )
 
     def get_main_harmonic_voltage(self) -> float:
+        """Not mapped by this black-box wrapper (raises)."""
         raise NotImplementedError(
             self._NOT_MAPPED.format(name="get_main_harmonic_voltage")
         )
 
     def get_main_harmonic_phi_rf(self) -> float:
+        """Not mapped by this black-box wrapper (raises)."""
         raise NotImplementedError(
             self._NOT_MAPPED.format(name="get_main_harmonic_phi_rf")
         )
@@ -242,11 +297,22 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
     def calc_main_harmonic_omega_rf_design(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
+        """
+        Not mapped by this black-box wrapper (raises).
+
+        Parameters
+        ----------
+        beam_beta
+            Reference relativistic beta [1].
+        ring_circumference
+            Ring circumference [m].
+        """
         raise NotImplementedError(
             self._NOT_MAPPED.format(name="calc_main_harmonic_omega_rf_design")
         )
 
     def get_main_harmonic_omega_rf(self) -> float:
+        """Not mapped by this black-box wrapper (raises)."""
         raise NotImplementedError(
             self._NOT_MAPPED.format(name="get_main_harmonic_omega_rf")
         )
@@ -257,7 +323,8 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
         is_counter_rotating: bool = False,
         **kwargs,
     ) -> float:
-        """Advance the reference clock — both time and (probed) total energy.
+        """
+        Advance the reference clock — both time and (probed) total energy.
 
         Time advance is ``orbit_length / β c`` (time-of-flight at the
         current reference velocity, geometric definition).
@@ -281,6 +348,21 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
         guest in a single orbit direction only, so it raises
         :class:`NotImplementedError` rather than silently returning a
         wrong reference advance.
+
+        Parameters
+        ----------
+        reference
+            Reference coordinates whose ``time`` and ``total_energy`` are
+            advanced in place.
+        is_counter_rotating
+            Must be ``False``; counter-rotating beams are not supported.
+        **kwargs
+            Ignored; accepted for interface compatibility.
+
+        Returns
+        -------
+        float
+            The reference total-energy delta [eV] applied this call.
         """
         if is_counter_rotating:
             raise NotImplementedError(

@@ -54,7 +54,7 @@ class ReferenceFrame:
     """
     Per-turn reference quantities linking BLonD and xsuite coordinates.
 
-    Parameters
+    Attributes
     ----------
     beta0
         Reference relativistic beta [1].
@@ -67,22 +67,78 @@ class ReferenceFrame:
 
 
 def zeta_to_dt(zeta, frame: ReferenceFrame):
-    """Convert xsuite ``zeta`` [m] to BLonD ``dt`` [s]."""
+    """
+    Convert xsuite ``zeta`` [m] to BLonD ``dt`` [s].
+
+    Parameters
+    ----------
+    zeta
+        Longitudinal position offset [m].
+    frame
+        Reference frame linking the two coordinate systems.
+
+    Returns
+    -------
+    dt
+        Time deviation [s].
+    """
     return -zeta / (frame.beta0 * c)
 
 
 def dt_to_zeta(dt, frame: ReferenceFrame):
-    """Convert BLonD ``dt`` [s] to xsuite ``zeta`` [m]."""
+    """
+    Convert BLonD ``dt`` [s] to xsuite ``zeta`` [m].
+
+    Parameters
+    ----------
+    dt
+        Time deviation [s].
+    frame
+        Reference frame linking the two coordinate systems.
+
+    Returns
+    -------
+    zeta
+        Longitudinal position offset [m].
+    """
     return -dt * frame.beta0 * c
 
 
 def ptau_to_dE(ptau, frame: ReferenceFrame):
-    """Convert xsuite ``ptau`` [1] to BLonD ``dE`` [eV]."""
+    """
+    Convert xsuite ``ptau`` [1] to BLonD ``dE`` [eV].
+
+    Parameters
+    ----------
+    ptau
+        Normalised momentum deviation [1].
+    frame
+        Reference frame linking the two coordinate systems.
+
+    Returns
+    -------
+    dE
+        Energy deviation [eV].
+    """
     return ptau * frame.beta0 * frame.energy0
 
 
 def dE_to_ptau(dE, frame: ReferenceFrame):
-    """Convert BLonD ``dE`` [eV] to xsuite ``ptau`` [1]."""
+    """
+    Convert BLonD ``dE`` [eV] to xsuite ``ptau`` [1].
+
+    Parameters
+    ----------
+    dE
+        Energy deviation [eV].
+    frame
+        Reference frame linking the two coordinate systems.
+
+    Returns
+    -------
+    ptau
+        Normalised momentum deviation [1].
+    """
     return dE / (frame.beta0 * frame.energy0)
 
 
@@ -98,7 +154,7 @@ def particles_to_beam(particles, beam: BeamBaseClass, frame: ReferenceFrame):
     Parameters
     ----------
     particles
-        xsuite ``Particles`` providing ``zeta``, ``ptau`` and ``state``.
+        An xsuite ``Particles`` providing ``zeta``, ``ptau`` and ``state``.
     beam
         BLonD beam whose ``dt``/``dE``/flag arrays are updated in place.
     frame
@@ -138,7 +194,7 @@ def beam_to_particles(
     beam
         BLonD beam providing updated ``dt``/``dE`` arrays.
     particles
-        xsuite ``Particles`` whose ``zeta``/``ptau`` are updated in place.
+        An xsuite ``Particles`` whose ``zeta``/``ptau`` are updated in place.
     frame
         Reference frame linking the two coordinate systems.
     active

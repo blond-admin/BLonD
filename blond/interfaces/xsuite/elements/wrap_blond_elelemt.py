@@ -23,7 +23,19 @@ from blond.interfaces.xsuite.elements.helpers import (
 
 
 def _scalar(x) -> float:
-    """Extract a Python float from an xsuite scalar/0-d/1-d quantity."""
+    """
+    Extract a Python float from an xsuite scalar/0-d/1-d quantity.
+
+    Parameters
+    ----------
+    x
+        An xsuite scalar, 0-d or 1-d array-like quantity.
+
+    Returns
+    -------
+    float
+        The first (or only) element as a Python float.
+    """
     arr = np.asarray(x)
     if arr.ndim == 0:
         return float(arr)
@@ -81,7 +93,8 @@ class WrapBlond4Xsuite:
         Parameters
         ----------
         particles
-            xsuite ``Particles`` whose ``zeta`` / ``ptau`` are updated in place.
+            An xsuite ``Particles`` whose ``zeta`` / ``ptau`` are updated in
+            place.
         """
         beta0 = _scalar(particles.beta0)
         energy0 = _scalar(particles.energy0)
