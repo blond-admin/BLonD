@@ -59,6 +59,8 @@ class SPSBeamControl(BeamFeedbackBase):
         Delay of the action of the beam-phase loop from the first turn.
     delay_turns
         The delay [turns] between measurement at correction from the beam control.
+    current_thres
+        Beam current threshold for gating of the profiles.
     *args
         Variable positional arguments.
     **kwargs
@@ -77,6 +79,7 @@ class SPSBeamControl(BeamFeedbackBase):
         pl_gain: float | NumpyArray,
         action_delay: int,
         delay_turns: int = 2,
+        current_thres: float = None,
         *args,
         **kwargs,
     ):
@@ -113,6 +116,8 @@ class SPSBeamControl(BeamFeedbackBase):
         self.domega_sync = 0.0
         self.domega_freq = 0.0
 
+        self.current_thres = current_thres
+
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -140,6 +145,13 @@ class SPSBeamControl(BeamFeedbackBase):
             n_turns=n_turns,
             **kwargs,
         )
+        if (
+            self.current_thres is None
+            and self.main_cavities[0].any_feedback_not_none
+        ):
+            raise RuntimeError(
+                "The filled slots in the machine is needed to compute the cavity sum phase"
+            )
 
         def convert_to_array(parameter, delay_action=0):
             delay_action = np.concatenate(
@@ -218,7 +230,7 @@ class SPSBeamControl(BeamFeedbackBase):
 
         # Phase difference
         self.phase_difference(beam)
-        self.cavity_sum_phase()
+        self.cavity_sum_phase(self.current_thres)
 
         # Take into account the synchronous phase
         self.dphi = (

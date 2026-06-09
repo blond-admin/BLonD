@@ -58,8 +58,6 @@ class BeamFeedbackBase(GlobalFeedback):
         Window coefficient for the calculation of the beam phase.
     time_offset
         Time offset for the calculation of the beam phase.
-    current_thres
-        Beam current threshold for gating of the profiles.
     sample_de
         Determines which particles to sample for mean energy calculation.
         Every <sample_dE>. particle is sampled.
@@ -73,14 +71,12 @@ class BeamFeedbackBase(GlobalFeedback):
         delay: int = 0,
         window_coefficient: float = 0.0,
         time_offset: float | None = None,
-        current_thres: float = None,
         sample_de: int = 1,
     ):
         super().__init__(profile=profile)
         self.delay = delay
         self.window_coefficient = window_coefficient
         self.time_offset = time_offset
-        self.current_thres = current_thres
         self.sample_de = sample_de
 
         self.domega_rf = 0
@@ -118,13 +114,6 @@ class BeamFeedbackBase(GlobalFeedback):
             Additional keyword arguments.
         """
         self.update_main_rf_stations()
-        if (
-            self.current_thres is None
-            and self.main_cavities[0].any_feedback_not_none
-        ):
-            raise RuntimeError(
-                "The filled slots in the machine is needed to compute the cavity sum phase"
-            )
 
     @abstractmethod  # pragma: no cover
     def get_beam_attribute(self, beam: BeamBaseClass):
@@ -263,13 +252,18 @@ class BeamFeedbackBase(GlobalFeedback):
             else:
                 self.dphi += RFnoise.dphi[counter]
 
-    def cavity_sum_phase(self):
+    def cavity_sum_phase(self, current_thres: float):
         """
         Calculate the cavity sum phase when tracking with cavity feedbacks.
 
         This method sums the cavity gap voltage over all rf stations having
         the main harmonic and that have a cavity feedback model acting the
         main harmonic. Cavity sum phase is then added to `dphi`.
+
+        Parameters
+        ----------
+        current_thres
+            Beam current threshold for gating of the profiles.
         """
         filled_slots: NumpyArray | None = None
         cavity_sum: NumpyArray | None = None
@@ -287,7 +281,7 @@ class BeamFeedbackBase(GlobalFeedback):
                             -_cavity_feedback.n_coarse :
                         ]
                     )
-                    > self.current_thres
+                    > current_thres
                 )
 
                 cavity_sum = _cavity_feedback.V_ANT_COARSE[

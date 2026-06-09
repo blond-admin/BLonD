@@ -72,6 +72,8 @@ class LHCBeamControl(BeamFeedbackBase):
         The gain of the beam-phase loop.
     sl_gain
         The gain of the synchronization loop.
+    current_thres
+        Beam current threshold for gating of the profiles.
     *args
         Variable positional arguments.
     **kwargs
@@ -82,6 +84,7 @@ class LHCBeamControl(BeamFeedbackBase):
         self,
         pl_gain: float,
         sl_gain: float,
+        current_thres: float = None,
         *args,
         **kwargs,
     ):
@@ -95,6 +98,7 @@ class LHCBeamControl(BeamFeedbackBase):
         self.domega_rf = 0.0
         self.dphi = 0.0
         self.reference = 0.0
+        self.current_thres = current_thres
 
     def on_run_simulation(
         self,
@@ -123,6 +127,13 @@ class LHCBeamControl(BeamFeedbackBase):
             n_turns=n_turns,
             **kwargs,
         )
+        if (
+            self.current_thres is None
+            and self.main_cavities[0].any_feedback_not_none
+        ):
+            raise RuntimeError(
+                "The filled slots in the machine is needed to compute the cavity sum phase"
+            )
 
         if self.sl_gain != 0:
             Q_s0 = self.cavities[0].calc_synchrotron_tune_main_harmonic(
@@ -183,7 +194,7 @@ class LHCBeamControl(BeamFeedbackBase):
         dphi_rf = self.cavities[0].delta_phi_rf
 
         self.phase_difference(beam)
-        self.cavity_sum_phase()
+        self.cavity_sum_phase(self.current_thres)
 
         # Take into account the synchronous phase
         self.dphi = (
