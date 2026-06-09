@@ -252,7 +252,10 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
         )
 
     def track_reference(
-        self, reference: ReferenceCoordinates, **kwargs
+        self,
+        reference: ReferenceCoordinates,
+        is_counter_rotating: bool = False,
+        **kwargs,
     ) -> float:
         """Advance the reference clock — both time and (probed) total energy.
 
@@ -273,7 +276,18 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
         synchronous probe (aperture / loss element at zeta=0) we treat
         the energy delta as zero and don't raise — that's an unusual
         configuration but not our problem to police.
+
+        Counter-rotating beams are not supported: the wrapper tracks the
+        guest in a single orbit direction only, so it raises
+        :class:`NotImplementedError` rather than silently returning a
+        wrong reference advance.
         """
+        if is_counter_rotating:
+            raise NotImplementedError(
+                "WrapXsuite4Blond does not support counter-rotating beams; "
+                "the wrapped xsuite element is tracked in a single orbit "
+                "direction only."
+            )
         reference_time_change = self.orbit_length / reference.velocity
         reference.time += reference_time_change
 

@@ -112,6 +112,14 @@ def test_wrapper_track_reference_probe_lost_particle_returns_zero():
     assert beam.reference.total_energy == pytest.approx(energy0, rel=1e-12)
 
 
+def test_wrapper_track_reference_rejects_counter_rotating():
+    """Counter-rotating beams are unsupported and must raise, not silently lie."""
+    beam = _blond_beam([0.0], [0.0], 1e9)
+    wrapper = WrapXsuite4Blond(xt.Drift(length=1.0))
+    with pytest.raises(NotImplementedError, match="counter-rotating"):
+        wrapper.track_reference(beam.reference, is_counter_rotating=True)
+
+
 def test_wrapper_refuses_line_with_energy_program():
     """Item K guard: an xt.Line with its own energy_program must be refused."""
     line = xt.Line(elements=[xt.Drift(length=1.0)], element_names=["d"])
