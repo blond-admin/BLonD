@@ -6,8 +6,12 @@ from unittest.mock import Mock, PropertyMock, patch
 
 import numpy as np
 
-from blond import StaticProfile
+from blond import Beam, Resonators, StaticProfile, WakeField, mu_plus
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.helpers import rf_beam_current
+from blond.physics.impedances.solvers import (
+    SingleTurnResonatorConvolutionSolver,
+)
 
 
 class TestCavityFeedback(unittest.TestCase):
@@ -60,7 +64,7 @@ class TestCavityFeedback(unittest.TestCase):
         """
         omega_input = 2 * np.pi * 1e9
         n_steps = 50
-        dt = 1e-9
+        dt = 1.2e-9
 
         # Build a constant-step rf_centers grid covering a single segment.
         self.cav_fdbk.rf_centers = np.arange(1, n_steps + 1) * dt
@@ -102,6 +106,23 @@ class TestCavityFeedback(unittest.TestCase):
         np.testing.assert_allclose(v, expected, rtol=1e-12)
 
     def _patched_carrier_props(self, omega_carrier, sampling_time_coarse):
+        """
+        Patch the carrier properties that need a missing cavity object.
+
+        Parameters
+        ----------
+        omega_carrier
+            Carrier angular frequency to patch in.
+        sampling_time_coarse
+            Coarse-grid sampling time to patch in.
+
+        Returns
+        -------
+        patch_omega
+            Context manager patching ``omega_carrier``.
+        patch_dt
+            Context manager patching ``sampling_time_coarse``.
+        """
         return (
             patch.object(
                 IQCavityFeedbackTimingClass,
@@ -280,6 +301,149 @@ class TestCavityFeedback(unittest.TestCase):
                 no_beam=False,
             )
         self.assertIn("relative_kick", str(cm.exception))
+
+
+class TestFineGridResonatorBenchmark(unittest.TestCase):
+    """
+    Benchmark FB against resonator induced voltage single turn.
+
+    Benchmark the single-turn (fine-grid) cavity beam-loading response of
+    IQCavityFeedbackTimingClass against an independent resonator induced
+    voltage model, on a real Gaussian-plus-noise beam profile.
+
+    The fine-grid antenna voltage (generator current zeroed) is the purely
+    beam-induced voltage. Demodulated at omega_rf, it is remodulated to the
+    lab frame and compared to the induced voltage of a matching Resonators
+    source (R_s = R_over_Q * Q_L, Q = Q_L, f_r = f_rf + delta_omega/2pi)
+    convolved with the same profile.
+    """
+
+    # Sign relating Re[V_ant * exp(i*omega_rf*t)] to the induced voltage.
+    CAVITY_TO_INDUCED_VOLTAGE_SIGN = -1.0
+
+    R_over_Q = 518.0
+    Q_L = 1287601.7251526634
+    f_rf = 1.3e9
+    intensity = 2.7e12
+    n_macroparticles = int(1e6)
+    n_bins = 2**12
+
+    def _build_beam_and_profile(self, seed=0):
+        rng = np.random.default_rng(seed)
+        t_rf = 1.0 / self.f_rf
+        profile = StaticProfile.from_rad(
+            0.5 * np.pi, 3.5 * np.pi, self.n_bins, t_rf
+        )
+        t_center = t_rf
+        sigma_t = 0.06 * t_rf
+        n_noise = self.n_macroparticles // 10
+        n_gauss = self.n_macroparticles - n_noise
+        dt = np.concatenate(
+            [
+                rng.normal(t_center, sigma_t, n_gauss),
+                rng.uniform(
+                    t_center - 4 * sigma_t, t_center + 4 * sigma_t, n_noise
+                ),
+            ]
+        )
+        beam = Beam(
+            intensity=self.intensity,
+            particle_type=mu_plus,
+            is_counter_rotating=False,
+        )
+        beam.setup_beam(
+            dt=dt, dE=np.zeros_like(dt), mpi_mode="root-distributes"
+        )
+        profile.track(beam=beam)
+        return beam, profile
+
+    def _cavity_lab_voltage(self, beam, profile, delta_omega):
+        omega_rf = 2.0 * np.pi * self.f_rf
+        charges_fine = rf_beam_current(
+            beam=beam,
+            profile=profile,
+            omega_c=omega_rf,
+            T_rev=1.0 / self.f_rf,
+            use_lowpass_filter=False,
+            external_reference=False,
+        )
+        cav = IQCavityFeedbackTimingClass(
+            profile=profile,
+            R_over_Q=self.R_over_Q,
+            Q_L=self.Q_L,
+            generator_current=0.0 + 0.0j,
+            n_cavities=1,
+            initial_voltage=0.0,
+            delta_omega=delta_omega,
+        )
+        cav.beam_current_fine_grid = charges_fine / profile.hist_step
+        cav.generator_current_fine_grid = np.zeros(self.n_bins, dtype=complex)
+        cav.cavity_response_fine(
+            initial_voltage_fine_grid=0.0,
+            initial_voltage_gradient_fine_grid=0.0,
+            initial_generator_current_fine_grid=0.0,
+            samples_per_rf_fine_grid=omega_rf * profile.hist_step,
+            relative_detuning=delta_omega / omega_rf,
+        )
+        return self.CAVITY_TO_INDUCED_VOLTAGE_SIGN * np.real(
+            cav.antenna_voltage_fine_grid
+            * np.exp(1j * omega_rf * profile.hist_x)
+        )
+
+    def _resonator_induced_voltage(self, beam, profile, delta_omega):
+        res = Resonators(
+            shunt_impedances=self.R_over_Q * self.Q_L,
+            quality_factors=self.Q_L,
+            center_frequencies=self.f_rf + delta_omega / (2.0 * np.pi),
+        )
+        wf = WakeField(
+            sources=(res,),
+            solver=SingleTurnResonatorConvolutionSolver(),
+            profile=profile,
+        )
+        wf.solver.on_wakefield_init_simulation(Mock(), wf)
+        return np.asarray(wf.solver.calc_induced_voltage(beam=beam))
+
+    def _assert_matches(self, delta_omega):
+        beam, profile = self._build_beam_and_profile()
+        v_cav = self._cavity_lab_voltage(beam, profile, delta_omega)
+        v_res = self._resonator_induced_voltage(beam, profile, delta_omega)
+
+        # Best-fit amplitude scale (should be ~1 with the sign convention
+        # already folded into v_cav).
+        scale = np.dot(v_res, v_cav) / np.dot(v_cav, v_cav)
+        nrmse = (
+            np.sqrt(np.mean((v_res - scale * v_cav) ** 2))
+            / np.abs(v_res).max()
+        )
+        corr = np.corrcoef(v_cav, v_res)[0, 1]
+
+        self.assertGreater(
+            corr, 0.999, f"shape mismatch (corr={corr}) for {delta_omega=}"
+        )
+        self.assertAlmostEqual(
+            scale,
+            1.0,
+            delta=0.05,
+            msg=f"amplitude scale off ({scale}) for {delta_omega=}",
+        )
+        self.assertLess(
+            nrmse,
+            1e-2,
+            f"waveform mismatch (nrmse={nrmse}) for {delta_omega=}",
+        )
+
+    def test_fine_grid_matches_resonator_on_resonance(self):
+        """On resonance, fine-grid response matches the resonator model."""
+        self._assert_matches(delta_omega=0.0)
+
+    def test_fine_grid_matches_resonator_positive_detuning(self):
+        """With positive detuning, the phase shift matches a detuned resonator."""
+        self._assert_matches(delta_omega=5e6)
+
+    def test_fine_grid_matches_resonator_negative_detuning(self):
+        """With negative detuning, the phase shift matches a detuned resonator."""
+        self._assert_matches(delta_omega=-2e7)
 
 
 if __name__ == "__main__":
