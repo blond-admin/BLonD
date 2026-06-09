@@ -1,4 +1,5 @@
 """Tests for beam<->particle converters (require xsuite)."""
+
 import unittest
 
 import numpy as np
@@ -33,8 +34,9 @@ def test_particles_to_beam_converts_all_active():
     frame = _frame()
     zeta = np.array([-0.3, 0.0, 0.4, 0.9])
     ptau = np.array([-1e-4, 0.0, 2e-4, 1e-4])
-    particles = xt.Particles(p0c=1e9, mass0=proton.mass, q0=proton.charge,
-                             zeta=zeta, ptau=ptau)
+    particles = xt.Particles(
+        p0c=1e9, mass0=proton.mass, q0=proton.charge, zeta=zeta, ptau=ptau
+    )
     beam = _beam(len(zeta))
 
     active = particles_to_beam(particles, beam, frame)
@@ -52,8 +54,9 @@ def test_particles_to_beam_flags_lost():
     frame = _frame()
     zeta = np.array([0.0, 0.1, 0.2, 0.3])
     ptau = np.zeros(4)
-    particles = xt.Particles(p0c=1e9, mass0=proton.mass, q0=proton.charge,
-                             zeta=zeta, ptau=ptau)
+    particles = xt.Particles(
+        p0c=1e9, mass0=proton.mass, q0=proton.charge, zeta=zeta, ptau=ptau
+    )
     particles.state[1] = 0  # mark particle 1 lost
     particles.state[3] = 0  # mark particle 3 lost
     beam = _beam(len(zeta))
@@ -72,8 +75,13 @@ def test_round_trip_particles_beam_particles():
     frame = _frame()
     zeta = np.array([-0.5, -0.1, 0.0, 0.2, 0.7])
     ptau = np.array([-2e-4, -1e-4, 0.0, 1e-4, 3e-4])
-    particles = xt.Particles(p0c=1e9, mass0=proton.mass, q0=proton.charge,
-                             zeta=zeta.copy(), ptau=ptau.copy())
+    particles = xt.Particles(
+        p0c=1e9,
+        mass0=proton.mass,
+        q0=proton.charge,
+        zeta=zeta.copy(),
+        ptau=ptau.copy(),
+    )
     beam = _beam(len(zeta))
 
     active = particles_to_beam(particles, beam, frame)
@@ -87,8 +95,13 @@ def test_beam_to_particles_leaves_lost_untouched():
     frame = _frame()
     zeta = np.array([0.0, 0.5, 1.0])
     ptau = np.zeros(3)
-    particles = xt.Particles(p0c=1e9, mass0=proton.mass, q0=proton.charge,
-                             zeta=zeta.copy(), ptau=ptau.copy())
+    particles = xt.Particles(
+        p0c=1e9,
+        mass0=proton.mass,
+        q0=proton.charge,
+        zeta=zeta.copy(),
+        ptau=ptau.copy(),
+    )
     particles.state[1] = 0
     beam = _beam(len(zeta))
 
@@ -100,9 +113,11 @@ def test_beam_to_particles_leaves_lost_untouched():
     # active particles updated, lost particle's zeta unchanged
     assert particles.zeta[1] == 0.5
     np.testing.assert_allclose(
-        particles.zeta[[0, 2]], dt_to_zeta(np.array([1e-9, 1e-9]), frame),
+        particles.zeta[[0, 2]],
+        dt_to_zeta(np.array([1e-9, 1e-9]), frame),
         rtol=1e-12,
     )
+
 
 if __name__ == "__main__":
     unittest.main()

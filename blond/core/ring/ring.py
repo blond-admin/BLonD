@@ -322,6 +322,7 @@ class Ring(Preparable):
             The count of accelerating RF station elements in the ring.
         """
         from blond.physics.cavities import RFStationBaseClass
+
         # FIXME 20260609.0 rollback this as soon as we have the correct
         #  xsuite factories
         return sum(

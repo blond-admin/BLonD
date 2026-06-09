@@ -77,7 +77,6 @@ from blond.interfaces.xsuite.elements.wrap_xsuite_elelemt import (  # noqa: E402
     WrapXsuite4Blond,
 )
 
-
 # LHC-like harness; mirrors test_ramp_wrapped_blond_vs_xsuite.py.
 CIRCUMFERENCE = 26658.8832
 ALPHA = 0.00034849575112251314
@@ -218,9 +217,7 @@ def _run_blond_simulation(p0c_ramp: np.ndarray, n_turns: int, dist):
     bunch_obs = BeamObservationOncePerTurn(each_turn_i=1, warn=False)
 
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
-    sim.run_simulation(
-        beams=(beam,), n_turns=n_turns, observe=(bunch_obs,)
-    )
+    sim.run_simulation(beams=(beam,), n_turns=n_turns, observe=(bunch_obs,))
 
     # Recorded shape is (n_turns, n_part). Convert each row at its own
     # reference using the shared helpers.
@@ -252,7 +249,9 @@ def _plot_comparison(zeta_x, ptau_x, zeta_b, ptau_b) -> None:
         1, len(snapshots), figsize=(4 * len(snapshots), 4), squeeze=False
     )
     for ax, turn in zip(axes[0], snapshots):
-        ax.scatter(zeta_x[:, turn], ptau_x[:, turn], label="xsuite", marker="x")
+        ax.scatter(
+            zeta_x[:, turn], ptau_x[:, turn], label="xsuite", marker="x"
+        )
         ax.scatter(
             zeta_b[:, turn],
             ptau_b[:, turn],
@@ -357,7 +356,9 @@ def test_lost_particles_survive_multi_turn_wrapper_track():
     dE_init = ptau_to_dE(ptau_init, frame_init)
 
     flags = np.where(
-        lost_mask, np.int32(BeamFlags.LOST.value), np.int32(BeamFlags.ACTIVE.value)
+        lost_mask,
+        np.int32(BeamFlags.LOST.value),
+        np.int32(BeamFlags.ACTIVE.value),
     )
 
     # The wrapper is an RFStationBaseClass by type, so it shares section 0
@@ -399,9 +400,7 @@ def test_lost_particles_survive_multi_turn_wrapper_track():
     # zero-voltage RF station applies the per-turn ``acceleration_kick`` to
     # every slot in ``beam.dE`` regardless of flag — a BLonD-core behavior
     # the wrapper has no jurisdiction over (see discussion note item N).
-    np.testing.assert_array_equal(
-        final_flags[lost_mask], BeamFlags.LOST.value
-    )
+    np.testing.assert_array_equal(final_flags[lost_mask], BeamFlags.LOST.value)
     np.testing.assert_array_equal(final_dt[lost_mask], dt_init[lost_mask])
     # Active slots: still active and at least some moved (so we know the
     # wrapper actually ran).

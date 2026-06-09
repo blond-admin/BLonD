@@ -41,7 +41,6 @@ from blond.interfaces.xsuite.elements.wrap_blond_elelemt import (  # noqa: E402
     WrapBlond4Xsuite,
 )
 
-
 # LHC-like ring & program parameters.
 CIRCUMFERENCE = 26658.8832
 ALPHA = 0.00034849575112251314
@@ -73,6 +72,7 @@ DEV_PLOT = False  # set True locally to render comparison plots
 # well below ``rtol=1e-5``. For a real LHC injection→flat-top ramp it would
 # show up — see the dedicated discussion note (item F in
 # ``docs/superpowers/notes/2026-06-05-xsuite-interop-discussion.md``).
+
 
 def _build_common_line(p0c_init: float = P0C_INIT) -> xt.Line:
     matrix = xt.LineSegmentMap(
@@ -204,10 +204,16 @@ def _plot_comparison(zeta_x, ptau_x, zeta_w, ptau_w) -> None:
         1, len(snapshots), figsize=(4 * len(snapshots), 4), squeeze=False
     )
     for ax, turn in zip(axes[0], snapshots):
-        ax.scatter(zeta_x[:, turn], ptau_x[:, turn], label="xsuite", marker="x")
         ax.scatter(
-            zeta_w[:, turn], ptau_w[:, turn], label="wrapped BLonD", marker="o",
-            facecolors="none", edgecolors="C1",
+            zeta_x[:, turn], ptau_x[:, turn], label="xsuite", marker="x"
+        )
+        ax.scatter(
+            zeta_w[:, turn],
+            ptau_w[:, turn],
+            label="wrapped BLonD",
+            marker="o",
+            facecolors="none",
+            edgecolors="C1",
         )
         ax.set_xlabel(r"$\zeta$ [m]")
         ax.set_ylabel(r"$p_\tau$")
@@ -293,16 +299,14 @@ N_TURNS_JUMP = 5
 
 def test_wrapped_blond_matches_pure_xsuite_through_jump():
     """Off-by-one detector: a sharp drop in the energy program must not skew turn alignment."""
-    dist = _initial_distribution(_build_common_line(p0c_init=P0C_JUMP_SCHEDULE[0]))
+    dist = _initial_distribution(
+        _build_common_line(p0c_init=P0C_JUMP_SCHEDULE[0])
+    )
 
     zeta_x, ptau_x = _run_pure_xsuite(dist, P0C_JUMP_SCHEDULE, N_TURNS_JUMP)
-    zeta_w, ptau_w = _run_wrapped_blond(
-        dist, P0C_JUMP_SCHEDULE, N_TURNS_JUMP
-    )
+    zeta_w, ptau_w = _run_wrapped_blond(dist, P0C_JUMP_SCHEDULE, N_TURNS_JUMP)
 
     if DEV_PLOT:
         _plot_comparison(zeta_x, ptau_x, zeta_w, ptau_w)
 
-    _assert_phase_space_match(
-        zeta_w, ptau_w, zeta_x, ptau_x, N_TURNS_JUMP
-    )
+    _assert_phase_space_match(zeta_w, ptau_w, zeta_x, ptau_x, N_TURNS_JUMP)

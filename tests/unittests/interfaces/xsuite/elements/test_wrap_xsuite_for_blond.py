@@ -9,11 +9,11 @@ xt = pytest.importorskip("xtrack")
 from blond import Beam, proton  # noqa: E402
 from blond.core.base import BeamPhysicsRelevant  # noqa: E402
 from blond.core.beam.flags import BeamFlags  # noqa: E402
-from blond.physics.cavities import RFStationBaseClass  # noqa: E402
-from blond.physics.drifts import DriftBaseClass  # noqa: E402
 from blond.interfaces.xsuite.elements.wrap_xsuite_elelemt import (  # noqa: E402
     WrapXsuite4Blond,
 )
+from blond.physics.cavities import RFStationBaseClass  # noqa: E402
+from blond.physics.drifts import DriftBaseClass  # noqa: E402
 
 
 def _proton_p0c(total_energy):
@@ -89,9 +89,7 @@ def test_wrapper_track_reference_probe_picks_up_ReferenceEnergyIncrease():
     expected_p0c = _proton_p0c(energy0) + delta_p0c
     expected_e0 = float(np.sqrt(expected_p0c**2 + proton.mass**2))
     assert beam.reference.total_energy == pytest.approx(expected_e0, rel=1e-12)
-    assert energy_delta == pytest.approx(
-        expected_e0 - energy0, rel=1e-12
-    )
+    assert energy_delta == pytest.approx(expected_e0 - energy0, rel=1e-12)
 
 
 def test_wrapper_track_reference_probe_lost_particle_returns_zero():
@@ -161,12 +159,8 @@ def test_wrapper_drift_matches_direct_xsuite_drift():
     expected_dt = -np.asarray(particles.zeta) / (beta0 * c)
     expected_dE = np.asarray(particles.ptau) * beta0 * energy0
 
-    np.testing.assert_allclose(
-        beam.read_partial_dt(), expected_dt, rtol=1e-10
-    )
-    np.testing.assert_allclose(
-        beam.read_partial_dE(), expected_dE, rtol=1e-10
-    )
+    np.testing.assert_allclose(beam.read_partial_dt(), expected_dt, rtol=1e-10)
+    np.testing.assert_allclose(beam.read_partial_dE(), expected_dE, rtol=1e-10)
 
 
 def test_wrapper_zero_offset_particles_unchanged_by_drift():
@@ -326,9 +320,15 @@ def test_wrapper_accepts_arbitrary_xsuite_guest_with_length():
         xt.Drift(length=1.0),
         xt.LineSegmentMap(
             longitudinal_mode="nonlinear",
-            qx=1.1, qy=1.2, betx=1.0, bety=1.0,
-            voltage_rf=0.0, frequency_rf=0.0, lag_rf=0.0,
-            momentum_compaction_factor=1e-3, length=100.0,
+            qx=1.1,
+            qy=1.2,
+            betx=1.0,
+            bety=1.0,
+            voltage_rf=0.0,
+            frequency_rf=0.0,
+            lag_rf=0.0,
+            momentum_compaction_factor=1e-3,
+            length=100.0,
         ),
     ):
         WrapXsuite4Blond(guest)  # must not raise

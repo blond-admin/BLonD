@@ -1,4 +1,5 @@
 """Tests for injecting a magnetic cycle into a headless RF station."""
+
 import unittest
 
 from blond import SingleHarmonicRFStation, proton
@@ -35,7 +36,6 @@ def test_injected_cycle_drives_reference_energy():
     assert (
         rf._magnetic_cycle.get_target_total_energy(0, 0, 0.0, proton) == 7000e9
     )
-
 
 
 if __name__ == "__main__":

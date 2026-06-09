@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-
 from blond.core.beam.flags import BeamFlags
 from blond.interfaces.xsuite.elements.helpers import (
     ReferenceFrame,
@@ -81,6 +80,7 @@ def _extract_length(element) -> float:
         f"{type(element).__name__}; pass `orbit_length=` explicitly "
         f"(use 0.0 for markers / apertures with no spatial extent)."
     )
+
 
 # TODO but later.
 #  Have three distinct wrappers for
@@ -149,7 +149,7 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
     # RF-station accounting so ``Ring.n_rf_stations`` — and thus the
     # ``MagneticCyclePerTurn`` energy split and the one-station-per-section
     # check — does not count it as an accelerating station.
-    counts_as_rf_station = False # FIXME 20260609.0
+    counts_as_rf_station = False  # FIXME 20260609.0
 
     def __init__(self, xsuite_element, orbit_length: float | None = None):
         self._xsuite_element = xsuite_element
@@ -378,12 +378,8 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
                 )
 
         active_slots = pid_out[active_xs]
-        new_dt = zeta_to_dt(
-            np.asarray(self._particles.zeta)[active_xs], frame
-        )
-        new_dE = ptau_to_dE(
-            np.asarray(self._particles.ptau)[active_xs], frame
-        )
+        new_dt = zeta_to_dt(np.asarray(self._particles.zeta)[active_xs], frame)
+        new_dE = ptau_to_dE(np.asarray(self._particles.ptau)[active_xs], frame)
         # Direct assignment into BLonD storage handles the numpy → backend
         # promotion (cupy's ``__setitem__`` accepts numpy on the rhs).
         beam.dt.array_local[active_slots] = new_dt

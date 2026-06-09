@@ -12,7 +12,6 @@ from blond.interfaces.xsuite.elements.wrap_blond_elelemt import (  # noqa: E402
     WrapBlond4Xsuite,
 )
 
-
 CIRCUMFERENCE = 26658.883
 HARMONIC = 35640
 VOLTAGE = 6e6
