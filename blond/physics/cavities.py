@@ -93,6 +93,8 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
+        self._ring: Ring | None = None
+        self._magnetic_cycle: MagneticCycleBase | None = None
         self._turn_counter: DynamicParameter | None = None
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
@@ -121,7 +123,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         *,
         turn_counter: DynamicParameter | None = None,
         magnetic_cycle: MagneticCycleBase | None = None,
-        ring: None,
+        ring: Ring,
         **kwargs,
     ) -> None:
         """
@@ -164,10 +166,16 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Change of reference energy [eV].
         """
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
-            section_i=self.section_index
-            if not is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),
+            section_i=(
+                self.section_index
+                if not is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=reference.time,
             particle_type=reference.particle_type,
         )
@@ -186,6 +194,9 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         super()._track(beam=beam)
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
                 turn_i=self._turn_counter.value,
                 reference_time=float(beam.reference.time),
@@ -751,10 +762,16 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
-            section_i=self.section_index
-            if not beam.is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),
+            section_i=(
+                self.section_index
+                if not beam.is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=float(beam.reference.time),
             particle_type=beam.particle_type,
         )
@@ -909,10 +926,16 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         self._update_reference_based_attributes(reference=reference)
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
-            section_i=self.section_index
-            if not is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),
+            section_i=(
+                self.section_index
+                if not is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=reference.time,
             particle_type=reference.particle_type,
         )
@@ -1303,6 +1326,7 @@ class SingleHarmonicRFStation(
         cavity_feedback: LocalFeedback | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> SingleHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1333,6 +1357,8 @@ class SingleHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
@@ -1353,9 +1379,9 @@ class SingleHarmonicRFStation(
         )
 
         single_harmonic_rf_station.configure(
-            turn_counter=SimpleNamespace(value=0),
+            turn_counter=turn_counter,
             magnetic_cycle=SimpleNamespace(
-                get_target_total_energy=lambda **_: total_energy
+                get_target_total_energy=lambda **_: total_energy  # TODO rework
             ),
             ring=SimpleNamespace(
                 circumference=circumference,
@@ -1808,6 +1834,7 @@ class MultiHarmonicRFStation(
         beam_feedback: BeamFeedbackBase | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> MultiHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1843,6 +1870,8 @@ class MultiHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
@@ -1866,7 +1895,7 @@ class MultiHarmonicRFStation(
         )
 
         multi_harmonic_rf_station.configure(
-            turn_counter=SimpleNamespace(value=0),
+            turn_counter=turn_counter,
             magnetic_cycle=SimpleNamespace(
                 get_target_total_energy=lambda **_: total_energy
             ),
