@@ -208,7 +208,11 @@ class GlobalFeedback(FeedbackBaseClass):
         self.cavities = cavities
 
     def get_from_all_rf_stations(
-        self, method_or_attr: str, *args, **kwargs
+        self,
+        method_or_attr: str,
+        cavity_list: list[RFStationBaseClass] | None = None,
+        *args,
+        **kwargs,
     ) -> NumpyArray:
         """
         Call method or attribute from all rf station instances.
@@ -220,6 +224,9 @@ class GlobalFeedback(FeedbackBaseClass):
         ----------
         method_or_attr
             The name of the method or attribute to call.
+        cavity_list
+            List of rf station objects. If no list is passed, then the list of rf stations
+            associated with the global feedback instance will be used.
         *args
             Variable positional arguments.
         **kwargs
@@ -236,4 +243,7 @@ class GlobalFeedback(FeedbackBaseClass):
             value = getattr(obj, method_or_attr)
             return value(*args, **kwargs) if callable(value) else value
 
-        return np.array(list(map(invoke, self.cavities)))
+        if cavity_list is None:
+            return np.array(list(map(invoke, self.cavities)))
+        else:
+            return np.array(list(map(invoke, cavity_list)))
