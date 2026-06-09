@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -14,15 +14,16 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy import ndarray
 
-from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
 from blond.beam_preparation.helpers import populate_beam
+from blond.core.backends.backend import backend
 from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.bucket_filler_functions import (
     hamilton_to_density_by_max,
 )
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy.no_cupy_import import AllowPlotting, copy_to_cpu
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
@@ -262,6 +263,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self._prelast_potential_well: NumpyArray | CupyArray | None = None
         self.debug_helper: DebuggingEndpoints | None = None
 
+        # Can be potentially replaced like `hamilton_to_density_function`,
+        #  for example using the `SymbolicSeparatrixHelper`.
+        self._get_hamilton = self._get_hamiltonian_semianalytic
+
         if debug:
             self.debug_helper = DebuggingEndpoints()
 
@@ -289,16 +294,18 @@ class SemiEmpiricMatcher(MatchingRoutine):
         simulation.intensity_effect_manager.is_active_wakefields()
         simulation.intensity_effect_manager.is_active_profiles()
 
+        sim_tmp = deepcopy(simulation)  # prevent side effects
+
         ts = backend.linspace(
             self.time_limit[0], self.time_limit[1], self.internal_grid_shape[0]
         )
         # match beam without intensity effects
-        simulation.intensity_effect_manager.set_wakefields(active=False)
-        simulation.intensity_effect_manager.set_profiles(active=False)
-        self._match_beam(beam, simulation, ts)
+        sim_tmp.intensity_effect_manager.set_wakefields(active=False)
+        sim_tmp.intensity_effect_manager.set_profiles(active=False)
+        self._match_beam(beam, sim_tmp, ts)
 
         # iterate solution with intensity effects
-        intensity_org = beam.intensity
+        intensity_original = beam.intensity
 
         # Get decimal places from the tolerance (e.g., 1e-6 → 6)
         tolerance_decimal_places = abs(
@@ -311,8 +318,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.draw()
             plt.pause(0.1)
 
-        if simulation.intensity_effect_manager.has_wakefields():
-            simulation.intensity_effect_manager.set_wakefields(active=True)
+        if sim_tmp.intensity_effect_manager.has_wakefields():
             for i_intensity in range(self.maxiter_intensity_effects):
                 sim_tmp = deepcopy(simulation)  # prevent side effects
 
@@ -328,17 +334,20 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     )  # t
                 else:
                     scalar = 1.0
-                beam.intensity = scalar * intensity_org
+                beam.intensity = scalar * intensity_original
 
                 # run simulation with beam to collect the actual profiles
                 # that cause the wake-fields
                 sim_tmp.intensity_effect_manager.set_profiles(active=True)
+                sim_tmp.intensity_effect_manager.unfreeze_wakefields()
 
                 # this might get changed by the simulation
-                beam_reference_time = beam.reference.time
-                beam_reference_total_energy = beam.reference.total_energy
-                turn_i_org = int(simulation.turn_i.value)
-                section_i_org = int(simulation.section_i.value)
+                beam_reference_time_original = beam.reference.time
+                beam_reference_total_energy_original = (
+                    beam.reference.total_energy
+                )
+                turn_i_original = int(sim_tmp.turn_counter.value)
+                section_i_original = int(sim_tmp.section_counter.value)
 
                 sim_tmp.run_simulation(
                     beams=(beam,),
@@ -349,13 +358,16 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 )
 
                 # reset to original value before simulation
-                beam.reference.time = beam_reference_time
-                beam.reference.total_energy = beam_reference_total_energy
-                sim_tmp.turn_i.value = turn_i_org
-                sim_tmp.section_i.value = section_i_org
+                beam.reference.time = beam_reference_time_original
+                beam.reference.total_energy = (
+                    beam_reference_total_energy_original
+                )
+                sim_tmp.turn_counter.value = turn_i_original
+                sim_tmp.section_counter.value = section_i_original
 
                 # Prevent the profiles from updating.
                 sim_tmp.intensity_effect_manager.set_profiles(active=False)
+                sim_tmp.intensity_effect_manager.freeze_wakefields()
                 # This is intended as override, so that the line density
                 # inside `_match_beam` experiences the forces from the
                 # previously run with the full beam
@@ -396,10 +408,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     ):
                         break
 
-            beam.intensity = intensity_org
-
-        simulation.intensity_effect_manager.set_wakefields(active=True)
-        simulation.intensity_effect_manager.set_profiles(active=True)
+            beam.intensity = intensity_original
 
     def _match_beam(
         self,
@@ -424,7 +433,76 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
-        assert simulation.turn_i.value == 0
+        time_grid, deltaE_grid, hamilton_2D = self._get_hamilton(
+            beam=beam, simulation=simulation, ts=ts
+        )
+        density = self.hamilton_to_density_function(
+            time_grid=time_grid,
+            deltaE_grid=deltaE_grid,
+            hamilton_2D=hamilton_2D,
+            **self.hamilton_to_density_kwargs,
+        )
+
+        if self.debug_helper is not None:
+            self.debug_helper.last_density = density
+            self.debug_helper.last_hamilton_2D = hamilton_2D
+
+        populate_beam(
+            beam=beam,
+            time_grid=time_grid.T,
+            deltaE_grid=deltaE_grid.T,
+            density_grid=density.T,
+            n_macroparticles=self.n_macroparticles,
+            seed=self.seed,
+        )
+
+    def _get_hamiltonian_semianalytic(
+        self,
+        beam: BeamBaseClass,
+        simulation: Simulation,
+        ts: NumpyArray,
+    ) -> tuple[
+        NumpyArray,
+        NumpyArray,
+        NumpyArray,
+    ]:
+        r"""Build the semi-analytic 2D Hamiltonian for the current beam.
+
+        Queries the empirically determined potential well from the
+        simulation, averages it with the potential well of the previous
+        call to damp oscillations between successive matching iterations,
+        and feeds the result into :func:`get_hamilton_semi_analytic` to
+        obtain :math:`H_{2D}(t, \Delta E)`.
+
+        The potential well is sampled on a finer grid (oversampled by
+        ``_POTENTIAL_WELL_OVERSAMPLING``) and then down-sampled to the
+        resolution of ``ts`` to improve the accuracy of the empiric
+        estimate. Must be called on turn zero only.
+
+        Parameters
+        ----------
+        beam : BeamBaseClass
+            Beam whose particle type, intensity and reference parameters
+            (total energy, ``beta``, ``gamma``) define the potential well
+            and the analytic drift term.
+        simulation : Simulation
+            Simulation providing the empiric potential well via
+            :meth:`Simulation.get_potential_well_empiric` and the ring used
+            to compute the average slippage factor :math:`\eta_0`.
+        ts : ndarray
+            Time coordinates at which the Hamiltonian is evaluated [s].
+
+        Returns
+        -------
+        time_grid : ndarray
+            2D grid of time coordinates :math:`t` [s].
+        deltaE_grid : ndarray
+            2D grid of energy offset :math:`\Delta E` [eV].
+        hamilton_2D : ndarray
+            2D semi-analytic Hamiltonian evaluated on the grid [eV].
+
+        """
+        assert simulation.turn_counter.value == 0
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
                 dt=np.linspace(
@@ -447,7 +525,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             avg_pot_well = potential_well
         else:
             avg_pot_well = (potential_well + self._prelast_potential_well) / 2
-
+        if self.debug_helper is not None:
+            self.debug_helper.last_potential_well = avg_pot_well
         deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
             ts=ts,
             potential_well=avg_pot_well,
@@ -458,26 +537,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ),
             shape=self.internal_grid_shape,
         )
-        density = self.hamilton_to_density_function(
-            time_grid=time_grid,
-            deltaE_grid=deltaE_grid,
-            hamilton_2D=hamilton_2D,
-            **self.hamilton_to_density_kwargs,
-        )  # type: ignore
-
-        if self.debug_helper is not None:
-            self.debug_helper.last_potential_well = avg_pot_well
-            self.debug_helper.last_density = density
-            self.debug_helper.last_hamilton_2D = hamilton_2D
-
-        populate_beam(
-            beam=beam,
-            time_grid=time_grid.T,
-            deltaE_grid=deltaE_grid.T,
-            density_grid=density.T,
-            n_macroparticles=self.n_macroparticles,
-            seed=self.seed,
-        )
+        return time_grid, deltaE_grid, hamilton_2D
 
     def _plot_current_state(
         self,

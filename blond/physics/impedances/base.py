@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -18,15 +18,19 @@ from scipy.constants import elementary_charge as e
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
+from blond.experimental.physics.kick_pooling import (
+    SupportsPooledInterpolationKickMixIn,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
-
-    from cupy.typing import NDArray as CupyArray
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+    from blond.experimental.physics.kick_pooling import (
+        PooledInterpolationKick,
+    )
     from blond.physics.profiles import ProfileBaseClass
 
 
@@ -118,7 +122,7 @@ class TimeDomain(ABC):
     """Indication of a source is defined in time domain."""
 
     @abstractmethod  # pragma: no cover
-    def get_wake_impedance(
+    def get_impedance_from_wake(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
@@ -132,7 +136,7 @@ class TimeDomain(ABC):
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -141,7 +145,7 @@ class TimeDomain(ABC):
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Impedance array.
         """
         pass
@@ -161,7 +165,7 @@ class TimeDomainCounterRotation(ABC):
 
         Parameters
         ----------
-        time : NumpyArray
+        time
             Time array at which the wake is calculated [V].
         """
         pass
@@ -175,7 +179,7 @@ class TimeDomainCounterRotation(ABC):
 
         Parameters
         ----------
-        time : NumpyArray
+        time
             Time array at which the wake is calculated, in [s].
 
         Returns
@@ -186,7 +190,7 @@ class TimeDomainCounterRotation(ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_wake_impedance_counter_rotation(
+    def get_impedance_from_wake_counter_rotation(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
@@ -200,7 +204,7 @@ class TimeDomainCounterRotation(ABC):
         ----------
         time
             Time array to get wake, in [s].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -209,7 +213,7 @@ class TimeDomainCounterRotation(ABC):
 
         Returns
         -------
-        wake_impedance
+        impedance_from_wake
             Impedance array.
         """
         pass
@@ -232,7 +236,7 @@ class FreqDomain(ABC):
         ----------
         freq_x
             Frequency axis, in [Hz].
-        simulation : Simulation
+        simulation
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
@@ -255,14 +259,17 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         Section index to group elements into sections.
     profile
         Object for calculation of beam profiles.
+    **kwargs
+        Additional keyword arguments.
     """
 
     def __init__(
         self,
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
+        **kwargs,
     ):
-        super().__init__(section_index=section_index)
+        super().__init__(section_index=section_index, **kwargs)
         self._profile = profile
 
     @property  # as readonly attributes
@@ -296,35 +303,12 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         """
         pass
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
-
     @requires(
         [
             "BeamPhysicsRelevantElements",  # for .section_index,
         ]
     )
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -332,6 +316,8 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
         from blond.physics.profiles import (
             ProfileBaseClass,  # prevent cyclic import
@@ -347,10 +333,27 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
                 f"`your_impedance.profile` in advance or remove the second "
                 f"profile from this group."
             )
-            self._profile = profiles[0]
+            profile = profiles[0]
+        else:
+            profile = self._profile
+        super().on_init_simulation(simulation, profile=profile, **kwargs)
+
+    def configure(self, *, profile: ProfileBaseClass, **kwargs) -> None:
+        """
+        Store the profile used for induced-voltage calculations.
+
+        Parameters
+        ----------
+        profile
+            Profile object that provides the beam histogram.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self._profile = profile
 
 
-class WakeField(ImpedanceBaseClass):
+class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
     """
     Manager class to calculate wake-fields.
 
@@ -364,6 +367,9 @@ class WakeField(ImpedanceBaseClass):
         Section index to group elements into sections.
     profile
         Object for calculation of beam profiles.
+    delayed_kick
+        The common interface to apply the kick later.
+        `PooledInterpolationKick.track(...)` must be executed elsewhere.
 
     Attributes
     ----------
@@ -371,6 +377,9 @@ class WakeField(ImpedanceBaseClass):
         List of sources that cause wake-fields.
     solver
         Solver to calculate the induced voltage from the sources.
+    update_induced_voltage
+        If ``False``, will not update the induced voltage based on the profile,
+        but rather re-use the previously calculated induced voltage.
 
     See Also
     --------
@@ -401,11 +410,17 @@ class WakeField(ImpedanceBaseClass):
         solver: WakeFieldSolver,
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
+        delayed_kick: PooledInterpolationKick | None = None,
     ):
-        super().__init__(section_index=section_index, profile=profile)
+        super().__init__(
+            section_index=section_index,
+            profile=profile,
+            delayed_kick=delayed_kick,
+        )
 
         self.solver = solver
         self.sources = sources
+        self.update_induced_voltage = True
         self._induced_voltage = None
         self.track_profile = True
 
@@ -447,7 +462,7 @@ class WakeField(ImpedanceBaseClass):
         return self._induced_voltage
 
     @requires(["MagneticCycleBase"])
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -455,8 +470,10 @@ class WakeField(ImpedanceBaseClass):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
+        super().on_init_simulation(simulation=simulation, **kwargs)
         assert len(self.sources) > 0, (
             "Provide for at least one `WakeFieldSource`"
         )
@@ -485,7 +502,7 @@ class WakeField(ImpedanceBaseClass):
         ]
         # the induced voltage has to be provided with the backend precision
         # because the track() method below requires it by calling the backend.
-        return self.induced_voltage[: self.profile.n_bins]
+        return self.induced_voltage
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -498,19 +515,31 @@ class WakeField(ImpedanceBaseClass):
         """
         if self.profile.active and self.track_profile:
             self.profile.track(beam=beam)
-        induced_voltage = self.calc_induced_voltage(beam=beam)
+        if self.update_induced_voltage:
+            self.calc_induced_voltage(beam=beam)
+        induced_voltage = self.induced_voltage
         assert induced_voltage.dtype == backend.float, (
             f"{induced_voltage.dtype}"
         )
-        backend.specials.kick_induced_voltage(
-            dt=beam.read_partial_dt(),
-            dE=beam.write_partial_dE(),
-            # TODO improve induced_voltage calculation data type for speedup
-            voltage=induced_voltage.astype(backend.float),
-            bin_centers=self.profile.hist_x,  # base for induced voltage
-            charge=beam.signed_charge_with_direction(),
-            acceleration_kick=0.0,  # TODO was this ever required??
-        )
+        voltage = induced_voltage.astype(backend.float)
+        bin_centers = self.profile.hist_x  # base for induced voltage
+        if self._delayed_kick is not None:
+            # Relies on PooledInterpolationKick.track()
+            # being called later.
+            self._delayed_kick.register(
+                time_axis=bin_centers,
+                voltage=voltage,
+            )
+        else:
+            backend.specials.kick_interpolated(
+                dt=beam.read_partial_dt(),
+                dE=beam.write_partial_dE(),
+                # TODO improve induced_voltage calculation data type for speedup
+                voltage=voltage,
+                bin_centers=bin_centers,  # base for induced voltage
+                charge=beam.signed_charge_with_direction(),
+                acceleration_kick=0.0,
+            )
 
     @staticmethod
     def headless(
@@ -525,7 +554,7 @@ class WakeField(ImpedanceBaseClass):
 
         Parameters
         ----------
-        beam : BeamBaseClass
+        beam
             The `Beam` object which state will be updated by this element.
         sources
             List of sources that cause wake-fields.
@@ -559,3 +588,30 @@ class WakeField(ImpedanceBaseClass):
             n_turns=1,
         )
         return wf
+
+
+class SupportsVectorFittedModel(ABC):
+    """
+    Mixin to define sources with poles.
+
+    See Also
+    --------
+    blond.physics.impedances.solvers.MultiPoleSparseSolve : The corresponding wakefield solver.
+    """
+
+    @abstractmethod  # pragma: no cover
+    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
+        """
+        Derive the poles and residues as in vector-fitting.
+
+        Returns
+        -------
+        poles
+            Complex poles of an equivalent circuit model.
+        residues
+            Complex residues of an equivalent circuit model.
+        counterrotation_signs
+            Signs of the poles to deal with higher order oscillators
+            in counterrotation. Default is ``1``.
+        """
+        pass

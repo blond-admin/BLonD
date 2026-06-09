@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -17,13 +17,12 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
 from tqdm import tqdm
 
-from blond import copy_to_cpu
 from blond.acc_math.empiric.potential_well import PotentialWellHelper
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.callables import (
     occupation_per_equipotential_to_density,
     occupation_per_equipotential_to_histogram,
 )
-from blond.generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore

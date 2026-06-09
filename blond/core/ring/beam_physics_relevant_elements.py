@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.base import Preparable
-from blond.core.beam.base import BeamBaseClass
 from blond.core.helpers import find_instances_by_class
 from blond.core.ring.helpers import filter_elements
 from blond.core.simulation.simulation import Simulation
@@ -120,29 +119,6 @@ class BeamPhysicsRelevantElements(Preparable):
                     raise RuntimeError(
                         f"Missing drift in section {section_index}"
                     )
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
 
     def get_sections_indices(self) -> tuple[int, ...]:
         """
@@ -482,6 +458,7 @@ class BeamPhysicsRelevantElements(Preparable):
         assert self.count(RFStationBaseClass, section_i=section_index) == 1, (
             f"Only one RF station per section allowed, but got "
             f"{self.count(RFStationBaseClass, section_i=section_index)}"
+            f" in section {section_index}."
         )
         elements_in_section = [
             e for e in self.elements if e.section_index == section_index

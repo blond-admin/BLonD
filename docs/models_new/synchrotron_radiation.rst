@@ -200,7 +200,7 @@ The synchrotron radiation framework consists of:
 
 **Base Class**
 
-- :class:`SynchrotronRadiationBaseClass`: abstract class holding basic
+- :class:`~blond.physics.synchrotron_radiation.base.SynchrotronRadiationBaseClass`: abstract class holding basic
 properties for tracking with synchrotron radiation, computes the energy kick
 given to the beam and updates the beam energy accordingly during the
 simulation.
@@ -210,7 +210,7 @@ simulation.
 - :class:`SynchrotronRadiationMaster`:  this object creates and inserts
 synchrotron radiation trackers into the ring.
 
-- :class:`_SynchrotronRadiationTracker`: internal tracker called by the
+- ``_SynchrotronRadiationTracker``: internal tracker called by the
 :class:`SynchrotronRadiationMaster`. Trackers are inserted before drift
 elements and after RF cavities.
 
@@ -260,7 +260,7 @@ method performs the following steps:
 
 5. **Runtime tracking**
 
-   During the simulation, each tracker's :meth:`track` method:
+   During the simulation, each tracker's ``track`` method:
 
        a. Computes current synchrotron radiation parameters from current beam
        energy, namely the estimated energy lost per turn, longitudinal damping time
