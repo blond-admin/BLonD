@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -627,7 +627,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
-        Checks that the per-step decay is not too large.
+        Check that the per-step decay is not too large.
 
         Checks that the per-step decay and detuning-induced phase rotation
         are small, since cavity_response() advances the antenna voltage by
@@ -1168,8 +1168,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
     def plot_antenna_voltage(self, show: bool = True):
         """
-        Debug helper: plot the coarse-grid antenna voltage (real, imaginary
-        and absolute value) against the rf_centers time base.
+        Plot the coarse-grid antenna voltage for debugging.
+
+        Plots the real, imaginary and absolute value of the coarse-grid
+        antenna voltage against the rf_centers time base.
 
         Only sensible to call after circuit_track() has populated
         antenna_voltage_coarse_grid; intended to be used with debug=True
@@ -1198,7 +1200,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         v = self.antenna_voltage_coarse_grid[-n:]
 
         fig, (ax_re, ax_abs) = plt.subplots(2, 1, sharex=True)
-        fig.suptitle("IQCavityFeedbackTimingClass: antenna voltage (coarse grid)")
+        fig.suptitle(
+            "IQCavityFeedbackTimingClass: antenna voltage (coarse grid)"
+        )
 
         ax_re.plot(t, np.real(v), label="real")
         ax_re.plot(t, np.imag(v), label="imag")
@@ -1327,9 +1331,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         previous_voltage: complex,
     ) -> None:
         """
-        Warn (once) if the beam-induced voltage kick within a single
-        coarse-grid step is not small compared to the antenna voltage
-        it is added to.
+        Warn (once) if the beam-induced voltage kick is too large.
+
+        Warns if the beam-induced voltage kick within a single coarse-grid
+        step is not small compared to the antenna voltage it is added to.
 
         The beam-loading term ``-I_beam * 0.5 * R_over_Q * omega * dt`` is,
         like the cavity decay/detuning terms, a forward-Euler increment.
