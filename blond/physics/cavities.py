@@ -473,6 +473,18 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         pass
 
+    @abstractmethod
+    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+        """
+        Return the LocalFeedback acting on the main harmonic.
+
+        Returns
+        -------
+        main_harmonic_cavity_feedback
+            The cavity feedback of the main harmonic, if it exists.
+        """
+        pass
+
     def _get_gap_voltage_per_harmonic(
         self,
         ts: NumpyArray,
@@ -1129,6 +1141,17 @@ class SingleHarmonicRFStation(
         """
         return self.omega_rf_design
 
+    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+        """
+        Return the LocalFeedback acting on the main harmonic.
+
+        Returns
+        -------
+        main_harmonic_cavity_feedback
+            The cavity feedback of the main harmonic, if it exists.
+        """
+        return self.cavity_feedback_list[0]
+
     def calc_gap_voltage_without_feedbacks(
         self, ts: NumpyArray
     ) -> NumpyArray | CupyArray:
@@ -1645,6 +1668,17 @@ class MultiHarmonicRFStation(
             The omega_rf_design of the main harmonic, in [rad/s].
         """
         return self.omega_rf_design[self.main_harmonic_idx]
+
+    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+        """
+        Return the LocalFeedback acting on the main harmonic.
+
+        Returns
+        -------
+        main_harmonic_cavity_feedback
+            The cavity feedback of the main harmonic, if it exists.
+        """
+        return self.cavity_feedback_list[self.main_harmonic_idx]
 
     def calc_gap_voltage_without_feedbacks(
         self, ts: NumpyArray
