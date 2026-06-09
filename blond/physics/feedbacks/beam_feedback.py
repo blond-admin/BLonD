@@ -171,7 +171,15 @@ class BeamFeedbackBase(GlobalFeedback):
         """
         # Main RF frequency at the present turn
         omega_rf = self.main_cavities[0].get_main_harmonic_omega_rf()
-        phi_rf = self.main_cavities[0].get_main_harmonic_phi_rf()
+
+        # Calculate RF phase based on all the rf stations
+        phi_rfs = self.get_from_all_rf_stations(
+            "get_main_harmonic_phi_rf", cavity_list=self.main_cavities
+        )
+        voltages = self.get_from_all_rf_stations(
+            "get_main_harmonic_voltage", cavity_list=self.main_cavities
+        )
+        phi_rf = np.angle(np.sum(voltages * np.exp(1j * phi_rfs)))
 
         if self.time_offset is None:
             coeff = backend.specials.beam_phase(
