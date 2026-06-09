@@ -183,6 +183,14 @@ class LHCBeamControl(BeamFeedbackBase):
         dphi_rf = self.cavities[0].delta_phi_rf
 
         self.phase_difference(beam)
+        self.cavity_sum_phase()
+
+        # Take into account the synchronous phase
+        self.dphi = (
+            self.dphi
+            + np.pi
+            - self.main_cavities[0].calc_phi_s_main_harmonic(beam)
+        )
 
         # Frequency correction from phase loop and synchro loop
         self.domega_rf = -self.pl_gain * self.dphi - self.sl_gain * (

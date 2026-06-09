@@ -216,8 +216,16 @@ class SPSBeamControl(BeamFeedbackBase):
             / self.cavities[0].get_main_harmonic_omega_rf_design()
         )
 
-        # Phase loop
+        # Phase difference
         self.phase_difference(beam)
+        self.cavity_sum_phase()
+
+        # Take into account the synchronous phase
+        self.dphi = (
+            self.dphi
+            + np.pi
+            - self.main_cavities[0].calc_phi_s_main_harmonic(beam)
+        )
 
         # Phase loop
         self.domega_dphi = (
