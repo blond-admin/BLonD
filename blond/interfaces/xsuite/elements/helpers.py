@@ -167,8 +167,8 @@ def particles_to_beam(particles, beam: BeamBaseClass, frame: ReferenceFrame):
         write-back via :func:`beam_to_particles`.
     """
     active = particles.state > 0
-    dt = beam.write_partial_dt()
-    dE = beam.write_partial_dE()
+    dt = beam.dt.array_local
+    dE = beam.dE.array_local
     flags = beam.write_partial_flags()
 
     dt[:] = zeta_to_dt(particles.zeta, frame)
@@ -203,7 +203,7 @@ def beam_to_particles(
     """
     if active is None:
         active = particles.state > 0
-    dt = beam.read_partial_dt()
-    dE = beam.read_partial_dE()
+    dt = beam.dt.array_local
+    dE = beam.dE.array_local
     particles.zeta[active] = dt_to_zeta(dt[active], frame)
     particles.ptau[active] = dE_to_ptau(dE[active], frame)
