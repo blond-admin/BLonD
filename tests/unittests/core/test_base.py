@@ -134,7 +134,7 @@ class TestBeamPhysicsRelevantTrack(unittest.TestCase):
 
         element = TrackerHelper(section_index=0)
         element.active = False
-        element.track(beam=object())
+        element.track(beam=None)
         self.assertEqual(call_log, [])
 
 
@@ -270,7 +270,7 @@ class TestPreparable(unittest.TestCase):
 
     def test_configure_run_accepts_known_kwargs(self):
         # beam and n_turns are consumed explicitly, nothing left over
-        self.preparable.configure_run(beam=object(), n_turns=10)
+        self.preparable.configure_run(beam=None, n_turns=10)
 
     def test_configure_run_raises_on_unexpected_kwargs(self):
         with self.assertRaisesRegex(
@@ -278,7 +278,7 @@ class TestPreparable(unittest.TestCase):
             r"PreparableHelper\.configure_run\(\) received unexpected "
             r"keyword arguments: \['typo'\]",
         ):
-            self.preparable.configure_run(beam=object(), n_turns=10, typo=1)
+            self.preparable.configure_run(beam=None, n_turns=10, typo=1)
 
 
 class TestFunctions(unittest.TestCase):

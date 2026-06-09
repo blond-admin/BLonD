@@ -186,7 +186,12 @@ class GlobalFeedback(FeedbackBaseClass):
             **kwargs,
         )
 
-    def configure(self, *, cavities, **kwargs) -> None:
+    def configure(
+        self,
+        *,
+        cavities: list[SingleHarmonicRFStation | MultiHarmonicRFStation],
+        **kwargs,
+    ) -> None:
         """
         Store the RF station list.
 

@@ -93,6 +93,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
     def configure_run(
         self,
+        *,
         beam: BeamBaseClass,
         n_turns: int,
         **kwargs: dict[str, Any],
@@ -632,6 +633,7 @@ class DynamicProfile(ProfileBaseClass):
 
     def configure_run(
         self,
+        *,
         beam: BeamBaseClass,
         n_turns: int,
         **kwargs: dict[str, Any],

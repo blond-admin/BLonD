@@ -22,6 +22,7 @@ from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
     BeamPhysicsRelevant,
+    DynamicParameter,
     HasSymbolicHamiltonian,
     Schedulable,
 )
@@ -177,6 +178,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             radiation_integrals=radiation_integrals,
             **kwargs,  # for MRO of fused elements
         )
+
+        self._turn_counter: DynamicParameter | None = None
+
         self._add_intended_schedule("momentum_compaction_factor")
 
         self._simulation: Simulation | None = None
@@ -246,7 +250,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
                 "or `.schedule(attribute='momentum_compaction_factor', value=...)`"
             )
 
-    def configure(self, *, turn_counter, **kwargs) -> None:
+    def configure(
+        self, *, turn_counter: DynamicParameter | None = None, **kwargs
+    ) -> None:
         """
         Store the turn counter needed for schedule application during tracking.
 
@@ -257,8 +263,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         **kwargs
             Passed to the next level in the MRO chain.
         """
-        super().configure(**kwargs)
         self._turn_counter = turn_counter
+        super().configure(**kwargs)
 
     def _track(self, beam: BeamBaseClass) -> None:
         """

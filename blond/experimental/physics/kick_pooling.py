@@ -101,6 +101,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
 
     def configure_run(
         self,
+        *,
         beam: BeamBaseClass,
         n_turns: int,
         **kwargs: dict[str, Any],

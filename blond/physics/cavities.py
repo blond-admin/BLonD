@@ -94,6 +94,8 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             **kwargs,  # for MRO of fused elements
         )
         self._turn_counter: DynamicParameter | None = None
+        self._magnetic_cycle: MagneticCycleBase | None = None
+        self._ring: Ring | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -115,7 +117,12 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         )
 
     def configure(
-        self, *, turn_counter, magnetic_cycle, ring, **kwargs
+        self,
+        *,
+        turn_counter: DynamicParameter | None = None,
+        magnetic_cycle: MagneticCycleBase | None = None,
+        ring: Ring,
+        **kwargs,
     ) -> None:
         """
         Store the runtime references needed during tracking.
@@ -424,6 +431,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
     def configure_run(
         self,
+        *,
         beam: BeamBaseClass,
         n_turns: int,
         **kwargs: dict[str, Any],
@@ -1379,7 +1387,7 @@ class SingleHarmonicRFStation(
         )
 
         single_harmonic_rf_station.configure_run(
-            SimpleNamespace(
+            beam=SimpleNamespace(
                 reference=SimpleNamespace(beta=beam_reference_beta)
             ),
             n_turns=1,
@@ -1895,7 +1903,7 @@ class MultiHarmonicRFStation(
             ),
         )
         multi_harmonic_rf_station.configure_run(
-            SimpleNamespace(
+            beam=SimpleNamespace(
                 reference=SimpleNamespace(beta=beam_reference_beta)
             ),
             n_turns=1,

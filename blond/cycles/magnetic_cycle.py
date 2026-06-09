@@ -153,6 +153,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
     def configure_run(
         self,
+        *,
         beam: BeamBaseClass,
         n_turns: int,
         **kwargs: dict[str, Any],
@@ -1091,7 +1092,7 @@ class MagneticCycleByTime(MagneticCycleBase):
                 stacklevel=1,
             )
 
-    def configure(self, **kwargs) -> None:
+    def configure(self, *, n_turns_max: int | None = None, **kwargs) -> None:
         """
         Inject ``n_turns_max=None`` into the base configure chain.
 
@@ -1100,10 +1101,13 @@ class MagneticCycleByTime(MagneticCycleBase):
 
         Parameters
         ----------
+        n_turns_max
+            Blond-internal variable to for automatic simulation setup.
+            Default None and set by ``Simulation(...).on_init_simulation``.
         **kwargs
             Passed to the next level in the MRO chain.
         """
-        super().configure(n_turns_max=None, **kwargs)
+        super().configure(n_turns_max=n_turns_max, **kwargs)
 
     def _calc_n_turns_max(self, simulation: Simulation):
         """

@@ -92,7 +92,13 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
                 f"Expected MagneticCycleByTime, got {type(self._magnetic_cycle).__name__}"
             )
 
-    def configure(self, *, turn_counter, magnetic_cycle, **kwargs) -> None:
+    def configure(
+        self,
+        *,
+        turn_counter: DynamicParameter,
+        magnetic_cycle: MagneticCycleBase,
+        **kwargs,
+    ) -> None:
         """
         Store the runtime references needed during tracking.
 

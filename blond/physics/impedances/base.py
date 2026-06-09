@@ -338,7 +338,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
             profile = self._profile
         super().on_init_simulation(simulation, profile=profile, **kwargs)
 
-    def configure(self, *, profile, **kwargs) -> None:
+    def configure(self, *, profile: ProfileBaseClass, **kwargs) -> None:
         """
         Store the profile used for induced-voltage calculations.
 
