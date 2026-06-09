@@ -10,7 +10,10 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+import numpy.typing as npt
 
 from blond.core.beam.beams import Beam
 from blond.core.beam.flags import BeamFlags
@@ -21,8 +24,13 @@ from blond.interfaces.xsuite.elements.helpers import (
     particles_to_beam,
 )
 
+if TYPE_CHECKING:  # pragma: no cover
+    from xtrack import Particles
 
-def _scalar(x) -> float:
+    from blond.core.base import BeamPhysicsRelevant
+
+
+def _scalar(x: npt.ArrayLike) -> float:
     """
     Extract a Python float from an xsuite scalar/0-d/1-d quantity.
 
@@ -82,11 +90,11 @@ class WrapBlond4Xsuite:
     current reference.
     """
 
-    def __init__(self, element):
+    def __init__(self, element: BeamPhysicsRelevant) -> None:
         self._element = element
         self._beam: Beam | None = None
 
-    def track(self, particles) -> None:
+    def track(self, particles: Particles) -> None:
         """
         Track xsuite ``particles`` through the wrapped BLonD element.
 
@@ -98,14 +106,25 @@ class WrapBlond4Xsuite:
         """
         beta0 = _scalar(particles.beta0)
         energy0 = _scalar(particles.energy0)
-        frame = ReferenceFrame(beta0=beta0, energy0=energy0)
+        frame = ReferenceFrame(
+            beta0=beta0,
+            energy0=energy0,
+        )
 
         n = int(np.asarray(particles.zeta).shape[0])
         if self._beam is None or len(self._beam.read_partial_dt()) != n:
-            self._build_beam(particles, energy0, n)
+            self._build_beam(
+                particles=particles,
+                energy0=energy0,
+                n=n,
+            )
 
         self._beam.reference.total_energy = energy0
-        active_at_input = particles_to_beam(particles, self._beam, frame)
+        active_at_input = particles_to_beam(
+            particles=particles,
+            beam=self._beam,
+            frame=frame,
+        )
         self._element.track(self._beam)
 
         # The BLonD element may have flagged additional particles LOST
@@ -121,15 +140,23 @@ class WrapBlond4Xsuite:
         if newly_lost.any():
             particles.state[newly_lost] = -1
         beam_to_particles(
-            self._beam, particles, frame, active_at_input & blond_active_now
+            beam=self._beam,
+            particles=particles,
+            frame=frame,
+            active=active_at_input & blond_active_now,
         )
 
-    def _build_beam(self, particles, energy0: float, n: int) -> None:
+    def _build_beam(
+        self, particles: Particles, energy0: float, n: int
+    ) -> None:
         particle_type = ParticleType(
             mass=_scalar(particles.mass0),
             charge=_scalar(particles.q0),
         )
-        self._beam = Beam(intensity=1.0, particle_type=particle_type)
+        self._beam = Beam(
+            intensity=1.0,  # FIXME translate intensity correctly from xsuite
+            particle_type=particle_type,
+        )
         self._beam.setup_beam(
             dt=np.zeros(n),
             dE=np.zeros(n),

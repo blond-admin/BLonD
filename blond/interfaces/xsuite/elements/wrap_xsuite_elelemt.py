@@ -26,7 +26,7 @@ alongside the wrapper.
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -42,6 +42,8 @@ from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
+    from xtrack import Particles
+
     from blond.core.beam.base import BeamBaseClass
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 
@@ -173,9 +175,11 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
     # check — does not count it as an accelerating station.
     counts_as_rf_station = False  # FIXME 20260609.0
 
-    def __init__(self, xsuite_element, orbit_length: float | None = None):
+    def __init__(
+        self, xsuite_element, orbit_length: float | None = None
+    ) -> None:
         self._xsuite_element = xsuite_element
-        self._particles = None
+        self._particles: Particles | None = None
         self._p0c_buf: np.ndarray | None = None
 
         # Refuse a wrapped ``xt.Line`` that carries its own ``EnergyProgram``:
@@ -265,7 +269,7 @@ class WrapXsuite4Blond(RFStationBaseClass, DriftBaseClass):
         "matching parameters if you need BLonD-side analytics."
     )
 
-    def eta_0(self, gamma: float):
+    def eta_0(self, gamma: float) -> float:
         """
         Not mapped by this black-box wrapper (raises).
 
