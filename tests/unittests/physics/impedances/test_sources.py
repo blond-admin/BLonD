@@ -698,6 +698,107 @@ class TestResonators(unittest.TestCase):
                 # plt.savefig("")
                 plt.show()
 
+    def test_corot_counterrot_wake_decay_match_over_long_time(self):
+        """
+        Co- and counter-rotating wakes must share the envelope exp(-alpha t).
+
+        Both ``get_wake`` and ``get_wake_counter_rotation`` describe the same
+        resonator and must decay with the standard amplitude envelope
+        ``exp(-alpha * t)``, ``alpha = omega_r / (2 * Q)`` -- consistent with
+        ``calculate_envelope`` and the analytic resonator wake.
+        """
+        shunt, freq, q_factor = 1e3, 1e9, 50.0
+        res = Resonators(
+            shunt_impedances=np.array([shunt]),
+            center_frequencies=np.array([freq]),
+            quality_factors=np.array([q_factor]),
+            shunt_impedances_counter_rotating=np.array([-shunt]),
+        )
+        alpha = float(copy_to_cpu(res._alpha[0]))
+
+        # Several decay times, finely sampled to resolve the oscillation.
+        time = backend.linspace(0.0, 6.0 / alpha, 400000)
+        time_cpu = copy_to_cpu(time)
+        corot = copy_to_cpu(res.get_wake(time=time))
+        counter = copy_to_cpu(res.get_wake_counter_rotation(time=time))
+
+        def envelope_fit(wake: NumpyArray):
+            # Fit log(|peak amplitude|) vs time of the oscillation lobes.
+            peak_idx, _ = find_peaks(np.abs(wake))
+            interior = (time_cpu[peak_idx] > 0.2 / alpha) & (
+                time_cpu[peak_idx] < 5.0 / alpha
+            )
+            peak_idx = peak_idx[interior]
+            slope, intercept = np.polyfit(
+                time_cpu[peak_idx], np.log(np.abs(wake[peak_idx])), 1
+            )
+            return float(-slope), peak_idx, slope, intercept
+
+        rate_corot, peaks_corot, slope_corot, icpt_corot = envelope_fit(corot)
+        rate_counter, peaks_counter, slope_counter, icpt_counter = (
+            envelope_fit(counter)
+        )
+
+        DEV_DEBBUG = False
+        if DEV_DEBBUG:
+            with plt.rc_context({"font.size": 16}):
+                fig, ax = plt.subplots()
+                t_ns = time_cpu * 1e9
+                ax.semilogy(
+                    t_ns, np.abs(corot), color="C0", alpha=0.3, linewidth=1
+                )
+                ax.semilogy(
+                    t_ns, np.abs(counter), color="C1", alpha=0.3, linewidth=1
+                )
+                ax.semilogy(
+                    t_ns[peaks_corot],
+                    np.abs(corot[peaks_corot]),
+                    ".",
+                    color="C0",
+                    label=f"co-rot peaks (rate={rate_corot / alpha:.2f} alpha)",
+                )
+                ax.semilogy(
+                    t_ns[peaks_counter],
+                    np.abs(counter[peaks_counter]),
+                    ".",
+                    color="C1",
+                    label=(
+                        f"counter-rot peaks "
+                        f"(rate={rate_counter / alpha:.2f} alpha)"
+                    ),
+                )
+                ax.semilogy(
+                    t_ns,
+                    np.exp(icpt_corot + slope_corot * time_cpu),
+                    "--",
+                    color="C0",
+                )
+                ax.semilogy(
+                    t_ns,
+                    np.exp(icpt_counter + slope_counter * time_cpu),
+                    "--",
+                    color="C1",
+                )
+                # Expected physical envelope ~ exp(-alpha t), anchored at
+                # the co-rotating intercept for visual reference.
+                ax.semilogy(
+                    t_ns,
+                    np.exp(icpt_corot - alpha * time_cpu),
+                    "k:",
+                    label="expected exp(-alpha t)",
+                )
+                ax.set_xlabel("time [ns]")
+                ax.set_ylabel("|wake| [V/pC]")
+                ax.set_title("Resonator wake decay: co- vs counter-rotating")
+                ax.legend()
+                plt.tight_layout()
+                plt.show()
+
+        # Both wakes must decay at the physical rate alpha, and hence agree.
+        np.testing.assert_allclose(rate_corot, alpha, rtol=0.05)
+        np.testing.assert_allclose(rate_counter, alpha, rtol=0.05)
+        np.testing.assert_allclose(rate_counter, rate_corot, rtol=0.05)
+
     def test_get_impedance_from_wake(self):
         if backend.float != np.float32:
             self.skipTest("test only configured for float32")
