@@ -21,9 +21,9 @@ if TYPE_CHECKING:  # pragma: no cover
 RNG = np.random.default_rng()
 
 try:
-    np.trapezoid
-except AttributeError:
-    np.trapezoid = np.trapz
+    from numpy import trapezoid
+except ImportError as e:
+    from numpy import trapz as trapezoid
 
 # --------------- Similar to kick.cpp -----------------
 def kick(
@@ -536,13 +536,13 @@ def beam_phase(
     phi_rf: float,
     bin_size: float,
 ) -> float:
-    scoeff = np.trapezoid(
+    scoeff = trapezoid(
         np.exp(alpha * (bin_centers))
         * np.sin(omega_rf * bin_centers + phi_rf)
         * profile,
         dx=bin_size,
     )
-    ccoeff = np.trapezoid(
+    ccoeff = trapezoid(
         np.exp(alpha * (bin_centers))
         * np.cos(omega_rf * bin_centers + phi_rf)
         * profile,
@@ -559,10 +559,10 @@ def beam_phase_fast(
     phi_rf: float,
     bin_size: float,
 ) -> float:
-    scoeff = np.trapezoid(
+    scoeff = trapezoid(
         profile * np.sin(omega_rf * bin_centers + phi_rf), dx=bin_size
     )
-    ccoeff = np.trapezoid(
+    ccoeff = trapezoid(
         profile * np.cos(omega_rf * bin_centers + phi_rf), dx=bin_size
     )
 
