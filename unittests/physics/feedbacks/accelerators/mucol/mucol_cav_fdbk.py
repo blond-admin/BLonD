@@ -851,7 +851,7 @@ def benchmark_single_turn_fine_grid_vs_resonator(
     if len(delta_omega_list) == 1:
         axes = [axes]
 
-    for ax, delta_omega in zip(axes, delta_omega_list):
+    for ax, delta_omega in zip(axes, delta_omega_list, strict=False):
         r = compute_single_turn_fine_grid_vs_resonator(delta_omega=delta_omega)
         print(
             f"delta_omega={delta_omega:+.3e} rad/s | "
