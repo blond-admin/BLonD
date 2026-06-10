@@ -7,7 +7,10 @@
 # Project website: http://blond.web.cern.ch/
 
 import os
+import sys
 import unittest
+import importlib
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -139,3 +142,33 @@ class TestVariNoiseLibrary(unittest.TestCase):
         self.assertEqual(out.shape, (n_turns,))
         self.assertEqual(out.dtype, np.double)
         self.assertTrue(np.all(np.isfinite(out)))
+
+    @pytest.mark.skipif(
+        not _RUN_RF_NOISE,
+        reason="rf-noise-cpp library not available",
+    )
+    # Force import failure
+    @patch(
+        "blond.interfaces.rf_noise_cpp.wrap_rf_noise.rf_noise",
+        side_effect=ImportError("forced failure"),
+    )
+    def test_delayed_crash(self, mock_rf_noise):
+        import importlib
+        import numpy as np
+        import pytest
+
+        from blond.cycles import noise_generators
+
+        importlib.reload(noise_generators)
+
+        n_turns = 10
+
+        noise = noise_generators.VariNoise(
+            frequency_high=np.full(n_turns, 100.0),
+            frequency_low=np.full(n_turns, 200.0),
+            gain_y=_flat_spectrum(),
+            sampling_rate=_SAMPLING_RATE,
+        )
+
+        with pytest.raises(Exception):
+            noise.get_noise(n_turns=n_turns)
