@@ -90,7 +90,7 @@ class LHCBeamControl(BeamFeedbackBase):
         self.beam_phase()
 
     def apply_corrections(self, beam: BeamBaseClass):
-        counter = self.cavities[0]._turn_i.value
+        counter = self.cavities[0]._turn_counter.value
         dphi_rf = self.cavities[0].delta_phi_rf
 
         self.phase_difference(beam)

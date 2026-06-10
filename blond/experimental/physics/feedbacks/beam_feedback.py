@@ -121,7 +121,7 @@ class BeamFeedbackBase(GlobalFeedback):
         """
 
         # Correct for design stable phase
-        counter = self.cavities[0]._turn_i.value
+        counter = self.cavities[0]._turn_counter.value
         self.dphi = self.phi_beam - self.cavities[0].calc_phi_s_main_harmonic(
             beam
         )
@@ -166,7 +166,7 @@ class BeamFeedbackBase(GlobalFeedback):
             beam=beam,
         )
 
-        if self.cavities[0]._turn_i.value >= self.delay:
+        if self.cavities[0]._turn_counter.value >= self.delay:
             # TODO incorrect for simulations that start later
             # domega_rf is updated later
             # this means domega_rf is effectively from last turn
