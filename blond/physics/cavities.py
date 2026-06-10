@@ -259,7 +259,11 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             LocalFeedback | LocalFeedbackExp | None
         ] = [None for _ in range(self._n_rf)]
 
-        if cavity_feedback is not None:
+        if not isinstance(cavity_feedback, list | None):
+            self.attach_cavity_feedback(
+                cavity_feedback=cavity_feedback, harmonic_index=0
+            )
+        elif cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
 
         self._beam_feedback: BeamFeedbackBase | None = (
