@@ -1,4 +1,4 @@
-exclude: ^(legacy|blond3/legacy/|builds)
+exclude: ^(legacy|blond/legacy/|builds)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -20,6 +20,13 @@ repos:
     hooks:
       - id: isort
         args: ["--profile", "black", "--line-length", "79"] # otherwise not compatible with Ruf
+
+  # keep python syntax up-to-date
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.21.2
+    hooks:
+      - id: pyupgrade
+        args: [--py310-plus]
 
   # https://pre-commit.com/
   # use `ruff check` to debug this hook
