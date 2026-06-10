@@ -362,3 +362,102 @@ def cavity_response_sparse_matrix(
     # Solve the sparse linear system of equations and return
     return spsolve(B_matrix, b)[1:]
     # first value is intial condition
+
+
+def cavity_response_sparse_matrix_second_order(
+    I_beam: NumpyArray,
+    I_gen: NumpyArray,
+    V_ant_init: float,
+    I_gen_init: float,
+    samples_per_rf: float,
+    R_over_Q: float,
+    Q_L: float,
+    relative_detuning: float,
+):
+    r"""
+    Second-order (trapezoidal / Crank-Nicolson) ACS cavity response solver.
+
+    Drop-in alternative to :func:`cavity_response_sparse_matrix`. It solves
+    the same cavity-envelope ODE
+
+    .. math::
+        \frac{\mathrm{d}V}{\mathrm{d}t}
+        = \Big(-\frac{\omega}{2 Q_L} + i\,\Delta\omega\Big) V
+          + \frac{R/Q\,\omega}{2}\,(2 I_{\mathrm{gen}} - I_{\mathrm{beam}}),
+
+    but integrates it with the trapezoidal rule (averaging the homogeneous
+    term *and* the current drive over each step) instead of the forward-Euler
+    (left-endpoint) step used by :func:`cavity_response_sparse_matrix`. The
+    truncation error is therefore :math:`O(\Delta t^2)` rather than
+    :math:`O(\Delta t)`, which matters most at coarse binning (large
+    ``samples_per_rf``).
+
+    With ``lam = -0.5 * samples_per_rf / Q_L + 1j * relative_detuning *
+    samples_per_rf`` (so ``B = 1 + lam`` of the first-order solver) and the
+    per-step drive ``s[i] = A * (2 I_gen[i] - I_beam[i])``, the recursion is
+
+    .. math::
+        (1 - \mathrm{lam}/2)\,V_i
+        = (1 + \mathrm{lam}/2)\,V_{i-1} + \tfrac12 (s_{i-1} + s_i).
+
+    Parameters
+    ----------
+    I_beam : complex array
+        RF beam current.
+    I_gen : complex array
+        Generator current.
+    V_ant_init : complex float
+        Initial condition for the antenna voltage.
+    I_gen_init : complex float
+        Initial condition for the generator current.
+    samples_per_rf : float
+        Number of samples per RF period == sampling time * actual rf frequency.
+    R_over_Q : float
+        The R over Q of the cavity.
+    Q_L : float
+        The loaded quality factor of the cavity.
+    relative_detuning : float
+        The detuning of the cavity in frequency divided by the rf frequency.
+
+    Returns
+    -------
+    complex array
+        The antenna voltage evaluated for the same period as I_beam and I_gen
+        of length len(I_gen).
+    """
+    assert len(I_beam) == len(I_gen), (
+        "length of beam and generator currents need to match"
+    )
+
+    # Extend arrays to take initial values into account
+    internal_I_gen = np.concatenate(([I_gen_init], I_gen))
+    internal_I_beam = np.concatenate(([0j], I_beam))
+
+    n_samples = len(internal_I_gen)
+
+    A = 0.5 * R_over_Q * samples_per_rf
+    # lam == B - 1 of the first-order solver, i.e. (step size) * (decay/detuning)
+    lam = -0.5 * samples_per_rf / Q_L + 1j * relative_detuning * samples_per_rf
+
+    # Per-step current drive, identical to the first-order solver's source term
+    s = A * (2 * internal_I_gen - internal_I_beam)
+
+    # Bidiagonal trapezoidal system. Row 0 pins the initial condition
+    # (diagonal 1), all later rows use the Crank-Nicolson coefficients.
+    diagonal = np.full(n_samples, 1 - 0.5 * lam, dtype=complex)
+    diagonal[0] = 1.0
+    sub_diagonal = np.full(n_samples - 1, -(1 + 0.5 * lam), dtype=complex)
+    cn_matrix = diags(
+        [sub_diagonal, diagonal],
+        [-1, 0],
+        (n_samples, n_samples),
+        dtype=complex,
+        format="csc",
+    )
+
+    b = np.empty(n_samples, dtype=complex)
+    b[0] = V_ant_init
+    b[1:] = 0.5 * (s[:-1] + s[1:])
+
+    return spsolve(cn_matrix, b)[1:]
+    # first value is the initial condition

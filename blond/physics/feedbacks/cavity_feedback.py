@@ -30,6 +30,7 @@ from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.feedbacks.helpers import (
     cartesian_to_polar,
     cavity_response_sparse_matrix,
+    cavity_response_sparse_matrix_second_order,
     polar_to_cartesian,
     rf_beam_current,
 )
@@ -552,6 +553,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         Cavity detuning in [rad/s].
     debug
         Save debugging parameters during runtime.
+    second_order
+        If True, integrate the fine-grid cavity response with the second-order
+        (trapezoidal / Crank-Nicolson) solver instead of the default
+        first-order forward-Euler one. The second-order solver is much more
+        accurate at coarse profile binning (its error scales as the bin size
+        squared rather than linearly). Default is False.
     """
 
     def __init__(
@@ -565,6 +572,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         n_rf_periods_per_coarse_grid: int = 1,
         delta_omega: float = 0.0,
         debug: bool = False,
+        second_order: bool = False,
     ):
         super().__init__(
             profile=profile,
@@ -620,6 +628,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.n_cavities = n_cavities
 
         self.debug = debug
+
+        self.second_order = second_order
 
         self.generator_current_constant = generator_current
 
@@ -1630,7 +1640,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         #     )
         # else:
 
-        self.antenna_voltage_fine_grid = cavity_response_sparse_matrix(
+        cavity_response_solver = (
+            cavity_response_sparse_matrix_second_order
+            if self.second_order
+            else cavity_response_sparse_matrix
+        )
+        self.antenna_voltage_fine_grid = cavity_response_solver(
             I_beam=self.beam_current_fine_grid,
             I_gen=self.generator_current_fine_grid,
             V_ant_init=initial_voltage_fine_grid,
