@@ -6,10 +6,10 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+import importlib
 import os
 import sys
 import unittest
-import importlib
 from unittest.mock import patch
 
 import numpy as np
@@ -154,6 +154,7 @@ class TestVariNoiseLibrary(unittest.TestCase):
     )
     def test_delayed_crash(self, mock_rf_noise):
         import importlib
+
         import numpy as np
         import pytest
 
