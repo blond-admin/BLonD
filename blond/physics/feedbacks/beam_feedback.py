@@ -383,7 +383,7 @@ class BeamFeedbackBase(GlobalFeedback):
                 # this means domega_rf is effectively from last turn
                 omega_increment = (
                     self.domega_rf
-                    * cav.harmonic[:]
+                    * cav.harmonic
                     / self.main_harmonic  # dynamically updated by `update_domega_rf`
                 )
                 cav.delta_omega_rf = omega_increment
