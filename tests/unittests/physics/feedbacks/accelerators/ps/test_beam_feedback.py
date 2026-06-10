@@ -257,3 +257,9 @@ class TestPSBeamFeedback(unittest.TestCase):
         self.assertAlmostEqual(
             self.beam_control.domega_rf, -85220.39666892742, places=4
         )
+
+    def test_ps_beam_control_switch_harmonic_fail(self):
+        self.create_scenario(pl_gain=PL_gain, rl_gain=RL_gain, momentum=2.79e9)
+
+        with self.assertRaises(ValueError):
+            self.beam_control.update_main_rf_stations(harmonic=7)

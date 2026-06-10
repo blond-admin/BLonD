@@ -350,7 +350,7 @@ class BeamFeedbackBase(GlobalFeedback):
             self.main_rf_stations_mask[i] = harm == self.main_harmonic
 
         if not np.any(self.main_rf_stations_mask):
-            raise RuntimeError("No RF stations are on the main harmonic")
+            raise ValueError("No RF stations are on the main harmonic")
 
         self.main_cavities = list(
             compress(self.cavities, self.main_rf_stations_mask)
