@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock
 
 import numpy as np
 
@@ -7,14 +8,17 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicRFStation,
     Ring,
     Simulation,
+    SingleHarmonicRFStation,
     StaticProfile,
     backend,
     proton,
 )
 from blond.core.backends.backend import Numpy64Bit
+from blond.experimental.physics.feedbacks.base import (
+    LocalFeedback,
+)
 from blond.physics.feedbacks.accelerators.lhc import (
     LHCBeamControl,
 )
@@ -35,7 +39,13 @@ reference = -20
 
 
 class TestLHCBeamFeedback(unittest.TestCase):
-    def create_scenario(self, open_synchro: bool = False):
+    def create_scenario(
+        self,
+        open_synchro: bool = False,
+        time_offset: float | None = None,
+        delay: int = 0,
+        mock_cavity_feedback: bool = False,
+    ):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
 
@@ -54,12 +64,16 @@ class TestLHCBeamFeedback(unittest.TestCase):
             orbit_length=circumference, momentum_compaction_factor=alpha
         )
 
-        cavity = MultiHarmonicRFStation(
-            voltage=np.array([voltage]),
-            phi_rf=np.array([0.0]),
-            harmonic=np.array([h]),
-            n_harmonics=1,
-            main_harmonic_idx=0,
+        if mock_cavity_feedback:
+            cavity_feedback = Mock(spec=LocalFeedback)
+        else:
+            cavity_feedback = None
+
+        cavity = SingleHarmonicRFStation(
+            voltage=voltage,
+            phi_rf=0.0,
+            harmonic=h,
+            cavity_feedback=cavity_feedback,
         )
 
         f_rf = cavity.calc_main_harmonic_omega_rf_design(
@@ -82,6 +96,8 @@ class TestLHCBeamFeedback(unittest.TestCase):
             pl_gain=1 / (5 * t_rev) * 1,
             sl_gain=1 / (5 * t_rev) / 10 * int(not open_synchro),
             profile=self.profile,
+            time_offset=time_offset,
+            delay=delay,
         )
 
         cavity.attach_beam_feedback(self.beam_control)
@@ -145,13 +161,18 @@ class TestLHCBeamFeedback(unittest.TestCase):
             * (dphi_rf + self.beam_control.reference)
         )
 
-        self.assertAlmostEqual(synch_corr[0], -207.48175328)
+        self.assertAlmostEqual(synch_corr, -207.48175328)
 
-        self.assertAlmostEqual(self.beam_control.lhc_y[0], 0.01015636)
+        self.assertAlmostEqual(self.beam_control.lhc_y, 0.01015636)
 
         # Checks the correct calculation of the corrections for the next turn
         self.assertAlmostEqual(
-            self.beam_control.domega_rf[0] / 2 / np.pi, -91.91940957997551
+            self.beam_control.domega_rf / 2 / np.pi, -91.91940957997551
+        )
+
+        self.assertAlmostEqual(
+            self.beam_control.cavities[0].delta_omega_rf / 2 / np.pi,
+            -91.91940957997551,
         )
 
     def test_lhc_beam_control_synchro_open(self):
@@ -185,11 +206,38 @@ class TestLHCBeamFeedback(unittest.TestCase):
             * (dphi_rf + self.beam_control.reference)
         )
 
-        self.assertAlmostEqual(synch_corr[0], 0.0)
+        self.assertAlmostEqual(synch_corr, 0.0)
 
-        self.assertAlmostEqual(self.beam_control.lhc_y[0], 0.0)
+        self.assertAlmostEqual(self.beam_control.lhc_y, 0.0)
 
         # Checks the correct calculation of the corrections for the next turn
         self.assertAlmostEqual(
-            self.beam_control.domega_rf[0] / 2 / np.pi, -124.94115621564328
+            self.beam_control.domega_rf / 2 / np.pi, -124.94115621564328
         )
+
+        self.assertAlmostEqual(
+            self.beam_control.cavities[0].delta_omega_rf / 2 / np.pi,
+            -124.94115621564328,
+        )
+
+    def test_lhc_beam_control_time_offset(self):
+        self.create_scenario(time_offset=0.0)
+        # Checks the calculation done by the beam phase loop for the first turn
+        self.assertAlmostEqual(
+            self.beam_control.dphi * 180 / np.pi,
+            injection_offset_phase,
+            places=2,
+        )
+
+    def test_lhc_beam_control_delay(self):
+        self.create_scenario(
+            delay=1,
+        )
+
+        self.assertAlmostEqual(
+            self.beam_control.cavities[0].delta_omega_rf, 0.0
+        )
+
+    def test_lhc_beam_control_current_threshold(self):
+        with self.assertRaises(RuntimeError):
+            self.create_scenario(mock_cavity_feedback=True)

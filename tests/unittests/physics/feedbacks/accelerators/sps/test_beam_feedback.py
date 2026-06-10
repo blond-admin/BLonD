@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock
 
 import numpy as np
 
@@ -15,6 +16,9 @@ from blond import (
     proton,
 )
 from blond.core.backends.backend import Numpy64Bit
+from blond.experimental.physics.feedbacks.base import (
+    LocalFeedback,
+)
 from blond.physics.feedbacks.accelerators.sps import (
     SPSBeamControl,
 )
@@ -57,6 +61,7 @@ class TestSPSBeamFeedback(unittest.TestCase):
         k_b_n,
         phi_sync,
         pl_gain,
+        mock_cavity_feedback: bool = False,
     ):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
@@ -76,12 +81,18 @@ class TestSPSBeamFeedback(unittest.TestCase):
             orbit_length=circumference, momentum_compaction_factor=alpha
         )
 
+        if mock_cavity_feedback:
+            cavity_feedback = Mock(spec=LocalFeedback)
+        else:
+            cavity_feedback = None
+
         cavity = MultiHarmonicRFStation(
             voltage=np.array([voltage_200, voltage_800]),
             phi_rf=np.array([phase_200, phase_800]),
             harmonic=np.array([h, 4 * h]),
             n_harmonics=2,
             main_harmonic_idx=0,
+            cavity_feedback=cavity_feedback,
         )
 
         f_rf = cavity.calc_main_harmonic_omega_rf_design(
@@ -355,4 +366,18 @@ class TestSPSBeamFeedback(unittest.TestCase):
                 k_b_n=k_b_n * np.ones(n_turns + 1),
                 phi_sync=reference * np.pi / 180 * np.ones(n_turns),
                 pl_gain=1.0 * np.ones(n_turns),
+            )
+
+    def test_sps_beam_control_current_threshold(self):
+        with self.assertRaises(RuntimeError):
+            self.create_scenario(
+                k_phi_n=k_phi_n,
+                k_phi_nm1=k_phi_nm1,
+                k_eps_n=k_eps_n,
+                k_z_n=k_z_n,
+                k_a_n=k_a_n,
+                k_b_n=k_b_n,
+                phi_sync=reference * np.pi / 180,
+                pl_gain=1.0,
+                mock_cavity_feedback=True,
             )
