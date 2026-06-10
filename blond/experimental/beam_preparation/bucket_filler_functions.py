@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Callable  # NOQA
+from collections.abc import Callable  # NOQA
 from typing import TYPE_CHECKING
 
 import numpy as np
