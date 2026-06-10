@@ -55,7 +55,7 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinx.ext.intersphinx",
     "nbsphinx",
-    "sphinx_copybutton", # add copy button to code cells
+    "sphinx_copybutton",  # add copy button to code cells
 ]
 # From https://nbsphinx.readthedocs.io/en/0.8.9/custom-css.html#For-a-Single-Notebook
 # Hide the [1], [2], etc. displays at
