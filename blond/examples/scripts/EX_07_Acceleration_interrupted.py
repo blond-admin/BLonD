@@ -31,10 +31,15 @@ from blond import (
     SingleHarmonicRFStation,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.experimental import (
     SemiEmpiricMatcher,
 )
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 logging.basicConfig(level=logging.INFO)
 
@@ -103,7 +108,7 @@ def main():
     bunch_observation = BeamObservationOncePerTurn(each_turn_i=1)
 
     def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
-        if simulation.turn_i.value % 10 != 0:
+        if simulation.turn_counter.value % 10 != 0:
             return
 
         plt.scatter(
@@ -157,8 +162,7 @@ def main():
             plt.draw()
             plt.pause(0.1)
 
-        plt.show()
-
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()

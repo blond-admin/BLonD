@@ -25,7 +25,7 @@ from blond import backend
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter
+from blond.core.base import BeamPhysicsRelevant
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -125,7 +125,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         super().__init__(name=name, section_index=section_index)
 
         self._simulation: Simulation | None = None
-        self._turn_i: DynamicParameter | int = 0
         self._share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
@@ -217,7 +216,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         dE = beam.write_partial_dE()
         dE[:] += energy_change
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -225,10 +224,21 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._simulation = simulation
-        self._turn_i = simulation.turn_i
+        super().on_init_simulation(simulation, **kwargs)
+
+    def configure(self, **kwargs) -> None:
+        """
+        Store the turn counter needed during tracking.
+
+        Parameters
+        ----------
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
 
     def _track(self, beam: BeamBaseClass) -> None:
         """

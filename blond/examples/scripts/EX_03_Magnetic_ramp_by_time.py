@@ -47,6 +47,10 @@ from blond import (
     setup_backend,
 )
 from blond.handle_results.observables import BeamStatisticsOncePerTurn
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 N_TURNS = 200
 

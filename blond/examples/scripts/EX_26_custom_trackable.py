@@ -18,8 +18,13 @@ from blond import (
     backend,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.core.beam.base import BeamBaseClass
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 
 class TimeRandomizer(UserDefinedElement):

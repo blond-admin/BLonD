@@ -13,7 +13,6 @@ from __future__ import annotations
 import abc
 from abc import ABC
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import sympy
 from scipy.constants import speed_of_light as c0
@@ -22,6 +21,7 @@ from blond.core.backends.backend import backend
 from blond.core.base import (
     AltersReference,
     BeamPhysicsRelevant,
+    DynamicParameter,
     HasSymbolicHamiltonian,
     Schedulable,
 )
@@ -177,6 +177,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             radiation_integrals=radiation_integrals,
             **kwargs,  # for MRO of fused elements
         )
+
+        self._turn_counter: DynamicParameter | None = None
+
         self._add_intended_schedule("momentum_compaction_factor")
 
         self._simulation: Simulation | None = None
@@ -192,6 +195,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         momentum_compaction_factor: NumpyArray | tuple[NumpyArray, NumpyArray],
         orbit_length: float,
         section_index: int = 0,
+        turn_counter: DynamicParameter | None = None,
     ) -> DriftSimple:
         """
         Initialize object without simulation context.
@@ -205,39 +209,31 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             Length / Velocity => Time to pass the element.
         section_index
             Section index to group elements into sections.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
         drift_simple
             DriftSimple object without simulation context.
         """
-        from blond.core.base import DynamicParameter
-
         d = DriftSimple(
             orbit_length=orbit_length,
             section_index=section_index,
         )
+
         if isinstance(momentum_compaction_factor, int | float):
             d.momentum_compaction_factor = float(momentum_compaction_factor)
         else:
             d.schedule(
                 "momentum_compaction_factor", momentum_compaction_factor
             )
-        from blond.core.beam.base import BeamBaseClass
-        from blond.core.simulation.simulation import Simulation
 
-        simulation = Mock(Simulation)
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
-        d.on_init_simulation(simulation=simulation)
-        d.on_run_simulation(
-            simulation=simulation,
-            n_turns=1,
-            beam=Mock(BeamBaseClass),
-        )
+        d.configure(turn_counter=turn_counter)
+
         return d
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -245,9 +241,12 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._simulation = simulation
+        super().on_init_simulation(
+            simulation, turn_counter=simulation.turn_counter, **kwargs
+        )
         if (
             self.momentum_compaction_factor is None
         ) and "momentum_compaction_factor" not in self.schedules:
@@ -255,6 +254,22 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
                 "You need to define `momentum_compaction_factor` via `.momentum_compaction_factor=...` "
                 "or `.schedule(attribute='momentum_compaction_factor', value=...)`"
             )
+
+    def configure(
+        self, *, turn_counter: DynamicParameter | None = None, **kwargs
+    ) -> None:
+        """
+        Store the turn counter needed for schedule application during tracking.
+
+        Parameters
+        ----------
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        self._turn_counter = turn_counter
+        super().configure(**kwargs)
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -268,8 +283,11 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         super()._track(beam=beam)
 
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
-                turn_i=self._simulation.turn_i.value,
+                turn_i=self._turn_counter.value,
                 reference_time=beam.reference.time,
             )
 
@@ -462,6 +480,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         section_index: int = 0,
         momentum_compaction_factor: float | None = None,
         higher_order_alpha: NumpyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> DriftExact:
         """
         `DriftExact` element using the exact drift formulation.
@@ -482,32 +501,21 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
             Momentum compaction factor.
         higher_order_alpha
             Higher-order alpha array up to desired order.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
         drift_exact
             ``DriftExact`` object.
         """
-        from blond import Beam, Simulation
-
         drift = DriftExact(
             orbit_length=orbit_length,
             section_index=section_index,
             momentum_compaction_factor=momentum_compaction_factor,
             higher_order_alpha=higher_order_alpha,
         )
-        mock_simulation = Mock(Simulation)
-        mock_beam = Mock(Beam)
-
-        drift.on_init_simulation(
-            simulation=mock_simulation,
-        )
-        drift.on_run_simulation(
-            simulation=mock_simulation,
-            beam=mock_beam,
-            n_turns=1,
-        )
-
+        drift.configure(turn_counter=turn_counter)
         return drift
 
     def get_hamilton_symbolic(
@@ -610,7 +618,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         # Apply schedules if active
         if self.schedule_active:
             self.apply_schedules(
-                turn_i=self._simulation.turn_i.value,
+                turn_i=self._simulation.turn_counter.value,
                 reference_time=beam.reference.time,
             )
 
