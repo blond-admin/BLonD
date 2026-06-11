@@ -20,9 +20,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 RNG = np.random.default_rng()
 
-try:
+# Fallback for NumPy < 2.0
+if hasattr(np, 'trapezoid'):
     from numpy import trapezoid
-except ImportError as e:
+else:
     from numpy import trapz as trapezoid
 
 # --------------- Similar to kick.cpp -----------------
