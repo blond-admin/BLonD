@@ -125,9 +125,146 @@ class TestLHCBeamFeedback(unittest.TestCase):
         ring = Ring(
             circumference,
         )
+        ring_elements = [self.profile, cavity, self.beam_control, lattice]
+        ring.add_elements(
+            ring_elements,
+        )
+
+        self.simulation = Simulation(
+            ring,
+            cycle,
+        )
+
+        self.simulation.prepare_beam(self.beam, bigaussian)
+
+        self.beam._dt.array_local += injection_offset_phase * t_rf / 360
+
+        self.profile.track(self.beam)
+
+        self.simulation.finalize(
+            (self.beam,),
+            n_turns,
+        )
+        self.lhc_y_init = self.beam_control.lhc_y
+        self.beam_control.reference = reference * np.pi / 180
+
+        self.beam_control.track(self.beam)
+
+    def create_double_scenario(
+        self,
+        open_synchro: bool = False,
+        time_offset: float | None = None,
+        delay: int = 0,
+        mock_cavity_feedback: bool = False,
+        current_thres: float | None = None,
+        mock_phase_noise=None,
+    ):
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp")
+
+        energy = np.sqrt(momentum**2 + proton.mass**2)
+        rel_gamma = energy / proton.mass
+        rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
+
+        self.beam = Beam(
+            intensity,
+            proton,
+        )
+
+        cycle = ConstantMagneticCycle(proton, momentum, in_unit="momentum")
+
+        circ_ratio = 0.0001
+        lattice1 = DriftSimple(
+            orbit_length=circumference * circ_ratio,
+            momentum_compaction_factor=alpha,
+            section_index=0,
+        )
+        lattice2 = DriftSimple(
+            orbit_length=circumference * (1 - circ_ratio),
+            momentum_compaction_factor=alpha,
+            section_index=1,
+        )
+
+        if mock_cavity_feedback:
+            cavity_feedback = Mock(spec=LocalFeedback)
+            n_coarse = 3564
+            cavity_feedback.n_coarse = n_coarse
+            _i_coarse = np.zeros(n_coarse, dtype=complex)
+            _i_coarse[0] = 1.5 + 0 * 1j
+            cavity_feedback.I_BEAM_COARSE = _i_coarse
+            _v_ant = np.zeros(n_coarse, dtype=complex)
+            _v_ant[:] = voltage * np.exp(1j * 10 / 180 * np.pi)
+            cavity_feedback.V_ANT_COARSE = _v_ant
+        else:
+            cavity_feedback = None
+
+        if mock_phase_noise:
+            phase_noise = Mock()
+            noise_val = 10 / 180 * np.pi
+            phase_noise.dphi = noise_val * np.ones(n_turns, dtype=float)
+            phase_noise.dphi[1:] = -10 / 180 * np.pi
+        else:
+            phase_noise = None
+
+        cavity1 = SingleHarmonicRFStation(
+            voltage=voltage / 2,
+            phi_rf=0.0,
+            harmonic=h,
+            cavity_feedback=cavity_feedback,
+            section_index=0,
+        )
+        cavity2 = SingleHarmonicRFStation(
+            voltage=voltage / 2,
+            phi_rf=0.0,
+            harmonic=h,
+            cavity_feedback=cavity_feedback,
+            section_index=1,
+        )
+
+        f_rf = cavity1.calc_main_harmonic_omega_rf_design(
+            rel_beta, lattice1.orbit_length + lattice2.orbit_length
+        ) / (2 * np.pi)
+        f_rev = f_rf / h
+        t_rf = 1 / f_rf
+        t_rev = 1 / f_rev
+
+        self.profile = StaticProfile(
+            cut_left=-1.5 * t_rf,
+            cut_right=2.5 * t_rf,
+            n_bins=4 * 2**6,
+        )
+
+        bigaussian = BiGaussian(
+            n_macroparticles, sigma_dt=tau_bunch / 4, seed=1234
+        )
+        self.beam_control = LHCBeamControl(
+            pl_gain=1 / (5 * t_rev) * 1,
+            sl_gain=1 / (5 * t_rev) / 10 * int(not open_synchro),
+            profile=self.profile,
+            time_offset=time_offset,
+            delay=delay,
+            current_thres=current_thres,
+            phase_noise=phase_noise,
+        )
+
+        cavity1.attach_beam_feedback(self.beam_control)
+        cavity2.attach_beam_feedback(self.beam_control)
+
+        ring = Ring(
+            circumference,
+        )
+
+        ring_elements = [
+            self.profile,
+            cavity1,
+            lattice1,
+            cavity2,
+            self.beam_control,
+            lattice2,
+        ]
 
         ring.add_elements(
-            [self.profile, cavity, self.beam_control, lattice],
+            ring_elements,
         )
 
         self.simulation = Simulation(
@@ -289,5 +426,17 @@ class TestLHCBeamFeedback(unittest.TestCase):
         self.assertAlmostEqual(
             self.beam_control.dphi * 180 / np.pi,
             injection_offset_phase - 10,
+            places=2,
+        )
+
+    def test_lhc_beam_control_double_rf_station(self):
+        self.create_double_scenario(
+            mock_cavity_feedback=True,
+            current_thres=0.5,
+        )
+
+        self.assertAlmostEqual(
+            self.beam_control.dphi * 180 / np.pi,
+            injection_offset_phase + 10,
             places=2,
         )
