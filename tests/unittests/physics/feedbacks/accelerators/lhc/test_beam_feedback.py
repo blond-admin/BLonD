@@ -46,6 +46,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
         delay: int = 0,
         mock_cavity_feedback: bool = False,
         current_thres: float | None = None,
+        mock_phase_noise=None,
     ):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
@@ -54,7 +55,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
         rel_gamma = energy / proton.mass
         rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
 
-        beam = Beam(
+        self.beam = Beam(
             intensity,
             proton,
         )
@@ -77,6 +78,14 @@ class TestLHCBeamFeedback(unittest.TestCase):
             cavity_feedback.V_ANT_COARSE = _v_ant
         else:
             cavity_feedback = None
+
+        if mock_phase_noise:
+            phase_noise = Mock()
+            noise_val = 10 / 180 * np.pi
+            phase_noise.dphi = noise_val * np.ones(n_turns, dtype=float)
+            phase_noise.dphi[1:] = -10 / 180 * np.pi
+        else:
+            phase_noise = None
 
         cavity = SingleHarmonicRFStation(
             voltage=voltage,
@@ -108,6 +117,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
             time_offset=time_offset,
             delay=delay,
             current_thres=current_thres,
+            phase_noise=phase_noise,
         )
 
         cavity.attach_beam_feedback(self.beam_control)
@@ -120,25 +130,25 @@ class TestLHCBeamFeedback(unittest.TestCase):
             [self.profile, cavity, self.beam_control, lattice],
         )
 
-        simulation = Simulation(
+        self.simulation = Simulation(
             ring,
             cycle,
         )
 
-        simulation.prepare_beam(beam, bigaussian)
+        self.simulation.prepare_beam(self.beam, bigaussian)
 
-        beam._dt.array_local += injection_offset_phase * t_rf / 360
+        self.beam._dt.array_local += injection_offset_phase * t_rf / 360
 
-        self.profile.track(beam)
+        self.profile.track(self.beam)
 
-        simulation.finalize(
-            (beam,),
+        self.simulation.finalize(
+            (self.beam,),
             n_turns,
         )
         self.lhc_y_init = self.beam_control.lhc_y
         self.beam_control.reference = reference * np.pi / 180
 
-        self.beam_control.track(beam)
+        self.beam_control.track(self.beam)
 
     def test_lhc_beam_control_synchro_closed(self):
         self.create_scenario(open_synchro=False)
@@ -258,5 +268,26 @@ class TestLHCBeamFeedback(unittest.TestCase):
         self.assertAlmostEqual(
             self.beam_control.dphi * 180 / np.pi,
             injection_offset_phase + 10,
+            places=2,
+        )
+
+    def test_lhc_beam_control_mock_rf_noise(self):
+        self.create_scenario(
+            mock_phase_noise=True,
+        )
+
+        self.assertAlmostEqual(
+            self.beam_control.dphi * 180 / np.pi,
+            injection_offset_phase + 10,
+            places=2,
+        )
+
+        # Track the next turn
+        self.simulation.turn_i.value = 1
+        self.beam_control.track(self.beam)
+
+        self.assertAlmostEqual(
+            self.beam_control.dphi * 180 / np.pi,
+            injection_offset_phase - 10,
             places=2,
         )
