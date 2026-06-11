@@ -156,11 +156,9 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
         """
         Save a debug plot of solver convergence and low-binning residuals.
 
-        Disabled by default. Enable with the ``BLOND_TEST_PLOTS`` environment
-        variable (set it to ``show`` to also open an interactive window)::
-
-            BLOND_TEST_PLOTS=1     <pytest invocation>   # save a PNG
-            BLOND_TEST_PLOTS=show  <pytest invocation>   # save and display
+        Disabled by default. Enable by setting the module-level
+        ``support.DEBUG_PLOTS`` constant to ``"save"`` (write a PNG) or
+        ``"show"`` (also open an interactive window).
 
         Left panel: relative error vs a high-resolution truth as a function of
         the bin count, for forward Euler and Crank-Nicolson, with reference
