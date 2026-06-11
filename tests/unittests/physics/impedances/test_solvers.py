@@ -729,6 +729,97 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             rtol=1e-12,
         )
 
+    def test_decay_in_induced_voltage_wake_vs_analytic_impedance(self):
+        """
+        Compare the wake's decay against the analytic impedance in the voltage.
+
+        Two bunches separated by several cavity-decay times ``1 / alpha`` pass
+        through a single resonator, and the induced voltage is computed two
+        independent ways:
+
+        * ``SingleTurnResonatorConvolutionSolver`` -- convolves ``get_wake``
+          (time domain) with the profile, and
+        * ``PeriodicFreqSolver`` -- multiplies the analytic ``get_impedance``
+          (frequency domain) with the beam spectrum.
+
+        Because the bunches are separated by several ``1 / alpha`` and a long
+        zero tail follows the second bunch, the voltage between and after the
+        bunches is governed by the wake's decaying tail. A wrong decay rate in
+        ``get_wake`` therefore shows up directly as a voltage mismatch here,
+        unlike the short-window / single-bunch voltage comparisons (which are
+        insensitive to the decay) or the frequency-domain impedance test
+        (which checks the lineshape rather than the resulting voltage).
+        """
+
+        def make_resonator():
+            return Resonators(
+                shunt_impedances=np.array([1e6]),
+                center_frequencies=np.array([1e9]),
+                quality_factors=np.array([30.0]),  # moderate Q: decay resolved
+            )
+
+        alpha = 2 * np.pi * 1e9 / (2 * 30.0)
+        hist_step = 5e-11
+        n_bins = 2400  # ~120 ns: fits two bunches plus a long decay tail
+        profile = StaticProfile(
+            cut_left=0.0, cut_right=n_bins * hist_step, n_bins=n_bins
+        )
+
+        # Two bunches separated by ~3 / alpha, interior to the window so the
+        # decaying tail is captured (and edge bins stay zero).
+        t1 = 12e-9
+        t2 = t1 + 3.0 / alpha
+        sigma = 0.12e-9
+        rng = np.random.default_rng(0)
+        n_macro = int(1e6)
+        dt = np.concatenate(
+            [
+                rng.normal(t1, sigma, n_macro // 2),
+                rng.normal(t2, sigma, n_macro // 2),
+            ]
+        )
+        beam = Beam(
+            intensity=2.7e12,
+            particle_type=mu_plus,
+            is_counter_rotating=False,
+        )
+        beam.setup_beam(
+            dt=dt, dE=np.zeros_like(dt), mpi_mode="root-distributes"
+        )
+        profile.track(beam=beam)
+
+        wf_wake = WakeField(
+            sources=(make_resonator(),),
+            solver=SingleTurnResonatorConvolutionSolver(),
+            profile=profile,
+        )
+        wf_imp = WakeField(
+            sources=(make_resonator(),),
+            solver=PeriodicFreqSolver(t_periodicity=n_bins * hist_step),
+            profile=profile,
+        )
+        wf_wake.solver.on_wakefield_init_simulation(Mock(), wf_wake)
+        wf_imp.solver.on_wakefield_init_simulation(Mock(), wf_imp)
+
+        v_wake = copy_to_cpu(wf_wake.solver.calc_induced_voltage(beam=beam))
+        v_imp = copy_to_cpu(wf_imp.solver.calc_induced_voltage(beam=beam))
+
+        DEV_DEBUG = False
+        if DEV_DEBUG:
+            t_ns = copy_to_cpu(profile.hist_x) * 1e9
+            plt.plot(t_ns, v_imp, label="analytic impedance (freq domain)")
+            plt.plot(
+                t_ns, v_wake, "--", label="wake convolution (time domain)"
+            )
+            plt.xlabel("time [ns]")
+            plt.ylabel("induced voltage [V]")
+            plt.title("Induced-voltage decay: wake vs analytic impedance")
+            plt.legend()
+            plt.show()
+
+        max_rel_err = np.max(np.abs(v_wake - v_imp)) / np.max(np.abs(v_imp))
+        self.assertLess(max_rel_err, 2e-2)
+
     def test_warns_on_edge_bins(self):
         with self.assertWarnsRegex(
             Warning, "particle detected in trailing edge bin"
