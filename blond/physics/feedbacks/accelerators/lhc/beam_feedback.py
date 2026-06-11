@@ -193,7 +193,7 @@ class LHCBeamControl(BeamFeedbackBase):
         counter = self.cavities[0]._turn_counter.value
         dphi_rf = self.cavities[0].delta_phi_rf
 
-        self.phase_difference(beam)
+        self.phase_difference(beam, phase_noise=self.phase_noise)
         self.cavity_sum_phase(self.current_thres)
 
         # Take into account the synchronous phase

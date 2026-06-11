@@ -61,6 +61,8 @@ class BeamFeedbackBase(GlobalFeedback):
     sample_de
         Determines which particles to sample for mean energy calculation.
         Every <sample_dE>. particle is sampled.
+    phase_noise
+        Option to add phase noise through the beam control.
     """
 
     _parent_rf_station: RFStationBaseClass
@@ -72,12 +74,14 @@ class BeamFeedbackBase(GlobalFeedback):
         window_coefficient: float = 0.0,
         time_offset: float | None = None,
         sample_de: int = 1,
+        phase_noise=None,
     ):
         super().__init__(profile=profile)
         self.delay = delay
         self.window_coefficient = window_coefficient
         self.time_offset = time_offset
         self.sample_de = sample_de
+        self.phase_noise = phase_noise
 
         self.domega_rf = 0
 
@@ -192,9 +196,7 @@ class BeamFeedbackBase(GlobalFeedback):
 
         self.phi_beam = np.arctan(coeff)
 
-    def phase_difference(
-        self, beam: BeamBaseClass, RFnoise=None, noiseFB=None
-    ):
+    def phase_difference(self, beam: BeamBaseClass, phase_noise=None):
         """
         Calculate phase difference between the beam and rf system.
 
@@ -207,10 +209,8 @@ class BeamFeedbackBase(GlobalFeedback):
         ----------
         beam
             The beam object used in the simulation.
-        RFnoise
-            Object containing rf phase noise.
-        noiseFB
-            Noise feedback object, e.g. used for controlled longitudinal emittance blow-up.
+        phase_noise
+            Option to add phase noise through the beam control.
         """
         # Correct for design stable phase
         counter = self.main_cavities[0]._turn_counter.value
@@ -246,11 +246,8 @@ class BeamFeedbackBase(GlobalFeedback):
         """
 
         # Possibility to add RF phase noise through the PL
-        if RFnoise is not None:
-            if noiseFB is not None:
-                self.dphi += noiseFB.x * RFnoise.dphi[counter]
-            else:
-                self.dphi += RFnoise.dphi[counter]
+        if phase_noise is not None:
+            self.dphi += phase_noise.dphi[counter]
 
     def cavity_sum_phase(self, current_thres: float):
         """
