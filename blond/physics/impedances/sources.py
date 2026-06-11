@@ -542,9 +542,7 @@ class Resonators(
         --------
         get_impedance_from_wake : Function used to calculate the corresponding impedance.
         """
-        return backend.fft.rfftfreq(
-            n=n_fft, d=time[1] - time[0]
-        )
+        return backend.fft.rfftfreq(n=n_fft, d=time[1] - time[0])
 
     def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
         """

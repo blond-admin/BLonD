@@ -724,7 +724,9 @@ class TestResonators(unittest.TestCase):
             == self.resonators._cache_impedance_from_wake_hash
         )
 
-        wake_freq = self.resonators.get_impedance_from_wake_freq(time=time, n_fft=n_fft)
+        wake_freq = self.resonators.get_impedance_from_wake_freq(
+            time=time, n_fft=n_fft
+        )
 
         pinned_result = np.load(
             callers_relative_path(
@@ -764,7 +766,9 @@ class TestResonators(unittest.TestCase):
             beam=beam,
             n_fft=n_fft,
         )
-        wake_freq = self.resonators.get_impedance_from_wake_freq(time=time, n_fft=n_fft)
+        wake_freq = self.resonators.get_impedance_from_wake_freq(
+            time=time, n_fft=n_fft
+        )
 
         np.testing.assert_allclose(
             copy_to_cpu(wake_imp_counter_rotation), copy_to_cpu(-wake_imp)
@@ -868,7 +872,9 @@ class TestResonators(unittest.TestCase):
             * dt
         )
         # Frequency axis from the public helper (must align with imp_from_wake).
-        freq = copy_to_cpu(res.get_impedance_from_wake_freq(time=time, n_fft=n_fft))
+        freq = copy_to_cpu(
+            res.get_impedance_from_wake_freq(time=time, n_fft=n_fft)
+        )
         self.assertEqual(len(freq), len(imp_from_wake))
         imp_analytic = copy_to_cpu(
             res.get_impedance(backend.array(freq), simulation, beam)
@@ -901,7 +907,9 @@ class TestResonators(unittest.TestCase):
         imp = self.resonators.get_impedance_from_wake(
             time=time, simulation=simulation, beam=beam, n_fft=n_fft
         )
-        freq = self.resonators.get_impedance_from_wake_freq(time=time, n_fft=n_fft)
+        freq = self.resonators.get_impedance_from_wake_freq(
+            time=time, n_fft=n_fft
+        )
 
         expected_freq = np.fft.rfftfreq(n_fft, dt)
         self.assertEqual(len(copy_to_cpu(freq)), len(copy_to_cpu(imp)))
