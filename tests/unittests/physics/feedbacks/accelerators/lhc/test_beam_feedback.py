@@ -45,6 +45,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
         time_offset: float | None = None,
         delay: int = 0,
         mock_cavity_feedback: bool = False,
+        current_thres: float | None = None,
     ):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
@@ -66,6 +67,14 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         if mock_cavity_feedback:
             cavity_feedback = Mock(spec=LocalFeedback)
+            n_coarse = 3564
+            cavity_feedback.n_coarse = n_coarse
+            _i_coarse = np.zeros(n_coarse, dtype=complex)
+            _i_coarse[0] = 1.5 + 0 * 1j
+            cavity_feedback.I_BEAM_COARSE = _i_coarse
+            _v_ant = np.zeros(n_coarse, dtype=complex)
+            _v_ant[:] = voltage * np.exp(1j * 10 / 180 * np.pi)
+            cavity_feedback.V_ANT_COARSE = _v_ant
         else:
             cavity_feedback = None
 
@@ -98,6 +107,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
             profile=self.profile,
             time_offset=time_offset,
             delay=delay,
+            current_thres=current_thres,
         )
 
         cavity.attach_beam_feedback(self.beam_control)
@@ -241,3 +251,12 @@ class TestLHCBeamFeedback(unittest.TestCase):
     def test_lhc_beam_control_current_threshold(self):
         with self.assertRaises(RuntimeError):
             self.create_scenario(mock_cavity_feedback=True)
+
+    def test_lhc_beam_control_cavity_sum_phase(self):
+        self.create_scenario(mock_cavity_feedback=True, current_thres=0.5)
+
+        self.assertAlmostEqual(
+            self.beam_control.dphi * 180 / np.pi,
+            injection_offset_phase + 10,
+            places=2,
+        )
