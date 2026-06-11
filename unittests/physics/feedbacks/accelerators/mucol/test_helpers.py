@@ -1,0 +1,416 @@
+"""
+Tests for the cavity-response solvers in ``blond.physics.feedbacks.helpers``.
+
+Both :func:`cavity_response_sparse_matrix` (forward Euler, left-endpoint drive)
+and :func:`cavity_response_sparse_matrix_second_order` (trapezoidal /
+Crank-Nicolson) integrate the same cavity-envelope ODE and converge to the same
+induced voltage. The first is ``O(dt)`` accurate, the second ``O(dt^2)``, so at
+coarse profile binning the second-order solver is far closer to the
+(essentially exact) multi-turn resonator convolution.
+
+The solvers are driven directly on a static profile -- no ``Beam`` tracking and
+no full ``Simulation`` -- with small mock objects.
+"""
+
+import os
+import unittest
+from typing import Literal
+
+import numpy as np
+
+from blond import Resonators, StaticProfile, WakeField
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.helpers import (
+    cavity_response_sparse_matrix,
+    cavity_response_sparse_matrix_second_order,
+    rf_beam_current,
+)
+from blond.physics.impedances.solvers import MultiPassResonatorSolver
+
+# Package-relative imports: the dirs above ``mucol`` have no __init__.py, so
+# these test helpers are not importable by an absolute path under pytest.
+from .stubs import StubBeam, StubRFStation
+from .support import (
+    lab_frame_voltage,
+    open_debug_plot,
+    rel_err,
+    save_debug_plot,
+)
+
+
+class TestCavityResponseSolverConvergence(unittest.TestCase):
+    """First-order (Euler) vs second-order (Crank-Nicolson) cavity response."""
+
+    def setUp(self):
+        """Set up mucol RCS1-like single-cavity parameters."""
+        self.R_over_Q = 518.0
+        self.Q_L = 1.29e6
+        self.t_rf = 1.0e-9
+        self.omega_rf = 2.0 * np.pi / self.t_rf
+        self.f_res = 1.0 / self.t_rf
+        self.circumference = 5990.0
+        self.intensity = 2.7e12
+
+    def _smooth_profile(self, n_slices: int) -> StaticProfile:
+        """
+        A smooth Gaussian bunch on ``n_slices`` bins, with zeroed edges.
+
+        Parameters
+        ----------
+        n_slices
+            Number of profile bins.
+
+        Returns
+        -------
+        StaticProfile
+            Gaussian bunch profile with zeroed leading/trailing bins.
+        """
+        profile = StaticProfile.from_rad(
+            np.pi * 1.5, np.pi * 4.5, n_slices, self.t_rf
+        )
+        t = profile.hist_x
+        t0 = 0.5 * (t[0] + t[-1])
+        hist_y = np.exp(-0.5 * ((t - t0) / (0.08 * self.t_rf)) ** 2)
+
+        # zero edges
+        hist_y[:5] = 0.0
+        hist_y[-5:] = 0.0
+        profile._hist_y = hist_y
+        profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+        return profile
+
+    def _calculate_induced_voltage(
+        self,
+        n_slices: int,
+        method: Literal["convolution", "first_order", "second_order"],
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Induced voltage on ``n_slices`` bins; ``method`` selects the solver.
+
+        ``method`` selects the model: ``"convolution"`` (multi-turn resonator
+        convolution), ``"first_order"`` (forward-Euler cavity response) or
+        ``"second_order"`` (Crank-Nicolson cavity response).
+
+        Parameters
+        ----------
+        n_slices
+            Number of profile bins.
+        method
+            Solver to use: ``"convolution"``, ``"first_order"`` or
+            ``"second_order"``.
+
+        Returns
+        -------
+        voltage
+            Lab-frame induced voltage on the profile's fine grid.
+        hist_x
+            Bin-center time base of the profile.
+        """
+        profile = self._smooth_profile(n_slices)
+        t = profile.hist_x
+        stub_beam = StubBeam(self.intensity)
+
+        if method == "convolution":
+            solver = MultiPassResonatorSolver(decay_fraction_threshold=1e-12)
+            wakefield = WakeField(
+                sources=(
+                    Resonators(self.R_over_Q * self.Q_L, self.f_res, self.Q_L),
+                ),
+                solver=solver,
+                profile=profile,
+                parent_rf_station=StubRFStation(self.omega_rf),
+            )
+            solver._parent_wakefield = wakefield
+            solver.circumference = self.circumference
+            solver._maximum_storage_time = 1.0
+            solver._last_reference_time = -np.finfo(float).eps
+            return np.asarray(solver.calc_induced_voltage(stub_beam)), t
+
+        charges = rf_beam_current(
+            beam=stub_beam,
+            profile=profile,
+            omega_c=self.omega_rf,
+            T_rev=self.t_rf,
+            use_lowpass_filter=False,
+            external_reference=True,
+            dT=0.0,
+        )
+        solver_fn = {
+            "first_order": cavity_response_sparse_matrix,
+            "second_order": cavity_response_sparse_matrix_second_order,
+        }[method]
+        v_ant = solver_fn(
+            I_beam=charges
+            / profile.hist_step,  # TODO: refactor to include in beam_current calculation
+            I_gen=np.zeros(n_slices, dtype=complex),
+            V_ant_init=0.0,
+            I_gen_init=0.0,
+            samples_per_rf=self.omega_rf * profile.hist_step,
+            R_over_Q=self.R_over_Q,
+            Q_L=self.Q_L,
+            relative_detuning=0.0,
+        )
+        return lab_frame_voltage(v_ant, self.omega_rf, t), t
+
+    def _maybe_plot_convergence(self):
+        """
+        Save a debug plot of solver convergence and low-binning residuals.
+
+        Disabled by default. Enable with the ``BLOND_TEST_PLOTS`` environment
+        variable (set it to ``show`` to also open an interactive window)::
+
+            BLOND_TEST_PLOTS=1     <pytest invocation>   # save a PNG
+            BLOND_TEST_PLOTS=show  <pytest invocation>   # save and display
+
+        Left panel: relative error vs a high-resolution truth as a function of
+        the bin count, for forward Euler and Crank-Nicolson, with reference
+        ``1/n`` and ``1/n^2`` slopes. Right panel: the residual against the
+        convolution solver at coarse binning, showing Euler's systematic bump
+        and the near-zero Crank-Nicolson residual.
+        """
+        plt, mode = open_debug_plot()
+        if plt is None:
+            return
+
+        v_truth, t_truth = self._calculate_induced_voltage(
+            8192, "second_order"
+        )
+        n_bins = np.array([128, 256, 512, 1024, 2048, 4096])
+        err_first_order, err_second_order = [], []
+        for n in n_bins:
+            v_first_order, t = self._calculate_induced_voltage(
+                n, "first_order"
+            )
+            v_second_order, _ = self._calculate_induced_voltage(
+                n, "second_order"
+            )
+            truth = np.interp(t, t_truth, v_truth)
+            err_first_order.append(rel_err(v_first_order, truth))
+            err_second_order.append(rel_err(v_second_order, truth))
+        err_first_order = np.array(err_first_order)
+        err_second_order = np.array(err_second_order)
+
+        n_lo = 256
+        v_convolution, t_lo = self._calculate_induced_voltage(
+            n_lo, "convolution"
+        )
+        v_first_order_lo, _ = self._calculate_induced_voltage(
+            n_lo, "first_order"
+        )
+        v_second_order_lo, _ = self._calculate_induced_voltage(
+            n_lo, "second_order"
+        )
+        peak = np.max(np.abs(v_convolution))
+
+        fig, (ax_conv, ax_res) = plt.subplots(1, 2, figsize=(11, 4.5))
+        fig.suptitle("Cavity-response solver: Euler vs Crank-Nicolson")
+        ax_conv.loglog(
+            n_bins,
+            err_first_order,
+            "o-",
+            color="C0",
+            label="forward Euler (1st order)",
+        )
+        ax_conv.loglog(
+            n_bins,
+            err_second_order,
+            "s-",
+            color="C1",
+            label="Crank-Nicolson (2nd order)",
+        )
+        ref_first = err_first_order[0] * n_bins[0] / n_bins
+        ref_second = err_second_order[0] * (n_bins[0] / n_bins) ** 2
+        ax_conv.loglog(
+            n_bins, ref_first, "k--", lw=0.8, label=r"$\propto 1/n$"
+        )
+        ax_conv.loglog(
+            n_bins, ref_second, "k:", lw=0.8, label=r"$\propto 1/n^2$"
+        )
+        ax_conv.set_xlabel("profile bins")
+        ax_conv.set_ylabel("rel. error vs truth")
+        ax_conv.legend(loc="best")
+        ax_conv.grid(True, which="both", alpha=0.3)
+
+        residual_first = (v_first_order_lo - v_convolution) / peak * 100
+        residual_second = (v_second_order_lo - v_convolution) / peak * 100
+        ax_res.plot(
+            t_lo * 1e9, residual_first, color="C0", label="Euler - convolution"
+        )
+        ax_res.plot(
+            t_lo * 1e9,
+            residual_second,
+            color="C1",
+            label="Crank-Nicolson - convolution",
+        )
+        ax_res.set_xlabel("time [ns]")
+        ax_res.set_ylabel("residual [% of peak]")
+        ax_res.set_title(f"residual vs convolution at {n_lo} bins")
+        ax_res.legend(loc="best")
+        ax_res.grid(True, alpha=0.3)
+
+        fig.tight_layout()
+        save_debug_plot(
+            fig, os.path.dirname(__file__), "solver_convergence.png", mode
+        )
+
+    def test_second_order_more_accurate_at_low_binning(self):
+        """At coarse binning the CN solver beats Euler by orders of magnitude."""
+        n = 256
+        v_convolution, _ = self._calculate_induced_voltage(n, "convolution")
+        v_first_order, _ = self._calculate_induced_voltage(n, "first_order")
+        v_second_order, _ = self._calculate_induced_voltage(n, "second_order")
+
+        err_first_order = rel_err(v_first_order, v_convolution)
+        err_second_order = rel_err(v_second_order, v_convolution)
+
+        # Euler is ~1 % here; CN agrees with the convolution far better.
+        self.assertGreater(err_first_order, 1e-3)
+        self.assertLess(err_second_order, err_first_order / 50.0)
+
+    def test_solver_convergence_orders(self):
+        """Euler converges at first order, Crank-Nicolson at second order."""
+        # Debug plot (opt-in) before the assertions.
+        self._maybe_plot_convergence()
+
+        # High-resolution truth (the second-order solver on a fine grid).
+        v_truth, t_truth = self._calculate_induced_voltage(
+            8192, "second_order"
+        )
+
+        def err(method, n):
+            v, t = self._calculate_induced_voltage(n, method)
+            return rel_err(v, np.interp(t, t_truth, v_truth))
+
+        # Error ratio when halving the bin size: ~2 for 1st order, ~4 for 2nd.
+        first_order_ratio = err("first_order", 256) / err("first_order", 512)
+        second_order_ratio = err("second_order", 256) / err(
+            "second_order", 512
+        )
+
+        # 1.7 < error_ratio_first_order < 2.5 --> should be 2 (linear)
+        self.assertGreater(first_order_ratio, 1.7)
+        self.assertLess(first_order_ratio, 2.5)
+
+        # 3.0 < error_ratio_first_order < 4.5 --> should be 4 (quadratic)
+        self.assertGreater(second_order_ratio, 3.0)
+        self.assertLess(second_order_ratio, 4.5)
+
+    def test_solvers_agree_as_predicted_by_convergence_rate(self):
+        """
+        The two helpers agree to within their (first-order) convergence gap.
+
+        Both functions integrate the *same* cavity ODE, so the difference
+        between their outputs is the difference of their truncation errors.
+        The second-order solver is far more accurate, so that difference is
+        dominated by the Euler error and is therefore ``O(dt)``: small at fine
+        binning, and halving each time the bin count doubles. We check both the
+        magnitude and that first-order scaling -- i.e. the two solvers are
+        exactly as similar as the convergence rate predicts.
+        """
+
+        def rel_diff(n):
+            v_first_order, _ = self._calculate_induced_voltage(
+                n, "first_order"
+            )
+            v_second_order, _ = self._calculate_induced_voltage(
+                n, "second_order"
+            )
+            return rel_err(v_first_order, v_second_order)
+
+        diff_256 = rel_diff(256)
+        diff_512 = rel_diff(512)
+
+        # Small, but not vanishing, at coarse binning (this is the Euler error).
+        self.assertGreater(diff_256, 1e-3)
+        self.assertLess(diff_256, 5e-2)
+        # Halving the bin size halves the disagreement (first-order scaling).
+        self.assertAlmostEqual(diff_256 / diff_512, 2.0, delta=0.4)
+
+    def test_second_order_flag_routes_through_the_class(self):
+        """
+        ``IQCavityFeedbackTimingClass(second_order=...)`` selects the solver.
+
+        With the flag off the class reproduces the first-order solver, with it
+        on it reproduces the second-order one (bit-for-bit, ``n_cavities=1``),
+        and the second-order result is far closer to the convolution at coarse
+        binning.
+        """
+        n = 256
+        smooth_profile = self._smooth_profile(n)
+        stub_beam = StubBeam(self.intensity)
+        charges = rf_beam_current(
+            beam=stub_beam,
+            profile=smooth_profile,
+            omega_c=self.omega_rf,
+            T_rev=self.t_rf,
+            use_lowpass_filter=False,
+            external_reference=True,
+            dT=0.0,
+        )
+        i_beam = charges / smooth_profile.hist_step
+        samples_per_rf = self.omega_rf * smooth_profile.hist_step
+
+        def create_fdbk_class_and_calc_voltage(second_order):
+            feedback = IQCavityFeedbackTimingClass(
+                profile=smooth_profile,
+                R_over_Q=self.R_over_Q,
+                Q_L=self.Q_L,
+                generator_current=0.0,
+                n_cavities=1,
+                initial_voltage=0.0,
+                n_rf_periods_per_coarse_grid=1,
+                delta_omega=0.0,
+                second_order=second_order,
+            )
+            feedback.beam_current_fine_grid = i_beam
+            feedback.generator_current_fine_grid = np.zeros(n, dtype=complex)
+            feedback.cavity_response_fine(
+                initial_voltage_fine_grid=0.0,
+                initial_voltage_gradient_fine_grid=0.0,
+                initial_generator_current_fine_grid=0.0,
+                samples_per_rf_fine_grid=samples_per_rf,
+                relative_detuning=0.0,
+            )
+            return feedback.antenna_voltage_fine_grid
+
+        kwargs = {
+            "I_beam": i_beam,
+            "I_gen": np.zeros(n, dtype=complex),
+            "V_ant_init": 0.0,
+            "I_gen_init": 0.0,
+            "samples_per_rf": samples_per_rf,
+            "R_over_Q": self.R_over_Q,
+            "Q_L": self.Q_L,
+            "relative_detuning": 0.0,
+        }
+        np.testing.assert_allclose(
+            create_fdbk_class_and_calc_voltage(False),
+            cavity_response_sparse_matrix(**kwargs),
+        )
+        np.testing.assert_allclose(
+            create_fdbk_class_and_calc_voltage(True),
+            cavity_response_sparse_matrix_second_order(**kwargs),
+        )
+
+        v_convolution, t = self._calculate_induced_voltage(n, "convolution")
+
+        def project_voltage_into_lab_frame(v_ant):
+            return lab_frame_voltage(v_ant, self.omega_rf, t)
+
+        err_first = rel_err(
+            project_voltage_into_lab_frame(
+                create_fdbk_class_and_calc_voltage(False)
+            ),
+            v_convolution,
+        )
+        err_second = rel_err(
+            project_voltage_into_lab_frame(
+                create_fdbk_class_and_calc_voltage(True)
+            ),
+            v_convolution,
+        )
+        self.assertLess(err_second, err_first / 50.0)
+
+
+if __name__ == "__main__":
+    unittest.main()
