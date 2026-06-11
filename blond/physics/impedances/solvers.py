@@ -718,7 +718,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         voltage at the same time. Should not be used in production.
         Default is False.
     delta_f
-        Static frequency offset.
+        Static frequency offset [Hz] applied on top of the parent RF
+        station's design frequency to retune the resonator each pass. If
+        ``None`` (default, i.e. not given), no retuning is performed and the
+        resonator keeps its configured centre frequency.
 
     Attributes
     ----------
@@ -739,7 +742,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self,
         decay_fraction_threshold: float = 0.001,
         allow_delta_t_zero: bool = False,
-        delta_f: float = 0.0,
+        delta_f: float | None = None,
     ):
         # This import is here because of sphinx warning
         # `list assignment index out of range [autodoc]`
@@ -996,21 +999,23 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_profiles_counter_rotation_flag.appendleft(
             beam.is_counter_rotating
         )
-        dummy_reference = deepcopy(beam.reference)
-        self._parent_wakefield._parent_rf_station.track_reference(
-            dummy_reference, is_counter_rotating=beam.is_counter_rotating
-        )
-        self._parent_wakefield.sources[0]._center_frequencies[0] = (
-            self._parent_wakefield._parent_rf_station.calc_omega_rf_design(
-                beam_beta=dummy_reference.beta,
-                ring_circumference=self.circumference,
+        # Retune the resonator to track the (accelerating) beam's RF design
+        # frequency, offset by delta_f. Only done when delta_f was explicitly
+        # given; otherwise the resonator keeps its configured centre frequency
+        # (and no parent RF station is required).
+        if self.delta_f is not None:
+            dummy_reference = deepcopy(beam.reference)
+            self._parent_wakefield._parent_rf_station.track_reference(
+                dummy_reference, is_counter_rotating=beam.is_counter_rotating
             )
-            / (2 * np.pi)
-            + self.delta_f
-        )
-        print(
-            f"freq updated {self._parent_wakefield.sources[0]._center_frequencies[0]}"
-        )
+            self._parent_wakefield.sources[0]._center_frequencies[0] = (
+                self._parent_wakefield._parent_rf_station.calc_omega_rf_design(
+                    beam_beta=dummy_reference.beta,
+                    ring_circumference=self.circumference,
+                )
+                / (2 * np.pi)
+                + self.delta_f
+            )
         self._update_past_profile_wake_functions()
 
     def calc_induced_voltage(
