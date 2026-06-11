@@ -108,8 +108,8 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     flags : str
         Additional compiler flags as a space-separated string (e.g., "-O2 -Wall").
     optimize : bool
-        If True (default), add `-ffast-math` and CPU-specific
-        vectorization flags (AVX/SSE/FMA).
+        If True (default), add `-march=native`, `-ffast-math` and
+        CPU-specific vectorization flags (AVX/SSE/FMA).
     libname : str
         Path and name of the output library (without file extension).
 
@@ -149,8 +149,10 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             "-shared",
             "-funroll-loops",  # Aggressive loop unrolling
             "-ftree-vectorize",
-            "-march=native",
         ]
+        if optimize:
+            # CPU-specific; --no-optimize keeps the binary portable
+            cflags += ["-march=native"]
         # Some additional warning reporting related flags
         cflags += [
             "-Wall",
