@@ -1,4 +1,5 @@
-"""Compare the multi-turn induced voltage with a non-driven cavity feedback.
+"""
+Compare the multi-turn induced voltage with a non-driven cavity feedback.
 
 A single static profile (a noisy Gaussian with zeroed leading/trailing bins)
 drives two models of the *same* single cavity
@@ -32,42 +33,20 @@ import unittest
 
 import numpy as np
 
-from blond import Resonators, StaticProfile, WakeField, mu_plus
+from blond import Resonators, StaticProfile, WakeField
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.helpers import rf_beam_current
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
-
-class _StubReference:
-    """Minimal beam reference frame (deepcopy-able)."""
-
-    def __init__(self, time: float = 0.0, beta: float = 1.0):
-        self.time = time
-        self.beta = beta
-
-
-class _StubBeam:
-    """Minimal beam exposing only what the two models read."""
-
-    def __init__(self, intensity: float):
-        self.particle_type = mu_plus
-        self.intensity = intensity
-        self.is_counter_rotating = False
-        self.reference = _StubReference()
-
-
-class _StubRFStation:
-    """Minimal RF station for the solver's reference/frequency bookkeeping."""
-
-    def __init__(self, omega_rf: float):
-        self._omega_rf = omega_rf
-
-    def track_reference(self, reference, is_counter_rotating):
-        # Static profile, single pass: the reference does not advance.
-        pass
-
-    def calc_omega_rf_design(self, beam_beta, ring_circumference):
-        return self._omega_rf
+# Package-relative imports: the dirs above ``mucol`` have no __init__.py, so
+# these test helpers are not importable by an absolute path under pytest.
+from .stubs import StubBeam, StubRFStation
+from .support import (
+    lab_frame_voltage,
+    open_debug_plot,
+    rel_err,
+    save_debug_plot,
+)
 
 
 class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
@@ -87,10 +66,10 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
 
         # Static profile spanning 1.5 RF periods, cut_left > 0 as the feedback
         # requires.
-        self.profile = StaticProfile.from_rad(
+        self.noisy_profile = StaticProfile.from_rad(
             np.pi * 1.5, np.pi * 4.5, self.n_slices, self.t_rf
         )
-        t = self.profile.hist_x
+        t = self.noisy_profile.hist_x
         t0 = 0.5 * (t[0] + t[-1])
         sigma = 0.08 * self.t_rf
 
@@ -103,13 +82,20 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
 
-        self.profile._hist_y = hist_y
-        self.profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+        self.noisy_profile._hist_y = hist_y
+        self.noisy_profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
 
-        self.beam = _StubBeam(self.intensity)
+        self.stub_beam = StubBeam(self.intensity)
 
     def _multi_turn_induced_voltage(self) -> np.ndarray:
-        """Induced voltage from a single pass of the multi-turn solver."""
+        """
+        Induced voltage from a single pass of the multi-turn solver.
+
+        Returns
+        -------
+        numpy.ndarray
+            Lab-frame induced voltage on the profile's fine grid.
+        """
         resonator = Resonators(
             shunt_impedances=self.R_over_Q * self.Q_L,
             center_frequencies=self.f_res,
@@ -121,8 +107,8 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         wakefield = WakeField(
             sources=(resonator,),
             solver=solver,
-            profile=self.profile,
-            parent_rf_station=_StubRFStation(self.omega_rf),
+            profile=self.noisy_profile,
+            parent_rf_station=StubRFStation(self.omega_rf),
         )
         # Wire up the bits normally set in on_wakefield_init_simulation so the
         # solver can run without a full Simulation.
@@ -131,12 +117,19 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         solver._maximum_storage_time = 1.0  # >> t_rf, keeps the single pass
         solver._last_reference_time = -np.finfo(float).eps
 
-        return np.asarray(solver.calc_induced_voltage(self.beam))
+        return np.asarray(solver.calc_induced_voltage(self.stub_beam))
 
     def _non_driven_feedback_induced_voltage(self) -> np.ndarray:
-        """Lab-frame beam-induced voltage from the non-driven feedback."""
+        """
+        Lab-frame beam-induced voltage from the non-driven feedback.
+
+        Returns
+        -------
+        numpy.ndarray
+            Lab-frame beam-induced voltage on the profile's fine grid.
+        """
         feedback = IQCavityFeedbackTimingClass(
-            profile=self.profile,
+            profile=self.noisy_profile,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
             generator_current=0.0,  # non-driven: no generator current
@@ -149,15 +142,17 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         # Beam current on the fine grid, exactly as the feedback computes it
         # internally (rf_beam_current, then divide by the bin width).
         charges_fine = rf_beam_current(
-            beam=self.beam,
-            profile=self.profile,
+            beam=self.stub_beam,
+            profile=self.noisy_profile,
             omega_c=self.omega_rf,
             T_rev=self.t_rf,
             use_lowpass_filter=False,
             external_reference=True,
             dT=0.0,
         )
-        feedback.beam_current_fine_grid = charges_fine / self.profile.hist_step
+        feedback.beam_current_fine_grid = (
+            charges_fine / self.noisy_profile.hist_step
+        )
         feedback.generator_current_fine_grid = np.zeros_like(
             feedback.beam_current_fine_grid
         )
@@ -168,35 +163,38 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
             initial_voltage_fine_grid=0.0,
             initial_voltage_gradient_fine_grid=0.0,
             initial_generator_current_fine_grid=0.0,
-            samples_per_rf_fine_grid=self.omega_rf * self.profile.hist_step,
+            samples_per_rf_fine_grid=(
+                self.omega_rf * self.noisy_profile.hist_step
+            ),
             relative_detuning=0.0,
         )
 
         v_ant = feedback.antenna_voltage_fine_grid
         # Project the I/Q envelope back to the lab-frame induced voltage.
-        return -np.imag(
-            v_ant * np.exp(1j * self.omega_rf * self.profile.hist_x)
+        return lab_frame_voltage(
+            v_ant, self.omega_rf, self.noisy_profile.hist_x
         )
 
     def _maybe_plot_induced_voltage(self, v_solver, v_feedback):
-        """Save a debug plot of the induced voltage vs time along the bunch.
-
-        Disabled by default. Enable with the ``BLOND_TEST_PLOTS`` environment
-        variable (set it to ``show`` to also open an interactive window)::
-
-            BLOND_TEST_PLOTS=1     <pytest invocation>   # save a PNG
-            BLOND_TEST_PLOTS=show  <pytest invocation>   # save and display
         """
-        mode = os.environ.get("BLOND_TEST_PLOTS")
-        if not mode:
+        Save a debug plot of the induced voltage vs time along the bunch.
+
+        Disabled by default. Enable by setting the module-level
+        ``support.DEBUG_PLOTS`` constant to ``"save"`` (write a PNG) or
+        ``"show"`` (also open an interactive window).
+
+        Parameters
+        ----------
+        v_solver
+            Induced voltage from the multi-turn resonator solver.
+        v_feedback
+            Induced voltage from the non-driven cavity feedback.
+        """
+        plt, mode = open_debug_plot()
+        if plt is None:
             return
-        import matplotlib
 
-        if mode != "show":
-            matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-
-        t_ns = self.profile.hist_x * 1e9
+        t_ns = self.noisy_profile.hist_x * 1e9
         fig, (ax_v, ax_diff) = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
         fig.suptitle("Induced voltage along the bunch")
         ax_v.plot(t_ns, v_solver, color="C0", label="MultiPassResonatorSolver")
@@ -209,15 +207,12 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         ax_diff.set_ylabel("feedback - solver [V]")
         ax_diff.set_xlabel("time [ns]")
         fig.tight_layout()
-
-        out = os.path.join(
-            os.path.dirname(__file__), "induced_voltage_over_time.png"
+        save_debug_plot(
+            fig,
+            os.path.dirname(__file__),
+            "induced_voltage_over_time.png",
+            mode,
         )
-        fig.savefig(out, dpi=120)
-        print(f"\n[debug plot] induced voltage over time saved to {out}")
-        if mode == "show":
-            plt.show()
-        plt.close(fig)
 
     def test_induced_voltage_matches_non_driven_feedback(self):
         """The two models agree on the induced voltage to < 1 %."""
@@ -236,10 +231,7 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         )
 
         # Overall shape: relative L2 difference well below 1 %.
-        rel_l2 = np.linalg.norm(v_feedback - v_solver) / np.linalg.norm(
-            v_solver
-        )
-        self.assertLess(rel_l2, 0.01)
+        self.assertLess(rel_err(v_feedback, v_solver), 0.01)
 
         # Peak amplitude agreement within 1 %.
         self.assertAlmostEqual(
@@ -248,13 +240,13 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
 
     def test_zeroed_profile_edges_remain_zero(self):
         """Guard the precondition that the edge bins carry no charge."""
-        self.assertEqual(self.profile.hist_y[0], 0.0)
-        self.assertEqual(self.profile.hist_y[-1], 0.0)
+        self.assertEqual(self.noisy_profile.hist_y[0], 0.0)
+        self.assertEqual(self.noisy_profile.hist_y[-1], 0.0)
 
     def test_feedback_without_beam_or_generator_is_silent(self):
         """A non-driven feedback with zero initial voltage induces nothing."""
         feedback = IQCavityFeedbackTimingClass(
-            profile=self.profile,
+            profile=self.noisy_profile,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
             generator_current=0.0,
@@ -273,7 +265,9 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
             initial_voltage_fine_grid=0.0,
             initial_voltage_gradient_fine_grid=0.0,
             initial_generator_current_fine_grid=0.0,
-            samples_per_rf_fine_grid=self.omega_rf * self.profile.hist_step,
+            samples_per_rf_fine_grid=(
+                self.omega_rf * self.noisy_profile.hist_step
+            ),
             relative_detuning=0.0,
         )
         np.testing.assert_array_equal(

@@ -13,6 +13,10 @@ from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 
+# Package-relative import: the dirs above ``mucol`` have no __init__.py, so
+# these test helpers are not importable by an absolute path under pytest.
+from .support import lab_frame_voltage
+
 
 class TestCavityFeedback(unittest.TestCase):
     """Tests for IQCavityFeedbackTimingClass step-size sanity checks."""
@@ -318,9 +322,6 @@ class TestFineGridResonatorBenchmark(unittest.TestCase):
     convolved with the same profile.
     """
 
-    # Sign relating Re[V_ant * exp(i*omega_rf*t)] to the induced voltage.
-    CAVITY_TO_INDUCED_VOLTAGE_SIGN = -1.0
-
     R_over_Q = 518.0
     Q_L = 1287601.7251526634
     f_rf = 1.3e9
@@ -385,9 +386,11 @@ class TestFineGridResonatorBenchmark(unittest.TestCase):
             samples_per_rf_fine_grid=omega_rf * profile.hist_step,
             relative_detuning=delta_omega / omega_rf,
         )
-        return self.CAVITY_TO_INDUCED_VOLTAGE_SIGN * np.real(
-            cav.antenna_voltage_fine_grid
-            * np.exp(1j * omega_rf * profile.hist_x)
+        return lab_frame_voltage(
+            cav.antenna_voltage_fine_grid,
+            omega_rf,
+            profile.hist_x,
+            use_real=True,
         )
 
     def _resonator_induced_voltage(self, beam, profile, delta_omega):

@@ -1,4 +1,5 @@
-"""Energy-gain consistency of the multi-turn wake and a non-driven feedback.
+"""
+Energy-gain consistency of the multi-turn wake and a non-driven feedback.
 
 This test tracks an *actual* ``BiGaussian`` ``mu_plus`` bunch through a real
 ``Simulation`` and checks that the induced-voltage energy gain applied to the
@@ -51,6 +52,10 @@ from blond import (
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
+# Package-relative import: the dirs above ``mucol`` have no __init__.py, so
+# these test helpers are not importable by an absolute path under pytest.
+from .support import open_debug_plot, rel_err, save_debug_plot
+
 
 class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
     """Applied induced-voltage energy gain: MTW vs non-driven feedback."""
@@ -66,7 +71,7 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         self.intensity = 2.7e12
         self.V_design = 30e6
         self.n_slices = 1024
-        self.n_macro = int(5e4)
+        self.n_macroparticles = int(5e4)
 
         self.cycle = ConstantMagneticCycle(
             reference_particle=mu_plus,
@@ -93,7 +98,23 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         )
 
     def _build(self, mtw: bool, profile: StaticProfile):
-        """Build a one-turn ring (drift + RF station) and its Simulation."""
+        """
+        Build a one-turn ring (drift + RF station) and its Simulation.
+
+        Parameters
+        ----------
+        mtw
+            If True, use the multi-turn wake model; otherwise the feedback.
+        profile
+            Static profile the wake/feedback acts on.
+
+        Returns
+        -------
+        simulation
+            The constructed one-turn Simulation.
+        rf
+            The RF station element added to the ring.
+        """
         ring = Ring(
             circumference=self.circumference, check_section_indices=False
         )
@@ -154,7 +175,7 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         sim.prepare_beam(
             beam=beam,
             preparation_routine=BiGaussian(
-                n_macroparticles=self.n_macro,
+                n_macroparticles=self.n_macroparticles,
                 sigma_dt=0.06 * self.t_rf,
                 sigma_dE=1.5e7,
                 seed=7,
@@ -164,7 +185,25 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         return beam
 
     def _run_case(self, mtw: bool):
-        """Run one turn and return (applied_dE, dt_after, profile, rf)."""
+        """
+        Run one turn and return the applied kick and post-turn state.
+
+        Parameters
+        ----------
+        mtw
+            If True, use the multi-turn wake model; otherwise the feedback.
+
+        Returns
+        -------
+        applied
+            Energy kick applied to each macroparticle over the turn [eV].
+        dt_after
+            Arrival times of the macroparticles after the turn.
+        profile
+            Static profile used for the case.
+        rf
+            The RF station element used for the case.
+        """
         profile = self._make_profile()
         sim, rf = self._build(mtw=mtw, profile=profile)
         beam = self._prepare(sim)
@@ -180,26 +219,32 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
     def _maybe_plot_energy_kick(
         self, dt, applied_mtw, applied_fb, profile, induced_mtw
     ):
-        """Save a debug plot of the applied energy kick vs arrival time.
+        """
+        Save a debug plot of the applied energy kick vs arrival time.
 
-        Disabled by default so normal/CI runs stay headless. Enable with the
-        ``BLOND_TEST_PLOTS`` environment variable (set it to ``show`` to also
-        open an interactive window)::
-
-            BLOND_TEST_PLOTS=1     <pytest invocation>   # save a PNG
-            BLOND_TEST_PLOTS=show  <pytest invocation>   # save and display
+        Disabled by default so normal/CI runs stay headless. Enable by setting
+        the module-level ``support.DEBUG_PLOTS`` constant to ``"save"`` (write a
+        PNG) or ``"show"`` (also open an interactive window).
 
         The plot is generated before the assertions, so it is produced even
         when the comparison fails -- exactly when it is most useful.
-        """
-        mode = os.environ.get("BLOND_TEST_PLOTS")
-        if not mode:
-            return
-        import matplotlib
 
-        if mode != "show":
-            matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
+        Parameters
+        ----------
+        dt
+            Arrival times of the macroparticles.
+        applied_mtw
+            Energy kick applied by the multi-turn wake model [eV].
+        applied_fb
+            Energy kick applied by the non-driven feedback [eV].
+        profile
+            Static profile the models act on.
+        induced_mtw
+            Induced voltage of the multi-turn wake model.
+        """
+        plt, mode = open_debug_plot()
+        if plt is None:
+            return
 
         order = np.argsort(dt)
         t_ns = dt[order] * 1e9
@@ -233,18 +278,21 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         ax_diff.set_ylabel("feedback - MTW [eV]")
         ax_diff.set_xlabel("arrival time dt [ns]")
         fig.tight_layout()
-
-        out = os.path.join(
-            os.path.dirname(__file__), "energy_kick_over_time.png"
+        save_debug_plot(
+            fig, os.path.dirname(__file__), "energy_kick_over_time.png", mode
         )
-        fig.savefig(out, dpi=120)
-        print(f"\n[debug plot] energy kick over time saved to {out}")
-        if mode == "show":
-            plt.show()
-        plt.close(fig)
 
     def _assert_profile_populated(self, profile, dt_after):
-        """Guard: the profile is non-empty and the bunch is in-window."""
+        """
+        Guard: the profile is non-empty and the bunch is in-window.
+
+        Parameters
+        ----------
+        profile
+            Static profile whose histogram should be populated.
+        dt_after
+            Arrival times of the macroparticles after the turn.
+        """
         self.assertGreater(
             float(np.sum(profile.hist_y)),
             0.0,
@@ -256,7 +304,8 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         self.assertGreater(in_window, 0.99, "bunch is not inside the window")
 
     def test_feedback_runs_in_full_simulation(self):
-        """The non-driven feedback tracks through a full Simulation.
+        """
+        The non-driven feedback tracks through a full Simulation.
 
         Regression for the stale ``_parent_rf_station._turn_i`` attribute
         (renamed to ``_turn_counter``). Also checks the applied kick is the
@@ -313,10 +362,7 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
             applied_fb, applied_mtw, atol=0.03 * peak, rtol=0.0
         )
         # Overall agreement well below 2 %.
-        rel_l2 = np.linalg.norm(applied_fb - applied_mtw) / np.linalg.norm(
-            applied_mtw
-        )
-        self.assertLess(rel_l2, 0.02)
+        self.assertLess(rel_err(applied_fb, applied_mtw), 0.02)
 
 
 if __name__ == "__main__":
