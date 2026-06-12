@@ -142,7 +142,7 @@ class TestCavityFeedback(unittest.TestCase):
             ),
         )
 
-    def test_on_init_simulation_warns_for_large_decay_per_step(self):
+    def test_step_size_check_warns_for_large_decay_per_step(self):
         """Warn when the per-step decay is between the soft and hard limits."""
         # 0.5 * omega * dt / Q_L should be between the soft (0.1) and hard
         # (2.0) thresholds: large enough to warn, small enough not to raise
@@ -155,10 +155,10 @@ class TestCavityFeedback(unittest.TestCase):
             omega_carrier, sampling_time_coarse
         )
         with patch_omega, patch_dt, self.assertWarns(UserWarning) as cm:
-            self.cav_fdbk.on_init_simulation(simulation=Mock())
+            self.cav_fdbk._check_step_sizes()
         self.assertIn("decay_per_step", str(cm.warning))
 
-    def test_on_init_simulation_warns_for_large_detuning_phase_per_step(self):
+    def test_step_size_check_warns_for_large_detuning_phase_per_step(self):
         """Warn when the per-step detuning phase exceeds the soft limit."""
         # delta_omega * dt should clearly exceed the 0.1 threshold
         omega_carrier = 2 * np.pi * 1e9
@@ -170,10 +170,10 @@ class TestCavityFeedback(unittest.TestCase):
             omega_carrier, sampling_time_coarse
         )
         with patch_omega, patch_dt, self.assertWarns(UserWarning) as cm:
-            self.cav_fdbk.on_init_simulation(simulation=Mock())
+            self.cav_fdbk._check_step_sizes()
         self.assertIn("detuning_phase_per_step", str(cm.warning))
 
-    def test_on_init_simulation_no_warning_for_small_step_parameters(self):
+    def test_step_size_check_no_warning_for_small_step_parameters(self):
         """Do not warn when both per-step parameters are well below the limit."""
         # both 0.5 * omega * dt / Q_L and delta_omega * dt are well below 0.1
         omega_carrier = 2 * np.pi * 1e9
@@ -190,7 +190,7 @@ class TestCavityFeedback(unittest.TestCase):
             warnings.catch_warnings(record=True) as caught,
         ):
             warnings.simplefilter("always")
-            self.cav_fdbk.on_init_simulation(simulation=Mock())
+            self.cav_fdbk._check_step_sizes()
         self.assertEqual(caught, [])
 
     def test_cavity_response_warns_for_large_beam_kick(self):
@@ -246,7 +246,7 @@ class TestCavityFeedback(unittest.TestCase):
             )
         self.assertEqual(caught, [])
 
-    def test_on_init_simulation_raises_for_unphysical_decay_per_step(self):
+    def test_step_size_check_raises_for_unphysical_decay_per_step(self):
         """Raise when the per-step decay exceeds the hard limit."""
         # 0.5 * omega * dt / Q_L > 2.0 makes the Euler decay factor negative
         omega_carrier = 2 * np.pi * 1e9
@@ -258,10 +258,10 @@ class TestCavityFeedback(unittest.TestCase):
             omega_carrier, sampling_time_coarse
         )
         with patch_omega, patch_dt, self.assertRaises(ValueError) as cm:
-            self.cav_fdbk.on_init_simulation(simulation=Mock())
+            self.cav_fdbk._check_step_sizes()
         self.assertIn("decay_per_step", str(cm.exception))
 
-    def test_on_init_simulation_raises_for_unphysical_detuning_phase_per_step(
+    def test_step_size_check_raises_for_unphysical_detuning_phase_per_step(
         self,
     ):
         """Raise when the per-step detuning phase exceeds the hard limit."""
@@ -277,7 +277,7 @@ class TestCavityFeedback(unittest.TestCase):
             omega_carrier, sampling_time_coarse
         )
         with patch_omega, patch_dt, self.assertRaises(ValueError) as cm:
-            self.cav_fdbk.on_init_simulation(simulation=Mock())
+            self.cav_fdbk._check_step_sizes()
         self.assertIn("detuning_phase_per_step", str(cm.exception))
 
     def test_cavity_response_raises_for_unphysical_beam_kick(self):

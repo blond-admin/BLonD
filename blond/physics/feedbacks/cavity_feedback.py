@@ -16,7 +16,6 @@ from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.interpolate import interp1d
 
 from blond.core.base import AltersReference, DynamicParameter, HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
@@ -635,7 +634,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self._beam_kick_warning_issued = False
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    @requires(["RFStationBaseClass"])
+    def _check_step_sizes(self) -> None:
         """
         Check that the per-step decay is not too large.
 
@@ -647,10 +647,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         ``exp((-omega / (2 * Q_L) + 1j * delta_omega) * dt)``
         when ``omega * dt / Q_L`` and ``delta_omega * dt`` are << 1.
 
-        Parameters
-        ----------
-        simulation
-            Simulation object to initialise on.
+        Called from ``on_run_simulation`` (not ``on_init_simulation``),
+        because ``omega_carrier`` reads the parent RF station's
+        ``omega_rf_design``, which is only set once the station is fully
+        initialised at the start of the run.
         """
         max_step_angle = 0.1  # rad, heuristic threshold for Euler validity
         # Beyond this, the forward-Euler decay factor
@@ -748,6 +748,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.reference_state_until_tracked = deepcopy(beam.reference)
         self.phase_offset_frwrd_next = 0
         self.phase_offset_frwrd = 0
+
+        # The parent RF station is fully initialised at this point (see
+        # docstring), so the step-size sanity check can read omega_carrier.
+        self._check_step_sizes()
 
     def get_passed_time_forward_direction(self, beam: BeamBaseClass):  # noqa: PLR0912
         """
@@ -1274,7 +1278,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     self.rf_centers[rf_centers_idx]
                     - self.rf_centers[rf_centers_idx - 1]
                 )
-            assert delta_t >= 0
+            assert delta_t >= 0, f"{delta_t}"
             if delta_t == 0:
                 warnings.warn(
                     "double taking of rf_centers value, skipping", stacklevel=1
@@ -1295,25 +1299,29 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
             # last entry is forward length
             # TODO: check this, might be wrong
-            antenna_voltage_init = interp1d(
-                self.rf_centers[-self.rf_centers_lengths[-1] :],
-                self.antenna_voltage_coarse_grid[
-                    -self.rf_centers_lengths[-1] :
-                ],
-            )(
-                init_beam_time
-            )  # This is already interpolated between 0 and 100%
+            # antenna_voltage_init = interp1d(
+            #     self.rf_centers[-self.rf_centers_lengths[-1] :],
+            #     self.antenna_voltage_coarse_grid[
+            #         -self.rf_centers_lengths[-1] :
+            #     ],
+            # )(
+            #     init_beam_time
+            # )  # This is already interpolated between 0 and 100%
             antenna_voltage_init = self.antenna_voltage_coarse_grid[
                 -self.rf_centers_lengths[-1] :
             ][0]
-            generator_current_init = interp1d(
-                self.rf_centers[-self.rf_centers_lengths[-1] :],
-                self.generator_current_coarse_grid[
-                    -self.rf_centers_lengths[-1] :
-                ],
-            )(
-                init_beam_time
-            )  # TODO: this should also be before the bunch arrival time and not interpolated
+            # generator_current_init = interp1d(
+            #     self.rf_centers[-self.rf_centers_lengths[-1] :],
+            #     self.generator_current_coarse_grid[
+            #         -self.rf_centers_lengths[-1] :
+            #     ],
+            # )(
+            #     init_beam_time
+            # )  # TODO: this should also be before the bunch arrival time and not interpolated
+
+            generator_current_init = self.generator_current_coarse_grid[
+                -self.rf_centers_lengths[-1] :
+            ][0]
 
             # TODO: fix in case of RK application
             samples_per_rf_fine_grid = omega_input * self.profile.hist_step
@@ -1543,22 +1551,24 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.calculate_rf_centers_for_forward_direction(beam=beam)
 
         self.reset_arrays()
-        for omega_index, omega_track in enumerate(
-            self.reverse_tracking_omega_list
-        ):
-            start_index = np.sum(
-                self.rf_centers_lengths[:omega_index], dtype=int
-            )
-            end_index = np.sum(
-                self.rf_centers_lengths[: omega_index + 1], dtype=int
-            )
 
-            self.circuit_track(
-                omega_input=omega_track,
-                start_index=start_index,
-                end_index=end_index,
-                no_beam=True,
-            )
+        if self.reverse_tracking_omega_list is not None:
+            for omega_index, omega_track in enumerate(
+                self.reverse_tracking_omega_list
+            ):
+                start_index = np.sum(
+                    self.rf_centers_lengths[:omega_index], dtype=int
+                )
+                end_index = np.sum(
+                    self.rf_centers_lengths[: omega_index + 1], dtype=int
+                )
+
+                self.circuit_track(
+                    omega_input=omega_track,
+                    start_index=start_index,
+                    end_index=end_index,
+                    no_beam=True,
+                )
 
         len_frwrd = len(self.rf_centers) - len_rev
 
