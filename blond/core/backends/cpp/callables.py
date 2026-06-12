@@ -52,7 +52,7 @@ def c_real_t(
 
 def reload_cpp_backend(  # NOQA: PLR0915
     floattype: type[np.float64], parallel: bool = True
-) -> CppSpecials:
+) -> type[Specials]:
     """
     Load and link the according C++ backend.
 
@@ -664,4 +664,30 @@ def reload_cpp_backend(  # NOQA: PLR0915
     return CppSpecials
 
 
-CppSpecials = reload_cpp_backend(backend.float)
+def __getattr__(name: str):
+    """
+    Provide `CppSpecials` lazily (PEP 562).
+
+    Building `CppSpecials` loads (and potentially compiles) the C++
+    library, which must not happen as a side effect of importing this
+    module; `set_specials("cpp")` builds it via `reload_cpp_backend`
+    anyway.
+
+    Parameters
+    ----------
+    name
+        Name of the requested module attribute.
+
+    Returns
+    -------
+    attribute
+        The lazily created module attribute.
+    """
+    if name == "CppSpecials":
+        cpp_specials = reload_cpp_backend(
+            floattype=backend.float,
+            parallel=True,
+        )
+        globals()["CppSpecials"] = cpp_specials
+        return cpp_specials
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

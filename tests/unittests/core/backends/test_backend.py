@@ -1,3 +1,6 @@
+import os
+import subprocess
+import sys
 import unittest
 import warnings
 
@@ -125,6 +128,82 @@ class TestBackendBaseClass(unittest.TestCase):
 
         backend.set_specials(mode=specials_org)  # prevent side effect on tests
         backend.change_backend(backend_org)
+
+    @pytest.mark.backend_mutation
+    def test_apply_environment_variables_error_names_env_var(self):
+        import os
+
+        mode_org = os.environ.get("BLOND_BACKEND_MODE")
+        os.environ["BLOND_BACKEND_MODE"] = "doesnt_exist"
+        try:
+            with self.assertRaisesRegex(ValueError, "BLOND_BACKEND_MODE"):
+                self.backend_base_class.apply_environment_variables()
+        finally:
+            if mode_org is None:
+                del os.environ["BLOND_BACKEND_MODE"]
+            else:
+                os.environ["BLOND_BACKEND_MODE"] = mode_org
+
+    @pytest.mark.backend_mutation
+    def test_setup_backend_cpp_single_core(self):
+        from blond.core.backends.helpers import setup_backend
+
+        setup_backend("cpp_single_core")
+        self.assertEqual(backend.specials_mode, "cpp_single_core")
+
+
+def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
+    """Run a code snippet in a fresh interpreter without BLOND env vars."""
+    env = os.environ.copy()
+    for key in ("BLOND_BACKEND_MODE", "BLOND_BACKEND_BITS", "BLOND_VERBOSE"):
+        env.pop(key, None)
+    return subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=300,
+    )
+
+
+class TestImportSideEffects(unittest.TestCase):
+    """Importing the backend must not print, probe, or compile anything."""
+
+    def test_import_has_no_stdout_side_effects(self):
+        result = _run_python("import blond.core.backends.backend")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertEqual(
+            result.stdout.strip(),
+            "",
+            msg=f"import must not print, got: {result.stdout!r}",
+        )
+
+    def test_available_backends_is_lazy(self):
+        result = _run_python(
+            "import blond.core.backends.backend as b;"
+            "print('AVAILABLE_BACKENDS' in vars(b));"
+            "print('Numpy64Bit' in b.AVAILABLE_BACKENDS);"
+            "print('AVAILABLE_BACKENDS' in vars(b))"
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertEqual(
+            result.stdout.split(),
+            ["False", "True", "True"],
+            msg="backends must only be probed on first access",
+        )
+
+    def test_cpp_specials_is_lazy(self):
+        result = _run_python(
+            "import blond.core.backends.cpp.callables as c;"
+            "print('CppSpecials' in vars(c));"
+            "print(c.CppSpecials.__name__)"
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertEqual(
+            result.stdout.split(),
+            ["False", "CppSpecials"],
+            msg="the C++ library must only be loaded on first access",
+        )
 
 
 class TestCupy64Bit(unittest.TestCase):
