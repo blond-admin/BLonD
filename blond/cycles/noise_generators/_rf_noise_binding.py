@@ -40,10 +40,9 @@ _local_path = pathlib.Path(__file__).parent.resolve()
 _src_path = _local_path / "_rf_noise_src"
 
 #: URL of the external source required to build the noise library.
-RF_NOISE_REPO_URL = "https://gitlab.cern.ch/be-rf-cs/Tools-and-libs/rf-noise-cpp"
-
-#: Cached, lazily-loaded shared library handle.
-_library_rf_noise: ctypes.CDLL | None = None
+RF_NOISE_REPO_URL = (
+    "https://gitlab.cern.ch/be-rf-cs/Tools-and-libs/rf-noise-cpp"
+)
 
 
 def _compiled_lib_name() -> str:
@@ -61,7 +60,14 @@ def _compiled_lib_name() -> str:
 
 
 def _target_library_path() -> pathlib.Path:
-    """Absolute path where the compiled library is expected/stored."""
+    """
+    Build the absolute path where the compiled library is expected/stored.
+
+    Returns
+    -------
+    library_path
+        Absolute path of the compiled shared library.
+    """
     return _src_path / _compiled_lib_name()
 
 
@@ -109,9 +115,7 @@ def _compile_rf_noise_library(
         If the compilation exits with a non-zero return code.
     """
     if not str(rf_noise_dir).endswith("rf-noise-cpp"):
-        raise NameError(
-            f"Path must end on 'rf-noise-cpp', not {rf_noise_dir}"
-        )
+        raise NameError(f"Path must end on 'rf-noise-cpp', not {rf_noise_dir}")
     if not rf_noise_dir.is_dir():
         raise FileNotFoundError(
             f"Couldn't find the RF Noise repository at {rf_noise_dir}.\n"
