@@ -12,10 +12,10 @@ The solvers are driven directly on a static profile -- no ``Beam`` tracking and
 no full ``Simulation`` -- with small mock objects.
 """
 
-import os
 import unittest
 from typing import Literal
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import Resonators, StaticProfile, WakeField
@@ -32,10 +32,10 @@ from blond.physics.impedances.solvers import MultiPassResonatorSolver
 from .stubs import StubBeam, StubRFStation
 from .support import (
     lab_frame_voltage,
-    open_debug_plot,
     rel_err,
-    save_debug_plot,
 )
+
+DEBUG_PLOT = True
 
 
 class TestCavityResponseSolverConvergence(unittest.TestCase):
@@ -152,7 +152,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
         )
         return lab_frame_voltage(v_ant, self.omega_rf, t), t
 
-    def _maybe_plot_convergence(self):
+    def _plot_convergence(self):
         """
         Save a debug plot of solver convergence and low-binning residuals.
 
@@ -166,10 +166,6 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
         convolution solver at coarse binning, showing Euler's systematic bump
         and the near-zero Crank-Nicolson residual.
         """
-        plt, mode = open_debug_plot()
-        if plt is None:
-            return
-
         v_truth, t_truth = self._calculate_induced_voltage(
             8192, "second_order"
         )
@@ -247,9 +243,9 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
         ax_res.grid(True, alpha=0.3)
 
         fig.tight_layout()
-        save_debug_plot(
-            fig, os.path.dirname(__file__), "solver_convergence.png", mode
-        )
+
+        # plt.savefig("residual_vs_convolution.png", dpi=200, bbox_inches="tight")
+        plt.show()
 
     def test_second_order_more_accurate_at_low_binning(self):
         """At coarse binning the CN solver beats Euler by orders of magnitude."""
@@ -268,7 +264,8 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
     def test_solver_convergence_orders(self):
         """Euler converges at first order, Crank-Nicolson at second order."""
         # Debug plot (opt-in) before the assertions.
-        self._maybe_plot_convergence()
+        if DEBUG_PLOT:
+            self._plot_convergence()
 
         # High-resolution truth (the second-order solver on a fine grid).
         v_truth, t_truth = self._calculate_induced_voltage(

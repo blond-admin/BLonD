@@ -28,9 +28,9 @@ with ``Q_L ~ 1e6``) is negligible, so the two formulations agree to the
 discretization error of the forward-Euler cavity response.
 """
 
-import os
 import unittest
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import Resonators, StaticProfile, WakeField
@@ -43,10 +43,10 @@ from blond.physics.impedances.solvers import MultiPassResonatorSolver
 from .stubs import StubBeam, StubRFStation
 from .support import (
     lab_frame_voltage,
-    open_debug_plot,
     rel_err,
-    save_debug_plot,
 )
+
+DEBUG_PLOT = False
 
 
 class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
@@ -56,7 +56,7 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         """Build a noisy-Gaussian static profile and shared cavity parameters."""
         # RCS1-like single-cavity parameters.
         self.R_over_Q = 518.0
-        self.Q_L = 1.29e6
+        self.Q_L = 1.29e4
         self.t_rf = 1.0e-9
         self.omega_rf = 2.0 * np.pi / self.t_rf
         self.f_res = 1.0 / self.t_rf
@@ -175,7 +175,7 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
             v_ant, self.omega_rf, self.noisy_profile.hist_x
         )
 
-    def _maybe_plot_induced_voltage(self, v_solver, v_feedback):
+    def _plot_induced_voltage(self, v_solver, v_feedback):
         """
         Save a debug plot of the induced voltage vs time along the bunch.
 
@@ -190,10 +190,6 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         v_feedback
             Induced voltage from the non-driven cavity feedback.
         """
-        plt, mode = open_debug_plot()
-        if plt is None:
-            return
-
         t_ns = self.noisy_profile.hist_x * 1e9
         fig, (ax_v, ax_diff) = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
         fig.suptitle("Induced voltage along the bunch")
@@ -207,12 +203,9 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         ax_diff.set_ylabel("feedback - solver [V]")
         ax_diff.set_xlabel("time [ns]")
         fig.tight_layout()
-        save_debug_plot(
-            fig,
-            os.path.dirname(__file__),
-            "induced_voltage_over_time.png",
-            mode,
-        )
+
+        # plt.savefig("induced_voltage_over_time.png")
+        plt.show()
 
     def test_induced_voltage_matches_non_driven_feedback(self):
         """The two models agree on the induced voltage to < 1 %."""
@@ -220,7 +213,8 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         v_feedback = self._non_driven_feedback_induced_voltage()
 
         # Debug plot (opt-in) before the assertions.
-        self._maybe_plot_induced_voltage(v_solver, v_feedback)
+        if DEBUG_PLOT:
+            self._plot_induced_voltage(v_solver, v_feedback)
 
         peak = np.max(np.abs(v_solver))
         self.assertGreater(peak, 0.0)
