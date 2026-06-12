@@ -704,6 +704,11 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         for pole_i in prange(n_poles):
             thread_i = numba.get_thread_id()
 
+            # `cr_pole_flip` is intentionally applied to BOTH the state
+            # injection and the output amplitude: for the counter-rotating
+            # beam's own wake the two factors cancel (flip**2 == 1); only
+            # contributions of the other beam, accumulated in the shared
+            # `states`, see a net sign flip.
             cr_pole_flip = 1.0
             if (
                 is_counterrotating_beam
@@ -715,11 +720,15 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             # V[n] = 2 * Re(r * y[n])
             # state = 0.0 + 0.0j
             i_update = 0
-            update_on_bin_i = update_on_bin[i_update]
+            # empty `update_on_bin` means "never update"; `decay` stays 0
+            update_on_bin_i = (
+                update_on_bin[0] if len(update_on_bin) > 0 else -1
+            )
 
             pole = complex(poles[pole_i])
             residue = complex(residues[pole_i])
             state = complex(states[pole_i])
+            decay = 0.0 + 0.0j
 
             t_start = states[-1]
 
@@ -750,6 +759,5 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
                 state += profile_i_half
             states[pole_i] = state
 
-        for thread_i in prange(numba.get_num_threads()):
-            voltage += voltage_threaded[thread_i, :]
+        voltage[:] = np.sum(voltage_threaded, axis=0)
         states[-1] = profile_dts[-1]
