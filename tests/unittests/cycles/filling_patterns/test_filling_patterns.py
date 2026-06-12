@@ -191,6 +191,86 @@ class TestWarningLocation:
         assert caught[0].filename == __file__
 
 
+class TestRelativeTolerance:
+    def test_standard_lhc_spacings_pass_silently(self):
+        # Nominal ns spacings deviate from the exact bucket multiple by a
+        # fixed *fraction* (~0.2 % at 400.789 MHz), so the absolute
+        # deviation grows with distance; none of these may warn.
+        f_rf = 400.789e6
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            for spacing_ns in (25, 50, 75, 100, 225):
+                as_n_buckets(spacing_ns * 1e-9, f_rf)
+
+    def test_misaligned_distance_warns(self):
+        with pytest.warns(UserWarning, match="not an integer"):
+            as_n_buckets(2.3, 1.0)
+
+    def test_zero_distance_does_not_warn(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            assert as_n_buckets(0.0, 400.789e6) == 0
+
+
+class TestPayloadDtype:
+    def test_payload_stored_as_float(self):
+        batch = Batch(2, 1)
+        batch.n_injected = np.array([1, 2])
+        assert batch.n_injected.dtype == np.float64
+
+    def test_int_payload_merge_keeps_nan_contract(self):
+        left = Batch(2, 1)
+        left.n_injected = np.array([1, 2])
+        merged = left + Batch(2, 1)
+        assert np.all(np.isnan(merged.n_injected[2:]))
+
+    def test_assignment_rejects_string_payload(self):
+        batch = Batch(2, 1)
+        with pytest.raises(ValueError, match="tag"):
+            batch.tag = np.array(["x", "y"])
+
+    def test_constructor_rejects_string_payload(self):
+        with pytest.raises(ValueError, match="tag"):
+            BunchTable(
+                positions=np.array([0]),
+                length=1,
+                payload={"tag": np.array(["x"])},
+            )
+
+
+class TestReservedPayloadNames:
+    def test_segment_rejects_harmonic_number_payload(self):
+        batch = Batch(2, 1)
+        with pytest.raises(AttributeError, match="harmonic_number"):
+            batch.harmonic_number = np.ones(2)
+
+    def test_segment_rejects_has_bunch_payload(self):
+        batch = Batch(2, 1)
+        with pytest.raises(AttributeError, match="has_bunch"):
+            batch.has_bunch = np.ones(2)
+
+    def test_constructor_rejects_harmonic_number_payload(self):
+        with pytest.raises(ValueError, match="harmonic_number"):
+            BunchTable(
+                positions=np.array([0]),
+                length=1,
+                payload={"harmonic_number": np.array([1.0])},
+            )
+
+
+class TestMultiplierValidation:
+    def test_mul_rejects_fractional(self):
+        with pytest.raises(ValueError, match="integer"):
+            Batch(2, 1) * 2.5
+
+    def test_mul_accepts_integral_float(self):
+        assert (Batch(2, 1) * 2.0).n_bunches == 4
+
+    def test_rmul_rejects_fractional(self):
+        with pytest.raises(ValueError, match="integer"):
+            2.5 * Batch(2, 1)
+
+
 class TestRegressionGuards:
     def test_composition_renumbers_tiers(self):
         batch = Batch(n_bunches=2, bunch_spacing=1)

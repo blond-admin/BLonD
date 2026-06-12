@@ -71,8 +71,9 @@ Conventional payload names and units, shared by all consumers:
 * ``bunch_length`` — seconds (bunch length, e.g. 4 sigma)
 * ``emittance`` — eVs (longitudinal emittance)
 
-NaN entries mean "unspecified" (payload arrays are NaN-filled when
-patterns defining different payload names are concatenated).
+Payload arrays are stored as float64; NaN entries mean "unspecified"
+(payload arrays are NaN-filled when patterns defining different payload
+names are concatenated). Values that do not cast to float are rejected.
 """
 
 from __future__ import annotations
@@ -89,7 +90,7 @@ _UNASSIGNED: int = -1
 def as_n_buckets(
     time_distance: float,
     f_rf: float,
-    tolerance: float = 0.05,
+    tolerance: float = 0.005,
     stacklevel: int = 2,
 ) -> int:
     """
@@ -97,8 +98,12 @@ def as_n_buckets(
 
     Rounds to the nearest integer number of buckets and warns when
     ``time_distance`` deviates from that integer by more than ``tolerance``
-    buckets (default 0.05 — loose enough that e.g. a 25 ns spacing on the
-    LHC 400 MHz RF, 10.02 buckets, passes silently).
+    as a fraction of the distance (default 0.5 %). The tolerance is
+    relative because nominal spacings quoted in round nanoseconds miss the
+    exact bucket multiple by a fixed *fraction* (e.g. 25 ns on the LHC
+    400 MHz RF is 10.02 buckets, ~0.2 % per bucket), so the absolute
+    deviation grows linearly with distance — 25 ns and its multiples
+    (75 ns, 225 ns, ...) all pass silently.
 
     Parameters
     ----------
@@ -107,7 +112,8 @@ def as_n_buckets(
     f_rf
         RF frequency in Hz.
     tolerance
-        Maximum accepted deviation from an integer, in buckets.
+        Maximum accepted deviation from an integer number of buckets,
+        as a fraction of the distance (relative tolerance).
     stacklevel
         Passed to :func:`warnings.warn`; raise it when calling through
         wrappers so the warning points at the user's code.
@@ -119,7 +125,11 @@ def as_n_buckets(
     """
     n_buckets_exact = time_distance * f_rf
     n_buckets = round(n_buckets_exact)
-    if abs(n_buckets_exact - n_buckets) > tolerance:
+    # max(..., 1.0) keeps sub-bucket distances from being judged against
+    # a near-zero scale.
+    if abs(n_buckets_exact - n_buckets) > tolerance * max(
+        abs(n_buckets_exact), 1.0
+    ):
         warnings.warn(
             f"time_distance = {time_distance} s corresponds to "
             f"{n_buckets_exact:.4f} RF buckets, which is not an integer "
@@ -160,6 +170,32 @@ def _unassigned_tier(n_bunches: int) -> np.ndarray:
 
 def _nan_column(n_bunches: int) -> np.ndarray:
     return np.full(n_bunches, np.nan)
+
+
+def _as_payload_column(value: Any, name: str, n_bunches: int) -> np.ndarray:
+    # Payload arrays are stored as float64 (owned copy) so that NaN can
+    # mark unspecified entries when segments with different payload names
+    # are concatenated.
+    try:
+        column = np.array(value, dtype=np.float64)
+    except (ValueError, TypeError) as error:
+        raise ValueError(
+            f"Payload '{name}' must be castable to float (NaN marks "
+            f"unspecified entries): {error}"
+        ) from None
+    if column.ndim != 1 or len(column) != n_bunches:
+        raise ValueError(
+            f"Payload '{name}' must be 1-D with length {n_bunches}; "
+            f"got shape {column.shape}."
+        )
+    return column
+
+
+def _is_structural_name(cls: type, name: str) -> bool:
+    # Payload arrays travel from segments into the final FillingPattern,
+    # so FillingPattern's structural names (harmonic_number, has_bunch)
+    # are reserved on every BunchTable, not only where they are defined.
+    return hasattr(cls, name) or hasattr(FillingPattern, name)
 
 
 def _merge_columns(
@@ -233,8 +269,9 @@ class BunchTable:
     tier names, ...) are rejected.
 
     The structure is fixed at construction: ``positions`` and the tier
-    columns are read-only arrays. Payload arrays are copied on assignment
-    and stay mutable in place (that is the masked-assignment interface).
+    columns are read-only arrays. Payload arrays are copied to float64 on
+    assignment (NaN = unspecified) and stay mutable in place (that is the
+    masked-assignment interface).
 
     Parameters
     ----------
@@ -245,7 +282,8 @@ class BunchTable:
     tiers
         Tier columns keyed by tier name (-1 = unassigned).
     payload
-        Per-bunch payload arrays keyed by attribute name.
+        Per-bunch payload arrays keyed by attribute name; must be
+        castable to float64.
     """
 
     _positions: np.ndarray
@@ -287,27 +325,26 @@ class BunchTable:
         payload = (
             {}
             if payload is None
-            else {name: np.array(arr) for name, arr in payload.items()}
+            else {
+                name: _as_payload_column(arr, name, n_bunches)
+                for name, arr in payload.items()
+            }
         )
         for name, column in tiers.items():
             if len(column) != n_bunches:
                 raise ValueError(
                     f"Tier '{name}' has length {len(column)}, expected {n_bunches}."
                 )
-        for name, arr in payload.items():
-            if arr.ndim != 1 or len(arr) != n_bunches:
-                raise ValueError(
-                    f"Payload '{name}' must be 1-D with length {n_bunches}."
-                )
+        for name in payload:
             if name in tiers:
                 raise ValueError(
                     f"'{name}' is both a tier and a payload name; tier and "
                     f"payload names must not collide."
                 )
-            if hasattr(type(self), name):
+            if _is_structural_name(type(self), name):
                 raise ValueError(
-                    f"Payload '{name}' collides with a structural attribute "
-                    f"of {type(self).__name__}."
+                    f"Payload '{name}' collides with a structural pattern "
+                    f"attribute."
                 )
         # Structure is fixed after construction; only payload values may
         # change in place.
@@ -441,23 +478,17 @@ class BunchTable:
         if name.startswith("_"):
             object.__setattr__(self, name, value)
             return
-        if hasattr(type(self), name):
+        if _is_structural_name(type(self), name):
             raise AttributeError(
-                f"'{name}' is a structural attribute of {type(self).__name__} "
-                f"and cannot be used as a payload name."
+                f"'{name}' is a structural pattern attribute and cannot be "
+                f"used as a payload name."
             )
         if name in self._tiers:
             raise AttributeError(
                 f"'{name}' is a tier name (read it with .tier('{name}')); "
                 f"payload names must not shadow tiers."
             )
-        arr = np.array(value)  # owned copy
-        if arr.ndim != 1 or len(arr) != self.n_bunches:
-            raise ValueError(
-                f"Payload '{name}' must be 1-D with length {self.n_bunches}; "
-                f"got shape {arr.shape}."
-            )
-        self._payload[name] = arr
+        self._payload[name] = _as_payload_column(value, name, self.n_bunches)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(n_bunches={self.n_bunches}, length={self.length})"
@@ -571,6 +602,7 @@ class PatternSegment(BunchTable):
 
     def __mul__(self, n_repetitions: int) -> PatternSegment:
         # Repeat back-to-back, re-numbering tiers per copy.
+        n_repetitions = _as_int(n_repetitions, "n_repetitions")
         if n_repetitions < 1:
             raise ValueError(f"Multiplier must be >= 1, got {n_repetitions}.")
         result: PatternSegment = self
