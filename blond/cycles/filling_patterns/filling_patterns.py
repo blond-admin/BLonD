@@ -61,10 +61,11 @@ Tier indices are re-numbered automatically on concatenation::
 
 **Payload contract (consumer interface)**
 
-A finished :class:`FillingPattern` guarantees: ``positions`` (sorted RF
-bucket index per bunch), ``harmonic_number``, ``has_bunch``, the tier
-columns, and the per-bunch payload arrays. Conventional payload names and
-units, shared by all consumers (beam preparation, profiles, injection):
+Consumers (beam preparation, profiles, injection) read the
+:class:`BunchTable` interface of a finished :class:`FillingPattern`:
+``positions`` (sorted RF bucket index per bunch), ``harmonic_number``,
+``has_bunch``, the tier columns, and the per-bunch payload arrays.
+Conventional payload names and units, shared by all consumers:
 
 * ``intensity`` — particles per bunch (bunch population)
 * ``bunch_length`` — seconds (bunch length, e.g. 4 sigma)
@@ -76,234 +77,136 @@ patterns defining different payload names are concatenated).
 
 from __future__ import annotations
 
-from typing import Any, NoReturn
+import warnings
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
-
-from blond.cycles.filling_patterns.helpers import as_n_buckets
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 
 _UNASSIGNED: int = -1
 
 
-# ---------------------------------------------------------------------------
-# Private helpers
-# ---------------------------------------------------------------------------
-
-
-def _next_index(tier_indices: np.ndarray) -> int:
+def as_n_buckets(
+    time_distance: float, f_rf: float, tolerance: float = 0.05
+) -> int:
     """
-    Return the first unused index of a tier column.
+    Return the number of RF buckets matching a physical time distance.
+
+    Rounds to the nearest integer number of buckets and warns when
+    ``time_distance`` deviates from that integer by more than ``tolerance``
+    buckets (default 0.05 — loose enough that e.g. a 25 ns spacing on the
+    LHC 400 MHz RF, 10.02 buckets, passes silently).
 
     Parameters
     ----------
-    tier_indices
-        Membership index per bunch (-1 = unassigned).
+    time_distance
+        Physical start-to-start distance in seconds.
+    f_rf
+        RF frequency in Hz.
+    tolerance
+        Maximum accepted deviation from an integer, in buckets.
 
     Returns
     -------
-    next_index
-        Maximum assigned index + 1, or 0 if none is assigned.
+    n_buckets
+        Number of RF buckets, rounded to the nearest integer.
     """
+    n_buckets_exact = time_distance * f_rf
+    n_buckets = round(n_buckets_exact)
+    if abs(n_buckets_exact - n_buckets) > tolerance:
+        warnings.warn(
+            f"time_distance = {time_distance} s corresponds to "
+            f"{n_buckets_exact:.4f} RF buckets, which is not an integer "
+            f"number of buckets (rounded to {n_buckets}).",
+            stacklevel=2,
+        )
+    return n_buckets
+
+
+# --------------------------------------------------------------- helpers
+
+
+def _next_index(tier_indices: np.ndarray) -> int:
+    # First unused group index of a tier column (-1 = unassigned).
     assigned = tier_indices[tier_indices >= 0]
     return int(assigned.max()) + 1 if len(assigned) else 0
 
 
 def _renumber(tier_indices: np.ndarray, index_offset: int) -> np.ndarray:
-    """
-    Shift assigned tier indices, leaving unassigned entries unchanged.
-
-    Parameters
-    ----------
-    tier_indices
-        Membership index per bunch (-1 = unassigned).
-    index_offset
-        Offset added to every non-negative index.
-
-    Returns
-    -------
-    renumbered
-        Shifted tier column (unassigned entries stay -1).
-    """
+    # Shift assigned tier indices; unassigned entries stay -1.
     return np.where(
         tier_indices >= 0, tier_indices + index_offset, _UNASSIGNED
     ).astype(np.int32)
 
 
 def _unassigned_tier(n_bunches: int) -> np.ndarray:
-    """
-    Return a tier column with all bunches unassigned.
-
-    Parameters
-    ----------
-    n_bunches
-        Number of bunches, i.e. length of the column.
-
-    Returns
-    -------
-    tier_column
-        Array of -1 with length n_bunches.
-    """
     return np.full(n_bunches, _UNASSIGNED, dtype=np.int32)
 
 
-def _merge_tiers(
+def _nan_column(n_bunches: int) -> np.ndarray:
+    return np.full(n_bunches, np.nan)
+
+
+def _merge_columns(
     left: dict[str, np.ndarray],
     right: dict[str, np.ndarray],
-    n_left_bunches: int,
-    n_right_bunches: int,
+    n_left: int,
+    n_right: int,
+    missing_column: Callable[[int], np.ndarray],
+    renumber: bool = False,
 ) -> dict[str, np.ndarray]:
-    """
-    Concatenate tier columns of two segments, re-numbering the right side.
-
-    Tier names absent from one side are filled with -1 (unassigned) for
-    that side's bunches.
-
-    Parameters
-    ----------
-    left
-        Tier columns of the left segment.
-    right
-        Tier columns of the right segment.
-    n_left_bunches
-        Number of bunches in the left segment.
-    n_right_bunches
-        Number of bunches in the right segment.
-
-    Returns
-    -------
-    merged
-        Concatenated tier columns, keyed by tier name.
-    """
+    # Concatenate per-bunch columns of two segments; names absent on one
+    # side are filled via missing_column(n). With renumber=True (tiers)
+    # the right side is shifted so group indices stay unique.
     merged = {}
-    for tier_name in set(left) | set(right):
-        left_column = left.get(tier_name, _unassigned_tier(n_left_bunches))
-        right_column = right.get(tier_name, _unassigned_tier(n_right_bunches))
-        merged[tier_name] = np.concatenate(
-            [
-                left_column,
-                _renumber(right_column, _next_index(left_column)),
-            ]
-        )
+    for name in set(left) | set(right):
+        left_column = left.get(name, missing_column(n_left))
+        right_column = right.get(name, missing_column(n_right))
+        if renumber:
+            right_column = _renumber(right_column, _next_index(left_column))
+        merged[name] = np.concatenate([left_column, right_column])
     return merged
-
-
-def _merge_payload(
-    left: dict[str, np.ndarray],
-    right: dict[str, np.ndarray],
-    n_left_bunches: int,
-    n_right_bunches: int,
-) -> dict[str, np.ndarray]:
-    """
-    Concatenate payload arrays, NaN-filling names absent from one side.
-
-    Parameters
-    ----------
-    left
-        Payload arrays of the left segment.
-    right
-        Payload arrays of the right segment.
-    n_left_bunches
-        Number of bunches in the left segment.
-    n_right_bunches
-        Number of bunches in the right segment.
-
-    Returns
-    -------
-    merged
-        Concatenated payload arrays, keyed by attribute name.
-    """
-    return {
-        attribute_name: np.concatenate(
-            [
-                left.get(attribute_name, np.full(n_left_bunches, np.nan)),
-                right.get(attribute_name, np.full(n_right_bunches, np.nan)),
-            ]
-        )
-        for attribute_name in set(left) | set(right)
-    }
 
 
 def _spacing_from_distance(
     unit_length: int, start_to_start_distance: float, f_rf: float
 ) -> int:
-    """
-    Convert a physical start-to-start distance to a gap in buckets.
-
-    Parameters
-    ----------
-    unit_length
-        Length of the repeated unit in buckets.
-    start_to_start_distance
-        Physical start-to-start distance in seconds.
-    f_rf
-        RF frequency in Hz.
-
-    Returns
-    -------
-    spacing
-        Empty RF buckets between consecutive units.
-    """
+    # Physical start-to-start distance (s) -> empty buckets between units.
     return as_n_buckets(start_to_start_distance, f_rf) - unit_length
 
 
 def _repeat_with_gap(
     unit: PatternSegment, n_copies: int, copy_spacing: int
 ) -> PatternSegment:
-    """
-    Repeat a unit with a gap between copies (no trailing gap).
-
-    Parameters
-    ----------
-    unit
-        Segment to repeat.
-    n_copies
-        Number of repetitions.
-    copy_spacing
-        Empty RF buckets between consecutive copies.
-
-    Returns
-    -------
-    repeated
-        Concatenation of n_copies of unit.
-    """
+    # Repeat a unit with a gap between copies (no trailing gap).
     if n_copies == 1:
         return unit
     return unit.gap(copy_spacing) * (n_copies - 1) + unit
 
 
-# ---------------------------------------------------------------------------
-# Base: composable segment
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------- BunchTable
 
 
-class PatternSegment:
+class BunchTable:
     """
-    Composable building block of a filling pattern (per-bunch array table).
+    Read interface shared by all patterns: per-bunch arrays plus payload.
 
     Per-bunch arrays (all length n_bunches)::
 
         positions     RF bucket index of each bunch (strictly increasing)
-        bunch         0-based ordinal index  (0, 1, 2, ...)
         tier(name)    membership index per bunch in the named tier
                       (-1 = unassigned); 'batch' and 'train' are the
-                      conventional names, any name can be added via label()
+                      conventional names, any name can be added via
+                      PatternSegment.label()
 
     Public attributes not starting with '_' are stored as per-bunch payload
     arrays, enabling numpy-masked assignment::
 
-        segment.intensity = np.ones(segment.n_bunches) * 1e11
-        segment.intensity[segment.batch == 2] = 0.5e11
+        pattern.intensity = np.ones(pattern.n_bunches) * 1e11
+        pattern.intensity[pattern.tier("batch") == 2] = 0.5e11
 
     Names that collide with structural attributes (positions, length,
     tier names, ...) are rejected.
-
-    Concatenation (+) shifts positions and re-numbers every tier::
-
-        combined = a.gap(5) + b
 
     Parameters
     ----------
@@ -369,12 +272,10 @@ class PatternSegment:
         object.__setattr__(self, "_length", length)
         object.__setattr__(self, "_payload", payload)
 
-    # ------------------------------------------------------------------ counts
-
     @property
     def n_bunches(self) -> int:
         """
-        Return the number of bunches in this segment.
+        Return the number of bunches.
 
         Returns
         -------
@@ -382,48 +283,6 @@ class PatternSegment:
             Number of bunches.
         """
         return len(self._positions)
-
-    @property
-    def n_batches(self) -> int:
-        """
-        Return the number of distinct assigned indices in the 'batch' tier.
-
-        Returns
-        -------
-        n_batches
-            Number of batches (0 if the tier is absent).
-        """
-        return self.n_in_tier("batch")
-
-    @property
-    def n_trains(self) -> int:
-        """
-        Return the number of distinct assigned indices in the 'train' tier.
-
-        Returns
-        -------
-        n_trains
-            Number of trains (0 if the tier is absent).
-        """
-        return self.n_in_tier("train")
-
-    def n_in_tier(self, tier_name: str) -> int:
-        """
-        Return the number of distinct assigned indices in the named tier.
-
-        Parameters
-        ----------
-        tier_name
-            Name of the tier.
-
-        Returns
-        -------
-        n_in_tier
-            Number of groups in the tier (0 if the tier is absent).
-        """
-        return _next_index(self._tiers.get(tier_name, _unassigned_tier(0)))
-
-    # ------------------------------------------------------------------ labels
 
     @property
     def length(self) -> int:
@@ -450,44 +309,6 @@ class PatternSegment:
         return self._positions
 
     @property
-    def bunch(self) -> np.ndarray:
-        """
-        Return the 0-based ordinal index per bunch.
-
-        Enables masks such as ``bunch % 2 == 0``.
-
-        Returns
-        -------
-        bunch
-            Array [0, 1, 2, ...] of shape (n_bunches,).
-        """
-        return np.arange(self.n_bunches, dtype=np.int32)
-
-    @property
-    def batch(self) -> np.ndarray:
-        """
-        Return the 'batch' tier column.
-
-        Returns
-        -------
-        batch
-            Batch index per bunch (-1 where unassigned or tier absent).
-        """
-        return self._tiers.get("batch", _unassigned_tier(self.n_bunches))
-
-    @property
-    def train(self) -> np.ndarray:
-        """
-        Return the 'train' tier column.
-
-        Returns
-        -------
-        train
-            Train index per bunch (-1 where unassigned or tier absent).
-        """
-        return self._tiers.get("train", _unassigned_tier(self.n_bunches))
-
-    @property
     def tiers(self) -> dict[str, np.ndarray]:
         """
         Return all tier columns.
@@ -507,8 +328,7 @@ class PatternSegment:
         ----------
         tier_name
             Name of the tier (raises KeyError if unknown; use
-            :meth:`label` to add one, or the ``batch``/``train``
-            properties which default to -1).
+            :meth:`PatternSegment.label` to add one).
 
         Returns
         -------
@@ -522,6 +342,22 @@ class PatternSegment:
                 f"No tier '{tier_name}'; available tiers: {sorted(self._tiers)}."
             ) from None
 
+    def n_in_tier(self, tier_name: str) -> int:
+        """
+        Return the number of distinct assigned indices in the named tier.
+
+        Parameters
+        ----------
+        tier_name
+            Name of the tier.
+
+        Returns
+        -------
+        n_in_tier
+            Number of groups in the tier (0 if the tier is absent).
+        """
+        return _next_index(self._tiers.get(tier_name, _unassigned_tier(0)))
+
     @property
     def payload(self) -> dict[str, np.ndarray]:
         """
@@ -534,26 +370,12 @@ class PatternSegment:
         """
         return self._payload
 
-    # ----------------------------------------------------------- payload i/o
     # Public attributes (no leading '_') are routed to _payload, enabling
     # the pattern.intensity = ...; pattern.intensity[mask] = ... interface.
     # Structural names and tier names are rejected to prevent silent
     # write/read mismatches (e.g. pattern.positions = ...).
 
     def __getattr__(self, name: str) -> np.ndarray:
-        """
-        Return the payload array stored under the given name.
-
-        Parameters
-        ----------
-        name
-            Payload attribute name.
-
-        Returns
-        -------
-        payload_array
-            Per-bunch payload array.
-        """
         try:
             return object.__getattribute__(self, "_payload")[name]
         except KeyError:
@@ -562,17 +384,6 @@ class PatternSegment:
             ) from None
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """
-        Store a per-bunch payload array under the given name.
-
-        Parameters
-        ----------
-        name
-            Payload attribute name (must not collide with structural
-            attributes or tier names).
-        value
-            1-D array of length n_bunches.
-        """
         if name.startswith("_"):
             object.__setattr__(self, name, value)
             return
@@ -594,7 +405,24 @@ class PatternSegment:
             )
         self._payload[name] = arr
 
-    # ------------------------------------------------------------ gap & label
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(n_bunches={self.n_bunches}, length={self.length})"
+
+
+# --------------------------------------------------------- PatternSegment
+
+
+class PatternSegment(BunchTable):
+    """
+    Composable building block of a filling pattern.
+
+    Concatenation (+) shifts positions and re-numbers every tier::
+
+        combined = a.gap(5) + b
+
+    See :class:`BunchTable` for the per-bunch arrays, the payload
+    interface, and the constructor parameters.
+    """
 
     def gap(self, n_empty_buckets: int) -> PatternSegment:
         """
@@ -659,51 +487,38 @@ class PatternSegment:
             payload={name: arr.copy() for name, arr in self._payload.items()},
         )
 
-    # ----------------------------------------------------------- concatenation
-
     def __add__(self, other: PatternSegment) -> PatternSegment:
-        """
-        Concatenate two segments, re-numbering tiers of the right side.
-
-        Parameters
-        ----------
-        other
-            Segment appended after this one.
-
-        Returns
-        -------
-        combined
-            Concatenated segment.
-        """
-        if isinstance(other, FillingPattern):
-            raise other._complete_error()
+        # Concatenate, re-numbering tiers of the right side.
+        if not isinstance(other, PatternSegment):
+            raise TypeError(
+                f"Can only concatenate PatternSegment, not "
+                f"{type(other).__name__}; a FillingPattern is complete — "
+                f"compose segments first, then wrap once."
+            )
         return PatternSegment(
             positions=np.concatenate(
                 [self.positions, other.positions + self.length]
             ),
             length=self.length + other.length,
-            tiers=_merge_tiers(
-                self._tiers, other._tiers, self.n_bunches, other.n_bunches
+            tiers=_merge_columns(
+                self._tiers,
+                other._tiers,
+                self.n_bunches,
+                other.n_bunches,
+                _unassigned_tier,
+                renumber=True,
             ),
-            payload=_merge_payload(
-                self._payload, other._payload, self.n_bunches, other.n_bunches
+            payload=_merge_columns(
+                self._payload,
+                other._payload,
+                self.n_bunches,
+                other.n_bunches,
+                _nan_column,
             ),
         )
 
     def __mul__(self, n_repetitions: int) -> PatternSegment:
-        """
-        Repeat this segment back-to-back.
-
-        Parameters
-        ----------
-        n_repetitions
-            Number of copies (>= 1).
-
-        Returns
-        -------
-        repeated
-            Concatenation of n_repetitions copies.
-        """
+        # Repeat back-to-back, re-numbering tiers per copy.
         if n_repetitions < 1:
             raise ValueError(f"Multiplier must be >= 1, got {n_repetitions}.")
         result: PatternSegment = self
@@ -712,47 +527,10 @@ class PatternSegment:
         return result
 
     def __rmul__(self, n_repetitions: int) -> PatternSegment:
-        """
-        Repeat this segment back-to-back (reflected operand).
-
-        Parameters
-        ----------
-        n_repetitions
-            Number of copies (>= 1).
-
-        Returns
-        -------
-        repeated
-            Concatenation of n_repetitions copies.
-        """
         return self.__mul__(n_repetitions)
 
-    def __len__(self) -> int:
-        """
-        Return the segment length in RF buckets.
 
-        Returns
-        -------
-        length
-            Total number of RF buckets.
-        """
-        return self._length
-
-    def __repr__(self) -> str:
-        """
-        Return a short description of the segment.
-
-        Returns
-        -------
-        representation
-            Class name with bunch count and length.
-        """
-        return f"{type(self).__name__}(n_bunches={self.n_bunches}, length={self.length})"
-
-
-# ---------------------------------------------------------------------------
-# Gap
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------- named segments
 
 
 class Gap(PatternSegment):
@@ -776,26 +554,6 @@ class Gap(PatternSegment):
         )
 
 
-# ---------------------------------------------------------------------------
-# Bunch
-# ---------------------------------------------------------------------------
-
-
-class Bunch(PatternSegment):
-    """Single filled RF bucket, not assigned to any tier."""
-
-    def __init__(self):
-        super().__init__(
-            positions=np.array([0], dtype=np.int64),
-            length=1,
-        )
-
-
-# ---------------------------------------------------------------------------
-# Batch
-# ---------------------------------------------------------------------------
-
-
 class Batch(PatternSegment):
     """
     Equally spaced bunches, all labeled batch index 0 (tier 'batch').
@@ -803,7 +561,7 @@ class Batch(PatternSegment):
     Concatenation re-numbers batch indices automatically::
 
         two = Batch(n_bunches=4, bunch_spacing=1).gap(5) + Batch(n_bunches=4, bunch_spacing=1)
-        two.batch  # [0, 0, 0, 0,  1, 1, 1, 1]
+        two.tier("batch")  # [0, 0, 0, 0,  1, 1, 1, 1]
 
     Parameters
     ----------
@@ -857,11 +615,6 @@ class Batch(PatternSegment):
         )
 
 
-# ---------------------------------------------------------------------------
-# Train
-# ---------------------------------------------------------------------------
-
-
 class Train(PatternSegment):
     """
     Repeated unit, all labeled train index 0 (tier 'train').
@@ -870,7 +623,7 @@ class Train(PatternSegment):
     across copies. Concatenation re-numbers train indices::
 
         two = Train(batch, n_copies=3, copy_spacing=5).gap(100) + Train(batch, n_copies=3, copy_spacing=5)
-        two.train  # [0, 0, ...,  1, 1, ...]
+        two.tier("train")  # [0, 0, ...,  1, 1, ...]
 
     A unit that already contains a 'train' tier is rejected — label deeper
     nesting levels with :meth:`PatternSegment.label` instead::
@@ -936,23 +689,22 @@ class Train(PatternSegment):
         )
 
 
-# ---------------------------------------------------------------------------
-# FillingPattern: the complete ring
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------- FillingPattern
 
 
-class FillingPattern(PatternSegment):
+class FillingPattern(BunchTable):
     """
     Complete ring filling pattern of exactly harmonic_number RF buckets.
 
     Wraps any PatternSegment; remaining buckets form the abort gap. A
-    FillingPattern is finished — it cannot be concatenated or repeated.
+    FillingPattern is finished — unlike :class:`PatternSegment` it cannot
+    be concatenated, repeated, or extended.
 
     Usage::
 
         pattern = FillingPattern(injection.gap(38) * 12, harmonic_number=35640)
         pattern.intensity = np.ones(pattern.n_bunches) * 1.1e11
-        pattern.intensity[pattern.batch == 3] = 0.5e11
+        pattern.intensity[pattern.tier("batch") == 3] = 0.5e11
         pattern.intensity[pattern.tier("injection") == 1] = 0.8e11
 
     Parameters
@@ -1010,167 +762,13 @@ class FillingPattern(PatternSegment):
         return occupied_buckets
 
     def __repr__(self) -> str:
-        """
-        Return a short description of the pattern.
-
-        Returns
-        -------
-        representation
-            Class name with harmonic number and bunch count.
-        """
         return (
             f"FillingPattern(harmonic_number={self.harmonic_number}, "
             f"n_bunches={self.n_bunches})"
         )
 
-    # A FillingPattern is complete: composition is a usage error.
-
-    def _complete_error(self) -> TypeError:
-        """
-        Return the error raised by every composition attempt.
-
-        Returns
-        -------
-        error
-            TypeError explaining that the pattern is complete.
-        """
-        return TypeError(
-            "FillingPattern is complete (covers all harmonic_number buckets); "
-            "compose PatternSegments first, then wrap once."
-        )
-
-    def __add__(self, other: PatternSegment) -> NoReturn:
-        """
-        Raise TypeError: a complete pattern cannot be concatenated.
-
-        Parameters
-        ----------
-        other
-            Unused.
-        """
-        raise self._complete_error()
-
-    def __radd__(self, other: PatternSegment) -> NoReturn:
-        """
-        Raise TypeError: a complete pattern cannot be concatenated.
-
-        Parameters
-        ----------
-        other
-            Unused.
-        """
-        raise self._complete_error()
-
-    def __mul__(self, n_repetitions: int) -> NoReturn:
-        """
-        Raise TypeError: a complete pattern cannot be repeated.
-
-        Parameters
-        ----------
-        n_repetitions
-            Unused.
-        """
-        raise self._complete_error()
-
-    def __rmul__(self, n_repetitions: int) -> NoReturn:
-        """
-        Raise TypeError: a complete pattern cannot be repeated.
-
-        Parameters
-        ----------
-        n_repetitions
-            Unused.
-        """
-        raise self._complete_error()
-
-    def gap(self, n_empty_buckets: int) -> NoReturn:
-        """
-        Raise TypeError: a complete pattern cannot be extended.
-
-        Parameters
-        ----------
-        n_empty_buckets
-            Unused.
-        """
-        raise self._complete_error()
-
-    # ------------------------------------------------------------ constructors
-
     @classmethod
-    def from_trains(
-        cls,
-        unit: PatternSegment,
-        n_copies: int,
-        copy_spacing: int,
-        harmonic_number: int,
-    ) -> FillingPattern:
-        """
-        Construct from uniformly spaced copies of a unit.
-
-        The abort gap fills the remainder of the ring.
-
-        Parameters
-        ----------
-        unit
-            Segment to repeat.
-        n_copies
-            Number of repetitions.
-        copy_spacing
-            Empty RF buckets between consecutive copies.
-        harmonic_number
-            Total number of RF buckets in the ring.
-
-        Returns
-        -------
-        pattern
-            Complete filling pattern.
-        """
-        return cls(
-            _repeat_with_gap(unit, n_copies, copy_spacing), harmonic_number
-        )
-
-    @classmethod
-    def from_spacing(
-        cls,
-        unit: PatternSegment,
-        n_copies: int,
-        start_to_start_distance: float,
-        f_rf: float,
-        harmonic_number: int,
-    ) -> FillingPattern:
-        """
-        Construct from a physical unit start-to-start distance.
-
-        Parameters
-        ----------
-        unit
-            Segment to repeat.
-        n_copies
-            Number of repetitions.
-        start_to_start_distance
-            Physical unit start-to-start distance in seconds.
-        f_rf
-            RF frequency in Hz.
-        harmonic_number
-            Total number of RF buckets in the ring.
-
-        Returns
-        -------
-        pattern
-            Complete filling pattern.
-        """
-        copy_spacing = _spacing_from_distance(
-            unit.length, start_to_start_distance, f_rf
-        )
-        return cls.from_trains(
-            unit=unit,
-            n_copies=n_copies,
-            copy_spacing=copy_spacing,
-            harmonic_number=harmonic_number,
-        )
-
-    @classmethod
-    def from_batch_list(
+    def from_placements(
         cls,
         harmonic_number: int,
         placements: list[tuple[PatternSegment, int]],
@@ -1209,40 +807,3 @@ class FillingPattern(PatternSegment):
             combined = combined + Gap(start_bucket - previous_end) + segment
             previous_end = start_bucket + segment.length
         return cls(combined, harmonic_number)
-
-
-# ---------------------------------------------------------------------------
-# Demo
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    from blond.cycles.filling_patterns.plot import plot
-
-    # LHC-like nesting: PS batch -> SPS train -> LHC injection -> full ring
-    ps_batch = Batch(n_bunches=72, bunch_spacing=9)  # 25 ns spacing
-    sps_train = Train(unit=ps_batch, n_copies=4, copy_spacing=8)
-    injection = sps_train.label("injection")
-    pattern = FillingPattern(
-        injection.gap(38) * 11 + injection,
-        harmonic_number=35640,
-    )
-
-    print(pattern)
-    print(
-        f"  n_batches={pattern.n_batches}, n_trains={pattern.n_trains}, "
-        f"n_injections={pattern.n_in_tier('injection')}"
-    )
-    print(f"  positions[:8]:  {pattern.positions[:8]}")
-    print(f"  batch[:8]:      {pattern.batch[:8]}")
-    print(f"  train[:8]:      {pattern.train[:8]}")
-    print(f"  injection[:8]:  {pattern.tier('injection')[:8]}")
-
-    pattern.intensity = np.ones(pattern.n_bunches) * 1.1e11
-    pattern.intensity[pattern.batch == 0] = 0.5e11
-    pattern.intensity[pattern.tier("injection") == 1] = 0.8e11
-    print(f"  intensity[:8]:  {pattern.intensity[:8]}")
-
-    plot(pattern)
-    plt.show()

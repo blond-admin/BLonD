@@ -136,9 +136,9 @@ select = [
 
 ignore = [
   "E501",    #  Line too long
-  "E501",    #  Line too long
   "PLR0913", # Too many arguments in function definition
   "PLC0415", # `import` should be at the top-level of a file
+  "D105",    # Missing docstring in magic method
   "D401",    # First line of docstring should be in imperative mood
   "B024",    # ... is an abstract base class, but it has no abstract methods or properties
   "E712",    #  Avoid equality comparisons to `False`; use `if not ...:` for false checks
@@ -166,9 +166,6 @@ checks = [
   "GL08", # The object does not have a docstring
   "ES01", # No extended summary found
   "PR04", # Parameter "..." has no type
-  "PR04", # Parameter "..." has no type
-
-
 ]
 exclude_files = [ # don't process filepaths that match these regex
   '^dev_tools/.*',

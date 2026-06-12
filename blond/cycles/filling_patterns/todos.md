@@ -33,10 +33,40 @@ implemented. Tests for each implemented item are still to be written.
       composition on a complete `FillingPattern` raises TypeError;
       constructor validates sorted/unique/in-range positions.
 
+## Implemented (2026-06-12 refactor, architecture phase)
+
+- [x] **Composition over LSP-violating inheritance**: extracted public
+      read-only base `BunchTable` (positions/length/tiers/payload +
+      payload attribute routing) = the consumer interface.
+      `PatternSegment(BunchTable)` adds composition (`+`, `*`, `.gap()`,
+      `.label()`); `FillingPattern(BunchTable)` adds `harmonic_number` /
+      `has_bunch`. The five raising composition blockers on
+      `FillingPattern` are gone — composing with a complete pattern now
+      fails naturally (one isinstance guard in `PatternSegment.__add__`
+      keeps a helpful message).
+- [x] **API surface trimmed** (no consumers existed yet): removed `Bunch`
+      (= `Batch(1, 0)` w/o tier), `__len__` (buckets-vs-bunches ambiguity
+      trap), `bunch` ordinal property, the `batch`/`train`/`n_batches`/
+      `n_trains` sugar (uniform access via `tier(name)`/`n_in_tier(name)`),
+      and `FillingPattern.from_trains`/`from_spacing` (redundant with
+      `FillingPattern(Train(...), h)` composition). `from_batch_list`
+      renamed `from_placements`. Kept `Batch.from_spacing` /
+      `Train.from_spacing` (they encode the seconds->buckets convention).
+- [x] **Docstring diet within tooling rules**: private helpers and dunders
+      carry comments instead of numpydoc blocks (ruff D1 skips private
+      names; numpydoc GL08 is excluded; `D105` added to the ruff ignore
+      list in pyproject.toml). Full numpydoc docs remain on the public
+      API only. `_merge_tiers`/`_merge_payload` merged into one
+      `_merge_columns`.
+- [x] **File layout**: `helpers.py` (`as_n_buckets`) folded into
+      `filling_patterns.py`; `__main__` demo moved to
+      `blond/examples/scripts/EX_29_Filling_pattern.py`. Package is now
+      `filling_patterns.py` + `plot.py`.
+
 ## Next: tests
 
 - [ ] Write tests per implemented item above (composition/renumbering,
-      label/nesting errors, payload guards + NaN merge, from_batch_list,
+      label/nesting errors, payload guards + NaN merge, from_placements,
       as_n_buckets tolerance, completeness errors, has_bunch).
 
 ## Deferred follow-up packages (decisions logged)
