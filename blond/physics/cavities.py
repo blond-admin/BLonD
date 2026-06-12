@@ -1249,7 +1249,7 @@ class SingleHarmonicRFStation(
                     time_axis=time_axis,
                     voltage=voltage,
                 )
-            else:
+            elif self._local_wakefield is not None:
                 time_axis = self._local_wakefield.profile.hist_x
                 voltage = self.calc_gap_voltage_without_feedbacks(ts=time_axis)
                 self._track_interp(
@@ -1258,10 +1258,11 @@ class SingleHarmonicRFStation(
                     time_axis=time_axis,
                     voltage=voltage,
                 )
-                # )
-                # self._track_no_interp(
-                #     beam=beam, reference_energy_change=reference_energy_change
-                # )
+            else:
+                self._track_no_interp(
+                    beam=beam,
+                    reference_energy_change=reference_energy_change,
+                )
 
     def _track_no_interp(
         self, beam: BeamBaseClass, reference_energy_change: float
