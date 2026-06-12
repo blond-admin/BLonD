@@ -7,3 +7,25 @@
 # Project website: http://blond.web.cern.ch/
 
 """Module to manage and describe injection/matching filling patterns."""
+
+from blond.cycles.filling_patterns.filling_patterns import (
+    Batch,
+    Bunch,
+    FillingPattern,
+    Gap,
+    PatternSegment,
+    Train,
+)
+from blond.cycles.filling_patterns.helpers import as_n_buckets
+from blond.cycles.filling_patterns.plot import plot
+
+__all__ = [
+    "Batch",
+    "Bunch",
+    "FillingPattern",
+    "Gap",
+    "PatternSegment",
+    "Train",
+    "as_n_buckets",
+    "plot",
+]
