@@ -90,6 +90,30 @@ implemented. Tests for each implemented item are still to be written.
 - [x] `from_placements` overlap error explains that ranges include
       trailing gaps.
 
+## Implemented (2026-06-12 vocabulary/naming pass)
+
+Names now carry the module's conventions ("gap" = integer empty buckets,
+"spacing" = physical start-to-start seconds). Applied while there are no
+external consumers; sections above use the old names where they describe
+historical states.
+
+- [x] `bunch_spacing` -> `bunch_gap`, `copy_spacing` -> `copy_gap`
+      ("spacing" was actively misleading: in accelerator jargon "25 ns
+      bunch spacing" is start-to-start, but the integer parameter counts
+      empty buckets — LHC 25 ns is `bunch_gap=9`, not 10). `from_spacing`
+      constructors keep their name; "spacing" now exclusively means
+      physical start-to-start.
+- [x] `length` -> `n_buckets` (parallel to `n_bunches`; says what it
+      counts, including the trailing gap).
+- [x] `positions` -> `bucket_indices` (the unit is now in the name;
+      slot recipe reads `bucket_indices // buckets_per_slot`).
+- [x] `n_in_tier` -> `n_groups` (it counts groups, e.g. batches — the old
+      name suggested counting bunches).
+- [x] `payload` -> per-bunch "properties" (`.properties` accessor;
+      "payload" was transport jargon revealing nothing of the physics).
+- [x] `as_n_buckets` -> `n_buckets_from_time` (reads as the unit
+      conversion it is).
+
 ## Next: tests
 
 - [ ] Write tests per implemented item above (composition/renumbering,

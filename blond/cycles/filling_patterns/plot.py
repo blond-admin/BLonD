@@ -84,12 +84,16 @@ def plot(
     face_labels = _tier_or_unassigned(pattern, face_tier)
     edge_labels = _tier_or_unassigned(pattern, edge_tier)
 
-    bucket_x, bucket_width = _x_axis(pattern.positions, f_rf)
+    bucket_x, bucket_width = _x_axis(pattern.bucket_indices, f_rf)
     faces = _resolve_colors(
-        face, pattern.positions, face_labels, face_palette, default="gray"
+        face, pattern.bucket_indices, face_labels, face_palette, default="gray"
     )
     edges = _resolve_colors(
-        edge, pattern.positions, edge_labels, edge_palette, default="black"
+        edge,
+        pattern.bucket_indices,
+        edge_labels,
+        edge_palette,
+        default="black",
     )
 
     ax.bar(
@@ -104,10 +108,10 @@ def plot(
     )
     ax.set_xlabel("Time (ns)" if f_rf is not None else "Bucket")
     _draw_tier_boundaries(
-        ax, pattern.positions, edge_labels, f_rf, edge_palette
+        ax, pattern.bucket_indices, edge_labels, f_rf, edge_palette
     )
     ax.set_xlim(
-        0.0, pattern.length * (1e9 / f_rf if f_rf is not None else 1.0)
+        0.0, pattern.n_buckets * (1e9 / f_rf if f_rf is not None else 1.0)
     )
     ax.set_ylim(0, 1.15)
     ax.set_yticks([])

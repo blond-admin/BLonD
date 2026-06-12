@@ -13,11 +13,11 @@ RF filling pattern construction for accelerator physics simulations.
 
 bucket
     One RF period; the smallest unit of position. Every integer position
-    and spacing in this module counts RF buckets.
+    and gap in this module counts RF buckets.
 slot
     Machine-specific grouping of buckets (e.g. one LHC slot = 10 buckets of
     the 400 MHz RF). Not a core concept here: derive it per bunch as
-    ``positions // buckets_per_slot``, or store it as a tier.
+    ``bucket_indices // buckets_per_slot``, or store it as a tier.
 bunch
     One filled bucket.
 batch
@@ -40,18 +40,20 @@ any name with :meth:`PatternSegment.label`, at any nesting depth.
 
 **Conventions**
 
-* Integer spacings (``bunch_spacing``, ``copy_spacing``, :class:`Gap`)
-  count empty buckets between units.
-* Physical times (the ``from_spacing`` constructors) are start-to-start
-  distances in seconds.
+* "gap" always counts empty RF buckets between units, as an integer
+  (``bunch_gap``, ``copy_gap``, :class:`Gap`, :meth:`PatternSegment.gap`)
+  — never start-to-start. Beware: the LHC "25 ns bunch spacing" is
+  ``bunch_gap=9`` on the 400 MHz RF, not 10.
+* "spacing" always means a physical start-to-start distance in seconds
+  (the ``from_spacing`` constructors).
 
 **Composition**
 
 Segments compose with ``+`` (concatenate), ``*`` (repeat) and ``.gap(n)``.
 Tier indices are re-numbered automatically on concatenation::
 
-    batch     = Batch(n_bunches=72, bunch_spacing=9)
-    train     = Train(unit=batch, n_copies=4, copy_spacing=8)
+    batch     = Batch(n_bunches=72, bunch_gap=9)
+    train     = Train(unit=batch, n_copies=4, copy_gap=8)
     injection = train.label("injection")
     pattern   = FillingPattern(injection.gap(38) * 11 + injection,
                                harmonic_number=35640)
@@ -59,20 +61,20 @@ Tier indices are re-numbered automatically on concatenation::
     pattern.intensity = np.full(pattern.n_bunches, 1.1e11)
     pattern.intensity[pattern.tier("injection") == 0] = 1.0e11
 
-**Payload contract (consumer interface)**
+**Per-bunch properties (consumer interface)**
 
 Consumers (beam preparation, profiles, injection) read the
 :class:`BunchTable` interface of a finished :class:`FillingPattern`:
-``positions`` (sorted RF bucket index per bunch), ``harmonic_number``,
-``has_bunch``, the tier columns, and the per-bunch payload arrays.
-Conventional payload names and units, shared by all consumers:
+``bucket_indices`` (sorted RF bucket index per bunch), ``harmonic_number``,
+``has_bunch``, the tier columns, and the per-bunch property arrays.
+Conventional property names and units, shared by all consumers:
 
 * ``intensity`` — particles per bunch (bunch population)
 * ``bunch_length`` — seconds (bunch length, e.g. 4 sigma)
 * ``emittance`` — eVs (longitudinal emittance)
 
-Payload arrays are stored as float64; NaN entries mean "unspecified"
-(payload arrays are NaN-filled when patterns defining different payload
+Property arrays are stored as float64; NaN entries mean "unspecified"
+(property arrays are NaN-filled when patterns defining different property
 names are concatenated). Values that do not cast to float are rejected.
 """
 
@@ -87,7 +89,7 @@ import numpy as np
 _UNASSIGNED: int = -1
 
 
-def as_n_buckets(
+def n_buckets_from_time(
     time_distance: float,
     f_rf: float,
     tolerance: float = 0.005,
@@ -172,27 +174,27 @@ def _nan_column(n_bunches: int) -> np.ndarray:
     return np.full(n_bunches, np.nan)
 
 
-def _as_payload_column(value: Any, name: str, n_bunches: int) -> np.ndarray:
-    # Payload arrays are stored as float64 (owned copy) so that NaN can
-    # mark unspecified entries when segments with different payload names
+def _as_property_column(value: Any, name: str, n_bunches: int) -> np.ndarray:
+    # Property arrays are stored as float64 (owned copy) so that NaN can
+    # mark unspecified entries when segments with different property names
     # are concatenated.
     try:
         column = np.array(value, dtype=np.float64)
     except (ValueError, TypeError) as error:
         raise ValueError(
-            f"Payload '{name}' must be castable to float (NaN marks "
+            f"Property '{name}' must be castable to float (NaN marks "
             f"unspecified entries): {error}"
         ) from None
     if column.ndim != 1 or len(column) != n_bunches:
         raise ValueError(
-            f"Payload '{name}' must be 1-D with length {n_bunches}; "
+            f"Property '{name}' must be 1-D with length {n_bunches}; "
             f"got shape {column.shape}."
         )
     return column
 
 
 def _is_structural_name(cls: type, name: str) -> bool:
-    # Payload arrays travel from segments into the final FillingPattern,
+    # Property arrays travel from segments into the final FillingPattern,
     # so FillingPattern's structural names (harmonic_number, has_bunch)
     # are reserved on every BunchTable, not only where they are defined.
     return hasattr(cls, name) or hasattr(FillingPattern, name)
@@ -219,29 +221,31 @@ def _merge_columns(
     return merged
 
 
-def _spacing_from_distance(
-    unit_length: int, start_to_start_distance: float, f_rf: float
+def _gap_from_spacing(
+    unit_n_buckets: int, start_to_start_distance: float, f_rf: float
 ) -> int:
     # Physical start-to-start distance (s) -> empty buckets between units.
-    # stacklevel=4: user -> from_spacing -> here -> as_n_buckets.
-    n_buckets = as_n_buckets(start_to_start_distance, f_rf, stacklevel=4)
-    spacing = n_buckets - unit_length
-    if spacing < 0:
+    # stacklevel=4: user -> from_spacing -> here -> n_buckets_from_time.
+    n_buckets = n_buckets_from_time(
+        start_to_start_distance, f_rf, stacklevel=4
+    )
+    gap = n_buckets - unit_n_buckets
+    if gap < 0:
         raise ValueError(
             f"start_to_start_distance = {start_to_start_distance} s spans "
             f"only {n_buckets} RF buckets, shorter than the repeated unit "
-            f"itself ({unit_length} buckets); units would overlap."
+            f"itself ({unit_n_buckets} buckets); units would overlap."
         )
-    return spacing
+    return gap
 
 
 def _repeat_with_gap(
-    unit: PatternSegment, n_copies: int, copy_spacing: int
+    unit: PatternSegment, n_copies: int, copy_gap: int
 ) -> PatternSegment:
     # Repeat a unit with a gap between copies (no trailing gap).
     if n_copies == 1:
         return unit
-    return unit.gap(copy_spacing) * (n_copies - 1) + unit
+    return unit.gap(copy_gap) * (n_copies - 1) + unit
 
 
 # --------------------------------------------------------------- BunchTable
@@ -249,71 +253,75 @@ def _repeat_with_gap(
 
 class BunchTable:
     """
-    Read interface shared by all patterns: per-bunch arrays plus payload.
+    Read interface shared by all patterns: per-bunch arrays and properties.
 
     Per-bunch arrays (all length n_bunches)::
 
-        positions     RF bucket index of each bunch (strictly increasing)
-        tier(name)    membership index per bunch in the named tier
-                      (-1 = unassigned); 'batch' and 'train' are the
-                      conventional names, any name can be added via
-                      PatternSegment.label()
+        bucket_indices  RF bucket index of each bunch (strictly increasing)
+        tier(name)      membership index per bunch in the named tier
+                        (-1 = unassigned); 'batch' and 'train' are the
+                        conventional names, any name can be added via
+                        PatternSegment.label()
 
-    Public attributes not starting with '_' are stored as per-bunch payload
-    arrays, enabling numpy-masked assignment::
+    Public attributes not starting with '_' are stored as per-bunch
+    property arrays, enabling numpy-masked assignment::
 
         pattern.intensity = np.ones(pattern.n_bunches) * 1e11
         pattern.intensity[pattern.tier("batch") == 2] = 0.5e11
 
-    Names that collide with structural attributes (positions, length,
-    tier names, ...) are rejected.
+    Names that collide with structural attributes (bucket_indices,
+    n_buckets, tier names, ...) are rejected.
 
-    The structure is fixed at construction: ``positions`` and the tier
-    columns are read-only arrays. Payload arrays are copied to float64 on
+    The structure is fixed at construction: ``bucket_indices`` and the tier
+    columns are read-only arrays. Property arrays are copied to float64 on
     assignment (NaN = unspecified) and stay mutable in place (that is the
     masked-assignment interface).
 
     Parameters
     ----------
-    positions
-        RF bucket index per bunch, strictly increasing, within [0, length).
-    length
+    bucket_indices
+        RF bucket index per bunch, strictly increasing, within
+        [0, n_buckets).
+    n_buckets
         Total number of RF buckets, including any trailing empty gap.
     tiers
         Tier columns keyed by tier name (-1 = unassigned).
-    payload
-        Per-bunch payload arrays keyed by attribute name; must be
+    properties
+        Per-bunch property arrays keyed by attribute name; must be
         castable to float64.
     """
 
-    _positions: np.ndarray
+    _bucket_indices: np.ndarray
     _tiers: dict[str, np.ndarray]
-    _length: int
-    _payload: dict[str, np.ndarray]
+    _n_buckets: int
+    _properties: dict[str, np.ndarray]
 
     def __init__(
         self,
-        positions: np.ndarray,
-        length: int,
+        bucket_indices: np.ndarray,
+        n_buckets: int,
         tiers: dict[str, np.ndarray] | None = None,
-        payload: dict[str, np.ndarray] | None = None,
+        properties: dict[str, np.ndarray] | None = None,
     ):
-        positions = np.array(positions, dtype=np.int64)  # owned copy
-        length = _as_int(length, "length")
-        if positions.ndim != 1:
+        bucket_indices = np.array(bucket_indices, dtype=np.int64)  # owned copy
+        n_buckets = _as_int(n_buckets, "n_buckets")
+        if bucket_indices.ndim != 1:
             raise ValueError(
-                f"positions must be 1-D, got shape {positions.shape}."
+                f"bucket_indices must be 1-D, got shape {bucket_indices.shape}."
             )
-        if len(positions) and np.any(np.diff(positions) <= 0):
+        if len(bucket_indices) and np.any(np.diff(bucket_indices) <= 0):
             raise ValueError(
-                "positions must be strictly increasing (sorted, no duplicates)."
+                "bucket_indices must be strictly increasing (sorted, no duplicates)."
             )
-        if len(positions) and (positions[0] < 0 or positions[-1] >= length):
+        if len(bucket_indices) and (
+            bucket_indices[0] < 0 or bucket_indices[-1] >= n_buckets
+        ):
             raise ValueError(
-                f"positions must lie in [0, length); got range "
-                f"[{positions[0]}, {positions[-1]}] with length {length}."
+                f"bucket_indices must lie in [0, n_buckets); got range "
+                f"[{bucket_indices[0]}, {bucket_indices[-1]}] with "
+                f"n_buckets {n_buckets}."
             )
-        n_bunches = len(positions)
+        n_bunches = len(bucket_indices)
         tiers = (
             {}
             if tiers is None
@@ -322,12 +330,12 @@ class BunchTable:
                 for name, column in tiers.items()
             }
         )
-        payload = (
+        properties = (
             {}
-            if payload is None
+            if properties is None
             else {
-                name: _as_payload_column(arr, name, n_bunches)
-                for name, arr in payload.items()
+                name: _as_property_column(arr, name, n_bunches)
+                for name, arr in properties.items()
             }
         )
         for name, column in tiers.items():
@@ -335,26 +343,26 @@ class BunchTable:
                 raise ValueError(
                     f"Tier '{name}' has length {len(column)}, expected {n_bunches}."
                 )
-        for name in payload:
+        for name in properties:
             if name in tiers:
                 raise ValueError(
-                    f"'{name}' is both a tier and a payload name; tier and "
-                    f"payload names must not collide."
+                    f"'{name}' is both a tier and a property name; tier and "
+                    f"property names must not collide."
                 )
             if _is_structural_name(type(self), name):
                 raise ValueError(
-                    f"Payload '{name}' collides with a structural pattern "
+                    f"Property '{name}' collides with a structural pattern "
                     f"attribute."
                 )
-        # Structure is fixed after construction; only payload values may
+        # Structure is fixed after construction; only properties values may
         # change in place.
-        positions.setflags(write=False)
+        bucket_indices.setflags(write=False)
         for column in tiers.values():
             column.setflags(write=False)
-        object.__setattr__(self, "_positions", positions)
+        object.__setattr__(self, "_bucket_indices", bucket_indices)
         object.__setattr__(self, "_tiers", tiers)
-        object.__setattr__(self, "_length", length)
-        object.__setattr__(self, "_payload", payload)
+        object.__setattr__(self, "_n_buckets", n_buckets)
+        object.__setattr__(self, "_properties", properties)
 
     @property
     def n_bunches(self) -> int:
@@ -366,31 +374,31 @@ class BunchTable:
         n_bunches
             Number of bunches.
         """
-        return len(self._positions)
+        return len(self._bucket_indices)
 
     @property
-    def length(self) -> int:
+    def n_buckets(self) -> int:
         """
         Return the total number of RF buckets, including trailing gaps.
 
         Returns
         -------
-        length
+        n_buckets
             Total number of RF buckets.
         """
-        return self._length
+        return self._n_buckets
 
     @property
-    def positions(self) -> np.ndarray:
+    def bucket_indices(self) -> np.ndarray:
         """
         Return the RF bucket index of each bunch.
 
         Returns
         -------
-        positions
+        bucket_indices
             Strictly increasing array of shape (n_bunches,).
         """
-        return self._positions
+        return self._bucket_indices
 
     @property
     def tiers(self) -> dict[str, np.ndarray]:
@@ -428,7 +436,7 @@ class BunchTable:
                 f"No tier '{tier_name}'; available tiers: {sorted(self._tiers)}."
             ) from None
 
-    def n_in_tier(self, tier_name: str) -> int:
+    def n_groups(self, tier_name: str) -> int:
         """
         Return the number of distinct assigned indices in the named tier.
 
@@ -439,7 +447,7 @@ class BunchTable:
 
         Returns
         -------
-        n_in_tier
+        n_groups
             Number of groups in the tier (0 if the tier is absent).
         """
         column = self._tiers.get(tier_name)
@@ -448,27 +456,27 @@ class BunchTable:
         return int(len(np.unique(column[column >= 0])))
 
     @property
-    def payload(self) -> dict[str, np.ndarray]:
+    def properties(self) -> dict[str, np.ndarray]:
         """
-        Return the per-bunch payload arrays.
+        Return the per-bunch property arrays.
 
         Returns
         -------
-        payload
-            Payload arrays, keyed by attribute name. The dict is a
+        properties
+            Property arrays, keyed by attribute name. The dict is a
             snapshot (adding keys does not affect the table); the arrays
             are the live per-bunch arrays.
         """
-        return dict(self._payload)
+        return dict(self._properties)
 
-    # Public attributes (no leading '_') are routed to _payload, enabling
+    # Public attributes (no leading '_') are routed to _properties, enabling
     # the pattern.intensity = ...; pattern.intensity[mask] = ... interface.
     # Structural names and tier names are rejected to prevent silent
-    # write/read mismatches (e.g. pattern.positions = ...).
+    # write/read mismatches (e.g. pattern.bucket_indices = ...).
 
     def __getattr__(self, name: str) -> np.ndarray:
         try:
-            return object.__getattribute__(self, "_payload")[name]
+            return object.__getattribute__(self, "_properties")[name]
         except KeyError:
             raise AttributeError(
                 f"'{type(self).__name__}' object has no attribute '{name}'"
@@ -481,17 +489,19 @@ class BunchTable:
         if _is_structural_name(type(self), name):
             raise AttributeError(
                 f"'{name}' is a structural pattern attribute and cannot be "
-                f"used as a payload name."
+                f"used as a property name."
             )
         if name in self._tiers:
             raise AttributeError(
                 f"'{name}' is a tier name (read it with .tier('{name}')); "
-                f"payload names must not shadow tiers."
+                f"property names must not shadow tiers."
             )
-        self._payload[name] = _as_payload_column(value, name, self.n_bunches)
+        self._properties[name] = _as_property_column(
+            value, name, self.n_bunches
+        )
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(n_bunches={self.n_bunches}, length={self.length})"
+        return f"{type(self).__name__}(n_bunches={self.n_bunches}, n_buckets={self.n_buckets})"
 
 
 # --------------------------------------------------------- PatternSegment
@@ -501,11 +511,11 @@ class PatternSegment(BunchTable):
     """
     Composable building block of a filling pattern.
 
-    Concatenation (+) shifts positions and re-numbers every tier::
+    Concatenation (+) shifts bucket_indices and re-numbers every tier::
 
         combined = a.gap(5) + b
 
-    See :class:`BunchTable` for the per-bunch arrays, the payload
+    See :class:`BunchTable` for the per-bunch arrays, the property
     interface, and the constructor parameters.
     """
 
@@ -521,7 +531,7 @@ class PatternSegment(BunchTable):
         Returns
         -------
         segment
-            New segment with increased length.
+            New segment with the empty buckets appended.
         """
         return self + Gap(n_empty_buckets)
 
@@ -556,18 +566,18 @@ class PatternSegment(BunchTable):
                 f"label it with a different name to keep the inner "
                 f"'{tier_name}' structure."
             )
-        if tier_name in self._payload:
+        if tier_name in self._properties:
             raise ValueError(
-                f"'{tier_name}' is already a payload name; tier names must "
-                f"not shadow payloads."
+                f"'{tier_name}' is already a property name; tier names must "
+                f"not shadow properties."
             )
         new_tiers = dict(self._tiers)
         new_tiers[tier_name] = np.zeros(self.n_bunches, dtype=np.int32)
         return PatternSegment(
-            positions=self._positions,
-            length=self._length,
+            bucket_indices=self._bucket_indices,
+            n_buckets=self._n_buckets,
             tiers=new_tiers,
-            payload=self._payload,
+            properties=self._properties,
         )
 
     def __add__(self, other: PatternSegment) -> PatternSegment:
@@ -579,10 +589,10 @@ class PatternSegment(BunchTable):
                 f"compose segments first, then wrap once."
             )
         return PatternSegment(
-            positions=np.concatenate(
-                [self.positions, other.positions + self.length]
+            bucket_indices=np.concatenate(
+                [self.bucket_indices, other.bucket_indices + self.n_buckets]
             ),
-            length=self.length + other.length,
+            n_buckets=self.n_buckets + other.n_buckets,
             tiers=_merge_columns(
                 self._tiers,
                 other._tiers,
@@ -591,9 +601,9 @@ class PatternSegment(BunchTable):
                 _unassigned_tier,
                 renumber=True,
             ),
-            payload=_merge_columns(
-                self._payload,
-                other._payload,
+            properties=_merge_columns(
+                self._properties,
+                other._properties,
                 self.n_bunches,
                 other.n_bunches,
                 _nan_column,
@@ -634,8 +644,8 @@ class Gap(PatternSegment):
                 f"n_empty_buckets must be >= 0, got {n_empty_buckets}."
             )
         super().__init__(
-            positions=np.empty(0, dtype=np.int64),
-            length=n_empty_buckets,
+            bucket_indices=np.empty(0, dtype=np.int64),
+            n_buckets=n_empty_buckets,
         )
 
 
@@ -645,30 +655,28 @@ class Batch(PatternSegment):
 
     Concatenation re-numbers batch indices automatically::
 
-        two = Batch(n_bunches=4, bunch_spacing=1).gap(5) + Batch(n_bunches=4, bunch_spacing=1)
+        two = Batch(n_bunches=4, bunch_gap=1).gap(5) + Batch(n_bunches=4, bunch_gap=1)
         two.tier("batch")  # [0, 0, 0, 0,  1, 1, 1, 1]
 
     Parameters
     ----------
     n_bunches
         Number of bunches per batch.
-    bunch_spacing
+    bunch_gap
         Empty RF buckets between consecutive bunches.
     """
 
-    def __init__(self, n_bunches: int, bunch_spacing: int):
+    def __init__(self, n_bunches: int, bunch_gap: int):
         n_bunches = _as_int(n_bunches, "n_bunches")
-        bunch_spacing = _as_int(bunch_spacing, "bunch_spacing")
+        bunch_gap = _as_int(bunch_gap, "bunch_gap")
         if n_bunches < 1:
             raise ValueError(f"n_bunches must be >= 1, got {n_bunches}.")
-        if bunch_spacing < 0:
-            raise ValueError(
-                f"bunch_spacing must be >= 0, got {bunch_spacing}."
-            )
-        bunch_stride = 1 + bunch_spacing
+        if bunch_gap < 0:
+            raise ValueError(f"bunch_gap must be >= 0, got {bunch_gap}.")
+        bunch_stride = 1 + bunch_gap
         super().__init__(
-            positions=np.arange(n_bunches, dtype=np.int64) * bunch_stride,
-            length=n_bunches + (n_bunches - 1) * bunch_spacing,
+            bucket_indices=np.arange(n_bunches, dtype=np.int64) * bunch_stride,
+            n_buckets=n_bunches + (n_bunches - 1) * bunch_gap,
             tiers={"batch": np.zeros(n_bunches, dtype=np.int32)},
         )
 
@@ -691,13 +699,13 @@ class Batch(PatternSegment):
         Returns
         -------
         batch
-            Batch with the equivalent integer bunch spacing.
+            Batch with the equivalent integer bunch gap.
         """
-        bunch_length = 1  # each bunch occupies exactly one RF bucket
+        bunch_n_buckets = 1  # each bunch occupies exactly one RF bucket
         return cls(
             n_bunches=n_bunches,
-            bunch_spacing=_spacing_from_distance(
-                bunch_length, start_to_start_distance, f_rf
+            bunch_gap=_gap_from_spacing(
+                bunch_n_buckets, start_to_start_distance, f_rf
             ),
         )
 
@@ -709,7 +717,7 @@ class Train(PatternSegment):
     Tier indices from the unit (e.g. 'batch') are preserved and re-numbered
     across copies. Concatenation re-numbers train indices::
 
-        two = Train(batch, n_copies=3, copy_spacing=5).gap(100) + Train(batch, n_copies=3, copy_spacing=5)
+        two = Train(batch, n_copies=3, copy_gap=5).gap(100) + Train(batch, n_copies=3, copy_gap=5)
         two.tier("train")  # [0, 0, ...,  1, 1, ...]
 
     A unit that already contains a 'train' tier is rejected — label deeper
@@ -723,25 +731,23 @@ class Train(PatternSegment):
         Segment to repeat (typically a Batch or concatenated batches).
     n_copies
         Number of repetitions.
-    copy_spacing
+    copy_gap
         Empty RF buckets between consecutive copies of unit.
     """
 
-    def __init__(self, unit: PatternSegment, n_copies: int, copy_spacing: int):
+    def __init__(self, unit: PatternSegment, n_copies: int, copy_gap: int):
         n_copies = _as_int(n_copies, "n_copies")
-        copy_spacing = _as_int(copy_spacing, "copy_spacing")
+        copy_gap = _as_int(copy_gap, "copy_gap")
         if n_copies < 1:
             raise ValueError(f"n_copies must be >= 1, got {n_copies}.")
-        if copy_spacing < 0:
-            raise ValueError(f"copy_spacing must be >= 0, got {copy_spacing}.")
-        combined = _repeat_with_gap(unit, n_copies, copy_spacing).label(
-            "train"
-        )
+        if copy_gap < 0:
+            raise ValueError(f"copy_gap must be >= 0, got {copy_gap}.")
+        combined = _repeat_with_gap(unit, n_copies, copy_gap).label("train")
         super().__init__(
-            positions=combined.positions,
-            length=combined.length,
+            bucket_indices=combined.bucket_indices,
+            n_buckets=combined.n_buckets,
             tiers=combined.tiers,
-            payload=combined.payload,
+            properties=combined.properties,
         )
 
     @classmethod
@@ -769,13 +775,13 @@ class Train(PatternSegment):
         Returns
         -------
         train
-            Train with the equivalent integer copy spacing.
+            Train with the equivalent integer copy gap.
         """
         return cls(
             unit=unit,
             n_copies=n_copies,
-            copy_spacing=_spacing_from_distance(
-                unit.length, start_to_start_distance, f_rf
+            copy_gap=_gap_from_spacing(
+                unit.n_buckets, start_to_start_distance, f_rf
             ),
         )
 
@@ -814,17 +820,17 @@ class FillingPattern(BunchTable):
             raise ValueError(
                 f"harmonic_number must be >= 1, got {harmonic_number}."
             )
-        if segment.length > harmonic_number:
+        if segment.n_buckets > harmonic_number:
             raise ValueError(
-                f"Segment length ({segment.length} buckets) exceeds "
+                f"Segment spans {segment.n_buckets} buckets, more than "
                 f"harmonic_number ({harmonic_number})."
             )
         object.__setattr__(self, "_harmonic_number", harmonic_number)
         super().__init__(
-            positions=segment.positions,
-            length=harmonic_number,
+            bucket_indices=segment.bucket_indices,
+            n_buckets=harmonic_number,
             tiers=segment.tiers,
-            payload=segment.payload,
+            properties=segment.properties,
         )
 
     @property
@@ -850,7 +856,7 @@ class FillingPattern(BunchTable):
             Bool array of length harmonic_number; True where filled.
         """
         occupied_buckets = np.zeros(self.harmonic_number, dtype=bool)
-        occupied_buckets[self.positions] = True
+        occupied_buckets[self.bucket_indices] = True
         return occupied_buckets
 
     def __repr__(self) -> str:
@@ -868,7 +874,7 @@ class FillingPattern(BunchTable):
         """
         Construct from explicitly positioned segments.
 
-        Tier and payload arrays of the placed segments are preserved and
+        Tier and property arrays of the placed segments are preserved and
         merged (tiers re-numbered in position order).
 
         Parameters
@@ -904,5 +910,5 @@ class FillingPattern(BunchTable):
                     f"to bucket {previous_end - 1} (trailing gaps included)."
                 )
             combined = combined + Gap(start_bucket - previous_end) + segment
-            previous_end = start_bucket + segment.length
+            previous_end = start_bucket + segment.n_buckets
         return cls(combined, harmonic_number)

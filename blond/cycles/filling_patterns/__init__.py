@@ -15,7 +15,7 @@ from blond.cycles.filling_patterns.filling_patterns import (
     Gap,
     PatternSegment,
     Train,
-    as_n_buckets,
+    n_buckets_from_time,
 )
 from blond.cycles.filling_patterns.plot import plot
 
@@ -26,6 +26,6 @@ __all__ = [
     "Gap",
     "PatternSegment",
     "Train",
-    "as_n_buckets",
+    "n_buckets_from_time",
     "plot",
 ]

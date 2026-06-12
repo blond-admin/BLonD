@@ -11,39 +11,39 @@ from blond.cycles.filling_patterns import (
     Gap,
     PatternSegment,
     Train,
-    as_n_buckets,
+    n_buckets_from_time,
 )
 
 
 class TestNameCollisions:
-    def test_constructor_rejects_tier_payload_collision(self):
+    def test_constructor_rejects_tier_property_collision(self):
         with pytest.raises(ValueError, match="foo"):
             BunchTable(
-                positions=np.array([0]),
-                length=1,
+                bucket_indices=np.array([0]),
+                n_buckets=1,
                 tiers={"foo": np.array([0])},
-                payload={"foo": np.array([1.0])},
+                properties={"foo": np.array([1.0])},
             )
 
-    def test_constructor_rejects_structural_payload_name(self):
-        with pytest.raises(ValueError, match="positions"):
+    def test_constructor_rejects_structural_property_name(self):
+        with pytest.raises(ValueError, match="bucket_indices"):
             BunchTable(
-                positions=np.array([0]),
-                length=1,
-                payload={"positions": np.array([1.0])},
+                bucket_indices=np.array([0]),
+                n_buckets=1,
+                properties={"bucket_indices": np.array([1.0])},
             )
 
-    def test_add_rejects_tier_payload_collision(self):
-        left = Batch(n_bunches=2, bunch_spacing=1)
+    def test_add_rejects_tier_property_collision(self):
+        left = Batch(n_bunches=2, bunch_gap=1)
         left.intensity = np.array([1.0, 2.0])
-        right = Batch(n_bunches=2, bunch_spacing=1).label("intensity")
+        right = Batch(n_bunches=2, bunch_gap=1).label("intensity")
         with pytest.raises(ValueError, match="intensity"):
             left + right
 
 
 class TestFromSpacingErrors:
     def test_train_from_spacing_too_short_distance(self):
-        unit = Batch(n_bunches=72, bunch_spacing=9)
+        unit = Batch(n_bunches=72, bunch_gap=9)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             with pytest.raises(ValueError, match="start_to_start_distance"):
@@ -64,10 +64,10 @@ class TestFromSpacingErrors:
 
 
 class TestStructuralImmutability:
-    def test_positions_read_only(self):
+    def test_bucket_indices_read_only(self):
         pattern = FillingPattern(Batch(4, 1), harmonic_number=100)
         with pytest.raises(ValueError):
-            pattern.positions[0] = 99
+            pattern.bucket_indices[0] = 99
 
     def test_tier_columns_read_only(self):
         pattern = FillingPattern(Batch(4, 1), harmonic_number=100)
@@ -75,29 +75,29 @@ class TestStructuralImmutability:
             pattern.tier("batch")[0] = 7
 
     def test_constructor_does_not_freeze_caller_array(self):
-        caller_positions = np.array([0, 2], dtype=np.int64)
-        table = BunchTable(positions=caller_positions, length=5)
-        caller_positions[0] = 1
-        assert table.positions[0] == 0
+        caller_bucket_indices = np.array([0, 2], dtype=np.int64)
+        table = BunchTable(bucket_indices=caller_bucket_indices, n_buckets=5)
+        caller_bucket_indices[0] = 1
+        assert table.bucket_indices[0] == 0
 
-    def test_payload_assignment_copies_source(self):
+    def test_property_assignment_copies_source(self):
         pattern = FillingPattern(Batch(4, 1), harmonic_number=100)
         source = np.ones(4)
         pattern.intensity = source
         source[0] = 999.0
         assert pattern.intensity[0] == 1.0
 
-    def test_payload_dict_is_snapshot(self):
+    def test_property_dict_is_snapshot(self):
         pattern = FillingPattern(Batch(4, 1), harmonic_number=100)
-        pattern.payload["bogus"] = np.zeros(2)
-        assert "bogus" not in pattern.payload
+        pattern.properties["bogus"] = np.zeros(2)
+        assert "bogus" not in pattern.properties
 
     def test_tiers_dict_is_snapshot(self):
         pattern = FillingPattern(Batch(4, 1), harmonic_number=100)
         pattern.tiers["bogus"] = np.zeros(4, dtype=np.int32)
         assert "bogus" not in pattern.tiers
 
-    def test_payload_masked_assignment_idiom_still_works(self):
+    def test_property_masked_assignment_idiom_still_works(self):
         pattern = FillingPattern(
             Batch(4, 1).gap(3) + Batch(4, 1), harmonic_number=100
         )
@@ -114,16 +114,16 @@ class TestIntegralInputs:
             Gap(5.5)
 
     def test_gap_accepts_integral_float(self):
-        assert Gap(5.0).length == 5
+        assert Gap(5.0).n_buckets == 5
 
     def test_batch_rejects_fractional_n_bunches(self):
         with pytest.raises(ValueError, match="integer"):
-            Batch(n_bunches=3.7, bunch_spacing=2)
+            Batch(n_bunches=3.7, bunch_gap=2)
 
     def test_batch_accepts_integral_floats(self):
-        batch = Batch(n_bunches=3.0, bunch_spacing=2.0)
+        batch = Batch(n_bunches=3.0, bunch_gap=2.0)
         assert batch.n_bunches == 3
-        assert batch.length == 7
+        assert batch.n_buckets == 7
 
     def test_filling_pattern_rejects_fractional_harmonic_number(self):
         with pytest.raises(ValueError, match="integer"):
@@ -131,28 +131,28 @@ class TestIntegralInputs:
 
 
 class TestValidation:
-    def test_train_rejects_negative_copy_spacing_even_for_single_copy(self):
-        with pytest.raises(ValueError, match="copy_spacing"):
-            Train(Batch(3, 1), n_copies=1, copy_spacing=-50)
+    def test_train_rejects_negative_copy_gap_even_for_single_copy(self):
+        with pytest.raises(ValueError, match="copy_gap"):
+            Train(Batch(3, 1), n_copies=1, copy_gap=-50)
 
     def test_harmonic_number_must_be_positive(self):
         with pytest.raises(ValueError, match="harmonic_number"):
             FillingPattern(Gap(0), harmonic_number=0)
 
-    def test_n_in_tier_counts_distinct_indices(self):
+    def test_n_groups_counts_distinct_indices(self):
         segment = PatternSegment(
-            positions=np.array([0, 5]),
-            length=10,
+            bucket_indices=np.array([0, 5]),
+            n_buckets=10,
             tiers={"batch": np.array([0, 5])},
         )
-        assert segment.n_in_tier("batch") == 2
+        assert segment.n_groups("batch") == 2
 
-    def test_n_in_tier_composed(self):
+    def test_n_groups_composed(self):
         two = Batch(2, 1).gap(3) + Batch(2, 1)
-        assert two.n_in_tier("batch") == 2
+        assert two.n_groups("batch") == 2
 
-    def test_n_in_tier_absent_tier(self):
-        assert Gap(5).n_in_tier("batch") == 0
+    def test_n_groups_absent_tier(self):
+        assert Gap(5).n_groups("batch") == 0
 
 
 class TestFromPlacements:
@@ -169,15 +169,15 @@ class TestFromPlacements:
         pattern = FillingPattern.from_placements(
             100, [(Batch(2, 1), 10), (Batch(2, 1), 50)]
         )
-        assert np.array_equal(pattern.positions, [10, 12, 50, 52])
+        assert np.array_equal(pattern.bucket_indices, [10, 12, 50, 52])
         assert np.array_equal(pattern.tier("batch"), [0, 0, 1, 1])
 
 
 class TestWarningLocation:
-    def test_as_n_buckets_warns_at_caller(self):
+    def test_n_buckets_from_time_warns_at_caller(self):
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            as_n_buckets(2.3, 1.0)
+            n_buckets_from_time(2.3, 1.0)
         assert len(caught) == 1
         assert caught[0].filename == __file__
 
@@ -200,61 +200,61 @@ class TestRelativeTolerance:
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             for spacing_ns in (25, 50, 75, 100, 225):
-                as_n_buckets(spacing_ns * 1e-9, f_rf)
+                n_buckets_from_time(spacing_ns * 1e-9, f_rf)
 
     def test_misaligned_distance_warns(self):
         with pytest.warns(UserWarning, match="not an integer"):
-            as_n_buckets(2.3, 1.0)
+            n_buckets_from_time(2.3, 1.0)
 
     def test_zero_distance_does_not_warn(self):
         with warnings.catch_warnings():
             warnings.simplefilter("error")
-            assert as_n_buckets(0.0, 400.789e6) == 0
+            assert n_buckets_from_time(0.0, 400.789e6) == 0
 
 
-class TestPayloadDtype:
-    def test_payload_stored_as_float(self):
+class TestpropertyDtype:
+    def test_property_stored_as_float(self):
         batch = Batch(2, 1)
         batch.n_injected = np.array([1, 2])
         assert batch.n_injected.dtype == np.float64
 
-    def test_int_payload_merge_keeps_nan_contract(self):
+    def test_int_property_merge_keeps_nan_contract(self):
         left = Batch(2, 1)
         left.n_injected = np.array([1, 2])
         merged = left + Batch(2, 1)
         assert np.all(np.isnan(merged.n_injected[2:]))
 
-    def test_assignment_rejects_string_payload(self):
+    def test_assignment_rejects_string_property(self):
         batch = Batch(2, 1)
         with pytest.raises(ValueError, match="tag"):
             batch.tag = np.array(["x", "y"])
 
-    def test_constructor_rejects_string_payload(self):
+    def test_constructor_rejects_string_property(self):
         with pytest.raises(ValueError, match="tag"):
             BunchTable(
-                positions=np.array([0]),
-                length=1,
-                payload={"tag": np.array(["x"])},
+                bucket_indices=np.array([0]),
+                n_buckets=1,
+                properties={"tag": np.array(["x"])},
             )
 
 
-class TestReservedPayloadNames:
-    def test_segment_rejects_harmonic_number_payload(self):
+class TestReservedpropertyNames:
+    def test_segment_rejects_harmonic_number_property(self):
         batch = Batch(2, 1)
         with pytest.raises(AttributeError, match="harmonic_number"):
             batch.harmonic_number = np.ones(2)
 
-    def test_segment_rejects_has_bunch_payload(self):
+    def test_segment_rejects_has_bunch_property(self):
         batch = Batch(2, 1)
         with pytest.raises(AttributeError, match="has_bunch"):
             batch.has_bunch = np.ones(2)
 
-    def test_constructor_rejects_harmonic_number_payload(self):
+    def test_constructor_rejects_harmonic_number_property(self):
         with pytest.raises(ValueError, match="harmonic_number"):
             BunchTable(
-                positions=np.array([0]),
-                length=1,
-                payload={"harmonic_number": np.array([1.0])},
+                bucket_indices=np.array([0]),
+                n_buckets=1,
+                properties={"harmonic_number": np.array([1.0])},
             )
 
 
@@ -273,15 +273,15 @@ class TestMultiplierValidation:
 
 class TestRegressionGuards:
     def test_composition_renumbers_tiers(self):
-        batch = Batch(n_bunches=2, bunch_spacing=1)
-        train = Train(unit=batch, n_copies=2, copy_spacing=5)
+        batch = Batch(n_bunches=2, bunch_gap=1)
+        train = Train(unit=batch, n_copies=2, copy_gap=5)
         injection = train.label("injection")
         full = injection.gap(10) * 2
         assert np.array_equal(full.tier("batch"), [0, 0, 1, 1, 2, 2, 3, 3])
         assert np.array_equal(full.tier("train"), [0, 0, 0, 0, 1, 1, 1, 1])
         assert np.array_equal(full.tier("injection"), [0, 0, 0, 0, 1, 1, 1, 1])
 
-    def test_payload_nan_merge(self):
+    def test_property_nan_merge(self):
         left = Batch(2, 1)
         left.intensity = np.array([1.0, 2.0])
         right = Batch(2, 1)
@@ -293,7 +293,7 @@ class TestRegressionGuards:
         pattern = FillingPattern(Batch(4, 1), harmonic_number=100)
         pattern.intensity = np.ones(4)
         restored = pickle.loads(pickle.dumps(pattern))
-        assert np.array_equal(restored.positions, pattern.positions)
+        assert np.array_equal(restored.bucket_indices, pattern.bucket_indices)
         assert np.array_equal(restored.intensity, pattern.intensity)
         assert restored.harmonic_number == 100
 
