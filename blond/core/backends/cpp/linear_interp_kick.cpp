@@ -34,7 +34,10 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
 
 #pragma omp parallel
   {
-    unsigned fbin[STEP];
+    // Keep the bin index in double until it is range-checked: converting
+    // an out-of-range double to an integer type is undefined behaviour
+    // (a huge positive index can wrap back into the valid bin range).
+    double fbin[STEP];
 
 #pragma omp for
     for (int i = 0; i < n_slices - 1; i++) {
@@ -52,14 +55,15 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
           n_macroparticles - i > STEP ? STEP : n_macroparticles - i;
 
       for (int j = 0; j < loop_count; j++) {
-        fbin[j] = (unsigned)std::floor((beam_dt[i + j] - bin_centers[0]) *
-                                       inv_bin_width);
+        fbin[j] = std::floor((beam_dt[i + j] - bin_centers[0]) *
+                             inv_bin_width);
       }
 
       for (int j = 0; j < loop_count; j++) {
-        if (fbin[j] < (unsigned)(n_slices - 1)) {
+        if (fbin[j] >= 0.0 && fbin[j] < (double)(n_slices - 1)) {
+          const int bin = (int)fbin[j];
           beam_dE[i + j] +=
-              beam_dt[i + j] * voltageKick[fbin[j]] + factor[fbin[j]];
+              beam_dt[i + j] * voltageKick[bin] + factor[bin];
         }
       }
     }
