@@ -616,6 +616,12 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
                 array_tmp[thread_i, write_idx] += 1
                 continue
 
+            # `int()` truncates towards zero, so without this guard
+            # particles up to one bin left of `start_loc` would end up
+            # in bin 0 (idx = int(-0.5) = 0).
+            if xi < start_loc or xi >= stop_loc:
+                continue
+
             idx = int((xi - start_loc) * inv_bin_step)
             if idx < 0 or idx >= bins_per_profile:
                 continue
