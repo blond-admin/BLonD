@@ -7,3 +7,17 @@
 # Project website: http://blond.web.cern.ch/
 
 """Utility functions for the CERN Large Hadron Collider."""
+
+from blond.specifics.cern.lhc.filling_schemes import (
+    BUCKETS_PER_SLOT,
+    LHC_HARMONIC_NUMBER,
+    LHC_N_SLOTS,
+    filling_pattern_from_scheme_file,
+)
+
+__all__ = [
+    "BUCKETS_PER_SLOT",
+    "LHC_HARMONIC_NUMBER",
+    "LHC_N_SLOTS",
+    "filling_pattern_from_scheme_file",
+]

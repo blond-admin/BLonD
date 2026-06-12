@@ -7,11 +7,14 @@
 # Project website: http://blond.web.cern.ch/
 
 # pragma: no cover
+from pathlib import Path
+
 import numpy as np
 from matplotlib import pyplot as plt
 
 from blond import Batch, FillingPattern, Train
 from blond.cycles.filling_patterns import plot
+from blond.specifics.cern.lhc import filling_pattern_from_scheme_file
 
 
 def main():
@@ -42,6 +45,22 @@ def main():
     print(f"  intensity[:8]:  {pattern.intensity[:8]}")
 
     plot(pattern)
+
+    # Real machine fills: import an official LHC filling-scheme file
+    # directly (scheme names are lossy labels — always load the JSON).
+    scheme_path = (
+        Path(__file__).parent
+        / "resources"
+        / "EX_29"
+        / "25ns_1500b_1488_684_729_240bpi_8inj_HItests_Fill4.json"
+    )
+    lhc_pattern = filling_pattern_from_scheme_file(path=scheme_path, beam=1)
+    print(lhc_pattern)
+    print(
+        f"  n_injections={lhc_pattern.n_groups('injection')}, "
+        f"n_batches={lhc_pattern.n_groups('batch')}"
+    )
+    plot(lhc_pattern, face_label="injection", edge_label="batch")
 
 
 if __name__ == "__main__":  # pragma: no cover

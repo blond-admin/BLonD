@@ -205,9 +205,23 @@ historical states.
       injection between rings (needs an 'injection' tier + turn mapping;
       the tier mechanism already supports it).
       (https://gitlab.cern.ch/blond/BLonD/-/work_items/294)
-- [ ] **LPC importer + machine presets** in `blond.specifics.cern`:
-      import actual LPC scheme files (not name parsing); slot-based input
-      helpers live there too.
+- [x] **LPC importer** (first part, 2026-06-12):
+      `blond.specifics.cern.lhc.filling_pattern_from_scheme_file(path,
+      beam)` imports LPC scheme JSON files (never parses names).
+      Builds from the injection composition using the file's own
+      `bunchArray`/`injBunch` slot offsets (NOT the stride shortcut —
+      the legacy loader computed `j*(len+spacing)`, wrong for unequal
+      batch lengths), labels `injection`/`batch`, places via
+      `from_placements` at `lhcbunch*10`, then cross-validates against
+      the redundant `schemebeam1/2` mask and refuses inconsistent
+      files; also refuses schemes with a bunch at or beyond the abort
+      gap keeper boundary (`AGK`, RF buckets; skipped if the key is
+      absent). 25 ns schemes only (guarded). 7 tests in
+      `tests/unittests/specials/test_lhc_filling_schemes.py`; demo in
+      EX_29 (loads the resources/EX_29 scheme, beam 1: 1500 bunches,
+      8 injections, 32 batches). Legacy reference script deleted
+      (was untracked, named `_deleteme`). Still open: machine presets /
+      slot-based input helpers.
       (https://gitlab.cern.ch/blond/BLonD/-/work_items/294, /318)
 - [ ] **Sparse profile init** (#317): add
       `EquidistantMultiProfile.from_filling_pattern(...)` classmethod in
