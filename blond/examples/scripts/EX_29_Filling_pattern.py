@@ -19,7 +19,7 @@ def main():
     sps_train = Train(unit=ps_batch, n_copies=4, copy_gap=8)
     injection = sps_train.label("injection")
     pattern = FillingPattern(
-        injection.gap(38) * 11 + injection,
+        injection.with_trailing_gap(38) * 11 + injection,
         harmonic_number=35640,
     )
 

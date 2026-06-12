@@ -41,7 +41,8 @@ any name with :meth:`PatternSegment.label`, at any nesting depth.
 **Conventions**
 
 * "gap" always counts empty RF buckets between units, as an integer
-  (``bunch_gap``, ``copy_gap``, :class:`Gap`, :meth:`PatternSegment.gap`)
+  (``bunch_gap``, ``copy_gap``, :class:`Gap`,
+  :meth:`PatternSegment.with_trailing_gap`)
   — never start-to-start. Beware: the LHC "25 ns bunch spacing" is
   ``bunch_gap=9`` on the 400 MHz RF, not 10.
 * "spacing" always means a physical start-to-start distance in seconds
@@ -49,13 +50,13 @@ any name with :meth:`PatternSegment.label`, at any nesting depth.
 
 **Composition**
 
-Segments compose with ``+`` (concatenate), ``*`` (repeat) and ``.gap(n)``.
+Segments compose with ``+`` (concatenate), ``*`` (repeat) and ``.with_trailing_gap(n)``.
 Tier indices are re-numbered automatically on concatenation::
 
     batch     = Batch(n_bunches=72, bunch_gap=9)
     train     = Train(unit=batch, n_copies=4, copy_gap=8)
     injection = train.label("injection")
-    pattern   = FillingPattern(injection.gap(38) * 11 + injection,
+    pattern   = FillingPattern(injection.with_trailing_gap(38) * 11 + injection,
                                harmonic_number=35640)
 
     pattern.intensity = np.full(pattern.n_bunches, 1.1e11)
@@ -245,7 +246,7 @@ def _repeat_with_gap(
     # Repeat a unit with a gap between copies (no trailing gap).
     if n_copies == 1:
         return unit
-    return unit.gap(copy_gap) * (n_copies - 1) + unit
+    return unit.with_trailing_gap(copy_gap) * (n_copies - 1) + unit
 
 
 # --------------------------------------------------------------- BunchTable
@@ -513,15 +514,15 @@ class PatternSegment(BunchTable):
 
     Concatenation (+) shifts bucket_indices and re-numbers every tier::
 
-        combined = a.gap(5) + b
+        combined = a.with_trailing_gap(5) + b
 
     See :class:`BunchTable` for the per-bunch arrays, the property
     interface, and the constructor parameters.
     """
 
-    def gap(self, n_empty_buckets: int) -> PatternSegment:
+    def with_trailing_gap(self, n_empty_buckets: int) -> PatternSegment:
         """
-        Return self with empty buckets appended.
+        Return a copy of this segment with empty buckets appended.
 
         Parameters
         ----------
@@ -543,7 +544,7 @@ class PatternSegment(BunchTable):
         repeating unit, then repeat::
 
             injection = sps_train.label("injection")
-            full = injection.gap(38) * 12
+            full = injection.with_trailing_gap(38) * 12
             full.tier("injection")   # 0, ..., 0, 1, ..., 1, ..., 11
 
         Raises if the tier already exists — e.g. nesting ``Train`` in
@@ -655,7 +656,7 @@ class Batch(PatternSegment):
 
     Concatenation re-numbers batch indices automatically::
 
-        two = Batch(n_bunches=4, bunch_gap=1).gap(5) + Batch(n_bunches=4, bunch_gap=1)
+        two = Batch(n_bunches=4, bunch_gap=1).with_trailing_gap(5) + Batch(n_bunches=4, bunch_gap=1)
         two.tier("batch")  # [0, 0, 0, 0,  1, 1, 1, 1]
 
     Parameters
@@ -717,13 +718,13 @@ class Train(PatternSegment):
     Tier indices from the unit (e.g. 'batch') are preserved and re-numbered
     across copies. Concatenation re-numbers train indices::
 
-        two = Train(batch, n_copies=3, copy_gap=5).gap(100) + Train(batch, n_copies=3, copy_gap=5)
+        two = Train(batch, n_copies=3, copy_gap=5).with_trailing_gap(100) + Train(batch, n_copies=3, copy_gap=5)
         two.tier("train")  # [0, 0, ...,  1, 1, ...]
 
     A unit that already contains a 'train' tier is rejected — label deeper
     nesting levels with :meth:`PatternSegment.label` instead::
 
-        super_train = (train.gap(20) * 3).label("super_train")
+        super_train = (train.with_trailing_gap(20) * 3).label("super_train")
 
     Parameters
     ----------
@@ -799,7 +800,7 @@ class FillingPattern(BunchTable):
 
     Usage::
 
-        pattern = FillingPattern(injection.gap(38) * 12, harmonic_number=35640)
+        pattern = FillingPattern(injection.with_trailing_gap(38) * 12, harmonic_number=35640)
         pattern.intensity = np.ones(pattern.n_bunches) * 1.1e11
         pattern.intensity[pattern.tier("batch") == 3] = 0.5e11
         pattern.intensity[pattern.tier("injection") == 1] = 0.8e11

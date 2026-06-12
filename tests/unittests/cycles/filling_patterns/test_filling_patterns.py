@@ -99,7 +99,7 @@ class TestStructuralImmutability:
 
     def test_property_masked_assignment_idiom_still_works(self):
         pattern = FillingPattern(
-            Batch(4, 1).gap(3) + Batch(4, 1), harmonic_number=100
+            Batch(4, 1).with_trailing_gap(3) + Batch(4, 1), harmonic_number=100
         )
         pattern.intensity = np.full(pattern.n_bunches, 2.0)
         pattern.intensity[pattern.tier("batch") == 1] = 0.5
@@ -148,7 +148,7 @@ class TestValidation:
         assert segment.n_groups("batch") == 2
 
     def test_n_groups_composed(self):
-        two = Batch(2, 1).gap(3) + Batch(2, 1)
+        two = Batch(2, 1).with_trailing_gap(3) + Batch(2, 1)
         assert two.n_groups("batch") == 2
 
     def test_n_groups_absent_tier(self):
@@ -276,7 +276,7 @@ class TestRegressionGuards:
         batch = Batch(n_bunches=2, bunch_gap=1)
         train = Train(unit=batch, n_copies=2, copy_gap=5)
         injection = train.label("injection")
-        full = injection.gap(10) * 2
+        full = injection.with_trailing_gap(10) * 2
         assert np.array_equal(full.tier("batch"), [0, 0, 1, 1, 2, 2, 3, 3])
         assert np.array_equal(full.tier("train"), [0, 0, 0, 0, 1, 1, 1, 1])
         assert np.array_equal(full.tier("injection"), [0, 0, 0, 0, 1, 1, 1, 1])

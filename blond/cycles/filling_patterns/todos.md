@@ -113,6 +113,9 @@ historical states.
       "payload" was transport jargon revealing nothing of the physics).
 - [x] `as_n_buckets` -> `n_buckets_from_time` (reads as the unit
       conversion it is).
+- [x] `PatternSegment.gap(n)` -> `with_trailing_gap(n)` (the old name
+      read like a getter; `with_` signals copy-not-mutation, "trailing"
+      says where the empty buckets go).
 
 ## Next: tests
 
