@@ -1106,3 +1106,6 @@ def __getattr__(name: str):
 default = Numpy64Bit  # use .change_backend(...) to change it anywhere
 backend: Numpy64Bit | Cupy64Bit = default()
 backend.apply_environment_variables()
+# verbose only after the initial setup, so that importing blond stays
+# quiet, but later backend changes are reported to the user
+backend.verbose = True
