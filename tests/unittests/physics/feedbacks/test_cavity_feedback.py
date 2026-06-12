@@ -150,7 +150,12 @@ class TestIQCavityFeedbackTimingClass:
         self.harmonic = 5
         self.setup_simulation()
         cav_fdbk_timing = IQCavityFeedbackTimingClass(
-            profile=self.profile, n_rf_periods_per_coarse_grid=n_rf_points
+            profile=self.profile,
+            n_rf_periods_per_coarse_grid=n_rf_points,
+            R_over_Q=0,
+            Q_L=1,
+            generator_current=0,
+            n_cavities=1,
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
         self.rf_station.phi_rf_design = phase_shift
@@ -271,7 +276,12 @@ class TestIQCavityFeedbackTimingClass:
         self.harmonic = 5
         self.setup_simulation()
         cav_fdbk_timing = IQCavityFeedbackTimingClass(
-            profile=self.profile, n_rf_periods_per_coarse_grid=n_rf_points
+            profile=self.profile,
+            n_rf_periods_per_coarse_grid=n_rf_points,
+            R_over_Q=0,
+            Q_L=1,
+            generator_current=0,
+            n_cavities=1,
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
         self.rf_station.phi_rf_design = phase_shift
@@ -429,6 +439,10 @@ class TestIQCavityFeedbackTimingClass:
                     profile=self.profile,
                     n_rf_periods_per_coarse_grid=n_rf_points,
                     debug=True,
+                    R_over_Q=0,
+                    Q_L=1,
+                    generator_current=0,
+                    n_cavities=1,
                 )
             )
             rf_station = SingleHarmonicRFStation(
@@ -906,7 +920,7 @@ class TestIQCavityFeedbackTimingClass:
         harm_per_full_drift = harm_per_half_drift * 2
 
         def callback(simulation: Simulation, beam: Beam):
-            if simulation.turn_i.value == 0:  # TODO: and not CR
+            if simulation.turn_counter.value == 0:  # TODO: and not CR
                 for idx, fdbk in enumerate(timing_fdbk_list):
                     fdbk: IQCavityFeedbackTimingClass
                     check_fail_printing(

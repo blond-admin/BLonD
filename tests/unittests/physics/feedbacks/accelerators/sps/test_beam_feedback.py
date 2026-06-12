@@ -22,7 +22,7 @@ from blond import (
     StaticProfile,
     proton,
 )
-from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.core.backends.backend import Numpy64Bit, backend
 
 # from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
 #     SpsRlBeamFeedback,
@@ -198,9 +198,6 @@ class TestBeamFeedback(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
         self.setUpBlond2()
         self.setUpBlond3()
-
-    def tearDown(self):
-        backend.change_backend(Numpy32Bit)
 
     # activate again when the feedbacks are working
     @unittest.skip("too slow and beam feedback is anyway not working for now")

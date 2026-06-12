@@ -31,7 +31,7 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
-from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.core.backends.backend import Numpy64Bit, backend
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityLoopCommissioning,
     SPSOneTurnFeedback,
@@ -250,8 +250,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         beam_dt = beam.write_partial_dt()
         beam_dt += n_shift * t_rf
-        rf._update_beam_based_attributes(
-            beam=beam,
+        rf._update_reference_based_attributes(
+            reference=beam.reference,
         )
 
         profile.track(
@@ -391,8 +391,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
             reference_time=beam.reference.time,
             reference_total_energy=beam.reference.total_energy,
         )
-        rf._update_beam_based_attributes(
-            beam=beam2,
+        rf._update_reference_based_attributes(
+            reference=beam2.reference,
         )
 
         profile2.track(
@@ -883,9 +883,6 @@ class TestTravelingWaveCavity(unittest.TestCase):
             err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
             "mismatch in beam-induced voltage on coarse grid",
         )
-
-    def tearDown(self):
-        backend.change_backend(Numpy32Bit)
 
 
 if __name__ == "__main__":

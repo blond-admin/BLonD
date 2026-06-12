@@ -23,7 +23,7 @@ from blond.acc_math.analytic.simple_math import (
     calc_gamma,
     momentum_compaction_factor,
 )
-from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityFeedback,
@@ -831,10 +831,6 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             2 * self.rfstation.get_main_harmonic_t_rf(),
             int(2 * self.OTFB.n_coarse),
         )
-
-    @pytest.mark.backend_mutation
-    def tearDown(self):
-        backend.change_backend(Numpy32Bit)
 
     @pytest.mark.backend_mutation
     def test_setup(self):
