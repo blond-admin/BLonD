@@ -57,6 +57,25 @@ class TestBackendBaseClass(unittest.TestCase):
         self.assertEqual(self.backend_base_class.complex, np.complex128)
 
     @pytest.mark.backend_mutation
+    def test_change_backend_same_backend_keeps_specials(self) -> None:
+        self.backend_base_class.set_specials(mode="numba")
+        specials_org = self.backend_base_class.specials
+        self.backend_base_class.change_backend(new_backend=Numpy64Bit)
+        self.assertEqual(self.backend_base_class.specials_mode, "numba")
+        # same backend requested -> must be a no-op
+        self.assertIs(self.backend_base_class.specials, specials_org)
+
+    @pytest.mark.backend_mutation
+    def test_change_backend_keeps_specials_mode(self) -> None:
+        class AnotherNumpy64Bit(Numpy64Bit):
+            """Different class, to force a real backend change."""
+
+        self.backend_base_class.set_specials(mode="numba")
+        self.backend_base_class.change_backend(new_backend=AnotherNumpy64Bit)
+        self.assertIs(self.backend_base_class.__class__, AnotherNumpy64Bit)
+        self.assertEqual(self.backend_base_class.specials_mode, "numba")
+
+    @pytest.mark.backend_mutation
     def test_set_specials(self) -> None:
         self.backend_base_class.set_specials(mode="numba")
 
@@ -106,9 +125,12 @@ class TestBackendBaseClass(unittest.TestCase):
             some_backend._finalize()
 
     @pytest.mark.backend_mutation
-    def test_change_backend(self):
+    def test_change_backend_with_instance_is_noop(self):
+        # this method previously shadowed `test_change_backend` above
+        # by reusing its name
         some_backend = Numpy64Bit()
         some_backend.change_backend(some_backend)  # shouldnt do anything
+        self.assertIs(some_backend.__class__, Numpy64Bit)
 
     @pytest.mark.backend_mutation
     def test_temporary_specials_mode(self):

@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import warnings
 from abc import ABC, abstractmethod
@@ -514,7 +515,7 @@ class BackendBaseClass(ABC):
 
     def change_backend(
         self,
-        new_backend: type[Numpy64Bit | Cupy64Bit],
+        new_backend: type[Numpy64Bit | Cupy64Bit] | BackendBaseClass,
     ) -> None:
         """
         Change the backend precision.
@@ -522,19 +523,26 @@ class BackendBaseClass(ABC):
         Parameters
         ----------
         new_backend
-            One of the available backends.
+            One of the available backends, given as class or instance.
         """
-        if self.__class__ == new_backend.__class__:
+        if isinstance(new_backend, BackendBaseClass):
+            new_backend = type(new_backend)
+        if self.__class__ is new_backend:
+            # requesting the already active backend must be a no-op
             return
         if self.verbose:
             print(f"Changing backend to `{new_backend.__name__}`")
         _new_backend = new_backend()
         # transfer variables that should be kept when changing backend.
-
         _new_backend.verbose = self.verbose
+        specials_mode_org = self.specials_mode
         self.__dict__ = _new_backend.__dict__
         self.__class__ = _new_backend.__class__
-        self.set_specials(self.specials_mode)  # TODO test changing backends
+        # If the previous specials mode does not exist on the new backend
+        # family (e.g. "cuda" after changing to a CPU backend), keep the
+        # new backend's default mode instead.
+        with contextlib.suppress(ValueError):
+            self.set_specials(specials_mode_org)
 
     @abstractmethod  # pragma: no cover
     def set_specials(self, mode: Any) -> None:
