@@ -439,21 +439,21 @@ class BunchTable:
 
     def n_groups(self, label_name: str) -> int:
         """
-        Return the number of distinct assigned indices in the named label.
+        Return the number of distinct assigned group indices in a label.
 
         Parameters
         ----------
         label_name
-            Name of the label.
+            Name of the label (raises KeyError if unknown, with the
+            same strictness as :meth:`label`).
 
         Returns
         -------
         n_groups
-            Number of groups in the label (0 if the label is absent).
+            Number of groups in the label (unassigned bunches do not
+            count).
         """
-        column = self._labels.get(label_name)
-        if column is None:
-            return 0
+        column = self.label(label_name)
         return int(len(np.unique(column[column >= 0])))
 
     @property
@@ -573,6 +573,10 @@ class PatternSegment(BunchTable):
                 f"not shadow quantities."
             )
         new_labels = dict(self._labels)
+        # Every bunch starts in group 0 ("this segment is one
+        # <label_name> unit"); concatenation renumbers later copies to
+        # 1, 2, ... — filling with _UNASSIGNED instead would make
+        # labeling a no-op.
         new_labels[label_name] = np.zeros(self.n_bunches, dtype=np.int32)
         return PatternSegment(
             bucket_indices=self._bucket_indices,

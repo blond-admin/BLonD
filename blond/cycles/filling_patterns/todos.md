@@ -135,6 +135,20 @@ historical states.
       float64/NaN contract stores. "parameters" rejected (clashes with
       numpydoc Parameters headings).
 
+## Implemented (2026-06-12 default-behavior pass)
+
+- [x] Silent-fallback defaults made strict where the input is explicit:
+      `n_groups(name)` now raises KeyError on unknown labels (same
+      strictness as `label()`; previously returned 0, hiding typos).
+      `plot(face_label=, edge_label=)` defaults changed to None =
+      conventional 'batch'/'train', lenient when absent (hand-built
+      patterns); an explicitly passed name must exist (KeyError on
+      typos — previously a typo rendered everything gray).
+- [x] `with_label` zeros line documented: group 0 = "this segment is
+      one unit"; renumbering on `+` produces 1, 2, ...
+- [x] plot.py got its first tests (`test_plot.py`: smoke, lenient
+      defaults, strict explicit labels, color-length error).
+
 ## Implemented (2026-06-12 top-level exports)
 
 - [x] `from blond import FillingPattern, Batch, Train, ...` is the
@@ -154,14 +168,34 @@ historical states.
       non-contractual, split by concept later if the module outgrows
       ~1500 code lines).
 
-## Next: tests
+## Tests: done (2026-06-12, full unit suite)
 
-- [ ] Write tests per implemented item above (composition/renumbering,
-      label/nesting errors, payload guards + NaN merge, from_placements,
-      as_n_buckets tolerance, completeness errors, has_bunch).
-      Partially done: `tests/unittests/cycles/filling_patterns/` covers
-      the 2026-06-12 hardening items plus regression guards (tier
-      renumbering, NaN merge, pickle, has_bunch, from_placements).
+- [x] 81 unit tests in `tests/unittests/cycles/filling_patterns/`
+      (test_filling_patterns.py + test_plot.py), written with
+      bug-classes in mind and **mutation-checked**: three seeded bugs
+      (gap off-by-one in `_gap_from_spacing`, renumber-by-count instead
+      of max+1, Batch length off-by-one) were each caught by the suite.
+      Coverage by intent:
+      - physics-convention pins: LHC 25 ns -> `bunch_gap=9` exactly
+        (positions = arange*10, 711 buckets, warning-free);
+        `Train.from_spacing` start-to-start vs gap; unit trailing gap
+        counted toward start-to-start
+      - composition algebra: `+` associativity (positions, labels,
+        quantities), `seg*n == seg+...+seg`, rmul, `Gap(0)` identity,
+        `FillingPattern` preserves segment arrays exactly
+      - renumbering: one-sided labels stay -1, max+1 (not group count)
+      - label/nesting errors: duplicate `with_label`, `Train(Train())`,
+        label-vs-quantity collision, copy independence
+      - sealed pattern: seg+pattern / pattern+seg / pattern*2 raise
+      - from_placements boundaries: adjacent-at-end ok, trailing gap
+        blocks, beyond-ring raises, empty ring, quantities preserved
+      - edges: `Batch(1, gap)` = 1 bucket, `with_trailing_gap(0)`
+        identity, `has_bunch` fresh array, half-bucket warns
+      - end-to-end LHC pattern with hand-computed numbers (3456
+        bunches, 48/12/12 groups, last bunch 34833, abort gap 806)
+- [ ] EX_29 integration test still missing
+      (`tests/integration/examples/scripts/test_EX_29_*.py` — every
+      other example has one).
 
 ## Deferred follow-up packages (decisions logged)
 

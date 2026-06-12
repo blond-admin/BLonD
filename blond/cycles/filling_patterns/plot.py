@@ -28,8 +28,8 @@ def plot(
     ax: Any = None,
     face: Any = None,
     edge: Any = None,
-    face_label: str = "batch",
-    edge_label: str = "train",
+    face_label: str | None = None,
+    edge_label: str | None = None,
 ) -> Any:
     """
     Plot a filling pattern as one bar per bunch.
@@ -53,10 +53,14 @@ def plot(
         Edge color per bunch: array of length n_bunches, callable, or
         None (= color by edge_label group index).
     face_label
-        Label whose group indices select the face color (default 'batch').
+        Label whose group indices select the face color. None (default)
+        uses 'batch' when present and tolerates its absence; an explicit
+        name must exist (raises KeyError on typos).
     edge_label
         Label whose group indices select the edge color and the dashed
-        boundary lines (default 'train').
+        boundary lines. None (default) uses 'train' when present and
+        tolerates its absence; an explicit name must exist (raises
+        KeyError on typos).
 
     Returns
     -------
@@ -81,8 +85,8 @@ def plot(
 
     face_palette = _palette("tab10", 10)
     edge_palette = _palette("Dark2", 8)
-    face_groups = _label_column_or_unassigned(pattern, face_label)
-    edge_groups = _label_column_or_unassigned(pattern, edge_label)
+    face_groups = _label_column(pattern, face_label, default_name="batch")
+    edge_groups = _label_column(pattern, edge_label, default_name="train")
 
     bucket_x, bucket_width = _x_axis(pattern.bucket_indices, f_rf)
     faces = _resolve_colors(
@@ -128,13 +132,17 @@ def _palette(colormap_name: str, n_colors: int) -> list:
     ]
 
 
-def _label_column_or_unassigned(
-    pattern: BunchTable, label_name: str
+def _label_column(
+    pattern: BunchTable, label_name: str | None, default_name: str
 ) -> np.ndarray:
-    # Label column, defaulting to all-unassigned (-1) if absent.
-    return pattern.labels.get(
-        label_name, np.full(pattern.n_bunches, -1, dtype=np.int32)
-    )
+    # None = conventional default: lenient, because hand-built patterns
+    # may not define 'batch'/'train'. Explicit names are strict so typos
+    # fail loudly instead of silently rendering everything unassigned.
+    if label_name is None:
+        return pattern.labels.get(
+            default_name, np.full(pattern.n_bunches, -1, dtype=np.int32)
+        )
+    return pattern.label(label_name)
 
 
 def _x_axis(
