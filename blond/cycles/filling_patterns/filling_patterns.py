@@ -36,7 +36,7 @@ filling pattern
 Laboratories disagree on the words for batch/train ("PS batch",
 "SPS train", "injection", "pulse", ...). The tier names ``"batch"`` and
 ``"train"`` are only convenient defaults — any grouping can be stored under
-any name with :meth:`PatternSegment.label`, at any nesting depth.
+any name with :meth:`PatternSegment.with_label`, at any nesting depth.
 
 **Conventions**
 
@@ -55,7 +55,7 @@ Tier indices are re-numbered automatically on concatenation::
 
     batch     = Batch(n_bunches=72, bunch_gap=9)
     train     = Train(unit=batch, n_copies=4, copy_gap=8)
-    injection = train.label("injection")
+    injection = train.with_label("injection")
     pattern   = FillingPattern(injection.with_trailing_gap(38) * 11 + injection,
                                harmonic_number=35640)
 
@@ -262,7 +262,7 @@ class BunchTable:
         tier(name)      membership index per bunch in the named tier
                         (-1 = unassigned); 'batch' and 'train' are the
                         conventional names, any name can be added via
-                        PatternSegment.label()
+                        PatternSegment.with_label()
 
     Public attributes not starting with '_' are stored as per-bunch
     property arrays, enabling numpy-masked assignment::
@@ -423,7 +423,7 @@ class BunchTable:
         ----------
         tier_name
             Name of the tier (raises KeyError if unknown; use
-            :meth:`PatternSegment.label` to add one).
+            :meth:`PatternSegment.with_label` to add one).
 
         Returns
         -------
@@ -536,14 +536,14 @@ class PatternSegment(BunchTable):
         """
         return self + Gap(n_empty_buckets)
 
-    def label(self, tier_name: str) -> PatternSegment:
+    def with_label(self, tier_name: str) -> PatternSegment:
         """
         Return a copy with a new tier in which every bunch has index 0.
 
         Concatenating labeled segments re-numbers the indices, so label the
         repeating unit, then repeat::
 
-            injection = sps_train.label("injection")
+            injection = sps_train.with_label("injection")
             full = injection.with_trailing_gap(38) * 12
             full.tier("injection")   # 0, ..., 0, 1, ..., 1, ..., 11
 
@@ -722,9 +722,9 @@ class Train(PatternSegment):
         two.tier("train")  # [0, 0, ...,  1, 1, ...]
 
     A unit that already contains a 'train' tier is rejected — label deeper
-    nesting levels with :meth:`PatternSegment.label` instead::
+    nesting levels with :meth:`PatternSegment.with_label` instead::
 
-        super_train = (train.with_trailing_gap(20) * 3).label("super_train")
+        super_train = (train.with_trailing_gap(20) * 3).with_label("super_train")
 
     Parameters
     ----------
@@ -743,7 +743,9 @@ class Train(PatternSegment):
             raise ValueError(f"n_copies must be >= 1, got {n_copies}.")
         if copy_gap < 0:
             raise ValueError(f"copy_gap must be >= 0, got {copy_gap}.")
-        combined = _repeat_with_gap(unit, n_copies, copy_gap).label("train")
+        combined = _repeat_with_gap(unit, n_copies, copy_gap).with_label(
+            "train"
+        )
         super().__init__(
             bucket_indices=combined.bucket_indices,
             n_buckets=combined.n_buckets,

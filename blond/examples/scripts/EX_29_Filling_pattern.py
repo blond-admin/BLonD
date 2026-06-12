@@ -17,7 +17,7 @@ def main():
     # LHC-like nesting: PS batch -> SPS train -> LHC injection -> full ring
     ps_batch = Batch(n_bunches=72, bunch_gap=9)  # 25 ns bunch spacing
     sps_train = Train(unit=ps_batch, n_copies=4, copy_gap=8)
-    injection = sps_train.label("injection")
+    injection = sps_train.with_label("injection")
     pattern = FillingPattern(
         injection.with_trailing_gap(38) * 11 + injection,
         harmonic_number=35640,

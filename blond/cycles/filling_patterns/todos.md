@@ -116,6 +116,9 @@ historical states.
 - [x] `PatternSegment.gap(n)` -> `with_trailing_gap(n)` (the old name
       read like a getter; `with_` signals copy-not-mutation, "trailing"
       says where the empty buckets go).
+- [x] `PatternSegment.label(name)` -> `with_label(name)` (same trap:
+      read like an in-place verb, but returns a copy — discarding the
+      result was a silent no-op).
 
 ## Next: tests
 

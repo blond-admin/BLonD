@@ -36,7 +36,7 @@ class TestNameCollisions:
     def test_add_rejects_tier_property_collision(self):
         left = Batch(n_bunches=2, bunch_gap=1)
         left.intensity = np.array([1.0, 2.0])
-        right = Batch(n_bunches=2, bunch_gap=1).label("intensity")
+        right = Batch(n_bunches=2, bunch_gap=1).with_label("intensity")
         with pytest.raises(ValueError, match="intensity"):
             left + right
 
@@ -275,7 +275,7 @@ class TestRegressionGuards:
     def test_composition_renumbers_tiers(self):
         batch = Batch(n_bunches=2, bunch_gap=1)
         train = Train(unit=batch, n_copies=2, copy_gap=5)
-        injection = train.label("injection")
+        injection = train.with_label("injection")
         full = injection.with_trailing_gap(10) * 2
         assert np.array_equal(full.tier("batch"), [0, 0, 1, 1, 2, 2, 3, 3])
         assert np.array_equal(full.tier("train"), [0, 0, 0, 0, 1, 1, 1, 1])
