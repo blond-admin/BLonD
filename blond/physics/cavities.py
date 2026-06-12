@@ -93,6 +93,8 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
+        self._ring: Ring | None = None
+        self._magnetic_cycle: MagneticCycleBase | None = None
         self._turn_counter: DynamicParameter | None = None
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
@@ -121,7 +123,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         *,
         turn_counter: DynamicParameter | None = None,
         magnetic_cycle: MagneticCycleBase | None = None,
-        ring: None,
+        ring: Ring,
         **kwargs,
     ) -> None:
         """
@@ -163,11 +165,23 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         reference_energy_change
             Change of reference energy [eV].
         """
+        # No energy program (e.g. created via ``headless(magnetic_cycle=None)``,
+        # or an external code such as xsuite owns the reference): the reference
+        # is left untouched and no acceleration kick is applied.
+        if self._magnetic_cycle is None:
+            return 0.0
+
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
-            section_i=self.section_index
-            if not is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),
+            section_i=(
+                self.section_index
+                if not is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=reference.time,
             particle_type=reference.particle_type,
         )
@@ -186,6 +200,9 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         super()._track(beam=beam)
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
                 turn_i=self._turn_counter.value,
                 reference_time=float(beam.reference.time),
@@ -778,11 +795,23 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Synchronous phase for the current RF parameters, in [rad].
         """
         # TODO rewrite for efficiency
+        if self._magnetic_cycle is None:
+            raise ValueError(
+                "Synchronous phase requires a `magnetic_cycle`; this RF station "
+                "was created via `headless(...)` without one "
+                "(`magnetic_cycle=None`)."
+            )
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
-            section_i=self.section_index
-            if not beam.is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),
+            section_i=(
+                self.section_index
+                if not beam.is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=float(beam.reference.time),
             particle_type=beam.particle_type,
         )
@@ -933,14 +962,27 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         reference_energy_change
             Change of reference energy [eV].
         """
-        # set design omega etc. for this turn
+        # set design omega etc. for this turn (independent of the energy program)
         self._update_reference_based_attributes(reference=reference)
 
+        # No energy program (e.g. created via ``headless(magnetic_cycle=None)``,
+        # or an external code such as xsuite owns the reference): the reference
+        # is left untouched and no acceleration kick is applied.
+        if self._magnetic_cycle is None:
+            self._last_reference_energy_change = 0.0
+            return 0.0
+
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_counter.value,
-            section_i=self.section_index
-            if not is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),
+            section_i=(
+                self.section_index
+                if not is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=reference.time,
             particle_type=reference.particle_type,
         )
@@ -1347,12 +1389,13 @@ class SingleHarmonicRFStation(
         phi_rf: float,
         harmonic: float,
         circumference: float,
-        total_energy: float,
         beam_reference_beta: float,
+        magnetic_cycle: MagneticCycleBase | None = None,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> SingleHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1369,10 +1412,16 @@ class SingleHarmonicRFStation(
             RF station's design harmonic [].
         circumference
             Synchrotron circumference in [m].
-        total_energy
-            Target total energy in [eV].
         beam_reference_beta
             Beam velocity as a fraction of the speed of light [1].
+        magnetic_cycle
+            Energy program driving the reference-energy update.
+            If ``None`` (default), no reference-energy update is performed:
+            the beam reference is left untouched and only the RF kick is
+            applied (e.g. a pure RF kick, or when an external code such as
+            xsuite owns the reference). Pass a :class:`~blond.cycles.magnetic_cycle.MagneticCycleBase`
+            (e.g. ``ConstantMagneticCycle(..., in_unit="total energy")``) to
+            accelerate towards a target total energy.
         local_wakefield
             Optional wakefield to interact with beam.
         cavity_feedback
@@ -1383,6 +1432,8 @@ class SingleHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
@@ -1403,10 +1454,8 @@ class SingleHarmonicRFStation(
         )
 
         single_harmonic_rf_station.configure(
-            turn_counter=SimpleNamespace(value=0),
-            magnetic_cycle=SimpleNamespace(
-                get_target_total_energy=lambda **_: total_energy
-            ),
+            turn_counter=turn_counter,
+            magnetic_cycle=magnetic_cycle,
             ring=SimpleNamespace(
                 circumference=circumference,
                 section_lengths=np.array([circumference]),
@@ -1872,14 +1921,15 @@ class MultiHarmonicRFStation(
         phi_rf: NumpyArray,
         harmonic: NumpyArray,
         circumference: float,
-        total_energy: float,
         main_harmonic_idx: int,
         beam_reference_beta: float,
+        magnetic_cycle: MagneticCycleBase | None = None,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> MultiHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1896,13 +1946,19 @@ class MultiHarmonicRFStation(
             RF station's design harmonics (per harmonic) [].
         circumference
             Synchrotron circumference in [m].
-        total_energy
-            Target total energy in [eV].
         main_harmonic_idx
             Index of the cavity's main harmonic
             Used to calculate attributes that rely on only one harmonic.
         beam_reference_beta
             Beam reference fraction of speed of light (v/c0) [].
+        magnetic_cycle
+            Energy program driving the reference-energy update.
+            If ``None`` (default), no reference-energy update is performed:
+            the beam reference is left untouched and only the RF kick is
+            applied (e.g. a pure RF kick, or when an external code such as
+            xsuite owns the reference). Pass a :class:`~blond.cycles.magnetic_cycle.MagneticCycleBase`
+            (e.g. ``ConstantMagneticCycle(..., in_unit="total energy")``) to
+            accelerate towards a target total energy.
         local_wakefield
             Optional wakefield to interact with beam.
         cavity_feedback
@@ -1915,6 +1971,8 @@ class MultiHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
@@ -1938,10 +1996,8 @@ class MultiHarmonicRFStation(
         )
 
         multi_harmonic_rf_station.configure(
-            turn_counter=SimpleNamespace(value=0),
-            magnetic_cycle=SimpleNamespace(
-                get_target_total_energy=lambda **_: total_energy
-            ),
+            turn_counter=turn_counter,
+            magnetic_cycle=magnetic_cycle,
             ring=SimpleNamespace(
                 circumference=circumference,
                 section_lengths=np.array([circumference]),
