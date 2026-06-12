@@ -63,11 +63,41 @@ implemented. Tests for each implemented item are still to be written.
       `blond/examples/scripts/EX_29_Filling_pattern.py`. Package is now
       `filling_patterns.py` + `plot.py`.
 
+## Implemented (2026-06-12 hardening, after critical review)
+
+- [x] Tier/payload name collisions now validated in `BunchTable.__init__`
+      (the single chokepoint) — previously `+` could smuggle a name that
+      was both tier and payload, leaving it permanently un-assignable.
+      Payload names colliding with structural attributes are also caught
+      at construction (not only via `__setattr__`).
+- [x] Structure frozen after construction: `positions` and tier columns
+      are read-only arrays (constructor copies its inputs, so caller
+      arrays are not frozen); `tiers`/`payload` properties return
+      snapshot dicts. Payload arrays stay live/mutable in place (the
+      masked-assignment interface) and are copied on assignment.
+- [x] Integer inputs validated via `_as_int` (integral floats like 5.0
+      accepted, fractional values raise instead of silently truncating):
+      `Gap`, `Batch`, `Train`, `FillingPattern.harmonic_number` (also
+      must be >= 1), `from_placements` start buckets (must be >= 0).
+- [x] `from_spacing` with a distance shorter than the unit now raises an
+      error naming `start_to_start_distance` and the unit length, instead
+      of leaking an internal `n_empty_buckets`/`bunch_spacing` message.
+- [x] `Train` rejects negative `copy_spacing` even for `n_copies=1`.
+- [x] `n_in_tier` counts distinct assigned indices (was max+1, which
+      disagreed with its docstring for hand-built non-contiguous tiers).
+- [x] `as_n_buckets` gained a `stacklevel` parameter; `from_spacing`
+      warnings now point at the user's call site.
+- [x] `from_placements` overlap error explains that ranges include
+      trailing gaps.
+
 ## Next: tests
 
 - [ ] Write tests per implemented item above (composition/renumbering,
       label/nesting errors, payload guards + NaN merge, from_placements,
       as_n_buckets tolerance, completeness errors, has_bunch).
+      Partially done: `tests/unittests/cycles/filling_patterns/` covers
+      the 2026-06-12 hardening items plus regression guards (tier
+      renumbering, NaN merge, pickle, has_bunch, from_placements).
 
 ## Deferred follow-up packages (decisions logged)
 
