@@ -523,7 +523,7 @@ class BackendBaseClass(ABC):
         Parameters
         ----------
         new_backend
-            One of the available backends, given as class or instance.
+            One of the available backends.
         """
         if isinstance(new_backend, BackendBaseClass):
             new_backend = type(new_backend)
