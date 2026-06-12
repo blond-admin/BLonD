@@ -19,6 +19,7 @@ class Categories(Enum):
     LATTICE = "Lattice & Hardware"
     CYCLE = "Energy Ramp"
     BEAM = "Beam Generation & Distribution"
+    FILLING = "Filling Patterns"
     WAKE = "Wakefield Utilities"
     DIAGNOSTICS = "Observables & Diagnostics"
     PLOTTING = "Plotting & Visualization"
@@ -57,6 +58,13 @@ ASSIGNED_CATEGORIES = {
     "Beam": Categories.BEAM.value,
     "EmptyBeam": Categories.BEAM.value,
     "BiGaussian": Categories.BEAM.value,
+    # Filling Patterns
+    "BunchTable": Categories.FILLING.value,
+    "PatternSegment": Categories.FILLING.value,
+    "Gap": Categories.FILLING.value,
+    "Batch": Categories.FILLING.value,
+    "Train": Categories.FILLING.value,
+    "FillingPattern": Categories.FILLING.value,
     # Diagnostics
     "RFStationPhaseObservation": Categories.DIAGNOSTICS.value,
     "StaticProfileObservation": Categories.DIAGNOSTICS.value,

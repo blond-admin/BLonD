@@ -4,7 +4,7 @@ import warnings
 import numpy as np
 import pytest
 
-from blond.cycles.filling_patterns import (
+from blond import (
     Batch,
     BunchTable,
     FillingPattern,

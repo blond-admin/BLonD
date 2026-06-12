@@ -10,7 +10,8 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from blond.cycles.filling_patterns import Batch, FillingPattern, Train, plot
+from blond import Batch, FillingPattern, Train
+from blond.cycles.filling_patterns import plot
 
 
 def main():

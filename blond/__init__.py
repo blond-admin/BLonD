@@ -58,6 +58,13 @@ __all__ = [
     "BeamHist2dOncePerTurn",
     "BeamStatisticsOncePerTurn",
     "WakeFieldObservation",
+    "Batch",
+    "BunchTable",
+    "FillingPattern",
+    "Gap",
+    "PatternSegment",
+    "Train",
+    "n_buckets_from_time",
 ]
 from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
@@ -80,6 +87,15 @@ from blond.core.beam.particle_types import (
 )
 from blond.core.ring.ring import Ring
 from blond.core.simulation.simulation import Simulation
+from blond.cycles.filling_patterns import (
+    Batch,
+    BunchTable,
+    FillingPattern,
+    Gap,
+    PatternSegment,
+    Train,
+    n_buckets_from_time,
+)
 from blond.cycles.magnetic_cycle import (
     ConstantMagneticCycle,
     MagneticCycleByTime,
