@@ -35,7 +35,7 @@ from .support import (
     rel_err,
 )
 
-DEBUG_PLOT = True
+DEBUG_PLOT = False
 
 
 class TestCavityResponseSolverConvergence(unittest.TestCase):
