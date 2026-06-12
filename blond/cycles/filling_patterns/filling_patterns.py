@@ -17,7 +17,7 @@ bucket
 slot
     Machine-specific grouping of buckets (e.g. one LHC slot = 10 buckets of
     the 400 MHz RF). Not a core concept here: derive it per bunch as
-    ``bucket_indices // buckets_per_slot``, or store it as a tier.
+    ``bucket_indices // buckets_per_slot``, or store it as a label.
 bunch
     One filled bucket.
 batch
@@ -34,7 +34,7 @@ filling pattern
     buckets (:class:`FillingPattern`).
 
 Laboratories disagree on the words for batch/train ("PS batch",
-"SPS train", "injection", "pulse", ...). The tier names ``"batch"`` and
+"SPS train", "injection", "pulse", ...). The label names ``"batch"`` and
 ``"train"`` are only convenient defaults — any grouping can be stored under
 any name with :meth:`PatternSegment.with_label`, at any nesting depth.
 
@@ -51,7 +51,7 @@ any name with :meth:`PatternSegment.with_label`, at any nesting depth.
 **Composition**
 
 Segments compose with ``+`` (concatenate), ``*`` (repeat) and ``.with_trailing_gap(n)``.
-Tier indices are re-numbered automatically on concatenation::
+Label indices are re-numbered automatically on concatenation::
 
     batch     = Batch(n_bunches=72, bunch_gap=9)
     train     = Train(unit=batch, n_copies=4, copy_gap=8)
@@ -60,22 +60,22 @@ Tier indices are re-numbered automatically on concatenation::
                                harmonic_number=35640)
 
     pattern.intensity = np.full(pattern.n_bunches, 1.1e11)
-    pattern.intensity[pattern.tier("injection") == 0] = 1.0e11
+    pattern.intensity[pattern.label("injection") == 0] = 1.0e11
 
-**Per-bunch properties (consumer interface)**
+**Per-bunch quantities (consumer interface)**
 
 Consumers (beam preparation, profiles, injection) read the
 :class:`BunchTable` interface of a finished :class:`FillingPattern`:
 ``bucket_indices`` (sorted RF bucket index per bunch), ``harmonic_number``,
-``has_bunch``, the tier columns, and the per-bunch property arrays.
-Conventional property names and units, shared by all consumers:
+``has_bunch``, the label columns, and the per-bunch quantity arrays.
+Conventional quantity names and units, shared by all consumers:
 
 * ``intensity`` — particles per bunch (bunch population)
 * ``bunch_length`` — seconds (bunch length, e.g. 4 sigma)
 * ``emittance`` — eVs (longitudinal emittance)
 
-Property arrays are stored as float64; NaN entries mean "unspecified"
-(property arrays are NaN-filled when patterns defining different property
+Quantity arrays are stored as float64; NaN entries mean "unspecified"
+(quantity arrays are NaN-filled when patterns defining different quantity
 names are concatenated). Values that do not cast to float are rejected.
 """
 
@@ -154,20 +154,20 @@ def _as_int(value: Any, name: str) -> int:
     return as_int
 
 
-def _next_index(tier_indices: np.ndarray) -> int:
-    # First unused group index of a tier column (-1 = unassigned).
-    assigned = tier_indices[tier_indices >= 0]
+def _next_index(label_indices: np.ndarray) -> int:
+    # First unused group index of a label column (-1 = unassigned).
+    assigned = label_indices[label_indices >= 0]
     return int(assigned.max()) + 1 if len(assigned) else 0
 
 
-def _renumber(tier_indices: np.ndarray, index_offset: int) -> np.ndarray:
-    # Shift assigned tier indices; unassigned entries stay -1.
+def _renumber(label_indices: np.ndarray, index_offset: int) -> np.ndarray:
+    # Shift assigned label indices; unassigned entries stay -1.
     return np.where(
-        tier_indices >= 0, tier_indices + index_offset, _UNASSIGNED
+        label_indices >= 0, label_indices + index_offset, _UNASSIGNED
     ).astype(np.int32)
 
 
-def _unassigned_tier(n_bunches: int) -> np.ndarray:
+def _unassigned_label(n_bunches: int) -> np.ndarray:
     return np.full(n_bunches, _UNASSIGNED, dtype=np.int32)
 
 
@@ -175,27 +175,27 @@ def _nan_column(n_bunches: int) -> np.ndarray:
     return np.full(n_bunches, np.nan)
 
 
-def _as_property_column(value: Any, name: str, n_bunches: int) -> np.ndarray:
-    # Property arrays are stored as float64 (owned copy) so that NaN can
-    # mark unspecified entries when segments with different property names
+def _as_quantity_column(value: Any, name: str, n_bunches: int) -> np.ndarray:
+    # Quantity arrays are stored as float64 (owned copy) so that NaN can
+    # mark unspecified entries when segments with different quantity names
     # are concatenated.
     try:
         column = np.array(value, dtype=np.float64)
     except (ValueError, TypeError) as error:
         raise ValueError(
-            f"Property '{name}' must be castable to float (NaN marks "
+            f"Quantity '{name}' must be castable to float (NaN marks "
             f"unspecified entries): {error}"
         ) from None
     if column.ndim != 1 or len(column) != n_bunches:
         raise ValueError(
-            f"Property '{name}' must be 1-D with length {n_bunches}; "
+            f"Quantity '{name}' must be 1-D with length {n_bunches}; "
             f"got shape {column.shape}."
         )
     return column
 
 
 def _is_structural_name(cls: type, name: str) -> bool:
-    # Property arrays travel from segments into the final FillingPattern,
+    # Quantity arrays travel from segments into the final FillingPattern,
     # so FillingPattern's structural names (harmonic_number, has_bunch)
     # are reserved on every BunchTable, not only where they are defined.
     return hasattr(cls, name) or hasattr(FillingPattern, name)
@@ -210,7 +210,7 @@ def _merge_columns(
     renumber: bool = False,
 ) -> dict[str, np.ndarray]:
     # Concatenate per-bunch columns of two segments; names absent on one
-    # side are filled via missing_column(n). With renumber=True (tiers)
+    # side are filled via missing_column(n). With renumber=True (labels)
     # the right side is shifted so group indices stay unique.
     merged = {}
     for name in set(left) | set(right):
@@ -254,27 +254,27 @@ def _repeat_with_gap(
 
 class BunchTable:
     """
-    Read interface shared by all patterns: per-bunch arrays and properties.
+    Read interface shared by all patterns: per-bunch arrays and quantities.
 
     Per-bunch arrays (all length n_bunches)::
 
         bucket_indices  RF bucket index of each bunch (strictly increasing)
-        tier(name)      membership index per bunch in the named tier
+        label(name)      membership index per bunch in the named label
                         (-1 = unassigned); 'batch' and 'train' are the
                         conventional names, any name can be added via
                         PatternSegment.with_label()
 
     Public attributes not starting with '_' are stored as per-bunch
-    property arrays, enabling numpy-masked assignment::
+    quantity arrays, enabling numpy-masked assignment::
 
         pattern.intensity = np.ones(pattern.n_bunches) * 1e11
-        pattern.intensity[pattern.tier("batch") == 2] = 0.5e11
+        pattern.intensity[pattern.label("batch") == 2] = 0.5e11
 
     Names that collide with structural attributes (bucket_indices,
-    n_buckets, tier names, ...) are rejected.
+    n_buckets, label names, ...) are rejected.
 
-    The structure is fixed at construction: ``bucket_indices`` and the tier
-    columns are read-only arrays. Property arrays are copied to float64 on
+    The structure is fixed at construction: ``bucket_indices`` and the label
+    columns are read-only arrays. Quantity arrays are copied to float64 on
     assignment (NaN = unspecified) and stay mutable in place (that is the
     masked-assignment interface).
 
@@ -285,24 +285,24 @@ class BunchTable:
         [0, n_buckets).
     n_buckets
         Total number of RF buckets, including any trailing empty gap.
-    tiers
-        Tier columns keyed by tier name (-1 = unassigned).
-    properties
-        Per-bunch property arrays keyed by attribute name; must be
+    labels
+        Label columns keyed by label name (-1 = unassigned).
+    quantities
+        Per-bunch quantity arrays keyed by attribute name; must be
         castable to float64.
     """
 
     _bucket_indices: np.ndarray
-    _tiers: dict[str, np.ndarray]
+    _labels: dict[str, np.ndarray]
     _n_buckets: int
-    _properties: dict[str, np.ndarray]
+    _quantities: dict[str, np.ndarray]
 
     def __init__(
         self,
         bucket_indices: np.ndarray,
         n_buckets: int,
-        tiers: dict[str, np.ndarray] | None = None,
-        properties: dict[str, np.ndarray] | None = None,
+        labels: dict[str, np.ndarray] | None = None,
+        quantities: dict[str, np.ndarray] | None = None,
     ):
         bucket_indices = np.array(bucket_indices, dtype=np.int64)  # owned copy
         n_buckets = _as_int(n_buckets, "n_buckets")
@@ -323,47 +323,47 @@ class BunchTable:
                 f"n_buckets {n_buckets}."
             )
         n_bunches = len(bucket_indices)
-        tiers = (
+        labels = (
             {}
-            if tiers is None
+            if labels is None
             else {
                 name: np.array(column, dtype=np.int32)
-                for name, column in tiers.items()
+                for name, column in labels.items()
             }
         )
-        properties = (
+        quantities = (
             {}
-            if properties is None
+            if quantities is None
             else {
-                name: _as_property_column(arr, name, n_bunches)
-                for name, arr in properties.items()
+                name: _as_quantity_column(arr, name, n_bunches)
+                for name, arr in quantities.items()
             }
         )
-        for name, column in tiers.items():
+        for name, column in labels.items():
             if len(column) != n_bunches:
                 raise ValueError(
-                    f"Tier '{name}' has length {len(column)}, expected {n_bunches}."
+                    f"Label '{name}' has length {len(column)}, expected {n_bunches}."
                 )
-        for name in properties:
-            if name in tiers:
+        for name in quantities:
+            if name in labels:
                 raise ValueError(
-                    f"'{name}' is both a tier and a property name; tier and "
-                    f"property names must not collide."
+                    f"'{name}' is both a label and a quantity name; label and "
+                    f"quantity names must not collide."
                 )
             if _is_structural_name(type(self), name):
                 raise ValueError(
-                    f"Property '{name}' collides with a structural pattern "
+                    f"Quantity '{name}' collides with a structural pattern "
                     f"attribute."
                 )
-        # Structure is fixed after construction; only properties values may
+        # Structure is fixed after construction; only quantity values may
         # change in place.
         bucket_indices.setflags(write=False)
-        for column in tiers.values():
+        for column in labels.values():
             column.setflags(write=False)
         object.__setattr__(self, "_bucket_indices", bucket_indices)
-        object.__setattr__(self, "_tiers", tiers)
+        object.__setattr__(self, "_labels", labels)
         object.__setattr__(self, "_n_buckets", n_buckets)
-        object.__setattr__(self, "_properties", properties)
+        object.__setattr__(self, "_quantities", quantities)
 
     @property
     def n_bunches(self) -> int:
@@ -402,82 +402,82 @@ class BunchTable:
         return self._bucket_indices
 
     @property
-    def tiers(self) -> dict[str, np.ndarray]:
+    def labels(self) -> dict[str, np.ndarray]:
         """
-        Return all tier columns.
+        Return all label columns.
 
         Returns
         -------
-        tiers
-            Tier columns, keyed by tier name. The dict is a snapshot
+        labels
+            Label columns, keyed by label name. The dict is a snapshot
             (adding keys does not affect the table); the columns are
             read-only.
         """
-        return dict(self._tiers)
+        return dict(self._labels)
 
-    def tier(self, tier_name: str) -> np.ndarray:
+    def label(self, label_name: str) -> np.ndarray:
         """
-        Return the membership index per bunch in the named tier.
+        Return the membership index per bunch in the named label.
 
         Parameters
         ----------
-        tier_name
-            Name of the tier (raises KeyError if unknown; use
+        label_name
+            Name of the label (raises KeyError if unknown; use
             :meth:`PatternSegment.with_label` to add one).
 
         Returns
         -------
-        tier_column
+        label_column
             Membership index per bunch (-1 = unassigned).
         """
         try:
-            return self._tiers[tier_name]
+            return self._labels[label_name]
         except KeyError:
             raise KeyError(
-                f"No tier '{tier_name}'; available tiers: {sorted(self._tiers)}."
+                f"No label '{label_name}'; available labels: {sorted(self._labels)}."
             ) from None
 
-    def n_groups(self, tier_name: str) -> int:
+    def n_groups(self, label_name: str) -> int:
         """
-        Return the number of distinct assigned indices in the named tier.
+        Return the number of distinct assigned indices in the named label.
 
         Parameters
         ----------
-        tier_name
-            Name of the tier.
+        label_name
+            Name of the label.
 
         Returns
         -------
         n_groups
-            Number of groups in the tier (0 if the tier is absent).
+            Number of groups in the label (0 if the label is absent).
         """
-        column = self._tiers.get(tier_name)
+        column = self._labels.get(label_name)
         if column is None:
             return 0
         return int(len(np.unique(column[column >= 0])))
 
     @property
-    def properties(self) -> dict[str, np.ndarray]:
+    def quantities(self) -> dict[str, np.ndarray]:
         """
-        Return the per-bunch property arrays.
+        Return the per-bunch quantity arrays.
 
         Returns
         -------
-        properties
-            Property arrays, keyed by attribute name. The dict is a
+        quantities
+            Quantity arrays, keyed by attribute name. The dict is a
             snapshot (adding keys does not affect the table); the arrays
             are the live per-bunch arrays.
         """
-        return dict(self._properties)
+        return dict(self._quantities)
 
-    # Public attributes (no leading '_') are routed to _properties, enabling
+    # Public attributes (no leading '_') are routed to _quantities, enabling
     # the pattern.intensity = ...; pattern.intensity[mask] = ... interface.
-    # Structural names and tier names are rejected to prevent silent
+    # Structural names and label names are rejected to prevent silent
     # write/read mismatches (e.g. pattern.bucket_indices = ...).
 
     def __getattr__(self, name: str) -> np.ndarray:
         try:
-            return object.__getattribute__(self, "_properties")[name]
+            return object.__getattribute__(self, "_quantities")[name]
         except KeyError:
             raise AttributeError(
                 f"'{type(self).__name__}' object has no attribute '{name}'"
@@ -490,14 +490,14 @@ class BunchTable:
         if _is_structural_name(type(self), name):
             raise AttributeError(
                 f"'{name}' is a structural pattern attribute and cannot be "
-                f"used as a property name."
+                f"used as a quantity name."
             )
-        if name in self._tiers:
+        if name in self._labels:
             raise AttributeError(
-                f"'{name}' is a tier name (read it with .tier('{name}')); "
-                f"property names must not shadow tiers."
+                f"'{name}' is a label name (read it with .label('{name}')); "
+                f"quantity names must not shadow labels."
             )
-        self._properties[name] = _as_property_column(
+        self._quantities[name] = _as_quantity_column(
             value, name, self.n_bunches
         )
 
@@ -512,11 +512,11 @@ class PatternSegment(BunchTable):
     """
     Composable building block of a filling pattern.
 
-    Concatenation (+) shifts bucket_indices and re-numbers every tier::
+    Concatenation (+) shifts bucket_indices and re-numbers every label::
 
         combined = a.with_trailing_gap(5) + b
 
-    See :class:`BunchTable` for the per-bunch arrays, the property
+    See :class:`BunchTable` for the per-bunch arrays, the quantity
     interface, and the constructor parameters.
     """
 
@@ -536,53 +536,53 @@ class PatternSegment(BunchTable):
         """
         return self + Gap(n_empty_buckets)
 
-    def with_label(self, tier_name: str) -> PatternSegment:
+    def with_label(self, label_name: str) -> PatternSegment:
         """
-        Return a copy with a new tier in which every bunch has index 0.
+        Return a copy with a new label in which every bunch has index 0.
 
         Concatenating labeled segments re-numbers the indices, so label the
         repeating unit, then repeat::
 
             injection = sps_train.with_label("injection")
             full = injection.with_trailing_gap(38) * 12
-            full.tier("injection")   # 0, ..., 0, 1, ..., 1, ..., 11
+            full.label("injection")   # 0, ..., 0, 1, ..., 1, ..., 11
 
-        Raises if the tier already exists — e.g. nesting ``Train`` in
+        Raises if the label already exists — e.g. nesting ``Train`` in
         ``Train`` — so inner structure is never silently overwritten; pick
-        a new tier name instead.
+        a new label name instead.
 
         Parameters
         ----------
-        tier_name
-            Name of the new tier (must not exist yet).
+        label_name
+            Name of the new label (must not exist yet).
 
         Returns
         -------
         labeled
-            Copy of this segment with the additional tier.
+            Copy of this segment with the additional label.
         """
-        if tier_name in self._tiers:
+        if label_name in self._labels:
             raise ValueError(
-                f"Tier '{tier_name}' already exists in this segment; "
+                f"Label '{label_name}' already exists in this segment; "
                 f"label it with a different name to keep the inner "
-                f"'{tier_name}' structure."
+                f"'{label_name}' structure."
             )
-        if tier_name in self._properties:
+        if label_name in self._quantities:
             raise ValueError(
-                f"'{tier_name}' is already a property name; tier names must "
-                f"not shadow properties."
+                f"'{label_name}' is already a quantity name; label names must "
+                f"not shadow quantities."
             )
-        new_tiers = dict(self._tiers)
-        new_tiers[tier_name] = np.zeros(self.n_bunches, dtype=np.int32)
+        new_labels = dict(self._labels)
+        new_labels[label_name] = np.zeros(self.n_bunches, dtype=np.int32)
         return PatternSegment(
             bucket_indices=self._bucket_indices,
             n_buckets=self._n_buckets,
-            tiers=new_tiers,
-            properties=self._properties,
+            labels=new_labels,
+            quantities=self._quantities,
         )
 
     def __add__(self, other: PatternSegment) -> PatternSegment:
-        # Concatenate, re-numbering tiers of the right side.
+        # Concatenate, re-numbering labels of the right side.
         if not isinstance(other, PatternSegment):
             raise TypeError(
                 f"Can only concatenate PatternSegment, not "
@@ -594,17 +594,17 @@ class PatternSegment(BunchTable):
                 [self.bucket_indices, other.bucket_indices + self.n_buckets]
             ),
             n_buckets=self.n_buckets + other.n_buckets,
-            tiers=_merge_columns(
-                self._tiers,
-                other._tiers,
+            labels=_merge_columns(
+                self._labels,
+                other._labels,
                 self.n_bunches,
                 other.n_bunches,
-                _unassigned_tier,
+                _unassigned_label,
                 renumber=True,
             ),
-            properties=_merge_columns(
-                self._properties,
-                other._properties,
+            quantities=_merge_columns(
+                self._quantities,
+                other._quantities,
                 self.n_bunches,
                 other.n_bunches,
                 _nan_column,
@@ -612,7 +612,7 @@ class PatternSegment(BunchTable):
         )
 
     def __mul__(self, n_repetitions: int) -> PatternSegment:
-        # Repeat back-to-back, re-numbering tiers per copy.
+        # Repeat back-to-back, re-numbering labels per copy.
         n_repetitions = _as_int(n_repetitions, "n_repetitions")
         if n_repetitions < 1:
             raise ValueError(f"Multiplier must be >= 1, got {n_repetitions}.")
@@ -652,12 +652,12 @@ class Gap(PatternSegment):
 
 class Batch(PatternSegment):
     """
-    Equally spaced bunches, all labeled batch index 0 (tier 'batch').
+    Equally spaced bunches, all labeled batch index 0 (label 'batch').
 
     Concatenation re-numbers batch indices automatically::
 
         two = Batch(n_bunches=4, bunch_gap=1).with_trailing_gap(5) + Batch(n_bunches=4, bunch_gap=1)
-        two.tier("batch")  # [0, 0, 0, 0,  1, 1, 1, 1]
+        two.label("batch")  # [0, 0, 0, 0,  1, 1, 1, 1]
 
     Parameters
     ----------
@@ -678,7 +678,7 @@ class Batch(PatternSegment):
         super().__init__(
             bucket_indices=np.arange(n_bunches, dtype=np.int64) * bunch_stride,
             n_buckets=n_bunches + (n_bunches - 1) * bunch_gap,
-            tiers={"batch": np.zeros(n_bunches, dtype=np.int32)},
+            labels={"batch": np.zeros(n_bunches, dtype=np.int32)},
         )
 
     @classmethod
@@ -713,15 +713,15 @@ class Batch(PatternSegment):
 
 class Train(PatternSegment):
     """
-    Repeated unit, all labeled train index 0 (tier 'train').
+    Repeated unit, all labeled train index 0 (label 'train').
 
-    Tier indices from the unit (e.g. 'batch') are preserved and re-numbered
+    Label indices from the unit (e.g. 'batch') are preserved and re-numbered
     across copies. Concatenation re-numbers train indices::
 
         two = Train(batch, n_copies=3, copy_gap=5).with_trailing_gap(100) + Train(batch, n_copies=3, copy_gap=5)
-        two.tier("train")  # [0, 0, ...,  1, 1, ...]
+        two.label("train")  # [0, 0, ...,  1, 1, ...]
 
-    A unit that already contains a 'train' tier is rejected — label deeper
+    A unit that already contains a 'train' label is rejected — label deeper
     nesting levels with :meth:`PatternSegment.with_label` instead::
 
         super_train = (train.with_trailing_gap(20) * 3).with_label("super_train")
@@ -749,8 +749,8 @@ class Train(PatternSegment):
         super().__init__(
             bucket_indices=combined.bucket_indices,
             n_buckets=combined.n_buckets,
-            tiers=combined.tiers,
-            properties=combined.properties,
+            labels=combined.labels,
+            quantities=combined.quantities,
         )
 
     @classmethod
@@ -804,8 +804,8 @@ class FillingPattern(BunchTable):
 
         pattern = FillingPattern(injection.with_trailing_gap(38) * 12, harmonic_number=35640)
         pattern.intensity = np.ones(pattern.n_bunches) * 1.1e11
-        pattern.intensity[pattern.tier("batch") == 3] = 0.5e11
-        pattern.intensity[pattern.tier("injection") == 1] = 0.8e11
+        pattern.intensity[pattern.label("batch") == 3] = 0.5e11
+        pattern.intensity[pattern.label("injection") == 1] = 0.8e11
 
     Parameters
     ----------
@@ -832,8 +832,8 @@ class FillingPattern(BunchTable):
         super().__init__(
             bucket_indices=segment.bucket_indices,
             n_buckets=harmonic_number,
-            tiers=segment.tiers,
-            properties=segment.properties,
+            labels=segment.labels,
+            quantities=segment.quantities,
         )
 
     @property
@@ -877,8 +877,8 @@ class FillingPattern(BunchTable):
         """
         Construct from explicitly positioned segments.
 
-        Tier and property arrays of the placed segments are preserved and
-        merged (tiers re-numbered in position order).
+        Label and quantity arrays of the placed segments are preserved and
+        merged (labels re-numbered in position order).
 
         Parameters
         ----------

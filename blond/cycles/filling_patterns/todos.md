@@ -119,6 +119,40 @@ historical states.
 - [x] `PatternSegment.label(name)` -> `with_label(name)` (same trap:
       read like an in-place verb, but returns a copy — discarding the
       result was a silent no-op).
+- [x] "tier" -> "label" everywhere: `tier(name)` -> `label(name)`,
+      `tiers` -> `labels`, plot's `face_tier`/`edge_tier` ->
+      `face_label`/`edge_label`. After `with_label()` existed, the API
+      used two words for one concept (you *label* a segment, you read a
+      *tier*). Final vocabulary: a **label** is a named grouping level
+      ('batch'/'train'/'injection'); a **group index** is which instance
+      a bunch belongs to within that label (-1 = unassigned); `n_groups`
+      already matched. "tag" was rejected (connotes unindexed
+      membership, but columns hold numbered group indices).
+- [x] "properties" (ex "payload") -> "quantities": `.properties` ->
+      `.quantities`. "property" collided with Python's `@property`
+      concept (the accessor itself is one) and did not distinguish from
+      labels; "quantity" says numeric-with-units, which is what the
+      float64/NaN contract stores. "parameters" rejected (clashes with
+      numpydoc Parameters headings).
+
+## Implemented (2026-06-12 top-level exports)
+
+- [x] `from blond import FillingPattern, Batch, Train, ...` is the
+      standard import: `Batch`, `BunchTable`, `FillingPattern`, `Gap`,
+      `PatternSegment`, `Train`, `n_buckets_from_time` re-exported in
+      `blond/__init__.py`; EX_29 and the unit tests import this way.
+      `plot` stays package-scoped (`blond.cycles.filling_patterns.plot`)
+      — the bare name is too generic for the blond top level.
+      Docs: new "Filling Patterns" category in
+      `docs/create_doc_blond_main_objects.py` (script crashes on
+      uncategorized top-level classes by design).
+      Canonical package location stays `blond.cycles.filling_patterns`
+      (sibling of the other cycle programmes: magnetic cycle, RF noise);
+      decided against a top-level `blond.filling_patterns` package and
+      against splitting helpers into a separate file (private helpers
+      have one consumer; `__init__` re-export keeps internal layout
+      non-contractual, split by concept later if the module outgrows
+      ~1500 code lines).
 
 ## Next: tests
 

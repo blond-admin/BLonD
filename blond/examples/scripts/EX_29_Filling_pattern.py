@@ -31,14 +31,14 @@ def main():
         f"n_injections={pattern.n_groups('injection')}"
     )
     print(f"  bucket_indices[:8]:  {pattern.bucket_indices[:8]}")
-    print(f"  batch[:8]:      {pattern.tier('batch')[:8]}")
-    print(f"  train[:8]:      {pattern.tier('train')[:8]}")
-    print(f"  injection[:8]:  {pattern.tier('injection')[:8]}")
+    print(f"  batch[:8]:      {pattern.label('batch')[:8]}")
+    print(f"  train[:8]:      {pattern.label('train')[:8]}")
+    print(f"  injection[:8]:  {pattern.label('injection')[:8]}")
 
-    # Per-bunch property arrays support numpy-masked assignment.
+    # Per-bunch quantity arrays support numpy-masked assignment.
     pattern.intensity = np.ones(pattern.n_bunches) * 1.1e11
-    pattern.intensity[pattern.tier("batch") == 0] = 0.5e11
-    pattern.intensity[pattern.tier("injection") == 1] = 0.8e11
+    pattern.intensity[pattern.label("batch") == 0] = 0.5e11
+    pattern.intensity[pattern.label("injection") == 1] = 0.8e11
     print(f"  intensity[:8]:  {pattern.intensity[:8]}")
 
     plot(pattern)

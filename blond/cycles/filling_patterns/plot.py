@@ -28,15 +28,15 @@ def plot(
     ax: Any = None,
     face: Any = None,
     edge: Any = None,
-    face_tier: str = "batch",
-    edge_tier: str = "train",
+    face_label: str = "batch",
+    edge_label: str = "train",
 ) -> Any:
     """
     Plot a filling pattern as one bar per bunch.
 
-    Bar fill color encodes the face_tier index; bar edge color encodes the
-    edge_tier index. Override with face/edge: array of length n_bunches,
-    callable, or None.
+    Bar fill color encodes the face_label group index; bar edge color
+    encodes the edge_label group index. Override with face/edge: array of
+    length n_bunches, callable, or None.
 
     Parameters
     ----------
@@ -48,15 +48,15 @@ def plot(
         Matplotlib axes to draw on; created if None.
     face
         Face color per bunch: array of length n_bunches, callable, or
-        None (= color by face_tier index).
+        None (= color by face_label group index).
     edge
         Edge color per bunch: array of length n_bunches, callable, or
-        None (= color by edge_tier index).
-    face_tier
-        Tier whose indices select the face color (default 'batch').
-    edge_tier
-        Tier whose indices select the edge color and the dashed boundary
-        lines (default 'train').
+        None (= color by edge_label group index).
+    face_label
+        Label whose group indices select the face color (default 'batch').
+    edge_label
+        Label whose group indices select the edge color and the dashed
+        boundary lines (default 'train').
 
     Returns
     -------
@@ -67,12 +67,12 @@ def plot(
     --------
     Highlight batch 2 in red::
 
-        mask = pattern.tier("batch") == 2
+        mask = pattern.label("batch") == 2
         plot(pattern, face=np.where(mask, 'red', 'lightgray'))
 
-    Color by a custom tier::
+    Color by a custom label::
 
-        plot(pattern, face_tier='injection')
+        plot(pattern, face_label='injection')
     """
     import matplotlib.pyplot as plt
 
@@ -81,17 +81,17 @@ def plot(
 
     face_palette = _palette("tab10", 10)
     edge_palette = _palette("Dark2", 8)
-    face_labels = _tier_or_unassigned(pattern, face_tier)
-    edge_labels = _tier_or_unassigned(pattern, edge_tier)
+    face_groups = _label_column_or_unassigned(pattern, face_label)
+    edge_groups = _label_column_or_unassigned(pattern, edge_label)
 
     bucket_x, bucket_width = _x_axis(pattern.bucket_indices, f_rf)
     faces = _resolve_colors(
-        face, pattern.bucket_indices, face_labels, face_palette, default="gray"
+        face, pattern.bucket_indices, face_groups, face_palette, default="gray"
     )
     edges = _resolve_colors(
         edge,
         pattern.bucket_indices,
-        edge_labels,
+        edge_groups,
         edge_palette,
         default="black",
     )
@@ -107,8 +107,8 @@ def plot(
         antialiased=False,
     )
     ax.set_xlabel("Time (ns)" if f_rf is not None else "Bucket")
-    _draw_tier_boundaries(
-        ax, pattern.bucket_indices, edge_labels, f_rf, edge_palette
+    _draw_group_boundaries(
+        ax, pattern.bucket_indices, edge_groups, f_rf, edge_palette
     )
     ax.set_xlim(
         0.0, pattern.n_buckets * (1e9 / f_rf if f_rf is not None else 1.0)
@@ -128,10 +128,12 @@ def _palette(colormap_name: str, n_colors: int) -> list:
     ]
 
 
-def _tier_or_unassigned(pattern: BunchTable, tier_name: str) -> np.ndarray:
-    # Tier column, defaulting to all-unassigned (-1) if absent.
-    return pattern.tiers.get(
-        tier_name, np.full(pattern.n_bunches, -1, dtype=np.int32)
+def _label_column_or_unassigned(
+    pattern: BunchTable, label_name: str
+) -> np.ndarray:
+    # Label column, defaulting to all-unassigned (-1) if absent.
+    return pattern.labels.get(
+        label_name, np.full(pattern.n_bunches, -1, dtype=np.int32)
     )
 
 
@@ -144,25 +146,25 @@ def _x_axis(
     return bunch_positions * 1e9 / f_rf, 1e9 / f_rf
 
 
-def _draw_tier_boundaries(
+def _draw_group_boundaries(
     ax: Any,
     bunch_positions: np.ndarray,
-    tier_labels: np.ndarray,
+    group_indices: np.ndarray,
     f_rf: float | None,
     palette: list,
 ) -> None:
-    # Dashed vertical line at the first bunch of each tier group.
-    for i, (bucket, tier_index) in enumerate(
-        zip(bunch_positions, tier_labels, strict=True)
+    # Dashed vertical line at the first bunch of each group.
+    for i, (bucket, group_index) in enumerate(
+        zip(bunch_positions, group_indices, strict=True)
     ):
-        is_group_start = tier_index >= 0 and (
-            i == 0 or tier_labels[i - 1] != tier_index
+        is_group_start = group_index >= 0 and (
+            i == 0 or group_indices[i - 1] != group_index
         )
         if is_group_start:
             x = float(bucket) * (1e9 / f_rf if f_rf is not None else 1.0)
             ax.axvline(
                 x,
-                color=palette[tier_index % len(palette)],
+                color=palette[group_index % len(palette)],
                 lw=1.0,
                 ls="--",
                 alpha=0.8,
@@ -172,16 +174,16 @@ def _draw_tier_boundaries(
 def _resolve_colors(
     spec: Any,
     bunch_positions: np.ndarray,
-    tier_labels: np.ndarray,
+    group_indices: np.ndarray,
     palette: list,
     default: str,
 ) -> list:
     # One color per bunch from a user spec (array | callable | None);
-    # None falls back to coloring by tier label, `default` for unassigned.
+    # None falls back to coloring by group index, `default` for unassigned.
     if spec is None:
         return [
-            palette[int(label) % len(palette)] if label >= 0 else default
-            for label in tier_labels
+            palette[int(group) % len(palette)] if group >= 0 else default
+            for group in group_indices
         ]
     if callable(spec):
         return [spec(int(bucket)) for bucket in bunch_positions]
