@@ -231,8 +231,13 @@ def rf_beam_current(
                         indices[i - 1] : indices[i]
                     ]  # TODO: +1 for edges?
                 )
-            # remainder after last indcident
-            # charges_coarse[ind_fine[-1]] = np.sum(charges_fine[indices[-1] :])
+            # Remainder after the last cell boundary. Dropping it loses all
+            # charge of the profile past that boundary (up to ~half the
+            # bunch), which corrupts the coarse-grid beam loading and
+            # everything propagated from it across turns.
+            charges_coarse[(len(indices) + ind_fine[0]) % n_points] = np.sum(
+                charges_fine[indices[-1] :]
+            )
         # print(np.angle(charges_coarse[1], deg=True))
         return charges_fine, charges_coarse
 
