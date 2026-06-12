@@ -515,7 +515,7 @@ class BackendBaseClass(ABC):
 
     def change_backend(
         self,
-        new_backend: type[Numpy64Bit | Cupy64Bit] | BackendBaseClass,
+        new_backend: type[Numpy64Bit | Cupy64Bit],
     ) -> None:
         """
         Change the backend precision.
