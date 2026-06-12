@@ -582,8 +582,6 @@ class BackendBaseClass(ABC):
         - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'cpp_single_core',
           'numba', 'cuda'
         - `BLOND_BACKEND_BITS` can only be '64'
-        - `BLOND_VERBOSE` set to e.g. '1' enables verbose backend output
-          (read once at import)
         """
         _backend_mode_env = os.environ.get("BLOND_BACKEND_MODE")
         if _backend_mode_env is not None:
@@ -1107,9 +1105,4 @@ def __getattr__(name: str):
 
 default = Numpy64Bit  # use .change_backend(...) to change it anywhere
 backend: Numpy64Bit | Cupy64Bit = default()
-backend.verbose = os.environ.get("BLOND_VERBOSE", "0").lower() not in (
-    "0",
-    "false",
-    "",
-)
 backend.apply_environment_variables()
