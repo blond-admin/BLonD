@@ -133,6 +133,10 @@ class TestBackendBaseClass(unittest.TestCase):
     def test_apply_environment_variables_error_names_env_var(self):
         import os
 
+        # Save the original value so the try/finally can restore the process
+        # environment exactly as it was, leaking no state into other tests.
+        # mode_org is None when the var was unset, so we must distinguish
+        # "delete it again" from "put the old value back".
         mode_org = os.environ.get("BLOND_BACKEND_MODE")
         os.environ["BLOND_BACKEND_MODE"] = "doesnt_exist"
         try:
