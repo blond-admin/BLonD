@@ -579,6 +579,11 @@ class PythonSpecials(Specials):
         t_start = states[-1]
 
         for pole_i in range(n_poles):
+            # `cr_pole_flip` is intentionally applied to BOTH the state
+            # injection and the output amplitude: for the counter-rotating
+            # beam's own wake the two factors cancel (flip**2 == 1); only
+            # contributions of the other beam, accumulated in the shared
+            # `states`, see a net sign flip.
             cr_pole_flip = 1.0
             if (
                 is_counterrotating_beam
@@ -587,7 +592,10 @@ class PythonSpecials(Specials):
                 cr_pole_flip = -1.0
 
             i_update = 0
-            update_on_bin_i = update_on_bin[i_update]
+            # empty `update_on_bin` means "never update"; `decay` stays 0
+            update_on_bin_i = (
+                update_on_bin[0] if len(update_on_bin) > 0 else -1
+            )
 
             pole = complex(poles[pole_i])
             residue = complex(residues[pole_i])
