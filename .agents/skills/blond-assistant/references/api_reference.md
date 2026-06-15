@@ -26,6 +26,7 @@ ring = Ring(circumference: float)
 - `ring.add_elements(elements, reorder=True)` — add a list/tuple of elements
   - `reorder=True`: BLonD sorts elements into the canonical order (drifts → RF → wakefields → profiles)
   - `reorder=False`: use your explicit ordering (required for multi-section machines)
+- `ring.add_element(element, section_index=0)` — singular variant; adds one element
 - `ring.circumference` — read back circumference
 
 ---
@@ -236,7 +237,7 @@ sim.run_simulation(
     beams=(beam,),                # tuple of beams
     n_turns=int(1e4),
     observe=(obs1, obs2, ...),   # optional observation objects
-    callback=my_function,        # optional: called each turn with (sim, beam)
+    callbacks=my_function,       # optional: called each turn with (sim, beam)
 )
 
 # Load previously saved results instead of rerunning:
@@ -278,6 +279,23 @@ routine = SemiEmpiricMatcher(
 )
 ```
 
+### FilamentationMatcher (experimental, brute-force filamentation)
+
+```python
+from blond.experimental import FilamentationMatcher
+routine = FilamentationMatcher(
+    time_limit=(t_min, t_max),       # phase space time window [s]
+    energy_limit=(e_min, e_max),     # energy window [eV]
+    n_macroparticles=3000,
+    n_iter=1000,                     # number of filamentation iterations
+    every_iter_to_plot=10,           # animate every N iterations (optional)
+    animate=False,
+    purge_limit_time=(t_min, t_max), # time window for purging lost particles [s]
+    purge_limit_energy=(e_min, e_max),
+    purge=True,
+)
+```
+
 ### XsuiteRFBucketMatcher (requires xpart)
 
 ```python
@@ -311,7 +329,7 @@ obs.dEs     # shape (n_recorded_turns, n_macroparticles) [eV]
 obs.flags   # particle status flags
 ```
 
-Alias: `BeamObservationEndOfTurn` (same class, different import name).
+Alias: `BeamObservationOncePerTurn` (same class, different import name).
 
 ### RFStationPhaseObservation
 
@@ -331,6 +349,25 @@ obs.voltages  # RF voltage [V]
 from blond import StaticProfileObservation
 obs = StaticProfileObservation(each_turn_i=1, profile=profile, obs_per_turn=1)
 obs.hist_y   # shape (n_observations, n_bins)
+```
+
+### BeamHist2dOncePerTurn
+
+Records a 2D histogram of the phase space (dt vs dE) once per turn.
+```python
+from blond import BeamHist2dOncePerTurn
+obs = BeamHist2dOncePerTurn(each_turn_i=1)
+```
+
+### BeamStatisticsOncePerTurn
+
+Records summary beam statistics (bunch position, energy spread, etc.) once per turn.
+```python
+from blond.handle_results.observables import BeamStatisticsOncePerTurn
+obs = BeamStatisticsOncePerTurn(each_turn_i=1)
+# After simulation:
+obs.bunch_position   # mean dt [s], shape (n_recorded_turns,)
+obs.energy_spread    # rms dE [eV], shape (n_recorded_turns,)
 ```
 
 ### BeamObservationInRingElement
@@ -379,6 +416,17 @@ profile = DynamicProfileConstNBins(
     n_bins: int,        # number of bins (edges adapt to beam extent each turn)
     section_index=0,
 )
+```
+
+```python
+from blond import EquidistantMultiProfile
+profile = EquidistantMultiProfile(
+    filling_pattern,    # boolean array — True for filled buckets
+    bins_per_profile,   # number of bins per individual bucket profile
+    offset=0.0,         # offset all profiles by this amount
+    section_index=0,
+)
+# For multi-bunch beams with sparse fill patterns
 ```
 
 Profile attributes:
@@ -447,6 +495,25 @@ obs.induced_voltage   # shape (n_observations, n_bins)
 
 ---
 
+## Losses
+
+### BoxLosses
+
+Flags or removes particles outside a rectangular phase-space box each turn.
+```python
+from blond import BoxLosses
+losses = BoxLosses(
+    purge_flagged_macroparticles=True,  # True = remove; False = only flag
+    t_min=None,   # lower time bound [s]
+    t_max=None,   # upper time bound [s]
+    e_min=None,   # lower energy bound [eV]
+    e_max=None,   # upper energy bound [eV]
+)
+ring.add_elements([..., losses], reorder=True)
+```
+
+---
+
 ## Backends
 
 ```python
@@ -459,14 +526,38 @@ backend.set_specials("numpy")  # pure NumPy (default, no compilation needed)
 backend.is_gpu   # True if GPU backend active
 ```
 
+Helper for programmatic backend selection:
+```python
+from blond import setup_backend
+setup_backend("cpp")   # equivalent to backend.set_specials("cpp")
+```
+
 Backend classes (for type hints / advanced use):
 ```python
 from blond import Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit
 ```
 
+`copy_to_cpu(array)` — moves a CuPy array back to NumPy (no-op on NumPy arrays):
+```python
+from blond import copy_to_cpu
+arr_np = copy_to_cpu(arr)
+```
+
 ---
 
 ## Utility helpers
+
+### UserDefinedElement
+
+Base class for custom tracking elements inserted into the ring:
+```python
+from blond import UserDefinedElement
+class MyElement(UserDefinedElement):
+    def track(self, beam):
+        ...   # modify beam.write_partial_dt() / write_partial_dE() each turn
+```
+
+See `custom_trackable.py` for a complete example.
 
 ### callers_relative_path
 
@@ -500,16 +591,28 @@ rf.schedule("phi_rf_design", noise_array)
 
 ## Examples quick index
 
+All examples are in `./blond/examples/scripts/`.
+
 | File | What it shows |
 |------|---------------|
 | `minimum_working_example.py` | Simplest possible simulation (LHC, proton, stationary) |
 | `EX_01_Acceleration.py` | Basic acceleration with observations and caching |
-| `EX_01_Acceleration_no_beam.py` | Machine setup without beam |
+| `EX_01_Acceleration_no_beam.py` | Machine setup without beam (`DriftObservation`, `SimulationObservation`) |
+| `EX_01_Acceleration_interrupted.py` | Interrupted / resumable simulation using `finalize`+`mainloop` |
+| `EX_01_Acceleration_revolution_time.py` | Revolution time tracking with `DriftObservation` and `SimulationObservation` |
+| `EX_01_Acceleration_match_density.py` | Beam preparation with density matching |
+| `EX_01_Acceleration_sparse_profiles.py` | Multi-bunch sparse profiles with `EquidistantMultiProfile` |
 | `EX_02_Main_long_ps_booster.py` | PS Booster with impedance tables and WakeField |
 | `EX_03_RFnoise.py` | RF phase noise, `VariNoise`, `DynamicProfileConstNBins` |
 | `EX_04_Stationary_multistation.py` | Multi-RF-station ring, two DriftSimple + two RF stations |
 | `EX_05_Wake_impedance.py` | SPS with resonators, time-domain and frequency-domain solvers |
+| `EX_05_Wake_impedance_pooled.py` | Wake impedance with pooled/parallelised solver |
 | `EX_07_Xsuite_Matching.py` | XSuite RF bucket matching for beam preparation |
 | `EX_08_MuCol_asynchronous_ramp.py` | Muon collider, `MagneticCycleByTime`, `mu_plus`, `ReferenceEnergyChange` |
+| `EX_09_Semi_empiric_matcher.py` | `SemiEmpiricMatcher` beam preparation |
+| `EX_10_MultiRFManipulation_TripleSplitting.py` | PS triple splitting with `MultiHarmonicRFStation` and `copy_to_cpu` |
+| `EX_Filamentation_Matcher.py` | `FilamentationMatcher` brute-force beam preparation, multi-section ring |
+| `EX_Synchrotron_Radiation.py` | Synchrotron radiation (`SynchrotronRadiationMaster`), `positron`, `BeamStatisticsOncePerTurn` |
+| `EX_observable_as_element.py` | `BeamObservationInRingElement` placed inside the ring element order |
 | `main_user.py` | Object-oriented helper class pattern, multi-harmonic, `WakeField` |
 | `custom_trackable.py` | How to define a `UserDefinedElement` custom tracking element |

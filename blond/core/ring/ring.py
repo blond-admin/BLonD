@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -24,7 +24,6 @@ from blond.core.base import (
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
-    from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -83,7 +82,7 @@ class Ring(Preparable):
         self._radiation_integrals = radiation_integrals
         self._momentum_compaction_factor = None
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Initialize the ring when a simulation is created.
 
@@ -95,7 +94,10 @@ class Ring(Preparable):
         ----------
         simulation
             The `Simulation` context manager that owns this ring.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
+        super().on_init_simulation(simulation=simulation, **kwargs)
         if self.n_rf_stations > 1:
             assert (
                 len(self.elements.get_sections_indices()) == self.n_rf_stations
@@ -118,32 +120,6 @@ class Ring(Preparable):
                 UserWarning,
                 stacklevel=1,
             )
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Prepare the ring when simulation execution begins.
-
-        This method is automatically called
-        when ``simulation.run_simulation()`` starts.
-
-        Parameters
-        ----------
-        simulation
-            The `Simulation` context manager.
-        beam
-            The beam object being simulated.
-        n_turns
-            Total number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
 
     @property
     def circumference(self) -> float:
@@ -288,10 +264,6 @@ class Ring(Preparable):
         -------
         average_eta_0
             The weighted average slip factor (dimensionless).
-
-        See Also
-        --------
-        eta_0 : Internally used for calculation.
         """
         from blond.physics.drifts import (
             DriftBaseClass,  # prevent circular import

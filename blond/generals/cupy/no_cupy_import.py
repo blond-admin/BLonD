@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -10,7 +10,6 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -74,9 +73,10 @@ def copy_to_cpu(array: NumpyArray | CupyArray) -> NumpyArray:
 
 class _AsarrayOverrideManager:
     def __init__(self) -> None:
-        """Override functionality for 'np.asarray' to handle Cupy."""
-        self._numpy_asarray_original = deepcopy(np.asarray)
-        self._numpy_array_original = deepcopy(np.array)
+        """Override numpy conversion functions to handle Cupy."""
+        self._numpy_asarray_original = np.asarray
+        self._numpy_array_original = np.array
+        self._numpy_asanyarray_original = np.asanyarray
 
     def asarray_override(
         self,
@@ -86,16 +86,32 @@ class _AsarrayOverrideManager:
         *args: Any,
         **kwargs: Any,
     ) -> NumpyArray:
-        try:
-            import cupy as cp  # type: ignore
-        # TODO remove PRAGMA when Issue #194 is done.
-        except (ImportError, ModuleNotFoundError):  # pragma: no cover
-            pass
-        else:
-            if isinstance(a, cp.ndarray):
-                a = a.get()  # copy data from GPU
+        if is_cupy_array(a):
+            a = a.get()  # copy data from GPU
 
         return self._numpy_asarray_original(  # type: ignore
+            a,
+            dtype=dtype,
+            order=order,
+            *args,  # NOQA: B026
+            **kwargs,
+        )
+
+    def asanyarray_override(
+        self,
+        a: NumpyArray | CupyArray,
+        dtype: Any = None,
+        order: str | None = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> NumpyArray:
+        # matplotlib converts line data via np.asanyarray
+        # (cbook._to_unmasked_float_array), so plotting device arrays
+        # needs this override just like np.asarray.
+        if is_cupy_array(a):
+            a = a.get()  # copy data from GPU
+
+        return self._numpy_asanyarray_original(  # type: ignore
             a,
             dtype=dtype,
             order=order,
@@ -108,14 +124,8 @@ class _AsarrayOverrideManager:
     ) -> NumpyArray:
         a = p_object
 
-        try:
-            import cupy as cp  # type: ignore
-        # TODO remove PRAGMA when Issue #194 is done.
-        except (ImportError, ModuleNotFoundError):  # pragma: no cover
-            pass
-        else:
-            if isinstance(a, cp.ndarray):
-                a = a.get()  # copy data from GPU
+        if is_cupy_array(a):
+            a = a.get()  # copy data from GPU
 
         return self._numpy_array_original(  # type: ignore
             a,
@@ -132,7 +142,8 @@ class AllowPlotting:
     Notes
     -----
     This is only intended for plotting of arrays.
-    The function temporarily overrides the numpy.asarray function.
+    The context temporarily overrides the ``numpy.asarray``,
+    ``numpy.asanyarray`` and ``numpy.array`` functions.
 
     Examples
     --------
@@ -142,28 +153,20 @@ class AllowPlotting:
     """
 
     def __init__(self) -> None:
-        try:
-            import cupy  # NOQA
-
-            self.cupy_found = True
-        # TODO remove PRAGMA when Issue #194 is done.
-        except (ImportError, ModuleNotFoundError):  # pragma: no cover
-            self.cupy_found = False
-            return  # do nothing
-        # initialize cache, make override function available
+        # The conversion is duck-typed via is_cupy_array, so no cupy
+        # import is required.
         self.asarray_override_manager = _AsarrayOverrideManager()
 
     def __enter__(self) -> None:
-        """Override np.asarray with own function to handle .get() for Cupy arrays."""
-        # TODO remove PRAGMA when Issue #194 is done.
-        if not self.cupy_found:  # pragma: no cover
-            return
-        # override numpy "asarray" function with own function
-        self.asarray_org = deepcopy(np.asarray)
+        """Override numpy conversion functions to handle .get() for Cupy arrays."""
+        self.asarray_org = np.asarray
         np.asarray = self.asarray_override_manager.asarray_override
 
-        self.array_org = deepcopy(np.array)
+        self.array_org = np.array
         np.array = self.asarray_override_manager.array_override
+
+        self.asanyarray_org = np.asanyarray
+        np.asanyarray = self.asarray_override_manager.asanyarray_override
 
     def __exit__(
         self,
@@ -172,7 +175,7 @@ class AllowPlotting:
         exc_tb: Any | None,
     ):
         """
-        Reset np.asarray to original Numpy function.
+        Reset the overridden functions to the original Numpy functions.
 
         Parameters
         ----------
@@ -183,9 +186,6 @@ class AllowPlotting:
         exc_tb
             Exception traceback if an exception occurred.
         """
-        # TODO remove PRAGMA when Issue #194 is done.
-        if not self.cupy_found:  # pragma: no cover
-            return  # do nothing
-        # reset to original numpy function
         np.asarray = self.asarray_org
         np.array = self.array_org
+        np.asanyarray = self.asanyarray_org

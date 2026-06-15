@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -24,7 +24,7 @@ from blond import backend
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.base import BeamPhysicsRelevant, Schedulable
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -128,7 +128,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         )
 
         self._simulation: Simulation | None = None
-        self._turn_i: DynamicParameter | int = 0
         self.share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
@@ -208,7 +207,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         dE = beam.write_partial_dE()
         dE[:] += energy_change
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -216,27 +215,21 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._simulation = simulation
-        self._turn_i = simulation.turn_i
+        super().on_init_simulation(simulation, **kwargs)
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        **kwargs,
-    ) -> None:
+    def configure(self, **kwargs) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called.
+        Store the turn counter needed during tracking.
 
         Parameters
         ----------
-        simulation
-            `Simulation` context manager.
         **kwargs
-            Additional keyword arguments for simulation setup.
+            Passed to the next level in the MRO chain.
         """
-        pass
+        super().configure(**kwargs)
 
     def _track(self, beam: BeamBaseClass) -> None:
         """

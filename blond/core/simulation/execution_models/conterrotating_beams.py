@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -115,7 +115,7 @@ class MainloopCounterRotatingBeams(ExecutionModel):
         iterator = range(n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
-        simulation.turn_i.value = 0
+        simulation.turn_counter.value = 0
 
         callbacks = simulation._sanitize_callbacks(callbacks)
 
@@ -125,26 +125,28 @@ class MainloopCounterRotatingBeams(ExecutionModel):
             for element_ind, element in enumerate(
                 simulation._ring.elements.elements
             ):
-                simulation.turn_i.value = turn_i
-                simulation.section_i.value = element.section_index
+                simulation.turn_counter.value = turn_i
+                section = element.section_index
 
-                if simulation.section_i.value >= until_section_index != -1:
+                if section >= until_section_index != -1:
                     return
 
-                if element.is_active_this_turn(turn_i=simulation.turn_i.value):
+                if element.is_active_this_turn(
+                    turn_i=simulation.turn_counter.value
+                ):
                     element.track(beams[0])  # [0] is expected to be corotating
 
                 element_counterrot = simulation.ring.elements.elements[
                     num_elements - element_ind - 1
                 ]
                 if element_counterrot.is_active_this_turn(
-                    turn_i=simulation.turn_i.value
+                    turn_i=simulation.turn_counter.value
                 ):
                     element_counterrot.track(beams[1])
 
             for observable in observe:
                 if observable.is_active_this_turn(
-                    turn_i=simulation.turn_i.value
+                    turn_i=simulation.turn_counter.value
                 ):
                     observable.update()
 

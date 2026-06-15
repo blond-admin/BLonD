@@ -1,8 +1,8 @@
-exclude: ^(legacy|blond3/legacy/|builds)
+exclude: ^(legacy|blond/legacy/|builds)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace  # Trims trailing whitespace.
       - id: end-of-file-fixer  # Makes sure files end in a newline and only a newline.
@@ -11,18 +11,27 @@ repos:
       - id: check-merge-conflict  # Check for files that contain merge conflict strings.
       - id: check-added-large-files  # Prevent giant files from being committed.
         args: [ '--maxkb=5000' ]
+      - id: no-commit-to-branch # not allowing to directly commit to blonder branch
+        args: [--branch, blonder, --branch, develop, --branch, master]
 
   # Sorts the python import statements
   - repo: https://github.com/PyCQA/isort
-    rev: 6.0.1
+    rev: 8.0.1
     hooks:
       - id: isort
         args: ["--profile", "black", "--line-length", "79"] # otherwise not compatible with Ruf
 
+  # keep python syntax up-to-date
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.21.2
+    hooks:
+      - id: pyupgrade
+        args: [--py310-plus]
+
   # https://pre-commit.com/
   # use `ruff check` to debug this hook
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.11  # Replace with the latest version
+    rev: v0.15.15  # Replace with the latest version
     hooks:
       - id: ruff-format  # This runs `ruff format`
       - id: ruff-check  # This runs `ruff check`

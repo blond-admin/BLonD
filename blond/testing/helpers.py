@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import Cupy64Bit, Numpy64Bit, backend
+from blond import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -53,7 +53,7 @@ def pinned_values_helper(variable: NumpyArray, variable_name: str) -> None:
         f"""np.testing.assert_allclose(
     {variable_name},
     {variable_name_nodot}_pinned,
-    rtol=1e-6 if backend.float == np.float32 else 1e-12,
+    rtol=1e-12,
 )"""
     )
 
@@ -76,7 +76,7 @@ def pytest_active():
 
 def allclose_tolerances(
     expected: NumpyArray,
-    rtol_32bit: float = 1e-6,
+    rtol: float = 1e-12,
 ) -> dict[str, float]:
     """
     Generate keyword-arguments for the tolerances of `np.testing.assert_allclose`.
@@ -85,9 +85,8 @@ def allclose_tolerances(
     ----------
     expected
         Expected array of `np.testing.assert_allclose`.
-    rtol_32bit
-        Relative tolerance for 32 bit backend.
-        The 64-bit tolerance is double, e.g. `1e-6` and `1e-12`.
+    rtol
+        The required relative tolerance.
 
     Returns
     -------
@@ -103,7 +102,6 @@ def allclose_tolerances(
     ... )
     """
     amplitude = float(np.max(expected) - np.min(expected))
-    rtol = rtol_32bit if backend.float == np.float32 else (rtol_32bit**2)
     kwargs = {
         "rtol": 0,  # intentional 0, it makes problems at arrays that cross 0.
         "atol": amplitude * rtol,
@@ -114,7 +112,4 @@ def allclose_tolerances(
 def enforce_64_bit_backend():
     """Enforce 64-bit backend, GPU is taken into account."""
     if backend.float == np.float32:
-        if backend.is_gpu:
-            backend.change_backend(Cupy64Bit)
-        else:
-            backend.change_backend(Numpy64Bit)
+        raise TypeError("32-bit float and 64-bit complex have been removed.")
