@@ -1412,6 +1412,79 @@ class TestSpecials(unittest.TestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_histogram_sparse_outside_edges(self) -> None:
+        """Particles slightly outside the profile windows must not be counted.
+
+        Regression test: the numba backend truncated negative float bin
+        indices toward zero (``int(-0.5) == 0``), so a particle up to one
+        bin width left of ``first_left_cut`` was counted into bin 0 of the
+        first profile.
+        """
+        dtype = np.float64
+        bins_per_profile = 4  # bin width = cut_width / 4 = 1
+        first_left_cut = -12
+        left_cut_distance = 8
+        cut_width = 4
+        # filled buckets 0, 2, 4 -> windows [-12,-8], [4,8], [20,24]
+        filling_pattern_np = np.array([1, 0, 1, 0, 1, 0], dtype=bool)
+        bucket_index_to_memory_index_np = np.array(
+            [0, 0, 4, 4, 8, 8], dtype=np.int32
+        )
+        particles_np = np.array(
+            [
+                # outside any window, must never be counted
+                -12.5,  # < one bin left of first cut (numba truncation bug)
+                -15.9,  # < one bucket distance left of first cut
+                -20.5,  # more than one bucket distance left of first cut
+                8.5,  # just right of window [4,8], in a gap
+                24.5,  # just right of last window [20,24]
+                # inside windows, must be counted
+                -11.5,  # profile 0, bin 0
+                5.5,  # profile 1, bin 1
+                23.9,  # profile 2, bin 3
+            ],
+            dtype=dtype,
+        )
+        expected = np.zeros(12, dtype=dtype)
+        expected[0] = 1  # -11.5
+        expected[4 + 1] = 1  # 5.5
+        expected[8 + 3] = 1  # 23.9
+
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            particles_x = backend.array(particles_np, dtype=backend.float)
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            # initialised to ones to verify the output is zeroed
+            array_write = backend.ones(12, dtype=backend.float)
+            for _ in range(2):
+                backend.specials.histogram_sparse(
+                    x=particles_x,
+                    out=array_write,
+                    first_left_cut=first_left_cut,
+                    left_cut_distance=left_cut_distance,
+                    cut_width=cut_width,
+                    bins_per_profile=bins_per_profile,
+                    n_active_profiles=3,
+                    filling_pattern=filling_pattern,
+                    bucket_index_to_memory_index=bucket_index_to_memory_index,
+                )
+            result = array_write
+            if special == "cuda":
+                result = result.get()
+            np.testing.assert_array_equal(
+                result,
+                expected,
+                err_msg=f"{special=} {dtype=}",
+            )
+
+    @pytest.mark.backend_mutation
     def test_histogram_long_profiles(self) -> None:
         """Specifically to test edge effects at beginning and end."""
         dtype = np.float64
