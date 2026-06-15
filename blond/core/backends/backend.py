@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.exceptions import ComplexWarning
 
-from blond.generals.exceptions_ import ArrayCastingError
+from blond.generals.exceptions_ import ArrayCastingError, UnknownBackendMode
 from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -527,6 +527,14 @@ class BackendBaseClass(ABC):
         """
         if isinstance(new_backend, BackendBaseClass):
             new_backend = type(new_backend)
+        elif not (
+            isinstance(new_backend, type)
+            and issubclass(new_backend, BackendBaseClass)
+        ):
+            raise TypeError(
+                f"new_backend must be a {BackendBaseClass.__name__} subclass or "
+                f"instance, got {new_backend!r}."
+            )
         if self.__class__ is new_backend:
             # requesting the already active backend must be a no-op
             return
@@ -540,8 +548,9 @@ class BackendBaseClass(ABC):
         self.__class__ = _new_backend.__class__
         # If the previous specials mode does not exist on the new backend
         # family (e.g. "cuda" after changing to a CPU backend), keep the
-        # new backend's default mode instead.
-        with contextlib.suppress(ValueError):
+        # new backend's default mode instead. Suppress only that specific
+        # case so genuine failures from set_specials still propagate.
+        with contextlib.suppress(UnknownBackendMode):
             self.set_specials(specials_mode_org)
 
     @abstractmethod  # pragma: no cover
@@ -913,7 +922,9 @@ class NumpyBackend(BackendBaseClass):
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         else:
-            raise ValueError(mode)
+            raise UnknownBackendMode(
+                f"Unknown specials mode {mode!r} for {type(self).__name__}."
+            )
         if self.verbose and onchange:
             print(f"Set special to `{mode}`")
 
@@ -1036,7 +1047,9 @@ class CupyBackend(BackendBaseClass):
 
             self.specials = CudaSpecials()
         else:
-            raise ValueError(mode)
+            raise UnknownBackendMode(
+                f"Unknown specials mode {mode!r} for {type(self).__name__}."
+            )
         if self.verbose:
             print(f"Set special to `{mode}`")
 
