@@ -525,15 +525,13 @@ class BackendBaseClass(ABC):
         new_backend
             One of the available backends.
         """
-        if isinstance(new_backend, BackendBaseClass):
-            new_backend = type(new_backend)
-        elif not (
+        if not (
             isinstance(new_backend, type)
             and issubclass(new_backend, BackendBaseClass)
         ):
             raise TypeError(
-                f"new_backend must be a {BackendBaseClass.__name__} subclass or "
-                f"instance, got {new_backend!r}."
+                f"new_backend must be a {BackendBaseClass.__name__} subclass, "
+                f"got {new_backend!r}."
             )
         if self.__class__ is new_backend:
             # requesting the already active backend must be a no-op
