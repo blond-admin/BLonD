@@ -24,7 +24,7 @@ from blond import backend
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import BeamPhysicsRelevant, Schedulable
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -218,18 +218,30 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         **kwargs
             Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation, **kwargs)
+        super().on_init_simulation(
+            simulation,
+            turn_counter=simulation.turn_counter,
+            **kwargs,
+        )
 
-    def configure(self, **kwargs) -> None:
+    def configure(
+        self,
+        *,
+        turn_counter: DynamicParameter | None = None,
+        **kwargs,
+    ) -> None:
         """
-        Store the turn counter needed during tracking.
+        Store the runtime references needed during tracking.
 
         Parameters
         ----------
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
         **kwargs
             Passed to the next level in the MRO chain.
         """
         super().configure(**kwargs)
+        self._turn_counter = turn_counter
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -241,8 +253,11 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
             Beam class to interact with this element.
         """
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
-                turn_i=self._turn_i.value,
+                turn_i=self._turn_counter.value,
                 reference_time=float(beam.reference.time),
             )
         self._update_beam_energy(beam)
