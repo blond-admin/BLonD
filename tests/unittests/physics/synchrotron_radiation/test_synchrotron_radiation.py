@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING, Literal
 from unittest.mock import Mock
 
 import numpy as np
-from scipy.constants import speed_of_light as c0
-from unittests.core.beam.test_base import BeamBaseClassTester
 
 from blond import (
     Ring,
@@ -28,6 +26,7 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
     _SynchrotronRadiationTracker,
 )
+from tests.unittests.core.beam.test_base import BeamBaseClassTester
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore

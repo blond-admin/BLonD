@@ -400,6 +400,7 @@ class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
         self.simulation = Mock(Simulation)
         self.simulation.turn_i = Mock(DynamicParameter)
         self.simulation.turn_i.value = 0
+        self.simulation.turn_counter = DynamicParameter(0)
 
         self.beam = BeamBaseClassTester(
             intensity=1e12,
@@ -468,24 +469,25 @@ class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
             )
 
     def test_tracking_updates_SRI(self):
-        turn_to_consider = 9
+        turn_to_consider = DynamicParameter(9)
         self.SRB.on_init_simulation(simulation=self.simulation)
-        self.simulation.turn_i.value = turn_to_consider
+        self.simulation.turn_counter = turn_to_consider
+        self.SRB._turn_counter = turn_to_consider
         self.SRB.track(beam=self.beam)
         np.testing.assert_array_almost_equal(
             self.SRB.share_of_radiation_integrals,
-            1 / (turn_to_consider + 1) * self.radiation_integrals,
+            1 / (turn_to_consider.value + 1) * self.radiation_integrals,
             decimal=self.decimal,
         )
         self.assertAlmostEqual(
             self.SRB._energy_lost_due_to_synchrotron_radiation,
-            np.float64(1337317.6297928384) * 1 / (turn_to_consider + 1),
+            np.float64(1337317.6297928384) * 1 / (turn_to_consider.value + 1),
             places=self.decimal,
         )
 
         self.assertAlmostEqual(
             self.SRB._damping_time,
-            np.float64(14955.235530506275) * (turn_to_consider + 1),
+            np.float64(14955.235530506275) * (turn_to_consider.value + 1),
             places=self.decimal,
         )
         self.assertAlmostEqual(
