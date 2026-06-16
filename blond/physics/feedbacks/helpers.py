@@ -72,7 +72,7 @@ def rf_beam_current(  # noqa: PLR0912
     dT: float = 0,
     phi_s: float = 0,
     forbid_charge_in_first_coarse_cell: bool = False,
-) -> NumpyArray | tuple[NumpyArray, NumpyArray]:  # noqa: PLR0912
+) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""
     Calculate the beam charge at the carrier frequency slice by slice.
 
