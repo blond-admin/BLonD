@@ -33,12 +33,13 @@ import datetime
 import json
 import os
 import shutil
+from pathlib import Path
 
 _META_NAME = "meta.json"
 
-#: How many ``compiled/<hash>/`` directories to retain. Overridable via the
-#: ``BLOND_COMPILED_CACHE_KEEP`` environment variable (e.g. in CI).
-DEFAULT_KEEP = int(os.environ.get("BLOND_COMPILED_CACHE_KEEP", "20"))
+# How many ``compiled/<hash>/`` directories to retain. Overridable via the
+# ``BLOND_COMPILED_CACHE_KEEP`` environment variable (e.g. in CI).
+DEFAULT_KEEP = int(os.environ.get("BLOND_COMPILED_CACHE_KEEP", "100"))
 
 
 def _now() -> str:
@@ -104,9 +105,15 @@ def _last_used(directory: str) -> float:
             return 0.0
 
 
-def prune(compiled_root: str, keep: int = DEFAULT_KEEP) -> None:
+def prune_siblings(active_dir: str, keep: int = DEFAULT_KEEP) -> None:
     """
-    Keep only the ``keep`` most-recently-used subdirectories of a root.
+    Evict least-recently-used sibling directories of ``active_dir``.
+
+    ``active_dir`` is the ``compiled/<hash>`` directory just built or loaded;
+    it is **never** removed. Among its siblings (the other ``<hash>``
+    directories in the same ``compiled/`` parent) the most-recently-used are
+    retained and the older ones removed, so that at most ``keep`` directories
+    remain in total (the active one plus the ``keep - 1`` freshest siblings).
 
     Best-effort: a directory that cannot be removed (for instance a library
     still loaded by another process, which Windows locks) is skipped and
@@ -114,21 +121,26 @@ def prune(compiled_root: str, keep: int = DEFAULT_KEEP) -> None:
 
     Parameters
     ----------
-    compiled_root
-        The ``compiled/`` directory whose ``<hash>`` subdirectories are pruned.
+    active_dir
+        The ``compiled/<hash>`` directory currently in use; protected from
+        eviction. Its parent is the ``compiled/`` directory being pruned.
     keep
-        Number of most-recently-used subdirectories to retain.
+        Maximum number of directories to retain in total (``>= 1``).
     """
+    active = Path(active_dir)
     try:
-        subdirs = [
-            entry.path for entry in os.scandir(compiled_root) if entry.is_dir()
+        siblings = [
+            entry.path
+            for entry in os.scandir(active.parent)
+            if entry.is_dir() and entry.name != active.name
         ]
     except OSError:
         return
-    if len(subdirs) <= keep:
+    keep_siblings = max(keep - 1, 0)  # reserve one slot for the active dir
+    if len(siblings) <= keep_siblings:
         return
-    subdirs.sort(key=_last_used, reverse=True)  # newest first
-    for stale in subdirs[keep:]:
+    siblings.sort(key=_last_used, reverse=True)  # newest first
+    for stale in siblings[keep_siblings:]:
         # e.g. still in use (Windows locks loaded libs); retried next run.
         with contextlib.suppress(OSError):
             shutil.rmtree(stale)

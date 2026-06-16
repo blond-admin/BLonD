@@ -19,7 +19,7 @@ from blond.core.backends.cuda.compiled_dir_handler import (
     cuda_compiled_dir,
     resolve_nvcc,
 )
-from blond.generals.compiled_cache import mark_used, prune
+from blond.generals.compiled_cache import mark_used, prune_siblings
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -142,7 +142,7 @@ def compile_cuda_library(  # NOQA: PLR0915
     if os.path.isfile(libname_double):
         print(f"Reusing cached CUDA library: {libname_double}")
         mark_used(target)
-        prune(os.path.dirname(target))
+        prune_siblings(target)  # evict old sibling builds; keep this one
         return
     command = (
         [nvcc]
@@ -156,10 +156,10 @@ def compile_cuda_library(  # NOQA: PLR0915
         print("There was a compilation error.")
     else:
         print("Compiled successfully.")
-        # Stamp this build and evict least-recently-used dirs so the
+        # Stamp this build and evict least-recently-used sibling dirs so the
         # compiled/ tree (and the CI cache) stays bounded.
         mark_used(target)
-        prune(os.path.dirname(target))
+        prune_siblings(target)
 
 
 def main_cli() -> None:

@@ -18,7 +18,7 @@ import subprocess
 import sys
 
 from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
-from blond.generals.compiled_cache import mark_used, prune
+from blond.generals.compiled_cache import mark_used, prune_siblings
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
@@ -284,7 +284,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     # when a custom libname bypassed the hashed directory layout.
     if compiled_dir is not None:
         mark_used(compiled_dir)
-        prune(os.path.dirname(compiled_dir))
+        prune_siblings(compiled_dir)  # evict old sibling builds; keep this one
 
 
 def _prepare_cflags(

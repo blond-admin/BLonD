@@ -44,13 +44,6 @@ class TestPrune:
         for i in range(n):
             d = root / f"hash{i:02d}"
             d.mkdir()
-            dirs.append(d)
-        return dirs
-
-    def test_keeps_only_most_recently_used(self, tmp_path):
-        dirs = self._make_dirs(tmp_path, 5)
-        # Stamp last_used in a known order: hash00 oldest ... hash04 newest.
-        for i, d in enumerate(dirs):
             (d / "meta.json").write_text(
                 json.dumps(
                     {
@@ -59,27 +52,41 @@ class TestPrune:
                     }
                 )
             )
-        compiled_cache.prune(str(tmp_path), keep=2)
+            dirs.append(d)
+        return dirs
+
+    def test_keeps_active_plus_most_recently_used_siblings(self, tmp_path):
+        # hash00 oldest ... hash04 newest. Prune around hash04 (the active
+        # one) with keep=2 -> active + 1 freshest sibling survive.
+        self._make_dirs(tmp_path, 5)
+        compiled_cache.prune_siblings(str(tmp_path / "hash04"), keep=2)
         remaining = sorted(p.name for p in tmp_path.iterdir() if p.is_dir())
-        assert remaining == ["hash03", "hash04"]  # the two newest
+        assert remaining == ["hash03", "hash04"]
+
+    def test_active_dir_never_evicted_even_when_oldest(self, tmp_path):
+        # hash00 is the *oldest* but is the active dir -> must survive; the
+        # single freshest sibling is the only other kept (keep=2).
+        self._make_dirs(tmp_path, 5)
+        compiled_cache.prune_siblings(str(tmp_path / "hash00"), keep=2)
+        remaining = sorted(p.name for p in tmp_path.iterdir() if p.is_dir())
+        assert "hash00" in remaining  # active, oldest, still kept
+        assert remaining == ["hash00", "hash04"]
 
     def test_noop_when_under_limit(self, tmp_path):
         self._make_dirs(tmp_path, 3)
-        compiled_cache.prune(str(tmp_path), keep=20)
+        compiled_cache.prune_siblings(str(tmp_path / "hash00"), keep=20)
         assert sum(1 for p in tmp_path.iterdir() if p.is_dir()) == 3
 
-    def test_unstamped_dirs_evicted_first(self, tmp_path):
-        # Legacy directories without meta.json sort oldest -> removed first.
+    def test_unstamped_siblings_evicted_first(self, tmp_path):
+        # Legacy siblings without meta.json sort oldest -> removed first,
+        # while the active dir is always retained.
+        active = tmp_path / "active"
+        active.mkdir()
         legacy = tmp_path / "legacy"
         legacy.mkdir()
-        stamped = tmp_path / "stamped"
-        stamped.mkdir()
-        (stamped / "meta.json").write_text(
-            json.dumps({"built_at": "x", "last_used": "2099-01-01T00:00:00"})
-        )
-        compiled_cache.prune(str(tmp_path), keep=1)
-        assert stamped.exists()
+        compiled_cache.prune_siblings(str(active), keep=1)
+        assert active.exists()
         assert not legacy.exists()
 
-    def test_never_raises_on_missing_root(self):
-        compiled_cache.prune("/nonexistent/root/xyz", keep=5)
+    def test_never_raises_on_missing_dir(self):
+        compiled_cache.prune_siblings("/nonexistent/root/active", keep=5)
