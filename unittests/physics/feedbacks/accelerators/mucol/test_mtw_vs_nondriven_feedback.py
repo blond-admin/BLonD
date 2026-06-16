@@ -55,6 +55,7 @@ from blond import (
     WakeField,
     mu_plus,
 )
+from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.helpers import rf_beam_current
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
@@ -92,7 +93,12 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         self.stub_beam = StubBeam(self.intensity)
 
     @staticmethod
-    def _make_noisy_profile(t_rf: float, n_slices: int) -> StaticProfile:
+    def _make_noisy_profile(
+        t_rf: float,
+        n_slices: int,
+        section_index: int = 0,
+        seed: int = 12345,
+    ) -> StaticProfile:
         """
         Build the noisy-Gaussian static profile used throughout this module.
 
@@ -102,6 +108,11 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
             RF period defining the profile window (1.5 to 4.5 pi in rad).
         n_slices
             Number of profile bins.
+        section_index
+            Section the profile belongs to (for multi-section rings). Also
+            offsets the noise seed so each section gets a distinct profile.
+        seed
+            Base RNG seed for the additive noise.
 
         Returns
         -------
@@ -109,13 +120,17 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
             Noisy Gaussian bunch with zeroed leading/trailing bins.
         """
         profile = StaticProfile.from_rad(
-            np.pi * 1.5, np.pi * 4.5, n_slices, t_rf
+            np.pi * 1.5,
+            np.pi * 4.5,
+            n_slices,
+            t_rf,
+            section_index=section_index,
         )
         t = profile.hist_x
         t0 = 0.5 * (t[0] + t[-1])
         sigma = 0.08 * t_rf
 
-        rng = np.random.default_rng(12345)
+        rng = np.random.default_rng(seed + section_index)
         hist_y = np.exp(-0.5 * ((t - t0) / sigma) ** 2)
         hist_y = hist_y + 0.05 * rng.standard_normal(n_slices)
         hist_y = np.clip(hist_y, 0.0, None)
@@ -324,20 +339,100 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
     MULTITURN_CIRCUMFERENCE = 5990.0
     MULTITURN_INTENSITY = 2.7e12
     MULTITURN_N_SLICES = 1024
+    # Per-RF-station reference energy gain for the acceleration cases. Must
+    # stay below the design voltage (the feedback evaluates phi_s).
+    MULTITURN_DELTA_E_SECTION = 2e6
 
-    _multiturn_cache = None
+    # Cache keyed on (n_sections, acceleration): each config runs three full
+    # simulations (convolution, beam feedback, no-beam reference), so this
+    # avoids re-running shared configurations across tests.
+    _multiturn_cache: dict = {}
 
     @classmethod
-    def _run_multiturn_case(cls, mode: str, cycle, t_rf: float) -> list:
+    def _calc_multiturn_harmonic_and_t_rf(cls, n_sections: int):
+        """
+        Harmonic (divisible by ``2 * n_sections``) and the matching t_rf.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations per turn.
+
+        Returns
+        -------
+        harmonic
+            Harmonic reduced to an integer multiple of ``2 * n_sections``
+            (so each half-drift spans a whole number of RF periods).
+        t_rf
+            RF period for that harmonic at the cycle's initial energy.
+        """
+        harmonic = int(
+            cls.MULTITURN_HARMONIC - cls.MULTITURN_HARMONIC % (2 * n_sections)
+        )
+        cycle = ConstantMagneticCycle(
+            reference_particle=mu_plus,
+            value=cls.MULTITURN_ENERGY,
+            in_unit="total energy",
+        )
+        t_rev = cycle.get_t_rev_init(
+            cls.MULTITURN_CIRCUMFERENCE, particle_type=mu_plus
+        )
+        return harmonic, t_rev / harmonic
+
+    @classmethod
+    def _multiturn_cycle(cls, n_sections: int, acceleration: bool):
+        """
+        Magnetic cycle for the multi-turn run: static or accelerating.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations per turn.
+        acceleration
+            If True, a ``MagneticCyclePerTurnAllRFStations`` that raises the
+            reference energy by ``MULTITURN_DELTA_E_SECTION`` at every RF
+            station; otherwise a stationary ``ConstantMagneticCycle``.
+
+        Returns
+        -------
+        MagneticCycleBase
+            The magnetic cycle.
+        """
+        if not acceleration:
+            return ConstantMagneticCycle(
+                reference_particle=mu_plus,
+                value=cls.MULTITURN_ENERGY,
+                in_unit="total energy",
+            )
+        n_kicks = n_sections * cls.MULTITURN_N_TURNS
+        values = (
+            cls.MULTITURN_ENERGY
+            + cls.MULTITURN_DELTA_E_SECTION * np.arange(1, n_kicks + 1)
+        ).reshape(n_sections, cls.MULTITURN_N_TURNS, order="F")
+        return MagneticCyclePerTurnAllRFStations(
+            reference_particle=mu_plus,
+            value_init=cls.MULTITURN_ENERGY,
+            values_after_rf_station_per_turn=values,
+            in_unit="total energy",
+        )
+
+    @classmethod
+    def _run_multiturn_case(
+        cls, mode: str, n_sections: int, acceleration: bool
+    ) -> list:
         """
         Run a full multi-turn Simulation and collect a voltage per turn.
 
         A dummy beam without macroparticles drives nothing physically; the
-        static noisy profile (``profile.active = False`` so the empty beam
-        never overwrites the histogram) is the only excitation. The beam's
-        reference still advances by t_rev per turn, which is what propagates
-        both the convolution's past-wake times and the feedback's coarse
-        grid.
+        static noisy profiles (``profile.active = False`` so the empty beam
+        never overwrites the histogram) are the only excitation. The beam's
+        reference still advances each turn, which is what propagates both the
+        convolution's past-wake times and the feedback's coarse grid -- the
+        latter through the reverse/forward tracking across all sections.
+
+        The ring follows the production layout: per section a half-drift, the
+        RF station (with its own profile and wake/feedback), and another
+        half-drift.
 
         Parameters
         ----------
@@ -345,74 +440,97 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
             ``"mtw"`` (convolution wakefield), ``"fb"`` (feedback with beam
             current) or ``"fb_reference"`` (feedback with zero intensity, to
             isolate the beam-induced part by linearity).
-        cycle
-            Static magnetic cycle shared by all cases.
-        t_rf
-            RF period consistent with cycle, harmonic and circumference.
+        n_sections
+            Number of RF stations per turn.
+        acceleration
+            If True, run with the accelerating cycle.
 
         Returns
         -------
         list
-            Per-turn voltage arrays: the wakefield induced voltage for
-            ``"mtw"``, the station gap voltage otherwise.
+            Per turn, a list (one entry per section) of voltage arrays: the
+            wakefield induced voltage for ``"mtw"``, the station gap voltage
+            otherwise.
         """
-        profile = cls._make_noisy_profile(t_rf, cls.MULTITURN_N_SLICES)
-        profile.active = False  # keep the histogram static (no particles)
+        harmonic, t_rf = cls._calc_multiturn_harmonic_and_t_rf(n_sections)
+        half_drift_length = cls.MULTITURN_CIRCUMFERENCE / n_sections / 2
 
         ring = Ring(
             circumference=cls.MULTITURN_CIRCUMFERENCE,
             check_section_indices=False,
         )
-        drift = DriftSimple(
-            orbit_length=cls.MULTITURN_CIRCUMFERENCE,
-            momentum_compaction_factor=cls.MULTITURN_ALPHA_P,
-        )
-        if mode == "mtw":
-            element = WakeField(
-                sources=(
-                    Resonators(
-                        cls.MULTITURN_R_OVER_Q * cls.MULTITURN_Q_L,
-                        1.0 / t_rf,
-                        cls.MULTITURN_Q_L,
+        simulation_elements = []
+        ind_volt_elements = []  # wakefield (mtw) or RF station (feedback)
+        for section_index in range(n_sections):
+            profile = cls._make_noisy_profile(
+                t_rf, cls.MULTITURN_N_SLICES, section_index=section_index
+            )
+            profile.active = False  # keep the histogram static (no particles)
+
+            if mode == "mtw":
+                local_wf = WakeField(
+                    sources=(
+                        Resonators(
+                            cls.MULTITURN_R_OVER_Q * cls.MULTITURN_Q_L,
+                            1.0 / t_rf,
+                            cls.MULTITURN_Q_L,
+                        ),
                     ),
+                    solver=MultiPassResonatorSolver(
+                        decay_fraction_threshold=1e-12
+                    ),
+                    profile=profile,
+                )
+                rf_station = SingleHarmonicRFStation(
+                    voltage=cls.MULTITURN_V_DESIGN,
+                    phi_rf=0.0,
+                    harmonic=harmonic,
+                    local_wakefield=local_wf,
+                    profile=profile,
+                    section_index=section_index,
+                )
+                ind_volt_elements.append(local_wf)
+            else:
+                # Operating-point cavity (V_init = V_design): a cold start
+                # (V_init = 0) trips the coarse-grid beam-kick magnitude
+                # check, whose heuristic assumes an established voltage.
+                feedback = IQCavityFeedbackTimingClass(
+                    profile=profile,
+                    R_over_Q=cls.MULTITURN_R_OVER_Q,
+                    Q_L=cls.MULTITURN_Q_L,
+                    generator_current=0.0,
+                    n_cavities=1,
+                    initial_voltage=cls.MULTITURN_V_DESIGN,
+                    n_rf_periods_per_coarse_grid=1,
+                    delta_omega=0.0,
+                )
+                rf_station = SingleHarmonicRFStation(
+                    voltage=cls.MULTITURN_V_DESIGN,
+                    phi_rf=0.0,
+                    harmonic=harmonic,
+                    cavity_feedback=feedback,
+                    profile=profile,
+                    section_index=section_index,
+                )
+                ind_volt_elements.append(rf_station)
+            simulation_elements += [
+                DriftSimple(
+                    orbit_length=half_drift_length,
+                    momentum_compaction_factor=cls.MULTITURN_ALPHA_P,
+                    section_index=section_index,
                 ),
-                solver=MultiPassResonatorSolver(
-                    decay_fraction_threshold=1e-12
+                rf_station,
+                DriftSimple(
+                    orbit_length=half_drift_length,
+                    momentum_compaction_factor=cls.MULTITURN_ALPHA_P,
+                    section_index=section_index,
                 ),
-                profile=profile,
-            )
-            rf = SingleHarmonicRFStation(
-                voltage=cls.MULTITURN_V_DESIGN,
-                phi_rf=0.0,
-                harmonic=cls.MULTITURN_HARMONIC,
-                local_wakefield=element,
-                profile=profile,
-            )
-        else:
-            # Operating-point cavity (V_init = V_design): a cold start
-            # (V_init = 0) trips the coarse-grid beam-kick magnitude check,
-            # whose heuristic assumes an established antenna voltage.
-            element = IQCavityFeedbackTimingClass(
-                profile=profile,
-                R_over_Q=cls.MULTITURN_R_OVER_Q,
-                Q_L=cls.MULTITURN_Q_L,
-                generator_current=0.0,
-                n_cavities=1,
-                initial_voltage=cls.MULTITURN_V_DESIGN,
-                n_rf_periods_per_coarse_grid=1,
-                delta_omega=0.0,
-            )
-            rf = SingleHarmonicRFStation(
-                voltage=cls.MULTITURN_V_DESIGN,
-                phi_rf=0.0,
-                harmonic=cls.MULTITURN_HARMONIC,
-                cavity_feedback=element,
-                profile=profile,
-            )
-        # Drift first so the feedback's RF station is not the first
-        # reference-altering element.
-        ring.add_elements([drift, rf], reorder=False)
-        sim = Simulation(ring=ring, magnetic_cycle=cycle)
+            ]
+        ring.add_elements(simulation_elements, reorder=False)
+        sim = Simulation(
+            ring=ring,
+            magnetic_cycle=cls._multiturn_cycle(n_sections, acceleration),
+        )
 
         beam = Beam(
             intensity=(
@@ -427,10 +545,22 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
 
         def collect(simulation, beam_in_callback):
             if mode == "mtw":
-                per_turn.append(np.copy(np.asarray(element.induced_voltage)))
+                per_turn.append(
+                    [
+                        np.copy(np.asarray(element.induced_voltage))
+                        for element in ind_volt_elements
+                    ]
+                )
             else:
                 per_turn.append(
-                    np.copy(np.asarray(rf.calc_gap_voltage_with_feedbacks()))
+                    [
+                        np.copy(
+                            np.asarray(
+                                station.calc_gap_voltage_with_feedbacks()
+                            )
+                        )
+                        for station in ind_volt_elements
+                    ]
                 )
 
         sim.run_simulation(
@@ -442,42 +572,85 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         return per_turn
 
     @classmethod
-    def _multiturn_results(cls):
+    def _feedback_vs_convolution(cls, n_sections: int, acceleration: bool):
         """
-        Run (once) and cache the three multi-turn cases.
+        Run (once per config) and cache the convolution and feedback voltages.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations per turn.
+        acceleration
+            If True, run with the accelerating cycle.
 
         Returns
         -------
         v_convolution_turns
-            Per-turn induced voltage of the multi-pass convolution.
+            ``[turn][section]`` induced voltage of the multi-pass convolution.
         v_feedback_turns
-            Per-turn beam-induced voltage of the feedback (gap voltage of
-            the beam-driven run minus the no-beam reference run).
+            ``[turn][section]`` beam-induced voltage of the feedback (the
+            beam run's gap voltage minus the no-beam reference run, which
+            isolates the beam-induced part by linearity of the cavity
+            equation).
         """
-        if cls._multiturn_cache is None:
-            cycle = ConstantMagneticCycle(
-                reference_particle=mu_plus,
-                value=cls.MULTITURN_ENERGY,
-                in_unit="total energy",
+        key = (n_sections, acceleration)
+        if key not in cls._multiturn_cache:
+            convolution = cls._run_multiturn_case(
+                "mtw", n_sections, acceleration
             )
-            t_rev = cycle.get_t_rev_init(
-                cls.MULTITURN_CIRCUMFERENCE, particle_type=mu_plus
+            gap_beam = cls._run_multiturn_case("fb", n_sections, acceleration)
+            gap_reference = cls._run_multiturn_case(
+                "fb_reference", n_sections, acceleration
             )
-            t_rf = t_rev / cls.MULTITURN_HARMONIC
-
-            v_convolution_turns = cls._run_multiturn_case("mtw", cycle, t_rf)
-            gap_beam_turns = cls._run_multiturn_case("fb", cycle, t_rf)
-            gap_reference_turns = cls._run_multiturn_case(
-                "fb_reference", cycle, t_rf
-            )
-            v_feedback_turns = [
-                gap_beam - gap_reference
-                for gap_beam, gap_reference in zip(
-                    gap_beam_turns, gap_reference_turns, strict=True
+            feedback = [
+                [
+                    beam_section - reference_section
+                    for beam_section, reference_section in zip(
+                        gap_beam_turn, gap_reference_turn, strict=True
+                    )
+                ]
+                for gap_beam_turn, gap_reference_turn in zip(
+                    gap_beam, gap_reference, strict=True
                 )
             ]
-            cls._multiturn_cache = (v_convolution_turns, v_feedback_turns)
-        return cls._multiturn_cache
+            cls._multiturn_cache[key] = (convolution, feedback)
+        return cls._multiturn_cache[key]
+
+    def _assert_multiturn_consistency(
+        self, n_sections: int, acceleration: bool
+    ):
+        """
+        Assert per-section, per-turn feedback/convolution agreement.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations per turn.
+        acceleration
+            If True, run with the accelerating cycle.
+        """
+        convolution, feedback = self._feedback_vs_convolution(
+            n_sections, acceleration
+        )
+
+        if DEBUG_PLOT:
+            # Plot the first section only.
+            self._plot_multiturn(
+                [turn[0] for turn in convolution],
+                [turn[0] for turn in feedback],
+            )
+
+        for turn_i, (convolution_turn, feedback_turn) in enumerate(
+            zip(convolution, feedback, strict=True)
+        ):
+            for section_i, (v_convolution, v_feedback) in enumerate(
+                zip(convolution_turn, feedback_turn, strict=True)
+            ):
+                self.assertLess(
+                    rel_err(v_feedback, v_convolution),
+                    0.02,
+                    f"turn {turn_i} section {section_i}",
+                )
 
     def test_multiturn_wake_accumulates_over_turns(self):
         """
@@ -488,7 +661,12 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         (measured peaks ~1.0, 1.9, 2.8). The first turn (no previous pass
         yet) must also agree with the feedback to the single-pass accuracy.
         """
-        v_convolution_turns, v_feedback_turns = self._multiturn_results()
+        # Single section, static cycle.
+        convolution, feedback = self._feedback_vs_convolution(
+            n_sections=1, acceleration=False
+        )
+        v_convolution_turns = [turn[0] for turn in convolution]
+        v_feedback_turns = [turn[0] for turn in feedback]
 
         # First turn == single pass: feedback and convolution agree.
         self.assertLess(
@@ -514,19 +692,40 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         therefore all single-turn comparisons -- untouched. With the
         remainder included, all turns agree to < 0.3 %.
         """
-        v_convolution_turns, v_feedback_turns = self._multiturn_results()
+        # Single section, static cycle.
+        self._assert_multiturn_consistency(n_sections=1, acceleration=False)
 
-        if DEBUG_PLOT:
-            self._plot_multiturn(v_convolution_turns, v_feedback_turns)
+    def test_multiturn_multiple_sections(self):
+        """
+        Feedback vs convolution holds for multi-section rings.
 
-        for turn_i, (v_convolution, v_feedback) in enumerate(
-            zip(v_convolution_turns, v_feedback_turns, strict=True)
-        ):
-            self.assertLess(
-                rel_err(v_feedback, v_convolution),
-                0.02,
-                f"turn {turn_i}",
-            )
+        Exercises the feedback's reverse/forward reference tracking across
+        several RF stations per turn (where the parent station is no longer
+        the only reference-altering element) -- the code path that production
+        runs use and that was broken until the ``_turn_counter`` fix.
+        """
+        for n_sections in (2, 3, 10):
+            with self.subTest(n_sections=n_sections):
+                self._assert_multiturn_consistency(
+                    n_sections=n_sections, acceleration=False
+                )
+
+    def test_multiturn_with_acceleration(self):
+        """
+        Feedback vs convolution holds under acceleration.
+
+        The reference energy is raised at every RF station each turn
+        (``MagneticCyclePerTurnAllRFStations``), so t_rev, the carrier
+        frequency and the reverse-tracking frame slip all vary turn over
+        turn. The beam-induced parts (isolated by the no-beam reference
+        subtraction, which cancels the common acceleration kick) must still
+        track the multi-pass convolution, with one and with several sections.
+        """
+        for n_sections in (1, 2, 10):
+            with self.subTest(n_sections=n_sections):
+                self._assert_multiturn_consistency(
+                    n_sections=n_sections, acceleration=True
+                )
 
     def _plot_multiturn(self, v_convolution_turns, v_feedback_turns):
         """
