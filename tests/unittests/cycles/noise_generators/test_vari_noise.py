@@ -9,6 +9,7 @@
 import importlib
 import os
 import sys
+import types
 import unittest
 from unittest.mock import patch
 
@@ -105,6 +106,33 @@ class TestVariNoiseConfig(unittest.TestCase):
         )
         with self.assertRaises(AssertionError):
             noise.get_noise(n_turns=n_turns)
+
+
+class TestVariNoiseImport(unittest.TestCase):
+    """Module-import behaviour, independent of the external C++ library."""
+
+    def test_import_failure_warns(self):
+        # If the rf-noise-cpp binding cannot be imported, importing the
+        # module must warn rather than crash (the crash is deferred to
+        # get_noise). A bare module without `rf_noise` makes the
+        # `from ... import rf_noise` statement raise ImportError, which
+        # exercises the except branch.
+        import blond.cycles.noise_generators.vari_noise as vari_noise
+
+        broken = types.ModuleType(
+            "blond.interfaces.rf_noise_cpp.wrap_rf_noise"
+        )
+        try:
+            with patch.dict(
+                sys.modules,
+                {"blond.interfaces.rf_noise_cpp.wrap_rf_noise": broken},
+            ):
+                with self.assertWarns(UserWarning) as cm:
+                    importlib.reload(vari_noise)
+            self.assertIn("rf-noise-cpp", str(cm.warning))
+        finally:
+            # Restore the genuinely-imported module for other tests.
+            importlib.reload(vari_noise)
 
 
 class TestVariNoiseLibrary(unittest.TestCase):
