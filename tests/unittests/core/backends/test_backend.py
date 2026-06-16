@@ -128,8 +128,9 @@ class TestBackendBaseClass(unittest.TestCase):
     def test_change_backend_with_instance_is_noop(self):
         # this method previously shadowed `test_change_backend` above
         # by reusing its name
-        some_backend = Numpy64Bit
-        some_backend.change_backend(some_backend)  # shouldnt do anything
+        some_backend = Numpy64Bit()
+        # requesting the already active backend class must be a no-op
+        some_backend.change_backend(Numpy64Bit)
         self.assertIs(some_backend.__class__, Numpy64Bit)
 
     @pytest.mark.backend_mutation
