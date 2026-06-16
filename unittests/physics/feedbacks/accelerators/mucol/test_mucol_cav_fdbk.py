@@ -6,15 +6,23 @@ from unittest.mock import Mock, PropertyMock, patch
 
 import numpy as np
 
-from blond import Beam, Resonators, StaticProfile, WakeField, mu_plus
+from blond import (
+    Beam,
+    Resonators,
+    SingleHarmonicRFStation,
+    StaticProfile,
+    WakeField,
+    mu_plus,
+)
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.helpers import rf_beam_current
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 
-# Package-relative import: the dirs above ``mucol`` have no __init__.py, so
+# Package-relative imports: the dirs above ``mucol`` have no __init__.py, so
 # these test helpers are not importable by an absolute path under pytest.
+from .stubs import StubBeam
 from .support import lab_frame_voltage
 
 
@@ -278,6 +286,55 @@ class TestCavityFeedback(unittest.TestCase):
         )
         with patch_omega, patch_dt, self.assertRaises(ValueError) as cm:
             self.cav_fdbk._check_step_sizes()
+        self.assertIn("detuning_phase_per_step", str(cm.exception))
+
+    def test_step_size_check_fires_on_run_simulation(self):
+        """
+        An unphysical detuning aborts the run-start initialisation.
+
+        End-to-end companion to the patched-property step-size tests above:
+        here ``_check_step_sizes`` runs inside ``on_run_simulation`` with the
+        carrier frequency resolved through a real RF station. Only
+        ``delta_omega`` is relevant, so the beam and simulation are stubbed --
+        no beam preparation or tracking is needed.
+        """
+        t_rf = 1.0e-9
+        omega_rf = 2 * np.pi / t_rf
+        profile = StaticProfile.from_rad(np.pi * 1.5, np.pi * 4.5, 1024, t_rf)
+        feedback = IQCavityFeedbackTimingClass(
+            profile=profile,
+            R_over_Q=518.0,
+            Q_L=1.29e4,
+            generator_current=0.0,
+            n_cavities=1,
+            initial_voltage=0.0,
+            n_rf_periods_per_coarse_grid=1,
+            # detuning_phase_per_step = delta_omega * sampling_time_coarse
+            # ~ 1e12 * 1e-9 ~ 1000, far beyond the hard limit of 2.0.
+            delta_omega=1e12,
+        )
+        # Voltage/harmonic are placeholders; only omega_rf enters the check.
+        rf = SingleHarmonicRFStation(
+            voltage=30e6,
+            phi_rf=0.0,
+            harmonic=25900,
+            cavity_feedback=feedback,
+            profile=profile,
+        )
+        # Normally set by the station's own initialisation at run start.
+        rf.omega_rf_design = omega_rf
+
+        # on_run_simulation only needs the ring's reference-altering elements
+        # (to locate the parent station) and a deepcopy-able beam reference.
+        stub_simulation = Mock()
+        stub_simulation.ring.elements.get_elements.return_value = (rf,)
+
+        with self.assertRaises(ValueError) as cm:
+            feedback.on_run_simulation(
+                simulation=stub_simulation,
+                beam=StubBeam(2.7e12),
+                n_turns=1,
+            )
         self.assertIn("detuning_phase_per_step", str(cm.exception))
 
     def test_cavity_response_raises_for_unphysical_beam_kick(self):

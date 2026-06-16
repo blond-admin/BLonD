@@ -1,17 +1,25 @@
 """
-Compare the multi-turn induced voltage with a non-driven cavity feedback.
+Compare the multi-pass resonator solver with non-driven cavity feedback.
 
-A single static profile (a noisy Gaussian with zeroed leading/trailing bins)
-drives two models of the *same* single cavity
+Two test classes, by driver and integration depth (the applied-*energy*
+comparison lives in
+``test_energy_gain_ind_voltage_vs_nondriven_feedback.py``):
+
+* :class:`TestSinglePassInducedVoltage` -- single pass, mock-driven, no
+  ``Simulation``. Solver vs feedback induced voltage on one static profile.
+* :class:`TestMultiTurnFeedbackVsConvolution` -- full ``Simulation``, a dummy
+  particle-less beam, turn-over-turn coarse-grid propagation, multiple
+  sections and acceleration.
+
+Both compare the *same* single cavity
 (``R_shunt = R_over_Q * Q_L``, ``f_res = 1 / t_rf``):
 
 * a :class:`MultiPassResonatorSolver` -- the multi-turn resonator convolution,
-  evaluated for a single pass, and
-* a *non-driven* :class:`IQCavityFeedbackTimingClass` -- generator current
-  ``I_g = 0``, initial antenna voltage ``V_init = 0`` and ``n_cavities = 1``.
+  and
+* an :class:`IQCavityFeedbackTimingClass` whose antenna voltage, with the beam
+  as the only excitation, is the beam-induced voltage.
 
-With the beam as the only excitation, the feedback's antenna voltage is purely
-the beam-induced voltage. Both objects are driven directly on the static
+In the single-pass class both objects are driven directly on the static
 profile; no ``Beam`` tracking and no full ``Simulation`` run is required, which
 mirrors the mock/patch style of ``test_mucol_cav_fdbk.py``.
 
@@ -38,7 +46,6 @@ multi-pass convolution voltage.
 """
 
 import unittest
-from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -71,8 +78,66 @@ from .support import (
 DEBUG_PLOT = False
 
 
-class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
-    """Multi-turn induced voltage vs a non-driven IQ cavity feedback."""
+def make_noisy_profile(
+    t_rf: float,
+    n_slices: int,
+    section_index: int = 0,
+    seed: int = 12345,
+) -> StaticProfile:
+    """
+    Build the noisy-Gaussian static profile used by both test classes.
+
+    Parameters
+    ----------
+    t_rf
+        RF period defining the profile window (1.5 to 4.5 pi in rad).
+    n_slices
+        Number of profile bins.
+    section_index
+        Section the profile belongs to (for multi-section rings). Also
+        offsets the noise seed so each section gets a distinct profile.
+    seed
+        Base RNG seed for the additive noise.
+
+    Returns
+    -------
+    StaticProfile
+        Noisy Gaussian bunch with zeroed leading/trailing bins.
+    """
+    profile = StaticProfile.from_rad(
+        np.pi * 1.5,
+        np.pi * 4.5,
+        n_slices,
+        t_rf,
+        section_index=section_index,
+    )
+    t = profile.hist_x
+    t0 = 0.5 * (t[0] + t[-1])
+    sigma = 0.08 * t_rf
+
+    rng = np.random.default_rng(seed + section_index)
+    hist_y = np.exp(-0.5 * ((t - t0) / sigma) ** 2)
+    hist_y = hist_y + 0.05 * rng.standard_normal(n_slices)
+    hist_y = np.clip(hist_y, 0.0, None)
+    # The resonator solver warns / can go unstable with charge in the
+    # leading or trailing edge bins, so force them to zero.
+    hist_y[:5] = 0.0
+    hist_y[-5:] = 0.0
+
+    profile._hist_y = hist_y
+    profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+    return profile
+
+
+class TestSinglePassInducedVoltage(unittest.TestCase):
+    """
+    Single-pass induced voltage: multi-pass solver vs non-driven feedback.
+
+    Drives the solver and the feedback directly on one static profile -- no
+    Beam tracking and no Simulation -- and checks the lab-frame induced
+    voltage they produce agrees to < 1 %, in the mock/patch style of
+    ``test_mucol_cav_fdbk.py``.
+    """
 
     def setUp(self):
         """Build a noisy-Gaussian static profile and shared cavity parameters."""
@@ -88,60 +153,9 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
 
         # Static profile spanning 1.5 RF periods, cut_left > 0 as the feedback
         # requires.
-        self.noisy_profile = self._make_noisy_profile(self.t_rf, self.n_slices)
+        self.noisy_profile = make_noisy_profile(self.t_rf, self.n_slices)
 
         self.stub_beam = StubBeam(self.intensity)
-
-    @staticmethod
-    def _make_noisy_profile(
-        t_rf: float,
-        n_slices: int,
-        section_index: int = 0,
-        seed: int = 12345,
-    ) -> StaticProfile:
-        """
-        Build the noisy-Gaussian static profile used throughout this module.
-
-        Parameters
-        ----------
-        t_rf
-            RF period defining the profile window (1.5 to 4.5 pi in rad).
-        n_slices
-            Number of profile bins.
-        section_index
-            Section the profile belongs to (for multi-section rings). Also
-            offsets the noise seed so each section gets a distinct profile.
-        seed
-            Base RNG seed for the additive noise.
-
-        Returns
-        -------
-        StaticProfile
-            Noisy Gaussian bunch with zeroed leading/trailing bins.
-        """
-        profile = StaticProfile.from_rad(
-            np.pi * 1.5,
-            np.pi * 4.5,
-            n_slices,
-            t_rf,
-            section_index=section_index,
-        )
-        t = profile.hist_x
-        t0 = 0.5 * (t[0] + t[-1])
-        sigma = 0.08 * t_rf
-
-        rng = np.random.default_rng(seed + section_index)
-        hist_y = np.exp(-0.5 * ((t - t0) / sigma) ** 2)
-        hist_y = hist_y + 0.05 * rng.standard_normal(n_slices)
-        hist_y = np.clip(hist_y, 0.0, None)
-        # The resonator solver warns / can go unstable with charge in the
-        # leading or trailing edge bins, so force them to zero.
-        hist_y[:5] = 0.0
-        hist_y[-5:] = 0.0
-
-        profile._hist_y = hist_y
-        profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
-        return profile
 
     def _multi_turn_induced_voltage(self) -> np.ndarray:
         """
@@ -325,10 +339,26 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
             np.zeros(self.n_slices, dtype=complex),
         )
 
-    # ----- full-simulation multi-turn comparison -------------------------
-    # High Q_L so the previous-pass wake survives ~88 % per turn
-    # (exp(-omega * t_rev / Q_L)); with the setUp value of 1.29e4 only
-    # ~6e-5 would survive and the multi-turn aspect would be invisible.
+
+class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
+    """
+    Full-Simulation multi-turn comparison: feedback vs multi-pass convolution.
+
+    A dummy beam without macroparticles drives the static noisy profiles over
+    several turns (``profile.active = False`` so the empty beam never
+    overwrites the histogram). The feedback's coarse grid is propagated turn
+    over turn through the reverse/forward reference tracking, and its
+    beam-induced gap voltage is compared per turn (and per section) against
+    the accumulating multi-pass convolution voltage. Covers single/multiple
+    sections and a static or accelerating cycle.
+
+    This is its own class (not the single-pass one above): it ignores that
+    fixture entirely, needs a high Q_L so the previous-pass wake survives
+    (~88 % per turn via exp(-omega * t_rev / Q_L); the single-pass Q_L of
+    1.29e4 would leave only ~6e-5), and drives a real Simulation rather than
+    direct method calls.
+    """
+
     MULTITURN_R_OVER_Q = 518.0
     MULTITURN_Q_L = 1.29e6
     MULTITURN_N_TURNS = 3
@@ -462,7 +492,7 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         simulation_elements = []
         ind_volt_elements = []  # wakefield (mtw) or RF station (feedback)
         for section_index in range(n_sections):
-            profile = cls._make_noisy_profile(
+            profile = make_noisy_profile(
                 t_rf, cls.MULTITURN_N_SLICES, section_index=section_index
             )
             profile.active = False  # keep the histogram static (no particles)
@@ -754,53 +784,6 @@ class TestMultiTurnInducedVoltageVsNonDrivenFeedback(unittest.TestCase):
         np.atleast_1d(axes)[-1].set_xlabel("profile bin")
         fig.tight_layout()
         plt.show()
-
-    def test_step_size_check_fires_on_run_simulation(self):
-        """
-        An unphysical detuning aborts the run-start initialisation.
-
-        Companion to the unit-level step-size tests in
-        ``test_mucol_cav_fdbk.py`` (which patch the carrier properties): here
-        the check runs inside ``on_run_simulation`` with the carrier frequency
-        resolved through a real RF station. Only ``delta_omega`` is relevant,
-        so the beam and simulation are stubbed -- no beam preparation or
-        tracking is needed.
-        """
-        feedback = IQCavityFeedbackTimingClass(
-            profile=self.noisy_profile,
-            R_over_Q=self.R_over_Q,
-            Q_L=self.Q_L,
-            generator_current=0.0,
-            n_cavities=1,
-            initial_voltage=0.0,
-            n_rf_periods_per_coarse_grid=1,
-            # detuning_phase_per_step = delta_omega * sampling_time_coarse
-            # ~ 1e12 * 1e-9 ~ 1000, far beyond the hard limit of 2.0.
-            delta_omega=1e12,
-        )
-        # Voltage/harmonic are placeholders; only omega_rf enters the check.
-        rf = SingleHarmonicRFStation(
-            voltage=30e6,
-            phi_rf=0.0,
-            harmonic=25900,
-            cavity_feedback=feedback,
-            profile=self.noisy_profile,
-        )
-        # Normally set by the station's own initialisation at run start.
-        rf.omega_rf_design = self.omega_rf
-
-        # on_run_simulation only needs the ring's reference-altering elements
-        # (to locate the parent station) and a deepcopy-able beam reference.
-        stub_simulation = Mock()
-        stub_simulation.ring.elements.get_elements.return_value = (rf,)
-
-        with self.assertRaises(ValueError) as cm:
-            feedback.on_run_simulation(
-                simulation=stub_simulation,
-                beam=StubBeam(self.intensity),
-                n_turns=1,
-            )
-        self.assertIn("detuning_phase_per_step", str(cm.exception))
 
 
 if __name__ == "__main__":
