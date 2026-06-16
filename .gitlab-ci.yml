@@ -43,6 +43,12 @@ workflow:
     - key: "numba-${CI_JOB_NAME}"
       paths:
         - .numba_cache/
+  after_script:
+    # Bound the cache size before GitLab uploads it (after_script runs just
+    # before cache upload). Bare python3 + pure stdlib: no venv needed, and no
+    # `import blond` -- which would recompile kernels into the very cache we
+    # are pruning. Size budget: BLOND_NUMBA_CACHE_MAX_MB (default 500).
+    - python3 dev_tools/prune_numba_cache.py
 
 .on_tag:
   # Rules to run a job only on a git tagged commit
