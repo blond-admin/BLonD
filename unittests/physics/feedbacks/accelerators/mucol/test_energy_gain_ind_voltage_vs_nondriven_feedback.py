@@ -7,33 +7,41 @@ particles is the same whether it comes from
 
 * the multi-turn resonator solver (:class:`MultiPassResonatorSolver`,
   applied as a separate wake kick), or
-* a *non-driven* :class:`IQCavityFeedbackTimingClass` (``I_g = 0``,
-  ``V_init = 0``, ``n_cavities = 1``), whose gap voltage is the lab-frame
-  antenna voltage and, for a non-driven cavity, the pure beam-induced voltage.
+* an :class:`IQCavityFeedbackTimingClass` at its operating point
+  (``V_init = V_design`` held by the matched generator current
+  ``I_g = V / (2 (R/Q) Q_L)``, ``n_cavities = 1``), whose gap voltage is the
+  lab-frame antenna voltage; the beam-induced part is isolated by subtracting
+  a zero-intensity reference run (exact, by linearity of the cavity
+  equation). A cold or undriven cavity is not usable here: it trips the
+  coarse-grid beam-kick magnitude check, whose heuristic assumes an
+  established antenna voltage.
 
-Both runs share the same minimal stationary ring (one ``DriftSimple`` + one
-``SingleHarmonicRFStation``, ``ConstantMagneticCycle``) and the same initial
-bunch.  The design RF kick is suppressed (``voltage = 0`` in the MTW run; the
-feedback replaces the design voltage with the antenna voltage anyway), so the
-only energy change per particle is the induced voltage.  The two paths agree on
-the applied ``dE`` to well below 1 %.
+Both runs share the same minimal ring (one ``DriftSimple`` + one
+``SingleHarmonicRFStation``) and the same initial bunch.  The design RF kick is
+suppressed (``voltage = 0`` in the MTW run; the feedback replaces the design
+voltage with the antenna voltage anyway), so the only energy change per
+particle is the induced voltage.  The two paths agree on the applied ``dE`` to
+well below 1 %.
+
+The comparison runs for a stationary ``ConstantMagneticCycle`` and for an
+accelerating ``MagneticCyclePerTurn``.  With acceleration, the reference energy
+climbs by the programmed ``delta_E_turn`` while (the design kick being
+suppressed) the particles are not accelerated, so every particle additionally
+receives the common acceleration kick ``-delta_E_turn``; the induced parts are
+compared after removing that common offset.  ``delta_E_turn`` must stay below
+the design voltage, because the feedback evaluates
+``phi_s = arcsin(delta_E / (q V_design))`` during tracking.
 
 The bunch is shifted by one RF period after preparation so it sits inside the
 profile window ``[1.5 pi, 4.5 pi] == [0.75, 2.25] t_rf`` (``BiGaussian`` places
 it near rf phase ``pi``, one period earlier).  Each test guards that the
 profile is actually populated and the bunch is in-window, so an empty profile
 fails loudly instead of comparing two ~zero arrays.
-
-Note: the cavity feedback's full-simulation tracking requires the parent RF
-station's ``omega_rf_design`` at construction time (its decay check reads it),
-but that attribute is only set at ``on_run_simulation``.  We therefore set it
-explicitly before building the ``Simulation`` -- to the design RF frequency,
-exactly what ``calc_omega_rf_design`` would return.
 """
 
-import os
 import unittest
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import (
@@ -41,6 +49,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
+    MagneticCyclePerTurn,
     Resonators,
     Ring,
     Simulation,
@@ -54,7 +63,9 @@ from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Package-relative import: the dirs above ``mucol`` have no __init__.py, so
 # these test helpers are not importable by an absolute path under pytest.
-from .support import open_debug_plot, rel_err, save_debug_plot
+from .support import rel_err
+
+DEBUG_PLOT = False
 
 
 class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
@@ -63,7 +74,7 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
     def setUp(self):
         """Set up RCS1-like parameters and a reproducible template bunch."""
         self.R_over_Q = 518.0
-        self.Q_L = 1.29e6
+        self.Q_L = 1.29e4
         self.alpha_p = 10.395e-4
         self.circumference = 5990.0
         self.energy = 63e9
@@ -72,6 +83,10 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         self.V_design = 30e6
         self.n_slices = 1024
         self.n_macroparticles = int(5e4)
+        # Per-turn reference energy gain for the acceleration case. Must be
+        # below q * V_design: the feedback evaluates
+        # phi_s = arcsin(delta_E / (q V_design)) during tracking.
+        self.delta_E_turn = 6e6
 
         self.cycle = ConstantMagneticCycle(
             reference_particle=mu_plus,
@@ -97,7 +112,9 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
             np.pi * 1.5, np.pi * 4.5, self.n_slices, self.t_rf
         )
 
-    def _build(self, mtw: bool, profile: StaticProfile):
+    def _build(
+        self, mtw: bool, profile: StaticProfile, acceleration: bool = False
+    ):
         """
         Build a one-turn ring (drift + RF station) and its Simulation.
 
@@ -107,6 +124,10 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
             If True, use the multi-turn wake model; otherwise the feedback.
         profile
             Static profile the wake/feedback acts on.
+        acceleration
+            If True, use a ``MagneticCyclePerTurn`` that raises the reference
+            energy by ``delta_E_turn`` over the single turn; otherwise the
+            stationary ``ConstantMagneticCycle``.
 
         Returns
         -------
@@ -144,13 +165,23 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
                 profile=profile,
             )
         else:
+            # Operating-point cavity: V_init = V_design held steady by the
+            # matched generator current I_g = V / (2 (R/Q) Q_L) (steady
+            # state of the cavity equation at zero detuning). A cold or
+            # undriven cavity trips the coarse-grid beam-kick magnitude
+            # check, whose heuristic assumes an established antenna voltage.
+            # The beam-induced part is isolated by subtracting a
+            # zero-intensity reference run (exact, by linearity).
+            matched_generator_current = self.V_design / (
+                2.0 * self.R_over_Q * self.Q_L
+            )
             feedback = IQCavityFeedbackTimingClass(
                 profile=profile,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
-                generator_current=0.0,
+                generator_current=matched_generator_current,
                 n_cavities=1,
-                initial_voltage=0.0,
+                initial_voltage=self.V_design,
                 n_rf_periods_per_coarse_grid=1,
                 delta_omega=0.0,
             )
@@ -165,12 +196,24 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         # reference-altering element (otherwise the first-turn reverse
         # tracking has nothing to track and returns early).
         ring.add_elements([drift, rf], reorder=False)
-        # See module docstring: omega_rf_design is needed at construction time.
-        rf.omega_rf_design = self.omega_rf
-        return Simulation(ring=ring, magnetic_cycle=self.cycle), rf
+        if acceleration:
+            magnetic_cycle = MagneticCyclePerTurn(
+                reference_particle=mu_plus,
+                value_init=self.energy,
+                values_after_turn=np.array([self.energy + self.delta_E_turn]),
+                in_unit="total energy",
+            )
+        else:
+            magnetic_cycle = self.cycle
+        return Simulation(ring=ring, magnetic_cycle=magnetic_cycle), rf
 
-    def _prepare(self, sim: Simulation) -> Beam:
-        beam = Beam(intensity=self.intensity, particle_type=mu_plus)
+    def _prepare(
+        self, sim: Simulation, intensity: float | None = None
+    ) -> Beam:
+        beam = Beam(
+            intensity=self.intensity if intensity is None else intensity,
+            particle_type=mu_plus,
+        )
         beam.reference.total_energy = self.energy
         sim.prepare_beam(
             beam=beam,
@@ -184,7 +227,12 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         )
         return beam
 
-    def _run_case(self, mtw: bool):
+    def _run_case(
+        self,
+        mtw: bool,
+        acceleration: bool = False,
+        intensity: float | None = None,
+    ):
         """
         Run one turn and return the applied kick and post-turn state.
 
@@ -192,6 +240,11 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         ----------
         mtw
             If True, use the multi-turn wake model; otherwise the feedback.
+        acceleration
+            If True, run with the accelerating magnetic cycle.
+        intensity
+            Beam intensity; defaults to the setUp value. Zero gives the
+            no-beam reference run for the feedback path.
 
         Returns
         -------
@@ -203,20 +256,69 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
             Static profile used for the case.
         rf
             The RF station element used for the case.
+        delta_E_reference
+            Reference total-energy change over the turn [eV].
         """
         profile = self._make_profile()
-        sim, rf = self._build(mtw=mtw, profile=profile)
-        beam = self._prepare(sim)
+        sim, rf = self._build(
+            mtw=mtw, profile=profile, acceleration=acceleration
+        )
+        beam = self._prepare(sim, intensity=intensity)
         beam.setup_beam(dt=self.dt_template, dE=self.dE_template)
+        energy_reference_before = float(beam.reference.total_energy)
         dE_before = np.array(beam.dE.array_local, copy=True)
         if mtw:
             rf.voltage = 0.0  # suppress the design RF kick; keep only the wake
         sim.run_simulation((beam,), n_turns=1, show_progressbar=False)
         applied = np.array(beam.dE.array_local, copy=True) - dE_before
         dt_after = np.array(beam.dt.array_local, copy=True)
-        return applied, dt_after, profile, rf
+        delta_E_reference = (
+            float(beam.reference.total_energy) - energy_reference_before
+        )
+        return applied, dt_after, profile, rf, delta_E_reference
 
-    def _maybe_plot_energy_kick(
+    def _run_feedback_induced(self, acceleration: bool = False):
+        """
+        Beam-induced part of the feedback kick, by reference subtraction.
+
+        Runs the feedback case twice -- with the nominal intensity and with
+        zero intensity -- and subtracts the applied kicks per particle. The
+        design-voltage reconstruction and (with acceleration) the common
+        ``-delta_E_reference`` kick cancel exactly, leaving
+        ``q * V_induced(dt)`` by linearity of the cavity equation.
+
+        Parameters
+        ----------
+        acceleration
+            If True, run with the accelerating magnetic cycle.
+
+        Returns
+        -------
+        applied_induced
+            Beam-induced energy kick per macroparticle [eV].
+        dt_after
+            Arrival times of the macroparticles after the turn.
+        profile
+            Static profile used for the beam-driven case.
+        delta_E_reference
+            Reference total-energy change over the turn [eV].
+        """
+        applied_beam, dt_beam, profile, _, delta_E_reference = self._run_case(
+            mtw=False, acceleration=acceleration
+        )
+        applied_reference, dt_reference, _, _, _ = self._run_case(
+            mtw=False, acceleration=acceleration, intensity=0.0
+        )
+        # Identical initial coordinates and drift -> identical arrival times.
+        np.testing.assert_allclose(dt_beam, dt_reference, rtol=0, atol=0)
+        return (
+            applied_beam - applied_reference,
+            dt_beam,
+            profile,
+            delta_E_reference,
+        )
+
+    def _plot_energy_kick(
         self, dt, applied_mtw, applied_fb, profile, induced_mtw
     ):
         """
@@ -242,10 +344,6 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         induced_mtw
             Induced voltage of the multi-turn wake model.
         """
-        plt, mode = open_debug_plot()
-        if plt is None:
-            return
-
         order = np.argsort(dt)
         t_ns = dt[order] * 1e9
         fig, (ax_kick, ax_diff) = plt.subplots(
@@ -278,9 +376,10 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         ax_diff.set_ylabel("feedback - MTW [eV]")
         ax_diff.set_xlabel("arrival time dt [ns]")
         fig.tight_layout()
-        save_debug_plot(
-            fig, os.path.dirname(__file__), "energy_kick_over_time.png", mode
-        )
+
+        plt.savefig("energy_kick_over_time.png", dpi=200, bbox_inches="tight")
+
+        plt.show()
 
     def _assert_profile_populated(self, profile, dt_after):
         """
@@ -305,13 +404,13 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
 
     def test_feedback_runs_in_full_simulation(self):
         """
-        The non-driven feedback tracks through a full Simulation.
+        The feedback tracks through a full Simulation.
 
         Regression for the stale ``_parent_rf_station._turn_i`` attribute
-        (renamed to ``_turn_counter``). Also checks the applied kick is the
-        small beam-induced voltage, not the design voltage.
+        (renamed to ``_turn_counter``). Also checks the beam-induced part of
+        the kick is small compared to the design voltage.
         """
-        applied, dt_after, profile, _ = self._run_case(mtw=False)
+        applied, dt_after, profile, _ = self._run_feedback_induced()
         self._assert_profile_populated(profile, dt_after)
         peak = np.max(np.abs(applied))
         # Beam-induced only (a few % of the 30 MV design voltage), i.e. the
@@ -321,7 +420,7 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
 
     def test_mtw_applies_charge_times_induced_voltage(self):
         """The MTW wake applies exactly ``charge * V_induced(dt)`` per particle."""
-        applied, dt_after, profile, rf = self._run_case(mtw=True)
+        applied, dt_after, profile, rf, _ = self._run_case(mtw=True)
         self._assert_profile_populated(profile, dt_after)
 
         induced = np.asarray(rf._local_wakefield.induced_voltage)
@@ -335,19 +434,20 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         )
 
     def test_applied_energy_gain_consistent(self):
-        """MTW and the non-driven feedback apply the same energy gain."""
-        applied_mtw, dt_mtw, profile_mtw, rf_mtw = self._run_case(mtw=True)
-        applied_fb, dt_fb, profile_fb, _ = self._run_case(mtw=False)
+        """MTW and the feedback apply the same beam-induced energy gain."""
+        applied_mtw, dt_mtw, profile_mtw, rf_mtw, _ = self._run_case(mtw=True)
+        applied_fb, dt_fb, profile_fb, _ = self._run_feedback_induced()
 
         # Debug plot (opt-in) before any assertion, so a failure still
         # produces the diagnostic.
-        self._maybe_plot_energy_kick(
-            dt_mtw,
-            applied_mtw,
-            applied_fb,
-            profile_mtw,
-            np.asarray(rf_mtw._local_wakefield.induced_voltage),
-        )
+        if DEBUG_PLOT:
+            self._plot_energy_kick(
+                dt_mtw,
+                applied_mtw,
+                applied_fb,
+                profile_mtw,
+                np.asarray(rf_mtw._local_wakefield.induced_voltage),
+            )
 
         self._assert_profile_populated(profile_mtw, dt_mtw)
         self._assert_profile_populated(profile_fb, dt_fb)
@@ -363,6 +463,73 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         )
         # Overall agreement well below 2 %.
         self.assertLess(rel_err(applied_fb, applied_mtw), 0.02)
+
+    def test_applied_energy_gain_consistent_with_acceleration(self):
+        """
+        MTW and the non-driven feedback agree under acceleration too.
+
+        With the accelerating cycle the reference gains ``delta_E_turn`` over
+        the turn while (the design kick being suppressed) the particles are
+        not accelerated, so each particle receives
+        ``applied = q * V_induced(dt) - delta_E_turn``.  The test checks that
+
+        * the reference energy gain matches the programmed ``delta_E_turn``
+          in both paths,
+        * the MTW path applies exactly
+          ``q * V_induced(dt) - delta_E_turn`` per particle, and
+        * after removing the common acceleration offset, the induced parts of
+          both paths agree to the same tolerances as the stationary case.
+        """
+        applied_mtw, dt_mtw, profile_mtw, rf_mtw, dE_ref_mtw = self._run_case(
+            mtw=True, acceleration=True
+        )
+        induced_part_fb, dt_fb, profile_fb, dE_ref_fb = (
+            self._run_feedback_induced(acceleration=True)
+        )
+
+        # The programmed acceleration is actually applied to the reference.
+        self.assertAlmostEqual(dE_ref_mtw / self.delta_E_turn, 1.0, delta=1e-9)
+        self.assertAlmostEqual(dE_ref_fb / self.delta_E_turn, 1.0, delta=1e-9)
+
+        # Remove the common acceleration offset to recover the MTW induced
+        # part (the feedback's reference subtraction already cancelled it).
+        induced_part_mtw = applied_mtw + dE_ref_mtw
+
+        # Debug plot (opt-in) before any assertion, so a failure still
+        # produces the diagnostic.
+        if DEBUG_PLOT:
+            self._plot_energy_kick(
+                dt_mtw,
+                induced_part_mtw,
+                induced_part_fb,
+                profile_mtw,
+                np.asarray(rf_mtw._local_wakefield.induced_voltage),
+            )
+
+        self._assert_profile_populated(profile_mtw, dt_mtw)
+        self._assert_profile_populated(profile_fb, dt_fb)
+        # Same initial bunch and identical drift -> identical arrival times.
+        np.testing.assert_allclose(dt_mtw, dt_fb, rtol=0, atol=0)
+
+        # MTW exactness under acceleration:
+        # applied = q * V_induced(dt) - delta_E_reference.
+        induced = np.asarray(rf_mtw._local_wakefield.induced_voltage)
+        expected_mtw = (
+            mu_plus.charge * np.interp(dt_mtw, profile_mtw.hist_x, induced)
+            - dE_ref_mtw
+        )
+        peak = np.max(np.abs(induced_part_mtw))
+        self.assertGreater(peak, 0.0)
+        np.testing.assert_allclose(
+            applied_mtw, expected_mtw, atol=1e-6 * peak, rtol=0.0
+        )
+
+        # Consistency of the induced parts, tolerances as in the stationary
+        # case (scaled to the induced peak, not the acceleration kick).
+        np.testing.assert_allclose(
+            induced_part_fb, induced_part_mtw, atol=0.03 * peak, rtol=0.0
+        )
+        self.assertLess(rel_err(induced_part_fb, induced_part_mtw), 0.02)
 
 
 if __name__ == "__main__":
