@@ -657,6 +657,94 @@ class Resonators(
             )
         return wake
 
+    def get_wake_quadrature(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Quadrature (90-degree shifted) companion of :meth:`get_wake`.
+
+        Same envelope as :meth:`get_wake` but with the oscillation replaced by
+        its Hilbert partner ``sin(omega_bar t) + (alpha / omega_bar) cos(omega_bar t)``
+        -- the imaginary part of the analytic resonator wake. It lets a caller
+        rotate the wake's oscillation phase by a constant offset ``phi`` without
+        rebuilding it::
+
+            get_wake * cos(phi) - get_wake_quadrature * sin(phi)
+                = envelope * cos(omega_bar t + phi)
+
+        Parameters
+        ----------
+        time
+            Time array at which the wake quadrature is calculated, in [s].
+
+        Returns
+        -------
+        wake_quadrature
+            Quadrature wake potential array, in [V].
+        """
+        wake = backend.zeros(len(time), dtype=backend.float, order="C")
+        heaviside_like = self.heaviside_eps_at_0(time)
+        for res_ind in range(self._n_resonators):
+            wake += (
+                heaviside_like
+                * (
+                    self._shunt_impedances[res_ind]
+                    * self._alpha[res_ind]
+                    * backend.exp(-self._alpha[res_ind] * time)
+                )
+                * (
+                    backend.sin(self._omega_bar[res_ind] * time)
+                    + self._alpha[res_ind]
+                    / self._omega_bar[res_ind]
+                    * backend.cos(self._omega_bar[res_ind] * time)
+                )
+            )
+        return wake
+
+    def get_wake_counter_rotation_quadrature(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Quadrature companion of :meth:`get_wake_counter_rotation`.
+
+        Counter-rotating partner of :meth:`get_wake_quadrature` (uses the
+        counter-rotating shunt impedances); see that method for the phase-
+        rotation identity it serves.
+
+        Parameters
+        ----------
+        time
+            Time array at which the wake quadrature is calculated, in [s].
+
+        Returns
+        -------
+        wake_quadrature
+            Quadrature wake potential array, in [V].
+        """
+        if self._shunt_impedances_counter_rotating is None:
+            raise RuntimeError(
+                "_shunt_impedances_counter_rotating needs to be set before calling this function."
+            )
+
+        wake = backend.zeros(len(time), dtype=backend.float, order="C")
+        heaviside_like = self.heaviside_eps_at_0(time)
+        for res_ind in range(self._n_resonators):
+            wake += (
+                heaviside_like
+                * (
+                    self._shunt_impedances_counter_rotating[res_ind]
+                    * self._alpha[res_ind]
+                    * backend.exp(-self._alpha[res_ind] * time)
+                )
+                * (
+                    backend.sin(self._omega_bar[res_ind] * time)
+                    + self._alpha[res_ind]
+                    / self._omega_bar[res_ind]
+                    * backend.cos(self._omega_bar[res_ind] * time)
+                )
+            )
+        return wake
+
     def calculate_envelope(
         self, time_axis: NumpyArray | CupyArray | None = None
     ) -> tuple[NumpyArray, NumpyArray] | tuple[CupyArray, CupyArray]:

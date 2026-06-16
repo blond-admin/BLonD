@@ -769,6 +769,16 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._wake_function_vals: deque[NumpyArray] = deque()
         self._wake_function_time: deque[NumpyArray] = deque()
 
+        # Phase-clock state for the accumulated-phase correction under a retuned
+        # (accelerating) resonator. ``_phase_clock`` integrates ``omega dt``;
+        # per stored profile we keep its value and the reference time at deposit,
+        # so the carried wake can be rotated by the phase the real, frequency-
+        # ramping cavity accrues beyond evaluating it at the current frequency.
+        self._past_profile_deposit_phase: deque[float] = deque()
+        self._past_profile_deposit_time: deque[float] = deque()
+        self._phase_clock: float = 0.0
+        self._active_omega: float | None = None
+
         self._allow_delta_t_zero = allow_delta_t_zero
 
     def _determine_storage_time(self):
@@ -865,6 +875,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 self._past_profiles_counter_rotation_flag.pop()
                 self._wake_function_time.pop()
                 self._wake_function_vals.pop()
+                self._past_profile_deposit_phase.pop()
+                self._past_profile_deposit_time.pop()
             else:
                 return
 
@@ -947,20 +959,55 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                     self._wake_function_vals[prof_ind]
                 )
             # now that everything is initialized, same operation for all arrays
+            need_rotation = (
+                self.delta_f is not None and self._active_omega is not None
+            )
+            wake_quadrature = (
+                backend.zeros_like(self._wake_function_vals[prof_ind])
+                if need_rotation
+                else None
+            )
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
+                # exclusive OR, only if directionality of current profile and past profile differ,
+                # its actually counter-rotating
+                # first one is always corotating, as it's the one of the current turn
+                is_counter_rotating = (
+                    self._past_profiles_counter_rotation_flag[prof_ind]
+                    ^ self._past_profiles_counter_rotation_flag[0]
+                )
                 self._wake_function_vals[prof_ind] += (
                     source.get_wake_counter_rotation(
                         self._wake_function_time[prof_ind]
                     )
-                    if (
-                        self._past_profiles_counter_rotation_flag[prof_ind]
-                        ^ self._past_profiles_counter_rotation_flag[0]
-                    )
+                    if is_counter_rotating
                     else source.get_wake(self._wake_function_time[prof_ind])
                 )
-                # exclusive OR, only if directionality of current profile and past profile differ,
-                # its actually counter-rotating
-                # first one is always corotating, as it's the one of the current turn
+                if need_rotation:
+                    wake_quadrature += (
+                        source.get_wake_counter_rotation_quadrature(
+                            self._wake_function_time[prof_ind]
+                        )
+                        if is_counter_rotating
+                        else source.get_wake_quadrature(
+                            self._wake_function_time[prof_ind]
+                        )
+                    )
+            if need_rotation:
+                # Rotate the carried wake by the phase the retuned (ramping)
+                # cavity accrues beyond evaluating it at the current frequency:
+                # delta_phi = integral(omega dt) - omega_now * elapsed. It is
+                # zero with no acceleration (omega constant) and for the current
+                # pass, so single-pass / static behaviour is unchanged.
+                delta_phi = (
+                    self._phase_clock
+                    - self._past_profile_deposit_phase[prof_ind]
+                ) - self._active_omega * (
+                    self._last_reference_time
+                    - self._past_profile_deposit_time[prof_ind]
+                )
+                self._wake_function_vals[prof_ind] = self._wake_function_vals[
+                    prof_ind
+                ] * np.cos(delta_phi) - wake_quadrature * np.sin(delta_phi)
 
     def _update_potential_sources(self, beam: BeamBaseClass) -> None:
         """
@@ -974,7 +1021,14 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         beam
             Beam class to interact with this element.
         """
-        self._update_past_profile_times_wake_times(beam.reference.time)
+        current_time = beam.reference.time
+        # Integrate omega dt over the interval just elapsed, at the frequency
+        # that was active during it (set at the previous retuning).
+        if self._active_omega is not None:
+            self._phase_clock += self._active_omega * (
+                current_time - self._last_reference_time
+            )
+        self._update_past_profile_times_wake_times(current_time)
         self._remove_fully_decayed_wake_profiles()
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles
@@ -999,6 +1053,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_profiles_counter_rotation_flag.appendleft(
             beam.is_counter_rotating
         )
+        self._past_profile_deposit_phase.appendleft(self._phase_clock)
+        self._past_profile_deposit_time.appendleft(current_time)
         # Retune the resonator to track the (accelerating) beam's RF design
         # frequency, offset by delta_f. Only done when delta_f was explicitly
         # given; otherwise the resonator keeps its configured centre frequency
@@ -1015,6 +1071,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 )
                 / (2 * np.pi)
                 + self.delta_f
+            )
+            # Remember the now-active angular frequency for the phase clock.
+            self._active_omega = float(
+                self._parent_wakefield.sources[0]._omega[0]
             )
         self._update_past_profile_wake_functions()
 

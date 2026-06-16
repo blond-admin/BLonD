@@ -1348,6 +1348,12 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
             [False, False, False]
         )
+        self.multi_pass_resonator_solver._past_profile_deposit_phase = deque(
+            [0.0, 1.0, 2.0]
+        )
+        self.multi_pass_resonator_solver._past_profile_deposit_time = deque(
+            [0.0, 1.0, 2.0]
+        )
 
         self.multi_pass_resonator_solver._maximum_storage_time = 1.0
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
@@ -1359,6 +1365,10 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == len(self.multi_pass_resonator_solver._wake_function_time)
             == len(self.multi_pass_resonator_solver._past_profile_times)
             == len(self.multi_pass_resonator_solver._past_profiles)
+            == len(
+                self.multi_pass_resonator_solver._past_profile_deposit_phase
+            )
+            == len(self.multi_pass_resonator_solver._past_profile_deposit_time)
             == 2
         )
         # check correct values in both elements --> to ensure last one got kicked
@@ -1427,6 +1437,12 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
             [False, False, False]
         )
+        self.multi_pass_resonator_solver._past_profile_deposit_phase = deque(
+            [0.0, 1.0, 2.0]
+        )
+        self.multi_pass_resonator_solver._past_profile_deposit_time = deque(
+            [0.0, 1.0, 2.0]
+        )
 
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
             indexes_to_check=2
@@ -1436,6 +1452,10 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == len(self.multi_pass_resonator_solver._wake_function_time)
             == len(self.multi_pass_resonator_solver._past_profile_times)
             == len(self.multi_pass_resonator_solver._past_profiles)
+            == len(
+                self.multi_pass_resonator_solver._past_profile_deposit_phase
+            )
+            == len(self.multi_pass_resonator_solver._past_profile_deposit_time)
             == 1
         )
         # check correct values in both elements --> to ensure last one got kicked
@@ -1485,6 +1505,12 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
             [False, False, False]
         )
+        self.multi_pass_resonator_solver._past_profile_deposit_phase = deque(
+            [0.0, 1.0, 2.0]
+        )
+        self.multi_pass_resonator_solver._past_profile_deposit_time = deque(
+            [0.0, 1.0, 2.0]
+        )
 
         self.multi_pass_resonator_solver._maximum_storage_time = 2.0
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
@@ -1495,6 +1521,10 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == len(self.multi_pass_resonator_solver._wake_function_time)
             == len(self.multi_pass_resonator_solver._past_profile_times)
             == len(self.multi_pass_resonator_solver._past_profiles)
+            == len(
+                self.multi_pass_resonator_solver._past_profile_deposit_phase
+            )
+            == len(self.multi_pass_resonator_solver._past_profile_deposit_time)
             == 2
         )
         # check correct values in both elements --> to ensure last one got kicked
@@ -1568,6 +1598,12 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
         self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
             [False, False, False]
+        )
+        self.multi_pass_resonator_solver._past_profile_deposit_phase = deque(
+            [0.0, 1.0, 2.0]
+        )
+        self.multi_pass_resonator_solver._past_profile_deposit_time = deque(
+            [0.0, 1.0, 2.0]
         )
 
         self.multi_pass_resonator_solver._maximum_storage_time = 0.0
