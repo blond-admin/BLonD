@@ -66,6 +66,18 @@ class TestBackendBaseClass(unittest.TestCase):
         self.assertIs(self.backend_base_class.specials, specials_org)
 
     @pytest.mark.backend_mutation
+    def test_change_backend_rejects_instance(self) -> None:
+        # passing an instance instead of the class is the common mistake;
+        # the message must call that out explicitly
+        with self.assertRaisesRegex(TypeError, "not an instance"):
+            self.backend_base_class.change_backend(new_backend=Numpy64Bit())
+
+    @pytest.mark.backend_mutation
+    def test_change_backend_rejects_non_backend_class(self) -> None:
+        with self.assertRaisesRegex(TypeError, "subclass"):
+            self.backend_base_class.change_backend(new_backend=int)
+
+    @pytest.mark.backend_mutation
     def test_change_backend_keeps_specials_mode(self) -> None:
         class AnotherNumpy64Bit(Numpy64Bit):
             """Different class, to force a real backend change."""
