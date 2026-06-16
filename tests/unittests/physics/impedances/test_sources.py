@@ -356,6 +356,21 @@ class TestResonators(unittest.TestCase):
                 quality_factors=0.49,
             )
 
+    def test_init_mixed_input(self):
+        r_shunt = [1]
+        f = 400e6
+        qual = np.array([200])
+
+        self.resonators = Resonators(
+            shunt_impedances=r_shunt,
+            center_frequencies=f,
+            quality_factors=qual,
+        )
+
+        self.assertEqual(self.resonators._shunt_impedances[0], r_shunt[0])
+        self.assertEqual(self.resonators._center_frequencies[0], f)
+        self.assertEqual(self.resonators._quality_factors[0], qual[0])
+
     def test_get_impedance_pinned(self):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
