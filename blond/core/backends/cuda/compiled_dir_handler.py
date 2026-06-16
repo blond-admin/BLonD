@@ -10,9 +10,8 @@
 Shared cache-key for the compiled CUDA backend.
 
 The directory holding a compiled cubin must be located identically by the
-compiler (:mod:`blond.core.backends.cuda.compile`) and by the loader
-(:mod:`blond.core.backends.cuda.callables`); both therefore call
-:func:`cuda_compiled_dir`, the single source of truth for that path.
+compiler (``compile.py``) and by the loader (``callables.py``); both therefore
+call :func:`cuda_compiled_dir`, the single source of truth for that path.
 
 The key folds the CUDA toolchain version into the hash so a cubin built with
 one ``nvcc`` is never reused with an incompatible one. The target GPU

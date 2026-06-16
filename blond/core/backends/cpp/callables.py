@@ -19,6 +19,7 @@ import numpy as np
 
 from blond.core.backends.backend import Specials, backend
 from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
+from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
@@ -120,6 +121,11 @@ def reload_cpp_backend(  # NOQA: PLR0915
             raise ValueError(
                 f"Supporting 'win' and 'posix', not {sys.platform}."
             )
+
+        if not libblond_path_:
+            # Refresh the LRU stamp on the hashed cache dir we loaded from
+            # (skipped when an explicit LIBBLOND path bypassed it).
+            mark_used(basepath)
 
         return _LIBBLOND
 

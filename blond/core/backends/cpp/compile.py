@@ -18,6 +18,7 @@ import subprocess
 import sys
 
 from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
+from blond.generals.compiled_cache import mark_used, prune
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
@@ -123,6 +124,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     This function assumes the presence of a Makefile or equivalent build system
     capable of processing the supplied options.
     """
+    compiled_dir: str | None = None
     for parallel in (False, True):
         if parallel:
             print("\nTrying to compile parallel C++ backend.")
@@ -134,7 +136,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
 
             # Toolchain/CPU/flags-aware directory, computed identically by the
             # loader (callables.py) so it finds exactly what we build here.
-            target = cpp_compiled_dir(
+            compiled_dir = cpp_compiled_dir(
                 folder,
                 compiler=compiler,
                 optimize=optimize,
@@ -147,8 +149,8 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
                 with_fftw_header=with_fftw_header,
                 boost=boost,
             )
-            os.makedirs(target, exist_ok=True)
-            libname = os.path.join(target, default_libname)
+            os.makedirs(compiled_dir, exist_ok=True)
+            libname = os.path.join(compiled_dir, default_libname)
         # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
         #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
 
@@ -276,6 +278,13 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             except Exception as exception:
                 print("Compilation failed.")
                 print(exception)
+
+    # Record use of this build's directory and evict least-recently-used
+    # ones so the compiled/ tree (and the CI cache) stays bounded. Skipped
+    # when a custom libname bypassed the hashed directory layout.
+    if compiled_dir is not None:
+        mark_used(compiled_dir)
+        prune(os.path.dirname(compiled_dir))
 
 
 def _prepare_cflags(

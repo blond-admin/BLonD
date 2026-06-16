@@ -10,10 +10,9 @@
 Shared cache-key for the compiled C++ backend.
 
 The directory holding a compiled library must be located identically by the
-compiler (:mod:`blond.core.backends.cpp.compile`) and by the loader
-(:mod:`blond.core.backends.cpp.callables`); otherwise the loader cannot find
-what the compiler produced. Both therefore call :func:`cpp_compiled_dir`,
-which is the single source of truth for that path.
+compiler (``compile.py``) and by the loader (``callables.py``); otherwise the
+loader cannot find what the compiler produced. Both therefore call
+:func:`cpp_compiled_dir`, which is the single source of truth for that path.
 
 The key folds the build environment into the hash so a binary built for one
 toolchain/CPU/flag set is never reused on an incompatible one (a
