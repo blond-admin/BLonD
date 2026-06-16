@@ -15,7 +15,10 @@ import os
 import subprocess
 from typing import TYPE_CHECKING
 
-from blond.generals.hashing_ import hash_in_folder
+from blond.core.backends.cuda.compiled_dir_handler import (
+    cuda_compiled_dir,
+    resolve_nvcc,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -77,23 +80,17 @@ def compile_cuda_library(  # NOQA: PLR0915
 
     folder = os.path.dirname(os.path.abspath(__file__))
 
-    hash_ = hash_in_folder(
-        folder=folder,
-        extensions=(".py", ".cu"),
-        recursive=False,
-    )
-    target = os.path.join(folder, "compiled", hash_)
+    nvcc = resolve_nvcc()
+
+    # Toolchain-aware directory, computed identically by the loader
+    # (callables.py) so it finds exactly what we build here. Call with the
+    # default nvcc (same as the loader) to share the memoised entry.
+    target = cuda_compiled_dir(folder)
     os.makedirs(target, exist_ok=True)
 
     # The CUDA library name, without the file extension.
     cuda_libname = os.path.join(target, "kernels")
 
-    nvcc = "nvcc"
-
-    # Get nvcc from CUDA_PATH
-    cuda_path = os.getenv("CUDA_PATH", default="")
-    if cuda_path != "":
-        nvcc = cuda_path + "/bin/nvcc"
     import cupy as cp  # type: ignore # NOQA must be installed to be compiled / force exception
 
     # if something is wrong with the installation
@@ -138,6 +135,12 @@ def compile_cuda_library(  # NOQA: PLR0915
     print("CuPy location: ", cupyloc)
 
     libname_double = cuda_libname + f"_sm_{compute_capability_}_double.cubin"
+    # Reuse a previously built cubin when present: it lives in a
+    # toolchain-keyed `compiled/<hash>/` dir and its filename encodes the
+    # exact target GPU arch, so an existing file is guaranteed compatible.
+    if os.path.isfile(libname_double):
+        print(f"Reusing cached CUDA library: {libname_double}")
+        return
     command = (
         [nvcc]
         + nvcc_flags

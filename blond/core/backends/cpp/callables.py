@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials, backend
-from blond.generals.hashing_ import hash_in_folder
+from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
 
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
@@ -93,12 +93,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         folder = os.path.dirname(os.path.abspath(__file__))
 
-        hash_ = hash_in_folder(
-            folder=folder,
-            extensions=(".py", ".h", ".cpp"),
-            recursive=False,
-        )
-        basepath = os.path.join(folder, "compiled", hash_)
+        # Same toolchain/CPU-aware directory the compiler writes to.
+        basepath = cpp_compiled_dir(folder)
         if "posix" in os.name:
             if libblond_path_:
                 libblond_path = os.path.abspath(libblond_path_)

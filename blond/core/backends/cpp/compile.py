@@ -17,7 +17,7 @@ import platform
 import subprocess
 import sys
 
-from blond.generals.hashing_ import hash_in_folder
+from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
@@ -132,12 +132,21 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         if libname is None:
             folder = os.path.dirname(os.path.abspath(__file__))
 
-            hash_ = hash_in_folder(
-                folder=folder,
-                extensions=(".py", ".h", ".cpp"),
-                recursive=False,
+            # Toolchain/CPU/flags-aware directory, computed identically by the
+            # loader (callables.py) so it finds exactly what we build here.
+            target = cpp_compiled_dir(
+                folder,
+                compiler=compiler,
+                optimize=optimize,
+                flags=flags,
+                libs=libs,
+                with_fftw=with_fftw,
+                with_fftw_threads=with_fftw_threads,
+                with_fftw_omp=with_fftw_omp,
+                with_fftw_lib=with_fftw_lib,
+                with_fftw_header=with_fftw_header,
+                boost=boost,
             )
-            target = os.path.join(folder, "compiled", hash_)
             os.makedirs(target, exist_ok=True)
             libname = os.path.join(target, default_libname)
         # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
@@ -231,6 +240,15 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
 
         print("Compiler flags: ", " ".join(cflags))
         print("Extra libraries: ", " ".join(libs_))
+
+        # Reuse a previously built library when present. This is only safe
+        # because `libname_double` lives in a `compiled/<hash>/` dir whose
+        # hash encodes the toolchain and host CPU (see `cpp_compiled_dir`):
+        # an existing binary here was built for an identical environment, so
+        # it cannot be an incompatible-CPU artifact.
+        if os.path.isfile(libname_double):
+            print(f"Reusing cached C++ library: {libname_double}")
+            continue
 
         command = (
             [compiler]
@@ -448,16 +466,6 @@ def main_cli() -> None:
     """Parse arguments from command line."""
     parser = argparse.ArgumentParser(
         description="Script used to compile the C++ libraries needed by BLonD.",
-    )
-
-    parser.add_argument(  # todo remove everywhere
-        "-p",
-        "--parallel",
-        action="store_true",
-        help="Produce Multi-threaded code. Use the environment"
-        " variable OMP_NUM_THREADS=xx to control the number of"
-        " threads that will be used."
-        " Default: Serial code",
     )
 
     parser.add_argument(
