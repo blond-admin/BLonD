@@ -75,13 +75,14 @@ def cpp_compiled_dir(
     folder
         The backend source folder (the directory of this module).
     compiler
-        The C++ compiler whose identity and target ISA are folded into the
+        The C++ compiler whose identity and target CPU instruction set (the
+        instructions ``-march=native`` enables, e.g. AVX2) are folded into the
         hash. Must match between compile time and load time.
     optimize
         Whether the optimised (``-march=native``) build is requested. When
-        true the host ISA is folded in (so a native binary is never reused on
-        a CPU lacking those instructions); when false it is not, so a portable
-        build can be shared across CPUs.
+        true the host CPU's instruction set is folded in (so a native binary
+        is never reused on a CPU lacking those instructions); when false it is
+        not, so a portable build can be shared across CPUs.
     flags, libs
         Caller-supplied extra compiler flags / link libraries.
     with_fftw, with_fftw_threads, with_fftw_omp, with_fftw_lib, with_fftw_header
@@ -100,9 +101,9 @@ def cpp_compiled_dir(
         [compiler, "--version"],
     ]
     if optimize:
-        # Target ISA: `-march=native` resolves to different instruction sets
-        # per host; this dump records exactly which ones are enabled so the
-        # binary is never reused on a CPU lacking them.
+        # Target CPU instruction set: `-march=native` enables different
+        # instructions per host; this dump records exactly which ones are
+        # enabled so the binary is never reused on a CPU lacking them.
         probe_commands.append(
             [compiler, "-march=native", "-dM", "-E", "-xc", "-"]
         )

@@ -38,8 +38,8 @@ from pathlib import Path
 _META_NAME = "meta.json"
 
 # How many ``compiled/<hash>/`` directories to retain. Overridable via the
-# ``BLOND_COMPILED_CACHE_KEEP`` environment variable (e.g. in CI).
-DEFAULT_KEEP = int(os.environ.get("BLOND_COMPILED_CACHE_KEEP", "100"))
+# ``BLOND_COMPILED_CACHE_KEEP_N`` environment variable (e.g. in CI).
+DEFAULT_KEEP_N = int(os.environ.get("BLOND_COMPILED_CACHE_KEEP_N", "100"))
 
 
 def _now() -> str:
@@ -105,15 +105,15 @@ def _last_used(directory: str) -> float:
             return 0.0
 
 
-def prune_siblings(active_dir: str, keep: int = DEFAULT_KEEP) -> None:
+def prune_siblings(active_dir: str, keep_n: int = DEFAULT_KEEP_N) -> None:
     """
     Evict least-recently-used sibling directories of ``active_dir``.
 
     ``active_dir`` is the ``compiled/<hash>`` directory just built or loaded;
     it is **never** removed. Among its siblings (the other ``<hash>``
     directories in the same ``compiled/`` parent) the most-recently-used are
-    retained and the older ones removed, so that at most ``keep`` directories
-    remain in total (the active one plus the ``keep - 1`` freshest siblings).
+    retained and the older ones removed, so that at most ``keep_n`` directories
+    remain in total (the active one plus the ``keep_n - 1`` freshest siblings).
 
     Best-effort: a directory that cannot be removed (for instance a library
     still loaded by another process, which Windows locks) is skipped and
@@ -124,7 +124,7 @@ def prune_siblings(active_dir: str, keep: int = DEFAULT_KEEP) -> None:
     active_dir
         The ``compiled/<hash>`` directory currently in use; protected from
         eviction. Its parent is the ``compiled/`` directory being pruned.
-    keep
+    keep_n
         Maximum number of directories to retain in total (``>= 1``).
     """
     active = Path(active_dir)
@@ -136,7 +136,7 @@ def prune_siblings(active_dir: str, keep: int = DEFAULT_KEEP) -> None:
         ]
     except OSError:
         return
-    keep_siblings = max(keep - 1, 0)  # reserve one slot for the active dir
+    keep_siblings = max(keep_n - 1, 0)  # reserve one slot for the active dir
     if len(siblings) <= keep_siblings:
         return
     siblings.sort(key=_last_used, reverse=True)  # newest first

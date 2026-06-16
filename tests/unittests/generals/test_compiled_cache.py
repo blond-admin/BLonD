@@ -57,24 +57,24 @@ class TestPrune:
 
     def test_keeps_active_plus_most_recently_used_siblings(self, tmp_path):
         # hash00 oldest ... hash04 newest. Prune around hash04 (the active
-        # one) with keep=2 -> active + 1 freshest sibling survive.
+        # one) with keep_n=2 -> active + 1 freshest sibling survive.
         self._make_dirs(tmp_path, 5)
-        compiled_cache.prune_siblings(str(tmp_path / "hash04"), keep=2)
+        compiled_cache.prune_siblings(str(tmp_path / "hash04"), keep_n=2)
         remaining = sorted(p.name for p in tmp_path.iterdir() if p.is_dir())
         assert remaining == ["hash03", "hash04"]
 
     def test_active_dir_never_evicted_even_when_oldest(self, tmp_path):
         # hash00 is the *oldest* but is the active dir -> must survive; the
-        # single freshest sibling is the only other kept (keep=2).
+        # single freshest sibling is the only other kept (keep_n=2).
         self._make_dirs(tmp_path, 5)
-        compiled_cache.prune_siblings(str(tmp_path / "hash00"), keep=2)
+        compiled_cache.prune_siblings(str(tmp_path / "hash00"), keep_n=2)
         remaining = sorted(p.name for p in tmp_path.iterdir() if p.is_dir())
         assert "hash00" in remaining  # active, oldest, still kept
         assert remaining == ["hash00", "hash04"]
 
     def test_noop_when_under_limit(self, tmp_path):
         self._make_dirs(tmp_path, 3)
-        compiled_cache.prune_siblings(str(tmp_path / "hash00"), keep=20)
+        compiled_cache.prune_siblings(str(tmp_path / "hash00"), keep_n=20)
         assert sum(1 for p in tmp_path.iterdir() if p.is_dir()) == 3
 
     def test_unstamped_siblings_evicted_first(self, tmp_path):
@@ -84,9 +84,9 @@ class TestPrune:
         active.mkdir()
         legacy = tmp_path / "legacy"
         legacy.mkdir()
-        compiled_cache.prune_siblings(str(active), keep=1)
+        compiled_cache.prune_siblings(str(active), keep_n=1)
         assert active.exists()
         assert not legacy.exists()
 
     def test_never_raises_on_missing_dir(self):
-        compiled_cache.prune_siblings("/nonexistent/root/active", keep=5)
+        compiled_cache.prune_siblings("/nonexistent/root/active", keep_n=5)

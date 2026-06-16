@@ -134,7 +134,8 @@ def hash_build_target(
     * any ``extra`` strings -- e.g. caller-supplied compiler flags or the GPU
       compute capability.
 
-    A different compiler version, target ISA/CPU, CUDA version or flag set
+    A different compiler version, target CPU instruction set, CUDA version
+    or flag set
     therefore yields a different digest, hence a different
     ``compiled/<digest>/`` directory and a rebuild -- never an unsafe reuse of
     a binary built for an incompatible machine. This is what makes a shared
@@ -183,7 +184,8 @@ def hash_build_target(
                 list(command),
                 # Empty stdin: probes like `gcc -dM -E -xc -` read from
                 # stdin; feeding "" makes them emit the predefined macros
-                # (the target ISA) and return promptly instead of blocking.
+                # (which CPU instruction sets, e.g. AVX2, are enabled) and
+                # return promptly instead of blocking.
                 input=b"",
                 capture_output=True,
                 check=False,

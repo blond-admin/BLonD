@@ -293,7 +293,7 @@ def _prepare_cflags(
     libname: str,
     optimize: bool,
     parallel: bool,
-) -> tuple[list[str], str, str]:
+) -> tuple[list[str], str]:
     """
     Prepare compiler flags and library names.
 

@@ -110,6 +110,37 @@ class TestCppCacheRendezvous:
             folder, compiler="g++"
         ) != lc.cpp_compiled_dir(folder, compiler="gcc")
 
+    def test_defaults_match_compile_cpp_library(self):
+        # The loader computes the cache dir from cpp_compiled_dir's *default*
+        # build parameters; the compiler passes compile_cpp_library's. If a
+        # default drifts between the two, a default build would silently land
+        # in a directory the loader never looks in. Guard against that.
+        import inspect
+
+        from blond.core.backends.cpp import compiled_dir_handler as lc
+        from blond.core.backends.cpp.compile import compile_cpp_library
+
+        dir_params = inspect.signature(lc.cpp_compiled_dir).parameters
+        build_params = inspect.signature(compile_cpp_library).parameters
+        shared = [
+            "compiler",
+            "optimize",
+            "flags",
+            "libs",
+            "with_fftw",
+            "with_fftw_threads",
+            "with_fftw_omp",
+            "with_fftw_lib",
+            "with_fftw_header",
+            "boost",
+        ]
+        for name in shared:
+            assert dir_params[name].default == build_params[name].default, (
+                f"default for {name!r} drifted between cpp_compiled_dir and "
+                f"compile_cpp_library; the default build would no longer "
+                f"rendezvous with the loader"
+            )
+
     def test_caller_flags_change_dir(self):
         # Caller-supplied build parameters must land in a distinct directory
         # so a custom-flag binary never collides with the default one.
