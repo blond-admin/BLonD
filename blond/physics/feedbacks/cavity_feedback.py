@@ -1720,6 +1720,9 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             external_reference=True,
             dT=remaining_delta_t_from_reverse_tracking,
             phi_s=self._parent_rf_station.calc_phi_s_main_harmonic(beam=beam),
+            # The fine-grid initial antenna voltage is taken from the first
+            # coarse cell (see circuit_track), so it must stay charge-free.
+            forbid_charge_in_first_coarse_cell=True,
         )  # TODO: this is wrong --> adjust to rf_centers calculation
 
         # Convert RF beam currents to be in units of Amperes

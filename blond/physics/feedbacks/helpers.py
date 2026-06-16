@@ -60,7 +60,8 @@ def low_pass_filter(
     return scipy.signal.filtfilt(b, a, signal)
 
 
-def rf_beam_current(
+# TODO: split this function into helpers and remove the PLR0912 noqa
+def rf_beam_current(  # noqa: PLR0912
     beam: BeamBaseClass,
     profile: StaticProfile,
     omega_c: float,
@@ -70,7 +71,8 @@ def rf_beam_current(
     external_reference: bool = True,
     dT: float = 0,
     phi_s: float = 0,
-) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
+    forbid_charge_in_first_coarse_cell: bool = False,
+) -> NumpyArray | tuple[NumpyArray, NumpyArray]:  # noqa: PLR0912
     r"""
     Calculate the beam charge at the carrier frequency slice by slice.
 
@@ -128,6 +130,12 @@ def rf_beam_current(
         The shift in time due to shifting reference frames.
     phi_s : float
         Dummy.
+    forbid_charge_in_first_coarse_cell : bool
+        If True, raise a ``ValueError`` when the downsampling assigns beam
+        charge to the first coarse-grid cell. Callers that take the
+        fine-grid initial antenna voltage from that cell (e.g.
+        ``IQCavityFeedbackTimingClass``) must keep it charge-free, since a
+        populated first cell would double-count its kick.
 
     Returns
     -------
@@ -137,6 +145,22 @@ def rf_beam_current(
         If time_coarse is specified, returns also the RF beam charge array [C]
         on the coarse time grid.
     """
+    # Warn before anything else if the profile does not capture the whole
+    # beam (particle loss or particles outside the profile window): the
+    # missing charge is invisible to the feedback and will not be treated.
+    if profile.hist_y_to_density_factor is not None:
+        captured_fraction = float(
+            np.sum(profile.hist_y) * profile.hist_y_to_density_factor
+        )
+        if not np.isclose(captured_fraction, 1.0, rtol=0, atol=1e-6):
+            warnings.warn(
+                f"Only {captured_fraction:.6f} of the beam's macroparticles "
+                "are inside the profile window (particle loss or particles "
+                "outside the window). Their charge is invisible to the "
+                "feedback and will not be treated correctly.",
+                stacklevel=2,
+            )
+
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
     # charges = (
@@ -238,6 +262,19 @@ def rf_beam_current(
             charges_coarse[(len(indices) + ind_fine[0]) % n_points] = np.sum(
                 charges_fine[indices[-1] :]
             )
+        if forbid_charge_in_first_coarse_cell:
+            # Relative threshold: far Gaussian tails are non-zero in float
+            # arithmetic (~1e-100) without being physically populated.
+            total_charge = np.sum(np.abs(charges_fine))
+            if np.abs(charges_coarse[0]) > 1e-9 * total_charge:
+                raise ValueError(
+                    "Beam charge was downsampled into the first coarse-grid "
+                    "cell. The fine-grid initial antenna voltage is taken "
+                    "from this cell, so its beam kick would be "
+                    "double-counted by the fine grid. Shift the profile "
+                    "window (cut_left) or the bunch so that no charge lies "
+                    "in the first coarse cell."
+                )
         # print(np.angle(charges_coarse[1], deg=True))
         return charges_fine, charges_coarse
 

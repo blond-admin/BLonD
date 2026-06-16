@@ -13,6 +13,7 @@ no full ``Simulation`` -- with small mock objects.
 """
 
 import unittest
+import warnings
 from typing import Literal
 
 import matplotlib.pyplot as plt
@@ -405,6 +406,183 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
             v_convolution,
         )
         self.assertLess(err_second, err_first / 50.0)
+
+
+class TestRfBeamCurrentDownsampling(unittest.TestCase):
+    """
+    Charge conservation of the coarse-grid downsampling in rf_beam_current.
+
+    Regression test for a dropped remainder in the ``downsample`` branch of
+    :func:`blond.physics.feedbacks.helpers.rf_beam_current`: all demodulated
+    charge after the last coarse-cell boundary used to be silently discarded
+    -- up to the *whole* bunch, depending on how the bunch sits relative to
+    the cell boundaries (in the multi-turn comparison it was ~45 % with a
+    ~25 deg rotated phase centroid). That corrupted the coarse-grid beam
+    loading and every quantity propagated from it across turns, while the
+    fine grid (and with it every single-turn comparison) stayed correct.
+
+    The invariant under test: re-binning the fine-grid demodulated charge
+    onto the coarse grid must count every fine bin exactly once, so the
+    complex sums of both arrays must be identical -- wherever the cell
+    boundaries fall relative to the bunch.
+    """
+
+    def setUp(self):
+        """Set up RF and downsampling parameters."""
+        self.t_rf = 1.0e-9
+        self.omega_rf = 2.0 * np.pi / self.t_rf
+        self.intensity = 2.7e12
+        self.n_slices = 1024
+        # Coarse cells of one RF period each, RCS1-like cell count.
+        self.n_points_coarse = 25900
+
+    def _profile_with_bunch_at(self, window_fraction: float) -> StaticProfile:
+        """
+        A narrow Gaussian bunch centered at a given fraction of the window.
+
+        Parameters
+        ----------
+        window_fraction
+            Bunch-center position as a fraction of the profile window
+            (0 = left edge, 1 = right edge).
+
+        Returns
+        -------
+        StaticProfile
+            Profile with the bunch at the requested position.
+        """
+        profile = StaticProfile.from_rad(
+            np.pi * 1.5, np.pi * 4.5, self.n_slices, self.t_rf
+        )
+        t = profile.hist_x
+        t0 = t[0] + window_fraction * (t[-1] - t[0])
+        hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.t_rf)) ** 2)
+        hist_y[:5] = 0.0
+        hist_y[-5:] = 0.0
+        profile._hist_y = hist_y
+        profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+        return profile
+
+    def test_downsampling_conserves_demodulated_charge(self):
+        """
+        The coarse-grid re-binning conserves the total demodulated charge.
+
+        The window spans 1.5 RF periods, i.e. it crosses coarse-cell
+        boundaries (here at 1.0 and 2.0 t_rf). The swept bunch positions
+        cover every downsampling segment: fully in the *leading* segment
+        before the first boundary (0.08), straddling the first boundary
+        (0.2), mid-window inside a cell (0.5) -- all conserved even pre-fix,
+        since only charge past the *last* boundary was dropped -- and fully
+        in the *trailing* segment after the last boundary (0.9), where
+        pre-fix all of the bunch charge was silently discarded.
+        """
+        for window_fraction in (0.08, 0.2, 0.5, 0.9):
+            with self.subTest(window_fraction=window_fraction):
+                profile = self._profile_with_bunch_at(window_fraction)
+                charges_fine, charges_coarse = rf_beam_current(
+                    beam=StubBeam(self.intensity),
+                    profile=profile,
+                    omega_c=self.omega_rf,
+                    T_rev=self.t_rf,
+                    use_lowpass_filter=False,
+                    external_reference=True,
+                    dT=0.0,
+                    downsample={
+                        "Ts": self.t_rf,
+                        "points": self.n_points_coarse,
+                    },
+                )
+                sum_fine = np.sum(charges_fine)
+                sum_coarse = np.sum(charges_coarse)
+                # Guard against a vacuous comparison.
+                self.assertGreater(np.abs(sum_fine), 0.0)
+                np.testing.assert_allclose(sum_coarse, sum_fine, rtol=1e-9)
+
+    def _downsampled(self, profile, **kwargs):
+        """
+        Call rf_beam_current with the standard downsampling arguments.
+
+        Parameters
+        ----------
+        profile
+            Static profile to demodulate.
+        **kwargs
+            Extra keyword arguments forwarded to ``rf_beam_current``.
+
+        Returns
+        -------
+        charges_fine
+            Demodulated charge on the fine grid.
+        charges_coarse
+            Demodulated charge on the coarse grid.
+        """
+        return rf_beam_current(
+            beam=StubBeam(self.intensity),
+            profile=profile,
+            omega_c=self.omega_rf,
+            T_rev=self.t_rf,
+            use_lowpass_filter=False,
+            external_reference=True,
+            dT=0.0,
+            downsample={"Ts": self.t_rf, "points": self.n_points_coarse},
+            **kwargs,
+        )
+
+    def test_error_when_first_coarse_cell_populated(self):
+        """
+        Charge in the first coarse cell raises when forbidden.
+
+        The fine-grid initial antenna voltage of
+        ``IQCavityFeedbackTimingClass`` is taken from the first coarse cell
+        (see ``circuit_track``), so beam charge there would be
+        double-counted; the class therefore calls ``rf_beam_current`` with
+        ``forbid_charge_in_first_coarse_cell=True``. A bunch early in the
+        window (before the first cell boundary) populates exactly that cell.
+        """
+        profile = self._profile_with_bunch_at(0.08)
+        with self.assertRaises(ValueError) as cm:
+            self._downsampled(profile, forbid_charge_in_first_coarse_cell=True)
+        self.assertIn("first coarse-grid cell", str(cm.exception))
+
+    def test_no_error_when_first_coarse_cell_empty(self):
+        """
+        A mid-window bunch leaves the first cell numerically empty.
+
+        The far Gaussian tail is non-zero in float arithmetic (~1e-100), so
+        the guard must use a relative threshold rather than ``!= 0``.
+        """
+        profile = self._profile_with_bunch_at(0.5)
+        charges_fine, charges_coarse = self._downsampled(
+            profile, forbid_charge_in_first_coarse_cell=True
+        )
+        self.assertLess(
+            np.abs(charges_coarse[0]),
+            1e-9 * np.sum(np.abs(charges_fine)),
+        )
+        self.assertGreater(np.abs(np.sum(charges_fine)), 0.0)
+
+    def test_warns_on_particle_loss(self):
+        """
+        Warn when the profile does not capture the whole beam.
+
+        Particles lost or outside the profile window are invisible to the
+        feedback's beam current; ``rf_beam_current`` must warn about them
+        before anything else. Modeled by a density factor corresponding to
+        only half of the macroparticles being inside the window.
+        """
+        profile = self._profile_with_bunch_at(0.5)
+        profile.hist_y_to_density_factor = 0.5 / np.sum(profile.hist_y)
+        with self.assertWarns(UserWarning) as cm:
+            self._downsampled(profile)
+        self.assertIn("not be treated correctly", str(cm.warning))
+
+    def test_no_warning_when_profile_captures_full_beam(self):
+        """No particle-loss warning when the window captures everything."""
+        profile = self._profile_with_bunch_at(0.5)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self._downsampled(profile)
+        self.assertEqual(caught, [])
 
 
 if __name__ == "__main__":
