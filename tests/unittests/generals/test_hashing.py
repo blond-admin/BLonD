@@ -204,16 +204,31 @@ class TestHashFilesNameHandling:
 
 
 class TestHashInFolderWindows:
-    def test_windows_lowercasing_branch(self, tmp_path):
-        # Exercise the case-insensitive (Windows) lowercasing branch. The
-        # lowercased path is also used to *open* the file, so this can only be
-        # forced on a case-sensitive CI filesystem with an already-lowercase
-        # name (a mixed-case name only resolves on the real case-insensitive
-        # Windows filesystem, where the branch genuinely runs). Assert it
-        # executes and stays deterministic.
-        (tmp_path / "a.py").write_text("x = 1\n")
-        with mock.patch("platform.system", return_value="Windows"):
-            h1 = hash_in_folder(str(tmp_path), (".py",))
-            h2 = hash_in_folder(str(tmp_path), (".py",))
-        assert h1 == h2
-        assert len(h1) == 64  # valid sha-256 hex digest
+    def test_windows_lowercases_paths_and_base(self, tmp_path):
+        # On Windows the file paths AND the base folder are lower-cased before
+        # being folded into the digest (the filesystem is case-insensitive).
+        # Verify that lowercasing without depending on the filesystem: mock
+        # hash_files to capture what hash_in_folder hands it. (Forcing the real
+        # code path on a case-sensitive CI would fail, because it also *opens*
+        # the lowercased path -- which only resolves on real Windows.)
+        sub = tmp_path / "MixedCaseDir"
+        sub.mkdir()
+        (sub / "Kernel.py").write_text("x = 1\n")
+
+        captured = {}
+
+        def fake_hash_files(paths, base_folder=None):
+            captured["paths"] = list(paths)
+            captured["base_folder"] = base_folder
+            return "0" * 64
+
+        with (
+            mock.patch("platform.system", return_value="Windows"),
+            mock.patch("blond.generals.hashing_.hash_files", fake_hash_files),
+        ):
+            hash_in_folder(str(sub), (".py",))
+
+        assert captured["paths"] == [p.lower() for p in captured["paths"]]
+        assert captured["base_folder"] == captured["base_folder"].lower()
+        # not vacuously true: the mixed-case input really was lower-cased
+        assert captured["paths"][0].endswith("kernel.py")
