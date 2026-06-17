@@ -462,16 +462,16 @@ class TestResonators(unittest.TestCase):
             0, len(self.resonators._shunt_impedances)
         ):  # has to be single resonator, otherwise overlaps will occur
             local_res = Resonators(
-                shunt_impedances=np.array(
+                shunt_impedances=backend.array(
                     [self.resonators._shunt_impedances[freq_ind]]
                 ),
-                center_frequencies=np.array(
+                center_frequencies=backend.array(
                     [self.resonators._center_frequencies[freq_ind]]
                 ),
-                quality_factors=np.array(
+                quality_factors=backend.array(
                     [self.resonators._quality_factors[freq_ind]]
                 ),
-                shunt_impedances_counter_rotating=np.array(
+                shunt_impedances_counter_rotating=backend.array(
                     [-self.resonators._shunt_impedances[freq_ind]]
                 ),
             )
@@ -579,9 +579,9 @@ class TestResonators(unittest.TestCase):
             self.resonators._shunt_impedances[0],
         )
         res = Resonators(
-            shunt_impedances=np.array([shut_imp]),
-            center_frequencies=np.array([freq]),
-            quality_factors=np.array([q_factor]),
+            shunt_impedances=backend.array([shut_imp]),
+            center_frequencies=backend.array([freq]),
+            quality_factors=backend.array([q_factor]),
         )  # high Q to avoid smearing of frequency --> minimum getting
         time = backend.linspace(-1e-9, 1.5e-9, 751, dtype=float)
         print(time[300])
@@ -657,10 +657,10 @@ class TestResonators(unittest.TestCase):
             self.resonators._shunt_impedances[0],
         )
         res = Resonators(
-            shunt_impedances=np.array([shut_imp]),
-            center_frequencies=np.array([freq]),
-            quality_factors=np.array([q_factor]),
-            shunt_impedances_counter_rotating=np.array([-shut_imp]),
+            shunt_impedances=backend.array([shut_imp]),
+            center_frequencies=backend.array([freq]),
+            quality_factors=backend.array([q_factor]),
+            shunt_impedances_counter_rotating=backend.array([-shut_imp]),
         )  # high Q to avoid smearing of frequency --> minimum getting
         time = backend.linspace(-1e-9, 1.5e-9, 751)
 
@@ -811,7 +811,7 @@ class TestResonators(unittest.TestCase):
             ),
         )  # values chosen such that they are easily reproducible in test of test_get_impedance
 
-        freq = np.linspace(0, 4 * 1e9, 1000)
+        freq = backend.linspace(0, 4 * 1e9, 1000)
         imp = copy_to_cpu(
             resonators.get_impedance(backend.array(freq), None, None, False)
         )
@@ -830,13 +830,13 @@ class TestResonators(unittest.TestCase):
             plt.show()
 
         np.testing.assert_allclose(
-            imp.real,
-            imp2.real,
+            copy_to_cpu(imp.real),
+            copy_to_cpu(imp2.real),
             **allclose_tolerances(imp.real),
         )
         np.testing.assert_allclose(
-            imp.imag,
-            imp2.imag,
+            copy_to_cpu(imp.imag),
+            copy_to_cpu(imp2.imag),
             **allclose_tolerances(imp.imag),
         )
 
