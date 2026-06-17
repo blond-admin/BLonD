@@ -37,6 +37,30 @@ class TestMarkUsed:
         # A non-existent directory must not raise (best-effort bookkeeping).
         compiled_cache.mark_used("/nonexistent/dir/xyz")
 
+    def test_corrupt_meta_is_replaced(self, tmp_path):
+        # A garbled meta.json must not crash: it is discarded and rewritten
+        # with fresh, valid stamps.
+        (tmp_path / "meta.json").write_text("{ this is not json")
+        compiled_cache.mark_used(str(tmp_path))
+        meta = _meta(tmp_path)
+        assert "built_at" in meta
+        assert "last_used" in meta
+
+
+class TestLastUsed:
+    def test_missing_dir_sorts_oldest(self):
+        # Neither meta.json nor an mtime is available -> the fallback key 0.0
+        # makes such (e.g. vanished) directories sort oldest.
+        assert compiled_cache._last_used("/nonexistent/dir/xyz") == 0.0
+
+    def test_falls_back_to_mtime_without_meta(self, tmp_path):
+        # No meta.json -> the directory mtime is used as the key.
+        d = tmp_path / "nometa"
+        d.mkdir()
+        import os
+
+        assert compiled_cache._last_used(str(d)) == os.path.getmtime(str(d))
+
 
 class TestPrune:
     def _make_dirs(self, root, n):

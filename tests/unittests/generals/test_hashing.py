@@ -9,10 +9,15 @@
 """Tests for the build-environment-aware hashing used by the cache keys."""
 
 import shutil
+from unittest import mock
 
 import pytest
 
-from blond.generals.hashing_ import hash_build_target
+from blond.generals.hashing_ import (
+    hash_build_target,
+    hash_files,
+    hash_in_folder,
+)
 
 
 def _write_sources(folder):
@@ -168,3 +173,46 @@ class TestCppCacheRendezvous:
         lc.cpp_compiled_dir(folder)
         after = lc.cpp_compiled_dir.cache_info()
         assert after.hits == before.hits + 1
+
+
+class TestHashFilesNameHandling:
+    """Name folded into the digest: relative when given a base, else absolute."""
+
+    def test_without_base_folder_absolute_path_leaks(self, tmp_path):
+        # Default (base_folder=None): the full path is folded in, so identical
+        # content at two different locations hashes differently.
+        a = tmp_path / "a"
+        b = tmp_path / "b"
+        a.mkdir()
+        b.mkdir()
+        (a / "x.py").write_text("same\n")
+        (b / "x.py").write_text("same\n")
+        assert hash_files([str(a / "x.py")]) != hash_files([str(b / "x.py")])
+
+    def test_base_folder_makes_it_location_independent(self, tmp_path):
+        # With base_folder, only the relative name is folded in -> identical
+        # content at the same relative path hashes equally.
+        a = tmp_path / "a"
+        b = tmp_path / "b"
+        a.mkdir()
+        b.mkdir()
+        (a / "x.py").write_text("same\n")
+        (b / "x.py").write_text("same\n")
+        assert hash_files([str(a / "x.py")], base_folder=str(a)) == hash_files(
+            [str(b / "x.py")], base_folder=str(b)
+        )
+
+
+class TestHashInFolderWindows:
+    def test_windows_lowercases_names(self, tmp_path):
+        # On Windows (case-insensitive filesystem) the paths are lower-cased
+        # before hashing. A mixed-case file name therefore folds into the
+        # digest differently than on a case-sensitive system. One dir + one
+        # file keeps this safe on any host filesystem.
+        (tmp_path / "Mixed.py").write_text("x = 1\n")
+        with mock.patch("platform.system", return_value="Windows"):
+            win = hash_in_folder(str(tmp_path), (".py",))
+        with mock.patch("platform.system", return_value="Linux"):
+            nix = hash_in_folder(str(tmp_path), (".py",))
+        assert win != nix
+        assert len(win) == 64  # valid sha-256 hex digest
