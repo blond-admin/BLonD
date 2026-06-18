@@ -377,7 +377,13 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         ax_diff.set_xlabel("arrival time dt [ns]")
         fig.tight_layout()
 
-        plt.savefig("energy_kick_over_time.png", dpi=200, bbox_inches="tight")
+        # Debug-save next to this test file (not the repo root); uncomment and
+        # ``import os`` to use:
+        # plt.savefig(
+        #     os.path.join(os.path.dirname(__file__), "energy_kick_over_time.png"),
+        #     dpi=200,
+        #     bbox_inches="tight",
+        # )
 
         plt.show()
 
