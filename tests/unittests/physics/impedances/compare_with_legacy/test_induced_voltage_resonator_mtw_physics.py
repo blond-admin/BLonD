@@ -1,3 +1,4 @@
+import os
 import sys
 import unittest
 from unittest.mock import Mock
@@ -267,7 +268,10 @@ class TestInducedVoltageResonatorComparison(unittest.TestCase):
                 ax[1].set_xlim([-10, 180])
                 if SAVE_PLOTS:
                     plt.savefig(
-                        f"profiles_convolution_results_sec_{inter_turn_ind}.png",
+                        os.path.join(
+                            os.path.dirname(__file__),
+                            f"profiles_convolution_results_sec_{inter_turn_ind}.png",
+                        ),
                         dpi=400,
                         bbox_inches="tight",
                     )
@@ -338,7 +342,10 @@ class TestInducedVoltageResonatorComparison(unittest.TestCase):
                 plt.xlim([-10, 180])
                 if SAVE_PLOTS:
                     plt.savefig(
-                        f"blond_2_old_impl_{old_impl}_section_{inter_turn_ind}.png",
+                        os.path.join(
+                            os.path.dirname(__file__),
+                            f"blond_2_old_impl_{old_impl}_section_{inter_turn_ind}.png",
+                        ),
                         dpi=400,
                         bbox_inches="tight",
                         transparent=True,
@@ -347,7 +354,10 @@ class TestInducedVoltageResonatorComparison(unittest.TestCase):
                         plt.gca().tick_params(axis="y", labelleft=False)
                         plt.ylabel("")
                         plt.savefig(
-                            f"blond_2_old_impl_{old_impl}_section_{inter_turn_ind}_no_leftlabel.png",
+                            os.path.join(
+                                os.path.dirname(__file__),
+                                f"blond_2_old_impl_{old_impl}_section_{inter_turn_ind}_no_leftlabel.png",
+                            ),
                             dpi=400,
                             bbox_inches="tight",
                             transparent=True,
@@ -511,7 +521,10 @@ class TestInducedVoltageResonatorComparison(unittest.TestCase):
                 plt.xlim([-10, 180])
                 if SAVE_PLOTS:
                     plt.savefig(
-                        f"blond_3_section_{inter_turn}.png",
+                        os.path.join(
+                            os.path.dirname(__file__),
+                            f"blond_3_section_{inter_turn}.png",
+                        ),
                         dpi=400,
                         bbox_inches="tight",
                         transparent=True,
