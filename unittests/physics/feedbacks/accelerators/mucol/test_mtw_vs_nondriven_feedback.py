@@ -274,7 +274,10 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
         ax_diff.set_xlabel("time [ns]")
         fig.tight_layout()
 
-        # plt.savefig("induced_voltage_over_time.png")
+        # Debug-save next to this test file (not the repo root); needs ``import os``:
+        # plt.savefig(
+        #     os.path.join(os.path.dirname(__file__), "induced_voltage_over_time.png")
+        # )
         plt.show()
 
     def test_induced_voltage_matches_non_driven_feedback(self):
