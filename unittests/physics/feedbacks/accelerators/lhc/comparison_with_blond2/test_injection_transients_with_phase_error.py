@@ -506,10 +506,18 @@ class TestInjectionWithPhaseError(unittest.TestCase):
             err_msg="Error in absolute value of rf beam current",
         )
 
+        # The per-cell beam-current phase is only meaningful where there is
+        # beam. Between bunches the coarse beam current is ~0, so its angle is
+        # numerical noise (a `np.angle` comparison there is undefined and would
+        # report ~180 deg / inf differences regardless of agreement). Compare
+        # the complex beam current at the populated cells, where blond3 matches
+        # blond2 to ~2e-5 of the peak.
+        i_scale = np.abs(self.rf_beam_current_blond2).max()
+        populated = np.abs(self.rf_beam_current_blond2) > 1e-3 * i_scale
         np.testing.assert_allclose(
-            np.angle(self.i_beam, deg=True),
-            np.angle(self.rf_beam_current_blond2, deg=True),
-            rtol=2e-3,
+            self.i_beam[populated],
+            self.rf_beam_current_blond2[populated],
+            atol=1e-4 * i_scale,
             err_msg="Error in phase value of rf beam current",
         )
 
