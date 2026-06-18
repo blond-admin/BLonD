@@ -72,6 +72,7 @@ def rf_beam_current(  # noqa: PLR0912
     dT: float = 0,
     phi_s: float = 0,
     forbid_charge_in_first_coarse_cell: bool = False,
+    dT_index_sign: float = 1.0,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""
     Calculate the beam charge at the carrier frequency slice by slice.
@@ -136,6 +137,12 @@ def rf_beam_current(  # noqa: PLR0912
         fine-grid initial antenna voltage from that cell (e.g.
         ``IQCavityFeedbackTimingClass``) must keep it charge-free, since a
         populated first cell would double-count its kick.
+    dT_index_sign : float
+        Sign of ``dT`` in the fine-to-coarse index mapping ``ind_fine``.
+        ``+1`` (default) is the mucol/reworked convention; ``-1`` matches the
+        blond2 reference (``legacy/blond2/llrf/signal_processing.py``) and is
+        used by the LHC comparison path. Only affects the downsampling
+        binning when ``dT != 0``; the phase correction always uses ``+dT``.
 
     Returns
     -------
@@ -221,10 +228,13 @@ def rf_beam_current(  # noqa: PLR0912
                 "Downsampling input erroneous in rf_beam_current."
             ) from e
 
-        # Find which index in fine grid matches index in coarse grid
-        # this has to be + since its the remaining time in the last bin (the time direction should be negative, therefore has to be added here)
+        # Find which index in fine grid matches index in coarse grid.
+        # dT enters with sign `dT_index_sign`: +1 (mucol/reworked convention,
+        # default) or -1 (blond2 reference, used by the LHC comparison path).
         # np.pi / omega_c --> center of T_s (bin_center)
-        ind_fine = np.round((profile.hist_x + dT - np.pi / omega_c) / T_s)
+        ind_fine = np.round(
+            (profile.hist_x + dT_index_sign * dT - np.pi / omega_c) / T_s
+        )
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
         if any(indices < 0):

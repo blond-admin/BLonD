@@ -179,6 +179,11 @@ class LHCCavityLoop(IQCavityFeedback):
         LHCCavityLoopCommissioning is used.
     """
 
+    # Use the blond2 dT index-sign convention in `rf_beam_current` so the
+    # coarse beam-current binning matches the blond2 reference (matters only
+    # when dT != 0, e.g. with an active beam-phase loop).
+    dT_index_sign: float = -1.0
+
     def __init__(
         self,
         profile: StaticProfile,
@@ -412,8 +417,13 @@ class LHCCavityLoop(IQCavityFeedback):
         r"""Track the feedback model"""
         if not no_beam:
             phi_s = np.pi  # TODO: change with changing phi_s
-            self.I_BEAM_FINE *= -1j * np.exp(1j * phi_s)
-            self.I_BEAM_COARSE[-self.n_coarse :] *= -1j * np.exp(1j * phi_s)
+            # `rf_beam_current` now applies a -i demodulation rotation
+            # (charge sign * e^{i pi/2}) that blond2 does not. Undo it here
+            # (factor +1j) before the cavity's own -1j*exp(1j*phi_s) rotation,
+            # so this loop uses the blond2 beam-current convention. Net factor
+            # +1j * -1j*exp(1j*phi_s) = exp(1j*phi_s).
+            self.I_BEAM_FINE *= np.exp(1j * phi_s)
+            self.I_BEAM_COARSE[-self.n_coarse :] *= np.exp(1j * phi_s)
 
         # Track the different parts of the model
         self.update_arrays()

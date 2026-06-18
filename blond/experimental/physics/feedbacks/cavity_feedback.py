@@ -107,6 +107,11 @@ class IQCavityFeedback(LocalFeedback):
 
     # TODO docstring
 
+    # Sign of dT in the fine->coarse index mapping in `rf_beam_current`.
+    # +1 is the mucol/reworked convention; the LHC comparison path overrides
+    # this to -1 to match the blond2 reference.
+    dT_index_sign: float = 1.0
+
     def __init__(
         self,
         profile: StaticProfile,
@@ -488,6 +493,7 @@ class IQCavityFeedback(LocalFeedback):
                 downsample={"Ts": self.T_s, "points": self.n_coarse},
                 external_reference=True,
                 dT=self.dT,
+                dT_index_sign=self.dT_index_sign,
             )
         )
 
