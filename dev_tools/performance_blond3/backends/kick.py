@@ -12,12 +12,12 @@ import time
 
 import cupy as cp
 
-from blond.core.backends.backend import Numpy32Bit, backend
+from blond.core.backends.backend import Numpy64Bit, backend
 
 
 def main():  # pragma: no cover
     """Testing the performance of `kick_multi_harmonic`."""
-    backend.change_backend(Numpy32Bit)
+    backend.change_backend(Numpy64Bit)
 
     dt = backend.linspace(
         -5,
