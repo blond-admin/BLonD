@@ -56,7 +56,7 @@ class Preparable(ABC):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-    def on_init_simulation(self, simulation: Simulation) -> None:  # NOQA: B027
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -64,10 +64,32 @@ class Preparable(ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        pass
+        self.configure(**kwargs)
 
-    def on_run_simulation(  # NOQA: B027
+    def configure(self, **kwargs) -> None:
+        """
+        Set attributes that would otherwise come from the simulation context.
+
+        Each MRO level declares its own explicit keyword parameters and passes
+        the remainder via ``super().configure(**kwargs)``.  This base
+        implementation is the chain terminator: it raises if any unexpected
+        kwargs remain, guarding against typos or missing levels.
+
+        Parameters
+        ----------
+        **kwargs
+            Must be empty when reaching this base implementation.
+        """
+        if kwargs:
+            raise TypeError(
+                f"{type(self).__name__}.configure() received unexpected "
+                f"keyword arguments: {list(kwargs)}"
+            )
+
+    def on_run_simulation(
         self,
         simulation: Simulation,
         beam: BeamBaseClass,
@@ -86,9 +108,38 @@ class Preparable(ABC):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted kwargs collected by the MRO chain.
         """
-        pass
+        self.configure_run(beam=beam, n_turns=n_turns, **kwargs)
+
+    def configure_run(
+        self,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Set run-specific state for each simulation run.
+
+        Mirrors :meth:`configure` for the ``on_run_simulation`` lifecycle.
+        ``beam`` and ``n_turns`` are passed explicitly (as in
+        ``on_run_simulation``); any values extracted from ``simulation``
+        are collected in ``**kwargs`` and distributed down the MRO chain.
+
+        Parameters
+        ----------
+        beam
+            The beam being simulated.
+        n_turns
+            Number of turns for this run.
+        **kwargs
+            Simulation-extracted values; must be empty at the base.
+        """
+        if kwargs:
+            raise TypeError(
+                f"{type(self).__name__}.configure_run() received unexpected "
+                f"keyword arguments: {list(kwargs)}"
+            )
 
 
 class MainLoopRelevant(Preparable):
@@ -148,6 +199,27 @@ class Schedulable:
     schedules
         Dictionary to update a certain attribute by some value
         via `apply_schedules`
+
+    Notes
+    -----
+    Schedulable attributes require two manual entries in the dedicated class:
+    - in the initialization:
+    >>> def __init__(self, attribute_to_be_scheduled)
+    >>>     self._add_intended_schedule("attribute_to_be_scheduled")
+    - in the initialisation method:
+    >>> def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+    >>> super().on_init_simulation(
+    >>>        simulation,
+    >>>        turn_counter = simulation.turn_counter,
+    >>>        **kwargs,
+    >>>    )
+    - in the tracking method:
+    >>> def _track(self, beam: BeamBaseClass, **kwargs):
+    >>>     if self.schedule_active:
+    >>>         self.apply_schedules(
+    >>>            turn_i=self._turn_counter,
+    >>>            reference_time=float(beam.reference.time),
+    >>>         )
     """
 
     def __init__(self, **kwargs) -> None:
@@ -362,47 +434,6 @@ class SimulationElementBase(MainLoopRelevant, ABC):
             The section index.
         """
         return self._section_index
-
-    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        **kwargs
-            Configure parameters collected by the MRO chain.
-        """
-        # TODO:  We should be able to remove this, since it does nothing
-        # and it is defined in `Preparable`.  If we remove it, or replace
-        # it with a call to `super().on_init_simulation`, the testing
-        # pipeline breaks with an error in `_check_executor_in_pipeline`
-        # for the kick pooling.
-        pass
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Simulation-extracted kwargs collected by the MRO chain.
-        """
-        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
 
     def info_string(self, prefix="") -> str:
         """

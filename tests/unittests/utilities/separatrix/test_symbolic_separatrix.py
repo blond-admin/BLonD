@@ -107,7 +107,6 @@ class TestSymbolicSeparatrixHelper(unittest.TestCase):
 
         def custom_action(simulation: Simulation, beam: Beam):
             plt.figure("Dynamic beam")
-
             dt = beam.read_partial_dt()
             beam.plot_scatter()
             separatrix_dE = SymbolicSeparatrixHelper.from_simulation(
@@ -116,7 +115,7 @@ class TestSymbolicSeparatrixHelper(unittest.TestCase):
                 beam=beam,
                 dt=np.linspace(*trange0_, 1000),
             )
-            if simulation.turn_i.value == 0:
+            if simulation.turn_counter.value == 0:
                 separatrix_dE_pinned = np.loadtxt(
                     callers_relative_path(
                         "resources/separatrix_dE_pinned.txt", stacklevel=1

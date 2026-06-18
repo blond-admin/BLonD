@@ -534,7 +534,7 @@ setup_backend("cpp")   # equivalent to backend.set_specials("cpp")
 
 Backend classes (for type hints / advanced use):
 ```python
-from blond import Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit
+from blond import Numpy64Bit, Cupy64Bit
 ```
 
 `copy_to_cpu(array)` — moves a CuPy array back to NumPy (no-op on NumPy arrays):

@@ -13,7 +13,6 @@ from __future__ import annotations
 import copy
 from abc import ABC
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import numpy as np
 
@@ -290,8 +289,6 @@ class EquidistantMultiProfile(MultiProfile):
         equidistant_profile
             The fully initialized ``EquidistantMultiProfile``.
         """
-        from blond.core.base import DynamicParameter
-
         d = EquidistantMultiProfile(
             filling_pattern=filling_pattern,
             bins_per_profile=bins_per_profile,
@@ -299,23 +296,11 @@ class EquidistantMultiProfile(MultiProfile):
             section_index=section_index,
             name=name,
         )
-        from blond.core.beam.base import BeamBaseClass
-        from blond.core.simulation.simulation import Simulation
-
-        simulation = Mock(Simulation)
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
-        simulation.get_t_rev_init.return_value = t_rev
-        d.on_init_simulation(simulation=simulation)
-        d.on_run_simulation(
-            simulation=simulation,
-            n_turns=1,
-            beam=Mock(BeamBaseClass),
-        )
+        d.configure(t_rev=t_rev)
         return d
 
     @requires(["RFStationBaseClass"])  # for `get_t_rev_init`
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -323,8 +308,27 @@ class EquidistantMultiProfile(MultiProfile):
         ----------
         simulation
             Simulation context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        t_rev = simulation.get_t_rev_init()
+        super().on_init_simulation(
+            simulation,
+            t_rev=simulation.get_t_rev_init(),
+            **kwargs,
+        )
+
+    def configure(self, *, t_rev: float, **kwargs) -> None:
+        """
+        Build profile time axes from the revolution period.
+
+        Parameters
+        ----------
+        t_rev
+            Revolution period in [s].
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
         n_slots = len(self._filling_pattern)
 
         # Turn     |-----------|

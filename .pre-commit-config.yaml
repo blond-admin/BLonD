@@ -1,4 +1,4 @@
-exclude: ^(legacy|blond3/legacy/|builds)
+exclude: ^(legacy|blond/legacy/|builds)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -21,6 +21,13 @@ repos:
       - id: isort
         args: ["--profile", "black", "--line-length", "79"] # otherwise not compatible with Ruf
 
+  # keep python syntax up-to-date
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.21.2
+    hooks:
+      - id: pyupgrade
+        args: [--py310-plus]
+
   # https://pre-commit.com/
   # use `ruff check` to debug this hook
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -37,6 +44,20 @@ repos:
         name: check copyright
         entry: python dev_tools/precommit_check_copyright.py
         language: system
+
+  # Mirror the blond-dev skill into root CLAUDE.md / AGENTS.md
+  - repo: local
+    hooks:
+      - id: sync-agent-docs
+        name: sync CLAUDE.md / AGENTS.md from blond-dev skill
+        entry: python dev_tools/sync_agent_docs.py
+        language: system
+        # Only run when the skill source changes: that is the single source the
+        # mirrors are generated from, so there is nothing to regenerate on any
+        # other commit. The hook rewrites CLAUDE.md / AGENTS.md (not in this
+        # filter) and fails if they changed, so they get re-staged.
+        files: ^\.agents/skills/blond-dev/SKILL\.md$
+        pass_filenames: false
 
   # https://numpydoc.readthedocs.io/en/latest/validation.html
   # use `numpydoc lint --help` to debug this hook

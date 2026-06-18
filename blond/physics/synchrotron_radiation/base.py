@@ -15,7 +15,6 @@ L. Valle
 
 from __future__ import annotations
 
-from abc import ABC
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -25,7 +24,7 @@ from blond import backend
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -95,7 +94,7 @@ def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
     return backend.cast_arr_float_if_needed(energy_kick)
 
 
-class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
+class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
     """
     Base class for radiating ring elements.
 
@@ -124,9 +123,12 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     ):
         super().__init__(name=name, section_index=section_index)
 
+        self._add_intended_schedule(
+            "share_of_radiation_integrals",
+        )
+
         self._simulation: Simulation | None = None
-        self._turn_i: DynamicParameter | int = 0
-        self._share_of_radiation_integrals = share_of_radiation_integrals
+        self.share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
 
@@ -136,18 +138,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
 
         self.rng = backend.default_rng(seed=seed)
         # backend.default_rng
-
-    @property
-    def share_of_radiation_integrals(self) -> NumpyArray | None:
-        """
-        Synchrotron radiation integrals of the drift.
-
-        Returns
-        -------
-        synchrotron_radiation_integrals_drift
-            Synchrotron radiation integrals of the drift.
-        """
-        return self._share_of_radiation_integrals
 
     def _calculate_kick(
         self,
@@ -178,7 +168,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ) = gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=beam.particle_type,
             energy=total_energy,
-            radiation_integrals=self._share_of_radiation_integrals,
+            radiation_integrals=self.share_of_radiation_integrals,
         )
         self._energy_lost_due_to_synchrotron_radiation = estimated_energy_lost
         self._damping_time = estimated_damping_time
@@ -217,7 +207,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         dE = beam.write_partial_dE()
         dE[:] += energy_change
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -225,10 +215,33 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._simulation = simulation
-        self._turn_i = simulation.turn_i
+        super().on_init_simulation(
+            simulation,
+            turn_counter=simulation.turn_counter,
+            **kwargs,
+        )
+
+    def configure(
+        self,
+        *,
+        turn_counter: DynamicParameter | None = None,
+        **kwargs,
+    ) -> None:
+        """
+        Store the runtime references needed during tracking.
+
+        Parameters
+        ----------
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self._turn_counter = turn_counter
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -239,4 +252,12 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         beam
             Beam class to interact with this element.
         """
+        if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
+            self.apply_schedules(
+                turn_i=self._turn_counter.value,
+                reference_time=float(beam.reference.time),
+            )
         self._update_beam_energy(beam)

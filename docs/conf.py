@@ -55,6 +55,7 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinx.ext.intersphinx",
     "nbsphinx",
+    "sphinx_copybutton",  # add copy button to code cells
 ]
 # From https://nbsphinx.readthedocs.io/en/0.8.9/custom-css.html#For-a-Single-Notebook
 # Hide the [1], [2], etc. displays at
@@ -158,6 +159,7 @@ exclude_patterns = [
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
+pygments_dark_style = "monokai"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 # todo_include_todos = True

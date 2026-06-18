@@ -8,6 +8,8 @@ import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from blond import (
+    Numpy64Bit,
+    Simulation,
     copy_to_cpu,
     electron,
 )
@@ -15,7 +17,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
 from blond.core.backends.backend import backend
-from blond.core.base import SimulationElementBase
+from blond.core.base import DynamicParameter, SimulationElementBase
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
 from blond.generals.distributed.distributed_array import DistributedArray
@@ -159,11 +161,11 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
         )
         # To test the tracking methods
         self.SRB._simulation = Mock(SimulationElementBase)
-        self.SRB._simulation.turn_i = 0
+        self.SRB._simulation.turn_counter = 0
         self.SRD._simulation = Mock(SimulationElementBase)
-        self.SRD._simulation.turn_i = 0
+        self.SRD._simulation.turn_counter = 0
         self.SRS._simulation = Mock(SimulationElementBase)
-        self.SRS._simulation.turn_i = 0
+        self.SRS._simulation.turn_counter = 0
 
         self.beam = BeamBaseClassTester(
             intensity=1e12,
@@ -363,4 +365,133 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             copy_to_cpu(energy_kick),
             copy_to_cpu(expected_energy_kick),
             rtol=1,
+        )
+
+
+class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
+    unittest.TestCase
+):
+    def setUp(self) -> None:
+        self.number_of_turns = 100
+        self.radiation_integrals = np.array(
+            [
+                0.646747216157,
+                0.0005936549319,
+                5.6814536525e-08,
+                5.92870407301e-09,
+                1.71368060083e-11,
+            ]
+        )
+        self.SRB = SynchrotronRadiationBaseClass(
+            share_of_radiation_integrals=self.radiation_integrals,
+            disable_quantum_excitation=True,
+        )
+        self.SRB.schedule(
+            attribute="share_of_radiation_integrals",
+            value=np.array(
+                [
+                    self.radiation_integrals * 1 / (k + 1)
+                    for k in range(self.number_of_turns)
+                ]
+            ),
+        )
+
+        # To test the tracking methods
+        self.simulation = Mock(Simulation)
+        self.simulation.turn_i = Mock(DynamicParameter)
+        self.simulation.turn_i.value = 0
+        self.simulation.turn_counter = DynamicParameter(0)
+
+        self.beam = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=electron,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+
+        self.decimal = 6 if backend.float == np.float32 else 9
+
+        self.U0, self.tau_z, self.sigma0 = (
+            gather_longitudinal_synchrotron_radiation_parameters(
+                particle_type=self.beam.particle_type,
+                energy=self.beam.reference.total_energy,
+                radiation_integrals=self.radiation_integrals,
+            )
+        )
+
+        self.seed = 500
+
+    def test_inputs_SynchrotronRadiationBaseClass(self):
+        self.assertTrue(self.SRB.schedule_active)
+        self.assertTrue(
+            "share_of_radiation_integrals" in self.SRB.intended_for_scheduling
+        )
+        for k in range(self.number_of_turns):
+            self.SRB.apply_schedules(
+                turn_i=k,
+                reference_time=float(self.beam.reference.time),
+            )
+            np.testing.assert_array_almost_equal(
+                self.SRB.share_of_radiation_integrals,
+                1 / (k + 1) * self.radiation_integrals,
+                decimal=self.decimal,
+            )
+        self.assertIsNone(self.SRB._energy_lost_due_to_synchrotron_radiation)
+        self.assertIsNone(self.SRB._damping_time)
+        self.assertIsNone(self.SRB._natural_energy_spread)
+
+    def test_calculate_kick_SynchrotronRadiationBaseClass(self):
+        for k in range(self.number_of_turns):
+            self.SRB.apply_schedules(
+                turn_i=k,
+                reference_time=float(self.beam.reference.time),
+            )
+            np.random.seed(seed=self.seed)
+            _ = self.SRB._calculate_kick(
+                beam=self.beam,
+            )
+
+            # SynchrotronRadiationBaseClass
+            self.assertAlmostEqual(
+                self.SRB._energy_lost_due_to_synchrotron_radiation,
+                np.float64(1337317.6297928384) * 1 / (k + 1),
+                places=self.decimal,
+            )
+            self.assertAlmostEqual(
+                self.SRB._damping_time,
+                np.float64(14955.235530506275) * (k + 1),
+                places=self.decimal,
+            )
+            self.assertAlmostEqual(
+                self.SRB._natural_energy_spread,
+                np.float64(0.0001675968578478592),
+                places=self.decimal,
+            )
+
+    def test_tracking_updates_SRI(self):
+        turn_to_consider = DynamicParameter(9)
+        self.SRB.on_init_simulation(simulation=self.simulation)
+        self.simulation.turn_counter = turn_to_consider
+        self.SRB._turn_counter = turn_to_consider
+        self.SRB.track(beam=self.beam)
+        np.testing.assert_array_almost_equal(
+            self.SRB.share_of_radiation_integrals,
+            1 / (turn_to_consider.value + 1) * self.radiation_integrals,
+            decimal=self.decimal,
+        )
+        self.assertAlmostEqual(
+            self.SRB._energy_lost_due_to_synchrotron_radiation,
+            np.float64(1337317.6297928384) * 1 / (turn_to_consider.value + 1),
+            places=self.decimal,
+        )
+
+        self.assertAlmostEqual(
+            self.SRB._damping_time,
+            np.float64(14955.235530506275) * (turn_to_consider.value + 1),
+            places=self.decimal,
+        )
+        self.assertAlmostEqual(
+            self.SRB._natural_energy_spread,
+            np.float64(0.0001675968578478592),
+            places=self.decimal,
         )

@@ -106,7 +106,7 @@ def main():
     bunch_observation = BeamObservationOncePerTurn(each_turn_i=1)
 
     def animate_live(simulation: Simulation, beam: Beam):  # pragma: no cover
-        if simulation.turn_i.value % 10 != 0:
+        if simulation.turn_counter.value % 10 != 0:
             return
 
         plt.scatter(

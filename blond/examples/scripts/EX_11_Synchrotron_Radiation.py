@@ -142,7 +142,10 @@ def main(n_turns: int = 100):
     )
 
     def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
-        if simulation.turn_i.value is None or simulation.turn_i.value % 1 != 0:
+        if (
+            simulation.turn_counter.value is None
+            or simulation.turn_counter.value % 1 != 0
+        ):
             return
 
         artist = beam.plot_hist2d()

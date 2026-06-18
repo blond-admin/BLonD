@@ -18,7 +18,9 @@ from numpy import ndarray
 
 from blond.beam_preparation.base import MatchingRoutine
 from blond.beam_preparation.helpers import populate_beam
-from blond.core.backends.backend import backend
+from blond.core.backends.backend import (
+    backend,
+)
 from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.bucket_filler_functions import (
     hamilton_to_density_by_max,
@@ -346,8 +348,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 beam_reference_total_energy_original = (
                     beam.reference.total_energy
                 )
-                turn_i_original = int(sim_tmp.turn_i.value)
-                section_i_original = int(sim_tmp.section_i.value)
+                turn_i_original = int(sim_tmp.turn_counter.value)
+                section_i_original = int(sim_tmp.section_counter.value)
 
                 sim_tmp.run_simulation(
                     beams=(beam,),
@@ -362,8 +364,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 beam.reference.total_energy = (
                     beam_reference_total_energy_original
                 )
-                sim_tmp.turn_i.value = turn_i_original
-                sim_tmp.section_i.value = section_i_original
+                sim_tmp.turn_counter.value = turn_i_original
+                sim_tmp.section_counter.value = section_i_original
 
                 # Prevent the profiles from updating.
                 sim_tmp.intensity_effect_manager.set_profiles(active=False)
@@ -502,7 +504,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             2D semi-analytic Hamiltonian evaluated on the grid [eV].
 
         """
-        assert simulation.turn_i.value == 0
+        assert simulation.turn_counter.value == 0
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
                 dt=np.linspace(
