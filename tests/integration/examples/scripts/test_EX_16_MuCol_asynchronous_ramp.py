@@ -9,15 +9,15 @@ from blond.core.backends.backend import (
 )
 
 
-class TestEX_16_MuCol_asynchronous_ramp(unittest.TestCase):
+class TestEX_16_MuonCollider_asynchronous_ramp(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples.scripts import EX_16_MuCol_asynchronous_ramp
+        from blond.examples.scripts import EX_16_MuonCollider_asynchronous_ramp
 
         # full script. just checking if it crashes
-        EX_16_MuCol_asynchronous_ramp.main()
+        EX_16_MuonCollider_asynchronous_ramp.main()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -28,8 +28,8 @@ class TestEX_16_MuCol_asynchronous_ramp(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples.scripts import EX_16_MuCol_asynchronous_ramp
+        from blond.examples.scripts import EX_16_MuonCollider_asynchronous_ramp
 
         # full script. just checking if it crashes
-        EX_16_MuCol_asynchronous_ramp.main()
+        EX_16_MuonCollider_asynchronous_ramp.main()
         backend.zeros(100)

@@ -536,6 +536,11 @@ extern "C" __global__ void wake_from_pole_residue(
     const real_t two_factor = real_t(2) * factor;
     const real_t t_start = states[2 * n_poles];
 
+    // `cr_pole_flip` is intentionally applied to BOTH the state injection
+    // and the output amplitude: for the counter-rotating beam's own wake
+    // the two factors cancel (flip * flip == 1); only contributions of
+    // the other beam, accumulated in the shared `states`, see a net
+    // sign flip.
     real_t cr_pole_flip = real_t(1);
     if (is_counterrotating_beam && cr_pole_signs[pole_i] == real_t(-1)) {
         cr_pole_flip = real_t(-1);

@@ -1,8 +1,8 @@
-exclude: ^(legacy|blond3/legacy/|builds)
+exclude: ^(legacy|blond/legacy/|builds)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace  # Trims trailing whitespace.
       - id: end-of-file-fixer  # Makes sure files end in a newline and only a newline.
@@ -16,15 +16,22 @@ repos:
 
   # Sorts the python import statements
   - repo: https://github.com/PyCQA/isort
-    rev: 6.0.1
+    rev: 8.0.1
     hooks:
       - id: isort
         args: ["--profile", "black", "--line-length", "79"] # otherwise not compatible with Ruf
 
+  # keep python syntax up-to-date
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.21.2
+    hooks:
+      - id: pyupgrade
+        args: [--py310-plus]
+
   # https://pre-commit.com/
   # use `ruff check` to debug this hook
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.11  # Replace with the latest version
+    rev: v0.15.15  # Replace with the latest version
     hooks:
       - id: ruff-format  # This runs `ruff format`
       - id: ruff-check  # This runs `ruff check`
@@ -37,6 +44,20 @@ repos:
         name: check copyright
         entry: python dev_tools/precommit_check_copyright.py
         language: system
+
+  # Mirror the blond-dev skill into root CLAUDE.md / AGENTS.md
+  - repo: local
+    hooks:
+      - id: sync-agent-docs
+        name: sync CLAUDE.md / AGENTS.md from blond-dev skill
+        entry: python dev_tools/sync_agent_docs.py
+        language: system
+        # Only run when the skill source changes: that is the single source the
+        # mirrors are generated from, so there is nothing to regenerate on any
+        # other commit. The hook rewrites CLAUDE.md / AGENTS.md (not in this
+        # filter) and fails if they changed, so they get re-staged.
+        files: ^\.agents/skills/blond-dev/SKILL\.md$
+        pass_filenames: false
 
   # https://numpydoc.readthedocs.io/en/latest/validation.html
   # use `numpydoc lint --help` to debug this hook

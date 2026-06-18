@@ -12,7 +12,6 @@ from blond.core.backends.backend import (
     NumpyBackend,
     backend,
 )
-from blond.core.backends.numba.callables import NumbaSpecials
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     multi_backend_testcase,
@@ -1413,6 +1412,79 @@ class TestSpecials(unittest.TestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_histogram_sparse_outside_edges(self) -> None:
+        """Particles slightly outside the profile windows must not be counted.
+
+        Regression test: the numba backend truncated negative float bin
+        indices toward zero (``int(-0.5) == 0``), so a particle up to one
+        bin width left of ``first_left_cut`` was counted into bin 0 of the
+        first profile.
+        """
+        dtype = np.float64
+        bins_per_profile = 4  # bin width = cut_width / 4 = 1
+        first_left_cut = -12
+        left_cut_distance = 8
+        cut_width = 4
+        # filled buckets 0, 2, 4 -> windows [-12,-8], [4,8], [20,24]
+        filling_pattern_np = np.array([1, 0, 1, 0, 1, 0], dtype=bool)
+        bucket_index_to_memory_index_np = np.array(
+            [0, 0, 4, 4, 8, 8], dtype=np.int32
+        )
+        particles_np = np.array(
+            [
+                # outside any window, must never be counted
+                -12.5,  # < one bin left of first cut (numba truncation bug)
+                -15.9,  # < one bucket distance left of first cut
+                -20.5,  # more than one bucket distance left of first cut
+                8.5,  # just right of window [4,8], in a gap
+                24.5,  # just right of last window [20,24]
+                # inside windows, must be counted
+                -11.5,  # profile 0, bin 0
+                5.5,  # profile 1, bin 1
+                23.9,  # profile 2, bin 3
+            ],
+            dtype=dtype,
+        )
+        expected = np.zeros(12, dtype=dtype)
+        expected[0] = 1  # -11.5
+        expected[4 + 1] = 1  # 5.5
+        expected[8 + 3] = 1  # 23.9
+
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            particles_x = backend.array(particles_np, dtype=backend.float)
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            # initialised to ones to verify the output is zeroed
+            array_write = backend.ones(12, dtype=backend.float)
+            for _ in range(2):
+                backend.specials.histogram_sparse(
+                    x=particles_x,
+                    out=array_write,
+                    first_left_cut=first_left_cut,
+                    left_cut_distance=left_cut_distance,
+                    cut_width=cut_width,
+                    bins_per_profile=bins_per_profile,
+                    n_active_profiles=3,
+                    filling_pattern=filling_pattern,
+                    bucket_index_to_memory_index=bucket_index_to_memory_index,
+                )
+            result = array_write
+            if special == "cuda":
+                result = result.get()
+            np.testing.assert_array_equal(
+                result,
+                expected,
+                err_msg=f"{special=} {dtype=}",
+            )
+
+    @pytest.mark.backend_mutation
     def test_histogram_long_profiles(self) -> None:
         """Specifically to test edge effects at beginning and end."""
         dtype = np.float64
@@ -1515,6 +1587,124 @@ class TestSpecials(unittest.TestCase):
                     rtol=self.rtol,
                     err_msg=f"{special=} {dtype=}",
                 )
+
+    def _run_wake_from_pole_residue(
+        self,
+        update_on_bin_np: np.ndarray,
+        n_calls: int = 1,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Run `wake_from_pole_residue` on the active backend.
+
+        Returns
+        -------
+        voltage, states
+            Output voltage and pole states as numpy arrays.
+        """
+        n = 16
+        rng = np.random.default_rng(42)
+        profile_np = rng.standard_normal(n)
+        centers_np = np.linspace(0.0, 1e-9, n)
+        bin_dt = centers_np[1] - centers_np[0]
+        poles_np = np.array(
+            [-1e8 + 2 * np.pi * 1e9j, -2e8 + 2 * np.pi * 1.5e9j],
+            dtype=complex,
+        )
+        residues_np = np.array([1.0 + 0.5j, 0.7 - 0.2j], dtype=complex)
+
+        profile = backend.array(profile_np, dtype=backend.float)
+        centers = backend.array(centers_np, dtype=backend.float)
+        poles = backend.array(poles_np, dtype=backend.complex)
+        residues = backend.array(residues_np, dtype=backend.complex)
+        states = backend.zeros(len(poles_np) + 1, dtype=backend.complex)
+        # non-zero state so decay handling is observable in the output
+        states[0] = 0.3 + 0.1j
+        states[-1] = centers_np[0] - bin_dt
+        voltage = backend.zeros(n, dtype=backend.float)
+        for _ in range(n_calls):
+            backend.specials.wake_from_pole_residue(
+                profile=profile,
+                profile_dts=centers,
+                poles=poles,
+                residues=residues,
+                is_counterrotating_beam=False,
+                counterrotating_pole_signs=backend.ones_like(
+                    poles, dtype=backend.float
+                ),
+                update_on_bin=backend.array(update_on_bin_np, dtype=np.int32),
+                factor=1.0,
+                states=states,
+                voltage=voltage,
+                voltage_threaded=backend.zeros(
+                    (backend.specials.get_max_threads(), n),
+                    dtype=backend.float,
+                ),
+            )
+        if backend.is_gpu:
+            return voltage.get(), states.get()
+        return np.asarray(voltage), np.asarray(states)
+
+    def _assert_wake_matches_python(
+        self, update_on_bin_np: np.ndarray, n_calls: int = 1
+    ) -> None:
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            voltage, states = self._run_wake_from_pole_residue(
+                update_on_bin_np=update_on_bin_np,
+                n_calls=n_calls,
+            )
+            if i == 0:
+                voltage_python = voltage
+                states_python = states
+            else:
+                np.testing.assert_allclose(
+                    voltage,
+                    voltage_python,
+                    rtol=1e-10,
+                    err_msg=f"{special=} {dtype=}",
+                )
+                np.testing.assert_allclose(
+                    states,
+                    states_python,
+                    rtol=1e-10,
+                    err_msg=f"{special=} {dtype=}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue(self) -> None:
+        """All backends must match python, incl. states over two calls."""
+        self._assert_wake_matches_python(
+            update_on_bin_np=np.array([0], dtype=np.int32),
+            n_calls=2,
+        )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_update_not_on_first_bin(self) -> None:
+        """`update_on_bin[0] != 0` must behave like python (`decay = 0`).
+
+        Before the first update bin, ``state *= decay`` with ``decay = 0``
+        zeroes the state. The numba kernel did not initialise ``decay`` and
+        relied on implicit zero-initialisation of maybe-undefined variables.
+        """
+        self._assert_wake_matches_python(
+            update_on_bin_np=np.array([2], dtype=np.int32),
+        )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_empty_update_on_bin(self) -> None:
+        """Empty `update_on_bin` must not read out of bounds.
+
+        The C++ and CUDA kernels treat an empty array as "never update"
+        (``decay`` stays 0). The python reference raised ``IndexError`` and
+        the numba kernel read ``update_on_bin[0]`` out of bounds.
+        """
+        self._assert_wake_matches_python(
+            update_on_bin_np=np.array([], dtype=np.int32),
+        )
 
     @pytest.mark.backend_mutation
     def test_histogram_weighted_uniform_weights_equals_unweighted(

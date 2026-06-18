@@ -24,13 +24,19 @@ from blond import (
     SingleHarmonicRFStation,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.experimental import ProfileMatcherAddon, SemiEmpiricMatcher
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.testing import pytest_active
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
+
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 
 def get_test_profile(noisy=False):
@@ -135,7 +141,7 @@ def main():
     bunch_observation = BeamObservationOncePerTurn(each_turn_i=1)
 
     def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
-        if simulation.turn_i.value % 10 != 0:
+        if simulation.turn_counter.value % 10 != 0:
             return
 
         plt.hist2d(
@@ -180,9 +186,9 @@ def main():
             plt.draw()
             plt.pause(0.1)
 
-        plt.show()
     return beam1
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()

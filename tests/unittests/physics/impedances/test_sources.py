@@ -11,7 +11,7 @@ from scipy.constants import pi
 from scipy.constants import speed_of_light as c0
 from scipy.signal import find_peaks
 
-from blond import Cupy64Bit, Numpy64Bit, backend
+from blond import Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.simulation.simulation import Simulation
@@ -579,7 +579,7 @@ class TestResonators(unittest.TestCase):
 
         # check value at 0-time
         assert np.isclose(
-            (wake_potential[np.abs((time)).argmin()]),
+            (wake_potential[np.abs(time).argmin()]),
             0.5 * np.max(wake_potential),
             rtol=1e-2,
         )

@@ -88,17 +88,42 @@ class GlobalFeedback(FeedbackBaseClass):
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
-    @requires(["SingleHarmonicRFStation"])
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    @requires(["SingleHarmonicRFStation", "MultiHarmonicRFStation"])
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called
 
         simulation
             `Simulation` context manager
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        self.cavities = simulation.ring.elements.get_elements(
-            SingleHarmonicRFStation, recursive=False
+        super().on_init_simulation(
+            simulation,
+            cavities=simulation.ring.elements.get_elements(
+                SingleHarmonicRFStation, recursive=False
+            ),
+            **kwargs,
         )
+
+    def configure(
+        self,
+        *,
+        cavities: list[SingleHarmonicRFStation | MultiHarmonicRFStation],
+        **kwargs,
+    ) -> None:
+        """
+        Store the RF station list.
+
+        Parameters
+        ----------
+        cavities
+            List of RF stations in the ring section.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self.cavities = cavities
 
 
 BeamFeedback = GlobalFeedback  # just an alias name
