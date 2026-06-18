@@ -222,6 +222,11 @@ class TestLHCFullMachine(unittest.TestCase):
 
             profile._hist_x = cls.profile_bin_centers_blond2
             profile._hist_y = cls.profile_n_macroparticles_blond2
+            # The histogram is injected directly (bypassing profile.track()),
+            # so set the density factor track() would have set. 1/sum(hist_y)
+            # normalises to the full beam and matches blond2's 1/n_macro here
+            # (the cut spans the whole turn, so no particles are lost).
+            profile.hist_y_to_density_factor = 1.0 / np.sum(profile._hist_y)
 
             cls.detunings = np.zeros(n_detuning)
 
