@@ -36,6 +36,7 @@ from matplotlib import pyplot as plt
 from blond import (
     Beam,
     BiGaussian,
+    copy_to_cpu,
     momentum_compaction_factor,
     mu_minus,
     mu_plus,
@@ -155,8 +156,8 @@ class TestBiGaussianCenterOnStableFixedPoint(unittest.TestCase):
     def _draw(self, simulation, beam, helper, sfp_dt, title):
         """DEV_DRAW visual: hist2d + separatrix + stable-fixed-point marker."""
         t_rf = self._t_rf(simulation)
-        dt = np.asarray(beam.read_partial_dt())
-        dE = np.asarray(beam.read_partial_dE())
+        dt = copy_to_cpu(beam.read_partial_dt())
+        dE = copy_to_cpu(beam.read_partial_dE())
         plt.figure(title)
         plt.hist2d(dt, dE, bins=120, cmin=1)
         dt_grid = np.linspace(sfp_dt - t_rf, sfp_dt + t_rf, 1000)
@@ -176,7 +177,7 @@ class TestBiGaussianCenterOnStableFixedPoint(unittest.TestCase):
         """Assert the bunch centre lands on the SFP (modulo T_rf)."""
         t_rf = self._t_rf(simulation)
         self.assertTrue(np.isfinite(sfp_dt), "oracle found no bucket")
-        center = float(np.mean(np.asarray(beam.read_partial_dt())))
+        center = float(np.mean(copy_to_cpu(beam.read_partial_dt())))
         self._draw(simulation, beam, helper, sfp_dt, title)
         offset = self._wrap(center - sfp_dt, t_rf)
         np.testing.assert_allclose(
@@ -228,8 +229,8 @@ class TestBiGaussianCenterOnStableFixedPoint(unittest.TestCase):
                             )
                         )
 
-                        dt = np.asarray(beam.read_partial_dt())
-                        dE = np.asarray(beam.read_partial_dE())
+                        dt = copy_to_cpu(beam.read_partial_dt())
+                        dE = copy_to_cpu(beam.read_partial_dE())
                         # Every particle must lie between the two separatrix branches.
                         upper, lower = helper.get_separatrix(beam=beam, dt=dt)
                         inside = (
