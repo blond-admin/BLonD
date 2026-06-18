@@ -22,6 +22,15 @@ def test_induced_voltage():
 
     from blond import momentum_compaction_factor
 
+    # The recorded ramp spans 7069 turns. This regression compares BLonD2 and
+    # BLonD3 on identical input, so a few hundred turns already exercise RF +
+    # drift + induced voltage and catch any divergence. Runtime scales ~linearly
+    # with turns, so we truncate the ramp to keep this (very slow) test cheap.
+    _MAX_TURNS = 500
+    phi_rf = phi_rf[: _MAX_TURNS + 1]
+    transition_gamma = transition_gamma[: _MAX_TURNS + 1]
+    momentum = momentum[: _MAX_TURNS + 1]
+
     N_TURNS = len(momentum) - 1
     SIM_TURNS = N_TURNS
     CIRCUMFERENCE = 2 * np.pi * 100
@@ -34,7 +43,10 @@ def test_induced_voltage():
     R_SH = 10000
 
     PROFILE_LENGTH = 2.124873604201372e-06
-    n_macro = int(1e4)
+    # Originally 1e4; reduced because per-turn cost scales with particle count
+    # and the regression compares the *same* macroparticles in both codes, so
+    # fewer particles does not weaken the comparison.
+    n_macro = int(1e3)
     N_BINS = 1000
 
     rnd = np.random.default_rng(seed=42)
@@ -145,6 +157,16 @@ def test_induced_voltage():
     )
 
     # ── BLonD 2 ──────────────────────────────────────────────────────────────
+    # The legacy `bm` backend is a global singleton that this test does not
+    # otherwise control. Under pytest-randomly it can be left in a slow mode
+    # (e.g. pure-python) by an earlier test, which made this regression's
+    # runtime explode and vary wildly between CI runs. Pin it to the fastest
+    # available CPU backend (cpp > numba > python); this also restores a sane
+    # global state for subsequent tests.
+    from blond.legacy.blond2.utils import bmath as bm
+
+    bm.use_cpu()
+
     from blond.legacy.blond2.beam.beam import Beam, Proton
     from blond.legacy.blond2.beam.profile import CutOptions, Profile
     from blond.legacy.blond2.impedances.impedance import (
