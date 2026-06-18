@@ -66,7 +66,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
         self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -74,30 +74,43 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        pass
+        super().on_init_simulation(simulation=simulation, **kwargs)
 
-    def on_run_simulation(
+    def configure(self, **kwargs) -> None:
+        """
+        Invalidate the geometry cache whenever configure is called.
+
+        Parameters
+        ----------
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self.invalidate_cache()
+
+    def configure_run(
         self,
-        simulation: Simulation,
+        *,
         beam: BeamBaseClass,
         n_turns: int,
         **kwargs: dict[str, Any],
     ) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called.
+        Validate histogram arrays and invalidate cache at run start.
 
         Parameters
         ----------
-        simulation
-            `Simulation` context manager.
         beam
-            Simulation `Beam` object.
+            The beam being simulated.
         n_turns
-            Number of turns to simulate.
+            Number of turns for this run.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted values; passed to the next MRO level.
         """
+        super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
         assert self._hist_x is not None
         assert self._hist_y is not None
         self.invalidate_cache()
@@ -344,7 +357,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             raise NotImplementedError(
                 "Implement histogram on distributed array"
             )
-        else:
+        elif beam.common_array_size > 0:
             # `_hist_x`, `_hist_y` could be None, which is not handled and
             # causes a MyPy type error,
             # This is intentionally ignored, we want to get an exception.
@@ -359,6 +372,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             # this factor is used to reproduce the behaviour
             # of np.hist(..., density=True)
             self.hist_y_to_density_factor = 1.0 / beam.common_array_size
+        else:
+            self._hist_y[:] = 0
+            self.hist_y_to_density_factor = 0.0
+
         self.invalidate_cache()
 
     @staticmethod
@@ -610,9 +627,33 @@ class DynamicProfile(ProfileBaseClass):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted kwargs collected by the MRO chain.
+        """
+        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
+
+    def configure_run(
+        self,
+        *,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Update histogram limits from the beam at run start.
+
+        Parameters
+        ----------
+        beam
+            The beam being simulated.
+        n_turns
+            Number of turns for this run.
+        **kwargs
+            Simulation-extracted values; passed to the next MRO level.
         """
         self.update_attributes(beam=beam)
+        # super call after attribute updates, because it also checks
+        # whether the attributes are set correctly.
+        super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
 
     @abstractmethod  # pragma: no cover
     def update_attributes(self, beam: BeamBaseClass) -> None:
@@ -704,6 +745,19 @@ class DynamicProfileConstNBins(DynamicProfile):
             name=name,
         )
         self.n_bins = int_from_float_with_warning(n_bins, warning_stacklevel=2)
+
+    def invalidate_cache(self) -> None:
+        """Delete the stored values of functions with @cached_property."""
+        self._invalidate_cache(
+            props=(
+                "gradient_hist_y",
+                "hist_step",
+                "cut_left",
+                "cut_right",
+                "bin_edges",
+                # n_bins is excluded: it's a user-set constant, not a cached computed value
+            )
+        )
 
     def update_attributes(self, beam: BeamBaseClass) -> None:
         """

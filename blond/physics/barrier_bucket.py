@@ -220,7 +220,7 @@ class BarrierRF(RFManipulationBaseClass):
         """
         super()._track(beam=beam)
 
-        turn = self._turn_i.value
+        turn = self._turn_counter.value
         time = beam.reference.time
 
         beta = beam.reference.beta
@@ -245,23 +245,6 @@ class BarrierRF(RFManipulationBaseClass):
             beam.particle_type.charge,
             acceleration_kick=-reference_energy_change,
         )
-
-    def on_run_simulation(self, simulation, beam, n_turns, **kwargs):
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
 
 
 def compute_sin_barrier(

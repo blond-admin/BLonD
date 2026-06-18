@@ -23,6 +23,7 @@ Simon Lauber
 from __future__ import annotations
 
 import warnings
+from copy import copy
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -36,6 +37,7 @@ from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
 from blond.physics.impedances.base import (
     FreqDomain,
+    SupportsVectorFittedModel,
     TimeDomain,
     WakeField,
     WakeFieldSolver,
@@ -46,6 +48,7 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
@@ -59,7 +62,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         super().__init__()
         self._beam: BeamBaseClass | None = None
         self._Z_over_n: float | None = None
-        self._turn_i: DynamicParameter | None = None
+        self._turn_counter: DynamicParameter | None = None
         self._parent_wakefield: WakeField | None = None
         self._simulation: Simulation | None = None
 
@@ -82,7 +85,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         )
         impedances: tuple[InductiveImpedance, ...] = parent_wakefield.sources
         self._Z_over_n = float(sum(o.Z_over_n for o in impedances))
-        self._turn_i = simulation.turn_i
+        self._turn_counter = simulation.turn_counter
         self._simulation = simulation
 
     def calc_induced_voltage(
@@ -1209,3 +1212,160 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
             induced_voltage += self._previous_wakes[i][sel_current_profile(i)]
 
         return induced_voltage
+
+
+class MultiPoleSparseSolve(WakeFieldSolver):
+    """
+    Solver that uses a vector-fitted pole-residue model to calculate the induced voltage.
+
+    See Also
+    --------
+    blond.physics.impedances.base.SupportsVectorFittedModel : Interface for wakefield sources that can provide the poles and residues this solver consumes.
+    """
+
+    def __init__(
+        self,
+    ) -> None:
+        self._poles: NumpyArray | CupyArray | None = None
+        self._residues: NumpyArray | CupyArray | None = None
+        self._profile: EquidistantMultiProfile | None = None
+        self._parent_wakefield: WakeField | None = None
+        self._voltage: NumpyArray | CupyArray | None = None
+        self.last_reference_time: float | None = None
+
+        self._charge_per_macroparticle: float | None = None  # in Coulomb
+
+        # counter rotation feature for muon collider
+        self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
+
+    def on_wakefield_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
+        """
+        Lateinit method when WakeField is late-initialized.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        parent_wakefield
+            `WakeField` that this solver affiliated to.
+        """
+        self._parent_wakefield = parent_wakefield
+
+        self._profile: EquidistantMultiProfile = parent_wakefield.profile  # type: ignore
+
+    def _finalize_solver(self, beam):
+        poles = []
+        residues = []
+        counter_rotation_pole_flip = []
+        assert self._parent_wakefield is not None
+        for source in self._parent_wakefield.sources:
+            vector_source: SupportsVectorFittedModel = source
+
+            poles_, residues_, cr_signs_ = vector_source.get_vectorfit()
+
+            poles.extend(poles_)
+            residues.extend(residues_)
+            counter_rotation_pole_flip.extend(cr_signs_)
+
+        self._poles = backend.array(poles, dtype=complex)
+        self._residues = backend.array(residues, dtype=complex)
+        self._counterrotating_pole_signs = backend.array(
+            counter_rotation_pole_flip, dtype=backend.float
+        )
+        assert len(self._counterrotating_pole_signs) == len(self._poles)
+        assert len(self._residues) == len(self._poles)
+
+        profile_hist_x = (
+            self._parent_wakefield.profile._continuous_memory_hist_x
+            if type(self._parent_wakefield.profile) is EquidistantMultiProfile
+            else self._parent_wakefield.profile.hist_x
+            # todo unify profile
+            #  and sparse profile once the `assert_linspace`
+            #  is added
+        )
+        self._voltage = backend.zeros(
+            len(profile_hist_x),
+            dtype=backend.float,
+        )
+        self._states = backend.zeros(len(self._poles) + 1, complex)
+        bin_dt = float(profile_hist_x[1] - profile_hist_x[0])
+        # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
+        # on the first call (C++ now uses edge-based rather than centre-based
+        # state semantics; see poles.cpp for details).
+        self._states[-1] = profile_hist_x[0] - bin_dt / 2.0
+
+        self._voltage_threaded = backend.zeros(
+            (backend.specials.get_max_threads(), len(self._voltage))
+        )
+        self._update_on_bin = backend.unique(
+            self._profile._bucket_index_to_memory_index
+            if type(self._profile) is EquidistantMultiProfile
+            else backend.array([0], dtype=np.int32)
+        )
+
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
+        """
+        Calculate the induced voltage in this turn based on the last profiles.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam.
+
+        Returns
+        -------
+        induced_voltage
+            The induced voltage, in [V].
+        """
+        profile_hist_y = (  # TODO: remove when assert linspace is implemented in other locations and api is same for both
+            self._profile._continuous_memory_hist_y
+            if type(self._profile) is EquidistantMultiProfile
+            else self._profile.hist_y
+        )
+        profile_dts = (
+            self._profile._continuous_memory_hist_x
+            if type(self._profile) is EquidistantMultiProfile
+            else self._profile.hist_x
+        )
+
+        if self._poles is None:
+            self._finalize_solver(beam=beam)
+            assert self._update_on_bin[0] == 0, "First bin must always update."
+            assert int(self._update_on_bin[-1]) < len(profile_hist_y) - 1, (
+                "The last bin must not update, the kernels read "
+                "`profile_dts[update_bin + 1]`."
+            )
+        else:
+            # The last entry of `_states` is not a pole state but the running
+            # reference time of the convolution (real part only). Each turn it
+            # is shifted back by the time elapsed since the previous call, so
+            # the pole decays are computed relative to the current profile.
+            passed_time = beam.reference.time - self.last_reference_time
+            self._states[-1] -= complex(passed_time)
+            assert self._states[-1].real <= profile_dts[0]
+
+        self._charge_per_macroparticle = (
+            -(1 * beam.particle_type.charge * e)
+            * beam.intensity
+            * self._parent_wakefield.profile.hist_y_to_density_factor
+        )
+
+        backend.specials.wake_from_pole_residue(
+            profile=profile_hist_y,
+            profile_dts=profile_dts,
+            poles=self._poles,
+            residues=self._residues,
+            is_counterrotating_beam=beam.is_counter_rotating,
+            counterrotating_pole_signs=self._counterrotating_pole_signs,
+            states=self._states,
+            voltage=self._voltage,
+            voltage_threaded=self._voltage_threaded,
+            update_on_bin=self._update_on_bin,
+            factor=self._charge_per_macroparticle,
+        )
+        self.last_reference_time = copy(beam.reference.time)
+        return self._voltage

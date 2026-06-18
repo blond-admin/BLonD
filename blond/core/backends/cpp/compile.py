@@ -17,6 +17,8 @@ import platform
 import subprocess
 import sys
 
+from blond.generals.hashing_ import hash_in_folder
+
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 
@@ -29,12 +31,14 @@ cpp_files = [
     "histogram.cpp",
     "drift_exact.cpp",
     # "music_track.cpp",
-    "blondmath.cpp",
+    # "blondmath.cpp",
+    "blondmath_new.cpp",
     # "fast_resonator.cpp",
     "histogram_sparse.cpp",
     "beam_phase.cpp",
     "loss_box.cpp",
     "move_flagged_elements_to_end.cpp",
+    "poles.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
 ]
@@ -77,7 +81,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     compiler: str = "g++",
     libs: str = "",
     flags: str = "",
-    optimize: bool = False,
+    optimize: bool = True,
     libname: str | None = None,
 ) -> None:
     """
@@ -104,7 +108,8 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     flags : str
         Additional compiler flags as a space-separated string (e.g., "-O2 -Wall").
     optimize : bool
-        If True, enable post-compilation optimizations.
+        If True (default), add `-march=native`, `-ffast-math` and
+        CPU-specific vectorization flags (AVX/SSE/FMA).
     libname : str
         Path and name of the output library (without file extension).
 
@@ -118,11 +123,13 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     This function assumes the presence of a Makefile or equivalent build system
     capable of processing the supplied options.
     """
-    print("\nTrying to compile C++ backend.")
     for parallel in (False, True):
-        if libname is None:
-            from blond.generals.hashing_ import hash_in_folder
+        if parallel:
+            print("\nTrying to compile parallel C++ backend.")
+        else:
+            print("\nTrying to compile single core C++ backend.")
 
+        if libname is None:
             folder = os.path.dirname(os.path.abspath(__file__))
 
             hash_ = hash_in_folder(
@@ -141,7 +148,11 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             "-std=c++11",
             "-shared",
             "-funroll-loops",  # Aggressive loop unrolling
+            "-ftree-vectorize",
         ]
+        if optimize:
+            # CPU-specific; --no-optimize keeps the binary portable
+            cflags += ["-march=native"]
         # Some additional warning reporting related flags
         cflags += [
             "-Wall",
@@ -405,7 +416,7 @@ def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         text=True,
-        check=True,
+        check=False,
     )
     # If we have an error
     if proc.returncode != 0:
@@ -524,9 +535,10 @@ def main_cli() -> None:
     parser.add_argument(
         "-optimize",
         "--optimize",
-        type=bool,
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Auto optimize the compiled library.",
+        help="Auto optimize the compiled library"
+        " (disable with --no-optimize).",
     )
 
     # Parse command line options

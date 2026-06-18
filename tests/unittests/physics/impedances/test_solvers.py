@@ -45,7 +45,6 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
-from blond.testing.backend_testing import skip_if_no_cupy
 from blond.testing.helpers import enforce_64_bit_backend
 
 
@@ -363,7 +362,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
 
     def test_on_wakefield_init_simulation(self):
         simulation = Mock(Simulation)
-        simulation.turn_i = 0
+        simulation.turn_counter = 0
         parent_wakefield = Mock(WakeField)
         indcutive_impedance = Mock(InductiveImpedance)
         indcutive_impedance.Z_over_n = 1

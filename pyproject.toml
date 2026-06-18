@@ -41,6 +41,7 @@ dependencies = [
   "mpi4py>=4",       # distributed computing
   "mpmath>=1",       # for numba fastmath replacement
   "sympy>=1.9",      # symbolic math for separatrix calculations, etc.
+  "scikit-rf>1",     # pole fitting of impedances
 ]
 
 [project.optional-dependencies]
@@ -64,6 +65,7 @@ doc = [
   "nbconvert>=6",                # notebook to documentation conversion
   "ipython>5",                   # interactive Python shell
   "notebook>=7",                 # for jupyter-notebooks in the examples
+  "sphinx-copybutton",           # for the copy button of code on the website
 ]
 mpi = [
   "mpi4py>=4", # MPI bindings for distributed computing
@@ -148,10 +150,12 @@ convention = "numpy"
 [tool.pytest.ini_options]
 minversion = "8.4"
 addopts = "--import-mode=importlib"
+testpaths = ["tests/unittests", "tests/integration"]
 markers = [
   "mpi: Tests that require MPI.",
   "backend_mutation: Tests that alter the backend as a side effect.",
   "cupy: Test that require CuPy.",
+  "integration: Full end-to-end simulation tests.",
 ]
 
 [tool.numpydoc_validation]

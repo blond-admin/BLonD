@@ -146,7 +146,7 @@ class TestDriftIntegration(unittest.TestCase):
         beam = EmptyBeam(particle_type=uranium_29, reference_total_energy=12)
         observable_1 = BeamObservationOncePerTurn(each_turn_i=1)
         observable_1._simulation = simulation_mock
-        observable_1._simulation.turn_i = DynamicParameter(1)
+        observable_1._simulation.turn_counter = DynamicParameter(1)
         observable_1.on_run_simulation(
             simulation=simulation_mock, beam=beam, n_turns=2
         )
