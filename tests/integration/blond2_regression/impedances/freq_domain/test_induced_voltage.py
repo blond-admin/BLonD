@@ -157,16 +157,9 @@ def test_induced_voltage():
     )
 
     # ── BLonD 2 ──────────────────────────────────────────────────────────────
-    # The legacy `bm` backend is a global singleton that this test does not
-    # otherwise control. Under pytest-randomly it can be left in a slow mode
-    # (e.g. pure-python) by an earlier test, which made this regression's
-    # runtime explode and vary wildly between CI runs. Pin it to the fastest
-    # available CPU backend (cpp > numba > python); this also restores a sane
-    # global state for subsequent tests.
-    from blond.legacy.blond2.utils import bmath as bm
-
-    bm.use_cpu()
-
+    # The legacy `bm` backend is pinned to a fast CPU backend for every test by
+    # the autouse fixture in the root conftest.py, so it cannot be left in a
+    # slow (pure-python) mode by an earlier test under pytest-randomly.
     from blond.legacy.blond2.beam.beam import Beam, Proton
     from blond.legacy.blond2.beam.profile import CutOptions, Profile
     from blond.legacy.blond2.impedances.impedance import (

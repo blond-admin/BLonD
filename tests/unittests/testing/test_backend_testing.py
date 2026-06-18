@@ -200,3 +200,43 @@ class TestBackendTesting(unittest.TestCase):
                     self.assertIsInstance(cast, np.ndarray)
                 elif i == 3:
                     self.assertIsInstance(cast, cupy.ndarray)
+
+
+class TestPinFastTestBackends(unittest.TestCase):
+    """Tests for the autouse-fixture helper that pins fast test backends."""
+
+    def setUp(self):
+        self.init_backend = backend.backend.__class__
+        self.init_specials = backend.backend.specials_mode
+
+    def tearDown(self):
+        backend.backend.change_backend(self.init_backend)
+        if backend.backend.specials_mode != self.init_specials:
+            backend.backend.set_specials(self.init_specials)
+
+    def test_resets_blond3_python_specials(self):
+        # The pure-python kernels are slow; the helper must move the ambient
+        # default off "python" (tests that want python set it themselves).
+        backend.backend.set_specials("python")
+        self.assertEqual(backend.backend.specials_mode, "python")
+
+        bend_test.pin_fast_test_backends()
+
+        self.assertNotEqual(backend.backend.specials_mode, "python")
+
+    def test_leaves_non_python_blond3_specials_untouched(self):
+        backend.backend.set_specials("numba")
+
+        bend_test.pin_fast_test_backends()
+
+        self.assertEqual(backend.backend.specials_mode, "numba")
+
+    def test_resets_legacy_blond2_python_backend(self):
+        from blond.legacy.blond2.utils import bmath as bm
+
+        bm.use_py()
+        self.assertEqual(type(bm).__name__, "PyBackend")
+
+        bend_test.pin_fast_test_backends()
+
+        self.assertNotEqual(type(bm).__name__, "PyBackend")
