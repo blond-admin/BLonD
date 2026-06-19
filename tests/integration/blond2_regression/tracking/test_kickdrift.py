@@ -16,6 +16,14 @@ _RESOURCES = Path(__file__).parent / "resources"
 
 @pytest.mark.integration
 def test_kickdrift():
+    # TODO(ci-perf): one of the slowest tests on CI (~100-185s per numba pass,
+    #  and it runs in several backend passes). Cost is N_TURNS (= len(
+    #   momentum))
+    #  iterations of a Python-level per-turn tracking loop plus numba JIT
+    #  warm-up.
+    #  Investigate whether N_TURNS / the resource cycle can be shortened
+    #  without
+    #  weakening the BLonD2-vs-BLonD3 regression assertion.
     phi_rf = np.genfromtxt(_RESOURCES / "phase.txt", delimiter=",")
     transition_gamma = np.genfromtxt(_RESOURCES / "gamma.txt", delimiter=",")
     momentum = np.genfromtxt(_RESOURCES / "momentum.txt", delimiter=",")
