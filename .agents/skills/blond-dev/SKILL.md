@@ -178,6 +178,22 @@ comparing each backend to the Python reference.
 
 ## MR / TDD workflow
 
+> [!IMPORTANT]
+> **NEVER run `git commit` before pre-commit passes. This is the single most
+> important step in this section — do not skip it, ever.**
+>
+> 1. **First commit in a fresh checkout (CI/cloud agent, new clone): run
+>    `pre-commit install` once.** Without it the git hook is absent and
+>    `git commit` will NOT run the hooks — so the gate silently does nothing.
+> 2. Before *every* commit, run `pre-commit run --all-files` (or
+>    `pre-commit run --files <changed>`) and read the output.
+> 3. Commit **only** once it reports all-green. If a hook auto-fixed files and
+>    aborted, `git add` the changes and go back to step 2 — repeat until clean.
+>
+> The same hooks gate CI, so skipping the local run doesn't avoid the work — it
+> just turns a 10-second local fix into a failed pipeline. A commit made without
+> a passing pre-commit run is a mistake to be corrected, not a shortcut.
+
 One GitLab MR per item, each on its own branch off `blonder`
 (`blonder_feature/<topic>` or `blonder_bugfix/<topic>`); the user usually
 **pre-creates the branch** — check `git branch --show-current` before making one.
@@ -185,6 +201,8 @@ One GitLab MR per item, each on its own branch off `blonder`
 - **Strict TDD with visible RED:** write the failing test, run it, show it failing,
   *then* implement. (User explicitly requires seeing RED.)
 - Tests mirror the `blond/` tree under `tests/unittests/`.
+- **Pre-commit before every `git commit`** — see the callout above; this is not
+  optional.
 - Commit messages: past tense ("Fixed …", "Added …"), body explains *why*.
 - When working a review backlog, tick items in `REVIEW_TODO.md` (repo root, untracked)
   with branch + commit hash.
@@ -222,7 +240,9 @@ NumPy format or both the hook and the doc build will reject the MR.
 
 ## Common problems
 
-**Pre-commit fails / blocks the commit.**
+**Pre-commit fails / blocks the commit.** (You should be hitting this from the
+proactive `pre-commit run` in *MR / TDD workflow* above — i.e. *before* you
+commit, not from a surprise at `git commit` time. Same fixes apply either way.)
 - `no-commit-to-branch` blocks direct commits to `blonder`, `develop`, `master` —
   you must be on a feature branch.
 - Several hooks auto-fix (isort, `ruff-format`, `ruff-check --fix`, pyupgrade,
