@@ -16,7 +16,6 @@ from scipy.fft import next_fast_len
 from blond import (
     Beam,
     ConstantMagneticCycle,
-    Cupy64Bit,
     Numpy64Bit,
     Ring,
     Simulation,
@@ -45,6 +44,7 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+from blond.testing.backend_testing import multi_backend_testcase
 from blond.testing.helpers import enforce_64_bit_backend
 
 
@@ -408,10 +408,9 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 0.5e-9
         self.periodic_freq_solver.t_periodicity = 1e-8
 
-    def _test_calc_induced_voltage(self, backend_class):
-        from blond import backend
+    @multi_backend_testcase
+    def test_calc_induced_voltage(self):
 
-        backend.change_backend(backend_class)
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 11
         )
@@ -465,28 +464,6 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             self.periodic_freq_solver._freq_y_needs_update = True
             # update is now forced, which should force the error
             self.periodic_freq_solver._update_impedance_sources(beam=beam)
-
-    @pytest.mark.backend_mutation
-    def test_calc_induced_voltage_gpu(self):
-        try:
-            import cupy  # type: ignore
-        except ImportError as exc:
-            # skip test if GPU is not available
-            self.skipTest(str(exc))
-
-        from blond import backend
-
-        backend_org = type(backend)
-        self._test_calc_induced_voltage(backend_class=Cupy64Bit)
-        backend.change_backend(backend_org)
-
-    @pytest.mark.backend_mutation
-    def test_calc_induced_voltage_cpu(self):
-        from blond import backend
-
-        backend_org = type(backend)
-        self._test_calc_induced_voltage(backend_class=Numpy64Bit)
-        backend.change_backend(backend_org)
 
     def test_on_wakefield_init_simulation(self):
         simulation = Mock(Simulation)
