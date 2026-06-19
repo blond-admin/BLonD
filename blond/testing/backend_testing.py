@@ -116,7 +116,11 @@ def pin_fast_test_backends() -> None:
         legacy_utils.bmath.use_cpu()
 
     if backend.backend.specials_mode == "python":
-        backend.backend.set_specials("numba")
+        try:
+            backend.backend.set_specials("cpp")
+        except Exception as exc:
+            warnings.warn(str(exc), stacklevel=1)
+            backend.backend.set_specials("numba")
 
 
 def multi_backend_testcase(*args: tuple[str]) -> Callable:
