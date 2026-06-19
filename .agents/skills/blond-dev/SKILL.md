@@ -91,13 +91,27 @@ A numeric kernel exists once **per backend** under
 `tests/unittests/core/backends/test_backend.py`, looping over `special_modes` and
 comparing each backend to the Python reference.
 
+- **`backend` is a backend-agnostic drop-in for `np.`/`cp.` — prefer it over importing
+  NumPy or CuPy directly.** The active backend object (`from blond import backend`, or
+  `from blond.core.backends.backend import backend`) re-exports the array API under the
+  same names: `backend.array`, `backend.zeros`, `backend.empty`, `backend.ones`,
+  `backend.zeros_like`, `backend.arange`, `backend.linspace`, `backend.sin`, `backend.cos`,
+  `backend.sqrt`, `backend.interp`, `backend.fft`, `backend.histogram`, `backend.random`,
+  `backend.sum`, `backend.mean`, … plus the dtype/constants `backend.float`,
+  `backend.complex`, `backend.pi`, `backend.twopi`. On a NumPy backend each maps to `np.*`;
+  on a CuPy backend to `cp.*` — so writing `backend.zeros(n)` instead of `np.zeros(n)` makes
+  the array land on the device the active backend uses (host or GPU) with **no `is_cupy`
+  branching and no top-level `import cupy`**. In framework code that creates or operates on
+  backend arrays, reach for `backend.<fn>` first; fall back to a literal `np.`/`cp.` only
+  for the rare op the backend doesn't re-export (and then branch via `is_cupy_array`). This
+  is also why you read precision from `backend.float`, not `np.float64` (see below).
 - **Backend parity is mandatory.** Adding or changing a kernel means updating it in
   **all four** backends *and* the `Specials` ABC signature — not just the one you run
   locally. A kernel present in only some backends fails under
   `BLOND_FORCE_TEST_ALL_BACKENDS=True`. The `python` backend is the readable reference
   implementation; mirror its behaviour exactly in `numba`/`cpp`/`cuda`.
 - **Arrays may be NumPy *or* CuPy — handle both.** Backend arrays are *not* guaranteed to
-  be NumPy. The conversion rules (this is what broke MR !508):
+  be NumPy. The conversion rules:
   - **Use `copy_to_cpu(arr)`, never `arr.get()` directly.**
     `from blond.generals.cupy.no_cupy_import import copy_to_cpu` returns a host copy for
     any backend (`.get()` for CuPy, `.copy()` for NumPy); calling `.get()` yourself crashes
@@ -110,12 +124,19 @@ comparing each backend to the Python reference.
   - `copy_to_cpu` is the standard way tests (`blond/testing/backend_testing.py`),
     observations, and examples pull results off the GPU to compare against the CPU
     reference — reach for it whenever a test or readout needs concrete host numbers.
-- **Don't hardcode 64-bit precision.** The shipped backends (`Numpy64Bit`, `Cupy64Bit`)
-  and the `BLOND_BACKEND_BITS` env var are 64-bit, but the kernels are written
-  *precision-generically* — they branch on `float32`/`complex64`, and `enforce_precision`
-  coerces stray Python floats to the active backend's dtype. Read the float width from
-  `backend.float` instead of assuming `np.float64`, and compare with tolerances
-  (`rtol`/`atol`) rather than bit-exact equality.
+- **Don't hardcode 64-bit precision — and feed kernels the right dtype yourself.** The
+  shipped backends (`Numpy64Bit`, `Cupy64Bit`) and the `BLOND_BACKEND_BITS` env var are
+  64-bit, but the kernels are written *precision-generically* — they branch on
+  `float32`/`complex64`. Read the float width from `backend.float` (and `backend.complex`)
+  instead of assuming `np.float64`, build arrays at that precision
+  (`backend.array(x, dtype=backend.float)`), and compare with tolerances (`rtol`/`atol`)
+  rather than bit-exact equality. **There is no universal precision-coercion safety net:**
+  the `numba` backend's `enforce_precision` decorator only casts stray *scalar* Python
+  `float` arguments — it does not fix array dtypes, and the **`cpp` and `cuda` backends do
+  no coercion at all.** They `assert` the incoming array dtype (which `python -O` strips —
+  see the `assert` note below) and otherwise feed a wrong-precision array straight into a
+  kernel compiled for a fixed type, which crashes or silently corrupts. The caller is
+  responsible for passing correctly-typed arrays.
 - **`assert` is intentional validation.** Backend wrappers validate dtype/contiguity
   with `assert` so `python -O` strips them from hot loops. Never propose
   `assert → raise`. Follow the same pattern for new wrapper validation.
