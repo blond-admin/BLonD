@@ -75,6 +75,13 @@ Backend-relevant env vars and markers:
 - Markers (`pyproject.toml`): `backend_mutation`, `cupy`, `mpi`, `integration`.
   Exclude with `-m "not backend_mutation"`. MPI tests run under `mpirun -n 2 … -m "mpi"`.
 - `pytest-randomly` randomizes order; reproduce a failure with `--randomly-seed=<N>`.
+- **Tests run in random order *and* `backend_mutation` tests flip the global
+  active backend (`set_specials`) mid-run.** So both the tests and the BLonD
+  code they exercise must be **backend-agnostic**: never assume which backend is
+  active, and restore any backend you change in teardown. An order- or
+  backend-dependent test that passes on one seed will fail on another — if a
+  failure only reproduces under some seeds, suspect leaked global state, not a
+  flaky test.
 
 ## Backend conventions
 
@@ -120,6 +127,18 @@ comparing each backend to the Python reference.
   short polynomial rather than chasing accuracy. Don't add "safety" checks, branches, or
   allocations inside these loops — push validation out to the wrapper (where `assert`
   lives) or do it once before the loop.
+- **No host↔device transfers in the hot loop.** A `copy_to_cpu`/`.get()` (or a stray
+  `np.asarray` that forces a sync) inside the per-turn tracking loop drags data back and
+  forth across the PCIe bus every turn and destroys GPU performance. Keep beam/profile
+  arrays resident on the device for the whole run; only pull to host for occasional
+  observations/readouts, outside the inner loop. Physics correctness comes first, but
+  a "correct" kernel that round-trips through host memory each turn is still a bug.
+- **Many machines have no GPU — degrade gracefully, never hard-require CuPy.** The
+  default/CI path is CPU (`numba`/`cpp`/`python`); CUDA is optional. Import CuPy through
+  the `blond.generals.cupy.no_cupy_import` shims (`copy_to_cpu`, `is_cupy_array`) which
+  work whether or not CuPy is installed — never `import cupy` at module top level in code
+  that must load CPU-only. Code and tests must run end-to-end with no GPU present; gate
+  GPU-only tests behind the `cupy`/`cuda` markers so they skip cleanly instead of erroring.
 
 ## Coding conventions
 
@@ -165,6 +184,22 @@ One GitLab MR per item, each on its own branch off `blonder`
   the banner in those files) — edit `.agents/skills/blond-dev/SKILL.md`, not the copies.
 - **Public API lives in `blond/__init__.py`.** Anything exported there is the supported
   top-level API and shows up in the docs.
+
+## CI gates (what blocks an MR)
+
+`.gitlab-ci.yml` is authoritative, but an MR is rejected if it:
+- **Decreases test coverage.** CI runs the suite under `--cov` and publishes the
+  line-rate to GitLab; the project's MR rule fails on any drop. New code needs tests —
+  budget for them, don't bolt them on after.
+- **Fails pre-commit.** The hooks below run in CI too (ruff, isort, copyright,
+  numpydoc, …); a hook that fails locally fails the pipeline.
+- **Fails the doc build.** `sphinx-build … -W` treats warnings as errors (see below).
+
+**Docs are Sphinx; docstrings are NumPy style.** Public-API docstrings follow the
+[NumPy docstring standard](https://numpydoc.readthedocs.io/en/latest/format.html)
+and are enforced by `numpydoc-validation`; the HTML docs are built with Sphinx
+(`cd docs && bash create_docs.sh`). Write Parameters/Returns/Raises sections in
+NumPy format or both the hook and the doc build will reject the MR.
 
 ## Common problems
 
