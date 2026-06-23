@@ -17,7 +17,10 @@ class TestEX_02_Magnetic_ramp_by_turn(unittest.TestCase):
         backend.set_specials("numba")
         from blond.examples.scripts import EX_02_Magnetic_ramp_by_turn
 
-        EX_02_Magnetic_ramp_by_turn.main()
+        EX_02_Magnetic_ramp_by_turn.main(
+            n_turns=10,
+            n_macroparticles=100,
+        )
 
         # full script. just checking if it crashes
 
@@ -33,7 +36,14 @@ class TestEX_02_Magnetic_ramp_by_turn(unittest.TestCase):
         backend.set_specials("cuda")
         from blond.examples.scripts import EX_02_Magnetic_ramp_by_turn
 
-        EX_02_Magnetic_ramp_by_turn.main()
+        EX_02_Magnetic_ramp_by_turn.main(
+            n_turns=10,
+            n_macroparticles=100,
+        )
         backend.zeros(100)
 
         # full script. just checking if it crashes
+
+
+if __name__ == "__main__":
+    unittest.main()
