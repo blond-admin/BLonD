@@ -3,6 +3,7 @@ import warnings
 
 import numpy as np
 import pytest
+from scipy.constants import elementary_charge
 
 from blond import copy_to_cpu
 from blond.core.backends.backend import (
@@ -323,6 +324,71 @@ class TestSpecials(unittest.TestCase):
                     result_python,
                     rtol=self.rtol,
                     err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_music_track(self) -> None:
+        """python/cpp backends agree; numba/cuda raise NotImplementedError."""
+        dtype = np.float64
+        R_S, omega_R, Q, n_particles = 1e6, 2 * np.pi * 1e9, 1.0, 1e11
+        reference_single = None
+        reference_multi = None
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            n = len(self.dt)  # self.dt is already sorted ascending
+            alpha = omega_R / (2 * Q)
+            omega_bar = np.sqrt(omega_R**2 - alpha**2)
+            const = -elementary_charge * R_S * omega_R * n_particles / (n * Q)
+            coeffs = (
+                alpha,
+                omega_bar,
+                const,
+                -alpha / omega_bar,
+                -R_S * omega_R / (Q * omega_bar),
+                omega_R * Q / (R_S * omega_bar),
+                alpha / omega_bar,
+            )
+
+            dE = self.dE.copy()
+            iv = backend.zeros(n, dtype=backend.float)
+            ap = backend.array([1.0, 0.0, 10.0, 0.0], dtype=backend.float)
+
+            if special in ("numba", "cuda"):
+                # MuSiC was not shipped for these backends in BLonD2.
+                with self.assertRaises(NotImplementedError):
+                    backend.specials.music_track(
+                        self.dt, dE, iv, ap, *coeffs, False
+                    )
+                continue
+
+            # turn 1 (single-turn) then turn 2 (multi-turn)
+            backend.specials.music_track(self.dt, dE, iv, ap, *coeffs, False)
+            single = copy_to_cpu(iv)
+            iv2 = backend.zeros(n, dtype=backend.float)
+            backend.specials.music_track(self.dt, dE, iv2, ap, *coeffs, True)
+            multi = copy_to_cpu(iv2)
+
+            if reference_single is None:
+                reference_single = single
+                reference_multi = multi
+            else:
+                # cpp uses VDT fast math, so allow a small tolerance.
+                np.testing.assert_allclose(
+                    single,
+                    reference_single,
+                    **allclose_tolerances(reference_single, 1e-5),
+                    err_msg=f"single-turn `{special}` disagrees with python",
+                )
+                np.testing.assert_allclose(
+                    multi,
+                    reference_multi,
+                    **allclose_tolerances(reference_multi, 1e-5),
+                    err_msg=f"multi-turn `{special}` disagrees with python",
                 )
 
     @unittest.skip

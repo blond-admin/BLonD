@@ -713,6 +713,31 @@ class BeamBaseClass(Preparable, ABC):
         """
         return self._flags.array_local
 
+    def sort_by_dt(self) -> None:
+        """
+        Sort the macro-particles in place by ascending ``dt``.
+
+        All per-particle arrays (``dt``, ``dE``, ``ids``, ``flags``) are
+        permuted by the same order, so particle identity is preserved.
+
+        Raises
+        ------
+        NotImplementedError
+            If the beam is distributed across MPI ranks: a per-node sort
+            cannot order the global beam, so sorting is unsupported there.
+        """
+        if self.is_distributed:
+            raise NotImplementedError(
+                "`sort_by_dt` cannot sort an MPI-distributed beam: a "
+                "per-node sort does not order the global beam."
+            )
+        dt = self._dt.array_local
+        order = dt.argsort()  # ndarray method works for NumPy and CuPy
+        self._dt.array_local[:] = dt[order]
+        self._dE.array_local[:] = self._dE.array_local[order]
+        self._ids.array_local[:] = self._ids.array_local[order]
+        self._flags.array_local[:] = self._flags.array_local[order]
+
     def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
         """
         Delete flagged array entries from the array.

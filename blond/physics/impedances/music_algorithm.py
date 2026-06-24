@@ -1,0 +1,320 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENSE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""MuSiC algorithm: time-domain induced voltage of a single resonator."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import numpy as np
+from scipy.constants import elementary_charge as e
+
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant
+from blond.core.ring.helpers import requires
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.distributed.helpers import mpi_is_distributed
+
+if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray as NumpyArray
+
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
+    from blond.physics.impedances.sources import Resonators
+
+
+class Music(BeamPhysicsRelevant):
+    r"""
+    MuSiC time-domain induced voltage from a single resonator.
+
+    Alternative to :class:`~blond.physics.impedances.base.WakeField` that
+    computes the *exact* induced voltage of one resonant mode directly from
+    the macro-particles in time domain, without slicing the beam into a
+    profile. The cost is :math:`O(n)` in the number of macro-particles thanks
+    to the recurrence of Migliorati & Palumbo.
+
+    Unlike :class:`~blond.physics.impedances.base.WakeField`, this element has
+    **no profile**: it sorts the beam by ``dt`` every turn and updates each
+    particle's energy ``dE`` in place. Sorting permutes *all* per-particle
+    arrays (``dt``, ``dE``, ``ids``, ``flags``) consistently, so particle
+    identity is preserved.
+
+    Parameters
+    ----------
+    source
+        A :class:`~blond.physics.impedances.sources.Resonators` holding
+        exactly **one** resonance.
+    section_index
+        Section index to group elements into sections.
+    name
+        Optional human-readable name for the element.
+
+    Attributes
+    ----------
+    induced_voltage
+        Induced voltage of the most recent turn [V] (one entry per
+        macro-particle, in the sorted order).
+
+    See Also
+    --------
+    blond.physics.impedances.base.WakeField : Profile-based induced voltage.
+
+    Notes
+    -----
+    Only the ``python`` and ``cpp`` backends are supported (those that
+    BLonD2 shipped); ``numba``, ``cuda`` and MPI raise
+    :class:`NotImplementedError`. Like BLonD2, only singly-charged
+    particles (``charge == 1``) are supported.
+
+    References
+    ----------
+    M. Migliorati, L. Palumbo, "Multibunch and multiparticle simulation
+    code with an alternative approach to wakefield effects", Phys. Rev. ST
+    Accel. Beams 18, 031001 (2015).
+    https://journals.aps.org/prab/abstract/10.1103/PhysRevSTAB.18.031001
+
+    Examples
+    --------
+    >>> from blond.physics.impedances.music_algorithm import Music
+    >>> from blond.physics.impedances.sources import Resonators
+    >>>
+    >>> music = Music(
+    ...     source=Resonators(
+    ...         shunt_impedances=1e6,
+    ...         center_frequencies=1e9,
+    ...         quality_factors=1.0,
+    ...     )
+    ... )
+    >>> ring.add_elements([music])
+    """
+
+    def __init__(
+        self,
+        source: Resonators,
+        section_index: int = 0,
+        name: str | None = None,
+    ) -> None:
+        super().__init__(section_index=section_index, name=name)
+        from blond.physics.impedances.sources import (
+            Resonators,  # prevent cyclic import
+        )
+
+        if not isinstance(source, Resonators):
+            raise TypeError(
+                f"`source` must be a `Resonators`, got {type(source).__name__}."
+            )
+        if source._n_resonators != 1:
+            raise ValueError(
+                "MuSiC supports exactly one resonance, but `source` has "
+                f"{source._n_resonators}."
+            )
+        self.source = source
+        self._R_S = float(copy_to_cpu(source._shunt_impedances).flatten()[0])
+        self._omega_R = (
+            2
+            * np.pi
+            * float(copy_to_cpu(source._center_frequencies).flatten()[0])
+        )
+        self._Q = float(copy_to_cpu(source._quality_factors).flatten()[0])
+
+        self._alpha = self._omega_R / (2 * self._Q)
+        self._omega_bar = float(np.sqrt(self._omega_R**2 - self._alpha**2))
+        self._coeff1 = -self._alpha / self._omega_bar
+        self._coeff2 = -self._R_S * self._omega_R / (self._Q * self._omega_bar)
+        self._coeff3 = self._omega_R * self._Q / (self._R_S * self._omega_bar)
+        self._coeff4 = self._alpha / self._omega_bar
+
+        self._simulation: Simulation | None = None
+        self._const: float | None = None
+        self._first_turn = True
+        self._array_parameters: NumpyArray | None = None
+        self.induced_voltage: NumpyArray | None = None
+
+    def _check_supported(self) -> None:
+        """
+        Raise if the active backend / parallelization is unsupported.
+
+        Raises
+        ------
+        NotImplementedError
+            If MPI is in use or the ``cuda`` backend is selected. The
+            per-turn sort (:meth:`~blond.core.beam.base.BeamBaseClass.sort_by_dt`)
+            also rejects distributed beams as a low-level safeguard.
+        """
+        if mpi_is_distributed():
+            raise NotImplementedError(
+                "MuSiC does not support MPI: the per-turn sort cannot order "
+                "a beam split across ranks."
+            )
+        if backend.specials_mode == "cuda":
+            raise NotImplementedError(
+                "MuSiC does not support the `cuda` backend."
+            )
+
+    @requires(["MagneticCycleBase"])
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
+        """
+        self._check_supported()
+        self._simulation = simulation
+        super().on_init_simulation(simulation=simulation, **kwargs)
+
+    def configure_run(
+        self, beam: BeamBaseClass, n_turns: int, **kwargs
+    ) -> None:
+        """
+        Reset per-run state and compute the MuSiC prefactor.
+
+        Parameters
+        ----------
+        beam
+            The beam being simulated.
+        n_turns
+            Number of turns for this run.
+        **kwargs
+            Simulation-extracted values passed down the MRO chain.
+        """
+        super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
+        self._check_supported()
+        assert self.each_turn_i == 1, (
+            "MuSiC requires `each_turn_i == 1`: the multi-turn bridging "
+            "assumes the element runs on consecutive turns, but got "
+            f"{self.each_turn_i}."
+        )
+        n_macroparticles = beam.n_macroparticles_partial()
+        charge = beam.particle_type.charge
+        assert charge == 1, (
+            "MuSiC currently only supports singly-charged particles "
+            f"(charge == 1), but got charge={charge}."
+        )
+        self._const = (
+            -e
+            # TODO investigate: the energy kick arguably scales with
+            # charge**2 (one factor from the beam current, one from the
+            # kick onto a test particle), mirroring `WakeField`. Disabled
+            # until verified; `charge == 1` is asserted above so it would
+            # have no effect anyway.
+            # * charge**2
+            * self._R_S
+            * self._omega_R
+            * beam.intensity
+            / (n_macroparticles * self._Q)
+        )
+        self._first_turn = True
+        self._array_parameters = backend.array(
+            [1.0, 0.0, 0.0, 0.0], dtype=backend.float
+        )
+        self.induced_voltage = None
+
+    def _t_rev(self, beam: BeamBaseClass) -> float:
+        """
+        Revolution period for the current turn [s].
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam.
+
+        Returns
+        -------
+        t_rev
+            Revolution period [s].
+        """
+        # TODO instantaneous or real T_rev ?
+        #  to be checked with tests..
+        return self._simulation.ring.circumference / beam.reference.velocity
+
+    def _track(self, beam: BeamBaseClass) -> None:
+        """
+        Sort the beam, compute the induced voltage and kick ``dE``.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        """
+        self._check_supported()
+
+        # Sort by dt (permutes dt/dE/ids/flags consistently) so the
+        # recurrence below sees the particles in time order.
+        beam.sort_by_dt()
+        dt = beam.write_partial_dt()
+        dE = beam.write_partial_dE()
+
+        n = len(dt)
+        if self.induced_voltage is None or len(self.induced_voltage) != n:
+            self.induced_voltage = backend.zeros(n, dtype=backend.float)
+        else:
+            self.induced_voltage[:] = 0.0
+
+        # On turn 1 there is no previous-turn wake to bridge; afterwards the
+        # bridge across the revolution gap needs the current t_rev.
+        multiturn = not self._first_turn
+        if multiturn:
+            self._array_parameters[2] = self._t_rev(beam)
+        backend.specials.music_track(
+            dt,
+            dE,
+            self.induced_voltage,
+            self._array_parameters,
+            self._alpha,
+            self._omega_bar,
+            self._const,
+            self._coeff1,
+            self._coeff2,
+            self._coeff3,
+            self._coeff4,
+            multiturn,
+        )
+        self._first_turn = False
+
+    @staticmethod
+    def headless(
+        beam: BeamBaseClass,
+        source: Resonators,
+        section_index: int = 0,
+    ) -> Music:
+        """
+        Initialize the full class with the lateinit methods executed.
+
+        Parameters
+        ----------
+        beam
+            The `Beam` object whose state will be updated by this element.
+        source
+            A `Resonators` source holding exactly one resonance.
+        section_index
+            Section index to group elements into sections.
+
+        Returns
+        -------
+        music
+            Instance with lateinit methods executed.
+        """
+        from unittest.mock import Mock
+
+        from blond.core.simulation.simulation import Simulation
+
+        music = Music(source=source, section_index=section_index)
+        simulation = Mock(Simulation)
+        music.on_init_simulation(simulation=simulation)
+        music.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=1,
+        )
+        return music

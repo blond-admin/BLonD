@@ -38,6 +38,7 @@ ASSIGNED_CATEGORIES = {
     "BarrierRF": Categories.LATTICE.value,
     "UserDefinedElement": Categories.LATTICE.value,
     "WakeField": Categories.LATTICE.value,
+    "Music": Categories.LATTICE.value,
     "StaticProfile": Categories.LATTICE.value,
     "DynamicProfileConstNBins": Categories.LATTICE.value,
     "EquidistantMultiProfile": Categories.LATTICE.value,

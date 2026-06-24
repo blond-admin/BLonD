@@ -39,6 +39,7 @@ __all__ = [
     "DriftSimple",
     "ReferenceEnergyChange",
     "WakeField",
+    "Music",
     "InductiveImpedanceSolver",
     "PeriodicFreqSolver",
     "TimeDomainFftSolver",
@@ -108,6 +109,7 @@ from blond.physics.cavities import (
 from blond.physics.drifts import DriftSimple
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 from blond.physics.impedances.base import WakeField
+from blond.physics.impedances.music_algorithm import Music
 from blond.physics.impedances.solvers import (
     InductiveImpedanceSolver,
     PeriodicFreqSolver,

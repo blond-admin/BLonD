@@ -353,6 +353,66 @@ class Specials(ABC):
             "The backend for `wake_from_pole_residue` is missing."
         )
 
+    # The MuSiC kernel is intentionally *not* abstract: BLonD2 only shipped
+    # it for the ``python`` and ``cpp`` backends, so those two override the
+    # method below while ``numba`` and ``cuda`` inherit this raising default.
+    @staticmethod
+    def music_track(
+        beam_dt: NumpyArray | CupyArray,
+        beam_dE: NumpyArray | CupyArray,
+        induced_voltage: NumpyArray | CupyArray,
+        array_parameters: NumpyArray | CupyArray,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+        multiturn: bool,
+    ) -> None:
+        """
+        MuSiC induced voltage of one resonator; updates ``beam_dE`` in place.
+
+        The caller must sort the macro-particles by ``beam_dt`` (ascending)
+        beforehand. ``induced_voltage`` is filled by the kernel.
+
+        Parameters
+        ----------
+        beam_dt
+            Macro-particle time coordinates [s], sorted ascending.
+        beam_dE
+            Macro-particle energy coordinates [eV]; updated in place.
+        induced_voltage
+            Output induced voltage [V]; filled by the kernel.
+        array_parameters
+            Length-4 state vector
+            ``[input_first, input_second, t_rev, last_dt]``; the running
+            state and ``last_dt`` are written back in place. When
+            ``multiturn`` is ``True`` the caller must set ``t_rev``
+            (index 2) and the previous-turn state/``last_dt`` must be
+            present.
+        alpha
+            Resonator damping ``omega_R / (2 Q)`` [rad/s].
+        omega_bar
+            Damped resonant angular frequency [rad/s].
+        const
+            MuSiC prefactor [V].
+        coeff1
+            Recurrence coefficient (see :class:`~blond.physics.impedances.music_algorithm.Music`).
+        coeff2
+            Recurrence coefficient.
+        coeff3
+            Recurrence coefficient.
+        coeff4
+            Recurrence coefficient.
+        multiturn
+            If ``False`` (turn 1) the recurrence starts fresh. If ``True``
+            the wake from the previous turn is bridged across the
+            revolution gap using ``array_parameters``.
+        """
+        raise NotImplementedError("The backend for `music_track` is missing.")
+
 
 class _ModeSwitchHelper:
     """
