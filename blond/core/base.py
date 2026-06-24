@@ -199,6 +199,27 @@ class Schedulable:
     schedules
         Dictionary to update a certain attribute by some value
         via `apply_schedules`
+
+    Notes
+    -----
+    Schedulable attributes require two manual entries in the dedicated class:
+    - in the initialization:
+    >>> def __init__(self, attribute_to_be_scheduled)
+    >>>     self._add_intended_schedule("attribute_to_be_scheduled")
+    - in the initialisation method:
+    >>> def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+    >>> super().on_init_simulation(
+    >>>        simulation,
+    >>>        turn_counter = simulation.turn_counter,
+    >>>        **kwargs,
+    >>>    )
+    - in the tracking method:
+    >>> def _track(self, beam: BeamBaseClass, **kwargs):
+    >>>     if self.schedule_active:
+    >>>         self.apply_schedules(
+    >>>            turn_i=self._turn_counter,
+    >>>            reference_time=float(beam.reference.time),
+    >>>         )
     """
 
     def __init__(self, **kwargs) -> None:

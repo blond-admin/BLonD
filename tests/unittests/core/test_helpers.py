@@ -141,6 +141,49 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(len(found), 1)
         self.assertEqual(found.pop(), test1)
 
+    def test_find_instances_ignores_modules(self):
+        # An attribute that references an imported module must not make the
+        # walk crawl into that module's globals (which reaches arbitrary
+        # third-party state, e.g. pytest's ``mark``).
+        import pytest as pytest_module
+
+        class Test1:
+            def to_be_found(self):
+                pass
+
+        class HoldsModule:
+            def __init__(self, test1):
+                self.a = test1
+                self.some_module = pytest_module
+
+        test1 = Test1()
+        holder = HoldsModule(test1=test1)
+        found = find_instances_with_method(
+            root=holder, method_name="to_be_found"
+        )
+        self.assertEqual(found, {test1})
+
+    def test_find_instances_fabricated_getattr(self):
+        # Objects whose ``__getattr__`` fabricates any attribute (like
+        # pytest's ``MarkGenerator``) must not crash the walk: a fabricated,
+        # non-iterable ``skip_find_instances_attributes`` must be ignored.
+        class Fabricator:
+            def __getattr__(self, name):
+                return object()  # non-iterable for any attribute name
+
+        class Holder:
+            def __init__(self):
+                self.weird = Fabricator()
+
+            def to_be_found(self):
+                pass
+
+        holder = Holder()
+        found = find_instances_with_method(
+            root=holder, method_name="to_be_found"
+        )
+        self.assertEqual(found, {holder})
+
     @unittest.skip
     def test_float_or_array_typesafe(self):
         # TODO: implement test for `float_or_array_typesafe`
