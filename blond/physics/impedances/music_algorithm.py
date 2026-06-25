@@ -17,7 +17,6 @@ from scipy.constants import elementary_charge as e
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.ring.helpers import requires
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.helpers import mpi_is_distributed
 
@@ -25,7 +24,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
-    from blond.core.simulation.simulation import Simulation
     from blond.physics.impedances.sources import Resonators
 
 
@@ -115,14 +113,18 @@ class Music(BeamPhysicsRelevant):
                 f"{source._n_resonators}."
             )
         self.source = source
+        # Resonator parameters of the single resonance (scalars on host).
         self._R_S = float(copy_to_cpu(source._shunt_impedances).flatten()[0])
-        self._omega_R = (
+        self._omega_R = (  # angular resonant frequency [rad/s] = 2*pi*f
             2
             * np.pi
             * float(copy_to_cpu(source._center_frequencies).flatten()[0])
         )
         self._Q = float(copy_to_cpu(source._quality_factors).flatten()[0])
 
+        # Quantities derived once from the resonator; they parametrise the
+        # O(n) recurrence (Migliorati & Palumbo). alpha is the damping rate
+        # and omega_bar the damped angular frequency.
         self._alpha = self._omega_R / (2 * self._Q)
         self._omega_bar = float(np.sqrt(self._omega_R**2 - self._alpha**2))
         self._coeff1 = -self._alpha / self._omega_bar
@@ -130,10 +132,25 @@ class Music(BeamPhysicsRelevant):
         self._coeff3 = self._omega_R * self._Q / (self._R_S * self._omega_bar)
         self._coeff4 = self._alpha / self._omega_bar
 
-        self._simulation: Simulation | None = None
+        # MuSiC prefactor [V]; depends on the beam, so computed in
+        # `configure_run` once the beam is known.
         self._const: float | None = None
+        # Turn 1 starts the recurrence fresh; later turns bridge the wake.
         self._first_turn = True
+        # Reference clock time [s] at the previous track; the difference to
+        # the current reference time is the exact elapsed time between the
+        # two passages (used to bridge the inter-turn gap).
+        self._prev_reference_time: float | None = None
+        # Running state carried across turns, layout
+        # [input_first, input_second, delta_t, last_dt]:
+        #   - input_first/second: 2-component oscillator state of the
+        #     recurrence after the last processed particle,
+        #   - delta_t: reference-time elapsed since the previous turn,
+        #     refreshed each turn before bridging,
+        #   - last_dt: dt of the last (largest-dt) particle of the previous
+        #     turn, used to span the gap to this turn's first particle.
         self._array_parameters: NumpyArray | None = None
+        # Induced voltage [V] of the most recent turn (one entry/particle).
         self.induced_voltage: NumpyArray | None = None
 
     def _check_supported(self) -> None:
@@ -156,22 +173,6 @@ class Music(BeamPhysicsRelevant):
             raise NotImplementedError(
                 "MuSiC does not support the `cuda` backend."
             )
-
-    @requires(["MagneticCycleBase"])
-    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        **kwargs
-            Configure parameters collected by the MRO chain.
-        """
-        self._check_supported()
-        self._simulation = simulation
-        super().on_init_simulation(simulation=simulation, **kwargs)
 
     def configure_run(
         self, beam: BeamBaseClass, n_turns: int, **kwargs
@@ -215,28 +216,11 @@ class Music(BeamPhysicsRelevant):
             / (n_macroparticles * self._Q)
         )
         self._first_turn = True
+        self._prev_reference_time = None
         self._array_parameters = backend.array(
             [1.0, 0.0, 0.0, 0.0], dtype=backend.float
         )
         self.induced_voltage = None
-
-    def _t_rev(self, beam: BeamBaseClass) -> float:
-        """
-        Revolution period for the current turn [s].
-
-        Parameters
-        ----------
-        beam
-            Simulation object of a particle beam.
-
-        Returns
-        -------
-        t_rev
-            Revolution period [s].
-        """
-        # TODO instantaneous or real T_rev ?
-        #  to be checked with tests..
-        return self._simulation.ring.circumference / beam.reference.velocity
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -247,6 +231,8 @@ class Music(BeamPhysicsRelevant):
         beam
             Beam class to interact with this element.
         """
+        # Re-checked here (not only in `configure_run`) because the active
+        # backend can be switched between run setup and tracking.
         self._check_supported()
 
         # Sort by dt (permutes dt/dE/ids/flags consistently) so the
@@ -262,10 +248,16 @@ class Music(BeamPhysicsRelevant):
             self.induced_voltage[:] = 0.0
 
         # On turn 1 there is no previous-turn wake to bridge; afterwards the
-        # bridge across the revolution gap needs the current t_rev.
+        # bridge needs the exact time elapsed since the previous track, read
+        # from the reference clock (accurate under ramps, unlike a nominal
+        # t_rev). MuSiC runs at a fixed ring position, so consecutive
+        # samples differ by exactly one revolution.
+        reference_time = float(beam.reference.time)
         multiturn = not self._first_turn
         if multiturn:
-            self._array_parameters[2] = self._t_rev(beam)
+            self._array_parameters[2] = (
+                reference_time - self._prev_reference_time
+            )
         backend.specials.music_track(
             dt,
             dE,
@@ -280,6 +272,7 @@ class Music(BeamPhysicsRelevant):
             self._coeff4,
             multiturn,
         )
+        self._prev_reference_time = reference_time
         self._first_turn = False
 
     @staticmethod
@@ -289,7 +282,12 @@ class Music(BeamPhysicsRelevant):
         section_index: int = 0,
     ) -> Music:
         """
-        Initialize the full class with the lateinit methods executed.
+        Build a tracking-ready `Music` without a full `Simulation`.
+
+        Runs the configure hooks directly. For multi-turn tracking the
+        caller must advance ``beam.reference.time`` between ``track`` calls
+        (a real simulation does this via drift/RF elements); the elapsed
+        reference time is what bridges the inter-turn gap.
 
         Parameters
         ----------
@@ -303,18 +301,9 @@ class Music(BeamPhysicsRelevant):
         Returns
         -------
         music
-            Instance with lateinit methods executed.
+            Instance ready to be tracked.
         """
-        from unittest.mock import Mock
-
-        from blond.core.simulation.simulation import Simulation
-
         music = Music(source=source, section_index=section_index)
-        simulation = Mock(Simulation)
-        music.on_init_simulation(simulation=simulation)
-        music.on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            n_turns=1,
-        )
+        music.configure()
+        music.configure_run(beam=beam, n_turns=1)
         return music

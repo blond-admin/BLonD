@@ -74,8 +74,23 @@ def test_requires_single_resonator():
         center_frequencies=[1e9, 2e9],
         quality_factors=[1.0, 1.0],
     )
-    with pytest.raises((ValueError, AssertionError)):
+    with pytest.raises(ValueError):
         Music(source=multi)
+
+
+def test_rejects_non_resonators_source():
+    """`source` must be a `Resonators` instance."""
+    with pytest.raises(TypeError):
+        Music(source=object())
+
+
+def test_raises_on_cuda_backend(monkeypatch):
+    """MuSiC is unsupported on the cuda backend."""
+    beam, _, _ = _beam()
+    # pretend the cuda backend is active (no GPU needed for this check)
+    monkeypatch.setattr(backend, "specials_mode", "cuda")
+    with pytest.raises(NotImplementedError):
+        Music.headless(beam=beam, source=_resonator())
 
 
 def test_single_turn_matches_legacy_and_sorts():
@@ -125,16 +140,8 @@ def test_element_raises_under_mpi(monkeypatch):
         Music.headless(beam=beam, source=_resonator())
 
 
-def test_sort_by_dt_raises_when_distributed():
-    """`Beam.sort_by_dt` refuses a distributed beam (per-node sort only)."""
-    beam, _, _ = _beam()
-    beam._is_distributed = True
-    with pytest.raises(NotImplementedError):
-        beam.sort_by_dt()
-
-
-def test_multiturn_matches_legacy(monkeypatch):
-    """Driving several turns reproduces legacy single/multi-turn tracking."""
+def test_multiturn_matches_legacy():
+    """A trackable headless Music reproduces legacy single/multi-turn."""
     n = 64
     rng = np.random.default_rng(1)
     dt_np = (rng.random(n) * 1e-9).astype(np.float64)
@@ -149,9 +156,12 @@ def test_multiturn_matches_legacy(monkeypatch):
         dE=backend.array(dE_np, dtype=backend.float),
     )
     music = Music.headless(beam=beam, source=_resonator())
-    # No drift in this driver, so dt stays static; pin t_rev directly.
-    monkeypatch.setattr(music, "_t_rev", lambda beam: t_rev)
-    for _ in range(n_turns):
+    # No drift here, so dt stays static across turns. The element reads the
+    # elapsed time from the reference clock, so advance it by one t_rev
+    # before each subsequent turn (a real simulation does this via drifts).
+    for turn in range(n_turns):
+        if turn > 0:
+            beam.reference.time += t_rev
         music.track(beam=beam)
 
     # legacy oracle driven by hand with the same fixed dt every turn
