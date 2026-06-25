@@ -1725,7 +1725,8 @@ class LHCCavityLoop(CavityFeedback):
                 )(t_at_init)
                 if p == 0:
                     self.V_ANT_FINE[0 : profile.n_slices + 1] = (
-                        cavity_response_sparse_matrix(
+                        self.n_cavities
+                        * cavity_response_sparse_matrix(
                             I_beam=self.I_BEAM_FINE[
                                 p * profile.n_slices : (p + 1)
                                 * profile.n_slices
@@ -1748,23 +1749,24 @@ class LHCCavityLoop(CavityFeedback):
                     self.V_ANT_FINE[
                         p * profile.n_slices + 1 : (p + 1) * profile.n_slices
                         + 1
-                    ] = cavity_response_sparse_matrix(
-                        I_beam=self.I_BEAM_FINE[
-                            p * profile.n_slices : (p + 1) * profile.n_slices
-                        ],
-                        I_gen=self.I_GEN_FINE[
-                            p * profile.n_slices : (p + 1) * profile.n_slices
-                        ],
-                        n_samples=profile.n_slices,
-                        V_ant_init=V_A_init,
-                        I_gen_init=I_gen_init,
-                        samples_per_rf=samples_fine,
-                        R_over_Q=self.R_over_Q,
-                        Q_L=self.Q_L,
-                        detuning=self.detuning,
-                    )[-profile.n_slices :]
-
-            self.V_ANT_FINE[-self.profile.n_slices :] *= self.n_cavities
+                    ] = (
+                        self.n_cavities
+                        * cavity_response_sparse_matrix(
+                            I_beam=self.I_BEAM_FINE[
+                                p * profile.n_slices : (p + 1) * profile.n_slices
+                            ],
+                            I_gen=self.I_GEN_FINE[
+                                p * profile.n_slices : (p + 1) * profile.n_slices
+                            ],
+                            n_samples=profile.n_slices,
+                            V_ant_init=V_A_init,
+                            I_gen_init=I_gen_init,
+                            samples_per_rf=samples_fine,
+                            R_over_Q=self.R_over_Q,
+                            Q_L=self.Q_L,
+                            detuning=self.detuning,
+                        )[-profile.n_slices :]
+                    )
 
         else:
             # Number of samples on fine grid

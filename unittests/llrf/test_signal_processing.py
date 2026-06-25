@@ -250,29 +250,16 @@ class TestRFCurrentSparse(unittest.TestCase):
             total_number_of_bunches * number_of_bunches_per_batch,
         )
 
-        for k in range(number_of_bunches_per_batch):
-            beam_batch.dt[
-                k * n_macroparticles : (k + 1) * n_macroparticles
-            ] -= np.average(
-                beam_batch.dt[
-                    k * n_macroparticles : (k + 1) * n_macroparticles
-                ]
-            )
-            beam_batch.dt[
-                k * n_macroparticles : (k + 1) * n_macroparticles
-            ] += (np.pi / 2 + phi_s[1]) / rfcav.omega_rf[
-                0, 0
-            ] + k * bunch_spacing * bucket_length
         for ba in range(number_of_batches):
             for i in range(number_of_bunches_per_batch):
                 self.beam2.dt[i * N_m : (i + 1) * N_m] = (
-                    self.beam.dt + ba * batch_spacing + i * bunch_spacing
+                    beam_batch.dt + ba * batch_spacing + i * bunch_spacing
                 )
                 self.beam_sparse.dt[i * N_m : (i + 1) * N_m] = (
-                    self.beam.dt + ba * batch_spacing + i * bunch_spacing
+                    beam_batch.dt + ba * batch_spacing + i * bunch_spacing
                 )
-                self.beam2.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
-                self.beam_sparse.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
+                self.beam2.dE[i * N_m : (i + 1) * N_m] = beam_batch.dE
+                self.beam_sparse.dE[i * N_m : (i + 1) * N_m] = beam_batch.dE
 
         cut_options = CutOptions(
             cut_left=0,
@@ -295,7 +282,7 @@ class TestRFCurrentSparse(unittest.TestCase):
             # Initialisation of the SparseBatch profile which perfectly matches
         # the standard profile
         self.sparse_profile = SparseBatch(
-            rf_station=self.rf_sparse,
+            rf_station=self.rf,
             beam=self.beam_sparse,
             number_of_slices_per_profile=(
                 number_of_bunches_per_batch
