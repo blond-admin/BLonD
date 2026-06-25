@@ -276,7 +276,7 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
 
         # Debug-save next to this test file (not the repo root); needs ``import os``:
         # plt.savefig(
-        #     os.path.join(os.path.dirname(__file__), "induced_voltage_over_time.png")
+        #     os.path.join(os.path.dirname(__file__), "induced_voltage_over_time.png"), dpi=400
         # )
         plt.show()
 
@@ -786,6 +786,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         np.atleast_1d(axes)[0].legend(loc="best")
         np.atleast_1d(axes)[-1].set_xlabel("profile bin")
         fig.tight_layout()
+        # plt.savefig(os.path.join(os.path.dirname(__file__), "multiturn_induced_voltage.png"), dpi=400)
         plt.show()
 
 
