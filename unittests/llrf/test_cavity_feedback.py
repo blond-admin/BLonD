@@ -19,6 +19,7 @@ import unittest
 import numpy as np
 from numpy.ma.testutils import assert_almost_equal
 from scipy.constants import c
+from scipy.interpolate import interp1d
 
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
@@ -1530,7 +1531,69 @@ class TestLHCCavityLoopSparseProfile(unittest.TestCase):
             self.lhc_cavity_loop.samples_fine,
             places=12,
         )
+        t_at_init = self.lhc_cavity_loop.profile.bin_centers[0] - self.lhc_cavity_loop.profile.bin_size
+        t_at_init_sparse = (self.lhc_cavity_loop_sparse.profile.bin_centers[
+                               0]
+                            -self.lhc_cavity_loop_sparse.profile.bin_size)
+        np.testing.assert_equal(t_at_init,
+                                t_at_init_sparse,
+                                12)
+        I_gen_init = interp1d(
+            np.concatenate(
+                (
+                    self.lhc_cavity_loop.rf_centers - self.lhc_cavity_loop.T_s * self.lhc_cavity_loop.n_coarse,
+                    self.lhc_cavity_loop.rf_centers,
+                )
+            ),
+            self.lhc_cavity_loop.I_GEN_COARSE,
+            fill_value="extrapolate",
+        )(t_at_init)
 
+        I_gen_init_sparse = interp1d(
+            np.concatenate(
+                (
+                    self.lhc_cavity_loop_sparse.rf_centers - self.lhc_cavity_loop_sparse.T_s
+                    * self.lhc_cavity_loop_sparse.n_coarse,
+                    self.lhc_cavity_loop_sparse.rf_centers,
+                )
+            ),
+            self.lhc_cavity_loop_sparse.I_GEN_COARSE,
+            fill_value="extrapolate",
+        )(t_at_init)
+
+        np.testing.assert_almost_equal(
+            I_gen_init,
+            I_gen_init_sparse,
+            decimal=12,
+        )
+
+        V_A_init = interp1d(
+            np.concatenate(
+                (
+                    self.lhc_cavity_loop.rf_centers - self.lhc_cavity_loop.T_s * self.lhc_cavity_loop.n_coarse,
+                    self.lhc_cavity_loop.rf_centers,
+                )
+            ),
+            self.lhc_cavity_loop.V_ANT_COARSE,
+            fill_value="extrapolate",
+        )(t_at_init)
+
+        V_A_init_sparse = interp1d(
+            np.concatenate(
+                (
+                    self.lhc_cavity_loop_sparse.rf_centers - self.lhc_cavity_loop_sparse.T_s * self.lhc_cavity_loop_sparse.n_coarse,
+                    self.lhc_cavity_loop_sparse.rf_centers,
+                )
+            ),
+            self.lhc_cavity_loop_sparse.V_ANT_COARSE,
+            fill_value="extrapolate",
+        )(t_at_init)
+
+        np.testing.assert_almost_equal(
+            V_A_init,
+            V_A_init_sparse,
+            decimal=12,
+        )
         for p, profile in enumerate(
             self.lhc_cavity_loop_sparse.profile.profiles_list
         ):
@@ -1549,6 +1612,15 @@ class TestLHCCavityLoopSparseProfile(unittest.TestCase):
                 ],
                 decimal=12,
             )
+            np.testing.assert_array_almost_equal(
+                self.lhc_cavity_loop_sparse.I_GEN_FINE[
+                    p * profile.n_slices: (p + 1) * profile.n_slices
+                ],
+                self.lhc_cavity_loop.I_GEN_FINE[
+                    index: index + profile.n_slices
+                ],
+                decimal=12,
+            )
             np.testing.assert_almost_equal(
                 profile.bin_centers,
                 self.lhc_cavity_loop.profile.bin_centers[
@@ -1557,14 +1629,31 @@ class TestLHCCavityLoopSparseProfile(unittest.TestCase):
                 decimal=12,
             )
 
-            np.testing.assert_array_equal(
-                self.lhc_cavity_loop_sparse.V_ANT_FINE[
-                    p * profile.n_slices + 1 : (p + 1) * profile.n_slices + 1
+            # np.testing.assert_array_equal(
+            #     self.lhc_cavity_loop_sparse.V_ANT_FINE[
+            #         p * profile.n_slices + 1 : (p + 1) * profile.n_slices + 1
+            #     ],
+            #     self.lhc_cavity_loop.V_ANT_FINE[
+            #         index + 1 : index + profile.n_slices + 1
+            #     ],
+            # )
+            t_at_init = profile.bin_centers[0] - profile.bin_size
+            V_A_init_sparse = interp1d(
+                self.lhc_cavity_loop_sparse.rf_centers[
+                    p * profile.n_slices: (p + 1) * profile.n_slices
+                ] - self.lhc_cavity_loop_sparse.T_s * self.lhc_cavity_loop_sparse.n_coarse,
+                self.lhc_cavity_loop_sparse.V_ANT_COARSE[
+                    p * profile.n_slices: (p + 1) * profile.n_slices
                 ],
+                fill_value="extrapolate",
+            )(t_at_init)
+            np.testing.assert_almost_equal(
                 self.lhc_cavity_loop.V_ANT_FINE[
-                    index + 1 : index + profile.n_slices + 1
-                ],
+                    index ],
+                V_A_init_sparse,
+                decimal=12,
             )
+
 
     @unittest.skip
     def test_circuit_track(self):

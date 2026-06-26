@@ -137,7 +137,8 @@ class CavityFeedback:
             + 0.5 * self.rf_station.t_rf[self.n_h, self.rf_station.counter[0]]
         )
         self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.I_BEAM_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.\
+            I_BEAM_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_BEAM_FINE = np.zeros(self.profile.n_slices, dtype=complex)
         self.V_ANT_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
         self.V_ANT_FINE = np.zeros(self.profile.n_slices, dtype=complex)
@@ -1723,6 +1724,7 @@ class LHCCavityLoop(CavityFeedback):
                     self.I_BEAM_COARSE,
                     fill_value="extrapolate",
                 )(t_at_init)
+
                 if p == 0:
                     self.V_ANT_FINE[0 : profile.n_slices + 1] = (
                         self.n_cavities
@@ -1810,6 +1812,7 @@ class LHCCavityLoop(CavityFeedback):
             self.V_ANT_FINE[-self.profile.n_slices :] = (
                 self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices :]
             )
+        print(I_gen_init)
 
     def generator_current(self):
         r"""Generator response
