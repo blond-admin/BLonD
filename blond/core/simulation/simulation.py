@@ -62,6 +62,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond import BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine
+    from blond.core.base import Schedulable
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
     from blond.core.ring.ring import Ring
@@ -886,6 +887,20 @@ class Simulation(Preparable):
         """
         self._ring.elements.print_order()
 
+    def validate_schedules(self):
+
+        missing_schedules = []
+        for element in self._ring.elements:
+            try:
+                missing_schedules += list(element.missing_schedules)
+            except AttributeError:
+                pass
+
+        if len(missing_schedules)>0:
+            raise RuntimeError("Schedule validation failed, the following "
+                               "attribute names are missing: "
+                               f"{missing_schedules}")
+
     def prepare_beam(
         self,
         beam: BeamBaseClass,
@@ -1307,6 +1322,8 @@ class Simulation(Preparable):
           object to allow discovery by the initialization system.
         - Performance warnings are issued if using Python backend with many particles.
         """
+        self.validate_schedules()
+
         beams = _as_tuple(beams)
         observe = _as_tuple(observe)
         if self.execution_model is None:

@@ -225,6 +225,7 @@ class Schedulable:
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.intended_for_scheduling = set()
+        self.missing_schedules = set()
         self.schedules: dict[str, ScheduledBaseClass] = {}
         self.schedule_active = False
 
@@ -242,6 +243,12 @@ class Schedulable:
         """
         for name in names:
             self.intended_for_scheduling.add(str(name))
+
+    def to_be_scheduled(self, attribute: str, input: Any):
+        self._add_intended_schedule(attribute)
+        if input is None:
+            self.missing_schedules.add(attribute)
+        return input
 
     def schedule(
         self,
@@ -302,6 +309,12 @@ class Schedulable:
         else:
             # should allow easier user input, but is less explicit
             self.schedules[attribute] = get_scheduler(value)
+
+        try:
+            self.missing_schedules.remove(attribute)
+        except KeyError:
+            pass
+
         self.schedule_active = True
 
         self.apply_schedules(turn_i=0, reference_time=0)

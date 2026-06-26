@@ -180,15 +180,13 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
         self._turn_counter: DynamicParameter | None = None
 
-        self._add_intended_schedule("momentum_compaction_factor")
-
         self._simulation: Simulation | None = None
 
         self._last_eta_0: float | None = None
 
-        self.momentum_compaction_factor: float | None = (
-            momentum_compaction_factor
-        )
+        self.momentum_compaction_factor: float = (
+            self.to_be_scheduled(momentum_compaction_factor =
+                                 momentum_compaction_factor))
 
     @staticmethod
     def headless(
