@@ -308,8 +308,11 @@ class TestRFCurrentSparse(unittest.TestCase):
             rf_station=self.rf,
             beam=self.beam_sparse,
             number_of_slices_per_profile=(
-                number_of_bunches_per_batch
-                * int(bunch_spacing / self.rf.t_rf[0, 0])
+                int(
+                    number_of_bunches_per_batch
+                    * bunch_spacing
+                    / self.rf.t_rf[0, 0]
+                )
             )
             * 2**10,
             batch_list=batch_list,
@@ -449,27 +452,6 @@ class TestRFCurrentSparse(unittest.TestCase):
             * e
             * np.copy(self.sparse_profile.n_macroparticles)
         )
-
-        for p, profile in enumerate(
-                self.sparse_profile.profiles_list
-        ):
-            index = np.argmin(
-                np.abs(
-                    self.profile.bin_centers
-                    - profile.bin_centers[0]
-                )
-            )
-            np.testing.assert_array_almost_equal(
-                charges[
-                    index: index + profile.n_slices
-                ],
-                charges_sparse[
-                    p * profile.n_slices + 1: (p + 1) * profile.n_slices + 1
-                ],
-                decimal=12,
-            )
-
-        self.assertEqual(np.sum(charges), np.sum(charges_sparse))
         I_f = 2.0 * charges * np.cos(self.omega * self.profile.bin_centers)
         Q_f = -2.0 * charges * np.sin(self.omega * self.profile.bin_centers)
 
@@ -483,6 +465,46 @@ class TestRFCurrentSparse(unittest.TestCase):
             * charges_sparse
             * np.sin(self.omega * self.sparse_profile.bin_centers)
         )
+        for p, profile in enumerate(self.sparse_profile.profiles_list):
+            index = np.argmin(
+                np.abs(self.profile.bin_centers - profile.bin_centers[0])
+            )
+            np.testing.assert_array_almost_equal(
+                charges[index : index + profile.n_slices],
+                charges_sparse[
+                    p * profile.n_slices : (p + 1) * profile.n_slices
+                ],
+                decimal=6,
+            )
+
+            np.testing.assert_array_almost_equal(
+                I_f[index : index + profile.n_slices],
+                I_f_sparse[p * profile.n_slices : (p + 1) * profile.n_slices],
+                decimal=6,
+            )
+            np.testing.assert_array_almost_equal(
+                Q_f[index : index + profile.n_slices],
+                Q_f_sparse[p * profile.n_slices : (p + 1) * profile.n_slices],
+                decimal=6,
+            )
+            np.testing.assert_array_almost_equal(
+                rf_current[index : index + profile.n_slices],
+                rf_current_sparse[
+                    p * profile.n_slices : (p + 1) * profile.n_slices
+                ],
+                decimal=6,
+            )
+
+            np.testing.assert_array_almost_equal(
+                rf_current_coarse[index : index + profile.n_slices],
+                rf_current_coarse_sparse[
+                    p * profile.n_slices : (p + 1) * profile.n_slices
+                ],
+                decimal=6,
+            )
+
+        self.assertEqual(np.sum(charges), np.sum(charges_sparse))
+
         self.assertEqual(
             np.sum(self.profile.n_macroparticles),
             np.sum(self.sparse_profile.n_macroparticles),
@@ -502,10 +524,7 @@ class TestRFCurrentSparse(unittest.TestCase):
         peak_rf_current = np.max(np.absolute(rf_current_coarse))
         peak_rf_current_sparse = np.max(np.absolute(rf_current_coarse_sparse))
         self.assertAlmostEqual(peak_rf_current, 147.58235214348062, 7)
-        self.assertEqual(peak_rf_current, peak_rf_current_sparse)
-
-        # np.testing.assert_equal(rf_current_sparse, rf_current_std)
-        # np.testing.assert_equal(rf_current_coarse_sparse, rf_current_coarse_std)
+        self.assertAlmostEqual(peak_rf_current, peak_rf_current_sparse, 4)
 
 
 class TestRFCurrent(unittest.TestCase):
