@@ -57,10 +57,10 @@ class PassiveCavity(IQCavityFeedback):
         generator_phase
             Static generator phase, in [rad].
         injection_phase
-            In :func:`xxxx` the cavity will optimise the phase at injection towards
+            In oof the cavity will optimise the phase at injection towards
             this value by adjusting the initial parameters at the beginning of the internal tracking given in [rad].
         injection_voltage
-            In :func:`xxxx` the cavity will optimise the voltage at injection towards
+            In oof the cavity will optimise the voltage at injection towards
             this value by adjusting the initial parameters at the beginning of the internal tracking given in [V].
         harmonic_index
             Only the default of 0 is allowed.
