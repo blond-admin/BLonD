@@ -1,18 +1,25 @@
-"""Mirror the ``blond-dev`` skill into root CLAUDE.md and AGENTS.md.
+"""Mirror the agent skills into root docs and the ``.claude`` folder.
 
-The skill at ``.agents/skills/blond-dev/SKILL.md`` is the single source of
-developer-onboarding text. This script copies its body (frontmatter stripped,
-with a generated-file banner prepended) into ``CLAUDE.md`` and ``AGENTS.md`` at
-the repo root, so interactive and CI/CD agents share the same context.
+``.agents/skills/`` is the single source of truth for agent-facing context.
+This script keeps two mirrors of it in sync:
 
-Run as a ``pre-commit`` hook: it only fires when the skill changes, and exits
-non-zero if it had to rewrite either target so the new files get re-staged.
+* the ``blond-dev`` skill body is copied (frontmatter stripped, with a
+  generated-file banner prepended) into ``CLAUDE.md`` and ``AGENTS.md`` at the
+  repo root, so interactive and CI/CD agents share the same context;
+* the whole ``.agents/skills/`` tree is mirrored verbatim into
+  ``.claude/skills/`` so Claude Code auto-discovers the same skills.
+
+Run as a ``pre-commit`` hook: it fires when anything under ``.agents/skills/``
+changes, and exits non-zero if it had to rewrite any target so the new files
+get re-staged.
 """
 
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / ".agents" / "skills" / "blond-dev" / "SKILL.md"
+SKILLS_SRC = ROOT / ".agents" / "skills"
+SKILLS_DST = ROOT / ".claude" / "skills"
+SOURCE = SKILLS_SRC / "blond-dev" / "SKILL.md"
 TARGETS = (ROOT / "CLAUDE.md", ROOT / "AGENTS.md")
 
 BANNER = (
@@ -42,10 +49,8 @@ def render() -> str:
     return BANNER + body
 
 
-def main() -> int:
-    """Rewrite stale targets; return 1 if any were changed, else 0."""
-    if not SOURCE.exists():
-        raise FileNotFoundError(f"Skill source not found: {SOURCE}")
+def sync_docs() -> list[str]:
+    """Rewrite stale CLAUDE.md / AGENTS.md; return the names changed."""
     content = render()
     changed = []
     for target in TARGETS:
@@ -53,12 +58,53 @@ def main() -> int:
         if old != content:
             target.write_text(content, encoding="utf-8", newline="\n")
             changed.append(target.name)
+    return changed
+
+
+def mirror_skills() -> list[str]:
+    """Mirror ``.agents/skills/`` into ``.claude/skills/`` verbatim.
+
+    Copies every source file whose destination is missing or differs, and
+    removes any stale file or empty directory under the destination that no
+    longer exists in the source. Returns the destination-relative paths that
+    were created, updated, or deleted.
+    """
+    changed = []
+    sources = {
+        path.relative_to(SKILLS_SRC): path
+        for path in SKILLS_SRC.rglob("*")
+        if path.is_file()
+    }
+    for rel, src in sources.items():
+        dst = SKILLS_DST / rel
+        data = src.read_bytes()
+        old = dst.read_bytes() if dst.exists() else None
+        if old != data:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.write_bytes(data)
+            changed.append(str(Path(".claude/skills") / rel))
+
+    if SKILLS_DST.exists():
+        for path in sorted(SKILLS_DST.rglob("*"), reverse=True):
+            rel = path.relative_to(SKILLS_DST)
+            if path.is_file() and rel not in sources:
+                path.unlink()
+                changed.append(str(Path(".claude/skills") / rel))
+            elif path.is_dir() and not any(path.iterdir()):
+                path.rmdir()
+    return changed
+
+
+def main() -> int:
+    """Refresh every mirror; return 1 if any was changed, else 0."""
+    if not SOURCE.exists():
+        raise FileNotFoundError(f"Skill source not found: {SOURCE}")
+    changed = sync_docs() + mirror_skills()
     if changed:
         print(
             "Regenerated "
             + ", ".join(changed)
-            + " from .agents/skills/blond-dev/SKILL.md. "
-            + "Stage them and commit again."
+            + " from .agents/skills/. Stage them and commit again."
         )
         return 1
     return 0
