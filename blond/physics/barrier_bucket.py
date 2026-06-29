@@ -68,7 +68,7 @@ class BarrierRF(RFManipulationBaseClass):
 
         self.t_center: float = t_center
         self.t_width: float = t_width
-        self.peak: float = peak_voltage
+        self.peak_voltage: float = peak_voltage
         self.n_bins = n_bins
 
         self._add_intended_schedule("t_center", "t_width", "peak_voltage")
@@ -99,7 +99,7 @@ class BarrierRF(RFManipulationBaseClass):
         self.apply_schedules(turn_i, reference_time)
 
         return compute_sin_barrier(
-            self.t_center, self.t_width, self.peak, bin_centers
+            self.t_center, self.t_width, self.peak_voltage, bin_centers
         )
 
     def to_fourier_series(
