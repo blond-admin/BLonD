@@ -55,7 +55,8 @@ class BeamFeedbackBase(GlobalFeedback):
     delay
         Delay (in units of turns) of the initial correction of the feedback system.
     window_coefficient
-        Window coefficient for the calculation of the beam phase.
+        Window coefficient for the calculation of the beam phase. This parameter will
+        reduce the weight of later samples of the beam profile.
     time_offset
         Time offset for the calculation of the beam phase.
     sample_de
