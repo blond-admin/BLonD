@@ -103,7 +103,13 @@ def hash_in_folder(
     )
     paths = [str(f) for f in files]
     base = str(folder)
-    if platform.system() == "Windows":  # case-insensitive filesystem
+    if platform.system() == "Windows":
+        # Windows' filesystem is case-insensitive: "Kernels.cu" and
+        # "kernels.cu" are the same file, yet the path *string* enumeration
+        # returns may differ in case (checkout, runner, git settings). Fold to
+        # lowercase so the same source tree always hashes the same. We do this
+        # only here -- on Linux/macOS those names are genuinely different files,
+        # so their casing must be preserved.
         paths = [p.lower() for p in paths]
         base = base.lower()
     _hash = hash_files(paths, base_folder=base)
