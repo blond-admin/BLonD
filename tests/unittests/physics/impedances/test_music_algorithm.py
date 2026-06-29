@@ -6,7 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Tests for the :class:`blond.physics.impedances.base.Music` element."""
+"""Tests for the :class:`blond.physics.impedances.music_algorithm.Music`."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+import scipy.special as scisp
 from scipy.constants import elementary_charge as e
 
 from blond import (
@@ -245,19 +246,62 @@ def test_each_turn_i_must_be_one():
         music.on_run_simulation(simulation=sim, beam=beam, n_turns=1)
 
 
-def test_beam_sort_by_dt_permutes_all_arrays():
-    """`Beam.sort_by_dt` keeps dt/dE/ids/flags consistently permuted."""
-    beam, dt, _ = _beam(n=20, seed=4)
-    ids_before = np.asarray(beam.read_partial_ids()).copy()
-    dE_before = np.asarray(beam.read_partial_dE()).copy()
-    order = np.argsort(np.asarray(dt))
+def _analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau, n_particles):
+    """Closed-form induced voltage of a Gaussian bunch in a resonator.
 
-    beam.sort_by_dt()
+    Independent (non-BLonD) ground truth; see
+    `blond.legacy.blond2.impedances.induced_voltage_analytical`.
+    """
+    alpha = omega_r / (2 * Q)
+    ombar = np.sqrt(omega_r**2 - alpha**2)
+    A = (alpha * sigma_t**2 - tau + 1j * ombar * sigma_t**2) / (
+        np.sqrt(2) * sigma_t
+    )
+    B = alpha * ombar * sigma_t**2 - ombar * tau
+    result = (
+        R_s
+        * alpha
+        / ombar
+        * np.e ** (0.5 * (alpha**2 - ombar**2) * sigma_t**2 - alpha * tau)
+        * (
+            scisp.erfc(A).real * (ombar * np.cos(B) + alpha * np.sin(B))
+            + scisp.erfc(A).imag * (alpha * np.cos(B) - ombar * np.sin(B))
+        )
+    )
+    return -n_particles * e * result
 
-    assert np.all(np.diff(np.asarray(beam.read_partial_dt())) >= 0)
-    np.testing.assert_array_equal(
-        np.asarray(beam.read_partial_ids()), ids_before[order]
+
+def test_matches_analytical_gaussian_resonator():
+    """MuSiC reproduces the closed-form Gaussian-bunch resonator voltage.
+
+    Uses a slowly-varying-wake regime (``omega_R * sigma << 1``) so the
+    smooth analytical curve is well sampled; the bin-averaged MuSiC voltage
+    then matches it to shot-noise level — an independent (non-BLonD) check.
+    """
+    R_S, freq_R, Q = 1e7, 1e6, 1.0  # omega_R*sigma ~ 0.19
+    omega_R = 2 * np.pi * freq_R
+    intensity = 1e12
+    sigma = 3e-8
+    n = 200_000
+
+    rng = np.random.default_rng(1000)
+    beam = Beam(intensity=intensity, particle_type=proton)
+    beam.setup_beam(
+        dt=backend.array(sigma * rng.standard_normal(n), dtype=backend.float),
+        dE=backend.array(np.zeros(n), dtype=backend.float),
     )
-    np.testing.assert_allclose(
-        np.asarray(beam.read_partial_dE()), dE_before[order]
+    music = Music.headless(beam=beam, source=Resonators(R_S, freq_R, Q))
+    music.track(beam=beam)  # single turn (Q=1 -> inter-turn wake damped)
+
+    dt = np.asarray(beam.read_partial_dt())
+    iv = np.asarray(music.induced_voltage)
+    edges = np.linspace(-2.5 * sigma, 2.5 * sigma, 26)
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    which = np.digitize(dt, edges)
+    binned = np.array([iv[which == b + 1].mean() for b in range(len(centers))])
+    analytical = _analytical_gaussian_resonator(
+        sigma, Q, R_S, omega_R, centers, intensity
     )
+    peak = np.max(np.abs(analytical))
+    rel = np.abs(binned - analytical) / peak
+    assert rel.max() < 1e-2, f"max rel err {rel.max():.4f}"

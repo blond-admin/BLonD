@@ -81,6 +81,36 @@ def test_music_track_single_turn_matches_legacy():
     np.testing.assert_allclose(dE_s, beam.dE, rtol=1e-12)
 
 
+def test_music_track_matches_bruteforce_ground_truth():
+    """Kernel matches the independent O(n^2) direct wake sum.
+
+    `track_classic` evaluates the resonator wake by summing over all pairs,
+    independent of the O(n) recurrence, so this validates the *physics*
+    (not just agreement with legacy's recurrence).
+    """
+    dt, dE, R_S, omega_R, Q, n_particles, t_rev, const = _setup(seed=42, n=200)
+    n = len(dt)
+
+    beam = SimpleNamespace(dt=dt.copy(), dE=dE.copy())
+    legacy = LegacyMusic(beam, [R_S, omega_R, Q], n, n_particles, t_rev)
+    legacy.track_classic()  # O(n^2) brute-force reference
+
+    alpha, omega_bar, c1, c2, c3, c4 = _music_params(R_S, omega_R, Q)
+    idx = np.argsort(dt)
+    dt_s = np.ascontiguousarray(dt[idx])
+    dE_s = np.ascontiguousarray(dE[idx])
+    iv = np.zeros(n, dtype=backend.float)
+    ap = np.array([1.0, 0.0, t_rev, dt_s[-1]], dtype=backend.float)
+
+    backend.specials.music_track(
+        dt_s, dE_s, iv, ap, alpha, omega_bar, const, c1, c2, c3, c4, False
+    )
+
+    # rtol above the O(n) vs O(n^2) round-off (recurrence accumulates over
+    # n steps); abs agreement is ~14 digits on the ~1e5-1e6 V signal.
+    np.testing.assert_allclose(iv, legacy.induced_voltage, rtol=1e-6)
+
+
 def test_music_track_multiturn_matches_legacy():
     """Multi-turn python kernel reproduces legacy ``track_py_multi_turn``."""
     dt, dE, R_S, omega_R, Q, n_particles, t_rev, const = _setup(seed=3)
