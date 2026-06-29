@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from typing import Callable  # NOQA
+from collections.abc import Callable  # NOQA
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -28,6 +28,7 @@ from blond import (  # NOQA
     WakeField,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.experimental.beam_preparation.bucket_filler_functions import (
     multibunch_match_metric_to_hamilton,
@@ -41,6 +42,10 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
 )
 from blond.physics.impedances.solvers import PeriodicFreqSolver
 from blond.physics.impedances.sources import Resonators
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 
 def bucket_fill_by_emittance_gaussian(

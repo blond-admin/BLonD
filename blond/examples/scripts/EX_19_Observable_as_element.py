@@ -23,8 +23,13 @@ from blond import (
     SingleHarmonicRFStation,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 logging.basicConfig(level=logging.INFO)
 

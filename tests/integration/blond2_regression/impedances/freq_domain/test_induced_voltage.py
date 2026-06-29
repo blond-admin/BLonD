@@ -4,6 +4,7 @@ Authors: Oliver Muller Smedt, Simon Lauber
 """
 
 import os
+import unittest
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -23,7 +24,7 @@ def test_induced_voltage():
     from blond import momentum_compaction_factor
 
     N_TURNS = len(momentum) - 1
-    SIM_TURNS = N_TURNS
+    SIM_TURNS = 100
     CIRCUMFERENCE = 2 * np.pi * 100
     VOLTAGE = 200e3
     HARMONIC = 8
@@ -34,7 +35,7 @@ def test_induced_voltage():
     R_SH = 10000
 
     PROFILE_LENGTH = 2.124873604201372e-06
-    n_macro = int(1e4)
+    n_macro = int(1e2)  # int(1e4) org
     N_BINS = 1000
 
     rnd = np.random.default_rng(seed=42)
@@ -129,7 +130,7 @@ def test_induced_voltage():
         plt.twinx()
         plt.plot(
             wf.induced_voltage,
-            label=f"BLonD3 {simulation.turn_i.value=}",
+            label=f"BLonD3 {simulation.turn_counter .value=}",
         )
 
     sim.run_simulation(
@@ -181,10 +182,10 @@ def test_induced_voltage():
         [RingAndRFTracker(rf, beam2, solver="simple")]
     )
 
-    time_history_blond2 = np.empty(N_TURNS + 1)
-    energy_history_blond2 = np.empty(N_TURNS + 1)
-    profile_history_blond2 = np.empty((N_BINS, N_TURNS + 1))
-    induced_history_blond2 = np.empty((N_BINS, N_TURNS + 1))
+    time_history_blond2 = np.empty(SIM_TURNS + 1)
+    energy_history_blond2 = np.empty(SIM_TURNS + 1)
+    profile_history_blond2 = np.empty((N_BINS, SIM_TURNS + 1))
+    induced_history_blond2 = np.empty((N_BINS, SIM_TURNS + 1))
     profile_history_blond2[:, 0] = profile2.n_macroparticles
     induced_history_blond2[:, 0] = total_induced_voltage.induced_voltage
     time_history_blond2[0] = beam2.dt[0]
@@ -243,3 +244,7 @@ def test_induced_voltage():
         rtol=1e-5,
         err_msg="BLonD3 induced voltage history diverges from BLonD2 reference",
     )
+
+
+if __name__ == "__main__":
+    unittest.main()

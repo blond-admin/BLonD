@@ -218,7 +218,7 @@ class TestSimulation(unittest.TestCase):
             return
 
         mock_func = create_autospec(my_callback, return_value=True)
-        self.simulation.turn_i.value = 0
+        self.simulation.turn_counter.value = 0
         self.simulation.finalize(
             beams=self.beam,
             n_turns=10,
@@ -245,7 +245,7 @@ class TestSimulation(unittest.TestCase):
 
         mock_func1 = create_autospec(my_callback1, return_value=True)
         mock_func2 = create_autospec(my_callback2, return_value=True)
-        self.simulation.turn_i.value = 0
+        self.simulation.turn_counter.value = 0
         self.simulation.finalize(
             beams=self.beam, n_turns=10, observe=(observe,)
         )
@@ -595,7 +595,7 @@ class TestSimulation(unittest.TestCase):
             )
         )
         DEV_PLOT = False
-        simulation.turn_i.value = 0
+        simulation.turn_counter.value = 0
         phi_s = float(cavity.calc_phi_s_main_harmonic(beam=beam1))
 
         potential_well_analytic = (
@@ -778,7 +778,7 @@ class TestSimulation(unittest.TestCase):
         def callback(sim: Simulation, beam: Beam):
             buffer[0] = buffer[1]
             buffer[1] = beam.reference.time
-            i = sim.turn_i.value
+            i = sim.turn_counter.value
             t_rev_effective[i] = buffer[1] - buffer[0]
             t_rev_sim[i] = sim.current_t_rev
             if DEV_PLOT:
@@ -806,7 +806,7 @@ class TestSimulation(unittest.TestCase):
         def callback(sim: Simulation, beam: Beam):
             buffer[0] = buffer[1]
             buffer[1] = beam.reference.total_energy
-            i = sim.turn_i.value
+            i = sim.turn_counter.value
             dE_rev_effective[i] = buffer[1] - buffer[0]
             dE_rev_sim[i] = sim.current_turn_dE_tot
             if DEV_PLOT:
