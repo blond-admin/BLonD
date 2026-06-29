@@ -460,6 +460,10 @@ class Resonators(
         -------
         impedance_from_wake
             Wake impedance in frequency domain.
+
+        See Also
+        --------
+        get_impedance_from_wake_freq : Function used to calculate the corresponding frequency.
         """
         # Recalculate only if `time` has changed
         hash_ = get_hash(time)
@@ -518,7 +522,7 @@ class Resonators(
         )
         return impedance_from_wake_counter_rotation
 
-    def get_impedance_from_wake_freq(self, time):
+    def get_impedance_from_wake_freq(self, time, n_fft: int):
         """
         Get frequency array corresponding to time used in :func:`get_impedance_from_wake`.
 
@@ -526,15 +530,19 @@ class Resonators(
         ----------
         time
             Time array, in [s].
+        n_fft
+            Number of fft bins to use.
 
         Returns
         -------
         frequency_array
             Frequency array corresponding to the wake impedance.
+
+        See Also
+        --------
+        get_impedance_from_wake : Function used to calculate the corresponding impedance.
         """
-        return backend.fft.rfftfreq(
-            len(self._cache_impedance_from_wake), time[1] - time[0]
-        )
+        return backend.fft.rfftfreq(n=n_fft, d=time[1] - time[0])
 
     def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
         """
