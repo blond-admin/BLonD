@@ -6,7 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""MuSiC algorithm: time-domain induced voltage of a single resonator."""
+"""
+Multibunch and multiparticle simulation code (MuSiC) algorithm.
+
+Time-domain induced voltage of a single resonator.
+"""
 
 from __future__ import annotations
 
@@ -79,8 +83,7 @@ class Music(BeamPhysicsRelevant):
 
     Examples
     --------
-    >>> from blond.physics.impedances.music_algorithm import Music
-    >>> from blond.physics.impedances.sources import Resonators
+    >>> from blond import Music, Resonators
     >>>
     >>> music = Music(
     ...     source=Resonators(
@@ -91,6 +94,8 @@ class Music(BeamPhysicsRelevant):
     ... )
     >>> ring.add_elements([music])
     """
+
+    # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
 
     def __init__(
         self,
@@ -164,12 +169,16 @@ class Music(BeamPhysicsRelevant):
             per-turn sort (:meth:`~blond.core.beam.base.BeamBaseClass.sort_by_dt`)
             also rejects distributed beams as a low-level safeguard.
         """
-        if mpi_is_distributed():
+        if mpi_is_distributed():  # MUSIC with MPI will be hard to implement
             raise NotImplementedError(
                 "MuSiC does not support MPI: the per-turn sort cannot order "
                 "a beam split across ranks."
             )
-        if backend.specials_mode == "cuda":
+        if (
+            backend.specials_mode == "cuda"
+        ):  # Should be straightforward to implement,
+            #  basically a copy of the CPP version (?)
+
             raise NotImplementedError(
                 "MuSiC does not support the `cuda` backend."
             )
@@ -305,5 +314,5 @@ class Music(BeamPhysicsRelevant):
         """
         music = Music(source=source, section_index=section_index)
         music.configure()
-        music.configure_run(beam=beam, n_turns=1)
+        music.configure_run(beam=beam, n_turns=None)
         return music
