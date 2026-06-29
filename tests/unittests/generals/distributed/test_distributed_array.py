@@ -38,7 +38,13 @@ class TestDistributedArray(unittest.TestCase):
         self.weights = rng.uniform(0.5, 1.5, size=128)
         self.weights[0] = 0.0  # global minimum particle is inactive
         self.weights[1] = 0.0  # global maximum particle is inactive
-        self.distributed_weights = DistributedArray(self.weights.copy())
+        # Weights must live on the active backend, just like the data array
+        # above: production builds them with ``backend.array`` (see
+        # ``beam_with_weights``), so a CuPy backend needs CuPy weights to
+        # multiply/index against the CuPy data.
+        self.distributed_weights = DistributedArray(
+            backend.array(self.weights.copy(), dtype=backend.float)
+        )
 
     def test_local_size(self):
         mpi_active = mpi_is_distributed()
@@ -200,7 +206,7 @@ class TestDistributedArray(unittest.TestCase):
         actual = self.distributed_array.histogram(
             bins=8, weights=self.distributed_weights
         )
-        np.testing.assert_allclose(expected, actual)
+        np.testing.assert_allclose(expected, copy_to_cpu(actual))
 
     def test_histogram_weighted_with_out(self):
         from blond import backend
@@ -211,11 +217,11 @@ class TestDistributedArray(unittest.TestCase):
         if mpi_active:
             self.distributed_array.mpi_scatter()
             self.distributed_weights.mpi_scatter()
-        out = np.zeros(8, dtype=backend.float)
+        out = backend.zeros(8, dtype=backend.float)
         self.distributed_array.histogram(
             bins=8, out=out, weights=self.distributed_weights
         )
-        np.testing.assert_allclose(expected, out)
+        np.testing.assert_allclose(expected, copy_to_cpu(out))
 
     def test_histogram_weighted_uniform_equals_unweighted(self):
         """Uniform weights of 1 must reproduce the unweighted histogram."""
@@ -225,14 +231,19 @@ class TestDistributedArray(unittest.TestCase):
 
         mpi_active = mpi_is_distributed()
 
-        uniform_weights = DistributedArray(np.ones(128))
+        uniform_weights = DistributedArray(
+            backend.array(np.ones(128), dtype=backend.float)
+        )
         if mpi_active:
             self.distributed_array.mpi_scatter()
             uniform_weights.mpi_scatter()
 
-        unweighted = self.distributed_array.histogram(bins=8)
-        weighted = self.distributed_array.histogram(
-            bins=8, weights=uniform_weights
+        # ``copy_to_cpu`` also detaches from the ``bins=8`` histogram cache,
+        # which both calls share -- otherwise both names would alias the same
+        # buffer and the comparison would be trivially true.
+        unweighted = copy_to_cpu(self.distributed_array.histogram(bins=8))
+        weighted = copy_to_cpu(
+            self.distributed_array.histogram(bins=8, weights=uniform_weights)
         )
         np.testing.assert_allclose(weighted, unweighted)
 
