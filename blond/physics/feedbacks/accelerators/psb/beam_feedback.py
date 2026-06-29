@@ -211,7 +211,7 @@ class PSBBeamControl(BeamFeedbackBase):
         # Average phase error while frequency is updated
         counter = self.cavities[0]._turn_counter.value
 
-        self.phase_difference(beam)
+        self.phase_difference()
 
         self.dphi_sum += self.dphi
 

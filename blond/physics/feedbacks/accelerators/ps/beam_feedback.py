@@ -182,7 +182,7 @@ class PSBeamControl(BeamFeedbackBase):
         beam
             A beam object to extract the beam attribute from.
         """
-        self.phase_difference(beam=beam)
+        self.phase_difference()
         self.radial_difference(beam=beam)
 
     def get_beam_attribute(self, beam: BeamBaseClass):

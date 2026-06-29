@@ -196,54 +196,21 @@ class BeamFeedbackBase(GlobalFeedback):
 
         self.phi_beam = np.arctan(coeff)
 
-    def phase_difference(self, beam: BeamBaseClass, phase_noise=None):
+    def phase_difference(self, phase_noise=None):
         """
         Calculate phase difference between the beam and rf system.
 
         This method calculates the phase difference between the beam and the
-        rf system. If a local feedback is used in the rf station, then the
-        method is able to take into account the transient perturbation due to
-        beam loading in the cavities.
+        rf system.
 
         Parameters
         ----------
-        beam
-            The beam object used in the simulation.
         phase_noise
             Option to add phase noise through the beam control.
         """
         # Correct for design stable phase
         counter = self.main_cavities[0]._turn_counter.value
-        # TODO: a priori the beam control does not know about the synchronous phase?
         self.dphi = self.phi_beam
-
-        """
-        # TODO: Generalize to multiple harmonics and multiple rf stations
-        # Phase offset due to beam loading
-        if self.cavities[0].any_feedback_not_none:
-            filled_slots = (
-                np.abs(
-                    self.cavities[0]
-                    .cavity_feedback_list[0]
-                    .I_BEAM_COARSE[
-                        -self.cavities[0].cavity_feedback_list[0].n_coarse :
-                    ]
-                )
-                > self.current_thres
-            )
-
-            gap_phase_in_slots = (
-                self.cavities[0]
-                .cavity_feedback_list[0]
-                .gap_voltage_phase[filled_slots]
-            )
-            # voltage difference
-            if len(gap_phase_in_slots) > 0:
-                phi_mean = np.mean(gap_phase_in_slots)
-            else:
-                phi_mean = 0
-            self.dphi = self.dphi + phi_mean
-        """
 
         # Possibility to add RF phase noise through the PL
         if phase_noise is not None:
