@@ -35,6 +35,7 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
+from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
     SupportsVectorFittedModel,
@@ -128,6 +129,12 @@ class PeriodicFreqSolver(WakeFieldSolver):
     allow_next_fast_len
         Allow to slightly change `t_periodicity` for
         faster execution of fft via `scipy.fft.next_fast_len`.
+    warn_above_n_time
+        Emit a :class:`~blond.generals.warnings_.PerformanceWarning` when the
+        FFT length ``n_time = t_periodicity / hist_step`` exceeds this many
+        points. A large value usually means the profile is short compared to
+        `t_periodicity` and `TimeDomainFftSolver` would be a better fit.
+        Set to ``None`` to disable the check. Defaults to ``1_000_000``.
 
     Attributes
     ----------
@@ -138,6 +145,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
         If true, reloads internal data on each
         `calc_induced_voltage` for proper updating with
         dynamic parameters.
+    warn_above_n_time
+        FFT-length threshold above which a performance warning is emitted.
+        ``None`` disables the check.
 
     Notes
     -----
@@ -150,9 +160,11 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self,
         t_periodicity: float | None = None,
         allow_next_fast_len: bool = False,
+        warn_above_n_time: int | None = 1_000_000,
     ):
         super().__init__()
         self.allow_next_fast_len = allow_next_fast_len
+        self.warn_above_n_time = warn_above_n_time
         self.expect_profile_change: bool = False
         self.expect_impedance_change = False
 
@@ -268,6 +280,21 @@ class PeriodicFreqSolver(WakeFieldSolver):
             self._n_time = next_fast_len(
                 self._n_time,
                 real=True,
+            )
+
+        if (self.warn_above_n_time is not None) and (
+            self._n_time > self.warn_above_n_time
+        ):
+            warnings.warn(
+                f"`PeriodicFreqSolver` builds an FFT of {self._n_time} points"
+                f" every update (n_bins="
+                f"{self._parent_wakefield.profile.n_bins}). This is because the"
+                f" profile is short compared to t_periodicity="
+                f"{self._t_periodicity:.3e} s. Consider a shorter"
+                f" `t_periodicity`, or `TimeDomainFftSolver` for short"
+                f" profiles. Set `warn_above_n_time=None` to silence this.",
+                PerformanceWarning,
+                stacklevel=2,
             )
 
         self._freq_x = backend.fft.rfftfreq(

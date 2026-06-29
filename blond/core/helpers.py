@@ -10,7 +10,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import types
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -114,6 +116,12 @@ def _find(
     ):
         if id(obj) in seen:
             return
+        # Never descend into imported modules: a module is a shared global
+        # namespace, so crawling its globals reaches arbitrary third-party
+        # state (e.g. pytest's ``mark``) instead of the simulation tree, and
+        # is never what we are looking for.
+        if isinstance(obj, types.ModuleType):
+            return
         # todo remove no cover when Python11 is the main CI tester.
         #  in Python10 this line is never hit..
         if (  # pragma: no cover
@@ -124,7 +132,11 @@ def _find(
         seen.add(id(obj))
         is_mock = isinstance(obj, Mock)
         if hasattr(obj, "skip_find_instances_attributes") and not is_mock:
-            skip_list.extend(obj.skip_find_instances_attributes)
+            # Guard against objects whose ``__getattr__`` fabricates any
+            # attribute (e.g. pytest's ``MarkGenerator``): the value may be
+            # absent or not iterable, in which case there is nothing to skip.
+            with contextlib.suppress(TypeError):
+                skip_list.extend(obj.skip_find_instances_attributes)
 
         # Check if object has the desired method
         if is_wanted(obj):

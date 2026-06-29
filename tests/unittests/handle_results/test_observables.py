@@ -362,9 +362,9 @@ class TestBeamObservation(unittest.TestCase):
                 each_turn_i=1,
                 rf_station=rf_station,
             )
-            bunch_observation = BeamObservationOncePerTurn(each_turn_i=100)
+            bunch_observation = BeamObservationOncePerTurn(each_turn_i=2)
             obs_beam_hist2d = BeamHist2dOncePerTurn(
-                each_turn_i=100, bins=128 if intensity == 0 else (128, 64)
+                each_turn_i=2, bins=128 if intensity == 0 else (128, 64)
             )
             beam1._is_distributed = True
             with self.assertRaisesRegex(
@@ -372,7 +372,7 @@ class TestBeamObservation(unittest.TestCase):
             ):
                 sim.run_simulation(
                     beams=(beam1,),
-                    n_turns=N_TURNS,
+                    n_turns=N_TURNS // 50,
                     observe=(obs_beam_hist2d,),
                 )
             with self.assertRaisesRegex(
@@ -380,7 +380,7 @@ class TestBeamObservation(unittest.TestCase):
             ):
                 sim.run_simulation(
                     beams=(beam1,),
-                    n_turns=N_TURNS,
+                    n_turns=N_TURNS // 50,
                     observe=(bunch_observation,),
                 )
             beam1._is_distributed = False
