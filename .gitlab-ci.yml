@@ -31,7 +31,8 @@ workflow:
   # Persist the compiled C++/CUDA backends between pipelines. Each
   # compiled/<hash>/ directory is keyed (see compiled_dir_handler) on the
   # toolchain version, host CPU instruction set and build flags, so a binary
-  # is only ever reused in an identical environment; prune_siblings caps how
+  # is only ever reused in an identical environment. The compile steps run with
+  # --limit-cachesize, which prunes least-recently-used siblings to cap how
   # many accumulate. The cache key is per-job, which keeps Python-version
   # images separate; a job that runs on runners with different CPUs simply
   # accumulates one directory per CPU (bounded by BLOND_COMPILED_CACHE_KEEP_N).
@@ -58,9 +59,11 @@ workflow:
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -v -e ${project_root}[all_cuda12]
     - cd ${project_root}
-    # Compile C++, CUDA backends
-    - python3 blond/core/backends/cpp/compile.py
-    - python3 blond/core/backends/cuda/compile.py
+    # Compile C++, CUDA backends. --limit-cachesize evicts least-recently-used
+    # sibling builds so the cached compiled/ tree stays bounded (CI-only; local
+    # builds keep all of them).
+    - python3 blond/core/backends/cpp/compile.py --limit-cachesize
+    - python3 blond/core/backends/cuda/compile.py --limit-cachesize
 
 .before_no_gpu:
   before_script:
@@ -74,8 +77,9 @@ workflow:
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -v -e ${project_root}[all_no_cuda]
     - cd ${project_root}
-    # Compile C++, CUDA backends
-    - python3 blond/core/backends/cpp/compile.py
+    # Compile C++ backend. --limit-cachesize evicts least-recently-used sibling
+    # builds so the cached compiled/ tree stays bounded (CI-only).
+    - python3 blond/core/backends/cpp/compile.py --limit-cachesize
 
 .main:
   variables:
@@ -359,9 +363,11 @@ test_minimum:
     - python -m pip install uv
     - python -m uv pip install --resolution lowest-direct ${project_root}[all_cuda12]
     - cd ${project_root}
-    # Compile C++, CUDA, Fortran backends
-    - python blond/core/backends/cpp/compile.py
-    - python blond/core/backends/cuda/compile.py
+    # Compile C++, CUDA, Fortran backends. --limit-cachesize evicts
+    # least-recently-used sibling builds so the cached compiled/ tree stays
+    # bounded (CI-only).
+    - python blond/core/backends/cpp/compile.py --limit-cachesize
+    - python blond/core/backends/cuda/compile.py --limit-cachesize
 
   # Replace .main to use python from venv not python3 from system
   script:

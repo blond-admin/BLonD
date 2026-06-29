@@ -33,6 +33,7 @@ import datetime
 import json
 import os
 import shutil
+import warnings
 from pathlib import Path
 
 _META_NAME = "meta.json"
@@ -51,7 +52,8 @@ def mark_used(directory: str) -> None:
     Record that ``directory`` was just built or loaded.
 
     Writes ``built_at`` once (preserved across calls) and refreshes
-    ``last_used`` to now. Best-effort: any I/O error is ignored.
+    ``last_used`` to now. Best-effort: an I/O error is warned about but never
+    propagated, so cache bookkeeping cannot break the build/load.
 
     Parameters
     ----------
@@ -71,8 +73,15 @@ def mark_used(directory: str) -> None:
         meta["last_used"] = _now()
         with open(meta_path, "w", encoding="utf-8") as file:
             json.dump(meta, file)
-    except OSError:
-        pass  # never let cache bookkeeping break the build/load
+    except OSError as exc:
+        # Never let cache bookkeeping break the build/load, but surface it:
+        # a persistently failing stamp defeats the LRU eviction silently.
+        warnings.warn(
+            f"Could not update compiled-cache metadata in {directory!r}: "
+            f"{exc}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
 
 def _last_used(directory: str) -> float:

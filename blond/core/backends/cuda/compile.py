@@ -56,6 +56,7 @@ def run_compile(command: list[str], libname: str) -> int:
 
 def compile_cuda_library(  # NOQA: PLR0915
     compute_capability: int | Literal["discover"] = "discover",
+    limit_cachesize: bool = False,
 ) -> None:
     """
     Compile the GPU library.
@@ -65,6 +66,10 @@ def compile_cuda_library(  # NOQA: PLR0915
     compute_capability
         The compute capability of your GPU,
         see https://developer.nvidia.com/cuda-gpus.
+    limit_cachesize
+        If True, evict least-recently-used sibling builds after compiling so
+        the ``compiled/`` tree stays bounded (intended for CI). If False
+        (default), every build is kept and nothing is removed.
     """
     print("\nTrying to compile CUDA backend.")
 
@@ -142,7 +147,8 @@ def compile_cuda_library(  # NOQA: PLR0915
     if os.path.isfile(libname_double):
         print(f"Reusing cached CUDA library: {libname_double}")
         mark_used(target)
-        prune_siblings(target)  # evict old sibling builds; keep this one
+        if limit_cachesize:
+            prune_siblings(target)  # evict old sibling builds; keep this one
         return
     command = (
         [nvcc]
@@ -156,10 +162,12 @@ def compile_cuda_library(  # NOQA: PLR0915
         print("There was a compilation error.")
     else:
         print("Compiled successfully.")
-        # Stamp this build and evict least-recently-used sibling dirs so the
-        # compiled/ tree (and the CI cache) stays bounded.
+        # Stamp this build. Eviction of least-recently-used sibling dirs is
+        # opt-in (--limit-cachesize, e.g. in CI); by default every build is
+        # kept.
         mark_used(target)
-        prune_siblings(target)
+        if limit_cachesize:
+            prune_siblings(target)
 
 
 def main_cli() -> None:
@@ -176,10 +184,20 @@ def main_cli() -> None:
         " e.g. -sm 70 80"
         " (see https://en.wikipedia.org/wiki/CUDA#GPUs_supported).",
     )
+    parser.add_argument(
+        "--limit-cachesize",
+        action="store_true",
+        help="Evict least-recently-used sibling builds after compiling so the"
+        " compiled/ tree stays bounded (intended for CI). Off by default:"
+        " all builds are kept.",
+    )
     args = vars(parser.parse_args())
 
     for sm in args["sm"]:  # iterate all SM compute capabilities given by user
-        compile_cuda_library(compute_capability=sm)
+        compile_cuda_library(
+            compute_capability=sm,
+            limit_cachesize=args["limit_cachesize"],
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -84,6 +84,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     flags: str = "",
     optimize: bool = True,
     libname: str | None = None,
+    limit_cachesize: bool = False,
 ) -> None:
     """
     Compile the BLonD C++ library with optional FFTW, OpenMP, and Boost support.
@@ -113,6 +114,10 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         CPU-specific vectorization flags (AVX/SSE/FMA).
     libname : str
         Path and name of the output library (without file extension).
+    limit_cachesize : bool
+        If True, evict least-recently-used sibling builds after compiling so
+        the ``compiled/`` tree stays bounded (intended for CI). If False
+        (default), every build is kept and nothing is removed.
 
     Returns
     -------
@@ -279,12 +284,14 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
                 print("Compilation failed.")
                 print(exception)
 
-    # Record use of this build's directory and evict least-recently-used
-    # ones so the compiled/ tree (and the CI cache) stays bounded. Skipped
-    # when a custom libname bypassed the hashed directory layout.
+    # Record use of this build's directory. Skipped when a custom libname
+    # bypassed the hashed directory layout. Eviction of least-recently-used
+    # sibling builds is opt-in (--limit-cachesize, e.g. in CI); by default
+    # every build is kept.
     if compiled_dir is not None:
         mark_used(compiled_dir)
-        prune_siblings(compiled_dir)  # evict old sibling builds; keep this one
+        if limit_cachesize:
+            prune_siblings(compiled_dir)  # evict old siblings; keep this one
 
 
 def _prepare_cflags(
@@ -558,6 +565,14 @@ def main_cli() -> None:
         " (disable with --no-optimize).",
     )
 
+    parser.add_argument(
+        "--limit-cachesize",
+        action="store_true",
+        help="Evict least-recently-used sibling builds after compiling so the"
+        " compiled/ tree stays bounded (intended for CI). Off by default:"
+        " all builds are kept.",
+    )
+
     # Parse command line options
     args = vars(parser.parse_args())
     compile_cpp_library(
@@ -572,6 +587,7 @@ def main_cli() -> None:
         flags=args["flags"],
         optimize=args["optimize"],
         libname=args["libname"],
+        limit_cachesize=args["limit_cachesize"],
     )
 
 
