@@ -81,7 +81,7 @@ COMPARE_WAKEFIELD = True  # also overlay a profile-based WakeField FFT solver
 # ----------------------------------------------------------------------------
 
 
-def _ensure_music_backend() -> None:
+def _ensure_music_backend() -> None:  # pragma: no cover
     """Select a MuSiC-capable backend (cpp if available, else python)."""
     if backend.specials_mode not in ("cpp", "cpp_single_core", "python"):
         try:
