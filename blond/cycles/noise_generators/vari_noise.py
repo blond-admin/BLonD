@@ -31,7 +31,11 @@ try:
     )
 
     _delayed_import_error = None
-except Exception as _delayed_import_error:
+except Exception as exc:
+    # Bind the error to a name that survives the ``except`` block: Python
+    # deletes the ``as`` target on block exit, so assigning to a separate
+    # module-level variable is required for ``get_noise`` to re-raise it later.
+    _delayed_import_error = exc
     warnings.warn(
         "Import of `rf-noise-cpp` lib failed and will later "
         "result in crash of VariNoise(...).get_noise(...)."

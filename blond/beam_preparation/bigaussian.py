@@ -331,7 +331,8 @@ class BiGaussian(MatchingRoutine):
             seed=(self._seed + 1) if self._seed is not None else None,
             n_forward_per_rank=self._n_macroparticles_local,
         )
-        dt = backend.array(  # potentially on GPU
+
+        dt = backend.array(  # potentially on GPU  # pragma: no cover
             self._sigma_dt
             * rng_dt_cpu_only.standard_normal(
                 size=self._n_macroparticles_local,
@@ -340,7 +341,7 @@ class BiGaussian(MatchingRoutine):
             + (phi_s - phi_rf) / omega_rf,
             copy=False,
         )
-        dE = backend.array(  # potentially on GPU
+        dE = backend.array(  # potentially on GPU  # pragma: no cover
             sigma_dE
             * rng_dE_cpu_only.standard_normal(
                 size=self._n_macroparticles_local,

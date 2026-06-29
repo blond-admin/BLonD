@@ -74,7 +74,7 @@ def test_get_rf_noise_dir_from_env(monkeypatch, tmp_path):
 def test_get_rf_noise_dir_env_not_a_dir_raises(monkeypatch, tmp_path):
     missing = tmp_path / "does_not_exist"
     monkeypatch.setenv("RF_NOISE_DIR", str(missing))
-    with pytest.raises(AssertionError):
+    with pytest.raises(FileNotFoundError):
         _get_rf_noise_dir()
 
 
