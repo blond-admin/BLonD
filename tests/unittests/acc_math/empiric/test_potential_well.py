@@ -295,7 +295,7 @@ class TestPotentialWellHelper(unittest.TestCase):
         np.testing.assert_allclose(pwh.bucket_list, pinned)
 
     def test_analyze_bug2(self):
-        DEV_DEBUG = True
+        DEV_DEBUG = False
 
         for i in range(3):
             data = np.load(

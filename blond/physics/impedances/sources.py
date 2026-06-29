@@ -23,6 +23,7 @@ Simon Lauber
 
 from __future__ import annotations
 
+import numbers
 import warnings
 from abc import abstractmethod
 from os import PathLike
@@ -338,9 +339,9 @@ class Resonators(
 
     def __init__(
         self,
-        shunt_impedances: NumpyArray | ArrayLike | float | int,
-        center_frequencies: NumpyArray | ArrayLike | float | int,
-        quality_factors: NumpyArray | ArrayLike | float | int,
+        shunt_impedances: ArrayLike | float | int,
+        center_frequencies: ArrayLike | float | int,
+        quality_factors: ArrayLike | float | int,
         shunt_impedances_counter_rotating: NumpyArray
         | float
         | ArrayLike
@@ -348,31 +349,33 @@ class Resonators(
     ):
         super().__init__(is_dynamic=False)
 
-        self._shunt_impedances: NumpyArray
-        self._center_frequencies: NumpyArray
-        self._quality_factors: NumpyArray
-        self._n_resonators: int
+        if isinstance(shunt_impedances, numbers.Number):
+            shunt_impedances = [shunt_impedances]
+        if isinstance(center_frequencies, numbers.Number):
+            center_frequencies = [center_frequencies]
+        if isinstance(quality_factors, numbers.Number):
+            quality_factors = [quality_factors]
 
-        if (
-            isinstance(shunt_impedances, float | int)
-            and isinstance(center_frequencies, float | int)
-            and isinstance(quality_factors, float | int)
-        ):
-            self._shunt_impedances = backend.array([shunt_impedances])
-            self._center_frequencies = backend.array([center_frequencies])
-            self._quality_factors = backend.array([quality_factors])
-            self._n_resonators = len(self._shunt_impedances)
-        else:
-            assert len(shunt_impedances) == len(center_frequencies), (
-                f"{len(shunt_impedances)} != {len(center_frequencies)}"
-            )
-            assert len(shunt_impedances) == len(quality_factors), (
-                f"{len(shunt_impedances)} != {len(quality_factors)}"
-            )
-            self._shunt_impedances = np.array(shunt_impedances)
-            self._center_frequencies = np.array(center_frequencies)
-            self._quality_factors = np.array(quality_factors)
-            self._n_resonators = len(shunt_impedances)
+        assert (
+            len(shunt_impedances)
+            == len(center_frequencies)
+            == len(quality_factors)
+        ), (
+            "The number of input shunt impedances, center frequencies and"
+            f" quality factors must match, got {len(shunt_impedances)=}, "
+            f"{len(center_frequencies)=}, {len(quality_factors)=}"
+        )
+
+        self._shunt_impedances = backend.cast_arr_float_if_needed(
+            shunt_impedances
+        )
+        self._center_frequencies = backend.cast_arr_float_if_needed(
+            center_frequencies
+        )
+        self._quality_factors = backend.cast_arr_float_if_needed(
+            quality_factors
+        )
+        self._n_resonators = len(shunt_impedances)
 
         self._shunt_impedances_counter_rotating: (
             NumpyArray | CupyArray | None

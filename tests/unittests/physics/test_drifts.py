@@ -104,6 +104,8 @@ class TestDriftSimple(unittest.TestCase):
             ),  # highly relativistic
             orbit_length=0.25 * 25,
             section_index=0,
+            # array input is scheduled, so a live turn_counter is required
+            turn_counter=DynamicParameter(value_init=0),
         )
 
         beam = Mock(BeamBaseClass)
@@ -123,6 +125,8 @@ class TestDriftSimple(unittest.TestCase):
         self.drift_simple.track(beam=beam)
 
     def test_error_throwing_on_unscheduled(self):
+        from types import SimpleNamespace
+
         simulation = Mock(Simulation)
         simulation.turn_counter = SimpleNamespace(value=0)
         self.drift_simple = DriftSimple(
@@ -157,6 +161,8 @@ class TestDriftSimple(unittest.TestCase):
         )
 
     def test_on_init_simulation(self):
+        from types import SimpleNamespace
+
         from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)

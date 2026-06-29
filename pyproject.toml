@@ -65,6 +65,7 @@ doc = [
   "nbconvert>=6",                # notebook to documentation conversion
   "ipython>5",                   # interactive Python shell
   "notebook>=7",                 # for jupyter-notebooks in the examples
+  "sphinx-copybutton",           # for the copy button of code on the website
 ]
 mpi = [
   "mpi4py>=4", # MPI bindings for distributed computing

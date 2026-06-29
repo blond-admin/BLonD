@@ -50,6 +50,9 @@ from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
+from blond.utilities.separatrix.symbolic_separatrix import (
+    SymbolicSeparatrixHelper,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
@@ -1716,9 +1719,13 @@ class Simulation(Preparable):
         -----
         This method does not call ``plt.show()``; call that separately.
         """
+        sep = self._get_separatrix_helper()
+        return sep.plot_separatrix(beam=beam, dt=dt, **kwargs_plot)
+
+    def _get_separatrix_helper(self) -> SymbolicSeparatrixHelper:
         from blond.utilities.separatrix.symbolic_separatrix import (  # avoid cyclic imports
             SymbolicSeparatrixHelper,
         )
 
         sep = SymbolicSeparatrixHelper.from_simulation(simulation=self)
-        return sep.plot_separatrix(beam=beam, dt=dt, **kwargs_plot)
+        return sep
