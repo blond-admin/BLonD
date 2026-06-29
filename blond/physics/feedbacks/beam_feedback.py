@@ -53,13 +53,13 @@ class BeamFeedbackBase(GlobalFeedback):
     profile
         Any Profile object which exposes the x- and y-axis of the beam line density.
     delay
-        Delay (in unites of turns) of the initial correction of the feedback system.
+        Delay (in units of turns) of the initial correction of the feedback system.
     window_coefficient
         Window coefficient for the calculation of the beam phase.
     time_offset
         Time offset for the calculation of the beam phase.
     sample_de
-        Determines which particles to sample for mean energy calculation.
+        Determines downsampling of macroparticles for mean energy calculation.
         Every <sample_dE>. particle is sampled.
     phase_noise
         Option to add phase noise through the beam control.
@@ -187,7 +187,7 @@ class BeamFeedbackBase(GlobalFeedback):
             indexes = self.profile.hist_x >= self.time_offset
             coeff = backend.specials.beam_phase(
                 self.profile.hist_x[indexes],
-                self.profile.hist_y,
+                self.profile.hist_y[indexes],
                 self.window_coefficient,
                 omega_rf,
                 phi_rf,

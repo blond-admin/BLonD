@@ -153,11 +153,10 @@ class SPSBeamControl(BeamFeedbackBase):
                 "The filled slots in the machine is needed to compute the cavity sum phase"
             )
 
-        def convert_to_array(parameter, delay_action=0):
-            delay_action = np.concatenate(
-                (np.zeros(delay_action), np.ones(n_turns + 1 - delay_action))
-            )
-            return parameter * np.ones(n_turns + 1) * delay_action
+        def convert_to_array(parameter: float, delay_action: int = 0):
+            result = np.zeros(n_turns + 1)
+            result[delay_action:] = parameter
+            return result
 
         def ensure_array_length(_value, _name, _delay):
             if isinstance(_value, float):
