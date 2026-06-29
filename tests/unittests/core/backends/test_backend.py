@@ -616,6 +616,107 @@ class TestSpecials(unittest.TestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_kick_interpolated_far_outside_window(self) -> None:
+        """Particles far outside the window must not receive any kick.
+
+        The C++ kernel converted ``floor(...)`` of the bin index to
+        ``unsigned``, which is undefined behaviour for negative values: on
+        x86 it happens to produce a huge value that is skipped, but e.g. on
+        ARM the conversion saturates to 0 and such particles would wrongly
+        receive the kick of bin 0.
+        """
+        dtype = np.float64
+        dt_np = np.array(
+            [-1e30, -1e12, -4.5, 0.0, 4.5, 1e12, 1e30], dtype=dtype
+        )
+        in_range = np.zeros_like(dt_np, dtype=bool)
+        in_range[3] = True  # only dt = 0.0 is inside bin_centers [-4, 4]
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.array(dt_np, dtype=backend.float)
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            bin_centers = backend.linspace(-4, 4, 20, dtype=backend.float)
+            voltage = bin_centers**2
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=backend.float(10),
+                acceleration_kick=backend.float(0.5),
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            result = np.asarray(result)
+            np.testing.assert_array_equal(
+                result[~in_range],
+                0.0,
+                err_msg=(
+                    f"out-of-window particles must not be kicked, "
+                    f"{special=} {dtype=}"
+                ),
+            )
+            self.assertNotEqual(
+                result[3],
+                0.0,
+                msg=f"in-window particle must be kicked, {special=}",
+            )
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_extreme_outliers(self) -> None:
+        """Histogram must ignore values of extreme magnitude.
+
+        Bin indices of such values overflow ``int``; the conversion is
+        undefined behaviour in C++ and must not be relied on. Also pins
+        the edge semantics: ``== start`` is counted in the first bin,
+        ``== stop`` in the last bin.
+        """
+        dtype = np.float64
+        values_np = np.array(
+            [-1e30, -1e12, -12.0, 0.0, 8.0, 1e12, 1e30], dtype=dtype
+        )
+        n_bins = 21
+        expected = np.zeros(n_bins, dtype=dtype)
+        expected[0] += 1  # -12.0 == start
+        expected[int((0.0 - -12.0) / 20.0 * n_bins)] += 1  # 0.0
+        expected[-1] += 1  # 8.0 == stop
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            array_write = backend.ones(n_bins, dtype=backend.float)
+            backend.specials.histogram(
+                array_read=backend.array(values_np, dtype=backend.float),
+                array_write=array_write,
+                start=backend.float(-12),
+                stop=backend.float(8.0),
+            )
+            result = array_write
+            if special == "cuda":
+                result = result.get()
+            np.testing.assert_array_equal(
+                np.asarray(result),
+                expected,
+                err_msg=f"{special=} {dtype=}",
+            )
+
+    @pytest.mark.backend_mutation
     def test_kick_interpolated_bug(self) -> None:
         kwargs = {
             "dt": [
