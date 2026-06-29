@@ -40,17 +40,17 @@ class SPSBeamControl(BeamFeedbackBase):
     Parameters
     ----------
     k_phi_n
-        Bla bla.
+        Feedback gain for the phase loop error from the previous turn.
     k_phi_nm1
-        Bla bla.
+        Feedback gain for the phase loop error from two turn prior.
     k_eps_n
-        Bla bla.
+        Feedback gain for the synchronization loop error.
     k_z_n
-        Bla bla.
+        Feedback gain for the integration of synchronization loop error.
     k_a_n
-        Bla bla.
+        Feedback gain for the frequency loop error.
     k_b_n
-        Bla bla.
+        Feedback gain for the integration of the frequency loop error.
     phi_sync
         Synchronous phase of the beam [rad].
     pl_gain

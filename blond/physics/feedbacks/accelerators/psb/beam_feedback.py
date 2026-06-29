@@ -45,9 +45,9 @@ class PSBBeamControl(BeamFeedbackBase):
     rl_gain
         The gain of the radial loop.
     period
-        TBW.
+        Time [s] between the actions of the phase loop.
     coefficients
-        Bla bla.
+        Coefficients for the transfer function of the feedback.
     *args
         Variable positional arguments.
     **kwargs
