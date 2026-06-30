@@ -21,6 +21,7 @@ from blond.core.base import AltersReference, DynamicParameter, HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
     RFStationBaseClass,
     SingleHarmonicRFStation,
@@ -544,7 +545,11 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
 class IQCavityFeedbackTimingClass(IQCavityFeedback):
     """
-    Dummy.
+    Cavity feedback that tracks the antenna voltage on a coarse time grid.
+
+    The antenna voltage is advanced on a coarse grid (the ``rf_centers``) with
+    a forward-Euler discretisation of the cavity ODE; see ``cavity_response``
+    and ``_check_step_sizes``.
 
     Parameters
     ----------
@@ -1426,8 +1431,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
             # TODO: fix in case of RK application
             samples_per_rf_fine_grid = omega_input * self.profile.hist_step
+            # copy_to_cpu: the feedback signal processing is host-side
+            # (scipy), so a GPU-backend profile grid must be brought to host.
             self.generator_current_fine_grid = np.interp(
-                self.profile.hist_x,
+                copy_to_cpu(self.profile.hist_x),
                 self.rf_centers[-self.rf_centers_lengths[-1] :],
                 self.generator_current_coarse_grid[
                     -self.rf_centers_lengths[-1] :

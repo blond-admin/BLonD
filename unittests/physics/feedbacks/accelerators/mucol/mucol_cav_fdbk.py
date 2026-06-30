@@ -18,10 +18,11 @@ from blond import (
     mu_plus,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
-from blond.examples.scripts.EX_09_Semi_empiric_matcher import (
+from blond.examples.scripts.EX_08_Semi_empiric_matcher import (
     bucket_fill_by_emittance_gaussian,
 )
 from blond.experimental import SemiEmpiricMatcher
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.handle_results.observables import IQCavityFeedbackObservation
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
@@ -406,7 +407,9 @@ def setup_and_run(  # noqa: PLR0915
     beam_freq = np.fft.rfftfreq(
         100 * profile_list[0].n_bins, profile_list[0].hist_step
     )
-    beam_spectrum = profile_list[0].beam_spectrum(100 * profile_list[0].n_bins)
+    beam_spectrum = copy_to_cpu(
+        profile_list[0].beam_spectrum(100 * profile_list[0].n_bins)
+    )
     _rf_frequency_component = (
         interp1d(beam_freq, beam_spectrum)(omega_rf / (2 * np.pi))
         / beam_spectrum[0]
