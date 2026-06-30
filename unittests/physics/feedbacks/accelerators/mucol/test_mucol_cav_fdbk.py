@@ -117,30 +117,30 @@ class TestCavityFeedback(unittest.TestCase):
 
         np.testing.assert_allclose(v, expected, rtol=1e-12)
 
-    def _patched_carrier_props(self, omega_carrier, sampling_time_coarse):
+    def _patched_step_size_props(self, omega_rf, sampling_time_coarse):
         """
-        Patch the carrier properties that need a missing cavity object.
+        Patch the RF-frequency properties that need a missing cavity object.
 
         Parameters
         ----------
-        omega_carrier
-            Carrier angular frequency to patch in.
+        omega_rf
+            RF angular frequency to patch in.
         sampling_time_coarse
             Coarse-grid sampling time to patch in.
 
         Returns
         -------
         patch_omega
-            Context manager patching ``omega_carrier``.
+            Context manager patching ``omega_rf``.
         patch_dt
             Context manager patching ``sampling_time_coarse``.
         """
         return (
             patch.object(
                 IQCavityFeedbackTimingClass,
-                "omega_carrier",
+                "omega_rf",
                 new_callable=PropertyMock,
-                return_value=omega_carrier,
+                return_value=omega_rf,
             ),
             patch.object(
                 IQCavityFeedbackTimingClass,
@@ -154,13 +154,13 @@ class TestCavityFeedback(unittest.TestCase):
         """Warn when the per-step decay is between the soft and hard limits."""
         # 0.5 * omega * dt / Q_L should be between the soft (0.1) and hard
         # (2.0) thresholds: large enough to warn, small enough not to raise
-        omega_carrier = 2 * np.pi * 1e9
+        omega_rf = 2 * np.pi * 1e9
         sampling_time_coarse = 1e-9
         self.cav_fdbk.Q_L = 10.0
         self.cav_fdbk.delta_omega = 0.0  # avoid triggering the other warning
 
-        patch_omega, patch_dt = self._patched_carrier_props(
-            omega_carrier, sampling_time_coarse
+        patch_omega, patch_dt = self._patched_step_size_props(
+            omega_rf, sampling_time_coarse
         )
         with patch_omega, patch_dt, self.assertWarns(UserWarning) as cm:
             self.cav_fdbk._check_step_sizes()
@@ -169,13 +169,13 @@ class TestCavityFeedback(unittest.TestCase):
     def test_step_size_check_warns_for_large_detuning_phase_per_step(self):
         """Warn when the per-step detuning phase exceeds the soft limit."""
         # delta_omega * dt should clearly exceed the 0.1 threshold
-        omega_carrier = 2 * np.pi * 1e9
+        omega_rf = 2 * np.pi * 1e9
         sampling_time_coarse = 1e-6
         self.cav_fdbk.Q_L = 1e12  # avoid triggering the decay warning
         self.cav_fdbk.delta_omega = 1e6
 
-        patch_omega, patch_dt = self._patched_carrier_props(
-            omega_carrier, sampling_time_coarse
+        patch_omega, patch_dt = self._patched_step_size_props(
+            omega_rf, sampling_time_coarse
         )
         with patch_omega, patch_dt, self.assertWarns(UserWarning) as cm:
             self.cav_fdbk._check_step_sizes()
@@ -184,13 +184,13 @@ class TestCavityFeedback(unittest.TestCase):
     def test_step_size_check_no_warning_for_small_step_parameters(self):
         """Do not warn when both per-step parameters are well below the limit."""
         # both 0.5 * omega * dt / Q_L and delta_omega * dt are well below 0.1
-        omega_carrier = 2 * np.pi * 1e9
+        omega_rf = 2 * np.pi * 1e9
         sampling_time_coarse = 1e-9
         self.cav_fdbk.Q_L = 1e12
         self.cav_fdbk.delta_omega = 1.0
 
-        patch_omega, patch_dt = self._patched_carrier_props(
-            omega_carrier, sampling_time_coarse
+        patch_omega, patch_dt = self._patched_step_size_props(
+            omega_rf, sampling_time_coarse
         )
         with (
             patch_omega,
@@ -257,13 +257,13 @@ class TestCavityFeedback(unittest.TestCase):
     def test_step_size_check_raises_for_unphysical_decay_per_step(self):
         """Raise when the per-step decay exceeds the hard limit."""
         # 0.5 * omega * dt / Q_L > 2.0 makes the Euler decay factor negative
-        omega_carrier = 2 * np.pi * 1e9
+        omega_rf = 2 * np.pi * 1e9
         sampling_time_coarse = 1e-3
         self.cav_fdbk.Q_L = 1.0
         self.cav_fdbk.delta_omega = 0.0  # avoid the other (hard) error first
 
-        patch_omega, patch_dt = self._patched_carrier_props(
-            omega_carrier, sampling_time_coarse
+        patch_omega, patch_dt = self._patched_step_size_props(
+            omega_rf, sampling_time_coarse
         )
         with patch_omega, patch_dt, self.assertRaises(ValueError) as cm:
             self.cav_fdbk._check_step_sizes()
@@ -276,13 +276,13 @@ class TestCavityFeedback(unittest.TestCase):
         # delta_omega * dt > 2.0 makes the per-step rotation exceed one
         # step's worth of phase -- the discretization can no longer track
         # the cavity phase
-        omega_carrier = 2 * np.pi * 1e9
+        omega_rf = 2 * np.pi * 1e9
         sampling_time_coarse = 1e-6
         self.cav_fdbk.Q_L = 1e12  # avoid the decay error/warning
         self.cav_fdbk.delta_omega = 1e7
 
-        patch_omega, patch_dt = self._patched_carrier_props(
-            omega_carrier, sampling_time_coarse
+        patch_omega, patch_dt = self._patched_step_size_props(
+            omega_rf, sampling_time_coarse
         )
         with patch_omega, patch_dt, self.assertRaises(ValueError) as cm:
             self.cav_fdbk._check_step_sizes()
