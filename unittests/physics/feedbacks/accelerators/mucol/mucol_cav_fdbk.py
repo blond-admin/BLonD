@@ -14,7 +14,6 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
-    backend,
     mu_plus,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
@@ -30,6 +29,9 @@ from blond.handle_results.observables_as_elements import (
     InducedVoltageObservationCR,
 )
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.generator_current_pi_feedback import (
+    GeneratorCurrentPIFeedback,
+)
 from blond.physics.feedbacks.helpers import rf_beam_current
 from blond.physics.impedances.solvers import (
     MultiPassResonatorSolver,
@@ -88,6 +90,7 @@ def setup_and_run(  # noqa: PLR0915
     n_turns_in: int = -1,
     force_rematch: bool = False,
     acceleration: bool = True,
+    use_pi_feedback: bool = False,
 ):
     """
     Set up and run a muon collider RCS cavity-feedback simulation.
@@ -109,6 +112,11 @@ def setup_and_run(  # noqa: PLR0915
         If True, force a rematch of the beam before tracking.
     acceleration
         If True, run with an accelerating magnetic cycle.
+    use_pi_feedback
+        If True, drive the cavity with the PI-controlled
+        :class:`GeneratorCurrentPIFeedback` (the generator current reacts to
+        the beam loading) instead of the constant-current
+        :class:`IQCavityFeedbackTimingClass`. Ignored when ``MTW`` is True.
 
     Returns
     -------
@@ -121,8 +129,6 @@ def setup_and_run(  # noqa: PLR0915
     cav_fdbk_obs_list
         List of cavity-feedback observations.
     """
-    backend.set_specials("cpp")
-
     if rcs == "RCS1":
         R_over_Q = 518
         # Q_L = 1.29e6
@@ -314,8 +320,28 @@ def setup_and_run(  # noqa: PLR0915
             if MTW
             else None
         )
-        cav_fdbk = (
-            IQCavityFeedbackTimingClass(
+        if MTW:
+            cav_fdbk = None
+        elif use_pi_feedback:
+            # Per-step proportional loop gain g = K_p * (R/Q) * omega * dt
+            # = 0.1 (omega * dt = 2 pi for one rf period per coarse sample);
+            # integral ~30x slower. Same tuning as the unit tests.
+            gain_proportional = 0.1 / (R_over_Q * 2 * np.pi)
+            cav_fdbk = GeneratorCurrentPIFeedback(
+                profile=profile_list[-1],
+                R_over_Q=R_over_Q,
+                Q_L=Q_L,
+                n_rf_periods_per_coarse_grid=1,
+                generator_current=I_g,
+                n_cavities=cav_per_station,
+                initial_voltage=voltage_per_cavity,
+                delta_omega=delta_omega,
+                gain_proportional=gain_proportional,
+                gain_integral=gain_proportional / (30 * t_rf),
+                loop_delay_samples=5,
+            )
+        else:
+            cav_fdbk = IQCavityFeedbackTimingClass(
                 profile=profile_list[-1],
                 R_over_Q=R_over_Q,
                 Q_L=Q_L,
@@ -325,9 +351,6 @@ def setup_and_run(  # noqa: PLR0915
                 initial_voltage=voltage_per_cavity,
                 delta_omega=delta_omega,
             )
-            if not MTW
-            else None
-        )
         cav_fdbk_obs_list.append(
             IQCavityFeedbackObservation(
                 each_turn_i=1,
