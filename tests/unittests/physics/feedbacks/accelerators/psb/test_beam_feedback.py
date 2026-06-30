@@ -38,7 +38,8 @@ class TestPSBBeamFeedback(unittest.TestCase):
     def create_scenario(
         self,
         pl_gain,
-        rl_gain=None,
+        rl_gain_a=0.0,
+        rl_gain_b=0.0,
         period=0.00001,
         coefficients=None,
         n_tracks=16,
@@ -85,7 +86,8 @@ class TestPSBBeamFeedback(unittest.TestCase):
         self.beam_control = PSBBeamControl(
             profile=self.profile,
             pl_gain=pl_gain,
-            rl_gain=rl_gain,
+            rl_gain_a=rl_gain_a,
+            rl_gain_b=rl_gain_b,
             period=period,
             coefficients=coefficients,
         )
@@ -174,7 +176,7 @@ class TestPSBBeamFeedback(unittest.TestCase):
 
     def test_psb_beam_control_radial_loop(self):
         self.create_scenario(
-            pl_gain=0.0, period=10e-6, rl_gain=[1.0e7, 1.0e11]
+            pl_gain=0.0, period=10e-6, rl_gain_a=1.0e7, rl_gain_b=1.0e11
         )
 
         # Check memory of the beam-phase loop
@@ -203,7 +205,8 @@ class TestPSBBeamFeedback(unittest.TestCase):
         self.create_scenario(
             pl_gain=1 / 25e-6,
             period=10e-6,
-            rl_gain=[1.0e7, 1.0e11],
+            rl_gain_a=1.0e7,
+            rl_gain_b=1.0e11,
             coefficients=[
                 0.999019,
                 -0.999019,
@@ -248,7 +251,8 @@ class TestPSBBeamFeedback(unittest.TestCase):
         self.create_scenario(
             pl_gain=1 / 25e-6,
             period=0.0,
-            rl_gain=[1.0e7, 1.0e11],
+            rl_gain_a=1.0e7,
+            rl_gain_b=1.0e11,
             coefficients=[
                 0.999019,
                 -0.999019,
@@ -336,7 +340,6 @@ class TestPSBBeamFeedback(unittest.TestCase):
         self.beam_control = PSBBeamControl(
             profile=self.profile,
             pl_gain=pl_gain,
-            rl_gain=rl_gain,
             period=period,
             coefficients=coefficients,
         )

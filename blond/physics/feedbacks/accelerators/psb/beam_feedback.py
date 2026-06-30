@@ -27,6 +27,8 @@ from blond.physics.feedbacks.beam_feedback import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray as NumpyArray
+
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.physics.profiles import ProfileBaseClass
@@ -45,8 +47,10 @@ class PSBBeamControl(BeamFeedbackBase):
         Any Profile object which exposes the x- and y-axis of the beam line density.
     pl_gain
         The gain of the beam-phase loop.
-    rl_gain
-        The gain of the radial loop.
+    rl_gain_a
+        The first gain of the radial loop.
+    rl_gain_b
+        The second gain of the radial loop.
     delay
         Delay (in units of turns) of the initial correction of the feedback system.
     window_coefficient
@@ -65,8 +69,9 @@ class PSBBeamControl(BeamFeedbackBase):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        pl_gain: float,
-        rl_gain: list[float] = None,
+        pl_gain: float | NumpyArray[float],
+        rl_gain_a: float | NumpyArray[float] = 0.0,
+        rl_gain_b: float | NumpyArray[float] = 0.0,
         delay: int = 0,
         window_coefficient: float = 0.0,
         time_offset: float | None = None,
@@ -89,10 +94,8 @@ class PSBBeamControl(BeamFeedbackBase):
         self.reference = 0.0
 
         #: | *Radial loop gain, proportional [1] and integral [1/s].*
-        if rl_gain is None:
-            self.rl_gain = [0.0, 0.0]
-        else:
-            self.rl_gain = rl_gain
+        self.rl_gain_a = rl_gain_a
+        self.rl_gain_b = rl_gain_b
 
         #: | *Optional: PL & RL acting only in certain time intervals/turns.*
         self.dt = period
@@ -160,8 +163,8 @@ class PSBBeamControl(BeamFeedbackBase):
 
         self.pl_gain = self.pl_gain * np.ones(n_turns + 1)
 
-        self.rl_gain[0] = self.rl_gain[0] * np.ones(n_turns + 1)
-        self.rl_gain[1] = self.rl_gain[1] * np.ones(n_turns + 1)
+        self.rl_gain_a = self.rl_gain_a * np.ones(n_turns + 1)
+        self.rl_gain_b = self.rl_gain_b * np.ones(n_turns + 1)
 
         self.precalculate_time(n_turns)
 
@@ -265,9 +268,9 @@ class PSBBeamControl(BeamFeedbackBase):
 
             self.domega_RL = (
                 self.domega_RL
-                + self.rl_gain[0][counter]
+                + self.rl_gain_a[counter]
                 * (self.dR_over_R - self.dR_over_R_prev)
-                + self.rl_gain[1][counter] * self.dR_over_R
+                + self.rl_gain_b[counter] * self.dR_over_R
             )
 
             self.dR_over_R_prev = self.dR_over_R
