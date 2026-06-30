@@ -175,25 +175,22 @@ class BeamFeedbackBase(GlobalFeedback):
         )
         phi_rf = np.angle(np.sum(voltages * np.exp(1j * phi_rfs)))
 
-        if self.time_offset is None:
-            coeff = backend.specials.beam_phase(
-                self.profile.hist_x,
-                self.profile.hist_y,
-                self.window_coefficient,
-                omega_rf,
-                phi_rf,
-                self.profile.hist_step,
-            )
-        else:
+        if self.time_offset is not None:
             indexes = self.profile.hist_x >= self.time_offset
-            coeff = backend.specials.beam_phase(
-                self.profile.hist_x[indexes],
-                self.profile.hist_y[indexes],
-                self.window_coefficient,
-                omega_rf,
-                phi_rf,
-                self.profile.hist_step,
-            )
+            hist_x = self.profile.hist_x[indexes]
+            hist_y = self.profile.hist_y[indexes]
+        else:
+            hist_x = self.profile.hist_x
+            hist_y = self.profile.hist_y
+
+        coeff = backend.specials.beam_phase(
+            hist_x,
+            hist_y,
+            self.window_coefficient,
+            omega_rf,
+            phi_rf,
+            self.profile.hist_step,
+        )
 
         self.phi_beam = np.arctan(coeff)
 
