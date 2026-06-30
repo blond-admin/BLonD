@@ -22,6 +22,7 @@ from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
 from blond.core.beam.base import BeamBaseClass
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 logger = logging.getLogger(__name__)
 
@@ -152,12 +153,19 @@ def rf_beam_current(  # noqa: PLR0912
         If time_coarse is specified, returns also the RF beam charge array [C]
         on the coarse time grid.
     """
+    # The cavity-feedback signal processing runs on the host (the cavity
+    # response solvers downstream use scipy, which is host-only). Bring the
+    # profile arrays to the host once here so this function works on any
+    # backend, including a GPU/cupy backend.
+    hist_x = copy_to_cpu(profile.hist_x)
+    hist_y = copy_to_cpu(profile.hist_y)
+
     # Warn before anything else if the profile does not capture the whole
     # beam (particle loss or particles outside the profile window): the
     # missing charge is invisible to the feedback and will not be treated.
     if profile.hist_y_to_density_factor is not None:
         captured_fraction = float(
-            np.sum(profile.hist_y) * profile.hist_y_to_density_factor
+            np.sum(hist_y) * profile.hist_y_to_density_factor
         )
         if not np.isclose(captured_fraction, 1.0, rtol=0, atol=1e-6):
             warnings.warn(
@@ -181,23 +189,21 @@ def rf_beam_current(  # noqa: PLR0912
         -elementary_charge
         * beam.particle_type.charge
         * beam.intensity
-        * profile.hist_y
+        * hist_y
         * profile.hist_y_to_density_factor
     )
 
     logger.debug(
         "Sum of particles: %d, total charge: %.4e C",
-        np.sum(profile.hist_y),
+        np.sum(hist_y),
         np.sum(charges),
     )
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
     # Mix with frequency of interest; remember factor 2 demodulation
     # TODO: where do we have to apply the demodulation?
-    I_f = (
-        2.0 * charges * np.cos(omega_c * profile.hist_x)
-    )  # TODO: flipperydoo?
-    Q_f = -2.0 * charges * np.sin(omega_c * profile.hist_x)
+    I_f = 2.0 * charges * np.cos(omega_c * hist_x)  # TODO: flipperydoo?
+    Q_f = -2.0 * charges * np.sin(omega_c * hist_x)
 
     # Pass through a low-pass filter
     if use_lowpass_filter is True:
@@ -233,7 +239,7 @@ def rf_beam_current(  # noqa: PLR0912
         # default) or -1 (blond2 reference, used by the LHC comparison path).
         # np.pi / omega_c --> center of T_s (bin_center)
         ind_fine = np.round(
-            (profile.hist_x + dT_index_sign * dT - np.pi / omega_c) / T_s
+            (hist_x + dT_index_sign * dT - np.pi / omega_c) / T_s
         )
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
