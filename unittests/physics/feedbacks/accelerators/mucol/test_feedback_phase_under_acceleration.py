@@ -41,6 +41,8 @@ is demonstrably sensitive to the accumulated-phase handling it certifies.
 """
 
 import unittest
+from copy import copy
+from types import SimpleNamespace
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -59,7 +61,9 @@ from blond import (
     WakeField,
     mu_plus,
 )
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
+from blond.physics.drifts import DriftSubstepped
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
@@ -67,7 +71,7 @@ from blond.physics.impedances.solvers import MultiPassResonatorSolver
 # shared helpers are not importable by an absolute path under pytest.
 from .support import rel_err
 
-DEBUG_PLOT = True
+DEBUG_PLOT = False
 
 
 def analytic_multipass_induced_voltage(
@@ -698,6 +702,173 @@ class TestSolverPhaseUnderAcceleration(unittest.TestCase):
                     f"turn {k}: solver vs integrated-phase reference "
                     f"rel_err={err:.4f}",
                 )
+
+
+class TestFixedFrequencyWakeWithSubsteppedFrame(unittest.TestCase):
+    """
+    Fixed-frequency (HOM) multi-pass wake: a sub-stepped frame makes it exact.
+
+    A higher-order mode does not retune with the RF, so its carried-wake phase
+    is ``omega_0 * (arrival-time gap)`` -- the phase-clock rotation is
+    identically zero and the only acceleration error left is the frame
+    (arrival) time. The solver is driven on a *fixed* profile while the
+    reference frame is advanced by :class:`DriftSubstepped` (no beam tracking):
+    a single-beta frame (``n_substeps=1``) diverges from the analytic
+    fixed-frequency reference, while a sub-stepped frame reproduces it to
+    machine zero -- so the residual is frame-time granularity, fixable in the
+    tracking, not the resonator.
+    """
+
+    N_SUBSTEPS_FINE = 512
+    N_TURNS = 5
+
+    def setUp(self):
+        """Derive the machine quantities from the shared acceleration constants."""
+        b = TestFeedbackPhaseUnderAcceleration
+        self.E0 = b.E0
+        self.harmonic = b.HARMONIC
+        self.R_over_Q = b.R_OVER_Q
+        self.Q_L = b.Q_L
+        self.circumference = b.CIRCUMFERENCE
+        self.alpha_p = b.ALPHA_P
+        self.intensity = b.INTENSITY
+        self.n_slices = b.N_SLICES
+        t_rev0 = ConstantMagneticCycle(
+            reference_particle=mu_plus, value=self.E0, in_unit="total energy"
+        ).get_t_rev_init(self.circumference, particle_type=mu_plus)
+        self.t_rf = t_rev0 / self.harmonic
+        self.f_res = 1.0 / self.t_rf
+        self.omega_0 = 2 * np.pi * self.f_res
+        self.ramp_rate = b.DELTA_E / t_rev0  # eV/s
+
+    def _fixed_profile(self) -> StaticProfile:
+        """
+        Build a static Gaussian bunch with zeroed leading/trailing bins.
+
+        Returns
+        -------
+        StaticProfile
+            Fixed profile driving the solver every pass.
+        """
+        profile = StaticProfile.from_rad(
+            np.pi * 1.5, np.pi * 4.5, self.n_slices, self.t_rf
+        )
+        t = profile.hist_x
+        t0 = 0.5 * (t[0] + t[-1])
+        hist_y = np.exp(-0.5 * ((t - t0) / (0.08 * self.t_rf)) ** 2)
+        hist_y[:5] = 0.0
+        hist_y[-5:] = 0.0
+        profile._hist_y = hist_y
+        profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+        return profile
+
+    def _cycle_stub(self) -> SimpleNamespace:
+        """
+        Build a magnetic cycle stub whose energy ramps linearly with time.
+
+        Returns
+        -------
+        SimpleNamespace
+            Object exposing ``get_target_total_energy`` like a MagneticCycleByTime.
+        """
+        E0, rate = self.E0, self.ramp_rate
+
+        def get_target_total_energy(
+            *, turn_i, section_i, reference_time, particle_type
+        ):
+            return E0 + rate * reference_time
+
+        return SimpleNamespace(get_target_total_energy=get_target_total_energy)
+
+    def _run(self, n_substeps: int) -> tuple[list, list, StaticProfile]:
+        """
+        Drive the fixed-frequency solver, advancing the frame with DriftSubstepped.
+
+        Parameters
+        ----------
+        n_substeps
+            Energy-adaptation segments per arc (1 = single-beta frame).
+
+        Returns
+        -------
+        tuple
+            Per-turn ``(reference times, induced voltages, profile)``.
+        """
+        profile = self._fixed_profile()
+        solver = MultiPassResonatorSolver(
+            decay_fraction_threshold=1e-12
+        )  # delta_f=None -> fixed frequency
+        wakefield = WakeField(
+            sources=(
+                Resonators(self.R_over_Q * self.Q_L, self.f_res, self.Q_L),
+            ),
+            solver=solver,
+            profile=profile,
+        )
+        solver._parent_wakefield = wakefield
+        solver.circumference = self.circumference
+        solver._maximum_storage_time = 1.0  # >> run time, keeps every pass
+        solver._last_reference_time = -np.finfo(float).eps
+        drift = DriftSubstepped(
+            orbit_length=self.circumference,
+            n_substeps=n_substeps,
+            momentum_compaction_factor=self.alpha_p,
+        )
+        drift.configure(
+            turn_counter=SimpleNamespace(value=0),
+            magnetic_cycle=self._cycle_stub(),
+        )
+        beam = SimpleNamespace(
+            reference=ReferenceCoordinates(0.0, self.E0, mu_plus),
+            intensity=self.intensity,
+            particle_type=mu_plus,
+            is_counter_rotating=False,
+        )
+        times, voltages = [], []
+        for _ in range(self.N_TURNS):
+            drift.track_reference(beam.reference)
+            voltages.append(
+                copy(np.asarray(solver.calc_induced_voltage(beam)))
+            )
+            times.append(beam.reference.time)
+        return times, voltages, profile
+
+    def test_substepped_frame_makes_fixed_frequency_wake_exact(self):
+        """Sub-stepped frame reproduces the analytic wake; the coarse frame does not."""
+        t_coarse, v_coarse, profile = self._run(1)
+        t_fine, v_fine, _ = self._run(self.N_SUBSTEPS_FINE)
+
+        # the frame slips meaningfully between coarse and fine (non-trivial setup)
+        self.assertGreater(abs(t_coarse[-1] - t_fine[-1]) / self.t_rf, 0.1)
+
+        # analytic fixed-frequency reference from the true (fine) arrival times
+        reference = analytic_multipass_induced_voltage(
+            [profile.hist_y] * self.N_TURNS,
+            [profile.hist_x] * self.N_TURNS,
+            t_fine,
+            [self.omega_0] * self.N_TURNS,
+            self.Q_L,
+            fixed_freq=True,
+        )
+        scale_fine = float(
+            np.dot(v_fine[0], reference[0])
+            / np.dot(reference[0], reference[0])
+        )
+        scale_coarse = float(
+            np.dot(v_coarse[0], reference[0])
+            / np.dot(reference[0], reference[0])
+        )
+
+        # the sub-stepped frame reproduces the analytic wake on every carried turn
+        for k in range(1, self.N_TURNS):
+            with self.subTest(turn=k):
+                self.assertLess(
+                    rel_err(v_fine[k], scale_fine * reference[k]), 0.01
+                )
+        # the single-beta frame is far off -- the frame time is the cause
+        self.assertGreater(
+            rel_err(v_coarse[-1], scale_coarse * reference[-1]), 0.3
+        )
 
 
 if __name__ == "__main__":
