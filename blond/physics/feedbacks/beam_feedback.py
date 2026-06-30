@@ -338,8 +338,15 @@ class BeamFeedbackBase(GlobalFeedback):
             beam=beam,
         )
 
+        # Check whether the method has encountered the first turn or not
+        if not hasattr(self, "_first_turn_value_checked"):
+            assert self.cavities[0]._turn_counter.value == 0, (
+                f"Expected first turn_counter value to be 0, "
+                f"got {self.cavities[0]._turn_counter.value}"
+            )
+            self._first_turn_value_checked = True
+
         if self.cavities[0]._turn_counter.value >= self.delay:
-            # TODO incorrect for simulations that start later
             for cav in self.cavities:
                 # domega_rf is updated later
                 # this means domega_rf is effectively from last turn
