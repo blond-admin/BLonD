@@ -44,9 +44,6 @@ from blond.physics.impedances.solvers import PeriodicFreqSolver
 from blond.physics.impedances.sources import Resonators
 from blond.testing import pytest_active
 
-if not pytest_active():  # pragma: no cover
-    setup_backend("auto")
-
 
 def bucket_fill_by_emittance_gaussian(
     time_grid: NumpyArray | CupyArray,
@@ -109,6 +106,12 @@ increment_intensity_effects_until_iteration_i = 10
 
 
 def main():
+    # Select the backend only when running this example as a script, so that
+    # merely importing helpers from this module does not change the global
+    # backend for the importing code.
+    if not pytest_active():  # pragma: no cover
+        setup_backend("auto")
+
     # Defining a 1 turn simulation with values typical of the Proton Synchrotron
     phi_rf = 0
     gamma_transition = 6.2
