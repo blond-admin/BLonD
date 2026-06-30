@@ -518,5 +518,169 @@ class TestDriftXSuite(unittest.TestCase):
         self.drift_x_suite.track(beam=None)
 
 
+class TestDriftSubstepped(unittest.TestCase):
+    """Sub-stepped energy adaptation within the drift region (DriftSubstepped)."""
+
+    def setUp(self):
+        from blond import mu_plus
+
+        self.particle = mu_plus
+        self.orbit_length = 5990.0
+        self.alpha_0 = 10.395e-4
+        self.E0 = 4.0e9
+        self.harmonic = 25900
+        self.n_turns = 5
+        self.t_rev0 = self.orbit_length / float(
+            ReferenceCoordinates(0.0, self.E0, self.particle).velocity
+        )
+        self.t_rf = self.t_rev0 / self.harmonic
+        self.ramp_rate = 20e6 / self.t_rev0  # eV/s, ~20 MeV per turn
+
+    def _cycle_stub(self):
+        """Magnetic cycle stub: total energy ramps linearly with reference time."""
+        E0, rate = self.E0, self.ramp_rate
+
+        def get_target_total_energy(
+            *, turn_i, section_i, reference_time, particle_type
+        ):
+            return E0 + rate * reference_time
+
+        return SimpleNamespace(get_target_total_energy=get_target_total_energy)
+
+    def _accumulated_reference_time(self, n_substeps):
+        from blond.physics.drifts import DriftSubstepped
+
+        drift = DriftSubstepped(
+            orbit_length=self.orbit_length,
+            n_substeps=n_substeps,
+            momentum_compaction_factor=self.alpha_0,
+        )
+        drift.configure(
+            turn_counter=SimpleNamespace(value=0),
+            magnetic_cycle=self._cycle_stub(),
+        )
+        reference = ReferenceCoordinates(0.0, self.E0, self.particle)
+        for _ in range(self.n_turns):
+            drift.track_reference(reference)
+        return reference.time
+
+    def test_reference_time_converges_with_substeps(self):
+        """Reference time converges to the fine integral as n_substeps grows."""
+        fine = self._accumulated_reference_time(8192)
+        err_1 = abs(self._accumulated_reference_time(1) - fine) / self.t_rf
+        err_256 = abs(self._accumulated_reference_time(256) - fine) / self.t_rf
+        # single-beta-per-turn carries a significant arrival-time error ...
+        self.assertGreater(err_1, 0.1)
+        # ... that sub-stepping removes
+        self.assertLess(err_256, 0.01)
+        self.assertGreater(err_1, 20 * err_256)
+
+    def test_single_substep_reproduces_plain_drift_time(self):
+        """n_substeps=1 advances the clock exactly like the plain single-beta drift."""
+        from blond.physics.drifts import DriftSimple, DriftSubstepped
+
+        sub = DriftSubstepped(
+            orbit_length=self.orbit_length,
+            n_substeps=1,
+            momentum_compaction_factor=self.alpha_0,
+        )
+        sub.configure(
+            turn_counter=SimpleNamespace(value=0),
+            magnetic_cycle=self._cycle_stub(),
+        )
+        plain = DriftSimple.headless(
+            momentum_compaction_factor=self.alpha_0,
+            orbit_length=self.orbit_length,
+        )
+        dt_sub = sub.track_reference(
+            ReferenceCoordinates(0.0, self.E0, self.particle)
+        )
+        dt_plain = plain.track_reference(
+            ReferenceCoordinates(0.0, self.E0, self.particle)
+        )
+        # one segment at the entering energy == the plain single-beta drift
+        self.assertAlmostEqual(dt_sub / dt_plain, 1.0, places=12)
+
+    def test_reference_reframing_preserves_absolute_energy(self):
+        """Re-sampling the energy reframes dE, keeping absolute energy constant."""
+        from blond.core.beam.beams import ProbeBeam
+        from blond.physics.drifts import DriftSubstepped
+
+        dE0 = np.linspace(-1e6, 1e6, 11)
+        beam = ProbeBeam(
+            dE=dE0.copy(),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+        e_abs_before = beam.reference.total_energy + beam.dE.copy_as_numpy()
+
+        drift = DriftSubstepped(
+            orbit_length=self.orbit_length,
+            n_substeps=4,
+            momentum_compaction_factor=self.alpha_0,
+        )
+        drift.configure(
+            turn_counter=SimpleNamespace(value=0),
+            magnetic_cycle=self._cycle_stub(),
+        )
+        drift.track(beam=beam)
+
+        # the reference actually ramped (so the test is non-trivial) ...
+        self.assertGreater(beam.reference.total_energy, self.E0)
+        # ... yet each particle's absolute energy E_ref + dE is unchanged
+        e_abs_after = beam.reference.total_energy + beam.dE.copy_as_numpy()
+        np.testing.assert_allclose(e_abs_after, e_abs_before, rtol=1e-12)
+
+    def test_no_ramp_reproduces_plain_drift_beam(self):
+        """With a flat energy program, the beam map equals the plain drift."""
+        from blond.core.beam.beams import ProbeBeam
+        from blond.physics.drifts import DriftSimple, DriftSubstepped
+
+        dE0 = np.linspace(-1e6, 1e6, 11)
+        flat_cycle = SimpleNamespace(
+            get_target_total_energy=(
+                lambda *, turn_i, section_i, reference_time, particle_type: (
+                    self.E0
+                )
+            )
+        )
+
+        beam_sub = ProbeBeam(
+            dE=dE0.copy(),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+        dt_sub_before = beam_sub.dt.copy_as_numpy()
+        sub = DriftSubstepped(
+            orbit_length=self.orbit_length,
+            n_substeps=1,
+            momentum_compaction_factor=self.alpha_0,
+        )
+        sub.configure(
+            turn_counter=SimpleNamespace(value=0), magnetic_cycle=flat_cycle
+        )
+        sub.track(beam=beam_sub)
+        dt_sub_change = beam_sub.dt.copy_as_numpy() - dt_sub_before
+
+        beam_plain = ProbeBeam(
+            dE=dE0.copy(),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+        dt_plain_before = beam_plain.dt.copy_as_numpy()
+        plain = DriftSimple.headless(
+            momentum_compaction_factor=self.alpha_0,
+            orbit_length=self.orbit_length,
+        )
+        plain.track(beam=beam_plain)
+        dt_plain_change = beam_plain.dt.copy_as_numpy() - dt_plain_before
+
+        np.testing.assert_allclose(dt_sub_change, dt_plain_change, rtol=1e-12)
+        # a flat program leaves dE untouched
+        np.testing.assert_allclose(
+            beam_sub.dE.copy_as_numpy(), dE0, rtol=0, atol=1e-6
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

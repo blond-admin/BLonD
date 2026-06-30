@@ -27,6 +27,7 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.cycles.magnetic_cycle import MagneticCycleByTime
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -631,3 +632,205 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
             )
+
+
+class DriftSubstepped(DriftSimple):
+    r"""
+    Drift that adapts the reference energy ``n_substeps`` times across its arc.
+
+    A plain :class:`DriftSimple` advances the reference clock by
+    ``L / (beta c)`` with a single ``beta`` and updates the energy only at the
+    section boundary (the separate energy kick). When the energy ramps fast
+    enough that ``beta`` moves appreciably within one turn, that single-``beta``
+    transit is a coarse approximation of the true ``integral of ds / (beta(s) c)``.
+
+    This element splits the arc into ``n_substeps`` equal segments and, between
+    segments, re-queries the (time-driven) magnetic cycle for the reference
+    energy -- distributing the ramp through the arc. With ``n_substeps = 1`` it
+    reproduces the plain single-``beta`` behaviour; as ``n_substeps`` grows the
+    reference time converges (first order in ``1 / n_substeps``) to the exact
+    integral. Finer is more accurate but more expensive, so ``n_substeps`` trades
+    accuracy for speed.
+
+    Requires a :class:`~blond.cycles.magnetic_cycle.MagneticCycleByTime`, as the
+    energy is sampled as a function of reference time. The energy adaptation is
+    folded into this element, so it replaces a ``DriftSimple`` plus a separate
+    :class:`~blond.physics.energy_reference_kick.ReferenceEnergyChange`.
+
+    Parameters
+    ----------
+    orbit_length
+        Length of drift, in [m].
+    n_substeps
+        Number of equal segments the arc is split into; the reference energy is
+        re-sampled once per segment. Must be ``>= 1``.
+    section_index
+        Section index to group elements into sections.
+    momentum_compaction_factor
+        Momentum compaction factor of this drift section.
+    **kwargs
+        Additional keyword arguments for the method resolution order of
+        inheriting elements.
+    """
+
+    def __init__(
+        self,
+        orbit_length: float,
+        n_substeps: int = 1,
+        section_index: int = 0,
+        momentum_compaction_factor: float | None = None,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        super().__init__(
+            orbit_length=orbit_length,
+            section_index=section_index,
+            momentum_compaction_factor=momentum_compaction_factor,
+            **kwargs,
+        )
+        if n_substeps < 1:
+            raise ValueError(f"n_substeps must be >= 1, got {n_substeps}")
+        self.n_substeps = int(n_substeps)
+        self._magnetic_cycle: MagneticCycleByTime | None = None
+
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
+        """
+        super().on_init_simulation(
+            simulation,
+            magnetic_cycle=simulation.magnetic_cycle,
+            **kwargs,
+        )
+        if not isinstance(self._magnetic_cycle, MagneticCycleByTime):
+            raise TypeError(
+                f"DriftSubstepped requires a MagneticCycleByTime, "
+                f"got {type(self._magnetic_cycle).__name__}"
+            )
+
+    def configure(
+        self, *, magnetic_cycle: MagneticCycleByTime | None = None, **kwargs
+    ) -> None:
+        """
+        Store the energy program needed to re-sample the energy per segment.
+
+        Parameters
+        ----------
+        magnetic_cycle
+            Time-driven energy program sampled once per segment.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        self._magnetic_cycle = magnetic_cycle
+        super().configure(**kwargs)
+
+    def _advance_reference_segment(
+        self, reference: ReferenceCoordinates
+    ) -> tuple[float, float]:
+        """
+        Advance the reference over one segment: time, then re-sample energy.
+
+        Advances the time by ``(L / n_substeps) / velocity`` at the current
+        energy, then re-samples the reference energy from the magnetic cycle at
+        the new reference time.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+
+        Returns
+        -------
+        time_change
+            Reference time change over the segment.
+        energy_change
+            Reference total-energy change over the segment.
+        """
+        time_change = (
+            self.orbit_length / self.n_substeps
+        ) / reference.velocity
+        reference.time += time_change
+        target_total_energy = self._magnetic_cycle.get_target_total_energy(
+            turn_i=self._turn_counter.value,
+            section_i=self.section_index,
+            reference_time=reference.time,
+            particle_type=reference.particle_type,
+        )
+        energy_change = target_total_energy - reference.total_energy
+        reference.total_energy = target_total_energy
+        return time_change, energy_change
+
+    def track_reference(
+        self, reference: ReferenceCoordinates, **kwargs
+    ) -> float:
+        """
+        Advance the reference clock and energy in ``n_substeps`` segments.
+
+        A left-Riemann sum of ``integral of ds / (beta(s) c)`` that is exact as
+        ``n_substeps -> inf``; see :meth:`_advance_reference_segment`.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+        **kwargs
+            Allows more arguments in the method definition outside the
+            abstract class.
+
+        Returns
+        -------
+        reference_time_change
+            Total change of reference time across the arc.
+        """
+        total_time_change = 0.0
+        for _ in range(self.n_substeps):
+            time_change, _ = self._advance_reference_segment(reference)
+            total_time_change += time_change
+        return total_time_change
+
+    def _track(self, beam: BeamBaseClass) -> None:
+        """
+        Drift the beam segment by segment, re-sampling the energy between them.
+
+        Each segment drifts the particles at the entering reference state, then
+        advances the reference time and re-samples its energy; the energy change
+        is subtracted from the particles' ``dE`` so absolute energy is conserved
+        (the energy adaptation reframes the reference, it does not accelerate).
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        """
+        # Skip DriftSimple's single-shot drift; keep the base bookkeeping.
+        super(DriftSimple, self)._track(beam=beam)
+
+        if self.schedule_active:
+            self.apply_schedules(
+                turn_i=self._turn_counter.value,
+                reference_time=beam.reference.time,
+            )
+
+        for _ in range(self.n_substeps):
+            time_change = (
+                self.orbit_length / self.n_substeps
+            ) / beam.reference.velocity
+            self._last_eta_0 = self.eta_0(beam.reference.gamma)
+            if beam.common_array_size > 0:
+                backend.specials.drift_simple(
+                    dt=beam.write_partial_dt(),
+                    dE=beam.read_partial_dE(),
+                    T=time_change,
+                    eta_0=self._last_eta_0,
+                    beta=beam.reference.beta,
+                    energy=beam.reference.total_energy,
+                )
+            _, energy_change = self._advance_reference_segment(beam.reference)
+            if beam.common_array_size > 0:
+                beam.dE.array_local -= energy_change
