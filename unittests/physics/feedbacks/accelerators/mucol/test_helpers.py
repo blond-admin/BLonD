@@ -245,7 +245,11 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
 
         fig.tight_layout()
 
-        # plt.savefig("residual_vs_convolution.png", dpi=200, bbox_inches="tight")
+        # Debug-save next to this test file (not the repo root); needs ``import os``:
+        # plt.savefig(
+        #     os.path.join(os.path.dirname(__file__), "residual_vs_convolution.png"),
+        #     dpi=200, bbox_inches="tight",
+        # )
         plt.show()
 
     def test_second_order_more_accurate_at_low_binning(self):
