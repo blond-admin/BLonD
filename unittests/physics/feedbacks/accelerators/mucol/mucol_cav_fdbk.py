@@ -430,6 +430,104 @@ def setup_and_run(  # noqa: PLR0915
     )
 
 
+def plot_generator_power_and_voltage(
+    cav_fdbk_obs_list,
+    R_over_Q,
+    Q_L,
+    station_index=0,
+    filename=None,
+    show=True,
+):
+    """
+    Plot the generator power and antenna voltage of a real simulation run.
+
+    Real-simulation analogue of the diagnostic plots in
+    ``test_generator_current_pi_feedback.py``. It reads the per-profile
+    (fine-grid) generator current, antenna voltage and beam current
+    recorded by an :class:`IQCavityFeedbackObservation` (one per RF
+    station) and shows, turn by turn: the klystron forward power, the peak
+    bunch current, and the antenna-voltage swing the bunch induces across
+    the profile.
+
+    The fine grid is used rather than the coarse grid because the latter is
+    NaN-padded to a fixed length and its single-sample bunch values produce
+    misleading peaks; the fine grid resolves the actual bunch cleanly.
+
+    Use together with ``setup_and_run(..., use_pi_feedback=True)`` and the
+    ``cav_fdbk_obs_list`` it returns.
+
+    Parameters
+    ----------
+    cav_fdbk_obs_list
+        List of :class:`IQCavityFeedbackObservation`, one per RF station.
+    R_over_Q
+        Geometric shunt impedance of the cavity [Ohm].
+    Q_L
+        Loaded quality factor of the cavity.
+    station_index
+        Which station's observation to plot.
+    filename
+        If given, save the figure to this path.
+    show
+        If True, call ``plt.show()``.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The created figure.
+    """
+    obs = cav_fdbk_obs_list[station_index]
+    i_gen = copy_to_cpu(obs.i_gen_fine)
+    v_ant = copy_to_cpu(obs.v_ant_fine)
+    i_beam = copy_to_cpu(obs.i_beam_fine)
+    turns = np.arange(i_gen.shape[0])
+
+    # Per fine-grid sample generator power, P = 0.5 (R/Q) Q_L |I_gen|^2.
+    power = 0.5 * R_over_Q * Q_L * np.abs(i_gen) ** 2
+    # Klystron forward power (steady level over the profile).
+    gen_power = np.median(power, axis=1)
+    # Peak bunch current and the beam-loading voltage swing along the bunch.
+    peak_i_beam = np.abs(i_beam).max(axis=1)
+    v_swing = np.abs(v_ant).max(axis=1) - np.abs(v_ant).min(axis=1)
+
+    fig, (ax_v, ax_p) = plt.subplots(2, 1, sharex=True, figsize=(9, 7))
+    fig.suptitle(
+        "Real RCS simulation: generator power & antenna voltage (PI feedback)"
+    )
+
+    ax_v.plot(turns, v_swing / 1e6, color="C0", marker="o")
+    ax_v.set_ylabel("antenna-voltage swing\nover the bunch [MV]")
+
+    line_power = ax_p.plot(
+        turns,
+        gen_power / 1e3,
+        color="C3",
+        marker="o",
+        label="generator power",
+    )[0]
+    ax_p.set_ylabel("generator power [kW]", color="C3")
+    ax_p.tick_params(axis="y", labelcolor="C3")
+    ax_p.set_xlabel("turn")
+    ax_pb = ax_p.twinx()
+    line_beam = ax_pb.plot(
+        turns,
+        peak_i_beam,
+        color="C2",
+        ls=":",
+        marker="^",
+        label="peak beam current",
+    )[0]
+    ax_pb.set_ylabel("peak beam current [A]")
+    ax_p.legend(handles=[line_power, line_beam], loc="best")
+
+    fig.tight_layout()
+    if filename is not None:
+        fig.savefig(filename, dpi=120)
+    if show:
+        plt.show()
+    return fig
+
+
 def plot_results(bunch_obs_list, n_turns_list, ind_volt_obs_list):
     """
     Plot the bunch length (sigma_dt) for the MTW and feedback runs.
