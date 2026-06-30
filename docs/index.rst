@@ -33,6 +33,12 @@ Modules
    index_math
    modules/blond
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Test suites
+
+   tests/mucol_cavity_feedback_tests
+
 
 Indices and tables
 ==================
