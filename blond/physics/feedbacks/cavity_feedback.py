@@ -110,10 +110,24 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
             warning_stacklevel=2,
         )
 
-        # Ratio between rf periods and coarse grid sampling period
-        if type(n_rf_periods_per_coarse_grid) is not int:
+        # Ratio between rf periods and coarse grid sampling period.
+        # A value in (0, 1) is the sub-stepping mode: several coarse-grid
+        # points per RF period, used to keep the forward-Euler cavity step
+        # stable for low Q_L (see _check_step_sizes). It is a deliberate
+        # configuration and is therefore accepted without warning.
+        if n_rf_periods_per_coarse_grid <= 0:
+            raise ValueError(f"{n_rf_periods_per_coarse_grid=} must be > 0.")
+        # A non-integer number of *whole* RF periods (n >= 1) de-aligns the
+        # coarse grid from the RF buckets and can break the coupling between
+        # feedback loops, so warn about that case only.
+        if (
+            n_rf_periods_per_coarse_grid >= 1
+            and n_rf_periods_per_coarse_grid
+            != int(n_rf_periods_per_coarse_grid)
+        ):
             warnings.warn(
-                "n_periods_coarse is not an integer; coupling between loops might break",
+                "n_rf_periods_per_coarse_grid is not an integer number of RF "
+                "periods; coupling between loops might break",
                 stacklevel=2,
             )
         self.n_rf_periods_per_coarse_grid = n_rf_periods_per_coarse_grid
@@ -547,9 +561,15 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
     initial_voltage
         Initial voltage [V].
     n_rf_periods_per_coarse_grid
-        Number of rf periods, which should be displayed by one coarse gridpoint. Default is 1.
+        Width of one coarse-grid step, expressed in RF periods, i.e. the
+        sampling period is ``n_rf_periods_per_coarse_grid * t_rf``. An integer
+        ``>= 1`` places one coarse point every ``n`` RF periods (the standard
+        mode). A fractional value in ``(0, 1)`` is the *sub-stepping* mode:
+        several coarse points per RF period (see Notes). Default is 1.
     delta_omega
-        Cavity detuning in [rad/s].
+        Cavity detuning in [rad/s]. Applied to the cavity response as a
+        per-step phase rotation, but *not* to the coarse-grid spacing (see
+        Notes). Default is 0.
     debug
         Save debugging parameters during runtime.
     second_order
@@ -558,6 +578,33 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         first-order forward-Euler one. The second-order solver is much more
         accurate at coarse profile binning (its error scales as the bin size
         squared rather than linearly). Default is False.
+
+    Notes
+    -----
+    **Sub-stepping (** ``n_rf_periods_per_coarse_grid`` **< 1).** The
+    forward-Euler step in ``cavity_response`` advances the antenna voltage by a
+    decay factor ``1 - 0.5 * omega_rf * dt / Q_L`` with
+    ``dt = n_rf_periods_per_coarse_grid * t_rf``, so the per-step decay is
+
+        decay_per_step = 0.5 * omega_rf * dt / Q_L
+                       = n_rf_periods_per_coarse_grid * pi / Q_L .
+
+    This must stay below the hard cap of 2.0 (above it the factor goes
+    negative and the discretisation diverges) and ideally ``<< 1`` for
+    accuracy; ``_check_step_sizes`` enforces this. For a low ``Q_L`` even a
+    single RF period per step (``n = 1``) can be unstable (``decay = pi/Q_L``),
+    so ``n`` is lowered below 1 to sub-divide the RF period and shrink the step
+    proportionally. In this mode the coarse grid no longer re-aligns to an RF
+    bucket each turn; the centres tile continuously across the turn boundary
+    (see ``_generate_rf_centers``).
+
+    **Detuning and coarse-grid spacing.** The ``rf_centers`` are generated at
+    the *design* RF frequency (``forward_tracking_omega_rf``). A non-zero
+    ``delta_omega`` enters the cavity response as a phase rotation but does not
+    change the coarse-grid spacing, which stays ``n * t_rf_design`` rather than
+    following the detuned RF period. This is a known limitation: observables
+    that compare coarse-grid spacing against the detuned period will disagree
+    by the detuning ratio.
     """
 
     def __init__(
@@ -660,7 +707,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         # discretization rather than just an inaccurate one.
         max_step_angle_hard = 2.0
 
-        omega_dt = self.omega_carrier * self.sampling_time_coarse
+        # NB: use omega_rf, not omega_carrier. cavity_response() advances the
+        # antenna voltage by ``omega_input * delta_t`` with
+        # ``omega_input == omega_rf`` and ``delta_t == sampling_time_coarse``,
+        # so the actual per-step decay is ``0.5 * omega_rf * dt / Q_L`` and
+        # scales with n_rf_periods_per_coarse_grid. Using omega_carrier
+        # (== omega_rf / n) would cancel that n-dependence to a constant 2*pi
+        # and misjudge the stability of the discretization.
+        omega_dt = self.omega_rf * self.sampling_time_coarse
         decay_per_step = 0.5 * omega_dt / self.Q_L
         detuning_phase_per_step = self.delta_omega * self.sampling_time_coarse
 
@@ -750,7 +804,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.phase_offset_frwrd = 0
 
         # The parent RF station is fully initialised at this point (see
-        # docstring), so the step-size sanity check can read omega_carrier.
+        # docstring), so the step-size sanity check can read omega_rf.
         self._check_step_sizes()
 
     def get_passed_time_forward_direction(self, beam: BeamBaseClass):  # noqa: PLR0912
@@ -1047,6 +1101,21 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         step_width_rf_centers = t_rf * self.n_rf_periods_per_coarse_grid
         if (
             self.residual_taps_last_rf_centers_calculation != 0
+            and self.n_rf_periods_per_coarse_grid < 1
+        ):
+            # Sub-stepping (n < 1): the coarse grid sub-divides the RF period,
+            # so the centres tile continuously across the turn boundary rather
+            # than re-aligning to an RF bucket. The first centre of this turn
+            # lies one full step after the previous turn's last centre, i.e.
+            # (step_width - residual) into the new turn. The phase-based
+            # falling-edge start is only used to seed the very first turn (when
+            # there is no residual yet).
+            time_to_next_falling_edge_zero = (
+                step_width_rf_centers
+                - self.residual_time_last_rf_centers_calculation
+            )
+        elif (
+            self.residual_taps_last_rf_centers_calculation != 0
             and self.n_rf_periods_per_coarse_grid != 1
         ):
             # while time_to_next_falling_edge_zero + self.residual_time_last_rf_centers_calculation < step_width_rf_centers:
@@ -1066,7 +1135,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 f"no rf centers in turn {self.turn_i.value} at {self.section_index}",
                 stacklevel=2,
             )
-            return
+            # A segment shorter than one coarse step legitimately contains no
+            # centre (common with fine sectioning, where a reverse segment can
+            # be shorter than step_width). Return the empty array -- callers
+            # append a zero-length segment and circuit_track() no-ops over it
+            # -- rather than None, which would crash len(new_rf_centers).
+            return rf_centers
 
         # reset with current turn
         self.residual_time_last_rf_centers_calculation = (
@@ -1258,11 +1332,28 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         for rf_centers_idx in range(start_index, end_index):
             if rf_centers_idx == 0:
                 if self.last_rf_centers_entry is None:
-                    # first entry, just use frwrd direction
-                    delta_t = (
-                        self.rf_centers[rf_centers_idx + 1]
-                        - self.rf_centers[rf_centers_idx]
-                    )
+                    # First centre ever tracked: there is no previous centre to
+                    # step from, so use the spacing to the next centre as the
+                    # step proxy. That next centre must live in *this* segment,
+                    # though. With fine sectioning the first (reverse) segment
+                    # can hold a single centre, in which case rf_centers[idx+1]
+                    # belongs to the next segment -- which under acceleration
+                    # runs at a different frequency -- so the cross-boundary
+                    # diff is meaningless and can even go negative (tripping the
+                    # ordering assertion below). Fall back to this segment's own
+                    # coarse step (n * t_rf at omega_input) in that case.
+                    if rf_centers_idx + 1 < end_index:
+                        delta_t = (
+                            self.rf_centers[rf_centers_idx + 1]
+                            - self.rf_centers[rf_centers_idx]
+                        )
+                    else:
+                        delta_t = (
+                            self.n_rf_periods_per_coarse_grid
+                            * 2
+                            * np.pi
+                            / omega_input
+                        )
                 else:
                     delta_t = (
                         self.rf_centers[0]
@@ -1278,6 +1369,16 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                     self.rf_centers[rf_centers_idx]
                     - self.rf_centers[rf_centers_idx - 1]
                 )
+            # delta_t can come out marginally negative (a few ULPs) when a
+            # coarse-grid point lands almost exactly on a turn/segment
+            # boundary -- e.g. for sub-stepping ratios (n < 1) that divide the
+            # turn evenly, where the carry-over residual is numerically zero.
+            # That floating-point noise is not a real ordering violation, so
+            # clamp it to zero (handled as a coincident point below) rather
+            # than tripping the hard assertion.
+            rf_period = 2 * np.pi / omega_input
+            if -1e-9 * rf_period < delta_t < 0:
+                delta_t = 0.0
             assert delta_t >= 0, f"{delta_t}"
             if delta_t == 0:
                 warnings.warn(
