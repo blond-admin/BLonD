@@ -1,3 +1,4 @@
+import warnings
 from copy import deepcopy
 
 import matplotlib.pyplot as plt
@@ -78,6 +79,31 @@ def check_fail_printing(bool_expr: bool, msg: str):
         pytest.fail(msg)
 
 
+# (phase_shift, delta_omega_factor) combinations, swept over several
+# sub-stepping ratios below. delta_omega_factor is kept at 0 here: rf_centers
+# are generated at the *design* frequency (forward_tracking_omega_rf), so a
+# non-zero detuning makes the coarse-grid spacing (n * t_rf_design) disagree
+# with the detuned RF period the distance check compares against. That
+# mismatch is pre-existing and independent of sub-stepping (it shows up for
+# integer n as well), so it is not exercised here.
+_phase_delta_combos = [
+    (0, 0),
+    (-1, 0),
+    (1, 0),
+]
+# n_rf_periods_per_coarse_grid < 1 is the sub-stepping mode: several
+# coarse-grid points per RF period. 0.4 and 0.6 deliberately do not divide
+# the harmonic evenly, exercising the inter-turn carry-over. All values keep
+# the per-step decay (n * pi / Q_L, with Q_L = 1) below the hard stability cap
+# of 2.0.
+_substepping_ratios = (0.25, 0.4, 0.6)
+test_data_discontinuity = [
+    (phase_shift, delta_omega_factor, n_rf_points)
+    for n_rf_points in _substepping_ratios
+    for (phase_shift, delta_omega_factor) in _phase_delta_combos
+]
+
+
 class TestIQCavityFeedbackTimingClass:
     def setup_simulation(self):
         # single section
@@ -100,44 +126,68 @@ class TestIQCavityFeedbackTimingClass:
         self.beam._ids = DistributedArray(np.arange(5))
         self.beam._flags = DistributedArray(np.zeros(5))
 
-    test_data_discontinuity = [
-        (0, 0, 1),
-        (0, 0.13, 1),
-        (0, -0.13, 1),
-        (-1, 0, 1),
-        (-1, 0.13, 1),
-        (-1, -0.13, 1),
-        (1, 0, 1),
-        (1, 0.13, 1),
-        (1, -0.13, 1),
-        (0, 0, 1),
-        (0, 0.1, 1),
-        (0, -0.1, 1),
-        (-1, 0, 1),
-        (-1, 0.1, 1),
-        (-1, -0.1, 1),
-        (1, 0, 1),
-        (1, 0.1, 1),
-        (1, -0.1, 1),
-        (0, 0, 2),
-        (0, 0.13, 2),
-        (0, -0.13, 2),
-        (-1, 0, 2),
-        (-1, 0.13, 2),
-        (-1, -0.13, 2),
-        (1, 0, 2),
-        (1, 0.13, 2),
-        (1, -0.13, 2),
-        (0, 0, 3),
-        (0, 0.13, 3),
-        (0, -0.13, 3),
-        (-1, 0, 3),
-        (-1, 0.13, 3),
-        (-1, -0.13, 3),
-        (1, 0, 3),
-        (1, 0.13, 3),
-        (1, -0.13, 3),
-    ]
+    def _make_timing_feedback(self, n_rf_periods_per_coarse_grid, **kwargs):
+        self.profile = StaticProfile.from_cutoff(0, 1e-9, 5e9)
+        return IQCavityFeedbackTimingClass(
+            profile=self.profile,
+            n_rf_periods_per_coarse_grid=n_rf_periods_per_coarse_grid,
+            R_over_Q=0,
+            Q_L=1e6,
+            generator_current=0,
+            n_cavities=1,
+            **kwargs,
+        )
+
+    def test_fractional_n_below_one_is_supported_without_warning(self) -> None:
+        # n in (0, 1) is the sub-stepping mode (several coarse points per RF
+        # period). It is a deliberate configuration, so constructing the
+        # feedback must not emit the "coupling between loops" warning.
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            cav = self._make_timing_feedback(0.5)
+        assert cav.n_rf_periods_per_coarse_grid == 0.5
+        assert not any(
+            "coupling between loops" in str(w.message) for w in record
+        ), [str(w.message) for w in record]
+
+    def test_non_integer_n_above_one_still_warns(self) -> None:
+        # A non-integer number of *whole* RF periods (n >= 1) de-aligns the
+        # coarse grid from the RF buckets and must still warn.
+        with pytest.warns(UserWarning, match="coupling between loops"):
+            self._make_timing_feedback(1.5)
+
+    def test_non_positive_n_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="must be > 0"):
+            self._make_timing_feedback(0)
+
+    def test_stability_check_reflects_actual_step_decay(self) -> None:
+        # The forward-Euler decay applied in cavity_response() is
+        #   0.5 * omega_rf * dt / Q_L = n_rf_periods_per_coarse_grid * pi / Q_L,
+        # i.e. it scales with the number of RF periods per coarse step. The
+        # sanity check must reflect that actual step, not collapse to the
+        # n-independent omega_carrier * sampling_time_coarse == 2*pi.
+        #
+        # With Q_L = 2.0 a single-period step (n=1, decay = pi/2 ~ 1.57) is
+        # below the hard cap of 2.0, but a two-period step (n=2, decay = pi ~
+        # 3.14) is above it and must be rejected.
+        backend.change_backend(Numpy64Bit)
+        self.harmonic = 5
+        self.setup_simulation()
+        cav_fdbk_timing = IQCavityFeedbackTimingClass(
+            profile=self.profile,
+            n_rf_periods_per_coarse_grid=2,
+            R_over_Q=0,
+            Q_L=2.0,
+            generator_current=0,
+            n_cavities=1,
+        )
+        self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
+        cnst_cycle = ConstantMagneticCycle(
+            reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
+        )
+        sim = Simulation(self.ring, cnst_cycle)
+        with pytest.raises(ValueError, match="decay_per_step"):
+            sim.run_simulation(self.beam, n_turns=1)
 
     @pytest.mark.backend_mutation
     @pytest.mark.parametrize(
@@ -440,7 +490,11 @@ class TestIQCavityFeedbackTimingClass:
                     n_rf_periods_per_coarse_grid=n_rf_points,
                     debug=True,
                     R_over_Q=0,
-                    Q_L=1,
+                    # Q_L only needs to keep the forward-Euler cavity step
+                    # stable; these tests check rf-center timing/geometry, not
+                    # the cavity voltage, so a comfortably high Q_L is used to
+                    # stay below the stability cap.
+                    Q_L=100,
                     generator_current=0,
                     n_cavities=1,
                 )
