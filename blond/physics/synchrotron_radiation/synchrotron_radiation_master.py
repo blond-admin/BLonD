@@ -39,7 +39,6 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.ring.ring import Ring
-    from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import RFStationBaseClass
     from blond.physics.drifts import DriftBaseClass
 
@@ -113,7 +112,6 @@ class SynchrotronRadiationMaster(Schedulable):
                 DriftBaseClass,
             ]
 
-        self._simulation: Simulation | None = None
         self._disable_quantum_excitation = disable_quantum_excitation
 
         self._natural_energy_spread: NumpyArray | None = None

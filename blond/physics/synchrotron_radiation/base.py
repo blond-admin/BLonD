@@ -123,11 +123,11 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
     ):
         super().__init__(name=name, section_index=section_index)
 
+        self._turn_counter = None
         self._add_intended_schedule(
             "share_of_radiation_integrals",
         )
 
-        self._simulation: Simulation | None = None
         self.share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
@@ -137,7 +137,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         self._natural_energy_spread: float | None = None
 
         self.rng = backend.default_rng(seed=seed)
-        # backend.default_rng
 
     def _calculate_kick(
         self,
