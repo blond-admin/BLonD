@@ -29,6 +29,7 @@ from blond.physics.feedbacks.beam_feedback import (
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+    from blond.physics.profiles import ProfileBaseClass
 
 
 class PSBBeamControl(BeamFeedbackBase):
@@ -40,30 +41,46 @@ class PSBBeamControl(BeamFeedbackBase):
 
     Parameters
     ----------
+    profile
+        Any Profile object which exposes the x- and y-axis of the beam line density.
     pl_gain
         The gain of the beam-phase loop.
     rl_gain
         The gain of the radial loop.
+    delay
+        Delay (in units of turns) of the initial correction of the feedback system.
+    window_coefficient
+        Window coefficient for the calculation of the beam phase. This parameter will
+        reduce the weight of later samples of the beam profile.
+    time_offset
+        Time offset for the calculation of the beam phase.
+    phase_noise
+        Option to add phase noise through the beam control.
     period
         Time [s] between the actions of the phase loop.
     coefficients
         Coefficients for the transfer function of the feedback.
-    *args
-        Variable positional arguments.
-    **kwargs
-        Variable keyword arguments.
     """
 
     def __init__(
         self,
+        profile: ProfileBaseClass,
         pl_gain: float,
         rl_gain: list[float] = None,
+        delay: int = 0,
+        window_coefficient: float = 0.0,
+        time_offset: float | None = None,
+        phase_noise=None,
         period: float = 10.0e-6,
         coefficients: list[float] = None,
-        *args,
-        **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            profile=profile,
+            delay=delay,
+            window_coefficient=window_coefficient,
+            time_offset=time_offset,
+            phase_noise=phase_noise,
+        )
 
         self.pl_gain = pl_gain
 

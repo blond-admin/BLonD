@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
+    from blond.physics.profiles import ProfileBaseClass
 
 import numpy as np
 
@@ -39,6 +40,8 @@ class SPSBeamControl(BeamFeedbackBase):
 
     Parameters
     ----------
+    profile
+        Any Profile object which exposes the x- and y-axis of the beam line density.
     k_phi_n
         Feedback gain for the phase loop error from the previous turn.
     k_phi_nm1
@@ -57,18 +60,24 @@ class SPSBeamControl(BeamFeedbackBase):
         Beam-phase loop gain of the beam control.
     action_delay
         Delay of the action of the beam-phase loop from the first turn.
+    delay
+        Delay (in units of turns) of the initial correction of the feedback system.
+    window_coefficient
+        Window coefficient for the calculation of the beam phase. This parameter will
+        reduce the weight of later samples of the beam profile.
+    time_offset
+        Time offset for the calculation of the beam phase.
+    phase_noise
+        Option to add phase noise through the beam control.
     delay_turns
         The delay [turns] between measurement at correction from the beam control.
     current_thres
         Beam current threshold for gating of the profiles.
-    *args
-        Variable positional arguments.
-    **kwargs
-        Variable keyword arguments.
     """
 
     def __init__(
         self,
+        profile: ProfileBaseClass,
         k_phi_n: float | NumpyArray,
         k_phi_nm1: float | NumpyArray,
         k_eps_n: float | NumpyArray,
@@ -78,12 +87,20 @@ class SPSBeamControl(BeamFeedbackBase):
         phi_sync: float | NumpyArray,
         pl_gain: float | NumpyArray,
         action_delay: int,
+        delay: int = 0,
+        window_coefficient: float = 0.0,
+        time_offset: float | None = None,
+        phase_noise=None,
         delay_turns: int = 2,
         current_thres: float = None,
-        *args,
-        **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            profile=profile,
+            delay=delay,
+            window_coefficient=window_coefficient,
+            time_offset=time_offset,
+            phase_noise=phase_noise,
+        )
 
         self.k_phi_n = k_phi_n
         self.k_phi_nm1 = k_phi_nm1

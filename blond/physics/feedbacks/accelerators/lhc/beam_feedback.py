@@ -29,6 +29,7 @@ from blond.physics.feedbacks.beam_feedback import (
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+    from blond.physics.profiles import ProfileBaseClass
 
 
 class LHCBeamControl(BeamFeedbackBase):
@@ -68,27 +69,43 @@ class LHCBeamControl(BeamFeedbackBase):
 
     Parameters
     ----------
+    profile
+        Any Profile object which exposes the x- and y-axis of the beam line density.
     pl_gain
         The gain of the beam-phase loop.
     sl_gain
         The gain of the synchronization loop.
+    delay
+        Delay (in units of turns) of the initial correction of the feedback system.
+    window_coefficient
+        Window coefficient for the calculation of the beam phase. This parameter will
+        reduce the weight of later samples of the beam profile.
+    time_offset
+        Time offset for the calculation of the beam phase.
+    phase_noise
+        Option to add phase noise through the beam control.
     current_thres
         Beam current threshold for gating of the profiles.
-    *args
-        Variable positional arguments.
-    **kwargs
-        Variable keyword arguments.
     """
 
     def __init__(
         self,
+        profile: ProfileBaseClass,
         pl_gain: float,
         sl_gain: float,
+        delay: int = 0,
+        window_coefficient: float = 0.0,
+        time_offset: float | None = None,
+        phase_noise=None,
         current_thres: float = None,
-        *args,
-        **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            profile=profile,
+            delay=delay,
+            window_coefficient=window_coefficient,
+            time_offset=time_offset,
+            phase_noise=phase_noise,
+        )
 
         self.pl_gain = pl_gain
         self.sl_gain = sl_gain
