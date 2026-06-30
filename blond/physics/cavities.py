@@ -558,6 +558,16 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 "If no `harmonic_index` is provided, `phi_rf` needs to be a float."
             )
 
+        # The cavity feedback computes its correction on the host; bring it
+        # onto the active backend so it combines with the (possibly GPU)
+        # beam-time array below.
+        if not np.isscalar(phase_offsets):
+            phase_offsets = backend.array(phase_offsets)
+        if not np.isscalar(voltage_correction_factors):
+            voltage_correction_factors = backend.array(
+                voltage_correction_factors
+            )
+
         phi_rf = (
             self.phi_rf[harmonic_index]
             if isinstance(self, MultiHarmonicRFStation)
