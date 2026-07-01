@@ -6,7 +6,6 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-from __future__ import division
 
 # Set up logging
 import logging
@@ -20,7 +19,7 @@ from matplotlib.mlab import csd, psd
 logger = logging.getLogger(__name__)
 
 
-class TransferFunction(object):
+class TransferFunction:
     r"""Reconstructing the transfer function of a DUT based on input and output
     signals.
 
