@@ -179,7 +179,7 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
                 profile=profile,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
-                generator_current=matched_generator_current,
+                generator_current_bias=matched_generator_current,
                 n_cavities=1,
                 initial_voltage=self.V_design,
                 n_rf_periods_per_coarse_grid=1,

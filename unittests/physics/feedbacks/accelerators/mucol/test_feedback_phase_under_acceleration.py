@@ -317,7 +317,7 @@ class TestFeedbackPhaseUnderAcceleration(unittest.TestCase):
             profile=profile,
             R_over_Q=cls.R_OVER_Q,
             Q_L=cls.Q_L,
-            generator_current=0.0,
+            generator_current_bias=0.0,
             n_cavities=1,
             initial_voltage=cls.V_DESIGN,  # operating point, keeps the kick check happy
             n_rf_periods_per_coarse_grid=1,

@@ -51,7 +51,7 @@ class TestCavityFeedback(unittest.TestCase):
             profile=self.prof,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
-            generator_current=self.generator_current,
+            generator_current_bias=self.generator_current,
             n_cavities=self.n_cavities,
             initial_voltage=self.initial_voltage,
             n_rf_periods_per_coarse_grid=self.n_rf_periods_per_coarse_grid,
@@ -87,7 +87,7 @@ class TestCavityFeedback(unittest.TestCase):
         # Zero out generator/beam current contributions so only the
         # `(1 - 0.5*omega*dt/Q_L + 1j*relative_detuning*omega*dt)` term
         # governs the antenna voltage evolution.
-        self.cav_fdbk.generator_current_constant = 0.0 + 0.0j
+        self.cav_fdbk.generator_current_bias = 0.0 + 0.0j
         self.cav_fdbk.generator_current_coarse_grid = np.zeros(
             n_steps, dtype=complex
         )
@@ -305,7 +305,7 @@ class TestCavityFeedback(unittest.TestCase):
             profile=profile,
             R_over_Q=518.0,
             Q_L=1.29e4,
-            generator_current=0.0,
+            generator_current_bias=0.0,
             n_cavities=1,
             initial_voltage=0.0,
             n_rf_periods_per_coarse_grid=1,
@@ -429,7 +429,7 @@ class TestFineGridResonatorBenchmark(unittest.TestCase):
             profile=profile,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
-            generator_current=0.0 + 0.0j,
+            generator_current_bias=0.0 + 0.0j,
             n_cavities=1,
             initial_voltage=0.0,
             delta_omega=delta_omega,

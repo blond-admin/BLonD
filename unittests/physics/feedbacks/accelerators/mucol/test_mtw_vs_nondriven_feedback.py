@@ -202,7 +202,7 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
             profile=self.noisy_profile,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
-            generator_current=0.0,  # non-driven: no generator current
+            generator_current_bias=0.0,  # non-driven: no generator current
             n_cavities=1,
             initial_voltage=0.0,  # antenna voltage starts at zero
             n_rf_periods_per_coarse_grid=1,
@@ -316,7 +316,7 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
             profile=self.noisy_profile,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
-            generator_current=0.0,
+            generator_current_bias=0.0,
             n_cavities=1,
             initial_voltage=0.0,
             n_rf_periods_per_coarse_grid=1,
@@ -531,7 +531,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                     profile=profile,
                     R_over_Q=cls.MULTITURN_R_OVER_Q,
                     Q_L=cls.MULTITURN_Q_L,
-                    generator_current=0.0,
+                    generator_current_bias=0.0,
                     n_cavities=1,
                     initial_voltage=cls.MULTITURN_V_DESIGN,
                     n_rf_periods_per_coarse_grid=1,

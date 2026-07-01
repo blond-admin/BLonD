@@ -355,7 +355,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
                 profile=smooth_profile,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
-                generator_current=0.0,
+                generator_current_bias=0.0,
                 n_cavities=1,
                 initial_voltage=0.0,
                 n_rf_periods_per_coarse_grid=1,

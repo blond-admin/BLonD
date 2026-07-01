@@ -555,7 +555,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
     and ``_check_step_sizes``.
 
     By default (no ``controller``) the generator current is a constant value
-    (``generator_current``). Passing a
+    (``generator_current_bias``). Passing a
     :class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentController`
     instead turns it into a regulated generator current: each coarse-grid
     step the feedback forms the antenna-voltage error ``V_set - V_ant[n]``
@@ -571,8 +571,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         Geometric shunt impedance of the cavity.
     Q_L
         Loaded quality factor of the cavity.
-    generator_current
-        Generator current [A].
+    generator_current_bias
+        Constant generator-current bias [A]: the value the controller
+        regulates around, and the generator current itself when no
+        controller is attached.
     n_cavities
         Number of cavities connected to the feedback.
     initial_voltage
@@ -644,7 +646,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         profile,
         R_over_Q: float,
         Q_L: float,
-        generator_current: complex,
+        generator_current_bias: complex,
         n_cavities: int | float,
         initial_voltage: float = 30.0e6,
         n_rf_periods_per_coarse_grid: int = 1,
@@ -711,7 +713,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self.second_order = second_order
 
-        self.generator_current_constant = generator_current
+        self.generator_current_bias = generator_current_bias
 
         self._beam_kick_warning_issued = False
 
@@ -1776,7 +1778,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         )
         # TODO: update this when feedback part is implemented
         if self.generator_current_coarse_grid is None:
-            self.last_val_generator_current = self.generator_current_constant
+            self.last_val_generator_current = self.generator_current_bias
         else:
             self.last_val_generator_current = (
                 self.generator_current_coarse_grid[-1]
@@ -1784,7 +1786,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self.generator_current_coarse_grid = (
             np.ones(len(self.rf_centers), dtype=np.complex128)
-            * self.generator_current_constant
+            * self.generator_current_bias
         )
 
     def _track(self, beam: Beam) -> None:

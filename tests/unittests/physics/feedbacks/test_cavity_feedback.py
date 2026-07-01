@@ -138,7 +138,7 @@ class TestIQCavityFeedbackTimingClass:
             n_rf_periods_per_coarse_grid=n_rf_periods_per_coarse_grid,
             R_over_Q=0,
             Q_L=1e6,
-            generator_current=0,
+            generator_current_bias=0,
             n_cavities=1,
             **kwargs,
         )
@@ -183,7 +183,7 @@ class TestIQCavityFeedbackTimingClass:
             n_rf_periods_per_coarse_grid=2,
             R_over_Q=0,
             Q_L=2.0,
-            generator_current=0,
+            generator_current_bias=0,
             n_cavities=1,
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
@@ -214,7 +214,7 @@ class TestIQCavityFeedbackTimingClass:
             n_rf_periods_per_coarse_grid=n_rf_points,
             R_over_Q=0,
             Q_L=Q_L,
-            generator_current=0,
+            generator_current_bias=0,
             n_cavities=1,
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
@@ -345,7 +345,7 @@ class TestIQCavityFeedbackTimingClass:
             n_rf_periods_per_coarse_grid=n_rf_points,
             R_over_Q=0,
             Q_L=Q_L,
-            generator_current=0,
+            generator_current_bias=0,
             n_cavities=1,
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
@@ -510,7 +510,7 @@ class TestIQCavityFeedbackTimingClass:
                     # the cavity voltage, so a comfortably high Q_L is used to
                     # stay below the stability cap.
                     Q_L=100,
-                    generator_current=0,
+                    generator_current_bias=0,
                     n_cavities=1,
                 )
             )
