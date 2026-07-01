@@ -29,9 +29,6 @@ from blond.handle_results.observables_as_elements import (
     InducedVoltageObservationCR,
 )
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
-from blond.physics.feedbacks.generator_current_pi_feedback import (
-    GeneratorCurrentPIFeedback,
-)
 from blond.physics.feedbacks.helpers import rf_beam_current
 from blond.physics.impedances.solvers import (
     MultiPassResonatorSolver,
@@ -113,10 +110,10 @@ def setup_and_run(  # noqa: PLR0915
     acceleration
         If True, run with an accelerating magnetic cycle.
     use_pi_feedback
-        If True, drive the cavity with the PI-controlled
-        :class:`GeneratorCurrentPIFeedback` (the generator current reacts to
-        the beam loading) instead of the constant-current
-        :class:`IQCavityFeedbackTimingClass`. Ignored when ``MTW`` is True.
+        If True, drive the cavity with a PI-regulated generator current
+        (:class:`IQCavityFeedbackTimingClass` with non-zero PI gains, so the
+        generator current reacts to the beam loading) instead of a constant
+        feedforward current. Ignored when ``MTW`` is True.
 
     Returns
     -------
@@ -327,7 +324,7 @@ def setup_and_run(  # noqa: PLR0915
             # = 0.1 (omega * dt = 2 pi for one rf period per coarse sample);
             # integral ~30x slower. Same tuning as the unit tests.
             gain_proportional = 0.1 / (R_over_Q * 2 * np.pi)
-            cav_fdbk = GeneratorCurrentPIFeedback(
+            cav_fdbk = IQCavityFeedbackTimingClass(
                 profile=profile_list[-1],
                 R_over_Q=R_over_Q,
                 Q_L=Q_L,
