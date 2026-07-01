@@ -79,28 +79,33 @@ def check_fail_printing(bool_expr: bool, msg: str):
         pytest.fail(msg)
 
 
-# (phase_shift, delta_omega_factor) combinations, swept over several
-# sub-stepping ratios below. delta_omega_factor is kept at 0 here: rf_centers
-# are generated at the *design* frequency (forward_tracking_omega_rf), so a
-# non-zero detuning makes the coarse-grid spacing (n * t_rf_design) disagree
-# with the detuned RF period the distance check compares against. That
-# mismatch is pre-existing and independent of sub-stepping (it shows up for
-# integer n as well), so it is not exercised here.
-_phase_delta_combos = [
-    (0, 0),
-    (-1, 0),
-    (1, 0),
+_phase_shifts = [0, -1, 1]
+# delta_omega_factor scales the RF-frequency offset applied to the station
+# (delta_omega_rf = factor * omega_rf). The coarse grid tracks the *actual* RF
+# frequency (design + delta_omega_rf; see forward_tracking_omega_rf and
+# reverse_tracking_omega_list), so the rf_center spacing follows the detuned
+# period the distance check compares against.
+_delta_omega_factors = [0.0, 0.13, -0.13]
+# Each entry is (n_rf_periods_per_coarse_grid, Q_L). The per-step decay is
+# n * pi / Q_L and must stay below the hard stability cap of 2.0:
+#   - integer n >= 1 places one coarse point every n RF periods; even n = 1
+#     gives decay = pi / Q_L, so a large Q_L is needed to stay stable;
+#   - n < 1 is the sub-stepping mode (several coarse points per RF period);
+#     0.4 and 0.6 deliberately do not divide the harmonic evenly, exercising
+#     the inter-turn carry-over, and stay stable even at Q_L = 1.
+_n_ql_settings = [
+    (1, 100),
+    (2, 100),
+    (3, 100),
+    (0.25, 1),
+    (0.4, 1),
+    (0.6, 1),
 ]
-# n_rf_periods_per_coarse_grid < 1 is the sub-stepping mode: several
-# coarse-grid points per RF period. 0.4 and 0.6 deliberately do not divide
-# the harmonic evenly, exercising the inter-turn carry-over. All values keep
-# the per-step decay (n * pi / Q_L, with Q_L = 1) below the hard stability cap
-# of 2.0.
-_substepping_ratios = (0.25, 0.4, 0.6)
 test_data_discontinuity = [
-    (phase_shift, delta_omega_factor, n_rf_points)
-    for n_rf_points in _substepping_ratios
-    for (phase_shift, delta_omega_factor) in _phase_delta_combos
+    (phase_shift, delta_omega_factor, n_rf_points, q_l)
+    for (n_rf_points, q_l) in _n_ql_settings
+    for delta_omega_factor in _delta_omega_factors
+    for phase_shift in _phase_shifts
 ]
 
 
@@ -191,10 +196,15 @@ class TestIQCavityFeedbackTimingClass:
 
     @pytest.mark.backend_mutation
     @pytest.mark.parametrize(
-        "phase_shift,delta_omega_factor,n_rf_points", test_data_discontinuity
+        "phase_shift,delta_omega_factor,n_rf_points,Q_L",
+        test_data_discontinuity,
     )
     def test_for_discontinuity_distances_single_section_no_acceleration(
-        self, phase_shift: float, delta_omega_factor: float, n_rf_points: int
+        self,
+        phase_shift: float,
+        delta_omega_factor: float,
+        n_rf_points: float,
+        Q_L: float,
     ) -> None:
         backend.change_backend(Numpy64Bit)
         self.harmonic = 5
@@ -203,7 +213,7 @@ class TestIQCavityFeedbackTimingClass:
             profile=self.profile,
             n_rf_periods_per_coarse_grid=n_rf_points,
             R_over_Q=0,
-            Q_L=1,
+            Q_L=Q_L,
             generator_current=0,
             n_cavities=1,
         )
@@ -317,10 +327,15 @@ class TestIQCavityFeedbackTimingClass:
     # @pytest.mark.skip
     @pytest.mark.backend_mutation
     @pytest.mark.parametrize(
-        "phase_shift,delta_omega_factor,n_rf_points", test_data_discontinuity
+        "phase_shift,delta_omega_factor,n_rf_points,Q_L",
+        test_data_discontinuity,
     )
     def test_for_discontinuity_distances_single_section_acceleration(
-        self, phase_shift: float, delta_omega_factor: float, n_rf_points: int
+        self,
+        phase_shift: float,
+        delta_omega_factor: float,
+        n_rf_points: float,
+        Q_L: float,
     ) -> None:
         backend.change_backend(Numpy64Bit)
         self.harmonic = 5
@@ -329,7 +344,7 @@ class TestIQCavityFeedbackTimingClass:
             profile=self.profile,
             n_rf_periods_per_coarse_grid=n_rf_points,
             R_over_Q=0,
-            Q_L=1,
+            Q_L=Q_L,
             generator_current=0,
             n_cavities=1,
         )
