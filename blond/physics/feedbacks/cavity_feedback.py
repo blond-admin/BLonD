@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import warnings
 from abc import abstractmethod
+from collections import deque
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -544,12 +545,20 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
 
 
 class IQCavityFeedbackTimingClass(IQCavityFeedback):
-    """
+    r"""
     Cavity feedback that tracks the antenna voltage on a coarse time grid.
 
     The antenna voltage is advanced on a coarse grid (the ``rf_centers``) with
     a forward-Euler discretisation of the cavity ODE; see ``cavity_response``
     and ``_check_step_sizes``.
+
+    By default the generator current is a constant feedforward value
+    (``generator_current``). Supplying non-zero PI gains turns it into a
+    PI-regulated generator current acting on the coarse-grid antenna-voltage
+    error ``err[n] = V_set - V_ant[n]`` with an optional loop delay and a
+    klystron power/current limit; see :meth:`_update_generator_current`. With
+    the default zero gains and no limit the PI path is inactive and the
+    behaviour is exactly the constant-feedforward one.
 
     Parameters
     ----------
@@ -583,6 +592,27 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         first-order forward-Euler one. The second-order solver is much more
         accurate at coarse profile binning (its error scales as the bin size
         squared rather than linearly). Default is False.
+    gain_proportional
+        Proportional gain :math:`K_p` [A/V] of the optional PI control of the
+        generator current. Default 0 (constant feedforward, PI inactive).
+    gain_integral
+        Integral gain :math:`K_i` [A/(V s)] of the PI control. Default 0.
+    loop_delay
+        Total PI loop delay [s]; converted to coarse-grid samples with
+        ``round(loop_delay / sampling_time_coarse)``. Default 0.
+    loop_delay_samples
+        PI loop delay directly in coarse-grid samples; takes precedence over
+        `loop_delay` (useful when no parent rf station is available).
+    max_generator_power
+        Klystron forward-power limit per cavity [W]; converted to a current
+        limit with :math:`I_\mathsf{max} = \sqrt{2 P / ((R/Q)\,Q_L)}`.
+        Mutually exclusive with `max_generator_current`.
+    max_generator_current
+        Maximum generator-current magnitude [A]. Mutually exclusive with
+        `max_generator_power`. If neither is given, the current is unlimited.
+    voltage_setpoint
+        Explicit per-cavity PI voltage setpoint in the IQ frame [V]. If None,
+        it is derived from the parent rf station.
 
     Notes
     -----
@@ -603,16 +633,21 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
     bucket each turn; the centres tile continuously across the turn boundary
     (see ``_generate_rf_centers``).
 
-    **Detuning and coarse-grid spacing.** The ``rf_centers`` are generated at
-    the *design* RF frequency (``forward_tracking_omega_rf``). A non-zero
-    ``delta_omega`` enters the cavity response as a phase rotation but does not
-    change the coarse-grid spacing, which stays ``n * t_rf_design`` rather than
-    following the detuned RF period. This is a known limitation: observables
-    that compare coarse-grid spacing against the detuned period will disagree
-    by the detuning ratio.
+    **RF-frequency offset and coarse-grid spacing.** The ``rf_centers`` track
+    the *actual* RF frequency: the design frequency at the tracked reference
+    plus the station's RF-frequency offset ``delta_omega_rf`` (see
+    ``forward_tracking_omega_rf`` and ``reverse_tracking_omega_list``). The
+    coarse-grid spacing therefore follows the detuned RF period, and the
+    per-turn RF phase slip caused by ``delta_omega_rf`` is accumulated into
+    ``phase_offset_frwrd`` so the baseband representation stays continuous
+    across turn boundaries. Both reduce to the undetuned behaviour when
+    ``delta_omega_rf == 0``. Note this is the RF *frequency* offset of the
+    parent station, distinct from the ``delta_omega`` constructor argument
+    above (the cavity *resonance* detuning), which enters the cavity response
+    as a per-step phase rotation and does not move the grid.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0915
         self,
         profile,
         R_over_Q: float,
@@ -624,6 +659,13 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         delta_omega: float = 0.0,
         debug: bool = False,
         second_order: bool = False,
+        gain_proportional: float = 0.0,
+        gain_integral: float = 0.0,
+        loop_delay: float = 0.0,
+        loop_delay_samples: int | None = None,
+        max_generator_power: float | None = None,
+        max_generator_current: float | None = None,
+        voltage_setpoint: complex | None = None,
     ):
         super().__init__(
             profile=profile,
@@ -685,6 +727,246 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.generator_current_constant = generator_current
 
         self._beam_kick_warning_issued = False
+
+        # --- Optional PI control of the generator current ---
+        # With zero gains and no current limit the PI path is inactive
+        # (see _pi_active) and the generator current stays at the constant
+        # feedforward value, i.e. this class behaves as a pure feedforward
+        # drive. Non-zero gains turn on the PI regulation.
+        self.gain_proportional = gain_proportional
+        self.gain_integral = gain_integral
+
+        assert loop_delay >= 0, f"{loop_delay=}, but must be >= 0."
+        self.loop_delay = loop_delay
+        if loop_delay_samples is not None:
+            assert loop_delay_samples >= 0, (
+                f"{loop_delay_samples=}, but must be >= 0."
+            )
+            loop_delay_samples = int(loop_delay_samples)
+        self.loop_delay_samples = loop_delay_samples
+
+        if (
+            max_generator_power is not None
+            and max_generator_current is not None
+        ):
+            raise ValueError(
+                "Give either max_generator_power or max_generator_current,"
+                " not both."
+            )
+        if max_generator_power is not None:
+            max_generator_current = self.max_current_from_power(
+                max_generator_power
+            )
+        self.max_generator_current = max_generator_current
+
+        self._voltage_setpoint = voltage_setpoint
+
+        # PI controller state; persists across turns like the last_val_*
+        # attributes above.
+        self._integral_error: complex = 0.0 + 0.0j
+        self._error_delay_line: deque[complex] | None = None
+        self._omega_input_for_pi: float | None = None
+
+    @property
+    def _pi_active(self) -> bool:
+        """
+        Whether the PI control of the generator current is active.
+
+        Returns
+        -------
+        pi_active
+            True when non-zero PI gains or a klystron current limit are
+            configured; otherwise the generator current is the constant
+            feedforward value and the PI update is skipped.
+        """
+        return (
+            self.gain_proportional != 0.0
+            or self.gain_integral != 0.0
+            or self.max_generator_current is not None
+        )
+
+    @property
+    def pi_setpoint(self) -> complex:
+        """
+        Per-cavity voltage setpoint of the PI controller in the IQ frame.
+
+        Returns
+        -------
+        pi_setpoint
+            The explicit setpoint given at construction, or the voltage of
+            the parent rf station divided by the number of cavities.
+        """
+        if self._voltage_setpoint is not None:
+            return self._voltage_setpoint
+        return polar_to_cartesian(
+            self.get_voltage_from_parent_rf_station() / self.n_cavities,
+            0,
+        )
+
+    def max_current_from_power(self, power: float) -> float:
+        r"""
+        Convert a klystron forward-power limit to a current limit.
+
+        Uses the matched-generator relation
+        :math:`P = 0.5\,(R/Q)\,Q_L\,|I_\mathsf{gen}|^2`, i.e.
+        :math:`I_\mathsf{max} = \sqrt{2 P_\mathsf{max} / ((R/Q)\,Q_L)}`.
+
+        Parameters
+        ----------
+        power
+            Available klystron forward power per cavity [W].
+
+        Returns
+        -------
+        max_current
+            Corresponding maximum generator current magnitude [A].
+        """
+        return float(np.sqrt(2.0 * power / (self.R_over_Q * self.Q_L)))
+
+    def generator_power(
+        self, generator_current: complex | NumpyArray | None = None
+    ) -> float | NumpyArray:
+        r"""
+        Klystron forward power per cavity from the generator current.
+
+        .. math::
+            P = 0.5\,(R/Q)\,Q_L\,|I_\mathsf{gen}|^2
+
+        Parameters
+        ----------
+        generator_current
+            Generator current [A] to convert; defaults to the coarse-grid
+            generator current of the current turn.
+
+        Returns
+        -------
+        generator_power
+            Generator forward power [W], same shape as the input.
+        """
+        if generator_current is None:
+            generator_current = self.generator_current_coarse_grid
+        return 0.5 * self.R_over_Q * self.Q_L * np.abs(generator_current) ** 2
+
+    def limit_generator_current(
+        self, generator_current: complex | NumpyArray
+    ) -> complex | NumpyArray:
+        """
+        Clamp the generator current magnitude to the klystron limit.
+
+        The phase is preserved; only the magnitude is clamped to
+        ``max_generator_current``. Without a configured limit the input
+        is returned unchanged.
+
+        Parameters
+        ----------
+        generator_current
+            Complex generator current [A], scalar or array.
+
+        Returns
+        -------
+        limited_current
+            Generator current with ``|I_gen| <= max_generator_current``.
+        """
+        if self.max_generator_current is None:
+            return generator_current
+        magnitude = np.abs(generator_current)
+        # The inner where() avoids a division by zero for zero entries
+        # (which are below the limit and therefore left unchanged).
+        scale = np.where(
+            magnitude > self.max_generator_current,
+            self.max_generator_current
+            / np.where(magnitude == 0.0, 1.0, magnitude),
+            1.0,
+        )
+        return generator_current * scale
+
+    def _loop_delay_in_samples(self) -> int:
+        """
+        Loop delay in coarse-grid samples.
+
+        Returns
+        -------
+        n_delay
+            The explicit `loop_delay_samples` if given, otherwise
+            `loop_delay` rounded to coarse-grid sampling periods.
+        """
+        if self.loop_delay_samples is not None:
+            return self.loop_delay_samples
+        return round(self.loop_delay / self.sampling_time_coarse)
+
+    def _delayed_error(self, error: complex) -> complex:
+        """
+        Push the newest error into the delay line, return the delayed one.
+
+        The delay line is created lazily (zero-prefilled) so that the
+        seconds-based delay conversion only needs the parent rf station
+        once tracking actually starts.
+
+        Parameters
+        ----------
+        error
+            Voltage error of the current coarse-grid sample [V].
+
+        Returns
+        -------
+        delayed_error
+            Voltage error from `n_delay` samples ago [V].
+        """
+        if self._error_delay_line is None:
+            n_delay = self._loop_delay_in_samples()
+            self._error_delay_line = deque(
+                [0.0 + 0.0j] * (n_delay + 1), maxlen=n_delay + 1
+            )
+        self._error_delay_line.append(error)
+        return self._error_delay_line[0]
+
+    def _update_generator_current(
+        self,
+        omega_times_T_s: float,
+        coarse_grid_index_to_update: int,
+    ) -> None:
+        """
+        PI update of the coarse-grid generator current at one index.
+
+        Parameters
+        ----------
+        omega_times_T_s
+            Angular frequency times sampling time of this step.
+        coarse_grid_index_to_update
+            Coarse grid index whose generator current is written.
+        """
+        if self._omega_input_for_pi is None:
+            raise RuntimeError(
+                "cavity_response() was called before circuit_track(); the"
+                " PI controller needs omega_input to recover the sampling"
+                " time."
+            )
+        idx = coarse_grid_index_to_update
+
+        error = self.pi_setpoint - self.antenna_voltage_coarse_grid[idx]
+        delayed_error = self._delayed_error(error)
+
+        delta_t = omega_times_T_s / self._omega_input_for_pi
+        candidate_integral = self._integral_error + delayed_error * delta_t
+
+        generator_current = (
+            self.generator_current_constant
+            + self.gain_proportional * delayed_error
+            + self.gain_integral * candidate_integral
+        )
+
+        # Conditional anti-windup: only commit the integral while the
+        # output is not saturated by the klystron power limit.
+        saturated = (
+            self.max_generator_current is not None
+            and np.abs(generator_current) > self.max_generator_current
+        )
+        if not saturated:
+            self._integral_error = candidate_integral
+
+        self.generator_current_coarse_grid[idx] = self.limit_generator_current(
+            generator_current
+        )
 
     @requires(["RFStationBaseClass"])
     def _check_step_sizes(self) -> None:
@@ -885,6 +1167,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 next_reference_altering_element_index = -1
 
         self.forward_tracking_time = dummy_reference.time - start_time
+        # The coarse grid must follow the *actual* RF frequency: the design
+        # frequency at the tracked reference plus the station's RF-frequency
+        # offset delta_omega_rf, so the rf_center spacing tracks the detuned
+        # period. delta_omega_rf == 0 leaves this unchanged.
         self.forward_tracking_omega_rf = (
             self._parent_rf_station.calc_omega_rf_design(
                 dummy_reference.beta, self.ring.circumference
@@ -1353,6 +1639,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         end_index
             Index of rf_centers until which to compute the response.
         """
+        # Remember the segment frequency so the optional PI update inside
+        # cavity_response() can recover the per-step sampling time from
+        # ``omega_times_T_s``.
+        self._omega_input_for_pi = omega_input
         for rf_centers_idx in range(start_index, end_index):
             if rf_centers_idx == 0:
                 if self.last_rf_centers_entry is None:
@@ -1618,6 +1908,15 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 * omega_times_T_s
             )
 
+        # With the PI control active, regulate the generator current of this
+        # coarse-grid index from the antenna-voltage error just computed; it
+        # then drives the next step. Inactive by default (constant feedforward).
+        if self._pi_active:
+            self._update_generator_current(
+                omega_times_T_s=omega_times_T_s,
+                coarse_grid_index_to_update=coarse_grid_index_to_update,
+            )
+
     def update_feedback_variables(self) -> None:
         """Dummy."""
         pass
@@ -1776,6 +2075,18 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         #         )
         #     )
         # else:
+
+        # Enforce the klystron current limit on the fine grid too, so the
+        # response matrix never sees a current above the limit (no-op when no
+        # limit is configured). The coarse values are already clamped; this
+        # guards the interpolated initial condition and any externally set
+        # fine-grid current.
+        self.generator_current_fine_grid = self.limit_generator_current(
+            self.generator_current_fine_grid
+        )
+        initial_generator_current_fine_grid = self.limit_generator_current(
+            initial_generator_current_fine_grid
+        )
 
         cavity_response_solver = (
             cavity_response_sparse_matrix_second_order
