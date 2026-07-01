@@ -95,6 +95,9 @@ class BeamFeedbackBase(GlobalFeedback):
         self.main_rf_stations_mask: NumpyArray | None = None
         self.main_cavities: list[RFStationBaseClass] | None = None
         self.main_harmonic: int | None = None
+        self._simulation: Simulation | None = None
+
+        self._first_turn_value_checked = False
 
     @requires(["RFStationBaseClass"])
     def on_run_simulation(
@@ -119,6 +122,8 @@ class BeamFeedbackBase(GlobalFeedback):
             Additional keyword arguments.
         """
         self.update_main_rf_stations()
+        self._first_turn_value_checked = False
+        self._simulation = simulation
 
     @abstractmethod  # pragma: no cover
     def get_beam_attribute(self, beam: BeamBaseClass):
@@ -339,14 +344,14 @@ class BeamFeedbackBase(GlobalFeedback):
         )
 
         # Check whether the method has encountered the first turn or not
-        if not hasattr(self, "_first_turn_value_checked"):
-            assert self.cavities[0]._turn_counter.value == 0, (
+        if not self._first_turn_value_checked:
+            assert self._simulation.turn_counter.value == 0, (
                 f"Expected first turn_counter value to be 0, "
-                f"got {self.cavities[0]._turn_counter.value}"
+                f"got {self._simulation.turn_counter.value}"
             )
             self._first_turn_value_checked = True
 
-        if self.cavities[0]._turn_counter.value >= self.delay:
+        if self._simulation.turn_counter.value >= self.delay:
             for cav in self.cavities:
                 # domega_rf is updated later
                 # this means domega_rf is effectively from last turn
