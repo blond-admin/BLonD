@@ -889,8 +889,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             self._parent_rf_station.calc_omega_rf_design(
                 dummy_reference.beta, self.ring.circumference
             )
-            # + self.delta_omega
-        )  # TODO: problematic with multi-section if the delta is changed in between sections
+            + self.delta_omega_rf
+        )  # TODO: problematic with multi-section if delta_omega_rf is changed between sections
         self.tracked_forward_until_element = (
             forward_list[
                 next_reference_altering_element_index % len(forward_list)
@@ -1061,14 +1061,18 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             self.reverse_tracking_time_array = np.append(
                 np.array(time_list[0] - start_time), np.diff(time_list)
             )
-            self.reverse_tracking_omega_list = np.array(
-                omega_list
-            )  # + self.delta_omega
+            # Track the actual RF frequency (design + delta_omega_rf), see
+            # forward_tracking_omega_rf. delta_omega_rf == 0 leaves it unchanged.
+            self.reverse_tracking_omega_list = (
+                np.array(omega_list) + self.delta_omega_rf
+            )
         else:
             self.reverse_tracking_time_array = np.array(time_list)
-            self.reverse_tracking_omega_list = np.array(
-                omega_list
-            )  # + self.delta_omega
+            # Track the actual RF frequency (design + delta_omega_rf), see
+            # forward_tracking_omega_rf. delta_omega_rf == 0 leaves it unchanged.
+            self.reverse_tracking_omega_list = (
+                np.array(omega_list) + self.delta_omega_rf
+            )
 
         self._unify_same_frequency_time_points_reverse()
 
@@ -1112,11 +1116,21 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             # so the centres tile continuously across the turn boundary rather
             # than re-aligning to an RF bucket. The first centre of this turn
             # lies one full step after the previous turn's last centre, i.e.
-            # (step_width - residual) into the new turn. The phase-based
-            # falling-edge start is only used to seed the very first turn (when
-            # there is no residual yet).
+            # (step - residual) into the new turn. The residual was measured
+            # against the *previous* segment's step, so use that step
+            # (last_forward_tracking_freq), not the current one -- under
+            # acceleration/detuning they differ and mixing them places the
+            # first centre at the wrong (possibly negative) offset. The
+            # phase-based falling-edge start is only used to seed the very
+            # first turn (when there is no residual yet).
+            step_width_previous = (
+                self.n_rf_periods_per_coarse_grid
+                * 2
+                * np.pi
+                / self.last_forward_tracking_freq
+            )
             time_to_next_falling_edge_zero = (
-                step_width_rf_centers
+                step_width_previous
                 - self.residual_time_last_rf_centers_calculation
             )
         elif (
@@ -1170,18 +1184,23 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         """
         self.get_passed_time_forward_direction(beam=beam)
         self.phase_offset_frwrd += self.phase_offset_frwrd_next
+        # Per-turn phase slip of the RF clock from the RF-frequency offset:
+        # over one turn (2*pi*harmonic / omega_rf_design seconds) a frequency
+        # offset delta_omega_rf advances the RF phase by
+        # delta_omega_rf * turn_time. Accumulating it into phase_offset_frwrd
+        # keeps the baseband/demodulated representation continuous across the
+        # turn boundary when the RF is detuned. delta_omega_rf == 0 leaves
+        # phase_offset_frwrd at 0 (unchanged behaviour).
         self.phase_offset_frwrd_next = (
             2.0
             * np.pi
             * self.harmonic
-            * self.delta_omega  # makes no difference whatsoever
+            * self.delta_omega_rf
             / self._parent_rf_station.calc_omega_rf_design(
                 beam_beta=self.reference_state_until_tracked.beta,
                 ring_circumference=self.ring.circumference,
             )
         )
-        self.phase_offset_frwrd_next = 0
-        print(self.phase_offset_frwrd_next)
 
         new_rf_centers = self._generate_rf_centers(
             t_rf=(2 * np.pi / self.forward_tracking_omega_rf),
