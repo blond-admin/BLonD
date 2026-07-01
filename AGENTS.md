@@ -163,6 +163,27 @@ comparing each backend to the Python reference.
 
 ## Coding conventions
 
+- **Speaking names win — resist the physics-code pull toward one-letter variables.**
+  Accelerator code tempts you to write `v`, `e`, `n`, `iv` for everything; don't.
+  Use an intention-revealing name (`voltage`, `energy`, `n_macroparticles`,
+  `induced_voltage`) so the reader knows the quantity *and* (via the SI rule
+  below) its unit. The **only** terse names that belong here are the ones that *are* the
+  established physics symbol for the quantity — `phi_s`, `eta`, `beta`, `gamma`,
+  `alpha` (momentum compaction). A single letter is fine when it's the
+  textbook symbol; it's not fine as a lazy abbreviation of a word.
+- **Match the name already used for a quantity — don't invent a synonym.** The same value
+  should have one name across the codebase; a second name for it is a bug waiting to
+  happen (the `phi_rf_design` vs `phi_rf` split below is exactly how much a name can
+  matter). Grep for how a quantity is already named in the module before naming a new
+  variable.
+- **The 79-char limit is not a licence for cryptic names.** If a good name makes the line
+  too long, break the line — don't crush the name. Readability of the name beats saving a
+  wrap.
+- **Keep functions small and single-purpose; push complexity out of the hot loop.** Prefer
+  a clearly-named helper over an inline block that needs a comment to explain it — but note
+  the hot-path exception under *Backend conventions* (per-turn kernels deliberately stay
+  flat and guard-free for performance; put the extracted validation in the wrapper, not the
+  kernel).
 - **Units are SI / accelerator-physics standard, not normalized:** voltages in
   **volts**, energies in **eV**, momenta in **eV/c**, times in **seconds**, lengths in
   **metres**, angles/phases in **radians**. Mixing these up is the most common physics bug.
