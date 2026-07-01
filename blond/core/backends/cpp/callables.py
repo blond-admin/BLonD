@@ -26,6 +26,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
+# Upper bound on the number of cached array-pointer entries; the cache is
+# cleared wholesale once it grows past this to keep memory bounded.
+_PTR_CACHE_MAX_SIZE = 4096
+
 
 def c_real(
     scalar: float, floattype: type[np.float64]
@@ -179,8 +183,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
         entry = _ptr_cache.get(k)
         if entry is not None and entry[0]() is x:
             return entry[1]
-        ptr = ct.c_void_p(x.ctypes.data)  # int address -> pointer; does not pin x
-        if len(_ptr_cache) >= 4096:  # bound the cache (drops dead entries too)
+        ptr = ct.c_void_p(
+            x.ctypes.data
+        )  # int address -> pointer; does not pin x
+        if len(_ptr_cache) >= _PTR_CACHE_MAX_SIZE:  # bound cache size
             _ptr_cache.clear()
         _ptr_cache[k] = (weakref.ref(x), ptr)
         return ptr
@@ -282,8 +288,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
             acceleration_kick: float,
         ) -> None:
             _validate(
-                (dt, floattype), (dE, floattype),
-                (voltage, floattype), (bin_centers, floattype),
+                (dt, floattype),
+                (dE, floattype),
+                (voltage, floattype),
+                (bin_centers, floattype),
             )
 
             # Cast Python floats to backend floattype
@@ -312,7 +320,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
             flags: NumpyArray,
         ) -> None:
             _validate(
-                (dt, floattype), (dE, floattype), (flags, np.int32),
+                (dt, floattype),
+                (dE, floattype),
+                (flags, np.int32),
             )
 
             _LIBBLOND.loss_box(
@@ -368,8 +378,11 @@ def reload_cpp_backend(  # NOQA: PLR0915
             acceleration_kick: float,
         ) -> None:
             _validate(
-                (dt, floattype), (dE, floattype), (voltage, floattype),
-                (omega_rf, floattype), (phi_rf, floattype),
+                (dt, floattype),
+                (dE, floattype),
+                (voltage, floattype),
+                (omega_rf, floattype),
+                (phi_rf, floattype),
             )
 
             # Cast Python floats to backend floattype
@@ -453,7 +466,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
             energy: float,
         ):
             _validate(
-                (dt, floattype), (dE, floattype), (higher_alpha, floattype),
+                (dt, floattype),
+                (dE, floattype),
+                (higher_alpha, floattype),
             )
 
             # Cast Python floats to backend floattype
@@ -485,8 +500,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
             ids: NumpyArray,
         ):
             _validate(
-                (dt, floattype), (dE, floattype),
-                (flags, np.int32), (ids, np.int32),
+                (dt, floattype),
+                (dE, floattype),
+                (flags, np.int32),
+                (ids, np.int32),
             )
 
             n_new = _LIBBLOND.move_flagged_elements_to_end(
@@ -542,7 +559,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 Use `_gen_array_bucket_index_to_memory_index` to generate this.
             """
             _validate(
-                (x, floattype), (out, floattype),
+                (x, floattype),
+                (out, floattype),
                 (filling_pattern, np.bool),
                 (bucket_index_to_memory_index, np.int32),
             )
@@ -611,10 +629,13 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 Cached `voltage` array per thread. For speedup.
             """
             _validate(
-                (profile, floattype), (profile_dts, floattype),
-                (poles, complextype), (residues, complextype),
+                (profile, floattype),
+                (profile_dts, floattype),
+                (poles, complextype),
+                (residues, complextype),
                 (counterrotating_pole_signs, floattype),
-                (states, complextype), (voltage, floattype),
+                (states, complextype),
+                (voltage, floattype),
                 (voltage_threaded, floattype),
                 (update_on_bin, np.int32),
             )
