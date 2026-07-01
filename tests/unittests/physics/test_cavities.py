@@ -1,6 +1,7 @@
 import unittest
 import warnings
 from copy import deepcopy
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import numpy as np
@@ -50,6 +51,18 @@ from blond.physics.drifts import DriftSimple
 from blond.physics.impedances.base import WakeField
 from blond.testing.backend_testing import multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
+
+
+def _fixed_total_energy_cycle(total_energy: float):
+    """Minimal stand-in for a magnetic cycle returning a constant total energy.
+
+    Used by headless RF-station tests whose beams carry hand-picked (often
+    unphysical) reference energies that a real ``ConstantMagneticCycle`` would
+    reject. ``headless(magnetic_cycle=...)`` only needs the
+    ``get_target_total_energy`` interface.
+    """
+
+    return SimpleNamespace(get_target_total_energy=lambda **_: total_energy)
 
 
 class TestRFStationBaseClass(unittest.TestCase):
@@ -112,7 +125,6 @@ class TestRFStationBaseClass(unittest.TestCase):
             phi_rf=np.array([1]),
             main_harmonic_idx=0,
             circumference=1,
-            total_energy=1,
             beam_reference_beta=1,
             cavity_feedback=cavity_feedback_good,
         )
@@ -473,19 +485,57 @@ class TestRFStationBaseClass(unittest.TestCase):
 
     def test_with_wakefields(self):
         wf = Mock(WakeField)
-        shc = SingleHarmonicRFStation(
+        shc = SingleHarmonicRFStation.headless(
             section_index=0,
             harmonic=1,
             voltage=1,
             phi_rf=1,
+            circumference=456,
+            beam_reference_beta=self.beam.reference.beta,
             local_wakefield=wf,
         )
-        shc._turn_counter = DynamicParameter(0)
-        shc._ring = Mock(Ring)
-        shc._ring.circumference = 456
-        with self.assertRaises(AttributeError):
-            shc.track(beam=self.beam)
-            assert wf.track.assert_called_once()
+        # With ``magnetic_cycle=None`` no reference-energy update is performed,
+        # but the local wakefield must still be tracked.
+        shc.track(beam=self.beam)
+        wf.track.assert_called_once()
+
+    def test_track_reference_without_magnetic_cycle_returns_zero(self):
+        # A headless station with ``magnetic_cycle=None`` (e.g. when an
+        # external code such as xsuite owns the reference) leaves the
+        # reference untouched and applies no acceleration kick.
+        shc = SingleHarmonicRFStation.headless(
+            section_index=0,
+            harmonic=1,
+            voltage=1,
+            phi_rf=1,
+            circumference=456,
+            beam_reference_beta=self.beam.reference.beta,
+            magnetic_cycle=None,
+        )
+        original_total_energy = self.beam.reference.total_energy
+        reference_energy_change = shc.track_reference(
+            reference=self.beam.reference
+        )
+        self.assertEqual(reference_energy_change, 0.0)
+        self.assertEqual(
+            self.beam.reference.total_energy, original_total_energy
+        )
+
+    def test_calc_phi_s_main_harmonic_without_magnetic_cycle_raises(self):
+        # The synchronous phase requires an energy program; a headless station
+        # created without one (``magnetic_cycle=None``) must raise rather than
+        # silently return a meaningless value.
+        shc = SingleHarmonicRFStation.headless(
+            section_index=0,
+            harmonic=1,
+            voltage=1,
+            phi_rf=1,
+            circumference=456,
+            beam_reference_beta=self.beam.reference.beta,
+            magnetic_cycle=None,
+        )
+        with self.assertRaisesRegex(ValueError, "magnetic_cycle"):
+            shc.calc_phi_s_main_harmonic(beam=self.beam)
 
     def test_tune_main_harmonic(self):
         mhc = MultiHarmonicRFStation(
@@ -667,7 +717,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=None,
-            total_energy=939,
+            magnetic_cycle=_fixed_total_energy_cycle(939),
             main_harmonic_idx=0,
             beam_reference_beta=1,
         )
@@ -687,7 +737,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                 circumference=456,
                 local_wakefield=None,
                 cavity_feedback=cavity_feedback,  # trigger
-                total_energy=939,
                 main_harmonic_idx=0,
                 beam_reference_beta=1,
                 delayed_kick=Mock(PooledInterpolationKick),  # trigger
@@ -707,7 +756,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                 circumference=456,
                 local_wakefield=None,
                 cavity_feedback=None,
-                total_energy=939,
                 main_harmonic_idx=0,
                 beam_reference_beta=1,
                 delayed_kick=Mock(PooledInterpolationKick),
@@ -724,7 +772,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=None,
-            total_energy=939,
             main_harmonic_idx=0,
             beam_reference_beta=1,
             delayed_kick=delayed_kick_mock,
@@ -749,7 +796,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=[cavity_feedback, None],
-            total_energy=939,
             main_harmonic_idx=0,
             beam_reference_beta=1,
             delayed_kick=delayed_kick_mock,
@@ -922,7 +968,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             phi_rf=np.deg2rad(33),
             harmonic=5,
             circumference=123,
-            total_energy=beam.reference.total_energy,
             beam_reference_beta=beam.reference.beta,
             local_wakefield=None,
             cavity_feedback=None,
@@ -941,7 +986,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             phi_rf=np.deg2rad(33),
             harmonic=5,
             circumference=123,
-            total_energy=beam.reference.total_energy,
             beam_reference_beta=beam.reference.beta,
             local_wakefield=None,
             cavity_feedback=None,
@@ -986,7 +1030,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             harmonic=np.array([5, 7.3]),
             circumference=123,
             main_harmonic_idx=1,
-            total_energy=beam.reference.total_energy,
             beam_reference_beta=beam.reference.beta,
             local_wakefield=None,
             cavity_feedback=None,
@@ -1006,7 +1049,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             harmonic=np.array([5, 7.3]),
             circumference=123,
             main_harmonic_idx=1,
-            total_energy=beam.reference.total_energy,
             beam_reference_beta=beam.reference.beta,
             local_wakefield=None,
             cavity_feedback=None,
@@ -1066,8 +1108,10 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                     harmonic=np.array([10, 30]),
                     main_harmonic_idx=0,
                     circumference=2 * np.pi * 100.0,
-                    total_energy=(
-                        beam.reference.total_energy + ref_energy_change
+                    magnetic_cycle=ConstantMagneticCycle(
+                        reference_particle=proton,
+                        value=beam.reference.total_energy + ref_energy_change,
+                        in_unit="total energy",
                     ),
                     beam_reference_beta=beam.reference.beta,
                     local_wakefield=None,
@@ -1112,7 +1156,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             harmonic=np.array([10, 30]),
             main_harmonic_idx=0,
             circumference=2 * np.pi * 100.0,
-            total_energy=beam.reference.total_energy,
             beam_reference_beta=beam.reference.beta,
             local_wakefield=None,
             cavity_feedback=None,
@@ -1178,7 +1221,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=None,
-            total_energy=939.0,
+            magnetic_cycle=_fixed_total_energy_cycle(939.0),
             beam_reference_beta=beam.reference.beta,
         )
         self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
@@ -1197,7 +1240,6 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
                 circumference=456,
                 local_wakefield=None,
                 cavity_feedback=cavity_feedback,  # trigger
-                total_energy=939,
                 beam_reference_beta=1,
                 delayed_kick=Mock(PooledInterpolationKick),  # trigger
                 # trigger because it shouldn't coexist with cavity feedback
@@ -1216,7 +1258,6 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
                 circumference=456,
                 local_wakefield=None,
                 cavity_feedback=None,
-                total_energy=939,
                 beam_reference_beta=1,
                 delayed_kick=Mock(PooledInterpolationKick),
                 delayed_kick_time_axis=None,  # trigger Exception
@@ -1232,7 +1273,6 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=None,
-            total_energy=939,
             beam_reference_beta=1,
             delayed_kick=delayed_kick_mock,
             delayed_kick_time_axis=np.linspace(1, 2, 10),  # trigger Exception
@@ -1256,7 +1296,6 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=cavity_feedback,
-            total_energy=939,
             beam_reference_beta=1,
             delayed_kick=delayed_kick_mock,
             delayed_kick_time_axis=None,
@@ -1434,8 +1473,10 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
                     phi_rf=np.pi * 0.3,
                     harmonic=10,
                     circumference=2 * np.pi * 100.0,
-                    total_energy=(
-                        beam.reference.total_energy + ref_energy_change
+                    magnetic_cycle=ConstantMagneticCycle(
+                        reference_particle=proton,
+                        value=beam.reference.total_energy + ref_energy_change,
+                        in_unit="total energy",
                     ),
                     beam_reference_beta=beam.reference.beta,
                     local_wakefield=None,
@@ -1479,7 +1520,6 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
             phi_rf=np.pi * 0.3,
             harmonic=10,
             circumference=2 * np.pi * 100.0,
-            total_energy=beam.reference.total_energy,
             beam_reference_beta=beam.reference.beta,
             local_wakefield=None,
             cavity_feedback=None,

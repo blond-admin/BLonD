@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import abc
 from abc import ABC
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import sympy
@@ -197,6 +196,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         momentum_compaction_factor: NumpyArray | tuple[NumpyArray, NumpyArray],
         orbit_length: float,
         section_index: int = 0,
+        turn_counter: DynamicParameter | None = None,
     ) -> DriftSimple:
         """
         Initialize object without simulation context.
@@ -210,6 +210,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             Length / Velocity => Time to pass the element.
         section_index
             Section index to group elements into sections.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
@@ -220,13 +222,16 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             orbit_length=orbit_length,
             section_index=section_index,
         )
+
         if isinstance(momentum_compaction_factor, int | float):
             d.momentum_compaction_factor = float(momentum_compaction_factor)
         else:
             d.schedule(
                 "momentum_compaction_factor", momentum_compaction_factor
             )
-        d.configure(turn_counter=SimpleNamespace(value=0))
+
+        d.configure(turn_counter=turn_counter)
+
         return d
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
@@ -279,6 +284,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         super()._track(beam=beam)
 
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
                 turn_i=self._turn_counter.value,
                 reference_time=beam.reference.time,
@@ -473,6 +481,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         section_index: int = 0,
         momentum_compaction_factor: float | None = None,
         higher_order_alpha: NumpyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> DriftExact:
         """
         `DriftExact` element using the exact drift formulation.
@@ -493,21 +502,21 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
             Momentum compaction factor.
         higher_order_alpha
             Higher-order alpha array up to desired order.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
         drift_exact
             ``DriftExact`` object.
         """
-        from types import SimpleNamespace
-
         drift = DriftExact(
             orbit_length=orbit_length,
             section_index=section_index,
             momentum_compaction_factor=momentum_compaction_factor,
             higher_order_alpha=higher_order_alpha,
         )
-        drift.configure(turn_counter=SimpleNamespace(value=0))
+        drift.configure(turn_counter=turn_counter)
         return drift
 
     def get_hamilton_symbolic(

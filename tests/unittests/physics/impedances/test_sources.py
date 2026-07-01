@@ -579,7 +579,7 @@ class TestResonators(unittest.TestCase):
 
         # check value at 0-time
         assert np.isclose(
-            (wake_potential[np.abs((time)).argmin()]),
+            (wake_potential[np.abs(time).argmin()]),
             0.5 * np.max(wake_potential),
             rtol=1e-2,
         )

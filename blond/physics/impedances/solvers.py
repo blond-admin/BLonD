@@ -1363,7 +1363,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         assert len(self._counterrotating_pole_signs) == len(self._poles)
         assert len(self._residues) == len(self._poles)
 
-        hist_x_profile = (
+        profile_hist_x = (
             self._parent_wakefield.profile._continuous_memory_hist_x
             if type(self._parent_wakefield.profile) is EquidistantMultiProfile
             else self._parent_wakefield.profile.hist_x
@@ -1372,16 +1372,15 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             #  is added
         )
         self._voltage = backend.zeros(
-            len(hist_x_profile),
+            len(profile_hist_x),
             dtype=backend.float,
         )
         self._states = backend.zeros(len(self._poles) + 1, complex)
-        hist_x = hist_x_profile
-        bin_dt = float(hist_x[1] - hist_x[0])
+        bin_dt = float(profile_hist_x[1] - profile_hist_x[0])
         # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
         # on the first call (C++ now uses edge-based rather than centre-based
         # state semantics; see poles.cpp for details).
-        self._states[-1] = hist_x[0] - bin_dt / 2.0
+        self._states[-1] = profile_hist_x[0] - bin_dt / 2.0
 
         self._voltage_threaded = backend.zeros(
             (backend.specials.get_max_threads(), len(self._voltage))
@@ -1408,7 +1407,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         induced_voltage
             The induced voltage, in [V].
         """
-        hist_x_profile = (  # TODO: remove when assert linspace is implemented in other locations and api is same for both
+        profile_hist_y = (  # TODO: remove when assert linspace is implemented in other locations and api is same for both
             self._profile._continuous_memory_hist_y
             if type(self._profile) is EquidistantMultiProfile
             else self._profile.hist_y
@@ -1422,6 +1421,10 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         if self._poles is None:
             self._finalize_solver(beam=beam)
             assert self._update_on_bin[0] == 0, "First bin must always update."
+            assert int(self._update_on_bin[-1]) < len(profile_hist_y) - 1, (
+                "The last bin must not update, the kernels read "
+                "`profile_dts[update_bin + 1]`."
+            )
         else:
             # The last entry of `_states` is not a pole state but the running
             # reference time of the convolution (real part only). Each turn it
@@ -1429,7 +1432,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             # the pole decays are computed relative to the current profile.
             passed_time = beam.reference.time - self.last_reference_time
             self._states[-1] -= complex(passed_time)
-            assert self._states[-1].real <= hist_x_profile[0]
+            assert self._states[-1].real <= profile_dts[0]
 
         self._charge_per_macroparticle = (
             -(1 * beam.particle_type.charge * e)
@@ -1438,7 +1441,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
 
         backend.specials.wake_from_pole_residue(
-            profile=hist_x_profile,
+            profile=profile_hist_y,
             profile_dts=profile_dts,
             poles=self._poles,
             residues=self._residues,
