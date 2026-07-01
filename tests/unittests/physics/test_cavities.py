@@ -1,4 +1,5 @@
 import unittest
+import warnings
 from copy import deepcopy
 from unittest.mock import Mock
 
@@ -149,6 +150,24 @@ class TestRFStationBaseClass(unittest.TestCase):
             shc.omega_rf = 0
         with self.assertRaisesRegex(AttributeError, "`phi_rf` can not be"):
             shc.phi_rf = 0
+
+    def test_delta_omega_rf_warns_on_post_init_change(self):
+        shc = SingleHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
+        )
+        # Re-assigning the same value (including the init value) must not warn.
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            shc.delta_omega_rf = shc.delta_omega_rf
+        # Changing it after initialisation warns: downstream cavity feedbacks
+        # sample it once per turn and treat it as constant within a turn.
+        with self.assertWarnsRegex(
+            UserWarning, "delta_omega_rf changed after"
+        ):
+            shc.delta_omega_rf = 1.0e3
 
     def test__get_gap_voltage_per_harmonic(self):
         def calc_rf_waveform(

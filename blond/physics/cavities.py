@@ -351,6 +351,57 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         )
 
     @property
+    def delta_omega_rf(self) -> NumpyArray | float | None:
+        """
+        RF angular-frequency offset from the design frequency [rad/s].
+
+        Added on top of ``omega_rf_design`` to form ``omega_rf``. Downstream
+        cavity feedbacks sample it once per turn and treat it as constant
+        within a turn's tracking, so it is meant to be a (near-)static
+        configuration. Changing it after initialisation emits a warning: a
+        slow frequency loop updating it at most once per turn is fine, but a
+        mid-turn change would make the coarse-grid sampling inconsistent.
+
+        Returns
+        -------
+        delta_omega_rf
+            Currently set delta_omega_rf [rad/s].
+        """
+        return self._delta_omega_rf
+
+    @delta_omega_rf.setter
+    def delta_omega_rf(self, value: NumpyArray | float | None) -> None:
+        """
+        Store the RF angular-frequency offset, warning on post-init changes.
+
+        The first assignment (during ``__init__``, when no previous value
+        exists) is silent, and re-assigning the current value is silent too. A
+        change to a *different* value after initialisation emits a
+        ``UserWarning``: downstream cavity feedbacks sample ``delta_omega_rf``
+        once per turn and treat it as constant within a turn's tracking, so it
+        is meant to be a (near-)static configuration. A slow frequency loop
+        updating it at most once per turn is fine; a mid-turn change would make
+        the coarse-grid sampling inconsistent. The write itself is never
+        blocked -- the warning only flags it.
+
+        Parameters
+        ----------
+        value
+            RF angular-frequency offset [rad/s]; a scalar for single-harmonic
+            stations, or a per-harmonic array for multi-harmonic stations.
+        """
+        old = getattr(self, "_delta_omega_rf", None)
+        if old is not None and np.any(value != old):
+            warnings.warn(
+                "delta_omega_rf changed after initialisation; the cavity "
+                "feedback samples it once per turn and treats it as constant "
+                "within a turn's tracking. Update it at most once per turn "
+                "(e.g. from a slow frequency loop), never mid-turn.",
+                stacklevel=2,
+            )
+        self._delta_omega_rf = value
+
+    @property
     def phi_rf(self) -> NumpyArray | float:
         """
         RF angular phase.
