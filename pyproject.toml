@@ -93,6 +93,36 @@ all_no_cuda = ["blond[dev,doc,xsuite,mpi]"]
 all_cuda12 = ["blond[dev,doc,xsuite,mpi,gpu_cuda12]"]
 all_cuda13 = ["blond[dev,doc,xsuite,mpi,gpu_cuda13]"]
 
+# PEP 735 dependency groups: development-only requirements that are NOT published
+# in the package metadata. Install them WITHOUT installing the blond package, e.g.
+#   pip install --group dev        (pip >= 25.1)
+#   uv sync --group dev            (or: uv pip install --group dev)
+# These mirror the dev-oriented [project.optional-dependencies] above; the lists are
+# duplicated by necessity, since PEP 735 groups cannot include extras directly.
+[dependency-groups]
+dev = [
+  "pytest>=9",          # test runner
+  "pre-commit",         # automatic checks before `git commit`
+  "pytest-cov>=6",      # test coverage reporting
+  "mpmath>=1",          # part of the testing against blond2
+  "pytest-randomly>=4", # randomizes test order via `randomly-seed=...`
+  "nbconvert>=6",       # notebook execution in tests
+]
+doc = [
+  "sphinx>=6",                   # documentation generator
+  "sphinx-rtd-theme>=3",         # Read the Docs theme
+  "numpydoc>1",                  # NumPy-style docstring parser
+  "intersphinx_registry>0.2511", # cross-project documentation links
+  "myst-parser>4",               # Markdown support for Sphinx
+  "sphinx_autodoc_typehints>3",  # type hint integration for autodoc
+  "pydata_sphinx_theme>0.16",    # PyData community theme
+  "nbsphinx>=0.9",               # Jupyter notebook integration for Sphinx
+  "nbconvert>=6",                # notebook to documentation conversion
+  "ipython>5",                   # interactive Python shell
+  "notebook>=7",                 # for jupyter-notebooks in the examples
+]
+all = [{ include-group = "dev" }, { include-group = "doc" }]
+
 [tool.setuptools]
 packages = { find = {} }
 include-package-data = true
