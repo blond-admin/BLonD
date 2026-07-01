@@ -9,7 +9,7 @@ from blond import StaticProfile
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
 )
-from blond.physics.feedbacks.generator_current_pi_controller import (
+from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentPIController,
 )
 from blond.physics.feedbacks.helpers import cavity_response_sparse_matrix
@@ -25,7 +25,7 @@ V0 = 30.0e6
 # No-beam steady-state generator current of the cavity model on resonance:
 # V0 = 2 * (R/Q) * Q_L * I_ff, so starting from V_ant = V0 with I_gen = I_ff
 # the antenna voltage stays constant until the beam arrives.
-I_FF = V0 / (2.0 * R_OVER_Q * Q_L)
+I_gen_bias = V0 / (2.0 * R_OVER_Q * Q_L)
 
 N_BINS = 256
 
@@ -65,14 +65,14 @@ def build_controller(**kwargs):
     params = {
         "gain_proportional": GAIN_P,
         "gain_integral": GAIN_I,
-        "feedforward": I_FF + 0.0j,
+        "generator_current_bias": I_gen_bias + 0.0j,
         "n_delay": N_DELAY,
     }
     params.update(kwargs)
     return GeneratorCurrentPIController(**params)
 
 
-# Sentinel so ``controller=None`` explicitly selects the constant-feedforward
+# Sentinel so ``controller=None`` explicitly selects the constant-current
 # mode, distinct from "use the default PI controller".
 _DEFAULT_CONTROLLER = object()
 
@@ -85,7 +85,7 @@ def build_feedback(controller=_DEFAULT_CONTROLLER, **kwargs):
     ----------
     controller
         Controller to attach; defaults to :func:`build_controller`. Pass
-        None to build a constant-feedforward feedback.
+        None to build a constant-current feedback.
     **kwargs
         Overrides for the constructor defaults.
 
@@ -102,7 +102,7 @@ def build_feedback(controller=_DEFAULT_CONTROLLER, **kwargs):
         ),
         "R_over_Q": R_OVER_Q,
         "Q_L": Q_L,
-        "generator_current": I_FF + 0.0j,
+        "generator_current_bias": I_gen_bias + 0.0j,
         "n_cavities": 1,
         "controller": controller,
         "voltage_setpoint": V0 + 0.0j,
@@ -426,7 +426,7 @@ def plot_single_pulse_vs_sustained(
 
     Both runs use the same power-limited klystron. The single pulse sags
     while the bunch is present and then recovers to the setpoint once it
-    has passed (the generator current relaxes back to feedforward); the
+    has passed (the generator current relaxes back to the constant current); the
     sustained load keeps drifting because the clamped generator can never
     supply enough power. The beam current of each run is overlaid on the
     power panel (right axis), so the power difference can be traced back to
@@ -549,7 +549,7 @@ class _RecordingController:
         self.sentinel = sentinel
         self.calls = []
 
-    def update(self, error, delta_t):
+    def update_generator_current(self, error, delta_t):
         """
         Record the call arguments and return the sentinel.
 
@@ -615,8 +615,8 @@ class TestFeedbackControllerDelegation(unittest.TestCase):
         # ...and the controller's output is written to the coarse grid.
         self.assertEqual(cav.generator_current_coarse_grid[idx], sentinel)
 
-    def test_no_controller_keeps_constant_feedforward(self):
-        """Without a controller the generator current stays at feedforward."""
+    def test_no_controller_keeps_constant_current(self):
+        """Without a controller the generator current stays at the constant value."""
         cav = build_feedback(controller=None)
         self.assertFalse(cav._controller_active)
 
@@ -625,7 +625,7 @@ class TestFeedbackControllerDelegation(unittest.TestCase):
         )
 
         np.testing.assert_allclose(
-            cav.generator_current_coarse_grid, I_FF, rtol=1e-12
+            cav.generator_current_coarse_grid, I_gen_bias, rtol=1e-12
         )
 
 
@@ -656,17 +656,19 @@ class TestHighIntensityBunchTransient(unittest.TestCase):
     def test_steady_state_before_the_bunch(self):
         """Before the bunch arrives, voltage and current are stationary."""
         np.testing.assert_allclose(self.v_ant[: self.beam_on], V0, rtol=1e-9)
-        np.testing.assert_allclose(self.i_gen[: self.beam_on], I_FF, rtol=1e-9)
+        np.testing.assert_allclose(
+            self.i_gen[: self.beam_on], I_gen_bias, rtol=1e-9
+        )
 
     def test_generator_current_reacts_only_after_the_loop_delay(self):
-        """I_gen stays at feedforward for n_delay samples after beam-on."""
+        """I_gen stays at the constant current for n_delay samples after beam-on."""
         np.testing.assert_allclose(
             self.i_gen[self.beam_on : self.beam_on + N_DELAY],
-            I_FF,
+            I_gen_bias,
             rtol=1e-9,
         )
         self.assertGreater(
-            np.abs(self.i_gen[self.beam_on + N_DELAY] - I_FF),
+            np.abs(self.i_gen[self.beam_on + N_DELAY] - I_gen_bias),
             1e-4,
         )
 
@@ -683,7 +685,7 @@ class TestHighIntensityBunchTransient(unittest.TestCase):
 
     def test_generator_current_settles_at_compensation_value(self):
         """I_gen ends at the beam-loading compensation I_ff + I_b/2."""
-        expected = I_FF + I_BEAM / 2.0
+        expected = I_gen_bias + I_BEAM / 2.0
         self.assertLess(np.abs(self.i_gen[-1] - expected), 0.02 * expected)
 
     def test_generator_power_goes_up(self):
@@ -713,7 +715,7 @@ class TestKlystronPowerLimit(unittest.TestCase):
     n_steps = 3000
     beam_on = 500
     # Limit below the required compensation current I_ff + I_beam/2
-    i_max = I_FF + I_BEAM / 4.0
+    i_max = I_gen_bias + I_BEAM / 4.0
 
     @classmethod
     def setUpClass(cls):
@@ -766,7 +768,7 @@ class TestSinglePulseBunchTransient(unittest.TestCase):
     never supply enough power and the voltage keeps drifting toward a
     sagged steady state -- a bunch that *passes* loads the cavity only
     while it is present. The voltage sags during the passage (the clamp is
-    active) but, once the beam is gone, the feedforward current alone
+    active) but, once the beam is gone, the constant generator current alone
     sustains the setpoint, the generator current relaxes out of the clamp,
     and the voltage vector returns to its previous value.
     """
@@ -774,7 +776,7 @@ class TestSinglePulseBunchTransient(unittest.TestCase):
     n_steps = 8000
     beam_on = 500
     beam_off = 2000
-    i_max = I_FF + I_BEAM / 4.0  # below the sustained-loading demand
+    i_max = I_gen_bias + I_BEAM / 4.0  # below the sustained-loading demand
 
     @classmethod
     def setUpClass(cls):
@@ -813,7 +815,7 @@ class TestSinglePulseBunchTransient(unittest.TestCase):
         """Once the bunch has passed, the voltage vector recovers to V0."""
         self.assertLess(np.abs(self.v_pulse[-1] - V0), 1e3)
         # the generator current has relaxed back out of the clamp to I_ff
-        self.assertAlmostEqual(np.abs(self.i_pulse[-1]), I_FF, places=4)
+        self.assertAlmostEqual(np.abs(self.i_pulse[-1]), I_gen_bias, places=4)
 
     def test_generator_power_returns_to_baseline(self):
         """The klystron power rises during the bunch and then drops back."""

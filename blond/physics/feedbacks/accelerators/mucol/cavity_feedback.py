@@ -8,8 +8,8 @@
 
 """Cavity feedback stubs for the muon collider."""
 
+import warnings
 from typing import Any
-from warnings import warn
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
@@ -133,7 +133,9 @@ class PassiveCavity(IQCavityFeedback):
         self.injection_voltage = injection_voltage
 
         if use_lowpass_filter:
-            warn("lowpass filter is not used in this class", stacklevel=2)
+            warnings.warn(
+                "lowpass filter is not used in this class", stacklevel=2
+            )
 
         super().__init__(
             profile=profile,

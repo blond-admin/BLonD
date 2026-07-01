@@ -29,7 +29,7 @@ from blond.handle_results.observables_as_elements import (
     InducedVoltageObservationCR,
 )
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
-from blond.physics.feedbacks.generator_current_pi_controller import (
+from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentPIController,
 )
 from blond.physics.feedbacks.helpers import rf_beam_current
@@ -116,7 +116,7 @@ def setup_and_run(  # noqa: PLR0915
         If True, drive the cavity with a PI-regulated generator current
         (:class:`IQCavityFeedbackTimingClass` with non-zero PI gains, so the
         generator current reacts to the beam loading) instead of a constant
-        feedforward current. Ignored when ``MTW`` is True.
+        generator current. Ignored when ``MTW`` is True.
 
     Returns
     -------
@@ -330,7 +330,7 @@ def setup_and_run(  # noqa: PLR0915
             controller = GeneratorCurrentPIController(
                 gain_proportional=gain_proportional,
                 gain_integral=gain_proportional / (30 * t_rf),
-                feedforward=I_g,
+                generator_current_bias=I_g,  # TODO: this should be bias
                 n_delay=5,
             )
             cav_fdbk = IQCavityFeedbackTimingClass(

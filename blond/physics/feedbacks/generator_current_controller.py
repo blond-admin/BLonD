@@ -92,8 +92,9 @@ class GeneratorCurrentController(ABC):
     Interface between a cavity feedback and its generator-current controller.
 
     A controller converts, at each coarse-grid sample, the antenna-voltage
-    error into a generator-current command (:meth:`update`) and can clamp a
-    current to the actuator limit on the fine grid (:meth:`limit`). It carries
+    error into a generator-current command (:meth:`update_generator_current`)
+    and can clamp a current to the actuator limit on the fine grid
+    (:meth:`limit`). It carries
     all of its own tuning and state, so the feedback holds only an instance of
     this interface and does not know the control law.
     """
@@ -127,7 +128,7 @@ class GeneratorCurrentController(ABC):
         The base implementation applies no limit; controllers with a
         klystron current limit override this. It is used to enforce the
         limit on the fine grid, where the current is not produced by
-        :meth:`update`.
+        :meth:`update_generator_current`.
 
         Parameters
         ----------
@@ -146,15 +147,15 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
     r"""
     Saturating PI controller mapping a voltage error to a generator current.
 
-    Each :meth:`update` converts one (complex) antenna-voltage error sample
-    into the generator-current command
+    Each :meth:`update_generator_current` converts one (complex)
+    antenna-voltage error sample into the generator-current command
 
     .. math::
-        I_\mathsf{gen} = \mathrm{clamp}\big(I_\mathsf{ff}
+        I_\mathsf{gen} = \mathrm{clamp}\big(I_0
             + K_p\,e_\mathsf{d} + K_i \textstyle\sum e_\mathsf{d}\,\Delta t\big)
 
     where :math:`e_\mathsf{d}` is the error delayed by ``n_delay`` samples,
-    :math:`I_\mathsf{ff}` the feedforward current and the clamp enforces the
+    :math:`I_0` the generator current bias and the clamp enforces the
     klystron current limit. The integrator uses conditional (anti-windup)
     integration: it is frozen while the output is saturated. All state (the
     delay line and the integral) lives on the controller, so it can be driven
@@ -166,34 +167,29 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         Proportional gain :math:`K_p` [A/V].
     gain_integral
         Integral gain :math:`K_i` [A/(V s)].
-    feedforward
-        Constant feedforward generator current :math:`I_\mathsf{ff}` [A] the
-        PI correction is added on top of.
+    generator_current_bias
+        Generator current bias :math:`I_0` [A] the PI correction is added
+        on top of.
     n_delay
         Loop delay in samples; the error acted on is the one from ``n_delay``
-        :meth:`update` calls ago. Default 0.
+        :meth:`update_generator_current` calls ago. Default 0.
     max_output
         Maximum generator-current magnitude [A] (klystron limit). If None,
         the output is not limited and the integrator never saturates.
-
-    Attributes
-    ----------
-    integral
-        Current value of the (committed) error integral [V s].
     """
 
     def __init__(
         self,
         gain_proportional: float,
         gain_integral: float,
-        feedforward: complex,
+        generator_current_bias: complex,
         n_delay: int = 0,
         max_output: float | None = None,
     ):
         assert n_delay >= 0, f"{n_delay=}, but must be >= 0."
         self.gain_proportional = gain_proportional
         self.gain_integral = gain_integral
-        self.feedforward = feedforward
+        self.generator_current_bias = generator_current_bias
         self.n_delay = int(n_delay)
         self.max_output = max_output
 
@@ -238,7 +234,7 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
 
         candidate_integral = self._integral + delayed_error * delta_t
         output = (
-            self.feedforward
+            self.generator_current_bias
             + self.gain_proportional * delayed_error
             + self.gain_integral * candidate_integral
         )

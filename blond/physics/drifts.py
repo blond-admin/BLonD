@@ -782,7 +782,7 @@ class DriftSubstepped(DriftSimple):
         Advance the reference clock and energy in ``n_substeps`` segments.
 
         A left-Riemann sum of ``integral of ds / (beta(s) c)`` that is exact as
-        ``n_substeps -> inf``; see :meth:`_advance_reference_segment`.
+        ``n_substeps -> inf``; see ``_advance_reference_segment``.
 
         Parameters
         ----------

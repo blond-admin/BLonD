@@ -4,7 +4,7 @@ import unittest
 
 import numpy as np
 
-from blond.physics.feedbacks.generator_current_pi_controller import (
+from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentController,
     GeneratorCurrentPIController,
     clamp_magnitude,
@@ -84,10 +84,12 @@ class TestAbstractController(unittest.TestCase):
 class TestGeneratorCurrentPIController(unittest.TestCase):
     """Tests for the PI controller error -> generator-current mapping."""
 
-    def test_feedforward_passthrough_with_zero_gains(self):
-        """With zero gains the output is the feedforward, for any error."""
+    def test_constant_current_passthrough_with_zero_gains(self):
+        """With zero gains the output is the constant current, for any error."""
         controller = GeneratorCurrentPIController(
-            gain_proportional=0.0, gain_integral=0.0, feedforward=0.02
+            gain_proportional=0.0,
+            gain_integral=0.0,
+            generator_current_bias=0.02,
         )
         self.assertEqual(
             controller.update_generator_current(error=1e6, delta_t=1e-9), 0.02
@@ -98,9 +100,11 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
         )
 
     def test_proportional_only(self):
-        """Pure P control returns feedforward + K_p * error."""
+        """Pure P control returns constant current + K_p * error."""
         controller = GeneratorCurrentPIController(
-            gain_proportional=2e-8, gain_integral=0.0, feedforward=0.02
+            gain_proportional=2e-8,
+            gain_integral=0.0,
+            generator_current_bias=0.02,
         )
         error = 1.0e6 + 0.5e6j
         out = controller.update_generator_current(error=error, delta_t=1e-9)
@@ -112,7 +116,7 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
         controller = GeneratorCurrentPIController(
             gain_proportional=1e-8,
             gain_integral=0.0,
-            feedforward=0.02,
+            generator_current_bias=0.02,
             n_delay=n_delay,
         )
         error = 1.0e6
@@ -133,7 +137,7 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
         controller = GeneratorCurrentPIController(
             gain_proportional=0.0,
             gain_integral=gain_integral,
-            feedforward=0.02,
+            generator_current_bias=0.02,
         )
         for step in range(1, 6):
             out = controller.update_generator_current(
@@ -153,11 +157,13 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
         limited = GeneratorCurrentPIController(
             gain_proportional=0.0,
             gain_integral=1.0,
-            feedforward=0.0,
+            generator_current_bias=0.0,
             max_output=1.0,
         )
         free = GeneratorCurrentPIController(
-            gain_proportional=0.0, gain_integral=1.0, feedforward=0.0
+            gain_proportional=0.0,
+            gain_integral=1.0,
+            generator_current_bias=0.0,
         )
         for _ in range(10):
             out = limited.update_generator_current(error=10.0, delta_t=1.0)
@@ -173,7 +179,7 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
         controller = GeneratorCurrentPIController(
             gain_proportional=0.0,
             gain_integral=1.0,
-            feedforward=0.0,
+            generator_current_bias=0.0,
             max_output=1.0,
         )
         for _ in range(5):
@@ -188,7 +194,7 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
         controller = GeneratorCurrentPIController(
             gain_proportional=1.0,
             gain_integral=0.0,
-            feedforward=0.0,
+            generator_current_bias=0.0,
             max_output=2.0,
         )
         error = 5.0 * np.exp(1j * 0.9)
@@ -201,7 +207,7 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
         controller = GeneratorCurrentPIController(
             gain_proportional=0.0,
             gain_integral=0.0,
-            feedforward=0.0,
+            generator_current_bias=0.0,
             max_output=0.03,
         )
         values = np.array([0.0 + 0.0j, 0.05, 0.04 + 0.04j])
@@ -213,7 +219,9 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
     def test_limit_is_a_no_op_without_a_limit(self):
         """Without max_output, limit() returns the input unchanged."""
         controller = GeneratorCurrentPIController(
-            gain_proportional=0.0, gain_integral=0.0, feedforward=0.0
+            gain_proportional=0.0,
+            gain_integral=0.0,
+            generator_current_bias=0.0,
         )
         value = 0.5 + 0.5j
         self.assertEqual(controller.limit(value), value)
@@ -224,7 +232,7 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
             GeneratorCurrentPIController(
                 gain_proportional=0.0,
                 gain_integral=0.0,
-                feedforward=0.0,
+                generator_current_bias=0.0,
                 n_delay=-1,
             )
 

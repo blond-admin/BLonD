@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
     from blond import Beam, Ring, Simulation
     from blond.core.beam.base import BeamBaseClass
-    from blond.physics.feedbacks.generator_current_pi_controller import (
+    from blond.physics.feedbacks.generator_current_controller import (
         GeneratorCurrentController,
     )
 
@@ -554,13 +554,13 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
     a forward-Euler discretisation of the cavity ODE; see ``cavity_response``
     and ``_check_step_sizes``.
 
-    By default (no ``controller``) the generator current is a constant
-    feedforward value (``generator_current``). Passing a
-    :class:`~blond.physics.feedbacks.generator_current_pi_controller.GeneratorCurrentController`
+    By default (no ``controller``) the generator current is a constant value
+    (``generator_current``). Passing a
+    :class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentController`
     instead turns it into a regulated generator current: each coarse-grid
     step the feedback forms the antenna-voltage error ``V_set - V_ant[n]``
     and lets the controller convert it into the generator current (see
-    :meth:`_update_generator_current`). All control tuning (gains, loop
+    ``_update_generator_current``). All control tuning (gains, loop
     delay, klystron limit) lives on the controller.
 
     Parameters
@@ -597,10 +597,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         squared rather than linearly). Default is False.
     controller
         Optional generator-current controller (a
-        :class:`~blond.physics.feedbacks.generator_current_pi_controller.GeneratorCurrentController`)
+        :class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentController`)
         that converts the antenna-voltage error into the generator current.
-        If None, the generator current stays at the constant feedforward
-        value ``generator_current``.
+        If None, the generator current stays at the constant value
+        ``generator_current``.
     voltage_setpoint
         Explicit per-cavity voltage setpoint in the IQ frame [V] used to form
         the error the controller acts on. If None, it is derived from the
@@ -717,7 +717,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         # --- Optional generator-current controller ---
         # When ``controller`` is None the generator current stays at the
-        # constant feedforward value (pure feedforward drive). Otherwise the
+        # constant value (pure constant-current drive). Otherwise the
         # controller converts the antenna-voltage error into the generator
         # current; see _update_generator_current. All control tuning lives on
         # the controller, not on this feedback.
@@ -734,8 +734,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         -------
         controller_active
             True when a controller regulates the generator current;
-            otherwise it stays at the constant feedforward value and the
-            controller update is skipped.
+            otherwise it stays at the constant value and the controller
+            update is skipped.
         """
         return self._controller is not None
 
@@ -1754,7 +1754,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         # With the PI control active, regulate the generator current of this
         # coarse-grid index from the antenna-voltage error just computed; it
-        # then drives the next step. Inactive by default (constant feedforward).
+        # then drives the next step. Inactive by default (constant current).
         if self._controller_active:
             self._update_generator_current(
                 omega_times_T_s=omega_times_T_s,
