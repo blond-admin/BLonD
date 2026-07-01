@@ -15,7 +15,6 @@ L. Valle
 
 from __future__ import annotations
 
-from abc import ABC
 from typing import TYPE_CHECKING
 
 from numpy.typing import NDArray as NumpyArray
@@ -24,7 +23,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -33,7 +32,7 @@ if TYPE_CHECKING:
     from blond.core.simulation.simulation import Simulation
 
 
-class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
+class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
     """
     Base class for radiating ring elements.
 
@@ -82,9 +81,12 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
 
         super().__init__(name=name, section_index=section_index)
 
+        self._add_intended_schedule(
+            "share_of_radiation_integrals",
+        )
+
         self._simulation: Simulation | None = None
-        self._turn_i: DynamicParameter | int = 0
-        self._share_of_radiation_integrals = share_of_radiation_integrals
+        self.share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
 
@@ -127,7 +129,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ) = gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=beam.particle_type,
             energy=total_energy,
-            radiation_integrals=self._share_of_radiation_integrals,
+            radiation_integrals=self.share_of_radiation_integrals,
         )
         self._energy_lost_due_to_synchrotron_radiation = estimated_energy_lost
         self._damping_time = estimated_damping_time
@@ -143,7 +145,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             disable_quantum_excitation=self._disable_quantum_excitation,
         )
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -151,27 +153,33 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._simulation = simulation
-        self._turn_i = simulation.turn_i
+        super().on_init_simulation(
+            simulation,
+            turn_counter=simulation.turn_counter,
+            **kwargs,
+        )
 
-    def on_run_simulation(
+    def configure(
         self,
-        simulation: Simulation,
+        *,
+        turn_counter: DynamicParameter | None = None,
         **kwargs,
     ) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called.
+        Store the runtime references needed during tracking.
 
         Parameters
         ----------
-        simulation
-            `Simulation` context manager.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
         **kwargs
-            Additional keyword arguments for simulation setup.
+            Passed to the next level in the MRO chain.
         """
-        pass
+        super().configure(**kwargs)
+        self._turn_counter = turn_counter
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -182,4 +190,12 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         beam
             Beam class to interact with this element.
         """
+        if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
+            self.apply_schedules(
+                turn_i=self._turn_counter.value,
+                reference_time=float(beam.reference.time),
+            )
         self._apply_kick(beam)

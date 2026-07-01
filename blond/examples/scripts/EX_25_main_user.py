@@ -26,8 +26,13 @@ from blond import (
     WakeField,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.cycles.magnetic_cycle import MagneticCycleBase
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 
 class Main:

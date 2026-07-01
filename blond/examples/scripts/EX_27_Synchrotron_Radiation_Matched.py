@@ -6,7 +6,6 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-import logging
 import os
 
 import matplotlib.pyplot as plt
@@ -15,7 +14,6 @@ from scipy.constants import c
 
 from blond import (
     Beam,
-    Cupy64Bit,
     DriftSimple,
     MagneticCyclePerTurn,
     RFStationPhaseObservation,
@@ -23,6 +21,7 @@ from blond import (
     Simulation,
     SingleHarmonicRFStation,
     positron,
+    setup_backend,
 )
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
@@ -35,8 +34,10 @@ from blond.handle_results.observables import BeamStatisticsOncePerTurn
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
+from blond.testing import pytest_active
 
-# logging.basicConfig(level=logging.INFO)
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 
 class SynchrotronRadiationSimulation:
@@ -113,7 +114,7 @@ class SynchrotronRadiationSimulation:
         self.energy_spread = 1e-3
 
 
-def main(n_turns: int = 100):
+def main(n_turns: int = 100, n_macroparticles=int(1e4)):
     params = SynchrotronRadiationSimulation(n_turns=n_turns)
     simulation = Simulation(
         ring=params.ring,
@@ -125,7 +126,7 @@ def main(n_turns: int = 100):
         beam=params.beam,
         preparation_routine=SynchrotronRadiationMatcher(
             synchrotron_radiation_master=params.SRHandler,
-            n_macroparticles=1e4,
+            n_macroparticles=n_macroparticles,
             seed=1,
         ),
     )
@@ -139,7 +140,10 @@ def main(n_turns: int = 100):
     )
 
     def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
-        if simulation.turn_i.value is None or simulation.turn_i.value % 1 != 0:
+        if (
+            simulation.turn_counter.value is None
+            or simulation.turn_counter.value % 1 != 0
+        ):
             return
 
         artist = beam.plot_hist2d()
@@ -154,7 +158,7 @@ def main(n_turns: int = 100):
     # custom_action(simulation, beam=params.beam)
 
     def get_bunch_relative_energy(simulation, beam):
-        bunch_relative_energy[simulation.turn_i.value + 1] = np.mean(
+        bunch_relative_energy[simulation.turn_counter.value + 1] = np.mean(
             beam.read_partial_dE()
         )
 

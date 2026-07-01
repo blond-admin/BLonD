@@ -92,6 +92,11 @@ extern "C" void wake_from_pole_residue(
     for (int pole_i = 0; pole_i < n_poles; pole_i++) {
         const int thread_i = omp_get_thread_num();
 
+        // `cr_pole_flip` is intentionally applied to BOTH the state injection
+        // and the output amplitude: for the counter-rotating beam's own wake
+        // the two factors cancel (flip * flip == 1); only contributions of
+        // the other beam, accumulated in the shared `states`, see a net
+        // sign flip.
         real_t cr_pole_flip = 1;
         if (is_counterrotating_beam) {
             if (counterrotating_pole_signs[pole_i] == -1) {

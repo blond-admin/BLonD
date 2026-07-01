@@ -40,7 +40,7 @@ from blond.physics.impedances.base import (
 )
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import EquidistantMultiProfile
-from blond.testing.helpers import pytest_active
+from blond.testing import pytest_active
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -278,7 +278,7 @@ def main():
         plt.ylabel("Energy Offset [GeV]")
 
         plt.figure(1)
-        if simulation.turn_i.value == 0:
+        if simulation.turn_counter.value == 0:
             plt.title("Pole Attenuation per Turn")
             plt.xlabel("Turn")
             plt.ylabel(r"$\mathcal{Re}(r \cdot W)$")
@@ -286,7 +286,7 @@ def main():
         residues = solver_._residues
         with AllowPlotting():  # handle GPU gracefully
             plt.scatter(
-                simulation.turn_i.value * np.ones(len(states[:])),
+                simulation.turn_counter.value * np.ones(len(states[:])),
                 np.real(residues[:] * states[:]),
                 c=cmap(np.arange(len(states[:]))),
             )

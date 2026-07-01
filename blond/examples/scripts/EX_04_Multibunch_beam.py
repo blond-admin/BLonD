@@ -46,7 +46,12 @@ from blond import (
     make_multibunch_beam,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 N_BUNCHES = 4
 BUCKET_SPACING = 10  # bunches separated by 10 RF buckets

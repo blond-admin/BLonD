@@ -70,17 +70,6 @@ class BeamObservationInRingElement(
 
         self._beam_id_filter = None if beam is None else id(beam)
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        pass
-
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -309,17 +298,6 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             shape,
         )
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager.
-        """
-        pass
-
     def _track(
         self,
         beam: BeamBaseClass,
@@ -452,7 +430,7 @@ class InducedVoltageObservationCR(
 
         self.beam_state: bool | None = None
         self.last_turn: int | None = None
-        self.turn_i: DynamicParameter | None = None
+        self.turn_counter: DynamicParameter | None = None
 
     @requires(["RFStationBaseClass"])
     def on_run_simulation(
@@ -481,7 +459,7 @@ class InducedVoltageObservationCR(
             beam=beam,
             n_turns=n_turns,
         )
-        self.turn_i = simulation.turn_i
+        self.turn_counter = simulation.turn_counter
 
         count = 2  # 2 beams
 
@@ -504,17 +482,6 @@ class InducedVoltageObservationCR(
             f"{self.common_filepath}_beam_reference_time",
             n_entries,
         )
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager.
-        """
-        pass
 
     @property  # as readonly attributes
     def induced_voltage(self):
@@ -566,7 +533,7 @@ class InducedVoltageObservationCR(
         """
         if (
             self.beam_state != beam._is_counter_rotating
-            or self.last_turn != self.turn_i.value
+            or self.last_turn != self.turn_counter.value
         ):
             # First passage of the beam should not be recorded.
             # The architecture in the pipeline is generally OBS CAV OBS, meaning,
@@ -575,7 +542,7 @@ class InducedVoltageObservationCR(
             # For the next beam passing, it will be the other way around but
             # with a different beam state.
             self.beam_state = beam._is_counter_rotating
-            self.last_turn = self.turn_i.value
+            self.last_turn = self.turn_counter.value
             return
         try:
             current_recorded = copy_to_cpu(self._wake_field.induced_voltage)
