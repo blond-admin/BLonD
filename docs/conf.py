@@ -280,6 +280,11 @@ suppress_warnings = [
     # matplotlib.lines and so isn't importable at runtime. The warning
     # fires for every signature that returns `list[Line2D]`.
     "sphinx_autodoc_typehints.forward_reference",
+    # The xsuite beam-preparation type hints reference distribution classes
+    # from `xpart`, which is an optional runtime dependency and is not
+    # installed in the docs environment. sphinx_autodoc_typehints cannot
+    # import it to resolve the guarded annotation.
+    "sphinx_autodoc_typehints.guarded_import",
 ]  # remove warning for multiple mentions of the same item
 html_static_path = ["_static"]
 html_css_files = ["css/wide.css"]
