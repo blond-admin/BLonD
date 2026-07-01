@@ -332,7 +332,7 @@ class BiGaussian(MatchingRoutine):
             n_forward_per_rank=self._n_macroparticles_local,
         )
 
-        dt = backend.array(  # potentially on GPU  # pragma: no cover
+        dt = backend.array(  # potentially on GPU
             self._sigma_dt
             * rng_dt_cpu_only.standard_normal(
                 size=self._n_macroparticles_local,
@@ -341,7 +341,7 @@ class BiGaussian(MatchingRoutine):
             + (phi_s - phi_rf) / omega_rf,
             copy=False,
         )
-        dE = backend.array(  # potentially on GPU  # pragma: no cover
+        dE = backend.array(  # potentially on GPU
             sigma_dE
             * rng_dE_cpu_only.standard_normal(
                 size=self._n_macroparticles_local,
@@ -374,23 +374,27 @@ class BiGaussian(MatchingRoutine):
                 n_new = int(backend.sum(sel))
                 if n_new == 0:
                     break
-                dt[sel] = backend.array(  # potentially on GPU
-                    self._sigma_dt
-                    * rng_dt_cpu_only.standard_normal(
-                        size=n_new,
-                        dtype=backend.float,
+                dt[sel] = (
+                    backend.array(  # potentially on GPU  # pragma: no cover
+                        self._sigma_dt
+                        * rng_dt_cpu_only.standard_normal(
+                            size=n_new,
+                            dtype=backend.float,
+                        )
+                        + (phi_s - phi_rf) / omega_rf,
+                        copy=False,
                     )
-                    + (phi_s - phi_rf) / omega_rf,
-                    copy=False,
                 )
 
-                dE[sel] = backend.array(  # potentially on GPU
-                    sigma_dE
-                    * rng_dE_cpu_only.standard_normal(
-                        size=n_new,
-                        dtype=backend.float,
-                    ),
-                    copy=False,
+                dE[sel] = (
+                    backend.array(  # potentially on GPU  # pragma: no cover
+                        sigma_dE
+                        * rng_dE_cpu_only.standard_normal(
+                            size=n_new,
+                            dtype=backend.float,
+                        ),
+                        copy=False,
+                    )
                 )
         beam.setup_beam(
             dt=dt,
