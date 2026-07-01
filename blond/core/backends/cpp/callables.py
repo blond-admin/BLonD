@@ -176,26 +176,68 @@ def reload_cpp_backend(  # NOQA: PLR0915
     # (not a strong ref, so caching never keeps an array -- or a beam -- alive)
     # and re-validate `ref() is x` on every hit, which makes a recycled `id()`
     # after garbage collection a cache miss rather than a stale pointer.
-    _ptr_cache: dict[int, tuple] = {}
+    _pointer_cache: dict[int, tuple] = {}
 
-    def _getPointer(x: NumpyArray) -> ct.c_void_p:
-        k = id(x)
-        entry = _ptr_cache.get(k)
+    def _get_pointer(x: NumpyArray) -> ct.c_void_p:
+        """
+        Return a cached ``c_void_p`` to ``x``'s data buffer.
+
+        Parameters
+        ----------
+        x
+            Array whose data buffer address is needed. The cache holds only a
+            weak reference to it, so the caller must keep ``x`` alive while
+            using the returned pointer.
+
+        Returns
+        -------
+        ct.c_void_p
+            Pointer to ``x``'s data buffer, reused from the cache when ``x``
+            has been seen before.
+        """
+        _id = id(x)
+        entry = _pointer_cache.get(_id)
         if entry is not None and entry[0]() is x:
             return entry[1]
-        ptr = ct.c_void_p(
+        pointer = ct.c_void_p(
             x.ctypes.data
         )  # int address -> pointer; does not pin x
-        if len(_ptr_cache) >= _PTR_CACHE_MAX_SIZE:  # bound cache size
-            _ptr_cache.clear()
-        _ptr_cache[k] = (weakref.ref(x), ptr)
-        return ptr
+        if len(_pointer_cache) >= _PTR_CACHE_MAX_SIZE:  # bound cache size
+            _pointer_cache.clear()
+        _pointer_cache[_id] = (weakref.ref(x), pointer)
+        return pointer
 
     def _getLen(x: NumpyArray) -> ct.c_int:
+        """
+        Return the length of ``x`` as a ``c_int``.
+
+        Parameters
+        ----------
+        x
+            Array whose length is passed to the C++ kernel.
+
+        Returns
+        -------
+        ct.c_int
+            ``len(x)`` wrapped as a ctypes ``c_int``.
+        """
         return ct.c_int(len(x))
 
     def _validate(*pairs: tuple[NumpyArray, type]) -> None:
-        """Assert each ``(array, dtype)`` has that dtype and is C-contiguous."""
+        """
+        Assert each ``(array, dtype)`` has that dtype and is C-contiguous.
+
+        The C++ kernels are compiled for a fixed dtype and read raw,
+        contiguous buffers, so a wrong dtype or a non-contiguous array would
+        crash or silently corrupt results. Uses ``assert`` on purpose so
+        ``python -O`` strips the checks from the hot path.
+
+        Parameters
+        ----------
+        *pairs
+            One or more ``(array, dtype)`` tuples; each ``array`` must have
+            the given ``dtype`` and be C-contiguous.
+        """
         for arr, dtype in pairs:
             assert arr.dtype == dtype, (arr.dtype, dtype)
             assert arr.flags.c_contiguous
@@ -206,7 +248,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
     _LIBBLOND.blond_omp_get_max_threads.restype = ct.c_int
     _LIBBLOND.blond_omp_get_max_threads.argtypes = []
 
-    # The array pointers are cached by the shared `_getPointer` above; like every
+    # The array pointers are cached by the shared `_get_pointer` above; like every
     # other callable here we pass already-typed ctypes objects, so no `argtypes`
     # are needed (measured: setting them adds ~0.5 us of redundant per-arg
     # type-checking).
@@ -330,9 +372,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(e_min, floattype),
                 c_real(t_min, floattype),
                 c_real(t_max, floattype),
-                _getPointer(dt),
-                _getPointer(dE),
-                _getPointer(flags),
+                _get_pointer(dt),
+                _get_pointer(dE),
+                _get_pointer(flags),
                 _getLen(dt),
             )
 
@@ -390,13 +432,13 @@ def reload_cpp_backend(  # NOQA: PLR0915
             acceleration_kick = floattype(acceleration_kick)
 
             _LIBBLOND.kick_multi_harmonic(
-                _getPointer(dt),
-                _getPointer(dE),
+                _get_pointer(dt),
+                _get_pointer(dE),
                 ct.c_int(n_rf),
                 c_real(charge, floattype),
-                _getPointer(voltage),
-                _getPointer(omega_rf),
-                _getPointer(phi_rf),
+                _get_pointer(voltage),
+                _get_pointer(omega_rf),
+                _get_pointer(phi_rf),
                 _getLen(dt),
                 c_real(acceleration_kick, floattype),
             )
@@ -407,7 +449,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             # requires setting of _LIBBLOND.sum_1d_array.restype = c_real_t(floattype) in
             # reload function
             return floattype(
-                _LIBBLOND.sum_1d_array(_getPointer(array), _getLen(array))
+                _LIBBLOND.sum_1d_array(_get_pointer(array), _getLen(array))
             )
 
         @staticmethod
@@ -422,8 +464,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             # reload function
             return floattype(
                 _LIBBLOND.dot_product_1d_array(
-                    _getPointer(array_1),
-                    _getPointer(array_2),
+                    _get_pointer(array_1),
+                    _get_pointer(array_2),
                     ct.c_int(len(array_2)),
                 )
             )
@@ -446,8 +488,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             energy = floattype(energy)
 
             _LIBBLOND.drift_simple(
-                _getPointer(dt),
-                _getPointer(dE),
+                _get_pointer(dt),
+                _get_pointer(dE),
                 c_real(T, floattype),
                 c_real(eta_0, floattype),
                 c_real(beta, floattype),
@@ -478,11 +520,11 @@ def reload_cpp_backend(  # NOQA: PLR0915
             alpha_0 = floattype(alpha_0)
 
             _LIBBLOND.drift_exact(
-                _getPointer(dt),  # real_t *__restrict__ beam_dt
-                _getPointer(dE),  # const real_t *__restrict__ beam_dE
+                _get_pointer(dt),  # real_t *__restrict__ beam_dt
+                _get_pointer(dE),  # const real_t *__restrict__ beam_dE
                 c_real(T, floattype),  # const real_t T
                 c_real(alpha_0, floattype),  # const real_t alpha_zero
-                _getPointer(
+                _get_pointer(
                     higher_alpha
                 ),  # const real_t *__restrict__ higher_alpha
                 _getLen(higher_alpha),  # const int n_alpha
@@ -566,8 +608,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
             _LIBBLOND.histogram_sparse(
-                _getPointer(x),  # input
-                _getPointer(out),  # output
+                _get_pointer(x),  # input
+                _get_pointer(out),  # output
                 c_real(first_left_cut, floattype),  # first_left_cut
                 c_real(left_cut_distance, floattype),  # left_cut_distance
                 c_real(cut_width, floattype),  # cut_width
@@ -575,8 +617,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 ct.c_int(n_active_profiles),  # n_profiles
                 ct.c_int(len(filling_pattern)),  # n_buckets
                 ct.c_int(len(x)),  # n_macroparticles # n_macroparticles
-                _getPointer(filling_pattern),  # filling_pattern
-                _getPointer(
+                _get_pointer(filling_pattern),  # filling_pattern
+                _get_pointer(
                     bucket_index_to_memory_index
                 ),  # bucket_index_to_memory_index
             )
@@ -640,21 +682,21 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 (update_on_bin, np.int32),
             )
 
-            # Array pointers come from the shared (cached) `_getPointer`; the
+            # Array pointers come from the shared (cached) `_get_pointer`; the
             # changing scalars and the cheap sizes are passed as fresh typed
             # ctypes objects (same convention as every other callable here).
             _LIBBLOND.wake_from_pole_residue(
-                _getPointer(profile),
-                _getPointer(profile_dts),
-                _getPointer(poles),
-                _getPointer(residues),
+                _get_pointer(profile),
+                _get_pointer(profile_dts),
+                _get_pointer(poles),
+                _get_pointer(residues),
                 ct.c_bool(is_counterrotating_beam),
-                _getPointer(counterrotating_pole_signs),
-                _getPointer(update_on_bin),
+                _get_pointer(counterrotating_pole_signs),
+                _get_pointer(update_on_bin),
                 c_real(factor, floattype),
-                _getPointer(states),
-                _getPointer(voltage),
-                _getPointer(voltage_threaded),
+                _get_pointer(states),
+                _get_pointer(voltage),
+                _get_pointer(voltage_threaded),
                 _getLen(profile),  # n_bins
                 _getLen(poles),  # n_poles
                 ct.c_int(voltage_threaded.shape[0]),  # n_threads
