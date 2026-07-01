@@ -90,7 +90,7 @@ def fit_poles(
     freq = rf.Frequency.from_f(freqs, unit="Hz")
     ntwk = rf.Network(frequency=freq, s=Z.reshape(-1, 1, 1))
 
-    vf = rf.VectorFitting(ntwk)
+    vf = rf.vectorFitting.VectorFitting(ntwk)
     if max_iterations is not None:
         vf.max_iterations = max_iterations
     vf.vector_fit(

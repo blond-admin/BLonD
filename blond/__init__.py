@@ -42,6 +42,7 @@ __all__ = [
     "InductiveImpedanceSolver",
     "PeriodicFreqSolver",
     "TimeDomainFftSolver",
+    "MultiPoleSparseSolve",
     "ImpedanceTableFreq",
     "InductiveImpedance",
     "Resonators",
@@ -110,6 +111,7 @@ from blond.physics.energy_reference_kick import ReferenceEnergyChange
 from blond.physics.impedances.base import WakeField
 from blond.physics.impedances.solvers import (
     InductiveImpedanceSolver,
+    MultiPoleSparseSolve,
     PeriodicFreqSolver,
     TimeDomainFftSolver,
 )
