@@ -29,6 +29,9 @@ from blond.handle_results.observables_as_elements import (
     InducedVoltageObservationCR,
 )
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.generator_current_pi_controller import (
+    GeneratorCurrentPIController,
+)
 from blond.physics.feedbacks.helpers import rf_beam_current
 from blond.physics.impedances.solvers import (
     MultiPassResonatorSolver,
@@ -324,6 +327,12 @@ def setup_and_run(  # noqa: PLR0915
             # = 0.1 (omega * dt = 2 pi for one rf period per coarse sample);
             # integral ~30x slower. Same tuning as the unit tests.
             gain_proportional = 0.1 / (R_over_Q * 2 * np.pi)
+            controller = GeneratorCurrentPIController(
+                gain_proportional=gain_proportional,
+                gain_integral=gain_proportional / (30 * t_rf),
+                feedforward=I_g,
+                n_delay=5,
+            )
             cav_fdbk = IQCavityFeedbackTimingClass(
                 profile=profile_list[-1],
                 R_over_Q=R_over_Q,
@@ -333,9 +342,7 @@ def setup_and_run(  # noqa: PLR0915
                 n_cavities=cav_per_station,
                 initial_voltage=voltage_per_cavity,
                 delta_omega=delta_omega,
-                gain_proportional=gain_proportional,
-                gain_integral=gain_proportional / (30 * t_rf),
-                loop_delay_samples=5,
+                controller=controller,
             )
         else:
             cav_fdbk = IQCavityFeedbackTimingClass(

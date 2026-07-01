@@ -2,13 +2,15 @@
 
 import os
 import unittest
-from unittest.mock import PropertyMock, patch
 
 import numpy as np
 
 from blond import StaticProfile
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
+)
+from blond.physics.feedbacks.generator_current_pi_controller import (
+    GeneratorCurrentPIController,
 )
 from blond.physics.feedbacks.helpers import cavity_response_sparse_matrix
 
@@ -46,12 +48,44 @@ I_BEAM = 0.02
 PLOT_DIAGNOSTICS: str | None = None
 
 
-def build_feedback(**kwargs):
+def build_controller(**kwargs):
     """
-    Construct an IQCavityFeedbackTimingClass with RCS1-like PI defaults.
+    Construct a GeneratorCurrentPIController with RCS1-like defaults.
 
     Parameters
     ----------
+    **kwargs
+        Overrides for the controller defaults.
+
+    Returns
+    -------
+    GeneratorCurrentPIController
+        Controller tuned like the unit-test feedback.
+    """
+    params = {
+        "gain_proportional": GAIN_P,
+        "gain_integral": GAIN_I,
+        "feedforward": I_FF + 0.0j,
+        "n_delay": N_DELAY,
+    }
+    params.update(kwargs)
+    return GeneratorCurrentPIController(**params)
+
+
+# Sentinel so ``controller=None`` explicitly selects the constant-feedforward
+# mode, distinct from "use the default PI controller".
+_DEFAULT_CONTROLLER = object()
+
+
+def build_feedback(controller=_DEFAULT_CONTROLLER, **kwargs):
+    """
+    Construct an IQCavityFeedbackTimingClass with RCS1-like defaults.
+
+    Parameters
+    ----------
+    controller
+        Controller to attach; defaults to :func:`build_controller`. Pass
+        None to build a constant-feedforward feedback.
     **kwargs
         Overrides for the constructor defaults.
 
@@ -60,6 +94,8 @@ def build_feedback(**kwargs):
     IQCavityFeedbackTimingClass
         Feedback instance initialised at the no-beam steady state.
     """
+    if controller is _DEFAULT_CONTROLLER:
+        controller = build_controller()
     params = {
         "profile": StaticProfile.from_rad(
             1.5 * np.pi, 4.5 * np.pi, N_BINS, T_RF
@@ -68,9 +104,7 @@ def build_feedback(**kwargs):
         "Q_L": Q_L,
         "generator_current": I_FF + 0.0j,
         "n_cavities": 1,
-        "gain_proportional": GAIN_P,
-        "gain_integral": GAIN_I,
-        "loop_delay_samples": N_DELAY,
+        "controller": controller,
         "voltage_setpoint": V0 + 0.0j,
         "initial_voltage": V0,
     }
@@ -487,29 +521,8 @@ def plot_single_pulse_vs_sustained(
     _finish_plot(fig, filename)
 
 
-class TestGeneratorCurrentLimit(unittest.TestCase):
-    """
-    Tests for the klystron power/current conversions on the feedback.
-
-    The magnitude clamp itself lives in the controller module and is tested
-    in ``test_generator_current_pi_controller.py``.
-    """
-
-    def test_max_current_from_power_conversion(self):
-        """Convert max_generator_power to the matched-generator current."""
-        p_max = 1e6
-        cav = build_feedback(max_generator_power=p_max)
-        expected = np.sqrt(2.0 * p_max / (R_OVER_Q * Q_L))
-        self.assertAlmostEqual(cav.max_generator_current, expected, places=15)
-        # The clamp current corresponds exactly to the power limit
-        self.assertAlmostEqual(
-            cav.generator_power(cav.max_generator_current), p_max, places=6
-        )
-
-    def test_power_and_current_limit_are_mutually_exclusive(self):
-        """Giving both a power and a current limit raises."""
-        with self.assertRaises(ValueError):
-            build_feedback(max_generator_power=1e6, max_generator_current=0.03)
+class TestGeneratorPower(unittest.TestCase):
+    """Tests for the klystron power diagnostic on the feedback."""
 
     def test_generator_power_formula(self):
         """Check the power formula P = 0.5 * (R/Q) * Q_L * |I|^2."""
@@ -524,7 +537,7 @@ class TestGeneratorCurrentLimit(unittest.TestCase):
 
 class _RecordingController:
     """
-    Stub PI controller recording its calls and returning a sentinel.
+    Stub controller recording its calls and returning a sentinel.
 
     Parameters
     ----------
@@ -555,16 +568,31 @@ class _RecordingController:
         self.calls.append((error, delta_t))
         return self.sentinel
 
+    def limit(self, generator_current):
+        """
+        Return the current unchanged (no actuator limit).
+
+        Parameters
+        ----------
+        generator_current
+            Generator current to (not) limit.
+
+        Returns
+        -------
+        generator_current
+            The input, unchanged.
+        """
+        return generator_current
+
 
 class TestFeedbackControllerDelegation(unittest.TestCase):
-    """The feedback computes the error/step and delegates to its controller."""
+    """The feedback forms the error/step and delegates to its controller."""
 
     def test_update_delegates_error_and_step_to_controller(self):
-        """The PI update hands the right error and step to the controller."""
-        cav = build_feedback()
+        """The controller update gets the right error and step."""
         sentinel = 0.077 + 0.011j
         stub = _RecordingController(sentinel)
-        cav._pi_controller = stub  # inject the stub
+        cav = build_feedback(controller=stub)
 
         idx = 3
         v_ant = 29.0e6 + 1.0e6j
@@ -587,47 +615,18 @@ class TestFeedbackControllerDelegation(unittest.TestCase):
         # ...and the controller's output is written to the coarse grid.
         self.assertEqual(cav.generator_current_coarse_grid[idx], sentinel)
 
-    def test_pi_update_skipped_when_inactive(self):
-        """With zero gains and no limit the PI controller is never invoked."""
-        cav = build_feedback(gain_proportional=0.0, gain_integral=0.0)
-        self.assertFalse(cav._pi_active)
-        stub = _RecordingController(0.0)
-        cav._pi_controller = stub
+    def test_no_controller_keeps_constant_feedforward(self):
+        """Without a controller the generator current stays at feedforward."""
+        cav = build_feedback(controller=None)
+        self.assertFalse(cav._controller_active)
 
         run_coarse_transient(
             cav, n_steps=50, beam_on_index=10, beam_current=0j
         )
 
-        # cavity_response never calls the controller, and the generator
-        # current stays at the constant feedforward value.
-        self.assertEqual(stub.calls, [])
         np.testing.assert_allclose(
             cav.generator_current_coarse_grid, I_FF, rtol=1e-12
         )
-
-
-class TestLoopDelayConversion(unittest.TestCase):
-    """Tests for the seconds -> samples loop-delay conversion."""
-
-    def _samples_for(self, loop_delay):
-        cav = build_feedback(loop_delay=loop_delay, loop_delay_samples=None)
-        with patch.object(
-            IQCavityFeedbackTimingClass,
-            "sampling_time_coarse",
-            new_callable=PropertyMock,
-            return_value=T_RF,
-        ):
-            return cav._loop_delay_in_samples()
-
-    def test_loop_delay_rounds_to_nearest_sample(self):
-        """The loop delay in seconds is rounded to coarse-grid samples."""
-        self.assertEqual(self._samples_for(5.2 * T_RF), 5)
-        self.assertEqual(self._samples_for(5.8 * T_RF), 6)
-
-    def test_loop_delay_samples_overrides_seconds(self):
-        """An explicit sample count takes precedence over seconds."""
-        cav = build_feedback(loop_delay=100.0 * T_RF, loop_delay_samples=3)
-        self.assertEqual(cav._loop_delay_in_samples(), 3)
 
 
 class TestHighIntensityBunchTransient(unittest.TestCase):
@@ -719,7 +718,9 @@ class TestKlystronPowerLimit(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Run the limited transient once and share the result."""
-        cls.cav = build_feedback(max_generator_current=cls.i_max)
+        cls.cav = build_feedback(
+            controller=build_controller(max_output=cls.i_max)
+        )
         run_coarse_transient(cls.cav, cls.n_steps, cls.beam_on, I_BEAM + 0.0j)
         cls.v_ant = cls.cav.antenna_voltage_coarse_grid
         cls.i_gen = cls.cav.generator_current_coarse_grid
@@ -778,7 +779,9 @@ class TestSinglePulseBunchTransient(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Run the single-pulse and sustained transients (both clamped)."""
-        cls.cav = build_feedback(max_generator_current=cls.i_max)
+        cls.cav = build_feedback(
+            controller=build_controller(max_output=cls.i_max)
+        )
         run_coarse_transient(
             cls.cav,
             cls.n_steps,
@@ -789,7 +792,9 @@ class TestSinglePulseBunchTransient(unittest.TestCase):
         cls.v_pulse = cls.cav.antenna_voltage_coarse_grid
         cls.i_pulse = cls.cav.generator_current_coarse_grid
 
-        cls.cav_sustained = build_feedback(max_generator_current=cls.i_max)
+        cls.cav_sustained = build_feedback(
+            controller=build_controller(max_output=cls.i_max)
+        )
         run_coarse_transient(
             cls.cav_sustained, cls.n_steps, cls.beam_on, I_BEAM + 0.0j
         )
@@ -848,7 +853,7 @@ class TestResponseMatrixClamping(unittest.TestCase):
     def test_fine_grid_solve_uses_clamped_generator_current(self):
         """Clamp I_gen before the fine-grid response-matrix solve."""
         i_max = 0.03
-        cav = build_feedback(max_generator_current=i_max)
+        cav = build_feedback(controller=build_controller(max_output=i_max))
         profile = cav.profile
         samples_per_rf = OMEGA_RF * profile.hist_step
 
@@ -916,7 +921,7 @@ class TestPerProfileVoltageOverTurns(unittest.TestCase):
     def setUpClass(cls):
         """Run the multi-turn transient once and share the result."""
         cls.cav = build_feedback(
-            loop_delay_samples=1, gain_integral=GAIN_I * 15.0
+            controller=build_controller(n_delay=1, gain_integral=GAIN_I * 15.0)
         )
         cls.hist_x, cls.fine_v = run_multi_turn_fine_grid(
             cls.cav,

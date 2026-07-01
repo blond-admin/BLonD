@@ -18,6 +18,7 @@ the error-to-current conversion instead of implementing it inline.
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections import deque
 from typing import TYPE_CHECKING
 
@@ -25,6 +26,32 @@ import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
+
+
+def current_limit_from_power(
+    power: float, R_over_Q: float, Q_L: float
+) -> float:
+    r"""
+    Convert a klystron forward-power limit to a generator-current limit.
+
+    Uses the matched-generator relation
+    :math:`I_\mathsf{max} = \sqrt{2 P / ((R/Q)\,Q_L)}`.
+
+    Parameters
+    ----------
+    power
+        Available klystron forward power per cavity [W].
+    R_over_Q
+        Geometric shunt impedance of the cavity [Ohm].
+    Q_L
+        Loaded quality factor of the cavity.
+
+    Returns
+    -------
+    max_current
+        Corresponding maximum generator-current magnitude [A].
+    """
+    return float(np.sqrt(2.0 * power / (R_over_Q * Q_L)))
 
 
 def clamp_magnitude(
@@ -60,7 +87,62 @@ def clamp_magnitude(
     return value * scale
 
 
-class GeneratorCurrentPIController:
+class GeneratorCurrentController(ABC):
+    """
+    Interface between a cavity feedback and its generator-current controller.
+
+    A controller converts, at each coarse-grid sample, the antenna-voltage
+    error into a generator-current command (:meth:`update`) and can clamp a
+    current to the actuator limit on the fine grid (:meth:`limit`). It carries
+    all of its own tuning and state, so the feedback holds only an instance of
+    this interface and does not know the control law.
+    """
+
+    @abstractmethod
+    def update_generator_current(
+        self, error: complex, delta_t: float
+    ) -> complex:
+        """
+        Map one antenna-voltage error sample to a generator current.
+
+        Parameters
+        ----------
+        error
+            Antenna-voltage error of this sample, ``V_set - V_ant`` [V].
+        delta_t
+            Time step of this sample [s].
+
+        Returns
+        -------
+        generator_current
+            The generator-current command for this sample [A].
+        """
+
+    def limit(
+        self, generator_current: complex | NumpyArray
+    ) -> complex | NumpyArray:
+        """
+        Clamp a generator current to the actuator (klystron) limit.
+
+        The base implementation applies no limit; controllers with a
+        klystron current limit override this. It is used to enforce the
+        limit on the fine grid, where the current is not produced by
+        :meth:`update`.
+
+        Parameters
+        ----------
+        generator_current
+            Generator current [A], scalar or array.
+
+        Returns
+        -------
+        limited
+            The input, limited to the actuator range.
+        """
+        return generator_current
+
+
+class GeneratorCurrentPIController(GeneratorCurrentController):
     r"""
     Saturating PI controller mapping a voltage error to a generator current.
 
@@ -133,7 +215,9 @@ class GeneratorCurrentPIController:
         """
         return self._integral
 
-    def update(self, error: complex, delta_t: float) -> complex:
+    def update_generator_current(
+        self, error: complex, delta_t: float
+    ) -> complex:
         """
         Advance the controller by one sample and return the current command.
 
@@ -168,3 +252,21 @@ class GeneratorCurrentPIController:
             self._integral = candidate_integral
 
         return clamp_magnitude(output, self.max_output)
+
+    def limit(
+        self, generator_current: complex | NumpyArray
+    ) -> complex | NumpyArray:
+        """
+        Clamp a generator current to this controller's klystron limit.
+
+        Parameters
+        ----------
+        generator_current
+            Generator current [A], scalar or array.
+
+        Returns
+        -------
+        limited
+            The input with ``|I_gen| <= max_output`` (unchanged if no limit).
+        """
+        return clamp_magnitude(generator_current, self.max_output)

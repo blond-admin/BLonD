@@ -5,8 +5,10 @@ import unittest
 import numpy as np
 
 from blond.physics.feedbacks.generator_current_pi_controller import (
+    GeneratorCurrentController,
     GeneratorCurrentPIController,
     clamp_magnitude,
+    current_limit_from_power,
 )
 
 
@@ -47,6 +49,38 @@ class TestClampMagnitude(unittest.TestCase):
         self.assertEqual(clamp_magnitude(value, None), value)
 
 
+class TestCurrentLimitFromPower(unittest.TestCase):
+    """Tests for the klystron power -> current-limit conversion."""
+
+    def test_matched_generator_relation(self):
+        """I_max = sqrt(2 P / ((R/Q) Q_L))."""
+        p_max, r_over_q, q_l = 1e6, 518.0, 1.2876e6
+        self.assertAlmostEqual(
+            current_limit_from_power(p_max, r_over_q, q_l),
+            np.sqrt(2.0 * p_max / (r_over_q * q_l)),
+            places=15,
+        )
+
+
+class TestAbstractController(unittest.TestCase):
+    """Tests for the abstract controller interface."""
+
+    def test_cannot_instantiate_abstract_base(self):
+        """The interface has an abstract update() and cannot be built."""
+        with self.assertRaises(TypeError):
+            GeneratorCurrentController()
+
+    def test_default_limit_is_a_no_op(self):
+        """The base limit() applies no actuator limit."""
+
+        class _Trivial(GeneratorCurrentController):
+            def update_generator_current(self, error, delta_t):
+                return 0.0 + 0.0j
+
+        value = np.array([5.0, -3.0j, 1.0 + 1.0j])
+        np.testing.assert_array_equal(_Trivial().limit(value), value)
+
+
 class TestGeneratorCurrentPIController(unittest.TestCase):
     """Tests for the PI controller error -> generator-current mapping."""
 
@@ -55,8 +89,13 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
         controller = GeneratorCurrentPIController(
             gain_proportional=0.0, gain_integral=0.0, feedforward=0.02
         )
-        self.assertEqual(controller.update(error=1e6, delta_t=1e-9), 0.02)
-        self.assertEqual(controller.update(error=-3e5j, delta_t=1e-9), 0.02)
+        self.assertEqual(
+            controller.update_generator_current(error=1e6, delta_t=1e-9), 0.02
+        )
+        self.assertEqual(
+            controller.update_generator_current(error=-3e5j, delta_t=1e-9),
+            0.02,
+        )
 
     def test_proportional_only(self):
         """Pure P control returns feedforward + K_p * error."""
@@ -64,7 +103,7 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
             gain_proportional=2e-8, gain_integral=0.0, feedforward=0.02
         )
         error = 1.0e6 + 0.5e6j
-        out = controller.update(error=error, delta_t=1e-9)
+        out = controller.update_generator_current(error=error, delta_t=1e-9)
         self.assertAlmostEqual(out, 0.02 + 2e-8 * error, places=15)
 
     def test_loop_delay_holds_output_until_error_propagates(self):
@@ -79,9 +118,11 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
         error = 1.0e6
         # The first n_delay updates still act on the zero-prefilled errors.
         for _ in range(n_delay):
-            self.assertEqual(controller.update(error, delta_t=1e-9), 0.02)
+            self.assertEqual(
+                controller.update_generator_current(error, delta_t=1e-9), 0.02
+            )
         # The (n_delay + 1)-th update finally acts on the first error.
-        out = controller.update(error, delta_t=1e-9)
+        out = controller.update_generator_current(error, delta_t=1e-9)
         self.assertAlmostEqual(out, 0.02 + 1e-8 * error, places=15)
 
     def test_integral_accumulates_linearly(self):
@@ -95,7 +136,9 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
             feedforward=0.02,
         )
         for step in range(1, 6):
-            out = controller.update(error=error, delta_t=delta_t)
+            out = controller.update_generator_current(
+                error=error, delta_t=delta_t
+            )
             expected_integral = step * error * delta_t
             self.assertAlmostEqual(
                 controller.integral, expected_integral, places=15
@@ -117,8 +160,8 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
             gain_proportional=0.0, gain_integral=1.0, feedforward=0.0
         )
         for _ in range(10):
-            out = limited.update(error=10.0, delta_t=1.0)
-            free.update(error=10.0, delta_t=1.0)
+            out = limited.update_generator_current(error=10.0, delta_t=1.0)
+            free.update_generator_current(error=10.0, delta_t=1.0)
         # The output is clamped and the integral never accumulated.
         self.assertLessEqual(np.abs(out), 1.0 + 1e-12)
         self.assertEqual(limited.integral, 0.0)
@@ -134,10 +177,10 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
             max_output=1.0,
         )
         for _ in range(5):
-            controller.update(error=10.0, delta_t=1.0)
+            controller.update_generator_current(error=10.0, delta_t=1.0)
         self.assertEqual(controller.integral, 0.0)  # frozen while saturated
         # A small error keeps the output within the limit, so it integrates.
-        controller.update(error=0.1, delta_t=1.0)
+        controller.update_generator_current(error=0.1, delta_t=1.0)
         self.assertAlmostEqual(controller.integral, 0.1, places=15)
 
     def test_output_magnitude_is_clamped_with_phase_preserved(self):
@@ -149,9 +192,31 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
             max_output=2.0,
         )
         error = 5.0 * np.exp(1j * 0.9)
-        out = controller.update(error=error, delta_t=1e-9)
+        out = controller.update_generator_current(error=error, delta_t=1e-9)
         self.assertAlmostEqual(np.abs(out), 2.0, places=12)
         self.assertAlmostEqual(np.angle(out), np.angle(error), places=12)
+
+    def test_limit_clamps_an_array_to_max_output(self):
+        """Enforce the klystron limit on an external current array."""
+        controller = GeneratorCurrentPIController(
+            gain_proportional=0.0,
+            gain_integral=0.0,
+            feedforward=0.0,
+            max_output=0.03,
+        )
+        values = np.array([0.0 + 0.0j, 0.05, 0.04 + 0.04j])
+        out = controller.limit(values)
+        np.testing.assert_allclose(
+            np.abs(out), np.minimum(np.abs(values), 0.03), rtol=1e-12
+        )
+
+    def test_limit_is_a_no_op_without_a_limit(self):
+        """Without max_output, limit() returns the input unchanged."""
+        controller = GeneratorCurrentPIController(
+            gain_proportional=0.0, gain_integral=0.0, feedforward=0.0
+        )
+        value = 0.5 + 0.5j
+        self.assertEqual(controller.limit(value), value)
 
     def test_negative_delay_is_rejected(self):
         """A negative loop delay is a programming error."""
