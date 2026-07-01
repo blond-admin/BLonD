@@ -204,6 +204,11 @@ One GitLab MR per item, each on its own branch off `blonder`
 - **Pre-commit before every `git commit`** — see the callout above; this is not
   optional.
 - Commit messages: past tense ("Fixed …", "Added …"), body explains *why*.
+- **MR descriptions: brief and informative — aim for the middle.** A single line
+  is too little (don't just restate the title); a long, exhaustive write-up is too
+  much and annoying to read. Target a short summary of *what* changed and *why*,
+  plus anything a reviewer genuinely needs (breaking changes, follow-ups) — a few
+  sentences or a handful of bullets, not paragraphs.
 - When working a review backlog, tick items in `REVIEW_TODO.md` (repo root, untracked)
   with branch + commit hash.
 
