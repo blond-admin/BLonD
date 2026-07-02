@@ -35,7 +35,10 @@ extern "C" void histogram(const real_t *__restrict__ input,
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
     memset(histo[id], 0, n_slices * sizeof(int));
-    float fbin[STEP] = {-1};
+    // Keep the bin index in double until it is range-checked: a float
+    // cannot represent indices above 2^24 exactly, and converting an
+    // out-of-range double to int is undefined behaviour.
+    double fbin[STEP] = {-1};
 #pragma omp for
     for (int i = 0; i < n_macroparticles; i += STEP) {
 
@@ -53,10 +56,9 @@ extern "C" void histogram(const real_t *__restrict__ input,
       }
       // Then update the corresponding bins
       for (int j = 0; j < loop_count; j++) {
-        const int bin = (int)fbin[j];
-        if (bin < 0 || bin >= n_slices)
+        if (fbin[j] < 0.0 || fbin[j] >= (double)n_slices)
           continue;
-        histo[id][bin] += 1.;
+        histo[id][(int)fbin[j]] += 1;
       }
     }
 

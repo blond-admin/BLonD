@@ -22,7 +22,7 @@ import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
 
-from blond import backend
+from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, Preparable
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -74,7 +74,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         self._buffer_voltage = OrderedDict()
         self._buffer_time_axis = OrderedDict()
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -82,34 +82,43 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        self.clear_buffer()
+        super().on_init_simulation(simulation=simulation, **kwargs)
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs,
-    ) -> None:
+    def configure(self, **kwargs) -> None:
         """
-        Prepare the beam before the simulation starts running.
-
-        This method is automatically called when `simulation.run_simulation()`
-        is invoked, allowing the beam to perform any necessary setup before
-        the turn-by-turn tracking begins.
+        Clear the voltage buffer on (re-)initialization.
 
         Parameters
         ----------
-        simulation
-            The simulation object managing the beam dynamics.
-        beam
-            The beam object being simulated (typically this beam itself).
-        n_turns
-            The total number of turns (revolutions) to simulate.
         **kwargs
-            Additional keyword arguments for simulation setup.
+            Passed to the next level in the MRO chain.
         """
+        super().configure(**kwargs)
+        self.clear_buffer()
+
+    def configure_run(
+        self,
+        *,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Clear the voltage buffer at the start of each simulation run.
+
+        Parameters
+        ----------
+        beam
+            The beam being simulated.
+        n_turns
+            Number of turns for this run.
+        **kwargs
+            Simulation-extracted values; passed to the next MRO level.
+        """
+        super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
         self.clear_buffer()
 
     def clear_buffer(self) -> None:
@@ -220,34 +229,7 @@ class SupportsPooledInterpolationKickMixIn(Preparable):
         super().__init__()
         self._delayed_kick = delayed_kick
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        super().on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            n_turns=n_turns,
-        )
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -255,8 +237,10 @@ class SupportsPooledInterpolationKickMixIn(Preparable):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
+        super().on_init_simulation(simulation=simulation, **kwargs)
         if self._delayed_kick is not None:
             self._check_executor_in_pipeline(simulation=simulation)
 

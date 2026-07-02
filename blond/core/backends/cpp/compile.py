@@ -39,6 +39,7 @@ cpp_files = [
     "loss_box.cpp",
     "move_flagged_elements_to_end.cpp",
     "poles.cpp",
+    "synchrotron_radiation_and_quantum_excitation.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
 ]
@@ -81,7 +82,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     compiler: str = "g++",
     libs: str = "",
     flags: str = "",
-    optimize: bool = False,
+    optimize: bool = True,
     libname: str | None = None,
 ) -> None:
     """
@@ -108,7 +109,8 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     flags : str
         Additional compiler flags as a space-separated string (e.g., "-O2 -Wall").
     optimize : bool
-        If True, enable post-compilation optimizations.
+        If True (default), add `-march=native`, `-ffast-math` and
+        CPU-specific vectorization flags (AVX/SSE/FMA).
     libname : str
         Path and name of the output library (without file extension).
 
@@ -148,8 +150,10 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             "-shared",
             "-funroll-loops",  # Aggressive loop unrolling
             "-ftree-vectorize",
-            "-march=native",
         ]
+        if optimize:
+            # CPU-specific; --no-optimize keeps the binary portable
+            cflags += ["-march=native"]
         # Some additional warning reporting related flags
         cflags += [
             "-Wall",
@@ -413,7 +417,7 @@ def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         text=True,
-        check=True,
+        check=False,
     )
     # If we have an error
     if proc.returncode != 0:
@@ -532,9 +536,10 @@ def main_cli() -> None:
     parser.add_argument(
         "-optimize",
         "--optimize",
-        type=bool,
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Auto optimize the compiled library.",
+        help="Auto optimize the compiled library"
+        " (disable with --no-optimize).",
     )
 
     # Parse command line options

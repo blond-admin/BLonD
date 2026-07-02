@@ -28,11 +28,16 @@ from blond import (
     copy_to_cpu,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.core.base import ScheduledArray
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
@@ -80,7 +85,7 @@ def main(
     barrier_voltage[500:] = barrier_amplitude
     barrier_schedule = ScheduledArray(barrier_voltage)
 
-    barrier_rf.schedule(attribute="peak", value=barrier_schedule)
+    barrier_rf.schedule(attribute="peak_voltage", value=barrier_schedule)
 
     drift = DriftSimple(
         orbit_length=circumference,
