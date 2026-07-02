@@ -94,18 +94,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         self._damping_time: float | None = None
         self._natural_energy_spread: float | None = None
 
-    @property
-    def share_of_radiation_integrals(self) -> NumpyArray | None:
-        """
-        Synchrotron radiation integrals of the drift.
-
-        Returns
-        -------
-        synchrotron_radiation_integrals_drift
-            Synchrotron radiation integrals of the drift.
-        """
-        return self._share_of_radiation_integrals
-
     def _apply_kick(
         self,
         beam: BeamBaseClass,

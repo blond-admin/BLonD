@@ -430,7 +430,7 @@ class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
                 reference_time=float(self.beam.reference.time),
             )
             np.random.seed(seed=self.seed)
-            _ = self.SRB._calculate_kick(
+            self.SRB._apply_kick(
                 beam=self.beam,
             )
 
