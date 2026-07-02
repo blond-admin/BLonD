@@ -294,6 +294,11 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
 
+        # Number of RF stations in the ring, counted at run start. With more
+        # than one station, the delta_omega_rf setter forbids changes (see
+        # its docstring); None (before run start) leaves changes warn-only.
+        self._n_rf_stations_in_ring: int | None = None
+
         self.omega_rf_design: NumpyArray | float | None = None
         """Design angular frequency relating to the harmonic numbers, in [rad/s]."""
 
@@ -313,6 +318,17 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         self.phase_correction_frequency_offset: NumpyArray | float | None = (
             None
         )
+
+        # Reference time of the last beam passage, used to accumulate the
+        # delta_omega_rf phase slip from the actually elapsed time (see
+        # _update_delta_phi_rf_from_beam_feedback). None until first passage.
+        self._last_reference_time_phase_slip: float | None = None
+
+        # Whether any beam feedback (phase loop) exists in the simulation,
+        # detected at run start. A beam feedback is the only supported
+        # runtime writer of delta_omega_rf, so only then does the phase-slip
+        # clock have to follow every passage while the offset is still zero.
+        self._beam_feedback_in_simulation: bool = False
 
         self.voltage: NumpyArray | float | None = None
         """Voltage/s, in [V]."""
@@ -389,17 +405,32 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     @delta_omega_rf.setter
     def delta_omega_rf(self, value: NumpyArray | float | None) -> None:
         """
-        Store the RF angular-frequency offset, warning on post-init changes.
+        Store the RF angular-frequency offset, guarding post-init changes.
 
         The first assignment (during ``__init__``, when no previous value
         exists) is silent, and re-assigning the current value is silent too. A
-        change to a *different* value after initialisation emits a
-        ``UserWarning``: downstream cavity feedbacks sample ``delta_omega_rf``
-        once per turn and treat it as constant within a turn's tracking, so it
-        is meant to be a (near-)static configuration. A slow frequency loop
-        updating it at most once per turn is fine; a mid-turn change would make
-        the coarse-grid sampling inconsistent. The write itself is never
-        blocked -- the warning only flags it.
+        change to a *different* value after initialisation is guarded:
+        downstream cavity feedbacks sample ``delta_omega_rf`` once per turn
+        and treat it as constant within a turn's tracking, so it is meant to
+        be a (near-)static configuration.
+
+        * In a **single-station** ring the change emits a ``UserWarning``: a
+          slow frequency loop updating it at most once per turn (i.e. at the
+          turn boundary, which coincides with the station boundary) is fine,
+          but a mid-turn change would make the coarse-grid sampling
+          inconsistent. The write itself is not blocked.
+        * In a **multi-station** ring (known once ``on_run_simulation`` has
+          counted the stations) the change raises a ``RuntimeError``: the
+          cavity-feedback reference tracking spans the *other* stations'
+          sections and reconstructs past segments with the current offset, so
+          every change is effectively mid-turn for some feedback and cannot
+          be applied consistently.
+
+        Runtime writers should be beam feedbacks (``BeamFeedbackBase``),
+        which are detected at run start to arm the phase-slip clock. Custom
+        code switching the offset on from exactly zero mid-run without a beam
+        feedback in the ring loses the first active revolution's phase slip
+        (the elapsed time is only measured once the clock is armed).
 
         Parameters
         ----------
@@ -409,6 +440,16 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         old = getattr(self, "_delta_omega_rf", None)
         if old is not None and np.any(value != old):
+            n_stations = getattr(self, "_n_rf_stations_in_ring", None)
+            if n_stations is not None and n_stations > 1:
+                raise RuntimeError(
+                    "delta_omega_rf can not be changed while the ring has "
+                    "more than one RF station: the cavity-feedback reference "
+                    "tracking spans the other stations' sections, so any "
+                    "change during the run is effectively mid-turn and would "
+                    "be applied inconsistently across segments. Configure "
+                    "delta_omega_rf before run_simulation()."
+                )
             warnings.warn(
                 "delta_omega_rf changed after initialisation; the cavity "
                 "feedback samples it once per turn and treats it as constant "
@@ -496,6 +537,53 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Simulation-extracted kwargs collected by the MRO chain.
         """
         super().on_run_simulation(simulation, beam, n_turns, **kwargs)
+        self._update_n_rf_stations_in_ring(simulation)
+        self._update_beam_feedback_presence(simulation)
+
+    def _update_beam_feedback_presence(self, simulation: Simulation) -> None:
+        """
+        Detect whether any beam feedback (phase loop) exists in the simulation.
+
+        Called at run start. A beam feedback is the only supported runtime
+        writer of ``delta_omega_rf``, so its presence decides whether the
+        phase-slip clock has to follow every passage even while the offset is
+        still zero (see the gate in ``_track``). Both wirings are detected:
+        beam feedbacks placed as ring elements and beam feedbacks attached to
+        any RF station.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager providing the ring.
+        """
+        # Runtime import, mirroring attach_beam_feedback (avoids the cyclic
+        # import of the experimental feedback module at class-definition time).
+        from blond.experimental.physics.feedbacks.beam_feedback import (
+            BeamFeedbackBase,
+        )
+
+        stations = simulation.ring.elements.get_elements(RFStationBaseClass)
+        self._beam_feedback_in_simulation = bool(
+            simulation.ring.elements.get_elements(BeamFeedbackBase)
+        ) or any(station._beam_feedback is not None for station in stations)
+
+    def _update_n_rf_stations_in_ring(self, simulation: Simulation) -> None:
+        """
+        Count the RF stations in the ring and arm the delta_omega_rf guard.
+
+        Called at run start. With more than one station in the ring, the
+        ``delta_omega_rf`` setter raises on any change (see its docstring):
+        the cavity-feedback reference tracking spans the other stations'
+        sections, so a change during the run cannot be applied consistently.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager providing the ring.
+        """
+        self._n_rf_stations_in_ring = len(
+            simulation.ring.elements.get_elements(RFStationBaseClass)
+        )
 
     def configure_run(
         self,
@@ -943,8 +1031,24 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
-        if np.any(self.delta_omega_rf != 0):
-            self._update_delta_phi_rf_from_beam_feedback()
+        # Accumulate the delta_omega_rf phase slip of the revolution that just
+        # completed. This must stay *here* (end of the station track, before
+        # any beam-feedback ring element behind the station updates
+        # delta_omega_rf for the next revolution), so the currently active
+        # offset is paired with the revolution it acted on -- the blond2
+        # convention the LHC comparisons rely on.
+        # With a beam feedback in the simulation the clock must follow every
+        # passage even while the offset is still zero -- otherwise the first
+        # revolution after the loop switches the offset on would be lost (or
+        # span a stale gap), shifting the loop transient by one turn. Without
+        # one, only a static nonzero offset can produce a slip; a simulation
+        # with neither skips the bookkeeping entirely.
+        if self._beam_feedback_in_simulation or np.any(
+            self.delta_omega_rf != 0
+        ):
+            self._update_delta_phi_rf_from_beam_feedback(
+                reference_time=beam.reference.time
+            )
 
     def _track_interp(
         self,
@@ -968,24 +1072,51 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 acceleration_kick=-reference_energy_change,  # Mind the minus!
             )
 
-    def _update_delta_phi_rf_from_beam_feedback(self) -> None:
-        """
-        Update the phase slip for the next turn depending on the frequency change from the beam feedback.
+    def _update_delta_phi_rf_from_beam_feedback(
+        self, reference_time: float
+    ) -> None:
+        r"""
+        Accumulate the RF phase slip caused by ``delta_omega_rf``.
 
-        Update the RF phase of all systems for the next turn
-        Accumulated phase offset due to beam phase loop or frequency offset.
-        """
-        phi_increment = (
-            2.0
-            * np.pi
-            * self.harmonic
-            * self.delta_omega_rf
-            / self.omega_rf_design
-            # / self.calc_omega_rf_design(beam.reference.beta, self._ring.circumference)
-            # TODO: this is wrong, beam is not yet tracked, i.e. reference is too low
-        )
+        A frequency offset :math:`\delta\omega` slips the RF phase by
+        :math:`\delta\omega \cdot \Delta t` between two beam passages, where
+        :math:`\Delta t` is the *actually elapsed* reference time. Integrating
+        the elapsed time directly is exact under acceleration and per station
+        -- unlike the former per-turn lump
+        ``2 pi harmonic delta_omega_rf / omega_rf_design``, which had to
+        predict the coming revolution period from a design frequency whose
+        reference state belongs to the wrong turn (it is not yet tracked when
+        the increment is computed), so its error integrated over a ramp.
 
-        self.phase_correction_frequency_offset += phi_increment
+        Called at the *end* of each station ``_track`` -- the same moment the
+        former lump was added, and deliberately so: a beam-feedback (phase
+        loop) placed behind the station in the ring writes ``delta_omega_rf``
+        *after* the station tracks, so sampling the offset here pairs the
+        currently active value with the revolution it actually acted on (the
+        blond2 convention the LHC comparisons rely on). The accumulated offset
+        is copied into ``delta_phi_rf`` at the start of the *next* turn's
+        ``_track``. The first passage only initialises the clock: no
+        revolution has elapsed yet, so there is no slip to add (matching the
+        former behaviour, where ``delta_omega_rf`` is still zero at that
+        point in practice). The clock also advances while
+        ``delta_omega_rf == 0``, so an offset switched on later accumulates
+        only from the most recent passage. The caller (``_track``) only
+        invokes this when a beam feedback exists in the simulation or the
+        offset is nonzero -- with neither, no slip can ever arise and the
+        bookkeeping is skipped.
+
+        Parameters
+        ----------
+        reference_time
+            Beam reference time [s] at the current station passage.
+        """
+        if self._last_reference_time_phase_slip is not None:
+            self.phase_correction_frequency_offset = (
+                self.phase_correction_frequency_offset
+                + self.delta_omega_rf
+                * (reference_time - self._last_reference_time_phase_slip)
+            )
+        self._last_reference_time_phase_slip = reference_time
 
     def track_reference(
         self,

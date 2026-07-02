@@ -181,6 +181,158 @@ class TestRFStationBaseClass(unittest.TestCase):
         ):
             shc.delta_omega_rf = 1.0e3
 
+    def test_delta_omega_rf_change_raises_in_multi_station_ring(self):
+        shc = SingleHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
+        )
+        # Simulate run start in a ring with more than one RF station.
+        shc._n_rf_stations_in_ring = 2
+        # Re-assigning the same value stays silent.
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            shc.delta_omega_rf = shc.delta_omega_rf
+        # Changing it is forbidden: the cavity-feedback reference tracking
+        # spans the other stations' sections, so a change during the turn
+        # would be applied inconsistently across segments.
+        with self.assertRaisesRegex(RuntimeError, "more than one RF station"):
+            shc.delta_omega_rf = 1.0e3
+
+    def test_on_run_simulation_counts_rf_stations_in_ring(self):
+        from blond.physics.cavities import RFStationBaseClass
+
+        shc = SingleHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
+        )
+        other = SingleHarmonicRFStation(
+            section_index=2,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
+        )
+        simulation = Mock()
+        simulation.ring.elements.get_elements.return_value = (shc, other)
+        shc._update_n_rf_stations_in_ring(simulation)
+        self.assertEqual(shc._n_rf_stations_in_ring, 2)
+        simulation.ring.elements.get_elements.assert_called_once_with(
+            RFStationBaseClass
+        )
+
+    def test_beam_feedback_presence_detection(self):
+        from blond.experimental.physics.feedbacks.beam_feedback import (
+            BeamFeedbackBase,
+        )
+        from blond.physics.cavities import RFStationBaseClass
+
+        shc = SingleHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
+        )
+
+        def ring_with(stations, loops):
+            simulation = Mock()
+
+            def fake_get_elements(class_):
+                if class_ is RFStationBaseClass:
+                    return stations
+                if class_ is BeamFeedbackBase:
+                    return loops
+                return ()
+
+            simulation.ring.elements.get_elements.side_effect = (
+                fake_get_elements
+            )
+            return simulation
+
+        # No loop anywhere -> clock does not need to lead.
+        shc._update_beam_feedback_presence(ring_with((shc,), ()))
+        self.assertFalse(shc._beam_feedback_in_simulation)
+
+        # Loop as a ring element -> present.
+        shc._update_beam_feedback_presence(
+            ring_with((shc,), (Mock(BeamFeedbackBase),))
+        )
+        self.assertTrue(shc._beam_feedback_in_simulation)
+
+        # Loop only attached to (another) station -> present.
+        other = SingleHarmonicRFStation(
+            section_index=2,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
+        )
+        other._beam_feedback = Mock(BeamFeedbackBase)
+        shc._update_beam_feedback_presence(ring_with((shc, other), ()))
+        self.assertTrue(shc._beam_feedback_in_simulation)
+
+    def test_delta_omega_rf_phase_slip_uses_actual_elapsed_time(self):
+        shc = SingleHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
+        )
+        delta_omega = 2.0 * np.pi * 100.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            shc.delta_omega_rf = delta_omega
+
+        # First passage only initialises the phase-slip clock.
+        shc._update_delta_phi_rf_from_beam_feedback(reference_time=1.0e-6)
+        self.assertEqual(shc.phase_correction_frequency_offset, 0.0)
+
+        # Second passage: slip is delta_omega times the actually elapsed
+        # reference time (one revolution).
+        shc._update_delta_phi_rf_from_beam_feedback(reference_time=3.0e-6)
+        np.testing.assert_allclose(
+            shc.phase_correction_frequency_offset,
+            delta_omega * 2.0e-6,
+            rtol=1e-15,
+        )
+
+        # Third passage with a *different* revolution time (acceleration):
+        # the accumulated slip stays exact, delta_omega * total elapsed time.
+        shc._update_delta_phi_rf_from_beam_feedback(reference_time=4.5e-6)
+        np.testing.assert_allclose(
+            shc.phase_correction_frequency_offset,
+            delta_omega * 3.5e-6,
+            rtol=1e-15,
+        )
+
+    def test_delta_omega_rf_phase_slip_clock_advances_while_offset_is_zero(
+        self,
+    ):
+        shc = SingleHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
+        )
+        # delta_omega_rf is 0 -> no slip, but the clock must still follow.
+        shc._update_delta_phi_rf_from_beam_feedback(reference_time=1.0e-6)
+        shc._update_delta_phi_rf_from_beam_feedback(reference_time=2.0e-6)
+        self.assertEqual(shc.phase_correction_frequency_offset, 0.0)
+
+        # Switching the offset on later must accumulate only from the last
+        # passage, not from the (stale) first one.
+        delta_omega = 2.0 * np.pi * 50.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            shc.delta_omega_rf = delta_omega
+        shc._update_delta_phi_rf_from_beam_feedback(reference_time=3.0e-6)
+        np.testing.assert_allclose(
+            shc.phase_correction_frequency_offset,
+            delta_omega * 1.0e-6,
+            rtol=1e-15,
+        )
+
     def test__get_gap_voltage_per_harmonic(self):
         def calc_rf_waveform(
             _time_arr, _omega, _phi, _voltage, _v_corr=1, _phi_corr=0
@@ -354,6 +506,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         simulation.ring.section_lengths = np.array(
             [simulation.ring.circumference]
         )
+        simulation.ring.elements.get_elements.return_value = (mhc,)
         simulation.magnetic_cycle = Mock(ConstantMagneticCycle)
         simulation.magnetic_cycle.get_target_total_energy.return_value = 1.0
 
@@ -410,6 +563,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         simulation.ring.section_lengths = np.array(
             [simulation.ring.circumference]
         )
+        simulation.ring.elements.get_elements.return_value = (mhc,)
         simulation.magnetic_cycle = Mock(ConstantMagneticCycle)
         simulation.magnetic_cycle.get_target_total_energy.return_value = 1.0
 
@@ -466,6 +620,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         simulation.ring.section_lengths = np.array(
             [simulation.ring.circumference]
         )
+        simulation.ring.elements.get_elements.return_value = (mhc_feedbacks,)
 
         mhc_feedbacks.on_init_simulation(simulation=simulation)
         mhc_feedbacks.on_run_simulation(
@@ -805,18 +960,47 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         self.assertTrue(delayed_kick_mock.register.called)
 
     def test_track_increments(self) -> None:
-        self.multi_harmonic_cavity
-        self.multi_harmonic_cavity.delta_omega_rf = (
-            0.1 * self.multi_harmonic_cavity.omega_rf_design
-        )
+        delta_omega_rf = 0.1 * self.multi_harmonic_cavity.omega_rf_design
+        self.multi_harmonic_cavity.delta_omega_rf = delta_omega_rf
+        # The slip accumulates from the actually elapsed reference time, so
+        # advance the (mocked) reference clock between the passages as the
+        # drifts of a real ring would.
+        t_rev = 1.0e-6
         phi_a = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        # First passage initialises the slip clock, no slip yet.
         self.multi_harmonic_cavity.track(beam=self.beam)
         phi_b = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        # One revolution elapses; its slip is accumulated at the end of the
+        # second passage and applied to the phase of the third.
+        self.beam.reference.time += t_rev
         self.multi_harmonic_cavity.track(beam=self.beam)
         phi_c = self.multi_harmonic_cavity.delta_phi_rf.copy()
-        print(phi_a, phi_b, phi_c)
-        self.assertTrue(phi_a[0] == phi_b[0] < phi_c[0])
+        self.beam.reference.time += t_rev
+        self.multi_harmonic_cavity.track(beam=self.beam)
+        phi_d = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        self.assertTrue(phi_a[0] == phi_b[0] == phi_c[0] < phi_d[0])
+        np.testing.assert_allclose(
+            phi_d, phi_c + delta_omega_rf * t_rev, rtol=1e-15
+        )
         # since the change will act on the next turn, the first two will be equivalent
+
+    def test_slip_clock_only_runs_with_beam_feedback_or_offset(self) -> None:
+        # delta_omega_rf is zero and no beam feedback exists in the
+        # simulation: nothing can introduce a phase slip, so the slip
+        # bookkeeping is skipped entirely.
+        self.multi_harmonic_cavity.track(beam=self.beam)
+        self.assertIsNone(
+            self.multi_harmonic_cavity._last_reference_time_phase_slip
+        )
+        # With a beam feedback present, the clock must lead even while the
+        # offset is still zero (it may be switched on any turn).
+        self.multi_harmonic_cavity._beam_feedback_in_simulation = True
+        self.beam.reference.time += 1.0e-6
+        self.multi_harmonic_cavity.track(beam=self.beam)
+        self.assertEqual(
+            self.multi_harmonic_cavity._last_reference_time_phase_slip,
+            self.beam.reference.time,
+        )
 
     def test_track(self) -> None:
         self.multi_harmonic_cavity.track(beam=self.beam)
