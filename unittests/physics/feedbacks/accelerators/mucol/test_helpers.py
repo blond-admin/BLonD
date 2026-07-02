@@ -502,6 +502,27 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
                 self.assertGreater(np.abs(sum_fine), 0.0)
                 np.testing.assert_allclose(sum_coarse, sum_fine, rtol=1e-9)
 
+    def test_warns_when_beam_maps_before_turn_zero(self):
+        """A coarse index below zero warns that the beam is before turn 0."""
+        # A large negative time shift maps the leading bins to coarse indices
+        # below zero (``ind_fine < 0``), which the downsampling cannot place
+        # correctly.
+        profile = self._profile_with_bunch_at(0.5)
+        with self.assertWarnsRegex(UserWarning, "before turn time 0"):
+            rf_beam_current(
+                beam=StubBeam(self.intensity),
+                profile=profile,
+                omega_c=self.omega_rf,
+                T_rev=self.t_rf,
+                use_lowpass_filter=False,
+                external_reference=True,
+                dT=-2.0 * self.t_rf,
+                downsample={
+                    "Ts": self.t_rf,
+                    "points": self.n_points_coarse,
+                },
+            )
+
     def _downsampled(self, profile, **kwargs):
         """
         Call rf_beam_current with the standard downsampling arguments.

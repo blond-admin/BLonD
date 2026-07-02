@@ -16,8 +16,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy
-from numpy._typing import NDArray as NumpyArray
-from scipy.constants.constants import elementary_charge
+from scipy.constants import elementary_charge
 from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
@@ -178,13 +177,6 @@ def rf_beam_current(  # noqa: PLR0912
 
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    # charges = (
-    #     beam.ratio  # TODO: remove this
-    #     * beam.particle_type.charge
-    #     * elementary_charge
-    #     * profile.hist_y
-    # )
-
     charges = (
         -elementary_charge
         * beam.particle_type.charge
@@ -200,9 +192,11 @@ def rf_beam_current(  # noqa: PLR0912
     )
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
-    # Mix with frequency of interest; remember factor 2 demodulation
-    # TODO: where do we have to apply the demodulation?
-    I_f = 2.0 * charges * np.cos(omega_c * hist_x)  # TODO: flipperydoo?
+    # Demodulate the (real) beam charge to the complex baseband envelope at the
+    # carrier omega_c: I/Q are the in-phase (cos) and quadrature (-sin)
+    # projections, and the factor 2 recovers the fundamental amplitude from the
+    # single-sideband mixing (charges_fine = 2 * charges * exp(-i omega_c t)).
+    I_f = 2.0 * charges * np.cos(omega_c * hist_x)
     Q_f = -2.0 * charges * np.sin(omega_c * hist_x)
 
     # Pass through a low-pass filter
@@ -214,9 +208,18 @@ def rf_beam_current(  # noqa: PLR0912
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
 
     charges_fine = I_f + 1j * Q_f
-    # dT = 0
     if external_reference:
-        # slippage in phase due to a non-integer harmonic number
+        # Rotate the beam current into the same I/Q frame as the antenna
+        # voltage / generator current with two contributions:
+        #   * dphi = dT * omega_c: the turn-to-turn slip of the RF clock from a
+        #     non-integer harmonic / detuned reference (dT == 0 leaves it out).
+        #   * +pi/2: aligns the beam-current demodulation axis (in-phase = cos)
+        #     with the antenna-voltage lab-frame convention
+        #     V_lab = -Im[V_ant exp(i omega_c t)] (in-phase = -sin), which differ
+        #     by 90 deg. Verified against the independent resonator / multi-turn
+        #     wake models: removing the pi/2 rotates the beam-induced voltage by
+        #     90 deg (breaks the energy-gain and phase tests) and flipping its
+        #     sign flips the beam-loading sign.
         dphi = dT * omega_c
         charges_fine = charges_fine * np.exp(1j * (dphi + np.pi / 2))
 
