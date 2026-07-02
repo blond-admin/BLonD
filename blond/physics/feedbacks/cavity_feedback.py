@@ -594,7 +594,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         Notes). Default is 0.
     debug
         Save debugging parameters during runtime.
-    second_order
+    second_order_fine_grid_solver
         If True, integrate the fine-grid cavity response with the second-order
         (trapezoidal / Crank-Nicolson) solver instead of the default
         first-order forward-Euler one. The second-order solver is much more
@@ -668,7 +668,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         n_rf_periods_per_coarse_grid: int = 1,
         delta_omega: float = 0.0,
         debug: bool = False,
-        second_order: bool = False,  # TODO: second order of what?
+        second_order_fine_grid_solver: bool = False,
         controller: GeneratorCurrentController | None = None,
         voltage_setpoint: complex | None = None,
         n_pretrack: int | None = None,
@@ -729,7 +729,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self.debug = debug
 
-        self.second_order = second_order
+        self.second_order_fine_grid_solver = second_order_fine_grid_solver
 
         self.generator_current_bias = generator_current_bias
 
@@ -1988,7 +1988,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         cavity_response_solver = (
             cavity_response_sparse_matrix_second_order
-            if self.second_order
+            if self.second_order_fine_grid_solver
             else cavity_response_sparse_matrix
         )
         self.antenna_voltage_fine_grid = cavity_response_solver(
