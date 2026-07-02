@@ -51,19 +51,16 @@ class PSBBeamControl(BeamFeedbackBase):
         The first gain of the radial loop.
     rl_gain_b
         The second gain of the radial loop.
-    delay
-        Delay (in units of turns) of the initial correction of the feedback system.
-    window_coefficient
-        Window coefficient for the calculation of the beam phase. This parameter will
-        reduce the weight of later samples of the beam profile.
-    time_offset
-        Time offset for the calculation of the beam phase.
     phase_noise
         Option to add phase noise through the beam control.
     period
         Time [s] between the actions of the phase loop.
     coefficients
         Coefficients for the transfer function of the feedback.
+    *args
+        Variable positional arguments.
+    **kwargs
+        Variable keyword arguments.
     """
 
     def __init__(
@@ -72,19 +69,14 @@ class PSBBeamControl(BeamFeedbackBase):
         pl_gain: float | NumpyArray[float],
         rl_gain_a: float | NumpyArray[float] = 0.0,
         rl_gain_b: float | NumpyArray[float] = 0.0,
-        delay: int = 0,
-        window_coefficient: float = 0.0,
-        time_offset: float | None = None,
         phase_noise=None,
         period: float = 10.0e-6,
         coefficients: list[float] = None,
+        *args,
+        **kwargs,
     ):
         super().__init__(
-            profile=profile,
-            delay=delay,
-            window_coefficient=window_coefficient,
-            time_offset=time_offset,
-            phase_noise=phase_noise,
+            *args, profile=profile, phase_noise=phase_noise, **kwargs
         )
 
         self.pl_gain = pl_gain

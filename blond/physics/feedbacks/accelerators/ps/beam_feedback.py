@@ -72,22 +72,15 @@ class PSBeamControl(BeamFeedbackBase):
         Any Profile object which exposes the x- and y-axis of the beam line density.
     below_transition
         Array of values for whether the current turns are above or below transition energy.
-    pl_gain
-        The gain of the beam-phase loop [rad/s].
-    rl_gain
-        The gain of the radial loop [1/m s].
-    delay
-        Delay (in units of turns) of the initial correction of the feedback system.
-    window_coefficient
-        Window coefficient for the calculation of the beam phase. This parameter will
-        reduce the weight of later samples of the beam profile.
-    time_offset
-        Time offset for the calculation of the beam phase.
     sample_de
         Determines downsampling of macroparticles for mean energy calculation.
         Every <sample_dE>. particle is sampled.
     phase_noise
         Option to add phase noise through the beam control.
+    pl_gain
+        The gain of the beam-phase loop [rad/s].
+    rl_gain
+        The gain of the radial loop [1/m s].
     gd_pl
         Hardware determined differential gain of the phase loop.
     gi_pl
@@ -104,19 +97,20 @@ class PSBeamControl(BeamFeedbackBase):
         Initial value for the phase output of the feedback.
     prev_out_radial
         Initial value for the radial output of the feedback.
+    *args
+        Variable positional arguments.
+    **kwargs
+        Variable keyword arguments.
     """
 
     def __init__(
         self,
         profile: ProfileBaseClass,
         below_transition: ArrayLike,
-        pl_gain: float = 0,
-        rl_gain: float = 0,
-        delay: int = 0,
-        window_coefficient: float = 0.0,
-        time_offset: float | None = None,
         sample_de: int = 1,
         phase_noise=None,
+        pl_gain: float = 0,
+        rl_gain: float = 0,
         gd_pl: float = 5.704,
         gi_pl: float = 1 - 8.66e-5,
         g_rl: float = 1 - 1.853e-1,
@@ -125,14 +119,15 @@ class PSBeamControl(BeamFeedbackBase):
         prev_in_phase: float | None = 0,
         prev_out_phase: float | None = 0,
         prev_out_radial: float | None = 0,
+        *args,
+        **kwargs,
     ):
         super().__init__(
+            *args,
             profile=profile,
-            delay=delay,
-            window_coefficient=window_coefficient,
-            time_offset=time_offset,
             sample_de=sample_de,
             phase_noise=phase_noise,
+            **kwargs,
         )
 
         self.below_transition = below_transition
