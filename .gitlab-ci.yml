@@ -3,6 +3,19 @@ variables:
   # Set the project root to the directory containing your setup.py
   project_root: ./
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
+  # --- numba JIT cache (persisted across pipelines, see `.cache_numba`) ---
+  # Centralise numba's on-disk cache (.nbi/.nbc) into one dir so GitLab can
+  # cache it between runs; the kernels already use `cache=True`, but the
+  # cache is otherwise cold on every fresh runner and recompiles during the
+  # test run (the dominant cost).
+  NUMBA_CACHE_DIR: "${CI_PROJECT_DIR}/.numba_cache"
+  # Compile CPU-generic code so a cached entry is valid on ANY runner,
+  # independent of its CPU. numba self-validates entries, so a mismatch only
+  # ever forces a recompile (never wrong code); `generic` just maximises the
+  # cross-runner hit rate. Remove these two if the runner pool is
+  # CPU-homogeneous and you prefer full `-march=native` kernel speed.
+  NUMBA_CPU_NAME: "generic"
+  NUMBA_CPU_FEATURES: ""
 stages:
   - precommit
   - doc_build
@@ -20,6 +33,22 @@ workflow:
     - when: always
   auto_cancel:
     on_new_commit: interruptible
+
+.cache_numba:
+  # Persist numba's JIT cache between pipelines. The key is per-job, which
+  # also separates Python versions (different image -> different numba/python
+  # -> entries would not validate anyway). Safe to share across GPU and
+  # non-GPU runners: it holds only CPU kernel code and self-validates on load.
+  cache:
+    - key: "numba-${CI_JOB_NAME}"
+      paths:
+        - .numba_cache/
+  after_script:
+    # Bound the cache size before GitLab uploads it (after_script runs just
+    # before cache upload). Bare python3 + pure stdlib: no venv needed, and no
+    # `import blond` -- which would recompile kernels into the very cache we
+    # are pruning. Size budget: BLOND_NUMBA_CACHE_MAX_MB (default 500).
+    - python3 dev_tools/prune_numba_cache.py
 
 .on_tag:
   # Rules to run a job only on a git tagged commit
@@ -237,6 +266,7 @@ test_py_310_no_cupy:
     - .before_no_gpu
     - .main_no_gpu
     - .cache_compiled
+    - .cache_numba
   dependencies: []
 
 test_py_310_main_many_environments:
@@ -248,6 +278,7 @@ test_py_310_main_many_environments:
     - .main_many_environments
     - .publish
     - .cache_compiled
+    - .cache_numba
   dependencies: []
   tags:
     - k8s-gpu
@@ -260,6 +291,7 @@ test_py_311:
     - .before
     - .main
     - .cache_compiled
+    - .cache_numba
     # - .publish
   dependencies: []
   tags:
@@ -279,6 +311,7 @@ test_py_312:
     - .before
     - .main
     - .cache_compiled
+    - .cache_numba
     # - .publish
   dependencies: []
   tags:
@@ -298,6 +331,7 @@ test_py_313:
     - .before
     - .main
     - .cache_compiled
+    - .cache_numba
     # - .publish
   dependencies: []
   tags:
@@ -317,6 +351,7 @@ test_py_314:
     - .before
     - .main
     - .cache_compiled
+    - .cache_numba
     # - .publish
   dependencies: []
   tags:
@@ -335,6 +370,7 @@ test_py_314_only_cupy:
     - .before
     - .main_only_cupy
     - .cache_compiled
+    - .cache_numba
   dependencies: []
   tags:
     - k8s-gpu
@@ -350,6 +386,7 @@ test_minimum:
   interruptible: true
   extends:
     - .cache_compiled
+    - .cache_numba
   dependencies: []
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
