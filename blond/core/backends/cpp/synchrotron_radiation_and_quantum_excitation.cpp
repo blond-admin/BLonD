@@ -8,106 +8,27 @@
 
 // Fused synchrotron-radiation damping + (optional) quantum-excitation kick.
 //
-// The Gaussian noise is generated inline (no external buffer, no extra
-// allocations in the hot loop) using a modern PRNG:
+// The Gaussian noise uses the C++ standard library generator so we do not
+// maintain (or have to justify) a hand-rolled PRNG:
 //
-//   * `xoshiro256+` for the underlying uniform stream — small state
-//     (4 x uint64), 6-cycle output, much faster than libstdc++'s
-//     `std::mt19937_64`.
-//   * Marsaglia polar Box-Muller for the Gaussian transform — 1 sqrt + 1
-//     log per *two* samples (cached), no transcendentals on ~78% of draws.
+//   * `std::mt19937_64` for the underlying stream.
+//   * `std::normal_distribution<real_t>` for the N(0, 1) transform.
+//   * seeded once from `std::random_device` XORed with the OpenMP thread id
+//     so every run and every thread gets an independent stream.
 //
-// Each OpenMP thread keeps its own state in `thread_local` storage so the
-// streams are uncorrelated and there is zero contention.
+// The loop runs under OpenMP. `std::normal_distribution` is stateful (it
+// caches the second value of the Box-Muller pair internally), so both the
+// generator and the distribution are kept in `thread_local` storage: one
+// instance per thread, never shared between OpenMP threads.
 //
 // Author: Simon Lauber
 
 #include "blond_common.h"
-#include <chrono>
-#include <cmath>
-#include <cstdint>
+#include <random>
 
 #ifdef _OPENMP
 #include <omp.h>
 #endif
-
-namespace {
-
-// ---------- xoshiro256+ uniform PRNG ----------
-// xoshiro256+ by Blackman & Vigna; splitmix64 by Vigna
-// (https://prng.di.unimi.it/, CC0/public domain).
-// See https://prng.di.unimi.it/xoshiro256plus.c
-// See https://prng.di.unimi.it/splitmix64.c
-struct Xoshiro256p {
-    uint64_t s[4];
-};
-
-static inline uint64_t rotl(const uint64_t x, int k) {
-    return (x << k) | (x >> (64 - k));
-}
-
-static inline uint64_t xoshiro_next(Xoshiro256p& rng) {
-    const uint64_t result = rng.s[0] + rng.s[3];
-    const uint64_t t = rng.s[1] << 17;
-    rng.s[2] ^= rng.s[0];
-    rng.s[3] ^= rng.s[1];
-    rng.s[1] ^= rng.s[2];
-    rng.s[0] ^= rng.s[3];
-    rng.s[2] ^= t;
-    rng.s[3] = rotl(rng.s[3], 45);
-    return result;
-}
-
-// Seed the 256-bit xoshiro state (4 x uint64) from a single 64-bit seed by
-// running splitmix64's next() four times -- one call per state word. This is
-// the initializer recommended by the xoshiro authors. splitmix64.c only ships
-// the single-value next(); the loop body below is that function inlined (`z`
-// is the carried splitmix64 state), and the constants are splitmix64's verbatim
-// (hex literals are case-insensitive, so the uppercase here matches the site).
-static inline void xoshiro_seed(Xoshiro256p& rng, uint64_t seed_val) {
-    uint64_t z = seed_val;
-    for (int i = 0; i < 4; ++i) {
-        z += 0x9E3779B97F4A7C15ULL;
-        uint64_t x = z;
-        x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ULL;
-        x = (x ^ (x >> 27)) * 0x94D049BB133111EBULL;
-        x = x ^ (x >> 31);
-        rng.s[i] = x;
-    }
-}
-
-// Uniform in (0, 1), uses the top 53 bits of a uint64.
-static inline real_t uniform01(Xoshiro256p& rng) {
-    return real_t(xoshiro_next(rng) >> 11) * (real_t(1.0) / real_t(1ULL << 53));
-}
-
-// ---------- Gaussian generator (Marsaglia polar Box-Muller with cache) ----------
-struct GaussianState {
-    Xoshiro256p rng;
-    real_t spare;
-    bool has_spare;
-    bool seeded;
-};
-
-static inline real_t standard_normal(GaussianState& gaussian_state) {
-    if (gaussian_state.has_spare) {
-        gaussian_state.has_spare = false;
-        return gaussian_state.spare;
-    }
-    // Polar form: draw points in the unit disc, reject ~21%.
-    real_t u, v, s;
-    do {
-        u = real_t(2.0) * uniform01(gaussian_state.rng) - real_t(1.0);
-        v = real_t(2.0) * uniform01(gaussian_state.rng) - real_t(1.0);
-        s = u * u + v * v;
-    } while (s >= real_t(1.0) || s == real_t(0.0));
-    const real_t factor = std::sqrt(real_t(-2.0) * std::log(s) / s);
-    gaussian_state.spare = v * factor;
-    gaussian_state.has_spare = true;
-    return u * factor;
-}
-
-}  // namespace
 
 extern "C" void apply_synchrotron_radiation_no_excitation(
     real_t* __restrict__ beam_dE,
@@ -130,29 +51,27 @@ extern "C" void apply_synchrotron_radiation_and_quantum_excitation(
 ) {
 #pragma omp parallel
     {
-        // One persistent generator per thread, seeded once on first use
-        // with a thread-distinct value mixed from a wall-clock sample.
-        static thread_local GaussianState gaussian_state{};
-        if (!gaussian_state.seeded) {
-            const uint64_t seed_val = static_cast<uint64_t>(
-                std::chrono::high_resolution_clock::now()
-                    .time_since_epoch()
-                    .count()
-            )
+        // One standard-library generator and Gaussian distribution per
+        // thread, seeded once on first use with a thread-distinct value.
+        static thread_local std::mt19937_64 generator;
+        static thread_local std::normal_distribution<real_t> standard_normal(
+            real_t(0.0), real_t(1.0)
+        );
+        static thread_local bool seeded = false;
+        if (!seeded) {
+            unsigned int thread_id = 0;
 #ifdef _OPENMP
-                ^ (static_cast<uint64_t>(omp_get_thread_num() + 1) *
-                   0x9E3779B97F4A7C15ULL)
+            thread_id = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-                ;
-            xoshiro_seed(gaussian_state.rng, seed_val);
-            gaussian_state.has_spare = false;
-            gaussian_state.seeded = true;
+            std::random_device entropy_source;
+            generator.seed(entropy_source() ^ thread_id);
+            seeded = true;
         }
 
 #pragma omp for
         for (int i = 0; i < n_macroparticles; i++) {
             beam_dE[i] = damping_factor * beam_dE[i] - energy_lost
-                       + noise_scale * standard_normal(gaussian_state);
+                       + noise_scale * standard_normal(generator);
         }
     }
 }

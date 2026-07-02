@@ -508,9 +508,9 @@ class CudaSpecials(Specials):  # NOQA: D101
         Apply synchrotron radiation and quantum excitation energy kicks.
 
         Single fused CUDA kernel — one launch, one pass over ``beam_dE``,
-        no auxiliary noise buffer. The Gaussian noise is generated in
-        registers per thread using splitmix64 + Box-Muller (with cached
-        spare), so the memory footprint is just the beam itself.
+        no auxiliary noise buffer. The Gaussian noise is drawn with
+        NVIDIA's cuRAND device library (one state per thread), so the
+        memory footprint is just the beam itself.
 
         Parameters
         ----------
@@ -558,7 +558,8 @@ class CudaSpecials(Specials):  # NOQA: D101
             )
             # Per-call seed: monotonic-clock nanoseconds give a fresh
             # uncorrelated stream every invocation without keeping any
-            # global state. Threads mix it with their tid in the kernel.
+            # global state. Each thread uses its tid as the cuRAND
+            # subsequence to stay decorrelated from the others.
             base_seed = np.uint64(time.monotonic_ns())
             _apply_sr_with_quantum_excitation(
                 args=(

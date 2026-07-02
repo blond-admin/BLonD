@@ -32,9 +32,7 @@ def main():  # pragma: no cover
     total_energy = 1.0e9
 
     from blond.core.backends.cpp.callables import CppSpecials
-    from blond.core.backends.numba.callables import recompile_numba_backend
-
-    NumbaSpecials = recompile_numba_backend(backend.float)
+    from blond.core.backends.numba.callables import NumbaSpecials
 
     numba_fn = NumbaSpecials().apply_synchrotron_radiation_and_quantum_excitation_energy_kick
     cpp_fn = CppSpecials().apply_synchrotron_radiation_and_quantum_excitation_energy_kick

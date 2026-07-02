@@ -52,10 +52,10 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         quantum-excitation noise is generated inside
         ``backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick``
         and each backend uses its own RNG (NumPy global state on the Python
-        backend, Numba's per-thread parallel PRNG, xoshiro256+ seeded from
-        wall-clock on the C++/CUDA backends), so a single user-supplied seed
-        cannot be threaded through uniformly. Passing a value here will raise
-        ``NotImplementedError`` rather than silently being ignored.
+        backend, Numba's per-thread parallel PRNG, ``std::mt19937_64`` on the
+        C++ backend, cuRAND on the CUDA backend), so a single user-supplied
+        seed cannot be threaded through uniformly. Passing a value here will
+        raise ``NotImplementedError`` rather than silently being ignored.
     """
 
     def __init__(
@@ -72,7 +72,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
                 "drawn inside the active backend's `specials` implementation "
                 "and the four backends (Python/Numba/C++/CUDA) each use a "
                 "different RNG (NumPy global state, Numba's per-thread "
-                "parallel PRNG, xoshiro256+ from wall-clock). A single seed "
+                "parallel PRNG, `std::mt19937_64`, cuRAND). A single seed "
                 "cannot be plumbed through uniformly today, so we refuse it "
                 "instead of silently ignoring it. Pass `seed=None` and (for "
                 "the Python backend only) call `np.random.seed(...)` before "
