@@ -151,7 +151,7 @@ def main(n_turns: int = 100):
         beams=(params.beam,),
         n_turns=params.n_turns,
         observe=(phase_observation, bunch_statistics),
-        callbacks=[get_bunch_relative_energy, custom_action],
+        callbacks=[get_bunch_relative_energy],
     )
 
     energy_loss_per_turn, damping_time, natural_energy_spread = (
