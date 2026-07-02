@@ -32,6 +32,7 @@ from blond.physics.feedbacks.helpers import (
     cavity_response_sparse_matrix,
     cavity_response_sparse_matrix_second_order,
     polar_to_cartesian,
+    pretrack_fill_voltage,
     rf_beam_current,
 )
 from blond.physics.profiles import StaticProfile
@@ -46,8 +47,6 @@ if TYPE_CHECKING:
     from blond.physics.feedbacks.generator_current_controller import (
         GeneratorCurrentController,
     )
-
-# TODO rewrite all docstrings
 
 
 class IQCavityFeedback(LocalFeedback, HasPropertyCache):
@@ -177,11 +176,15 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         """
         self.invalidate_cache()
 
-        self.n_samples_coarse = np.floor(
-            self.t_rev / self.sampling_time_coarse
-        )  # TODO: round or ceil?; should this be changed during simulation?
+        # Number of *complete* coarse cells (each sampling_time_coarse wide)
+        # that fit in one revolution; a partial trailing cell is dropped
+        # (floor), consistent with the arange-based rf_centers of the timing
+        # subclass. int() is required because np.zeros() below rejects a float
+        # length on numpy >= 2.
+        self.n_samples_coarse = int(
+            np.floor(self.t_rev / self.sampling_time_coarse)
+        )
 
-        self.voltage_setpoint = np.zeros(self.profile.n_bins, dtype=complex)
         self.beam_current_forward_coarse_grid = np.zeros(
             self.n_samples_coarse, dtype=complex
         )
@@ -607,6 +610,19 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         Explicit per-cavity voltage setpoint in the IQ frame [V] used to form
         the error the controller acts on. If None, it is derived from the
         parent rf station.
+    n_pretrack
+        Feedforward cavity fill budget in turns. If given, the initial antenna
+        voltage is seeded (in ``on_run_simulation``) from the constant-current
+        fill of the cavity instead of the scalar ``initial_voltage``; see
+        :func:`~blond.physics.feedbacks.helpers.pretrack_fill_voltage`. The
+        fill uses the constant ``generator_current_bias`` only -- the
+        controller, if any, acts on the tracked turns after injection. Default
+        None (start from ``initial_voltage``).
+    injection_voltage
+        Target ``|V_ant|`` [V] at injection. When set (requires ``n_pretrack``)
+        the seed is the fill transient at the moment ``|V_ant|`` first reaches
+        this value, i.e. the beam is injected part-way through the fill.
+        Default None (seed from the fill after ``n_pretrack`` turns).
 
     Notes
     -----
@@ -655,6 +671,8 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         second_order: bool = False,  # TODO: second order of what?
         controller: GeneratorCurrentController | None = None,
         voltage_setpoint: complex | None = None,
+        n_pretrack: int | None = None,
+        injection_voltage: float | None = None,
     ):
         super().__init__(
             profile=profile,
@@ -726,6 +744,20 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self._controller = controller
         self._voltage_setpoint = voltage_setpoint
         self._omega_input_for_pi: float | None = None
+
+        # --- Optional feedforward cavity pre-fill / injection matching ---
+        # When n_pretrack is set, on_run_simulation seeds the initial antenna
+        # voltage from the constant-current (feedforward) cavity fill instead
+        # of the scalar initial_voltage; with injection_voltage the seed is the
+        # fill transient at the point |V_ant| reaches that target. The PI
+        # controller, if any, only acts on the tracked turns after injection.
+        self.n_pretrack = n_pretrack
+        self.injection_voltage = injection_voltage
+        if self.injection_voltage is not None and self.n_pretrack is None:
+            raise ValueError(
+                "injection_voltage requires n_pretrack (the cavity fill "
+                "budget in turns); set n_pretrack or drop injection_voltage."
+            )
 
     @property
     def _controller_active(self) -> bool:
@@ -940,6 +972,23 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         # docstring), so the step-size sanity check can read omega_rf.
         self._check_step_sizes()
 
+        # Feedforward cavity pre-fill: seed the initial antenna voltage from
+        # the constant-current fill (optionally injection-matched), now that
+        # omega_rf / t_rev are available. The PI controller, if attached, only
+        # acts on the tracked turns after injection, so the fill stays a pure
+        # feedforward (constant generator_current_bias) transient.
+        if self.n_pretrack is not None:
+            self.init_voltage = pretrack_fill_voltage(
+                r_over_q=self.R_over_Q,
+                q_l=self.Q_L,
+                omega=self.omega_rf,
+                delta_omega=self.delta_omega,
+                generator_current=self.generator_current_bias,
+                n_pretrack=self.n_pretrack,
+                t_rev=self.t_rev,
+                injection_voltage=self.injection_voltage,
+            )
+
     def get_passed_time_forward_direction(self, beam: BeamBaseClass):  # noqa: PLR0912
         """
         Determine the slice of elements, which should be tracked in the forward direction.
@@ -1149,10 +1198,10 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
             if isclose or is_above:  # counterrotation should break earlier
                 if is_above:
-                    raise RuntimeError("yorak")
                     warnings.warn(
-                        "Inconsistency with references, is a delta_omega_rf applied to the rf_stations?",
-                        stacklevel=1,
+                        "Inconsistency with references, is a "
+                        "delta_omega_rf applied to the rf_stations?",
+                        stacklevel=2,
                     )
                 found = True
                 break
@@ -1350,7 +1399,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             self.rf_centers,
             new_rf_centers,
         )
-        pass
 
     def _unify_same_frequency_time_points_reverse(self):
         if len(self.reverse_tracking_time_array) > 1:
@@ -1375,7 +1423,11 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self, beam: BeamBaseClass
     ) -> None:
         """
-        Dummy.
+        Compute the coarse-grid rf_centers for the reverse-tracking direction.
+
+        This function determines the omega_rf values, which were present
+        between the last call of the module and now, and then computes the
+        rf-centers from based on these values.
 
         Parameters
         ----------
@@ -1472,7 +1524,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         end_index: int = -1,
     ) -> None:
         """
-        Dummy.
+        Advance the antenna voltage over a coarse-grid segment of rf_centers.
 
         Parameters
         ----------
@@ -1764,7 +1816,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             )
 
     def update_feedback_variables(self) -> None:
-        """Dummy."""
+        """No-op: this feedback has no per-turn variables to refresh."""
         pass
 
     def reset_arrays(self):
@@ -1791,7 +1843,7 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
     def _track(self, beam: Beam) -> None:
         """
-        Dummy.
+        Track the feedback for one turn.
 
         Parameters
         ----------
