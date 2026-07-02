@@ -139,21 +139,6 @@ def main(n_turns: int = 100):
         each_turn_i=1,
     )
 
-    def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
-        if not isinstance(simulation.turn_counter.value, int):
-            return
-
-        artist = beam.plot_hist2d()
-        plt.xlim([0, 1.5 * 1e-9])
-        plt.ylim([-0.5 * 1e9, 0.5 * 1e9])
-        plt.ylabel("DE [eV]")
-        plt.xlabel("t [s]")
-        plt.draw()
-        plt.pause(1e-1)
-        artist.remove()
-
-    # custom_action(simulation, beam=params.beam)
-
     def get_bunch_relative_energy(simulation, beam):
         bunch_relative_energy[simulation.turn_counter.value + 1] = np.mean(
             beam.read_partial_dE()
@@ -166,7 +151,7 @@ def main(n_turns: int = 100):
         beams=(params.beam,),
         n_turns=params.n_turns,
         observe=(phase_observation, bunch_statistics),
-        callbacks=[get_bunch_relative_energy],
+        callbacks=[get_bunch_relative_energy, custom_action],
     )
 
     energy_loss_per_turn, damping_time, natural_energy_spread = (
