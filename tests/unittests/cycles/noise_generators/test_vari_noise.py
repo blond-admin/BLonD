@@ -108,69 +108,6 @@ class TestVariNoiseConfig(unittest.TestCase):
             noise.get_noise(n_turns=n_turns)
 
 
-class TestVariNoiseImport(unittest.TestCase):
-    """Module-import behaviour, independent of the external C++ library."""
-
-    def test_import_failure_warns(self):
-        # If the rf-noise-cpp binding cannot be imported, importing the
-        # module must warn rather than crash (the crash is deferred to
-        # get_noise). A bare module without `rf_noise` makes the
-        # `from ... import rf_noise` statement raise ImportError, which
-        # exercises the except branch.
-        import blond.cycles.noise_generators.vari_noise as vari_noise
-
-        broken = types.ModuleType(
-            "blond.interfaces.rf_noise_cpp.wrap_rf_noise"
-        )
-        try:
-            with patch.dict(
-                sys.modules,
-                {"blond.interfaces.rf_noise_cpp.wrap_rf_noise": broken},
-            ):
-                with self.assertWarns(UserWarning) as cm:
-                    importlib.reload(vari_noise)
-            self.assertIn("rf-noise-cpp", str(cm.warning))
-        finally:
-            # Restore the genuinely-imported module for other tests.
-            importlib.reload(vari_noise)
-
-    def test_get_noise_reraises_deferred_import_error(self):
-        # When the rf-noise-cpp binding failed to import, the stored error is
-        # re-raised on the first get_noise call (the crash is deferred to that
-        # point rather than to import time). This exercises the
-        # ``if _delayed_import_error is not None: raise`` branch without needing
-        # the external C++ library.
-        import blond.cycles.noise_generators.vari_noise as vari_noise
-
-        broken = types.ModuleType(
-            "blond.interfaces.rf_noise_cpp.wrap_rf_noise"
-        )
-        try:
-            with patch.dict(
-                sys.modules,
-                {"blond.interfaces.rf_noise_cpp.wrap_rf_noise": broken},
-            ):
-                with self.assertWarns(UserWarning):
-                    importlib.reload(vari_noise)
-                # The import genuinely failed, so the deferred error is stored.
-                self.assertIsNotNone(vari_noise._delayed_import_error)
-
-                n_turns = 10
-                noise = vari_noise.VariNoise(
-                    frequency_high=np.full(n_turns, 200.0),
-                    frequency_low=np.full(n_turns, 100.0),
-                    gain_y=_flat_spectrum(),
-                    sampling_rate=_SAMPLING_RATE,
-                )
-                # The stored ImportError is re-raised, before any validation or
-                # library call.
-                with self.assertRaises(ImportError):
-                    noise.get_noise(n_turns=n_turns)
-        finally:
-            # Restore the genuinely-imported module for other tests.
-            importlib.reload(vari_noise)
-
-
 class TestVariNoiseLibrary(unittest.TestCase):
     """Behaviour that depends on the external C++ library."""
 
