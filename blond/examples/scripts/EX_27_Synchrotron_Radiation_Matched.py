@@ -114,7 +114,7 @@ class SynchrotronRadiationSimulation:
         self.energy_spread = 1e-3
 
 
-def main(n_turns: int = 100):
+def main(n_turns: int = 100, n_macroparticles=int(1e4)):
     params = SynchrotronRadiationSimulation(n_turns=n_turns)
     simulation = Simulation(
         ring=params.ring,
@@ -126,7 +126,7 @@ def main(n_turns: int = 100):
         beam=params.beam,
         preparation_routine=SynchrotronRadiationMatcher(
             synchrotron_radiation_master=params.SRHandler,
-            n_macroparticles=1e4,
+            n_macroparticles=n_macroparticles,
             seed=1,
         ),
     )
