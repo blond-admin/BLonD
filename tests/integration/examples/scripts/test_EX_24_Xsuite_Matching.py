@@ -8,11 +8,16 @@ from blond.core.backends.backend import (
     backend,
 )
 
+# NOTE: catch broad ``Exception`` rather than ``ImportError``. This import runs
+# at pytest collection time, and on some Python versions the installed xsuite
+# stack fails to import with a non-ImportError (e.g.
+# ``TypeError: typing.LiteralString is not subscriptable``). A narrow guard lets
+# that propagate and aborts collection of the whole suite instead of skipping.
 try:
     import xpart
 
     HAS_XSUITE = True
-except ImportError:
+except Exception:
     HAS_XSUITE = False
 
 
@@ -21,7 +26,7 @@ class TestEX_24_Xsuite_Matching(unittest.TestCase):
     def setUp(self):
         try:
             import xpart
-        except ModuleNotFoundError as exception:
+        except Exception as exception:
             self.skipTest(str(exception))
 
     @pytest.mark.backend_mutation
