@@ -4,6 +4,7 @@ import unittest
 import warnings
 from unittest.mock import Mock, PropertyMock, patch
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import (
@@ -14,7 +15,10 @@ from blond import (
     WakeField,
     mu_plus,
 )
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import (
+    IQCavityFeedback,
+    IQCavityFeedbackTimingClass,
+)
 from blond.physics.feedbacks.helpers import rf_beam_current
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
@@ -24,6 +28,8 @@ from blond.physics.impedances.solvers import (
 # these test helpers are not importable by an absolute path under pytest.
 from .stubs import StubBeam
 from .support import lab_frame_voltage
+
+DEBUG_PLOT = True
 
 
 class TestCavityFeedback(unittest.TestCase):
@@ -504,6 +510,386 @@ class TestFineGridResonatorBenchmark(unittest.TestCase):
     def test_fine_grid_matches_resonator_negative_detuning(self):
         """With negative detuning, the phase shift matches a detuned resonator."""
         self._assert_matches(delta_omega=-2e7)
+
+
+class TestCavityPrefill(unittest.TestCase):
+    """
+    Feedforward cavity pre-fill / injection matching.
+
+    The no-beam, constant-current cavity fills from cold as
+    ``V(t) = V_ss * (1 - exp(lambda t))`` with
+    ``lambda = -omega/(2 Q_L) + 1j delta_omega`` and
+    ``V_ss = -(R/Q) omega I_gen / lambda``. ``pretrack_fill_voltage`` returns
+    the complex seed antenna voltage; with ``injection_voltage`` it returns the
+    fill-transient value when ``|V|`` first reaches that target.
+    """
+
+    R_over_Q = 518.0
+    Q_L = 1287601.7251526634
+    f_rf = 1.3e9
+    omega_rf = 2.0 * np.pi * f_rf
+    V0 = 30.0e6
+    # On resonance V_ss = 2 (R/Q) Q_L I_g, so this bias fills the cavity to V0.
+    I_g = V0 / (2.0 * R_over_Q * Q_L)
+    t_rev = 25900 / f_rf  # harmonic / f_rf
+
+    def _plot_fill_evolution(
+        self,
+        n_pretrack,
+        seed,
+        delta_omega=0.0,
+        generator_current=None,
+        injection_voltage=None,
+    ):
+        """
+        Save a debug plot of the pre-track cavity fill ``V(t)`` vs turns.
+
+        Disabled by default. Enable by setting the module-level ``DEBUG_PLOT``
+        flag to ``True`` to open an interactive window.
+
+        Reconstructs the closed-form fill envelope
+        ``V(t) = V_ss (1 - exp(lambda t))`` (the same expression
+        ``pretrack_fill_voltage`` integrates) over ``[0, n_pretrack T_0]``. The
+        antenna voltage is complex, so the top panel shows ``Re V`` and
+        ``Im V`` (with the complex seed marked on each) and the bottom panel
+        shows ``|V|`` with the steady-state fill ``|V_ss|``; with
+        ``injection_voltage`` the injection crossing is marked too. On
+        resonance with a real generator current the fill stays on the real
+        axis (``Im V ~ 0``) -- the imaginary content only appears once the
+        cavity is detuned or the (complex) beam loading enters after injection.
+
+        Parameters
+        ----------
+        n_pretrack
+            Cavity fill budget in turns (the plotted window).
+        seed
+            Complex seed antenna voltage returned by ``pretrack_fill_voltage``.
+        delta_omega
+            Cavity resonance detuning [rad/s] used for the fill.
+        generator_current
+            Constant generator current [A]; defaults to the on-resonance
+            ``self.I_g`` that fills to ``V0``.
+        injection_voltage
+            If given, the injection target magnitude [V] to mark.
+        """
+        if generator_current is None:
+            generator_current = self.I_g + 0.0j
+        lam = -self.omega_rf / (2.0 * self.Q_L) + 1j * delta_omega
+        v_ss = -(self.R_over_Q * self.omega_rf) * generator_current / lam
+        t = np.linspace(0.0, n_pretrack * self.t_rev, 2000)
+        turns = t / self.t_rev
+        voltage = v_ss * (1.0 - np.exp(lam * t))
+
+        # The seed sits at the end of the window (no injection) or on the rise
+        # at the injection crossing; place its marker at the matching |V| turn.
+        seed_turn = turns[
+            int(np.argmin(np.abs(np.abs(voltage) - np.abs(seed))))
+        ]
+
+        fig, (ax_ri, ax_mag) = plt.subplots(2, 1, sharex=True, figsize=(8, 7))
+        fig.suptitle("Cavity pre-track fill")
+
+        ax_ri.plot(
+            turns, voltage.real / 1e6, color="C0", label=r"$\mathrm{Re}\,V$"
+        )
+        ax_ri.plot(
+            turns, voltage.imag / 1e6, color="C2", label=r"$\mathrm{Im}\,V$"
+        )
+        ax_ri.plot(seed_turn, seed.real / 1e6, "o", color="C0")
+        ax_ri.plot(seed_turn, seed.imag / 1e6, "o", color="C2")
+        ax_ri.set_ylabel("antenna voltage [MV]")
+        ax_ri.legend(loc="best")
+        ax_ri.grid(True, alpha=0.3)
+
+        ax_mag.plot(
+            turns, np.abs(voltage) / 1e6, color="C3", label=r"$|V(t)|$"
+        )
+        ax_mag.axhline(
+            np.abs(v_ss) / 1e6,
+            color="k",
+            ls=":",
+            lw=0.8,
+            label=r"$|V_\mathrm{ss}|$",
+        )
+        ax_mag.plot(
+            seed_turn, np.abs(seed) / 1e6, "o", color="C3", label="seed"
+        )
+        if injection_voltage is not None:
+            ax_mag.axhline(
+                injection_voltage / 1e6,
+                color="C1",
+                ls="--",
+                lw=0.8,
+                label="injection target",
+            )
+        ax_mag.set_xlabel("pre-track turn")
+        ax_mag.set_ylabel("antenna voltage [MV]")
+        ax_mag.legend(loc="best")
+        ax_mag.grid(True, alpha=0.3)
+        fig.tight_layout()
+
+        # Debug-save next to this test file (not the repo root); needs ``import os``:
+        # fig.savefig(
+        #     os.path.join(os.path.dirname(__file__), "cavity_prefill.png"), dpi=200
+        # )
+        plt.show()
+
+    def test_steady_state_fill_on_resonance_matches_two_r_q_ql_ig(self):
+        """No-injection fill converges to V_ss = 2 (R/Q) Q_L I_g on resonance."""
+        from blond.physics.feedbacks.helpers import pretrack_fill_voltage
+
+        seed = pretrack_fill_voltage(
+            r_over_q=self.R_over_Q,
+            q_l=self.Q_L,
+            omega=self.omega_rf,
+            delta_omega=0.0,
+            generator_current=self.I_g + 0.0j,
+            n_pretrack=500,  # well past the ~16-turn fill time constant
+            t_rev=self.t_rev,
+        )
+        self.assertAlmostEqual(seed.imag, 0.0, delta=1.0)
+        self.assertAlmostEqual(seed.real / self.V0, 1.0, places=6)
+
+    def test_injection_voltage_seeds_at_the_requested_magnitude(self):
+        """With injection_voltage, the seed magnitude is that target."""
+        from blond.physics.feedbacks.helpers import pretrack_fill_voltage
+
+        injection_voltage = 20.0e6  # below the V0 = 30 MV steady-state fill
+        seed = pretrack_fill_voltage(
+            r_over_q=self.R_over_Q,
+            q_l=self.Q_L,
+            omega=self.omega_rf,
+            delta_omega=0.0,
+            generator_current=self.I_g + 0.0j,
+            n_pretrack=500,
+            t_rev=self.t_rev,
+            injection_voltage=injection_voltage,
+        )
+        if DEBUG_PLOT:
+            self._plot_fill_evolution(
+                n_pretrack=500,
+                seed=seed,
+                injection_voltage=injection_voltage,
+            )
+        self.assertAlmostEqual(np.abs(seed) / injection_voltage, 1.0, places=4)
+
+    def test_unreachable_injection_voltage_raises(self):
+        """A target above the steady-state fill cannot be reached, so it raises."""
+        from blond.physics.feedbacks.helpers import pretrack_fill_voltage
+
+        with self.assertRaises(ValueError) as cm:
+            pretrack_fill_voltage(
+                r_over_q=self.R_over_Q,
+                q_l=self.Q_L,
+                omega=self.omega_rf,
+                delta_omega=0.0,
+                generator_current=self.I_g + 0.0j,
+                n_pretrack=500,
+                t_rev=self.t_rev,
+                injection_voltage=40.0e6,  # above the 30 MV steady-state fill
+            )
+        self.assertIn("injection_voltage", str(cm.exception))
+
+    @staticmethod
+    def _run_on_run_simulation(feedback, rf, t_rf, omega_rf):
+        """
+        Drive ``on_run_simulation`` far enough to apply the pre-fill.
+
+        Only ``omega_rf`` and the parent station's reference bookkeeping are
+        needed, so the beam and simulation are stubbed (as in the step-size
+        run-start test).
+
+        Parameters
+        ----------
+        feedback
+            Feedback under test.
+        rf
+            Parent RF station.
+        t_rf
+            RF period.
+        omega_rf
+            Design RF angular frequency to install on the station.
+        """
+        rf.omega_rf_design = omega_rf
+        stub_simulation = Mock()
+        stub_simulation.ring.elements.get_elements.return_value = (rf,)
+        feedback.on_run_simulation(
+            simulation=stub_simulation, beam=StubBeam(2.7e12), n_turns=1
+        )
+
+    def _build_feedback(self, t_rf, **kwargs):
+        """
+        Build a feedback + parent station on a real profile for run-start.
+
+        Parameters
+        ----------
+        t_rf
+            RF period used to size the profile.
+        **kwargs
+            Overrides forwarded to ``IQCavityFeedbackTimingClass``.
+
+        Returns
+        -------
+        feedback, rf
+            The feedback instance and its parent RF station.
+        """
+        profile = StaticProfile.from_rad(np.pi * 1.5, np.pi * 4.5, 1024, t_rf)
+        params = {
+            "profile": profile,
+            "R_over_Q": self.R_over_Q,
+            "Q_L": 1.29e4,  # short fill so a few pre-fill turns suffice
+            "generator_current_bias": 0.02 + 0.0j,
+            "n_cavities": 1,
+            "initial_voltage": 0.0,
+            "n_rf_periods_per_coarse_grid": 1,
+            "delta_omega": 0.0,
+        }
+        params.update(kwargs)
+        feedback = IQCavityFeedbackTimingClass(**params)
+        rf = SingleHarmonicRFStation(
+            voltage=30e6,
+            phi_rf=0.0,
+            harmonic=25900,
+            cavity_feedback=feedback,
+            profile=profile,
+        )
+        return feedback, rf
+
+    def test_n_pretrack_seeds_init_voltage_with_the_fill(self):
+        """On_run_simulation replaces init_voltage with the pre-fill seed."""
+        from blond.physics.feedbacks.helpers import pretrack_fill_voltage
+
+        t_rf = 1.0e-9
+        omega_rf = 2.0 * np.pi / t_rf
+        feedback, rf = self._build_feedback(t_rf, n_pretrack=50)
+        self._run_on_run_simulation(feedback, rf, t_rf, omega_rf)
+
+        expected = pretrack_fill_voltage(
+            r_over_q=feedback.R_over_Q,
+            q_l=feedback.Q_L,
+            omega=feedback.omega_rf,
+            delta_omega=feedback.delta_omega,
+            generator_current=feedback.generator_current_bias,
+            n_pretrack=50,
+            t_rev=feedback.t_rev,
+        )
+        self.assertAlmostEqual(feedback.init_voltage, expected, places=6)
+        self.assertGreater(abs(feedback.init_voltage), 0.0)
+
+    def test_fill_seed_is_an_equilibrium_of_the_coarse_step(self):
+        """A no-beam cavity started at the fill seed does not drift."""
+        n_steps = 30
+        dt = 1.0 / self.f_rf
+        cav = IQCavityFeedbackTimingClass(
+            profile=Mock(StaticProfile),
+            R_over_Q=self.R_over_Q,
+            Q_L=self.Q_L,
+            generator_current_bias=self.I_g + 0.0j,
+            n_cavities=1,
+            delta_omega=0.0,
+        )
+        # On resonance the fill seed is V_ss = 2 (R/Q) Q_L I_g = V0.
+        v_ss = self.V0 + 0.0j
+        cav.rf_centers = np.arange(1, n_steps + 1) * dt
+        cav.rf_centers_lengths = np.array([n_steps])
+        cav.residual_time_last_rf_centers_calculation = 0.0
+        cav.last_rf_centers_entry = None
+        cav.generator_current_coarse_grid = np.full(
+            n_steps, self.I_g, dtype=complex
+        )
+        cav.last_val_generator_current = self.I_g + 0.0j
+        cav.last_val_beam_current = 0.0 + 0.0j
+        cav.last_val_ant_voltage = v_ss
+        cav.antenna_voltage_coarse_grid = np.zeros(n_steps, dtype=complex)
+
+        cav.circuit_track(
+            omega_input=self.omega_rf,
+            no_beam=True,
+            start_index=0,
+            end_index=n_steps,
+        )
+
+        np.testing.assert_allclose(
+            cav.antenna_voltage_coarse_grid,
+            v_ss * np.ones(n_steps),
+            rtol=1e-9,
+        )
+
+    def test_injection_voltage_without_n_pretrack_raises(self):
+        """Injection_voltage is meaningless without a pre-fill budget."""
+        profile = StaticProfile.from_rad(np.pi * 1.5, np.pi * 4.5, 1024, 1e-9)
+        with self.assertRaises(ValueError) as cm:
+            IQCavityFeedbackTimingClass(
+                profile=profile,
+                R_over_Q=self.R_over_Q,
+                Q_L=1.29e4,
+                generator_current_bias=0.02 + 0.0j,
+                n_cavities=1,
+                injection_voltage=20.0e6,  # no n_pretrack
+            )
+        self.assertIn("n_pretrack", str(cm.exception))
+
+
+class TestBaseCoarseGridSizing(unittest.TestCase):
+    """
+    Shared ``IQCavityFeedback`` base sizes its coarse grid as a Python int.
+
+    ``on_run_simulation`` computes ``n_samples_coarse`` (the number of complete
+    coarse cells per turn) and allocates the coarse arrays with it. It must be a
+    Python ``int``, since ``np.zeros`` rejects a float length on numpy >= 2. The
+    timing subclass overrides ``on_run_simulation``, so this exercises the base
+    path used by the other (non-mucol) IQ cavity feedbacks.
+    """
+
+    class _MinimalFeedback(IQCavityFeedback):
+        """Concrete base subclass with no-op abstract methods."""
+
+        def update_feedback_variables(self) -> None:
+            """No-op."""
+
+        def circuit_track(self, no_beam: bool = False) -> None:
+            """
+            No-op.
+
+            Parameters
+            ----------
+            no_beam
+                Beam dependant parts of the feedback can be skipped if this is True.
+            """
+
+    def test_on_run_simulation_sizes_coarse_grid_as_int(self):
+        """N_samples_coarse is an int (floor of turns/cell) sizing the arrays."""
+        profile = Mock(StaticProfile)
+        profile.n_bins = 64
+        feedback = self._MinimalFeedback(
+            profile=profile,
+            n_cavities=1,
+            n_rf_periods_per_coarse_grid=1,
+            harmonic_index=1,
+        )
+        # t_rev / sampling_time_coarse = 200.7 -> floor -> 200 coarse cells.
+        with (
+            patch.object(
+                IQCavityFeedback,
+                "t_rev",
+                new_callable=PropertyMock,
+                return_value=200.7e-9,
+            ),
+            patch.object(
+                IQCavityFeedback,
+                "sampling_time_coarse",
+                new_callable=PropertyMock,
+                return_value=1.0e-9,
+            ),
+        ):
+            feedback.on_run_simulation(
+                simulation=Mock(), beam=Mock(), n_turns=1
+            )
+
+        self.assertIsInstance(feedback.n_samples_coarse, int)
+        self.assertEqual(feedback.n_samples_coarse, 200)
+        self.assertEqual(len(feedback.antenna_voltage_coarse_grid), 200)
+        self.assertEqual(len(feedback.generator_current_coarse_grid), 200)
 
 
 if __name__ == "__main__":

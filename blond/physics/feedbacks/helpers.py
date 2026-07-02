@@ -515,3 +515,101 @@ def cavity_response_sparse_matrix_second_order(
 
     return spsolve(cn_matrix, b)[1:]
     # first value is the initial condition
+
+
+def pretrack_fill_voltage(
+    r_over_q: float,
+    q_l: float,
+    omega: float,
+    delta_omega: float,
+    generator_current: complex,
+    n_pretrack: int,
+    t_rev: float,
+    injection_voltage: float | None = None,
+) -> complex:
+    r"""
+    Seed antenna voltage from a feedforward (constant-current) cavity fill.
+
+    The no-beam cavity envelope driven by a constant generator current
+    :math:`I_\mathsf{gen}` obeys
+
+    .. math::
+        \frac{\mathrm{d}V}{\mathrm{d}t} = \lambda V
+            + \frac{R}{Q}\,\omega\,I_\mathsf{gen},
+        \qquad \lambda = -\frac{\omega}{2 Q_L} + i\,\Delta\omega,
+
+    which fills from a cold cavity (:math:`V(0) = 0`) as
+
+    .. math::
+        V(t) = V_\mathsf{ss}\,(1 - e^{\lambda t}),
+        \qquad V_\mathsf{ss} = -\frac{(R/Q)\,\omega\,I_\mathsf{gen}}{\lambda}.
+
+    On resonance (:math:`\Delta\omega = 0`) this reduces to
+    :math:`V_\mathsf{ss} = 2 (R/Q) Q_L I_\mathsf{gen}`.
+
+    Without ``injection_voltage`` the seed is :math:`V(n_\mathsf{pretrack} T_0)`
+    (the fill after ``n_pretrack`` turns, which approaches :math:`V_\mathsf{ss}`).
+    With ``injection_voltage`` the seed is :math:`V(t^\star)` at the first
+    :math:`t^\star \in [0, n_\mathsf{pretrack} T_0]` where :math:`|V(t)|` reaches
+    ``injection_voltage`` -- i.e. the beam is injected part-way through the fill.
+
+    Parameters
+    ----------
+    r_over_q
+        Geometric shunt impedance of the cavity [Ohm].
+    q_l
+        Loaded quality factor of the cavity.
+    omega
+        RF angular frequency [rad/s].
+    delta_omega
+        Cavity resonance detuning [rad/s].
+    generator_current
+        Constant (feedforward) generator current [A].
+    n_pretrack
+        Cavity fill budget in turns.
+    t_rev
+        Revolution period [s].
+    injection_voltage
+        If given, seed from the fill transient when ``|V_ant|`` first reaches
+        this magnitude [V]; otherwise seed from the fill after ``n_pretrack``
+        turns.
+
+    Returns
+    -------
+    complex
+        Seed antenna voltage [V].
+    """
+    lam = -omega / (2.0 * q_l) + 1j * delta_omega
+    v_ss = -(r_over_q * omega) * generator_current / lam
+
+    fill_time = n_pretrack * t_rev
+    if injection_voltage is None:
+        return v_ss * (1.0 - np.exp(lam * fill_time))
+
+    # Scan the fill transient for the first time |V(t)| reaches the injection
+    # target. Resolve the fill time constant tau = 2 Q_L / omega with ~200
+    # points (well past the crossing, which sits on the initial rise), capped
+    # so an over-long budget stays affordable.
+    tau = 2.0 * q_l / omega
+    n_points = int(np.clip(200.0 * fill_time / tau, 2000, 2_000_000))
+    t = np.linspace(0.0, fill_time, n_points)
+    voltage = v_ss * (1.0 - np.exp(lam * t))
+    magnitude = np.abs(voltage)
+
+    if magnitude.max() < injection_voltage:
+        raise ValueError(
+            f"injection_voltage ({injection_voltage:.3g} V) is not reached "
+            f"within {n_pretrack} pre-fill turns; the fill only reaches "
+            f"{magnitude.max():.3g} V. Increase the generator current, the "
+            "detuning, or n_pretrack, or lower injection_voltage."
+        )
+
+    # First grid point at/above the target, then linearly interpolate the
+    # crossing time between it and the previous point for sub-grid accuracy.
+    idx = int(np.argmax(magnitude >= injection_voltage))
+    step = magnitude[idx] - magnitude[idx - 1]
+    frac = (
+        (injection_voltage - magnitude[idx - 1]) / step if step != 0 else 0.0
+    )
+    t_cross = t[idx - 1] + frac * (t[idx] - t[idx - 1])
+    return v_ss * (1.0 - np.exp(lam * t_cross))
