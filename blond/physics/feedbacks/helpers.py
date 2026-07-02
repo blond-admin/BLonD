@@ -218,12 +218,7 @@ def rf_beam_current(  # noqa: PLR0912
     if external_reference:
         # slippage in phase due to a non-integer harmonic number
         dphi = dT * omega_c
-        # Total phase correction
-        # dphi = 0
-        # phase = dphi
-        charges_fine = charges_fine * np.exp(
-            1j * (dphi + np.pi / 2)  # TODO: why?
-        )  # TODO: +1j or -1j?
+        charges_fine = charges_fine * np.exp(1j * (dphi + np.pi / 2))
 
     if downsample:
         try:
@@ -243,8 +238,7 @@ def rf_beam_current(  # noqa: PLR0912
         )
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-        if any(indices < 0):
-            raise RuntimeError("yorak")
+        if np.any(ind_fine < 0):
             warnings.warn(
                 "part of the beam is located before turn time 0, "
                 "this will cause problems, please shift the beam",
@@ -264,8 +258,8 @@ def rf_beam_current(  # noqa: PLR0912
             for i in range(
                 1, len(indices)
             ):  # TODO: not good for sparse profiles !!!!
-                if i + ind_fine[0] > n_points:
-                    raise RuntimeError("yorak")
+                # The write index is kept in range by the % n_points wrap
+                # below (periodic coarse grid), so no bounds guard is needed.
                 charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
                     charges_fine[
                         indices[i - 1] : indices[i]
@@ -291,7 +285,6 @@ def rf_beam_current(  # noqa: PLR0912
                     "window (cut_left) or the bunch so that no charge lies "
                     "in the first coarse cell."
                 )
-        # print(np.angle(charges_coarse[1], deg=True))
         return charges_fine, charges_coarse
 
     else:
