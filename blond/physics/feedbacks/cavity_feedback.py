@@ -1065,13 +1065,17 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         # The coarse grid must follow the *actual* RF frequency: the design
         # frequency at the tracked reference plus the station's RF-frequency
         # offset delta_omega_rf, so the rf_center spacing tracks the detuned
-        # period. delta_omega_rf == 0 leaves this unchanged.
+        # period. delta_omega_rf == 0 leaves this unchanged. Applying the
+        # parent's offset across the whole forward-tracked segment (which
+        # spans other stations' sections) is safe because the RF station
+        # forbids changing delta_omega_rf during the run when the ring has
+        # more than one station (see RFStationBaseClass.delta_omega_rf).
         self.forward_tracking_omega_rf = (
             self._parent_rf_station.calc_omega_rf_design(
                 dummy_reference.beta, self.ring.circumference
             )
             + self.delta_omega_rf
-        )  # TODO: problematic with multi-section if delta_omega_rf is changed between sections
+        )
         self.tracked_forward_until_element = (
             forward_list[
                 next_reference_altering_element_index % len(forward_list)
@@ -1451,7 +1455,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 t_rf=(2 * np.pi / self.reverse_tracking_omega_list[time_ind]),
                 omega_rf=self.reverse_tracking_omega_list[time_ind],
                 phi_rf=self.phi_rf,
-                # TODO: not working atm with delta_omega since the calculation of phi_increment is not done correctly in parent rf cavity
+                # The parent station accumulates the delta_omega_rf phase slip
+                # exactly, from the elapsed reference time (see
+                # RFStationBaseClass._update_delta_phi_rf_from_beam_feedback).
+                # TODO: phi_rf is the phase at the *current* passage; with
+                #  delta_omega_rf != 0 each reverse segment would need the
+                #  phase at its own start, phi_rf - delta_omega_rf *
+                #  (t_now - t_segment_start), reconstructable from the
+                #  segment times gathered above.
                 until_time=time,
             )
             self.rf_centers_lengths = np.append(
