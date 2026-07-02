@@ -1,0 +1,572 @@
+.. _mucol_cavity_feedback_tests:
+
+Muon Collider Cavity-Feedback Test Suite
+========================================
+
+This page documents the test suite for the muon-collider RF cavity feedbacks.
+The files live in the source tree under::
+
+    unittests/physics/feedbacks/accelerators/mucol/
+
+and exercise the longitudinal-beam-loading models used for the muon-collider
+Rapid-Cycling Synchrotrons (RCS):
+
+* the I/Q cavity-feedback timing model
+  (``blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass``),
+* the standalone PI generator-current controller
+  (``blond.physics.feedbacks.generator_current_controller.GeneratorCurrentPIController``)
+  and the feedback's controller-driven mode
+  (``IQCavityFeedbackTimingClass(controller=...)``),
+* the cavity-response solvers and the beam-current demodulation in
+  ``blond.physics.feedbacks.helpers``, and
+* cross-checks of the feedback against the multi-turn resonator wake
+  (``blond.physics.impedances.solvers.MultiPassResonatorSolver``).
+
+The tests are written for the ``unittest`` framework but are collected and
+run with ``pytest``. They share a small set of mock objects and numeric helpers
+(see `Support modules`_), so the directory is an importable package and the
+test modules use **package-relative imports** (``from .stubs import StubBeam``).
+The directories above ``mucol`` carry no ``__init__.py``, so these helpers are
+not importable by an absolute path.
+
+.. contents:: Contents
+   :local:
+   :depth: 2
+
+
+Common physics context
+-----------------------
+
+Most tests are parametrised with RCS1-like single-cavity numbers: a shunt
+impedance ratio ``R_over_Q = 518``, a loaded quality factor ``Q_L`` of order
+``1e4`` (single-pass tests) or ``1.29e6`` (multi-turn tests), harmonic number
+``25900``, ring circumference ``5990`` m, a ``mu_plus`` beam of intensity
+``2.7e12`` and a design voltage ``V_design = 30`` MV near the ``63`` GeV
+operating point.
+
+Several recurring techniques are worth knowing when reading the tests:
+
+Non-driven / operating-point cavity
+    With the generator current set to zero (and ``initial_voltage = 0``) the
+    feedback's antenna voltage is *only* the beam-induced voltage, so it can be
+    compared directly with a resonator wake. When a full ``Simulation`` is
+    tracked, a cold cavity instead trips the coarse-grid beam-kick magnitude
+    check, so the cavity is held at its operating point
+    (``initial_voltage = V_design`` with the matched generator current
+    ``I_g = V / (2 (R/Q) Q_L)``) and the beam-induced part is isolated by
+    subtracting a **zero-intensity reference run** (exact, by linearity of the
+    cavity equation).
+
+Lab-frame projection
+    The feedback works with the complex I/Q envelope of the antenna voltage,
+    whereas the resonator solvers return a real, lab-frame induced voltage.
+    The envelope is projected back with
+    ``-Im[V_ant * exp(i omega_rf t)]`` (or ``-Re[...]``); see
+    ``support.lab_frame_voltage``.
+
+Accumulated phase under acceleration
+    When the beam accelerates, the RF frequency slips turn to turn, so the
+    carried cavity wake winds up the *accumulated* phase
+    :math:`\theta(t) = \int \omega(t)\,dt` rather than a fixed
+    :math:`\omega_0 t`. The phase-under-acceleration tests certify exactly this.
+
+
+Test modules
+------------
+
+``test_mucol_cav_fdbk.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Unit tests for the I/Q cavity-feedback timing class
+(``IQCavityFeedbackTimingClass``): the discrete step-size sanity checks and a
+single-turn benchmark of the beam-loading response.
+
+**Class** ``TestCavityFeedback`` -- step-size sanity checks. ``setUp`` builds a
+feedback instance with RCS1 four-station parameters on a mocked
+``StaticProfile``.
+
+``test_circuit_track_applies_delta_omega_phase_shift``
+    Drives ``circuit_track`` with zero generator/beam current and a constant
+    step grid, and checks the antenna voltage evolves purely by the per-step
+    complex multiplier ``1 - 0.5 omega dt / Q_L + 1j delta_omega dt``.
+``test_step_size_check_warns_for_large_decay_per_step``
+    ``_check_step_sizes`` warns when the per-step decay sits between the soft
+    (0.1) and hard (2.0) limits.
+``test_step_size_check_warns_for_large_detuning_phase_per_step``
+    Warns when the per-step detuning phase ``delta_omega * dt`` exceeds the
+    soft limit.
+``test_step_size_check_no_warning_for_small_step_parameters``
+    No warning when both per-step parameters are well below the limit.
+``test_cavity_response_warns_for_large_beam_kick``
+    ``cavity_response`` warns when the relative beam kick is between the soft
+    (0.1) and hard (1.0) limits.
+``test_cavity_response_no_warning_for_small_beam_kick``
+    No warning when the relative beam kick is negligible.
+``test_step_size_check_raises_for_unphysical_decay_per_step``
+    Raises ``ValueError`` when the per-step decay exceeds the hard limit
+    (the Euler decay factor would go negative).
+``test_step_size_check_raises_for_unphysical_detuning_phase_per_step``
+    Raises when the per-step detuning phase exceeds the hard limit.
+``test_step_size_check_fires_on_run_simulation``
+    End-to-end companion: an unphysical detuning aborts the run-start
+    initialisation inside ``on_run_simulation`` with a real RF station and a
+    stubbed beam/simulation.
+``test_cavity_response_raises_for_unphysical_beam_kick``
+    Raises when the beam-induced kick exceeds the previous antenna voltage.
+
+**Class** ``TestFineGridResonatorBenchmark`` -- benchmarks the single-turn
+(fine-grid) beam-loading response, with the generator current zeroed, against
+an independent ``Resonators`` induced-voltage model
+(``SingleTurnResonatorConvolutionSolver``) on a real Gaussian-plus-noise
+``mu_plus`` beam. Agreement is checked on shape (correlation > 0.999),
+amplitude scale (~1) and waveform (NRMSE < 1 %).
+
+``test_fine_grid_matches_resonator_on_resonance``
+    On resonance (``delta_omega = 0``).
+``test_fine_grid_matches_resonator_positive_detuning``
+    Positive detuning (``delta_omega = 5e6``); the phase shift matches a
+    detuned resonator.
+``test_fine_grid_matches_resonator_negative_detuning``
+    Negative detuning (``delta_omega = -2e7``).
+
+**Class** ``TestCavityPrefill`` -- the feedforward cavity pre-fill / injection
+matching. The no-beam, constant-current cavity fills from cold as
+``V(t) = V_ss (1 - exp(lambda t))``; the helper
+``blond.physics.feedbacks.helpers.pretrack_fill_voltage`` returns the complex
+seed antenna voltage, and ``n_pretrack`` / ``injection_voltage`` on
+``IQCavityFeedbackTimingClass`` route it through ``on_run_simulation``. The PI
+controller (if any) does not act during the fill.
+
+``test_steady_state_fill_on_resonance_matches_two_r_q_ql_ig``
+    Without ``injection_voltage`` the fill converges to
+    ``V_ss = 2 (R/Q) Q_L I_g`` on resonance.
+``test_injection_voltage_seeds_at_the_requested_magnitude``
+    With ``injection_voltage`` the seed magnitude equals that target.
+``test_unreachable_injection_voltage_raises``
+    A target above the steady-state fill cannot be reached, so it raises.
+``test_fill_seed_is_an_equilibrium_of_the_coarse_step``
+    A no-beam cavity started at the fill seed does not drift (the seed is the
+    exact fixed point of the coarse Euler step).
+``test_n_pretrack_seeds_init_voltage_with_the_fill``
+    ``on_run_simulation`` replaces ``init_voltage`` with the pre-fill seed.
+``test_injection_voltage_without_n_pretrack_raises``
+    ``injection_voltage`` without a ``n_pretrack`` budget raises.
+
+**Class** ``TestBaseCoarseGridSizing`` -- the shared ``IQCavityFeedback`` base
+(the timing class overrides ``on_run_simulation``, so this covers the base path
+used by the other IQ cavity feedbacks).
+
+``test_on_run_simulation_sizes_coarse_grid_as_int``
+    ``on_run_simulation`` sets ``n_samples_coarse`` to a Python ``int`` (floor
+    of turns-per-cell) and allocates the coarse arrays with it, so ``np.zeros``
+    accepts the length on numpy >= 2.
+
+
+``test_generator_current_controller.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Unit tests for the standalone generator-current controller
+(``blond.physics.feedbacks.generator_current_controller``): the
+phase-preserving magnitude clamp, the klystron-power-to-current conversion, the
+abstract controller interface and the saturating PI control law. The controller
+is pure signal processing, so these tests drive it with plain numbers -- no
+cavity, profile or ``Simulation``.
+
+**Class** ``TestClampMagnitude`` -- the phase-preserving magnitude clamp
+``clamp_magnitude``.
+
+``test_preserves_phase_and_clamps_magnitude``
+    Clamping sets the magnitude to the limit and keeps the phase.
+``test_leaves_small_values_unchanged``
+    A value below the limit passes through unchanged.
+``test_handles_arrays_including_zero``
+    Array input is clamped element-wise; zero entries stay zero.
+``test_none_limit_is_a_no_op``
+    With no limit the input is returned unchanged.
+
+**Class** ``TestCurrentLimitFromPower`` -- the klystron-power-to-current-limit
+conversion ``current_limit_from_power``.
+
+``test_matched_generator_relation``
+    ``I_max = sqrt(2 P / ((R/Q) Q_L))``.
+
+**Class** ``TestAbstractController`` -- the ``GeneratorCurrentController``
+interface.
+
+``test_cannot_instantiate_abstract_base``
+    The interface has an abstract ``update_generator_current`` and cannot be
+    instantiated.
+``test_default_limit_is_a_no_op``
+    The base ``limit()`` applies no actuator limit.
+
+**Class** ``TestGeneratorCurrentPIController`` -- the saturating PI control law
+mapping a voltage error to a generator current.
+
+``test_constant_current_passthrough_with_zero_gains``
+    With zero gains the output is the constant current bias, for any error.
+``test_proportional_only``
+    Pure P control returns ``I_bias + K_p * error``.
+``test_loop_delay_holds_output_until_error_propagates``
+    With ``n_delay`` samples the error acts only after ``n_delay`` updates.
+``test_integral_accumulates_linearly``
+    Pure I control integrates a constant error linearly.
+``test_anti_windup_freezes_integral_while_saturated``
+    The integrator does not wind up while the output is clamped.
+``test_integral_resumes_after_desaturation``
+    Once the output is back in range the integrator accumulates again.
+``test_output_magnitude_is_clamped_with_phase_preserved``
+    The returned command never exceeds the configured limit.
+``test_limit_clamps_an_array_to_max_output``
+    ``limit()`` enforces the klystron limit on an external current array.
+``test_limit_is_a_no_op_without_a_limit``
+    Without ``max_output``, ``limit()`` returns the input unchanged.
+``test_negative_delay_is_rejected``
+    A negative loop delay raises.
+
+
+``test_generator_current_pi_feedback.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Integration tests for the controller-driven cavity feedback: an
+``IQCavityFeedbackTimingClass`` with a ``GeneratorCurrentPIController`` attached
+(``controller=``). Module helpers ``build_controller``, ``build_feedback`` and
+``run_coarse_transient`` construct an RCS1-like loop at its no-beam steady state
+and drive ``circuit_track`` on a hand-built constant-step grid with a beam
+current switching on mid-turn. The diagnostic plots are gated by the module
+switch ``PLOT_DIAGNOSTICS`` (``None`` disables them, the CI default; ``"save"``
+writes a PNG next to the file; ``"show"`` also opens a window), so the
+``test_plot_*`` methods below skip unless it is set.
+
+**Class** ``TestGeneratorPower`` -- klystron power from the generator current.
+
+``test_generator_power_formula``
+    Checks ``P = 0.5 (R/Q) Q_L |I|^2``.
+
+**Class** ``TestFeedbackControllerDelegation`` -- the feedback delegates the
+error-to-current conversion to its controller.
+
+``test_update_delegates_error_and_step_to_controller``
+    The controller update receives the correct antenna-voltage error and
+    per-step time.
+``test_no_controller_keeps_constant_current``
+    Without a controller the generator current stays at the constant bias.
+
+**Class** ``TestHighIntensityBunchTransient`` -- one transient is run in
+``setUpClass`` and shared. A constant RF beam current switches on mid-turn; the
+beam loading sags the voltage, then after the loop delay the PI controller
+restores it.
+
+``test_steady_state_before_the_bunch``
+    Voltage and current are stationary before the bunch arrives.
+``test_generator_current_reacts_only_after_the_loop_delay``
+    The generator current stays at the constant bias for ``n_delay`` samples,
+    then moves.
+``test_beam_loading_pulls_the_voltage_down_first``
+    The antenna voltage sags within the delay window.
+``test_voltage_vector_returns_to_setpoint``
+    The integrator restores the complex (I and Q) voltage to its setpoint.
+``test_generator_current_settles_at_compensation_value``
+    The generator current ends at the beam-loading compensation
+    ``I_ff + I_beam / 2``.
+``test_generator_power_goes_up``
+    The klystron power rises while the voltage is restored.
+``test_plot_coarse_power_and_voltage``
+    Opt-in diagnostic plot of the coarse power/voltage transient.
+
+**Class** ``TestKlystronPowerLimit`` -- with the current clamped below the
+required compensation value, the loop saturates.
+
+``test_generator_current_never_exceeds_the_limit``
+    ``|I_gen|`` stays at or below the configured maximum.
+``test_generator_current_saturates_at_the_limit``
+    The controller drives the klystron into saturation.
+``test_voltage_does_not_return_to_setpoint``
+    With saturated power the voltage cannot be restored.
+``test_plot_coarse_power_and_voltage``
+    Opt-in diagnostic plot of the power-limited (saturated) transient.
+
+**Class** ``TestSinglePulseBunchTransient`` -- a single bunch passage (the
+beam current switched on and then off again) contrasted with sustained loading,
+both with a clamped generator current.
+
+``test_clamp_is_active_during_the_passage``
+    While the bunch is present the generator current saturates.
+``test_voltage_returns_to_setpoint_after_the_bunch``
+    Once the bunch has passed, the voltage vector recovers to ``V0``.
+``test_generator_power_returns_to_baseline``
+    The klystron power rises during the bunch and then drops back.
+``test_sustained_loading_does_not_recover``
+    The contrast case keeps sagging instead of returning to ``V0``.
+``test_plot_single_pulse_vs_sustained``
+    Opt-in diagnostic plot contrasting a bunch passage with sustained load.
+
+**Class** ``TestResponseMatrixClamping``
+
+``test_fine_grid_solve_uses_clamped_generator_current``
+    The fine-grid response-matrix solve (``cavity_response_sparse_matrix``)
+    sees the clamped generator current, and the stored fine-grid current is
+    clamped in place.
+
+**Class** ``TestPerProfileVoltageOverTurns`` -- a multi-turn transient run once
+in ``setUpClass`` and shared; checks the per-profile (fine-grid) gap voltage
+turn over turn.
+
+``test_no_distortion_before_the_bunch``
+    Before the bunch, the per-profile voltage sits at the setpoint.
+``test_beam_loading_distorts_the_profile_voltage``
+    The bunch produces a clear transient distortion of the voltage.
+``test_distortion_peaks_right_after_the_bunch_arrives``
+    The largest distortion is the beam-arrival transient, not a slow drift.
+``test_per_profile_voltage_recovers_toward_setpoint``
+    The final-turn distortion is well below the transient peak.
+``test_plot_per_profile_voltage_over_turns``
+    Opt-in diagnostic plot of the per-profile voltage over turns.
+
+
+``test_helpers.py``
+^^^^^^^^^^^^^^^^^^^
+
+Tests for the cavity-response solvers and beam-current demodulation in
+``blond.physics.feedbacks.helpers``. The solvers are driven directly on a
+static profile -- no ``Beam`` tracking and no full ``Simulation``.
+
+**Class** ``TestCavityResponseSolverConvergence`` -- first-order forward Euler
+(``cavity_response_sparse_matrix``) versus second-order Crank-Nicolson
+(``cavity_response_sparse_matrix_second_order``), both integrating the same
+cavity-envelope ODE and converging to the multi-turn resonator convolution.
+
+``test_second_order_more_accurate_at_low_binning``
+    At coarse binning the Crank-Nicolson solver beats Euler by orders of
+    magnitude.
+``test_solver_convergence_orders``
+    Halving the bin size shrinks the error by ~2 for Euler (``O(dt)``) and
+    ~4 for Crank-Nicolson (``O(dt^2)``).
+``test_solvers_agree_as_predicted_by_convergence_rate``
+    The two solvers differ by the (first-order) Euler truncation error, which
+    halves as the bin count doubles.
+``test_second_order_flag_routes_through_the_class``
+    ``IQCavityFeedbackTimingClass(second_order=...)`` reproduces the matching
+    standalone solver bit-for-bit and lands far closer to the convolution.
+
+An opt-in debug plot (``DEBUG_PLOT``, ``_plot_convergence``) shows the
+convergence slopes and the residual against the convolution solver.
+
+**Class** ``TestRfBeamCurrentDownsampling`` -- charge conservation of the
+coarse-grid downsampling in ``rf_beam_current``. Regression test for a dropped
+remainder that used to silently discard demodulated charge past the last
+coarse-cell boundary (up to the whole bunch, depending on its phase).
+
+``test_downsampling_conserves_demodulated_charge``
+    Re-binning the fine-grid demodulated charge onto the coarse grid conserves
+    the complex sum, for bunches swept across the cell boundaries.
+``test_warns_when_beam_maps_before_turn_zero``
+    A large negative time shift maps a coarse index below zero, which warns
+    that part of the beam sits before turn time 0.
+``test_error_when_first_coarse_cell_populated``
+    With ``forbid_charge_in_first_coarse_cell=True`` (used by the feedback to
+    avoid double-counting), charge in the first cell raises.
+``test_no_error_when_first_coarse_cell_empty``
+    A mid-window bunch leaves the first cell numerically empty (the guard uses
+    a relative threshold, not ``!= 0``).
+``test_warns_on_particle_loss``
+    Warns when the profile does not capture the whole beam.
+``test_no_warning_when_profile_captures_full_beam``
+    No warning when the window captures everything.
+
+
+``test_mtw_vs_nondriven_feedback.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Compares the same single cavity modelled as a ``MultiPassResonatorSolver``
+(multi-turn resonator convolution) and as a non-driven
+``IQCavityFeedbackTimingClass`` whose antenna voltage, with the beam as the
+only excitation, is the beam-induced voltage. ``make_noisy_profile`` builds the
+shared noisy-Gaussian static profile (edge bins zeroed).
+
+**Class** ``TestSinglePassInducedVoltage`` -- single pass, mock-driven, no
+``Simulation``; the lab-frame induced voltages agree to < 1 %.
+
+``test_induced_voltage_matches_non_driven_feedback``
+    Pointwise (within 1 % of peak), shape (relative L2 < 1 %) and peak
+    amplitude (within 1 %) agreement.
+``test_zeroed_profile_edges_remain_zero``
+    Guards the precondition that the edge bins carry no charge.
+``test_feedback_without_beam_or_generator_is_silent``
+    A non-driven feedback with zero initial voltage induces nothing.
+
+**Class** ``TestMultiTurnFeedbackVsConvolution`` -- full ``Simulation`` with a
+dummy particle-less beam driving static profiles over several turns. The
+feedback's coarse grid is propagated turn over turn through the reverse/forward
+reference tracking, and its beam-induced gap voltage (minus a no-beam reference
+run) is compared per turn and per section against the accumulating convolution
+voltage. Uses a high ``Q_L = 1.29e6`` so the previous-pass wake survives
+(~88 % per turn). Results are cached per ``(n_sections, acceleration)`` config.
+
+``test_multiturn_wake_accumulates_over_turns``
+    The multi-pass wake genuinely builds up turn over turn (peaks ~1, 1.9, 2.8)
+    and the first turn matches the feedback to single-pass accuracy.
+``test_multiturn_feedback_propagation_matches_convolution``
+    Coarse-grid propagation matches the convolution on every turn (regression
+    for the dropped downsample remainder, single section, static cycle).
+``test_multiturn_multiple_sections``
+    Holds for multi-section rings (2, 3, 10 RF stations per turn), exercising
+    the reverse/forward reference tracking across stations.
+``test_multiturn_with_acceleration``
+    Holds under acceleration (``MagneticCyclePerTurnAllRFStations``), where
+    ``t_rev``, the carrier frequency and the reverse-tracking frame slip vary
+    turn over turn.
+
+
+``test_energy_gain_ind_voltage_vs_nondriven_feedback.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Tracks an actual ``BiGaussian`` ``mu_plus`` bunch through a real one-turn
+``Simulation`` (one ``DriftSimple`` + one ``SingleHarmonicRFStation``) and
+checks that the induced-voltage *energy gain* applied to the particles is the
+same whether it comes from the multi-turn resonator solver (a separate wake
+kick) or from the operating-point feedback (beam-induced part isolated by the
+zero-intensity reference run). Runs for a stationary ``ConstantMagneticCycle``
+and an accelerating ``MagneticCyclePerTurn``.
+
+**Class** ``TestEnergyGainMTWvsNonDrivenFeedback``
+
+``test_feedback_runs_in_full_simulation``
+    The feedback tracks through a full ``Simulation`` (regression for the
+    renamed ``_turn_counter`` attribute); the beam-induced kick is a few % of
+    the design voltage.
+``test_mtw_applies_charge_times_induced_voltage``
+    The multi-turn wake applies exactly ``charge * V_induced(dt)`` per particle.
+``test_applied_energy_gain_consistent``
+    The wake and the feedback apply the same beam-induced energy gain
+    (pointwise within ~3 % of peak, relative error < 2 %).
+``test_applied_energy_gain_consistent_with_acceleration``
+    Same under acceleration, after removing the common ``-delta_E_turn``
+    acceleration offset; both paths reproduce the programmed reference-energy
+    gain.
+
+An opt-in debug plot (``_plot_energy_kick``) writes ``energy_kick_over_time.png``
+(see `Data and assets`_).
+
+
+``test_feedback_phase_under_acceleration.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Validates the feedback's multi-turn wake **phase** under acceleration against
+an independent analytic reference. A real *matched* ``BiGaussian`` beam is
+accelerated just above transition (``gamma_t ~ 31`` at ~4 GeV) so the RF frame
+slips ~0.09 ``t_rf`` per turn -- far more than at the operating point -- which
+exposes any phase-handling error.
+
+The module function ``analytic_multipass_induced_voltage`` rebuilds the
+induced voltage from first principles as a double sum of the resonator wake
+``exp(-Phi / (2 Q_L)) * cos(Phi)`` over every past bunch passage, with the
+accumulated phase ``Phi = theta(t_o) - theta(t_e)``. The ``fixed_freq`` flag
+selects the *wrong* fixed-frequency phase clock and is used only to show the
+test is sensitive to the accumulated-phase handling.
+
+**Class** ``TestFeedbackPhaseUnderAcceleration``
+
+``test_feedback_matches_analytic_multipass_reference``
+    The feedback reproduces the integrated-phase reference to < 5 % on every
+    carried turn (after one overall scale fixed on the first, single-pass turn).
+``test_integrated_phase_is_required``
+    A fixed-frequency reference diverges (> 30 %), proving the comparison is
+    sensitive to the accumulated-phase handling.
+``test_setup_is_in_the_frame_slipping_regime``
+    Guard: the frame slips meaningfully (> 0.2 ``t_rf``) and the bunch stays
+    in-window.
+
+**Class** ``TestSolverPhaseUnderAcceleration``
+
+``test_solver_matches_analytic_multipass_reference``
+    Reusing the same matched-beam setup, the retuning ``MultiPassResonatorSolver``
+    (``delta_f=0.0``) also reproduces the integrated-phase reference, i.e. it
+    accumulates the carried-wake phase as ``integral of omega dt``.
+
+**Class** ``TestFixedFrequencyWakeWithSubsteppedFrame`` -- a fixed-frequency
+(higher-order-mode) wake does not retune with the RF, so its carried-wake
+phase-clock rotation is identically zero and the only acceleration error left
+is the frame (arrival) time. The solver is driven on a fixed profile while the
+reference frame is advanced by ``DriftSubstepped`` (no beam tracking).
+
+``test_substepped_frame_makes_fixed_frequency_wake_exact``
+    A single-beta frame (``n_substeps = 1``) diverges from the analytic
+    fixed-frequency reference (> 30 %), while a sub-stepped frame reproduces it
+    on every carried turn (relative error < 1 %) -- so the residual is
+    frame-time granularity, fixable in the tracking rather than the resonator.
+
+.. note::
+
+   Like the other modules, this one defaults to ``DEBUG_PLOT = False``; set it
+   to ``True`` to open the Matplotlib diagnostic plots (blocking), and leave it
+   at ``False`` for a headless/CI run.
+
+
+Support modules
+---------------
+
+These are imported by the test modules and are not collected as tests
+themselves.
+
+``stubs.py``
+    Lightweight, deepcopy-able mock objects that expose only the few
+    attributes the solvers read, so the cavity-response and multi-turn
+    resonator solvers can run without a full ``Beam`` or ``Simulation``:
+    ``StubReference`` (reference time/beta), ``StubBeam`` (intensity and
+    particle type) and ``StubRFStation`` (fixed design RF frequency and a
+    no-op reference tracking).
+``support.py``
+    Numeric helpers shared across the test modules: ``rel_err`` (relative L2
+    error ``||a - b|| / ||b||``) and ``lab_frame_voltage`` (projects the
+    complex antenna-voltage envelope back to the real lab frame, with both
+    demodulation-sign conventions).
+``mucol_cav_fdbk.py``
+    Not a ``pytest`` module: a standalone driver and plotting script for the
+    full muon-collider RCS cavity-feedback simulation. ``setup_and_run`` builds
+    an RCS (``RCS1``/``RCS2``/``RCS4``) ring with per-station profiles and
+    either the convolution wake (``MTW=True``) or the I/Q feedback, derives the
+    cavity parameters (``Q_L``, generator current ``I_g``, detuning
+    ``delta_omega``) from the working point, optionally matches the beam with
+    the ``SemiEmpiricMatcher`` (``match_beam``) and runs the cycle. It also
+    provides the result/voltage plotting helpers and the single-turn fine-grid
+    versus resonator benchmark (``compute_single_turn_fine_grid_vs_resonator``,
+    ``benchmark_single_turn_fine_grid_vs_resonator``) whose logic is mirrored
+    by ``TestFineGridResonatorBenchmark``. Run directly, it compares the wake
+    and feedback runs interactively.
+``__init__.py``
+    Marks the directory as a package so the test modules can use the
+    package-relative imports of ``stubs`` and ``support``.
+
+
+Data and assets
+---------------
+
+``fdbk_testing/init_distr_convol_RCS1_n_stations_1.npz``
+    Cached matched initial beam distribution (``dt``/``dE`` arrays) for the
+    single-station RCS1 setup, loaded by ``mucol_cav_fdbk.setup_and_run`` (via
+    ``load_beam_coordinates_from_file``) to skip the expensive beam matching.
+``energy_kick_over_time.png``
+    Saved output of the opt-in debug plot in
+    ``test_energy_gain_ind_voltage_vs_nondriven_feedback.py`` -- the applied
+    energy kick versus arrival time for the wake and feedback paths.
+
+
+Running the tests
+-----------------
+
+From the ``BLonD`` project root, run the whole suite with ``pytest``:
+
+.. code-block:: bash
+
+   pytest unittests/physics/feedbacks/accelerators/mucol/
+
+or a single module / test, for example:
+
+.. code-block:: bash
+
+   pytest unittests/physics/feedbacks/accelerators/mucol/test_helpers.py
+   pytest "unittests/physics/feedbacks/accelerators/mucol/test_mucol_cav_fdbk.py::TestFineGridResonatorBenchmark"
+
+The debug plots are opt-in via the ``DEBUG_PLOT`` module constant (and
+``PLOT_DIAGNOSTICS`` in ``test_generator_current_pi_feedback.py``); both default
+to off in every module, so nothing opens in a headless/CI run.
