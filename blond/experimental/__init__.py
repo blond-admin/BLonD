@@ -9,7 +9,6 @@
 """Untested/unstable code that might be changed in the future."""
 
 __all__ = [
-    "FilamentationMatcher",
     "SemiEmpiricMatcher",
     "VariNoise",
     "ProfileMatcherAddon",
@@ -17,9 +16,6 @@ __all__ = [
 ]
 import warnings
 
-from blond.experimental.beam_preparation.filamentation_matcher import (
-    FilamentationMatcher,
-)
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
