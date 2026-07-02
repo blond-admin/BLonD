@@ -1636,7 +1636,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 -self.rf_centers_lengths[-1] :
             ][0]
 
-            # TODO: fix in case of RK application
             samples_per_rf_fine_grid = omega_input * self.profile.hist_step
             # copy_to_cpu: the feedback signal processing is host-side
             # (scipy), so a GPU-backend profile grid must be brought to host.
@@ -1828,7 +1827,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.antenna_voltage_coarse_grid = np.zeros(
             len(self.rf_centers), dtype=np.complex128
         )
-        # TODO: update this when feedback part is implemented
         if self.generator_current_coarse_grid is None:
             self.last_val_generator_current = self.generator_current_bias
         else:
@@ -1961,19 +1959,6 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         relative_detuning
             Cavity detuning relative to the center frequency.
         """
-        # if self.fine_RK:
-        #     _, self.antenna_voltage_fine_grid = (
-        #         self.runge_kutta_tryout_2nd_order(
-        #             dV_ant_init=initial_voltage_fine_grid,
-        #             delta_omega=self.omega_detuning,
-        #             V_init=initial_voltage_gradient_fine_grid,
-        #             bin_centers=self.profile.hist_x,
-        #             min_val=True,
-        #             omega=self.omega_center,
-        #         )
-        #     )
-        # else:
-
         # Enforce the controller's actuator (klystron) limit on the fine grid
         # too, so the response matrix never sees a current above the limit.
         # The coarse values are already clamped; this guards the interpolated
