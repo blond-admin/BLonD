@@ -9,6 +9,7 @@ import numpy.testing as nptest
 import blond.physics.barrier_bucket as bbuck
 from blond.core.backends.backend import CupyBackend, backend
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.exceptions_ import ArrayShapeError
 from blond.testing.backend_testing import ArrayLikeScan, multi_backend_testcase
 
@@ -54,6 +55,28 @@ class TestBarrierBucketFunctions(unittest.TestCase):
                 -1e3,
                 places=1,
             )
+
+    def test_offset_barrier(self):
+        cent = 250e-9
+        width = 100e-9
+        ampl = 1e3
+
+        n_harmonics = 100
+
+        centers = np.linspace(0, 1000e-9, 1000)
+
+        waveform = bbuck.compute_sin_barrier(cent, width, ampl, centers)
+
+        amps, phases = bbuck.waveform_to_harmonics(
+            waveform, range(1, n_harmonics + 1)
+        )
+
+        recreated = bbuck.harmonics_to_waveform(
+            centers, range(1, n_harmonics + 1), amps, phases
+        )
+
+        np.testing.assert_allclose(waveform, recreated, atol=50)
+        np.testing.assert_allclose(waveform[500:], recreated[500:], atol=1)
 
     @multi_backend_testcase
     def test_periodic_barrier_right(self):
@@ -164,17 +187,17 @@ class TestBarrierBucketFunctions(unittest.TestCase):
         ]
         phases_exp = [
             3.14,
-            6.28,
+            0,
             3.14,
-            6.28,
+            0,
             3.14,
-            6.28,
+            0,
             3.14,
-            6.28,
+            0,
             3.14,
-            6.28,
-            3.13,
-            6.28,
+            0,
+            3.15,
+            0,
         ]
 
         for inp_cast in ArrayLikeScan():
@@ -182,9 +205,12 @@ class TestBarrierBucketFunctions(unittest.TestCase):
                 inp_cast(barrier), inp_cast(list(range(1, 13)))
             )
 
-            for a, a_exp, p, p_exp in zip(amps, amps_exp, phases, phases_exp):
-                self.assertAlmostEqual(float(a), a_exp, places=1)
-                self.assertAlmostEqual(float(p), p_exp, places=2)
+            np.testing.assert_array_almost_equal(
+                amps_exp, copy_to_cpu(amps), decimal=1
+            )
+            np.testing.assert_array_almost_equal(
+                phases_exp, copy_to_cpu(phases), decimal=2
+            )
 
     @multi_backend_testcase
     def test_sinc_filter(self):
@@ -223,8 +249,8 @@ class TestBarrierBucketFunctions(unittest.TestCase):
     @multi_backend_testcase
     def test_waveform_harmonics(self):
         harms = [1, 2, 3, 4, 5, 6, 7]
-        set_amps = [4e3, 0, 3e3, 0, 2e3, 0, 1e3]
-        set_phases = [0, 0, np.pi, 0, 0, 0, np.pi]
+        set_amps = [4e3, 1e3, 3e3, 5e3, 2e3, 3e3, 1e3]
+        set_phases = [0.5, 0.2, np.pi, 1, 1.2, 1.3, np.pi / 2]
 
         t_rev = 1e-6
         centers = backend.linspace(0, t_rev, 5000)

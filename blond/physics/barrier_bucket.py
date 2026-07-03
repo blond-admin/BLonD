@@ -408,8 +408,8 @@ def waveform_to_harmonics(
         )
 
     harm_amps = backend.abs(harm_series) / (len(waveform) / 2)
-    harm_phases = (
-        backend.arctan2(harm_series.real, harm_series.imag) + backend.pi
+    harm_phases = backend.pi - backend.arctan2(
+        harm_series.real, harm_series.imag
     )
 
     return harm_amps, harm_phases
