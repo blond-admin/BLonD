@@ -145,17 +145,17 @@ class LHCBeamControl(BeamFeedbackBase):
             )
 
         if self.sl_gain != 0:
-            Q_s0 = self.cavities[0].calc_synchrotron_tune_main_harmonic(
+            Q_s0 = self.main_cavities[0].calc_synchrotron_tune_main_harmonic(
                 beam,
                 np.pi,
                 simulation.ring.calc_average_eta_0(beam.reference.gamma),
             ) * np.ones(n_turns + 1)
 
-            omega_rf = self.cavities[
+            omega_rf = self.main_cavities[
                 0
             ].get_main_harmonic_omega_rf_design() * np.ones(n_turns + 1)
 
-            harm = self.cavities[0].get_main_harmonic()
+            harm = self.main_cavities[0].get_main_harmonic()
 
             omega_s0 = Q_s0 * omega_rf / harm
 
@@ -200,7 +200,7 @@ class LHCBeamControl(BeamFeedbackBase):
             A beam object to extract the beam attribute from.
         """
         counter = self._simulation.turn_counter.value
-        dphi_rf = self.cavities[0].delta_phi_rf
+        dphi_rf = self.main_cavities[0].delta_phi_rf
 
         self.phase_difference(phase_noise=self.phase_noise)
         self.cavity_sum_phase(self.current_thres)
