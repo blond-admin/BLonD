@@ -257,7 +257,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
         mhc.attach_cavity_feedback(cavity_feedback_good)
 
-        self.assertEqual(
+        self.assertIs(
             cavity_feedback_good, mhc.get_main_harmonic_cavity_feedback()
         )
 
@@ -329,7 +329,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             cavity_feedback=cavity_feedback_good,
         )
 
-        self.assertEqual(
+        self.assertIs(
             cavity_feedback_good, mhc.get_main_harmonic_cavity_feedback()
         )
 
