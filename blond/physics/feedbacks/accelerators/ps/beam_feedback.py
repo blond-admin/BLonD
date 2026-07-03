@@ -159,8 +159,8 @@ class PSBeamControl(BeamFeedbackBase):
             self.prev_out_phase = prev_out_phase
             self.prev_out_radial = prev_out_radial
 
-        self.domega_dphi: float = 0.0
-        self.domega_dr: float = 0.0
+        self.domega_dphi = 0.0
+        self.domega_dr = 0.0
 
     def on_run_simulation(
         self,
@@ -216,6 +216,7 @@ class PSBeamControl(BeamFeedbackBase):
             A beam object to extract the beam attribute from.
         """
         self.beam_phase()
+        self.calculate_offsets(beam=beam)
 
     def compute_correction(self, beam: BeamBaseClass):
         """
@@ -230,8 +231,6 @@ class PSBeamControl(BeamFeedbackBase):
             A beam object to extract the beam attribute from.
         """
         counter = self._simulation.turn_counter.value
-
-        self.calculate_offsets(beam=beam)
 
         if (
             self.initialize_steady_state and counter == 1

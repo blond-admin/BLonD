@@ -66,9 +66,9 @@ class PSBBeamControl(BeamFeedbackBase):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        pl_gain: float | NumpyArray[float],
-        rl_gain_a: float | NumpyArray[float] = 0.0,
-        rl_gain_b: float | NumpyArray[float] = 0.0,
+        pl_gain: float | NumpyArray,
+        rl_gain_a: float | NumpyArray = 0.0,
+        rl_gain_b: float | NumpyArray = 0.0,
         phase_noise=None,
         period: float = 10.0e-6,
         coefficients: list[float] = None,
