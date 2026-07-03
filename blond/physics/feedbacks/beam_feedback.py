@@ -173,10 +173,10 @@ class BeamFeedbackBase(GlobalFeedback):
 
         # Calculate RF phase based on all the rf stations
         phi_rfs = self.get_from_all_rf_stations(
-            "get_main_harmonic_phi_rf", cavity_list=self.main_cavities
+            "get_main_harmonic_phi_rf", rf_station_list=self.main_cavities
         )
         voltages = self.get_from_all_rf_stations(
-            "get_main_harmonic_voltage", cavity_list=self.main_cavities
+            "get_main_harmonic_voltage", rf_station_list=self.main_cavities
         )
         phi_rf = np.angle(np.sum(voltages * np.exp(1j * phi_rfs)))
 
@@ -212,7 +212,7 @@ class BeamFeedbackBase(GlobalFeedback):
             Option to add phase noise through the beam control.
         """
         # Correct for design stable phase
-        counter = self.main_cavities[0]._turn_counter.value
+        counter = self._simulation.turn_counter.value
         self.dphi = self.phi_beam
 
         # Possibility to add RF phase noise through the PL
@@ -276,8 +276,8 @@ class BeamFeedbackBase(GlobalFeedback):
             The beam object used in the simulation.
         """
         # Calculate alpha
-        alpha = self.main_cavities[0]._ring.momentum_compaction_factor
-        ring_radius = self.main_cavities[0]._ring.circumference / (2 * np.pi)
+        alpha = self._simulation.ring.momentum_compaction_factor
+        ring_radius = self._simulation.ring.circumference / (2 * np.pi)
 
         # Correct for design orbit
         self.average_de = beam.read_partial_dE()[:: self.sample_de].mean()
