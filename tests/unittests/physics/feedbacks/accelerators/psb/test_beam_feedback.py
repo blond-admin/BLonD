@@ -171,7 +171,7 @@ class TestPSBBeamFeedback(unittest.TestCase):
         )
         self.assertAlmostEqual(self.beam_control.domega_RL, 0.0, places=5)
         self.assertAlmostEqual(
-            self.beam_control.domega_rf, -13654.946393646453, places=5
+            self.beam_control.delta_omega_rf, -13654.946393646453, places=5
         )
 
     def test_psb_beam_control_radial_loop(self):
@@ -199,7 +199,7 @@ class TestPSBBeamFeedback(unittest.TestCase):
         # Check calculated corrections
         self.assertAlmostEqual(self.beam_control.domega_PL, 0.0, places=5)
         self.assertAlmostEqual(self.beam_control.domega_RL, 0.0, places=5)
-        self.assertAlmostEqual(self.beam_control.domega_rf, 0.0, places=5)
+        self.assertAlmostEqual(self.beam_control.delta_omega_rf, 0.0, places=5)
 
     def test_psb_beam_control_coefficients(self):
         self.create_scenario(
@@ -244,7 +244,7 @@ class TestPSBBeamFeedback(unittest.TestCase):
             self.beam_control.domega_RL, 105979.16698863493, places=2
         )
         self.assertAlmostEqual(
-            self.beam_control.domega_rf, -119634.11338228139, places=2
+            self.beam_control.delta_omega_rf, -119634.11338228139, places=2
         )
 
     def test_psb_beam_control_act_every_turn(self):
@@ -289,7 +289,7 @@ class TestPSBBeamFeedback(unittest.TestCase):
             self.beam_control.domega_RL, 13262.270780351559, places=2
         )
         self.assertAlmostEqual(
-            self.beam_control.domega_rf, -27238.527265660152, places=2
+            self.beam_control.delta_omega_rf, -27238.527265660152, places=2
         )
 
     def test_psb_beam_control_precalculate_time(self):

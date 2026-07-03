@@ -117,7 +117,7 @@ class SPSBeamControl(BeamFeedbackBase):
         self.alpha = 0
         self.alpha_prev = 0
 
-        self.domega_rf = 0.0
+        self.delta_omega_rf = 0.0
         self.dphi = 0.0
 
         # Frequency corrections
@@ -275,13 +275,13 @@ class SPSBeamControl(BeamFeedbackBase):
             self.domega_dphi + self.domega_sync + self.domega_freq
         ] + self.domega_rf_corr[:-1]
 
-        self.domega_rf = self.domega_rf_corr[-1]
+        self.delta_omega_rf = self.domega_rf_corr[-1]
 
         # Update some parameters for the next turn
         self.alpha_prev = self.alpha
-        self.alpha = self.domega_rf * t_rev
+        self.alpha = self.delta_omega_rf * t_rev
         self.epsilon_prev = self.epsilon
         self.dphi_prev = self.dphi
 
         # Apply global gain
-        self.domega_rf *= self.pl_gain[counter]
+        self.delta_omega_rf *= self.pl_gain[counter]

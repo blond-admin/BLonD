@@ -139,7 +139,7 @@ class PSBeamControl(BeamFeedbackBase):
         self.gd_pl = gd_pl
         self.g_rl = g_rl
 
-        self.domega_rf = 0.0
+        self.delta_omega_rf = 0.0
         self.dphi = 0.0
         self.reference = 0.0
 
@@ -260,4 +260,4 @@ class PSBeamControl(BeamFeedbackBase):
 
         self.prev_out_radial = drho_out
 
-        self.domega_rf = self.domega_dphi + self.domega_dr
+        self.delta_omega_rf = self.domega_dphi + self.domega_dr

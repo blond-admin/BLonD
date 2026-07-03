@@ -104,7 +104,7 @@ class LHCBeamControl(BeamFeedbackBase):
 
         self.lhc_y = 0
 
-        self.domega_rf = 0.0
+        self.delta_omega_rf = 0.0
         self.dphi = 0.0
         self.reference = 0.0
         self.current_thres = current_thres
@@ -213,7 +213,7 @@ class LHCBeamControl(BeamFeedbackBase):
         )
 
         # Frequency correction from phase loop and synchro loop
-        self.domega_rf = -self.pl_gain * self.dphi - self.sl_gain * (
+        self.delta_omega_rf = -self.pl_gain * self.dphi - self.sl_gain * (
             self.lhc_y + self.lhc_a[counter] * (dphi_rf + self.reference)
         )
 

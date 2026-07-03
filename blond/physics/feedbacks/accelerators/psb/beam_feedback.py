@@ -81,7 +81,7 @@ class PSBBeamControl(BeamFeedbackBase):
 
         self.pl_gain = pl_gain
 
-        self.domega_rf = 0.0
+        self.delta_omega_rf = 0.0
         self.dphi = 0.0
         self.reference = 0.0
 
@@ -271,4 +271,4 @@ class PSBBeamControl(BeamFeedbackBase):
             self.PL_counter += 1
 
         # Apply frequency correction
-        self.domega_rf = -self.domega_PL - self.domega_RL
+        self.delta_omega_rf = -self.domega_PL - self.domega_RL

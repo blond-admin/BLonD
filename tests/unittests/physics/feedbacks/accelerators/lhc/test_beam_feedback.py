@@ -324,7 +324,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         # Checks the correct calculation of the corrections for the next turn
         self.assertAlmostEqual(
-            self.beam_control.domega_rf / 2 / np.pi, -91.91940957997551
+            self.beam_control.delta_omega_rf / 2 / np.pi, -91.91940957997551
         )
 
         self.assertAlmostEqual(
@@ -369,7 +369,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         # Checks the correct calculation of the corrections for the next turn
         self.assertAlmostEqual(
-            self.beam_control.domega_rf / 2 / np.pi, -124.94115621564328
+            self.beam_control.delta_omega_rf / 2 / np.pi, -124.94115621564328
         )
 
         self.assertAlmostEqual(

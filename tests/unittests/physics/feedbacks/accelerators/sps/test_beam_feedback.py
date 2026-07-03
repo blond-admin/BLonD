@@ -204,7 +204,7 @@ class TestSPSBeamFeedback(unittest.TestCase):
         self.assertAlmostEqual(self.beam_control.domega_freq, -0.0)
 
         # Total correction from beam control
-        self.assertAlmostEqual(self.beam_control.domega_rf, 0.0)
+        self.assertAlmostEqual(self.beam_control.delta_omega_rf, 0.0)
 
         np.testing.assert_almost_equal(
             self.beam_control.domega_rf_corr,
@@ -263,7 +263,7 @@ class TestSPSBeamFeedback(unittest.TestCase):
         self.assertAlmostEqual(self.beam_control.domega_freq, -0.0)
 
         # Total correction from beam control
-        self.assertAlmostEqual(self.beam_control.domega_rf, 0.0)
+        self.assertAlmostEqual(self.beam_control.delta_omega_rf, 0.0)
 
         np.testing.assert_almost_equal(
             self.beam_control.domega_rf_corr,

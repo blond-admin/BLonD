@@ -166,7 +166,7 @@ class TestPSBeamFeedback(unittest.TestCase):
 
         # Check total correction
         self.assertAlmostEqual(
-            self.beam_control.domega_rf, -17335.431640390056, places=5
+            self.beam_control.delta_omega_rf, -17335.431640390056, places=5
         )
 
         # Check one-turn memory variables
@@ -209,7 +209,7 @@ class TestPSBeamFeedback(unittest.TestCase):
 
         # Check total correction
         self.assertAlmostEqual(
-            self.beam_control.domega_rf, -17333.946526693067, places=5
+            self.beam_control.delta_omega_rf, -17333.946526693067, places=5
         )
 
     def test_ps_beam_control_above_transition(self):
@@ -229,7 +229,7 @@ class TestPSBeamFeedback(unittest.TestCase):
 
         # Check total correction
         self.assertAlmostEqual(
-            self.beam_control.domega_rf, -18276.72943412359, places=5
+            self.beam_control.delta_omega_rf, -18276.72943412359, places=5
         )
 
     def test_ps_beam_control_init_not_steady_state(self):
@@ -255,7 +255,7 @@ class TestPSBeamFeedback(unittest.TestCase):
 
         # Check total correction
         self.assertAlmostEqual(
-            self.beam_control.domega_rf, -85220.39666892742, places=4
+            self.beam_control.delta_omega_rf, -85220.39666892742, places=4
         )
 
     def test_ps_beam_control_switch_harmonic_fail(self):

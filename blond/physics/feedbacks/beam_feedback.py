@@ -66,8 +66,6 @@ class BeamFeedbackBase(GlobalFeedback):
         Option to add phase noise through the beam control.
     """
 
-    _parent_rf_station: RFStationBaseClass
-
     def __init__(
         self,
         profile: ProfileBaseClass,
@@ -84,14 +82,13 @@ class BeamFeedbackBase(GlobalFeedback):
         self.sample_de = sample_de
         self.phase_noise = phase_noise
 
-        self.domega_rf = 0
+        self.delta_omega_rf = 0.0
+        self.dphi = 0.0
 
-        self.dphi: float = 0.0
+        self.phi_beam = 0.0
 
-        self.phi_beam: float = 0.0
-
-        self.drho: float = 0.0
-        self.average_de: float = 0.0
+        self.drho = 0.0
+        self.average_de = 0.0
         self.main_rf_stations_mask: NumpyArray | None = None
         self.main_cavities: list[RFStationBaseClass] | None = None
         self.main_harmonic: int | None = None
@@ -306,15 +303,9 @@ class BeamFeedbackBase(GlobalFeedback):
         harmonics = self.get_from_all_rf_stations(
             method_or_attr="get_main_harmonic"
         )
-        if harmonic is not None:
-            self.main_harmonic = harmonic
-        else:
-            self.main_harmonic = harmonics[0]
+        self.main_harmonic = harmonics[0] if harmonic is None else harmonic
 
-        self.main_rf_stations_mask = np.zeros(harmonics.shape, dtype=bool)
-
-        for i, harm in enumerate(harmonics):
-            self.main_rf_stations_mask[i] = harm == self.main_harmonic
+        self.main_rf_stations_mask = harmonics == self.main_harmonic
 
         if not np.any(self.main_rf_stations_mask):
             raise ValueError("No RF stations are on the main harmonic")
@@ -353,11 +344,11 @@ class BeamFeedbackBase(GlobalFeedback):
 
         if self._simulation.turn_counter.value >= self.delay:
             for cav in self.cavities:
-                # domega_rf is updated later
-                # this means domega_rf is effectively from last turn
+                # delta_omega_rf is updated later
+                # this means delta_omega_rf is effectively from last turn
                 omega_increment = (
-                    self.domega_rf
+                    self.delta_omega_rf
                     * cav.harmonic
-                    / self.main_harmonic  # dynamically updated by `update_domega_rf`
+                    / self.main_harmonic  # dynamically updated by `update_delta_omega_rf`
                 )
                 cav.delta_omega_rf = omega_increment
