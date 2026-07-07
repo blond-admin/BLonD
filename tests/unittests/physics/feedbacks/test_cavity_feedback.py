@@ -728,7 +728,7 @@ class TestIQCavityFeedbackTimingClass:
         )
 
     @pytest.mark.backend_mutation
-    @pytest.mark.parametrize("n_sections", [1, 4, 10])
+    @pytest.mark.parametrize("n_sections", [1, 2, 4, 10])
     def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse(
         self, n_sections: int
     ):
@@ -908,9 +908,7 @@ class TestIQCavityFeedbackTimingClass:
                 )  # shifted by one, but otherwise equal
 
     @pytest.mark.backend_mutation
-    @pytest.mark.parametrize(
-        "n_sections", [1, 4, 10]
-    )  # [1, 4, 20]  # TODO: why does this fail with 2?
+    @pytest.mark.parametrize("n_sections", [1, 2, 4, 10, 20])
     def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse_rf_centers(
         self, n_sections: int
     ):
@@ -985,6 +983,11 @@ class TestIQCavityFeedbackTimingClass:
             for _ in range(n_sections)
         ]
 
+        rf_center_lengths_list = [
+            [[] for _ in range(n_turns_to_simulate - 1)]
+            for _ in range(n_sections)
+        ]
+
         harm_per_half_drift = self.harmonic / n_sections / 2
         harm_per_full_drift = harm_per_half_drift * 2
 
@@ -992,13 +995,23 @@ class TestIQCavityFeedbackTimingClass:
             if simulation.turn_counter.value == 0:  # TODO: and not CR
                 for idx, fdbk in enumerate(timing_fdbk_list):
                     fdbk: IQCavityFeedbackTimingClass
+                    expected = int(
+                        np.floor(harm_per_half_drift)
+                        + fdbk.section_index * harm_per_full_drift
+                        + harm_per_full_drift
+                    )
+                    # With a fractional half-drift (e.g. 20 sections at
+                    # harmonic 20 -> 0.5 RF periods), whether the marginal
+                    # centre falls inside the fractional window is a
+                    # phase-alignment (floating point) question, so the
+                    # count is inherently expected +- 0/+1 there. Integer
+                    # half-drifts must match exactly.
+                    if harm_per_half_drift % 1 != 0:
+                        allowed = (expected, expected + 1)
+                    else:
+                        allowed = (expected,)
                     check_fail_printing(
-                        len(fdbk.rf_centers)
-                        != int(
-                            np.floor(harm_per_half_drift)
-                            + fdbk.section_index * harm_per_full_drift
-                            + harm_per_full_drift
-                        ),
+                        len(fdbk.rf_centers) not in allowed,
                         f"improper rf centers length in turn zero for fdbk idx {idx}.",
                     )
 
@@ -1032,6 +1045,9 @@ class TestIQCavityFeedbackTimingClass:
                     omega_list[idx][sim.turn_i.value - 1] = used_omega_array
 
                     rf_center_list[idx][sim.turn_i.value - 1] = fdbk.rf_centers
+                    rf_center_lengths_list[idx][sim.turn_i.value - 1] = (
+                        np.array(fdbk.rf_centers_lengths, dtype=int)
+                    )
 
         sim.run_simulation(
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
@@ -1159,21 +1175,43 @@ class TestIQCavityFeedbackTimingClass:
                             harm_per_section:
                         ],
                     )
-            # Test of last backward and forward not overlapping
-            # this should never be the case, as these are either lumped or have different frequencies.
-            for fdbk_ind in range(
-                1, len(timing_fdbk_list)
-            ):  # last elements of previous should be inside current
-                assert not any(
-                    np.isclose(
+            # No double-counting between the reverse and forward segments:
+            # each segment's rf_centers are *segment-relative* (they restart
+            # near zero per _generate_rf_centers call), so raw values may
+            # legitimately coincide across segments -- for n_sections == 2 in
+            # a flat turn, the (lumped) reverse segment and the forward
+            # segment have equal length and frequency and thus identical
+            # relative grids. The invariant is on *absolute* time: offsetting
+            # every segment by the cumulative durations of the segments
+            # before it, the centers must be strictly increasing (any overlap
+            # or duplicated span would produce a non-positive step).
+            for fdbk_ind in range(len(timing_fdbk_list)):
+                lengths = rf_center_lengths_list[fdbk_ind][trn_ind]
+                durations = time_passed_list[fdbk_ind][trn_ind]
+                if len(lengths) == 0:
+                    # single-section runs record no segment bookkeeping in
+                    # the callback (see the n_sections != 1 guard there)
+                    continue
+                assert len(lengths) == len(durations), (
+                    f"segment bookkeeping mismatch: {len(lengths)} rf_center "
+                    f"segments vs {len(durations)} segment durations "
+                    f"({fdbk_ind}, {trn_ind})"
+                )
+                offsets = np.concatenate(([0.0], np.cumsum(durations[:-1])))
+                boundaries = np.concatenate(([0], np.cumsum(lengths)))
+                absolute_centers = np.concatenate(
+                    [
                         rf_center_list[fdbk_ind][trn_ind][
-                            -2 * harm_per_section : -harm_per_section
-                        ],
-                        rf_center_list[fdbk_ind][trn_ind][-harm_per_section:],
-                        atol=0,
-                        rtol=1e-12,
-                    )
-                ), f"{fdbk_ind}, {trn_ind}"  # type: ignore
+                            boundaries[i] : boundaries[i + 1]
+                        ]
+                        + offsets[i]
+                        for i in range(len(lengths))
+                    ]
+                )
+                assert np.all(np.diff(absolute_centers) > 0), (
+                    f"rf centers overlap in absolute time "
+                    f"({fdbk_ind}, {trn_ind})"
+                )
 
     @pytest.mark.parametrize("n_sections", [2, 4, 10])
     def test_rf_centers_full_counterrotation_equality(self, n_sections):
