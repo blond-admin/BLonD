@@ -736,6 +736,15 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
         self.last_val_generator_current: float = 0.0
         self.last_rf_centers_entry: float | None = None
 
+        # RF carrier phase of the coarse-grid recursion, anchored at the
+        # first-ever rf_center and advanced by omega * delta_t exactly as the
+        # envelope recursion is (kept mod 2 pi). DIAGNOSTIC ONLY: with the
+        # stale reverse re-pass removed it closes to 0 mod 2 pi every real
+        # pass (each turn's delta_t sum telescopes to the full segment
+        # span); the sub-stepped demodulation frame is derived from the
+        # tiling boundary gap instead (see calculate_rf_beam_current_partial).
+        self._grid_carrier_phase: float = 0.0
+
         self.init_voltage = initial_voltage
 
         self.n_cavities = n_cavities
@@ -964,6 +973,15 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self.reference_altering_elements = self.ring.elements.get_elements(
             AltersReference
+        )
+        # Number of RF stations in the ring. The multi-section frame
+        # correction in _track only applies with more than one, since it
+        # compensates the *other* stations' mid-turn grid re-seeding; a
+        # single station re-seeds only at its own passage (no mid-turn
+        # frequency mismatch), so the correction must be a no-op there.
+        self._n_rf_stations_in_ring = sum(
+            isinstance(element, RFStationBaseClass)
+            for element in self.reference_altering_elements
         )
         self.own_index_in_reference_list = (
             self.reference_altering_elements.index(self._parent_rf_station)
@@ -1616,6 +1634,17 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             if -1e-9 * rf_period < delta_t < 0:
                 delta_t = 0.0
             assert delta_t >= 0, f"{delta_t}"
+            # Advance the recursion's carrier phase by exactly the step the
+            # envelope is advanced by (see _grid_carrier_phase). The
+            # first-ever step is a spacing proxy (no earlier centre exists),
+            # not a real advance, so it must not accumulate -- the frame is
+            # anchored at the first centre.
+            if not (
+                rf_centers_idx == 0 and self.last_rf_centers_entry is None
+            ):
+                self._grid_carrier_phase = (
+                    self._grid_carrier_phase + omega_input * delta_t
+                ) % (2 * np.pi)
             if delta_t == 0:
                 warnings.warn(
                     "double taking of rf_centers value, skipping", stacklevel=1
@@ -1898,7 +1927,16 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
 
         self.reset_arrays()
 
-        if self.reverse_tracking_omega_list is not None:
+        # Only walk the reverse segments when this turn actually generated
+        # some (len_rev > 0). For a single section the reverse omega list
+        # from turn 0 is never refreshed, so without the len_rev gate this
+        # loop re-ran the ENTIRE forward grid every turn at the frozen
+        # turn-0 frequency (no_beam) before the demodulation and the real
+        # forward pass: the envelope overwrite was recomputed identically,
+        # but _grid_carrier_phase accumulated a spurious
+        # -(turn+1) * 2 pi S per turn under a ramp (corrupting the
+        # sub-stepped demod frame).
+        if len_rev > 0 and self.reverse_tracking_omega_list is not None:
             for omega_index, omega_track in enumerate(
                 self.reverse_tracking_omega_list
             ):
@@ -1917,6 +1955,37 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 )
 
         len_frwrd = len(self.rf_centers) - len_rev
+
+        # Multi-section frame correction. Each reverse segment k reconstructs
+        # the previous turn on a coarse grid re-seeded to phase 0 at its own
+        # (past-station) frequency omega_k, while the physical cavity field
+        # rings at the current passage frequency omega_0 == the forward
+        # frequency. The carried envelope therefore accumulates a frame phase
+        # error sum_k (omega_k - omega_0) * T_seg,k over the reverse segments
+        # (delta_omega == 0, so the recursion applies no rotation of its own).
+        # Remove it from the carried envelope value that seeds the forward
+        # segment and the fine grid, i.e. the last reverse coarse sample. With
+        # no reverse segments (single section) len_rev == 0 -> exact no-op,
+        # so single-section behaviour is unchanged. This is the discrete
+        # analogue of the MultiPassResonatorSolver carried-wake phase-clock
+        # rotation under acceleration.
+        if (
+            self._n_rf_stations_in_ring > 1
+            and len_rev > 0
+            and self.reverse_tracking_omega_list is not None
+        ):
+            frame_phase = float(
+                np.sum(
+                    (
+                        np.asarray(self.reverse_tracking_omega_list)
+                        - self.forward_tracking_omega_rf
+                    )
+                    * np.asarray(self.reverse_tracking_time_array)
+                )
+            )
+            self.antenna_voltage_coarse_grid[len_rev - 1] *= np.exp(
+                1j * frame_phase
+            )
 
         if self.debug:
             self.relative_voltage_correction = np.ones_like(
@@ -2049,6 +2118,33 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
             if self.beam_current_forward_coarse_grid is not None
             else 0
         )
+        # The demodulated current must be rotated into the frame of the
+        # coarse-grid envelope recursion. Where that phase lives depends on
+        # the grid convention of _generate_rf_centers:
+        #
+        # * n >= 1 (grid re-seeded from the RF phase every turn): the
+        #   residual measures the grid against the RF buckets and therefore
+        #   already contains the *accumulated* frame slip (mod t_rf) plus
+        #   the half-period bucket-centre offset -- the former residual-only
+        #   demodulation term, validated by the n = 1 acceleration tests.
+        # * n < 1 (sub-stepped grid, tiling continuously across turns): the
+        #   demod frame is the gap from the previous turn's last centre to
+        #   the first forward centre, which by the tiling construction is
+        #   exactly one previous-frequency step: first-centre offset plus
+        #   the carried residual (complementary by construction in
+        #   _generate_rf_centers, so the sum is immune to the float-bistable
+        #   residual landing flip and, being a pure time, to any mod-2*pi
+        #   wrap). Constant frame turn over turn to O((n/h) * 2*pi*S) under
+        #   a ramp with frame slip S; for n = 0.5 it evaluates to half an RF
+        #   period (a pi rotation), the value validated by the static
+        #   sub-stepped convolution comparison.
+        if self.n_rf_periods_per_coarse_grid < 1:
+            dT_demodulation = (
+                self.rf_centers[len(self.rf_centers) - n_points]
+                + remaining_delta_t_from_reverse_tracking
+            )
+        else:
+            dT_demodulation = remaining_delta_t_from_reverse_tracking
         (
             self.beam_current_fine_grid,
             self.beam_current_forward_coarse_grid,
@@ -2063,8 +2159,12 @@ class IQCavityFeedbackTimingClass(IQCavityFeedback):
                 "points": n_points,
             },
             external_reference=True,
-            dT=remaining_delta_t_from_reverse_tracking,
-            phi_s=self._parent_rf_station.calc_phi_s_main_harmonic(beam=beam),
+            dT=dT_demodulation,
+            # Half a *coarse cell*, not half a carrier period: for the
+            # sub-stepped grid the two differ (the default pi/omega_c would
+            # equal a whole cell and shift all charge one cell early). For
+            # n == 1 with the design frequency both are identical.
+            coarse_center_offset=sampling_time_frwrd / 2,
             # The fine-grid initial antenna voltage is taken from the first
             # coarse cell (see circuit_track), so it must stay charge-free.
             forbid_charge_in_first_coarse_cell=True,
