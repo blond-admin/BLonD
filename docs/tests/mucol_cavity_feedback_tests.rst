@@ -300,6 +300,24 @@ both with a clamped generator current.
 ``test_plot_single_pulse_vs_sustained``
     Opt-in diagnostic plot contrasting a bunch passage with sustained load.
 
+**Class** ``TestLoopDelaySampleSemantics`` -- ``n_delay`` counts coarse-grid
+*samples*, not time: driven by a sub-stepped feedback
+(``n_rf_periods_per_coarse_grid < 1``) the physical loop delay is
+``n_delay * n * t_rf``, i.e. it shrinks with the sub-step.
+
+``test_delay_is_counted_in_samples_not_time``
+    The generator current first reacts at the same sample offset after
+    beam-on for the standard (n = 1) and the sub-stepped (n = 0.5) grid.
+
+**Class** ``TestLoopDelaySampleSemantics`` -- ``n_delay`` counts coarse-grid
+*samples*, not time: with a sub-stepped grid the physical loop delay is
+``n_delay * n_rf_periods_per_coarse_grid * t_rf`` and shrinks with the
+sub-step.
+
+``test_delay_is_counted_in_samples_not_time``
+    The generator current first reacts at the same *sample* offset after
+    beam-on for the standard (``n = 1``) and sub-stepped (``n = 0.5``) grid.
+
 **Class** ``TestResponseMatrixClamping``
 
 ``test_fine_grid_solve_uses_clamped_generator_current``
@@ -321,6 +339,55 @@ turn over turn.
     The final-turn distortion is well below the transient peak.
 ``test_plot_per_profile_voltage_over_turns``
     Opt-in diagnostic plot of the per-profile voltage over turns.
+
+
+``test_pi_feedback_full_tracking.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The PI-controlled feedback inside a *real tracked* ``Simulation`` -- the
+complement to the hand-built coarse grids above. A matched ``BiGaussian``
+``mu_plus`` bunch with strong beam loading is tracked through a real ring
+(half-drift / station / half-drift per section) with the reverse/forward
+reference tracking, under acceleration, with a
+``GeneratorCurrentPIController`` regulating every station. Each configuration
+asserts physical behaviour and then *pins* the end-of-turn antenna-voltage and
+generator-current trajectories against hardcoded reference values
+(characterization: any change of the tracked feedback numerics shows up here
+first). Setting the ``PI_TRACKING_PRINT_PINS`` environment variable prints the
+recorded trajectories instead (used to regenerate the pins); while the pins
+are unrecorded (``None``) the pin tests skip.
+
+**Class** ``TestPIFullTrackingSingleSectionFastRamp`` -- one section on the
+fast (transition-adjacent, 4 GeV + 20 MeV/turn) ramp.
+
+``test_reference_follows_energy_program``
+    The reference energy gains exactly ``DELTA_E_TURN`` per turn.
+``test_loop_acts_on_the_generator_current``
+    The PI moves the generator current away from the pure feedforward bias.
+``test_beam_loading_sags_the_voltage``
+    The bunch passage visibly sags ``|V_ant|`` below the setpoint.
+``test_voltage_recovers_by_turn_end``
+    The loop restores ``|V_ant|`` to the setpoint by the end of a turn.
+``test_bunch_stays_bounded``
+    The bunch length stays finite and bounded (no blow-up).
+``test_pinned_trajectories``
+    Characterization pin of the exact recorded trajectories.
+
+**Class** ``TestPIFullTrackingMultiSectionSlowRamp`` -- two sections on the
+operating-point (63 GeV, slow) ramp. The fast ramp is excluded on purpose:
+the multi-section carried wake has a known arrival-time drift under the fast
+ramp (see the expected-failure tests in ``test_mtw_vs_nondriven_feedback.py``).
+
+``test_reference_follows_energy_program``
+    The reference energy gains exactly ``DELTA_E_TURN`` per turn.
+``test_loop_acts_on_both_stations``
+    Both stations' PI loops move their generator currents.
+``test_beam_loading_sags_both_stations``
+    The bunch passage sags ``|V_ant|`` at both stations.
+``test_voltage_recovers_on_both_stations``
+    The loops restore ``|V_ant|`` to the setpoint by the turn end.
+``test_pinned_trajectories``
+    Characterization pin of the exact recorded trajectories.
 
 
 ``test_helpers.py``
@@ -415,6 +482,27 @@ voltage. Uses a high ``Q_L = 1.29e6`` so the previous-pass wake survives
     Holds under acceleration (``MagneticCyclePerTurnAllRFStations``), where
     ``t_rev``, the carrier frequency and the reverse-tracking frame slip vary
     turn over turn.
+``test_multiturn_substepped_matches_convolution``
+    Beam loading computed on a sub-stepped coarse grid
+    (``n_rf_periods_per_coarse_grid < 1``) stays correct on a static cycle.
+``test_multiturn_fast_ramp``
+    Single section on the fast (transition-adjacent) ramp still matches the
+    retuning convolution in the fast frame-slip regime.
+``test_multiturn_fast_ramp_multisection``
+    Multi-section (2 and 4 stations) on the fast ramp matches the retuning
+    convolution: the ``_track`` frame correction removes the carried-envelope
+    phase error ``sum_k (omega_k - omega_0) T_seg,k`` from the other stations'
+    mid-turn grid re-seeding (drift ~0.023 t_rf/turn -> ~0.2 %).
+``test_multiturn_fast_ramp_substepped``
+    Sub-stepped (n = 0.5) carried wake holds on the fast ramp: the stale
+    reverse-segment re-pass is removed (it corrupted the demodulation frame
+    by ``-(turn+1) * 2 pi S`` per turn for single-section rings) and the
+    sub-stepped demodulation frame is the tiling boundary gap (a pure time,
+    immune to the float-bistable residual landing flip). ~0.1 %, was ~40 %.
+``test_multiturn_fast_ramp_multisection_substepped``
+    The full combination (2 sections, fast ramp, n = 0.5) passes: the
+    tiling-gap demodulation frame also covers the multi-section
+    reverse-to-forward handover.
 
 
 ``test_energy_gain_ind_voltage_vs_nondriven_feedback.py``
@@ -521,18 +609,24 @@ themselves.
     complex antenna-voltage envelope back to the real lab frame, with both
     demodulation-sign conventions).
 ``mucol_cav_fdbk.py``
-    Not a ``pytest`` module: a standalone driver and plotting script for the
-    full muon-collider RCS cavity-feedback simulation. ``setup_and_run`` builds
-    an RCS (``RCS1``/``RCS2``/``RCS4``) ring with per-station profiles and
-    either the convolution wake (``MTW=True``) or the I/Q feedback, derives the
-    cavity parameters (``Q_L``, generator current ``I_g``, detuning
-    ``delta_omega``) from the working point, optionally matches the beam with
-    the ``SemiEmpiricMatcher`` (``match_beam``) and runs the cycle. It also
-    provides the result/voltage plotting helpers and the single-turn fine-grid
-    versus resonator benchmark (``compute_single_turn_fine_grid_vs_resonator``,
-    ``benchmark_single_turn_fine_grid_vs_resonator``) whose logic is mirrored
-    by ``TestFineGridResonatorBenchmark``. Run directly, it compares the wake
-    and feedback runs interactively.
+    Not a ``pytest`` module: a standalone driver for the full muon-collider
+    RCS cavity-feedback simulation. ``setup_and_run`` builds an RCS
+    (``RCS1``/``RCS2``/``RCS4``) ring with per-station profiles and either the
+    convolution wake (``MTW=True``) or the I/Q feedback, derives the cavity
+    parameters (``Q_L``, generator current ``I_g``, detuning ``delta_omega``)
+    from the working point, optionally matches the beam with the
+    ``SemiEmpiricMatcher`` (``match_beam``) and runs the cycle. Run directly,
+    it compares the wake and feedback runs interactively (plots from
+    ``plotting.py``). The single-turn fine-grid versus resonator benchmark it
+    used to carry is covered, with assertions, by
+    ``TestFineGridResonatorBenchmark``.
+``plotting.py``
+    Interactive/diagnostic plotting helpers for the driver's observations:
+    ``plot_results`` (bunch statistics of the MTW vs feedback runs),
+    ``plot_ind_volt_cav_fdbk_voltage`` (induced voltage against the
+    cavity-feedback voltage per station) and
+    ``plot_generator_power_and_voltage`` (klystron power and antenna-voltage
+    swing of a PI-feedback run). Not a test module.
 ``__init__.py``
     Marks the directory as a package so the test modules can use the
     package-relative imports of ``stubs`` and ``support``.
@@ -545,6 +639,9 @@ Data and assets
     Cached matched initial beam distribution (``dt``/``dE`` arrays) for the
     single-station RCS1 setup, loaded by ``mucol_cav_fdbk.setup_and_run`` (via
     ``load_beam_coordinates_from_file``) to skip the expensive beam matching.
+    The ``fdbk_testing/`` directory is not tracked by git; on a fresh checkout
+    run ``setup_and_run(..., MTW=True, force_rematch=True)`` once to (re)create
+    the cache before using the default ``force_rematch=False``.
 ``energy_kick_over_time.png``
     Saved output of the opt-in debug plot in
     ``test_energy_gain_ind_voltage_vs_nondriven_feedback.py`` -- the applied

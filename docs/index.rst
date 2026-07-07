@@ -35,6 +35,12 @@ Modules
 
 .. toctree::
    :maxdepth: 1
+   :caption: Feedback systems
+
+   feedbacks/mucol_cavity_feedback
+
+.. toctree::
+   :maxdepth: 1
    :caption: Test suites
 
    tests/mucol_cavity_feedback_tests
