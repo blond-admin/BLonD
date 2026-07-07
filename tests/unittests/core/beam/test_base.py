@@ -637,7 +637,7 @@ class TestSortByDt(unittest.TestCase):
             copy_to_cpu(beam.read_partial_flags()), [11, 12, 10, 14, 13]
         )
 
-    def test_already_sorted_is_idempotent(self):
+    def test_already_sorted_is_not_altered(self):
         beam = self._beam(
             dt=[1.0, 2.0, 3.0],
             dE=[10.0, 20.0, 30.0],

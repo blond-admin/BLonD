@@ -38,8 +38,9 @@ class Music(BeamPhysicsRelevant):
     Alternative to :class:`~blond.physics.impedances.base.WakeField` that
     computes the *exact* induced voltage of one resonant mode directly from
     the macro-particles in time domain, without slicing the beam into a
-    profile. The cost is :math:`O(n)` in the number of macro-particles thanks
-    to the recurrence of Migliorati & Palumbo.
+    profile. The cost is :math:`O(n \log n)` in the number of macro-particles
+    (dominated by sorting; the recurrence itself is :math:`O(n)` via
+    Migliorati & Palumbo).
 
     Unlike :class:`~blond.physics.impedances.base.WakeField`, this element has
     **no profile**: it sorts the beam by ``dt`` every turn and updates each
@@ -116,6 +117,7 @@ class Music(BeamPhysicsRelevant):
             raise ValueError(
                 "MuSiC supports exactly one resonance, but `source` has "
                 f"{source._n_resonators}."
+                f" Contact the developers if you need more."
             )
         self.source = source
         # Resonator parameters of the single resonance (scalars on host).

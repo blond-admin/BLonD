@@ -39,7 +39,6 @@ __all__ = [
     "DriftSimple",
     "ReferenceEnergyChange",
     "WakeField",
-    "Music",
     "InductiveImpedanceSolver",
     "PeriodicFreqSolver",
     "TimeDomainFftSolver",

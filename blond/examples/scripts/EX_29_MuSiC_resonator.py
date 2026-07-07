@@ -81,7 +81,7 @@ COMPARE_WAKEFIELD = True  # also overlay a profile-based WakeField FFT solver
 # ----------------------------------------------------------------------------
 
 
-def _ensure_music_backend() -> None:  # pragma: no cover
+def _ensure_music_capable_backend() -> None:  # pragma: no cover
     """Select a MuSiC-capable backend (cpp if available, else python)."""
     if backend.specials_mode not in ("cpp", "cpp_single_core", "python"):
         try:
@@ -91,7 +91,7 @@ def _ensure_music_backend() -> None:  # pragma: no cover
 
 
 if not pytest_active():  # pragma: no cover
-    _ensure_music_backend()
+    _ensure_music_capable_backend()
 
 
 def _gaussian_beam(n_macroparticles: int) -> Beam:
@@ -174,8 +174,9 @@ def bin_average(
     dt: np.ndarray, values: np.ndarray, n_bins: int
 ) -> tuple[np.ndarray, np.ndarray]:
     # Mean of `values` per dt-bin. Averaging beats the per-particle shot noise
-    # down by sqrt(particles-per-bin); sparsely-populated tail bins (where it
-    # isn't beaten down enough to be meaningful) are masked to NaN.
+    # down by sqrt(particles-per-bin); sparsely-populated tail bins have high
+    # statistical uncertainty and are masked to NaN. The threshold is 2% of the
+    # most-populated bin: bins with fewer counts are too noisy to report.
     edges = np.linspace(-3 * SIGMA_DT, 3 * SIGMA_DT, n_bins + 1)
     centers = 0.5 * (edges[:-1] + edges[1:])
     bin_of = np.digitize(dt, edges) - 1
@@ -229,7 +230,7 @@ def plot(
 
 
 def main():
-    _ensure_music_backend()
+    _ensure_music_capable_backend()
     n_macroparticles = 5_000 if pytest_active() else 5_000_000
     print(f"omega_R * sigma = {2 * np.pi * FREQUENCY_R * SIGMA_DT:.3g}")
 
