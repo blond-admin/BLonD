@@ -43,6 +43,8 @@ one of them automatically.
 Authors: Simon Lauber
 """
 
+import warnings
+
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -77,7 +79,6 @@ Q = 1.0  # quality factor [1]
 SIGMA_DT = 3e-8  # RMS bunch length [s]
 INTENSITY = 1e12  # beam intensity (real particles) [1]
 N_BINS = 40  # bins for the averaged MuSiC-vs-analytical comparison
-COMPARE_WAKEFIELD = True  # also overlay a profile-based WakeField FFT solver
 # ----------------------------------------------------------------------------
 
 
@@ -86,17 +87,34 @@ def _ensure_music_capable_backend() -> None:  # pragma: no cover
     if backend.specials_mode not in ("cpp", "cpp_single_core", "python"):
         try:
             setup_backend("cpp")
+            warnings.warn(
+                "Changed backend to 'cpp'",
+                UserWarning,
+                stacklevel=1,
+            )
         except (FileNotFoundError, OSError):
             setup_backend("python")
+            warnings.warn(
+                "Changed backend to 'python'",
+                UserWarning,
+                stacklevel=1,
+            )
 
 
 if not pytest_active():  # pragma: no cover
     _ensure_music_capable_backend()
 
 
-def _gaussian_beam(n_macroparticles: int) -> Beam:
+def main():
+    _ensure_music_capable_backend()
+    n_macroparticles = 5_000 if pytest_active() else 5_000_000
+    print(f"omega_R * sigma = {2 * np.pi * FREQUENCY_R * SIGMA_DT:.3g}")
+
+    # Track a Gaussian bunch for one turn; dE == 0 keeps the drift inert, so
+    # MuSiC sees the pristine Gaussian. Returns sorted (dt, induced_voltage).
     # Gaussian in dt centred at 0, with dE = 0 so the drift stays inert.
-    return Beam.simple_gaussian(
+    pass
+    beam = Beam.simple_gaussian(
         n_macroparticles=n_macroparticles,
         intensity=INTENSITY,
         particle_type=proton,
@@ -104,9 +122,56 @@ def _gaussian_beam(n_macroparticles: int) -> Beam:
         dE_scale=0.0,
         seed=1000,
     )
+    ring = get_fresh_ring()
+    music1 = Music(source=Resonators(R_S, FREQUENCY_R, Q))
+    ring.add_elements((music1,))
+    Simulation(
+        ring=ring,
+        magnetic_cycle=ConstantMagneticCycle(
+            reference_particle=proton, value=25.92e9
+        ),
+    ).run_simulation(beams=(beam,), n_turns=1)
+    dt, music = (
+        np.asarray(beam.read_partial_dt()),
+        np.asarray(music1.induced_voltage),
+    )
+    centers, binned = bin_average(dt, music, N_BINS)
+    print(
+        "binned MuSiC vs analytical: max rel. error = "
+        f"{max_relative_error(centers, binned):.3%}"
+    )
+
+    # Same bunch through a profile-based WakeField with an FFT solver.
+    # Gaussian in dt centred at 0, with dE = 0 so the drift stays inert.
+    pass
+    beam1 = Beam.simple_gaussian(
+        n_macroparticles=n_macroparticles,
+        intensity=INTENSITY,
+        particle_type=proton,
+        dt_scale=SIGMA_DT,
+        dE_scale=0.0,
+        seed=1000,
+    )
+    ring1 = get_fresh_ring()
+    profile = StaticProfile(-4 * SIGMA_DT, 4 * SIGMA_DT, 400)
+    wakefield1 = WakeField(
+        sources=(Resonators(R_S, FREQUENCY_R, Q),),
+        solver=TimeDomainFftSolver(),
+        profile=profile,
+    )
+    ring1.add_elements((wakefield1,))
+    Simulation(
+        ring=ring1,
+        magnetic_cycle=ConstantMagneticCycle(
+            reference_particle=proton, value=25.92e9
+        ),
+    ).run_simulation(beams=(beam1,), n_turns=1)
+    result = np.asarray(profile.hist_x), np.asarray(wakefield1.induced_voltage)
+    wakefield = result
+    plot(dt, music, centers, binned, wakefield)
 
 
-def _new_ring() -> Ring:
+def get_fresh_ring() -> Ring:
     # Minimal ring (zero-voltage RF + drift) so a beam can be tracked.
     ring = Ring(circumference=2 * np.pi * 100)
     ring.add_elements(
@@ -121,47 +186,6 @@ def _new_ring() -> Ring:
         )
     )
     return ring
-
-
-def _new_simulation(ring: Ring) -> Simulation:
-    return Simulation(
-        ring=ring,
-        magnetic_cycle=ConstantMagneticCycle(
-            reference_particle=proton, value=25.92e9
-        ),
-    )
-
-
-def music_induced_voltage(
-    n_macroparticles: int,
-) -> tuple[np.ndarray, np.ndarray]:
-    # Track a Gaussian bunch for one turn; dE == 0 keeps the drift inert, so
-    # MuSiC sees the pristine Gaussian. Returns sorted (dt, induced_voltage).
-    beam = _gaussian_beam(n_macroparticles)
-    ring = _new_ring()
-    music = Music(source=Resonators(R_S, FREQUENCY_R, Q))
-    ring.add_elements((music,))
-    _new_simulation(ring).run_simulation(beams=(beam,), n_turns=1)
-    return np.asarray(beam.read_partial_dt()), np.asarray(
-        music.induced_voltage
-    )
-
-
-def wakefield_induced_voltage(
-    n_macroparticles: int,
-) -> tuple[np.ndarray, np.ndarray]:
-    # Same bunch through a profile-based WakeField with an FFT solver.
-    beam = _gaussian_beam(n_macroparticles)
-    ring = _new_ring()
-    profile = StaticProfile(-4 * SIGMA_DT, 4 * SIGMA_DT, 400)
-    wakefield = WakeField(
-        sources=(Resonators(R_S, FREQUENCY_R, Q),),
-        solver=TimeDomainFftSolver(),
-        profile=profile,
-    )
-    ring.add_elements((wakefield,))
-    _new_simulation(ring).run_simulation(beams=(beam,), n_turns=1)
-    return np.asarray(profile.hist_x), np.asarray(wakefield.induced_voltage)
 
 
 def analytical_induced_voltage(tau: np.ndarray) -> np.ndarray:
@@ -227,26 +251,6 @@ def plot(
         plt.title(f"omega_R*sigma = {2 * np.pi * FREQUENCY_R * SIGMA_DT:.2g}")
         plt.legend(loc="upper right")
         plt.tight_layout()
-
-
-def main():
-    _ensure_music_capable_backend()
-    n_macroparticles = 5_000 if pytest_active() else 5_000_000
-    print(f"omega_R * sigma = {2 * np.pi * FREQUENCY_R * SIGMA_DT:.3g}")
-
-    dt, music = music_induced_voltage(n_macroparticles)
-    centers, binned = bin_average(dt, music, N_BINS)
-    print(
-        "binned MuSiC vs analytical: max rel. error = "
-        f"{max_relative_error(centers, binned):.3%}"
-    )
-
-    wakefield = (
-        wakefield_induced_voltage(n_macroparticles)
-        if COMPARE_WAKEFIELD
-        else None
-    )
-    plot(dt, music, centers, binned, wakefield)
 
 
 if __name__ == "__main__":  # pragma: no cover

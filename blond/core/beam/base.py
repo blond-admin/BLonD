@@ -731,9 +731,12 @@ class BeamBaseClass(Preparable, ABC):
                 "`sort_by_dt` cannot sort an MPI-distributed beam: a "
                 "per-node sort does not order the global beam."
             )
-        dt = self._dt.array_local
-        order = dt.argsort()  # ndarray method works for NumPy and CuPy
-        self._dt.array_local[:] = dt[order]
+
+        order = (
+            self._dt.array_local.argsort()
+        )  # ndarray method works for NumPy and CuPy
+
+        self._dt.array_local[:] = self._dt.array_local[order]
         self._dE.array_local[:] = self._dE.array_local[order]
         self._ids.array_local[:] = self._ids.array_local[order]
         self._flags.array_local[:] = self._flags.array_local[order]

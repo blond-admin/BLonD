@@ -21,7 +21,6 @@ from scipy.constants import elementary_charge as e
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.helpers import mpi_is_distributed
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -121,13 +120,11 @@ class Music(BeamPhysicsRelevant):
             )
         self.source = source
         # Resonator parameters of the single resonance (scalars on host).
-        self._R_S = float(copy_to_cpu(source._shunt_impedances).flatten()[0])
+        self._R_S = float(source._shunt_impedances[0])
         self._omega_R = (  # angular resonant frequency [rad/s] = 2*pi*f
-            2
-            * np.pi
-            * float(copy_to_cpu(source._center_frequencies).flatten()[0])
+            2 * np.pi * float(source._center_frequencies[0])
         )
-        self._Q = float(copy_to_cpu(source._quality_factors).flatten()[0])
+        self._Q = float(source._quality_factors[0])
 
         # Quantities derived once from the resonator; they parametrise the
         # O(n) recurrence (Migliorati & Palumbo). alpha is the damping rate

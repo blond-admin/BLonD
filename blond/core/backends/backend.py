@@ -408,7 +408,7 @@ class Specials(ABC):
 
     # The MuSiC kernel is intentionally *not* abstract: BLonD2 only shipped
     # it for the ``python`` and ``cpp`` backends, so those two override the
-    # method below while ``numba`` and ``cuda`` inherit this raising default.
+    # method below while ``numba`` and ``cuda`` raise by default.
     @staticmethod
     def music_track(
         beam_dt: NumpyArray | CupyArray,
