@@ -640,6 +640,11 @@ class TestRFStationBaseClass(unittest.TestCase):
 
     def test_with_wakefields(self):
         wf = Mock(WakeField)
+        # The station reads the local wakefield's profile time axis to evaluate
+        # the gap voltage for the interpolated kick, so give the mock a real
+        # time base spanning the (mocked) beam coordinates instead of a bare
+        # Mock (otherwise ``omega_rf * profile.hist_x`` is float * Mock).
+        wf.profile.hist_x = np.linspace(-2e-6, 2e-6, 64)
         shc = SingleHarmonicRFStation.headless(
             section_index=0,
             harmonic=1,
