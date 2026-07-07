@@ -35,7 +35,7 @@ if TYPE_CHECKING:  # pragma: no cover
 # TODO rewrite all docstrings
 
 
-class IQCavityFeedback(LocalFeedback):
+class IQCavityFeedbackOld(LocalFeedback):
     """
     Base class to design cavity feedbacks.
 

@@ -161,6 +161,25 @@ used by the other IQ cavity feedbacks).
     of turns-per-cell) and allocates the coarse arrays with it, so ``np.zeros``
     accepts the length on numpy >= 2.
 
+**Class** ``TestExponentialCoarseSolver`` -- the optional exact exponential
+coarse-grid propagator. ``_advance_coarse_voltage`` integrates one coarse step
+of the cavity-envelope ODE with either forward-Euler (the default,
+bit-unchanged) or, with ``exponential_coarse_solver=True``, the exact
+``V_{n+1} = e^L V_n + src (e^L - 1)/L`` (``L = -omega dt / (2 Q_L) +
+1j delta_omega dt``). The exponential form is the accurate alternative to
+sub-stepping when the per-step decay/detuning phase is not small.
+
+``test_euler_branch_matches_the_forward_euler_formula``
+    The default branch reproduces the forward-Euler update exactly.
+``test_exponential_branch_matches_the_closed_form``
+    The exponential branch matches ``e^L V + src (e^L - 1)/L``.
+``test_pure_detuning_preserves_magnitude``
+    Under pure detuning the exact step is a rotation (``|V|`` preserved),
+    whereas forward-Euler grows the magnitude unphysically -- the ``O((delta_omega
+    dt)^2)`` truncation error the exponential solver removes.
+``test_small_step_reduces_to_euler``
+    As the step shrinks the two solvers converge at ``O(step^2)``.
+
 
 ``test_generator_current_controller.py``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -375,8 +394,11 @@ fast (transition-adjacent, 4 GeV + 20 MeV/turn) ramp.
 
 **Class** ``TestPIFullTrackingMultiSectionSlowRamp`` -- two sections on the
 operating-point (63 GeV, slow) ramp. The fast ramp is excluded on purpose:
-the multi-section carried wake has a known arrival-time drift under the fast
-ramp (see the expected-failure tests in ``test_mtw_vs_nondriven_feedback.py``).
+a driven multi-section cavity on the fast ramp carries a constant-bias
+reference-frame slip between the forward station and the mid-turn re-seeded
+segments (the induced part still cancels in the linear reference subtraction the
+non-driven comparisons use, but the *driven* voltage does not), so a pinned
+fast-ramp PI trajectory would characterise that slip rather than the loop.
 
 ``test_reference_follows_energy_program``
     The reference energy gains exactly ``DELTA_E_TURN`` per turn.
@@ -388,6 +410,22 @@ ramp (see the expected-failure tests in ``test_mtw_vs_nondriven_feedback.py``).
     The loops restore ``|V_ant|`` to the setpoint by the turn end.
 ``test_pinned_trajectories``
     Characterization pin of the exact recorded trajectories.
+
+**Class** ``TestPIReverseSpanFrameConsistency`` -- the PI loop must act only on
+the forward (real-beam) coarse cells, never on the ``no_beam`` reverse
+reconstruction segments that rebuild the previous turn. Stepping the controller
+on the reverse cells would double-advance its delay line and integrator on
+frame-rotated errors; the fix gates the controller update on ``not no_beam``.
+The tests instrument the controller call count against the recorded per-turn
+forward and total cell counts.
+
+``test_controller_stepped_only_on_forward_cells``
+    Two-section fast ramp: the controller is stepped on exactly the forward
+    cells and never on the (larger) reverse reconstruction segments.
+``test_single_section_controller_skips_turn0_reverse``
+    Control: a single-section ring still reconstructs its very first turn in
+    reverse (``n_total > n_forward`` on turn 0), and the gate skips those
+    reverse cells too.
 
 
 ``test_helpers.py``
@@ -503,6 +541,46 @@ voltage. Uses a high ``Q_L = 1.29e6`` so the previous-pass wake survives
     The full combination (2 sections, fast ramp, n = 0.5) passes: the
     tiling-gap demodulation frame also covers the multi-section
     reverse-to-forward handover.
+``test_multiturn_delta_omega_rf_with_beam``
+    A beam-driven RF-frequency offset ``delta_omega_rf`` is *exercised* and
+    stays consistent. Two checks: (1) a **non-triviality guard** that the offset
+    genuinely moves the feedback's beam-induced voltage above the discretization
+    floor (last-turn ``|fb(offset) - fb(no offset)|/|fb| ~ 3.4 %`` vs a ~0.1 %
+    floor) -- a regression that dropped ``delta_omega_rf`` on the beam path
+    collapses this to ~0 and fails, which a plain per-turn gate cannot catch
+    (with the offset ignored the reference-subtracted voltage still sits at the
+    baseline, ~88 % of the 2 % gate, and passes); (2) the small offset still
+    tracks the retuning convolution to the 2 % gate. **Known limitation:**
+    ``delta_omega_rf`` (a lab-frame carrier slip growing with absolute time) and
+    the convolution's ``delta_f`` (a resonator retuning) are different
+    conventions -- the offset-induced *change* disagrees by tens of percent by
+    turn 2, so the offset is kept small (~8e2 rad/s) and this is a beam-path
+    regression guard, not a tight cross-validation (that lives in the LHC
+    suite).
+``test_multiturn_secular_drift_long_horizon``
+    Long-horizon guard for the shorter consistency tests: the most drift-prone
+    case (2 sections, fast undriven) run for 20 turns has a bounded per-turn
+    relative-error slope (~0.03 pp/turn) and an endpoint within 1 %.
+``test_multiturn_nondivisible_harmonic`` (``@expectedFailure``)
+    KNOWN LIMITATION. A harmonic not divisible by ``2 * n_sections``
+    de-aligns the coarse-grid tiling from the profile's zeroed leading edge, so
+    beam charge is downsampled into the first coarse cell and ``rf_beam_current``
+    raises before any voltage is produced -- a genuine gap versus the
+    geometry-agnostic solver. The other multi-section tests reduce the harmonic
+    to a multiple of ``2 * n_sections`` to avoid this.
+``test_multiturn_detuned_regression_lock``
+    Regression-locks the proven-good static detuned-cavity regimes
+    (``delta_omega`` of a few to ~10 half-bandwidths across static/fast x 1/2
+    sections); the feedback tracks the detuned convolution to < 0.3 %.
+``test_multiturn_driven_generator_beam_part_linearity``
+    With a matched generator bias (``I_g = V / (2 (R/Q) Q_L)``) driving the
+    cavity, the isolated beam-induced part (beam run minus no-beam reference)
+    is independent of the drive to ~1e-6, and single-section ``|V_ant|`` holds
+    at ``V_ss`` to ~1e-9 -- the linearity the reference-subtraction relies on.
+``test_multiturn_substepped_detuned``
+    Sub-stepping (n = 0.5) combined with a static detuning of +/- two
+    half-bandwidths holds against the convolution on both the static and fast
+    cycles.
 
 
 ``test_energy_gain_ind_voltage_vs_nondriven_feedback.py``
@@ -588,6 +666,96 @@ reference frame is advanced by ``DriftSubstepped`` (no beam tracking).
    Like the other modules, this one defaults to ``DEBUG_PLOT = False``; set it
    to ``True`` to open the Matplotlib diagnostic plots (blocking), and leave it
    at ``False`` for a headless/CI run.
+
+
+``test_wake_vs_feedback_dynamics.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A self-consistent multi-turn *dynamics* twin: the same matched ``BiGaussian``
+``mu_plus`` bunch is tracked through two full ``Simulation`` rings that differ
+**only** in the beam-induced-voltage model -- one uses the multi-pass resonator
+wake (``MultiPassResonatorSolver``, ``delta_f = 0``), the other a matched-bias
+non-driven ``IQCavityFeedbackTimingClass`` (``delta_omega = 0``). Where the
+neighbouring modules pin one slice of the equivalence (one turn of applied
+``dE``; the induced voltage against an analytic reference), this closes the loop
+and compares the *self-consistent bunch evolution* many turns deep on the
+transition-adjacent fast ramp (~4 GeV, ~0.09 ``t_rf``/turn frame slip, strong
+beam loading). It borrows the matched-beam constants and ``_t_rf`` /
+``_accelerating_cycle`` / ``_matched_template`` classmethods from
+``test_feedback_phase_under_acceleration.py`` via an uncollected ``_MatchedBeam``
+shim.
+
+**Class** ``TestWakeVsFeedbackDynamics``
+
+``test_centroid_tracks_between_wake_and_feedback``
+    The coherent centroid of the two twin bunches stays far inside ``sigma_dt``
+    on every turn.
+``test_bunch_shape_tracks_between_wake_and_feedback``
+    Per-turn ``sigma_dt`` and ``sigma_dE`` agree to well below 1 %.
+``test_emittance_difference_stays_small_and_barely_grows``
+    The rms-emittance difference stays tiny and its per-turn *slope* is small --
+    a per-turn induced-voltage mismatch would pump the trajectories apart, so a
+    bounded slope is the real content.
+``test_design_kicks_are_identical_without_beam``
+    With the beam removed the two rings coincide to machine precision (both
+    apply the identical design kick), so any beam-loaded difference is purely
+    the induced-voltage model.
+``test_beam_loading_is_strong_and_bunch_stays_captured``
+    Guard: the induced voltage reaches a sizable fraction of ``V_DESIGN``, the
+    bunch executes real synchrotron dynamics (``sigma_dt`` breathes) and stays
+    in-window.
+``test_beam_loading_actually_drives_the_dynamics``
+    Sensitivity: beam loading moves the centroid ~0.9 ``sigma`` off the
+    design-only (no-beam) trajectory -- hundreds of times the wake-vs-feedback
+    twin difference -- so the tight agreement is a genuine beam-loading
+    cross-check, not two runs that both ignore it.
+``test_debug_plot_opt_in``
+    Opt-in diagnostic overlay (skipped unless ``DEBUG_PLOT``).
+
+
+``test_multibunch_beam_loading.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Multi-bunch / multiple-populated-coarse-cell transient beam loading. Every
+other feedback test holds a single bunch in a ~1.5 ``t_rf`` window, so only 1-2
+of the ~25900 coarse cells are ever populated and the intra-turn wake
+propagation *between* well-separated populated cells is never exercised. This
+module widens the profile to several ``t_rf`` with two or three unevenly-spaced
+Gaussian bunches and checks the trailing bunch, which rides the leading
+bunch(es)' carried wake, against the ``MultiPassResonatorSolver``.
+
+The local gates are anchored a few x above the measured feedback-vs-solver
+discretization floor (trailing/leading/global ~0.19 %/0.46 %/0.11 %), not a
+loose 2 %, so a sub-percent error in the carried inter-cell wake fails.
+
+**Class** ``TestSinglePassMultiBunch`` -- solver vs non-driven feedback on one
+static multi-bunch profile (no ``Beam`` tracking, no ``Simulation``).
+
+``test_two_bunch_trailing_matches_solver``
+    Two bunches (2 and 6 ``t_rf``): feedback vs solver agree at the trailing
+    bunch (gate 0.6 %), leading bunch (1.0 %) and whole train (0.3 %).
+``test_three_bunch_trailing_matches_solver``
+    Three unevenly-spaced bunches (2, 4, 7 ``t_rf``): the last bunch integrates
+    two upstream wakes at different lags and still matches locally (gate 0.6 %).
+``test_first_coarse_cell_precondition``
+    Drives the *real* mucol coarse downsampling
+    (``rf_beam_current_partial``, the function the forward pass calls and which
+    hard-enforces ``forbid_charge_in_first_coarse_cell``) and asserts it returns
+    without raising and the first coarse cell carries negligible charge -- the
+    actual invariant, not a re-read of the builder's zeroed fine bins.
+
+**Class** ``TestMultiBunchMultiTurn`` -- full ``Simulation`` (a macroparticle-less
+dummy beam holds the static multi-bunch profile); the coarse grid propagates
+turn over turn and the beam-induced part (minus a no-beam reference) is compared
+per turn against the convolution. Per-turn gates are parametrised and default to
+a few x above the measured floors (trailing 0.6 %, leading 1.0 %, global 0.3 %).
+
+``test_multibunch_static``
+    Static single section: the coarse grid carries the leading-bunch wake
+    across the empty gap to the trailing cell.
+``test_multibunch_fast_ramp``
+    Transition-adjacent fast ramp: the two populated cells shift as the grid is
+    rebuilt each turn, and the carried multi-bunch wake still holds.
 
 
 Support modules

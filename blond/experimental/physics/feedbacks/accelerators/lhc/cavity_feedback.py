@@ -22,7 +22,7 @@ from blond import Simulation, StaticProfile
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedback,
+    IQCavityFeedbackOld,
 )
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
@@ -143,7 +143,7 @@ class LHCCavityLoopCommissioning:
         return np.exp(2 * np.pi * 1j * r1) * np.sqrt(-2 * np.log(r2))
 
 
-class LHCCavityLoop(IQCavityFeedback):
+class LHCCavityLoop(IQCavityFeedbackOld):
     r"""
     Cavity loop to regulate the RF voltage in the LHC ACS cavities.
     The loop contains a generator, a switch-and-protect device, an RF FB and a

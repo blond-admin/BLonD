@@ -307,6 +307,164 @@ def rf_beam_current(  # noqa: PLR0912
         return charges_fine
 
 
+def rf_beam_current_partial(
+    beam: BeamBaseClass,
+    profile: StaticProfile,
+    omega_c: float,
+    T_rev: float,
+    sampling_time: float,
+    n_points: int,
+    dT: float,
+    use_lowpass_filter: bool = False,
+) -> tuple[NumpyArray, NumpyArray]:
+    r"""
+    RF beam current on the sub-stepped coarse grid (mucol timing class only).
+
+    Dedicated, fully-separated counterpart of :func:`rf_beam_current` for the
+    :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
+    forward pass. It hard-codes the conventions that path always uses -- the
+    external reference frame is on, the fine-to-coarse index sign is ``+1``, the
+    mapping is centred on half a *coarse cell* (``sampling_time / 2``, not the
+    half-carrier-period ``pi / omega_c`` of the LHC path), and the first coarse
+    cell must stay charge-free -- so those no longer leak into the LHC-shared
+    :func:`rf_beam_current` as optional flags. It is kept a separate function
+    (not a thin wrapper) so the two paths can evolve independently:
+    :func:`rf_beam_current` must stay bit-identical for the LHC comparison
+    tests, which drive it through the (experimental) LHC feedback with
+    ``dT_index_sign = -1``.
+
+    See :func:`rf_beam_current` for the physics of the demodulation, the
+    ``+pi/2`` rotation and the downsampling.
+
+    Parameters
+    ----------
+    beam : BeamBaseClass
+        Beam to calculate the current on.
+    profile : StaticProfile
+        A Profile type class.
+    omega_c : float
+        Carrier angular frequency [rad/s] of the forward-tracking RF.
+    T_rev : float
+        Forward-tracking period [s] (used only for the DC-current logging).
+    sampling_time : float
+        Coarse-grid sampling time ``T_s`` [s] of the forward segment.
+    n_points : int
+        Number of coarse-grid points to downsample onto.
+    dT : float
+        Demodulation time shift [s] that rotates the beam current into the
+        frame of the coarse-grid envelope recursion.
+    use_lowpass_filter : bool
+        Apply the 20 MHz low-pass filter; default False.
+
+    Returns
+    -------
+    charges_fine : complex array
+        RF beam charge [C] on the fine (profile) grid.
+    charges_coarse : complex array
+        RF beam charge [C] downsampled onto the ``n_points`` coarse grid.
+    """
+    # The cavity-feedback signal processing runs on the host; bring the profile
+    # arrays to the host once so this works on any backend (see rf_beam_current).
+    hist_x = copy_to_cpu(profile.hist_x)
+    hist_y = copy_to_cpu(profile.hist_y)
+
+    # Warn if the profile does not capture the whole beam: the missing charge is
+    # invisible to the feedback and will not be treated.
+    if profile.hist_y_to_density_factor is not None:
+        captured_fraction = float(
+            np.sum(hist_y) * profile.hist_y_to_density_factor
+        )
+        if not np.isclose(captured_fraction, 1.0, rtol=0, atol=1e-6):
+            warnings.warn(
+                f"Only {captured_fraction:.6f} of the beam's macroparticles "
+                "are inside the profile window (particle loss or particles "
+                "outside the window). Their charge is invisible to the "
+                "feedback and will not be treated correctly.",
+                stacklevel=2,
+            )
+
+    # Convert from dimensionless to Coulomb, including the real-to-macro ratio.
+    charges = (
+        -elementary_charge
+        * beam.particle_type.charge
+        * beam.intensity
+        * hist_y
+        * profile.hist_y_to_density_factor
+    )
+
+    logger.debug(
+        "Sum of particles: %d, total charge: %.4e C",
+        np.sum(hist_y),
+        np.sum(charges),
+    )
+    logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
+
+    # Demodulate the (real) beam charge to the complex baseband envelope at the
+    # carrier omega_c; the factor 2 recovers the fundamental amplitude.
+    I_f = 2.0 * charges * np.cos(omega_c * hist_x)
+    Q_f = -2.0 * charges * np.sin(omega_c * hist_x)
+
+    if use_lowpass_filter is True:
+        cutoff = 20.0e6 * 2.0 * profile.hist_step
+        I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
+        Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
+    logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
+
+    # External reference frame is always on for the timing class: rotate by the
+    # RF-clock slip dphi = dT * omega_c and the +pi/2 that aligns the beam-
+    # current I/Q axis with the antenna-voltage lab-frame convention.
+    charges_fine = I_f + 1j * Q_f
+    dphi = dT * omega_c
+    charges_fine = charges_fine * np.exp(1j * (dphi + np.pi / 2))
+
+    # Downsample onto the coarse grid. The mapping is centred on half a coarse
+    # cell and dT enters with +1 sign (the mucol convention).
+    coarse_center_offset = sampling_time / 2
+    ind_fine = np.round((hist_x + dT - coarse_center_offset) / sampling_time)
+    ind_fine = np.array(ind_fine, dtype=int)
+    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+    if np.any(ind_fine < 0):
+        warnings.warn(
+            "part of the beam is located before turn time 0, "
+            "this will cause problems, please shift the beam",
+            stacklevel=2,
+        )
+
+    charges_coarse = np.zeros(n_points, dtype=complex)
+    if len(indices) == 0:
+        # single bucket in ind_fine --> all ind_fine identical
+        charges_coarse[ind_fine[0]] = np.sum(charges_fine)
+    else:
+        charges_coarse[ind_fine[0]] = np.sum(charges_fine[: indices[0]])
+        for i in range(1, len(indices)):
+            # The write index is kept in range by the % n_points wrap
+            # (periodic coarse grid), so no bounds guard is needed.
+            charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
+                charges_fine[indices[i - 1] : indices[i]]
+            )
+        # Remainder after the last cell boundary; dropping it would lose all
+        # charge past that boundary (up to ~half the bunch).
+        charges_coarse[(len(indices) + ind_fine[0]) % n_points] = np.sum(
+            charges_fine[indices[-1] :]
+        )
+
+    # The fine-grid initial antenna voltage is taken from the first coarse cell
+    # (see circuit_track), so it must stay charge-free, otherwise its beam kick
+    # is double-counted by the fine grid. Relative threshold: far Gaussian tails
+    # are non-zero in float arithmetic without being physically populated.
+    total_charge = np.sum(np.abs(charges_fine))
+    if np.abs(charges_coarse[0]) > 1e-9 * total_charge:
+        raise ValueError(
+            "Beam charge was downsampled into the first coarse-grid cell. "
+            "The fine-grid initial antenna voltage is taken from this cell, "
+            "so its beam kick would be double-counted by the fine grid. Shift "
+            "the profile window (cut_left) or the bunch so that no charge lies "
+            "in the first coarse cell."
+        )
+
+    return charges_fine, charges_coarse
+
+
 def cartesian_to_polar(
     IQ_vector: NumpyArray,
 ) -> tuple[NumpyArray, NumpyArray]:

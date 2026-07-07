@@ -35,7 +35,7 @@ from blond.physics.cavities import (
 )
 from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedback,
+    IQCavityFeedbackBase,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -1151,7 +1151,7 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
-        feedback: IQCavityFeedback,
+        feedback: IQCavityFeedbackBase,
         folder: str = "",
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
@@ -1172,7 +1172,7 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         self._n_samples_coarse: float | None = None
         self._n_samples_fine: float | None = None
 
-    @requires(["IQCavityFeedback"])
+    @requires(["IQCavityFeedbackBase"])
     def on_run_simulation(
         self,
         simulation: Simulation,

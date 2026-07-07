@@ -16,7 +16,7 @@ from blond import (
     mu_plus,
 )
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedback,
+    IQCavityFeedbackBase,
     IQCavityFeedbackTimingClass,
 )
 from blond.physics.feedbacks.helpers import rf_beam_current
@@ -832,16 +832,17 @@ class TestCavityPrefill(unittest.TestCase):
 
 class TestBaseCoarseGridSizing(unittest.TestCase):
     """
-    Shared ``IQCavityFeedback`` base sizes its coarse grid as a Python int.
+    ``IQCavityFeedbackBase.on_run_simulation`` sizes its coarse grid as an int.
 
-    ``on_run_simulation`` computes ``n_samples_coarse`` (the number of complete
-    coarse cells per turn) and allocates the coarse arrays with it. It must be a
-    Python ``int``, since ``np.zeros`` rejects a float length on numpy >= 2. The
-    timing subclass overrides ``on_run_simulation``, so this exercises the base
-    path used by the other (non-mucol) IQ cavity feedbacks.
+    The base ``on_run_simulation`` computes ``n_samples_coarse`` (the number of
+    complete coarse cells per turn) and allocates the coarse arrays with it. It
+    must be a Python ``int``, since ``np.zeros`` rejects a float length on
+    numpy >= 2. The timing subclass overrides ``on_run_simulation`` (without
+    ``super()``), so this base method is not reached in production; the test
+    guards its allocation logic directly via a minimal concrete subclass.
     """
 
-    class _MinimalFeedback(IQCavityFeedback):
+    class _MinimalFeedback(IQCavityFeedbackBase):
         """Concrete base subclass with no-op abstract methods."""
 
         def update_feedback_variables(self) -> None:
@@ -870,13 +871,13 @@ class TestBaseCoarseGridSizing(unittest.TestCase):
         # t_rev / sampling_time_coarse = 200.7 -> floor -> 200 coarse cells.
         with (
             patch.object(
-                IQCavityFeedback,
+                IQCavityFeedbackBase,
                 "t_rev",
                 new_callable=PropertyMock,
                 return_value=200.7e-9,
             ),
             patch.object(
-                IQCavityFeedback,
+                IQCavityFeedbackBase,
                 "sampling_time_coarse",
                 new_callable=PropertyMock,
                 return_value=1.0e-9,
@@ -890,6 +891,112 @@ class TestBaseCoarseGridSizing(unittest.TestCase):
         self.assertEqual(feedback.n_samples_coarse, 200)
         self.assertEqual(len(feedback.antenna_voltage_coarse_grid), 200)
         self.assertEqual(len(feedback.generator_current_coarse_grid), 200)
+
+
+class TestExponentialCoarseSolver(unittest.TestCase):
+    """
+    Optional exact exponential coarse-grid propagator.
+
+    ``_advance_coarse_voltage`` integrates one coarse step of the cavity
+    envelope ODE with either forward-Euler (default) or, with
+    ``exponential_coarse_solver=True``, the exact exponential propagator
+    ``V_{n+1} = e^L V_n + src (e^L - 1)/L``. The exponential form is exact
+    in decay and detuning rotation and unconditionally stable.
+    """
+
+    R_over_Q = 518.0
+    Q_L = 1287601.7251526634
+
+    def _feedback(self, exponential: bool) -> IQCavityFeedbackTimingClass:
+        """
+        Build a minimal feedback exposing ``_advance_coarse_voltage``.
+
+        Parameters
+        ----------
+        exponential : bool
+            Value passed as ``exponential_coarse_solver``.
+
+        Returns
+        -------
+        IQCavityFeedbackTimingClass
+            Feedback instance with the requested coarse-solver branch.
+        """
+        return IQCavityFeedbackTimingClass(
+            profile=Mock(StaticProfile),
+            R_over_Q=self.R_over_Q,
+            Q_L=self.Q_L,
+            generator_current_bias=0.0,
+            n_cavities=1,
+            exponential_coarse_solver=exponential,
+        )
+
+    def test_euler_branch_matches_the_forward_euler_formula(self):
+        """The default branch reproduces the forward-Euler update exactly."""
+        cav = self._feedback(exponential=False)
+        v_prev, i_gen, i_beam = 30e6 + 1e6j, 0.02 + 0.01j, 0.005j
+        omega_dt, rel_det = 2.0 * np.pi, -1e-4
+        got = cav._advance_coarse_voltage(
+            v_prev, i_gen, i_beam, omega_dt, rel_det
+        )
+        step = -0.5 * omega_dt / self.Q_L + 1j * rel_det * omega_dt
+        drive = self.R_over_Q * omega_dt * (i_gen - 0.5 * i_beam)
+        self.assertAlmostEqual(got, v_prev * (1 + step) + drive, places=6)
+
+    def test_exponential_branch_matches_the_closed_form(self):
+        """The exponential branch matches e^L V + src (e^L - 1)/L."""
+        cav = self._feedback(exponential=True)
+        v_prev, i_gen, i_beam = 30e6 + 1e6j, 0.02 + 0.01j, 0.005j
+        omega_dt, rel_det = 2.0 * np.pi, -1e-4
+        got = cav._advance_coarse_voltage(
+            v_prev, i_gen, i_beam, omega_dt, rel_det
+        )
+        step = -0.5 * omega_dt / self.Q_L + 1j * rel_det * omega_dt
+        drive = self.R_over_Q * omega_dt * (i_gen - 0.5 * i_beam)
+        expected = v_prev * np.exp(step) + drive * (np.expm1(step) / step)
+        self.assertAlmostEqual(got / expected, 1.0, places=12)
+
+    def test_pure_detuning_preserves_magnitude(self):
+        """
+        Preserve ``|V|`` under pure detuning (an exact rotation).
+
+        Forward-Euler instead grows the magnitude unphysically by
+        ``sqrt(1 + (delta_omega dt)^2)`` per step -- the truncation error the
+        exponential propagator removes.
+        """
+        # No decay (Q_L huge), no drive, a large per-step detuning rotation.
+        cav_exp = self._feedback(exponential=True)
+        cav_exp.Q_L = 1e18
+        cav_eu = self._feedback(exponential=False)
+        cav_eu.Q_L = 1e18
+        v_prev = 30e6 + 0.0j
+        omega_dt, rel_det = 2.0 * np.pi, 0.5 / (2.0 * np.pi)  # delta*dt = 0.5
+        v_exp = cav_exp._advance_coarse_voltage(
+            v_prev, 0.0, 0.0, omega_dt, rel_det
+        )
+        v_eu = cav_eu._advance_coarse_voltage(
+            v_prev, 0.0, 0.0, omega_dt, rel_det
+        )
+        # Exponential: exact rotation by 0.5 rad, magnitude unchanged.
+        self.assertAlmostEqual(np.abs(v_exp) / np.abs(v_prev), 1.0, places=12)
+        self.assertAlmostEqual(np.angle(v_exp / v_prev), 0.5, places=12)
+        # Euler: magnitude grows by sqrt(1 + 0.5^2) ~ 1.118 (unphysical).
+        self.assertAlmostEqual(
+            np.abs(v_eu) / np.abs(v_prev), np.sqrt(1.25), places=9
+        )
+
+    def test_small_step_reduces_to_euler(self):
+        """Converge to the Euler branch as the step shrinks (O(step^2))."""
+        cav_exp = self._feedback(exponential=True)
+        cav_eu = self._feedback(exponential=False)
+        v_prev, i_gen, i_beam = 30e6 + 0.0j, 0.02 + 0.0j, 0.0
+        omega_dt, rel_det = 2.0 * np.pi * 1e-3, -1e-6  # tiny step
+        v_exp = cav_exp._advance_coarse_voltage(
+            v_prev, i_gen, i_beam, omega_dt, rel_det
+        )
+        v_eu = cav_eu._advance_coarse_voltage(
+            v_prev, i_gen, i_beam, omega_dt, rel_det
+        )
+        self.assertAlmostEqual(v_exp / v_eu, 1.0, places=9)
 
 
 if __name__ == "__main__":

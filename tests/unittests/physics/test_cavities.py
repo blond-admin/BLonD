@@ -40,7 +40,7 @@ from blond.experimental.physics.feedbacks.base import (
 )
 from blond.experimental.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.experimental.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedback,
+    IQCavityFeedbackOld,
 )
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
@@ -594,7 +594,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
         # prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
         beam_feedback_good = Mock(spec=BeamFeedbackBase)
-        cavity_feedback_good = Mock(spec=IQCavityFeedback)
+        cavity_feedback_good = Mock(spec=IQCavityFeedbackOld)
         cavity_feedback_good.info_string.return_value = (
             "Unnamed-LocalFeedback-000"
         )
