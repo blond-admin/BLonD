@@ -376,13 +376,47 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
     # stay below the design voltage (the feedback evaluates phi_s).
     MULTITURN_DELTA_E_SECTION = 2e6
 
-    # Cache keyed on (n_sections, acceleration): each config runs three full
-    # simulations (convolution, beam feedback, no-beam reference), so this
-    # avoids re-running shared configurations across tests.
+    # Fast frame-slip regime (same machine point as
+    # test_feedback_phase_under_acceleration): just above transition
+    # (gamma_t ~ 31 at ~4 GeV) the RF frame slips ~0.09 t_rf per turn --
+    # orders of magnitude more than at the 63 GeV operating point -- so
+    # per-segment phase errors that hide at the slow ramp become visible.
+    FAST_ENERGY = 4.0e9
+    FAST_DELTA_E_TURN = 20e6  # per turn, split evenly across the stations
+    FAST_N_TURNS = 5
+
+    # Cache keyed on (n_sections, acceleration, n_rf_periods, fast_ramp):
+    # each config runs three full simulations (convolution, beam feedback,
+    # no-beam reference), so this avoids re-running shared configurations
+    # across tests.
     _multiturn_cache: dict = {}
 
     @classmethod
-    def _calc_multiturn_harmonic_and_t_rf(cls, n_sections: int):
+    def _regime(cls, fast_ramp: bool):
+        """
+        Energy, per-station energy gain and turn count of a ramp regime.
+
+        Parameters
+        ----------
+        fast_ramp
+            If True, the transition-adjacent fast frame-slip regime;
+            otherwise the 63 GeV operating point.
+
+        Returns
+        -------
+        energy
+            Initial reference total energy [eV].
+        n_turns
+            Number of turns to simulate.
+        """
+        if fast_ramp:
+            return cls.FAST_ENERGY, cls.FAST_N_TURNS
+        return cls.MULTITURN_ENERGY, cls.MULTITURN_N_TURNS
+
+    @classmethod
+    def _calc_multiturn_harmonic_and_t_rf(
+        cls, n_sections: int, fast_ramp: bool = False
+    ):
         """
         Harmonic (divisible by ``2 * n_sections``) and the matching t_rf.
 
@@ -390,6 +424,8 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         ----------
         n_sections
             Number of RF stations per turn.
+        fast_ramp
+            If True, evaluate at the fast-regime injection energy.
 
         Returns
         -------
@@ -399,12 +435,13 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         t_rf
             RF period for that harmonic at the cycle's initial energy.
         """
+        energy, _ = cls._regime(fast_ramp)
         harmonic = int(
             cls.MULTITURN_HARMONIC - cls.MULTITURN_HARMONIC % (2 * n_sections)
         )
         cycle = ConstantMagneticCycle(
             reference_particle=mu_plus,
-            value=cls.MULTITURN_ENERGY,
+            value=energy,
             in_unit="total energy",
         )
         t_rev = cycle.get_t_rev_init(
@@ -413,7 +450,9 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         return harmonic, t_rev / harmonic
 
     @classmethod
-    def _multiturn_cycle(cls, n_sections: int, acceleration: bool):
+    def _multiturn_cycle(
+        cls, n_sections: int, acceleration: bool, fast_ramp: bool = False
+    ):
         """
         Magnetic cycle for the multi-turn run: static or accelerating.
 
@@ -423,35 +462,51 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             Number of RF stations per turn.
         acceleration
             If True, a ``MagneticCyclePerTurnAllRFStations`` that raises the
-            reference energy by ``MULTITURN_DELTA_E_SECTION`` at every RF
-            station; otherwise a stationary ``ConstantMagneticCycle``.
+            reference energy at every RF station; otherwise a stationary
+            ``ConstantMagneticCycle``.
+        fast_ramp
+            If True, use the transition-adjacent fast regime (implies
+            ``acceleration``): the per-turn gain ``FAST_DELTA_E_TURN`` is
+            split evenly across the stations.
 
         Returns
         -------
         MagneticCycleBase
             The magnetic cycle.
         """
+        energy, n_turns = cls._regime(fast_ramp)
+        if fast_ramp:
+            acceleration = True
         if not acceleration:
             return ConstantMagneticCycle(
                 reference_particle=mu_plus,
-                value=cls.MULTITURN_ENERGY,
+                value=energy,
                 in_unit="total energy",
             )
-        n_kicks = n_sections * cls.MULTITURN_N_TURNS
+        delta_e_section = (
+            cls.FAST_DELTA_E_TURN / n_sections
+            if fast_ramp
+            else cls.MULTITURN_DELTA_E_SECTION
+        )
+        n_kicks = n_sections * n_turns
         values = (
-            cls.MULTITURN_ENERGY
-            + cls.MULTITURN_DELTA_E_SECTION * np.arange(1, n_kicks + 1)
-        ).reshape(n_sections, cls.MULTITURN_N_TURNS, order="F")
+            energy + delta_e_section * np.arange(1, n_kicks + 1)
+        ).reshape(n_sections, n_turns, order="F")
         return MagneticCyclePerTurnAllRFStations(
             reference_particle=mu_plus,
-            value_init=cls.MULTITURN_ENERGY,
+            value_init=energy,
             values_after_rf_station_per_turn=values,
             in_unit="total energy",
         )
 
     @classmethod
     def _run_multiturn_case(
-        cls, mode: str, n_sections: int, acceleration: bool
+        cls,
+        mode: str,
+        n_sections: int,
+        acceleration: bool,
+        n_rf_periods: float = 1,
+        fast_ramp: bool = False,
     ) -> list:
         """
         Run a full multi-turn Simulation and collect a voltage per turn.
@@ -477,6 +532,14 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             Number of RF stations per turn.
         acceleration
             If True, run with the accelerating cycle.
+        n_rf_periods
+            ``n_rf_periods_per_coarse_grid`` of the feedback; values below 1
+            are the sub-stepping mode.
+        fast_ramp
+            If True, run the transition-adjacent fast frame-slip regime
+            (implies acceleration, ``FAST_N_TURNS`` turns). The convolution
+            reference then uses the retuning solver (``delta_f = 0.0``), the
+            counterpart of the feedback's always-on-resonance cavity.
 
         Returns
         -------
@@ -485,7 +548,10 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             wakefield induced voltage for ``"mtw"``, the station gap voltage
             otherwise.
         """
-        harmonic, t_rf = cls._calc_multiturn_harmonic_and_t_rf(n_sections)
+        harmonic, t_rf = cls._calc_multiturn_harmonic_and_t_rf(
+            n_sections, fast_ramp=fast_ramp
+        )
+        energy, n_turns = cls._regime(fast_ramp)
         half_drift_length = cls.MULTITURN_CIRCUMFERENCE / n_sections / 2
 
         ring = Ring(
@@ -501,6 +567,13 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             profile.active = False  # keep the histogram static (no particles)
 
             if mode == "mtw":
+                solver_kwargs = {"decay_fraction_threshold": 1e-12}
+                if fast_ramp:
+                    # Retuning solver: the resonator follows the RF frequency
+                    # turn by turn (delta_f = 0), matching the feedback's
+                    # cavity, which is always on resonance with the current
+                    # RF. At the slow ramp the distinction is negligible.
+                    solver_kwargs["delta_f"] = 0.0
                 local_wf = WakeField(
                     sources=(
                         Resonators(
@@ -509,9 +582,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                             cls.MULTITURN_Q_L,
                         ),
                     ),
-                    solver=MultiPassResonatorSolver(
-                        decay_fraction_threshold=1e-12
-                    ),
+                    solver=MultiPassResonatorSolver(**solver_kwargs),
                     profile=profile,
                 )
                 rf_station = SingleHarmonicRFStation(
@@ -534,7 +605,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                     generator_current_bias=0.0,
                     n_cavities=1,
                     initial_voltage=cls.MULTITURN_V_DESIGN,
-                    n_rf_periods_per_coarse_grid=1,
+                    n_rf_periods_per_coarse_grid=n_rf_periods,
                     delta_omega=0.0,
                 )
                 rf_station = SingleHarmonicRFStation(
@@ -562,7 +633,9 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         ring.add_elements(simulation_elements, reorder=False)
         sim = Simulation(
             ring=ring,
-            magnetic_cycle=cls._multiturn_cycle(n_sections, acceleration),
+            magnetic_cycle=cls._multiturn_cycle(
+                n_sections, acceleration, fast_ramp=fast_ramp
+            ),
         )
 
         beam = Beam(
@@ -571,7 +644,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             ),
             particle_type=mu_plus,
         )
-        beam.reference.total_energy = cls.MULTITURN_ENERGY
+        beam.reference.total_energy = energy
         beam.setup_beam(dt=np.array([]), dE=np.array([]))
 
         per_turn = []
@@ -598,14 +671,20 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
 
         sim.run_simulation(
             (beam,),
-            n_turns=cls.MULTITURN_N_TURNS,
+            n_turns=n_turns,
             callbacks=collect,
             show_progressbar=False,
         )
         return per_turn
 
     @classmethod
-    def _feedback_vs_convolution(cls, n_sections: int, acceleration: bool):
+    def _feedback_vs_convolution(
+        cls,
+        n_sections: int,
+        acceleration: bool,
+        n_rf_periods: float = 1,
+        fast_ramp: bool = False,
+    ):
         """
         Run (once per config) and cache the convolution and feedback voltages.
 
@@ -615,6 +694,10 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             Number of RF stations per turn.
         acceleration
             If True, run with the accelerating cycle.
+        n_rf_periods
+            ``n_rf_periods_per_coarse_grid`` of the feedback.
+        fast_ramp
+            If True, run the transition-adjacent fast frame-slip regime.
 
         Returns
         -------
@@ -626,14 +709,20 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             isolates the beam-induced part by linearity of the cavity
             equation).
         """
-        key = (n_sections, acceleration)
+        key = (n_sections, acceleration, n_rf_periods, fast_ramp)
         if key not in cls._multiturn_cache:
             convolution = cls._run_multiturn_case(
-                "mtw", n_sections, acceleration
+                "mtw", n_sections, acceleration, n_rf_periods, fast_ramp
             )
-            gap_beam = cls._run_multiturn_case("fb", n_sections, acceleration)
+            gap_beam = cls._run_multiturn_case(
+                "fb", n_sections, acceleration, n_rf_periods, fast_ramp
+            )
             gap_reference = cls._run_multiturn_case(
-                "fb_reference", n_sections, acceleration
+                "fb_reference",
+                n_sections,
+                acceleration,
+                n_rf_periods,
+                fast_ramp,
             )
             feedback = [
                 [
@@ -650,7 +739,11 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         return cls._multiturn_cache[key]
 
     def _assert_multiturn_consistency(
-        self, n_sections: int, acceleration: bool
+        self,
+        n_sections: int,
+        acceleration: bool,
+        n_rf_periods: float = 1,
+        fast_ramp: bool = False,
     ):
         """
         Assert per-section, per-turn feedback/convolution agreement.
@@ -661,9 +754,13 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             Number of RF stations per turn.
         acceleration
             If True, run with the accelerating cycle.
+        n_rf_periods
+            ``n_rf_periods_per_coarse_grid`` of the feedback.
+        fast_ramp
+            If True, run the transition-adjacent fast frame-slip regime.
         """
         convolution, feedback = self._feedback_vs_convolution(
-            n_sections, acceleration
+            n_sections, acceleration, n_rf_periods, fast_ramp
         )
 
         if DEBUG_PLOT:
@@ -759,6 +856,106 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                 self._assert_multiturn_consistency(
                     n_sections=n_sections, acceleration=True
                 )
+
+    def test_multiturn_substepped_matches_convolution(self):
+        """
+        Beam loading computed on a sub-stepped coarse grid stays correct.
+
+        With ``n_rf_periods_per_coarse_grid = 0.5`` the coarse grid halves
+        the RF period, so the bunch spans several coarse cells and the
+        beam-current downsampling distributes charge across cell edges --
+        a regime no other physics test exercises. The carried wake must
+        still match the multi-pass convolution at the same tolerance as
+        the standard grid.
+        """
+        self._assert_multiturn_consistency(
+            n_sections=1, acceleration=False, n_rf_periods=0.5
+        )
+
+    def test_multiturn_fast_ramp(self):
+        """
+        Feedback vs retuning convolution in the fast frame-slip regime.
+
+        Transition-adjacent energy (~4 GeV, gamma_t ~ 31): the RF frame
+        slips ~0.09 t_rf per turn -- orders of magnitude more than at the
+        63 GeV operating point of ``test_multiturn_with_acceleration`` --
+        over 5 turns, single section. The convolution reference retunes
+        with the RF (``delta_f = 0``), matching the feedback's
+        always-on-resonance cavity. The carried wake agrees to ~0.1 %.
+        """
+        self._assert_multiturn_consistency(
+            n_sections=1,
+            acceleration=True,
+            fast_ramp=True,
+        )
+
+    def test_multiturn_fast_ramp_multisection(self):
+        """
+        Multi-section carried wake holds under the fast ramp.
+
+        On the transition-adjacent fast ramp the coarse grid is rebuilt each
+        turn from reverse segments across the *other* stations, each re-seeded
+        at its own past-station frequency. The multi-section frame correction
+        (``_track``) removes the resulting carried-envelope phase error
+        ``sum_k (omega_k - omega_0) T_seg,k`` before it seeds the forward
+        segment, so the carried wake matches the retuning convolution on every
+        turn for 2 and 4 sections. Without the correction the arrival time
+        drifted ~0.023 t_rf per turn (turn 4 reached ~29 % / ~57 % rel. error
+        for 2 / 4 sections); with it the error stays ~0.2 %.
+        """
+        for n_sections in (2, 4):
+            with self.subTest(n_sections=n_sections):
+                self._assert_multiturn_consistency(
+                    n_sections=n_sections,
+                    acceleration=True,
+                    fast_ramp=True,
+                )
+
+    def test_multiturn_fast_ramp_substepped(self):
+        """
+        Sub-stepped carried wake holds under the fast ramp.
+
+        A sub-stepped grid (n = 0.5) on the fast (transition-adjacent) ramp,
+        single section. Two former defects are fixed: (1) the stale
+        reverse-segment re-pass (the turn-0 reverse omega list was never
+        refreshed for a single section, so every turn re-ran the forward
+        grid at the frozen injection frequency, corrupting the demodulation
+        frame by -(turn+1) * 2 pi S per turn and stepping any attached
+        controller on garbage); (2) the sub-stepped demodulation frame is
+        now the tiling boundary gap (first-centre offset + carried
+        residual, a pure time immune to the float-bistable residual landing
+        flip) instead of the mod-2*pi grid-phase reconstruction. Carried
+        turns agree with the retuning convolution to ~0.1 % (previously
+        ~40 % with a per-kick-turn constant phase error).
+        """
+        self._assert_multiturn_consistency(
+            n_sections=1,
+            acceleration=True,
+            n_rf_periods=0.5,
+            fast_ramp=True,
+        )
+
+    def test_multiturn_fast_ramp_multisection_substepped(self):
+        """
+        The full combination holds: multi-section, fast ramp, sub-stepping.
+
+        Two RF stations, the transition-adjacent fast ramp and a sub-stepped
+        grid (n = 0.5). Combines the multi-section frame correction
+        (``test_multiturn_fast_ramp_multisection``) with the sub-stepped
+        demodulation-frame fix (``test_multiturn_fast_ramp_substepped``,
+        whose tiling-gap formula also covers the multi-section
+        reverse-to-forward handover -- the former turn-0 section-1 sign
+        flip was the same demodulation-frame defect). Exercises the
+        reverse-tracking residual carry-over across segments of different
+        frequency with actual beam-loading physics against the retuning
+        convolution.
+        """
+        self._assert_multiturn_consistency(
+            n_sections=2,
+            acceleration=True,
+            n_rf_periods=0.5,
+            fast_ramp=True,
+        )
 
     def _plot_multiturn(self, v_convolution_turns, v_feedback_turns):
         """
