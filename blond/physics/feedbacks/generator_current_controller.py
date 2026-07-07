@@ -172,7 +172,11 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         on top of.
     n_delay
         Loop delay in samples; the error acted on is the one from ``n_delay``
-        :meth:`update_generator_current` calls ago. Default 0.
+        :meth:`update_generator_current` calls ago. Default 0. Note this
+        counts coarse-grid *samples*, not time: driven by a sub-stepped
+        feedback (``n_rf_periods_per_coarse_grid < 1``) the physical delay
+        is ``n_delay * n_rf_periods_per_coarse_grid * t_rf``, i.e. it
+        shrinks with the sub-step.
     max_output
         Maximum generator-current magnitude [A] (klystron limit). If None,
         the output is not limited and the integrator never saturates.

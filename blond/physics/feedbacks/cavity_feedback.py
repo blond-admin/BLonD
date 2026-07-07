@@ -77,7 +77,8 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
     harmonic_index
         The harmonic index the cavity feedback is working on.
     n_rf_periods_per_coarse_grid
-        Sampling time in the model and the number of samples per turn.
+        Width of one coarse-grid step in RF periods; sets the coarse sampling
+        time and thereby the number of coarse samples per turn.
     """
 
     def __init__(
@@ -235,9 +236,10 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         """
         Time points of the coarse grid.
 
-        Time points of the coarse grid. If self.n_periods_coarse is > 1, the
-        points will be placed at the center of the bins, while for self.n_periods_coarse < 1,
-        the first one will be placed at self.n_periods_coarse * 0.5.
+        For ``n_rf_periods_per_coarse_grid >= 1`` the points are placed at the
+        center of the RF period (offset ``0.5 * t_rf``); for the sub-stepping
+        mode (``n_rf_periods_per_coarse_grid < 1``) the first point is placed
+        at half a coarse step, ``0.5 * n_rf_periods_per_coarse_grid * t_rf``.
 
         Returns
         -------
@@ -457,11 +459,15 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         else:
             return self._parent_rf_station.phi_rf[self.harmonic_index]
 
+    # Names invalidated by invalidate_cache(). The listed members are plain
+    # (uncached) properties today, so invalidation is a no-op for them; the
+    # list documents which derived values would need invalidation if they
+    # were ever converted to functools.cached_property.
     cached_props = (
         "t_rf",
         "omega_carrier",
-        "sampling_time",
-        "residual_phase_from_last_turn",
+        "sampling_time_coarse",
+        "residual_time_shift_from_last_turn",
         "voltage_setpoint",
     )
 
@@ -514,30 +520,37 @@ class IQCavityFeedback(LocalFeedback, HasPropertyCache):
         return self.n_rf_periods_per_coarse_grid * 2 * np.pi / self.omega_rf
 
     @property
-    def residual_time_shift_from_last_turn(
-        self,
-    ) -> float:  # TODO: this is the time and not the phase or?
+    def residual_time_shift_from_last_turn(self) -> float:
         """
-        Residual phase from last turn to current turn.
+        Residual time shift of the RF clock against the turn start [s].
+
+        The parent station's actual RF phase ``phi_rf`` converted to a time,
+        ``-phi_rf / omega_rf``. It is passed as the reference-frame shift
+        ``dT`` to the beam-current demodulation (see
+        :func:`~blond.physics.feedbacks.helpers.rf_beam_current`), which
+        applies the phase correction ``dT * omega_c``. The sign follows the
+        reworked (mucol) convention; the LHC comparison path bridges to the
+        blond2 convention via ``dT_index_sign`` in ``rf_beam_current``.
 
         Returns
         -------
-        residual_phase_from_last_turn
-            Residual phase from the last turn to current turn.
+        residual_time_shift_from_last_turn
+            Residual time shift from the last turn to the current turn [s].
         """
-        return (
-            -self.phi_rf / self.omega_rf
-        )  # TODO: this should be negative or positive?
+        return -self.phi_rf / self.omega_rf
 
     @property
     def voltage_setpoint(self) -> NumpyArray:
         """
-        Voltage setpoint on the fine grid [V].
+        Voltage setpoint on the coarse grid [V].
+
+        The parent RF station's design voltage replicated over the coarse
+        grid (one value per coarse sample).
 
         Returns
         -------
         voltage_setpoint
-            Voltage setpoint on the fine grid [V].
+            Voltage setpoint on the coarse grid [V].
         """
         return (
             np.ones_like(self.antenna_voltage_coarse_grid)

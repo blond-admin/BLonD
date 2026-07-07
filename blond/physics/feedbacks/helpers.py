@@ -70,7 +70,6 @@ def rf_beam_current(  # noqa: PLR0912
     downsample: dict | None = None,
     external_reference: bool = True,
     dT: float = 0,
-    phi_s: float = 0,
     forbid_charge_in_first_coarse_cell: bool = False,
     dT_index_sign: float = 1.0,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
@@ -129,8 +128,6 @@ def rf_beam_current(  # noqa: PLR0912
         Option to include the changing external reference of the time-grid.
     dT : float
         The shift in time due to shifting reference frames.
-    phi_s : float
-        Dummy.
     forbid_charge_in_first_coarse_cell : bool
         If True, raise a ``ValueError`` when the downsampling assigns beam
         charge to the first coarse-grid cell. Callers that take the
