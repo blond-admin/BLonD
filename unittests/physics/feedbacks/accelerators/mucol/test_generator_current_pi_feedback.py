@@ -849,6 +849,78 @@ class TestSinglePulseBunchTransient(unittest.TestCase):
         )
 
 
+GENERATOR_CURRENT_THRESHOLD = 1e-6
+
+
+class TestLoopDelaySampleSemantics(unittest.TestCase):
+    """
+    ``n_delay`` counts coarse-grid SAMPLES, not time.
+
+    With a sub-stepped feedback (``n_rf_periods_per_coarse_grid < 1``) the
+    coarse sample is shorter than an RF period, so the *physical* loop
+    delay is ``n_delay * n_rf_periods_per_coarse_grid * t_rf`` -- it
+    shrinks with the sub-step. This test pins the sample-based semantics:
+    the generator current first reacts at the same sample offset after
+    beam-on for the standard and the sub-stepped grid.
+    """
+
+    def _first_reaction_offset(self, n_rf_periods: float) -> int:
+        """
+        Sample offset (after beam-on) of the first generator-current move.
+
+        Parameters
+        ----------
+        n_rf_periods
+            ``n_rf_periods_per_coarse_grid`` of the feedback.
+
+        Returns
+        -------
+        int
+            Samples between beam-on and the first reaction of the current.
+        """
+        cav = build_feedback(
+            controller=build_controller(n_delay=N_DELAY),
+            n_rf_periods_per_coarse_grid=n_rf_periods,
+        )
+        step = n_rf_periods * T_RF
+        n_steps = 40
+        beam_on = 10
+        cav.rf_centers = (np.arange(n_steps) + 0.5) * step
+        cav.rf_centers_lengths = np.array([n_steps])
+        cav.residual_time_last_rf_centers_calculation = 0.0
+        cav.last_rf_centers_entry = None
+        cav.reset_arrays()
+        currents = np.zeros(n_steps, dtype=complex)
+        currents[beam_on:] = I_BEAM
+        cav.beam_current_forward_coarse_grid = currents
+        cav.beam_current_fine_grid = np.zeros(N_BINS, dtype=complex)
+        cav.circuit_track(
+            omega_input=OMEGA_RF,
+            no_beam=False,
+            start_index=0,
+            end_index=n_steps,
+        )
+        # Threshold well above the float-level integrator creep of the
+        # steady state (~1e-12 A) and well below a real reaction (~5e-4 A).
+        moved = (
+            np.abs(cav.generator_current_coarse_grid - I_gen_bias)
+            > GENERATOR_CURRENT_THRESHOLD
+        )
+        return int(np.argmax(moved)) - beam_on
+
+    def test_delay_is_counted_in_samples_not_time(self):
+        """The reaction offset in samples is identical for n = 1 and 0.5."""
+        offset_standard = self._first_reaction_offset(1)
+        offset_substepped = self._first_reaction_offset(0.5)
+        # The core semantics: the offset is a *sample* count, unchanged by
+        # the sub-step (the physical delay time halves at n = 0.5). The
+        # exact offset anatomy relative to N_DELAY is pinned by
+        # TestHighIntensityBunchTransient
+        # .test_generator_current_reacts_only_after_the_loop_delay.
+        self.assertEqual(offset_substepped, offset_standard)
+        self.assertGreaterEqual(offset_standard, N_DELAY - 1)
+
+
 class TestResponseMatrixClamping(unittest.TestCase):
     """The fine-grid response matrix only sees the limited current."""
 
