@@ -324,6 +324,90 @@ class TestIQCavityFeedbackTimingClass:
             self.t_rf_init * cav_fdbk_timing.n_rf_periods_per_coarse_grid,
         )
 
+    @pytest.mark.backend_mutation
+    @pytest.mark.parametrize(
+        "phase_shift,delta_omega_factor,n_rf_points,Q_L",
+        test_data_discontinuity,
+    )
+    def test_matched_generator_envelope_invariant_acceleration(
+        self,
+        phase_shift: float,
+        delta_omega_factor: float,
+        n_rf_points: float,
+        Q_L: float,
+    ) -> None:
+        """
+        Matched-generator antenna envelope is the exact Euler fixed point.
+
+        Physics extension of the (grid-only) discontinuity sweep: with the
+        cavity on resonance (``delta_omega = 0``) and the generator current
+        matched to the setpoint, ``V_ss = 2 (R/Q) Q_L I_g`` is the *exact*
+        fixed point of the coarse-grid forward-Euler step -- both the step
+        size and the RF frequency cancel out of the fixed-point condition.
+        The antenna envelope must therefore stay at ``V_ss`` on every coarse
+        sample, across every segment and turn boundary, under the violent
+        per-turn ramp, the station RF-frequency offsets and the substepping
+        ratios of the sweep. Any bookkeeping error that double-counts,
+        drops or mis-sizes a step would show up as a departure from
+        ``V_ss``.
+        """
+        backend.change_backend(Numpy64Bit)
+        self.harmonic = 5
+        self.setup_simulation()
+
+        r_over_q = 518.0
+        v_ss = 1.0e6
+        i_gen = v_ss / (2.0 * r_over_q * Q_L)
+        cav_fdbk_timing = IQCavityFeedbackTimingClass(
+            profile=self.profile,
+            n_rf_periods_per_coarse_grid=n_rf_points,
+            R_over_Q=r_over_q,
+            Q_L=Q_L,
+            generator_current_bias=i_gen,
+            n_cavities=1,
+            initial_voltage=v_ss,
+        )
+        self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
+        self.rf_station.phi_rf_design = phase_shift
+
+        n_turns_to_simulate = 5
+        delta_E = 5e6
+        inj_energy = 5e6
+        cycle = MagneticCyclePerTurn(
+            reference_particle=mu_plus,
+            value_init=inj_energy,
+            values_after_turn=inj_energy
+            + np.arange(1, n_turns_to_simulate + 1) * delta_E,
+            in_unit="momentum",
+        )
+        sim = Simulation(self.ring, cycle)
+
+        envelopes = []
+
+        def callback(simulation: Simulation, beam: Beam):
+            envelopes.append(
+                np.copy(cav_fdbk_timing.antenna_voltage_coarse_grid)
+            )
+            if simulation.turn_i.value == 0:
+                self.rf_station.delta_omega_rf = (
+                    delta_omega_factor * self.rf_station.omega_rf
+                )
+
+        sim.run_simulation(
+            self.beam, n_turns=n_turns_to_simulate, callbacks=(callback,)
+        )
+
+        assert len(envelopes) == n_turns_to_simulate
+        for turn_ind, envelope in enumerate(envelopes):
+            assert len(envelope) > 0
+            np.testing.assert_allclose(
+                envelope,
+                v_ss + 0.0j,
+                rtol=1e-9,
+                atol=0,
+                err_msg=f"envelope left the fixed point in turn {turn_ind}",
+            )
+
     # @pytest.mark.skip
     @pytest.mark.backend_mutation
     @pytest.mark.parametrize(
