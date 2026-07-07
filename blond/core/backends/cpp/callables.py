@@ -198,16 +198,17 @@ def reload_cpp_backend(  # NOQA: PLR0915
         _id = id(x)
         entry = _pointer_cache.get(_id)
         if entry is not None and entry[0]() is x:
-            return entry[1]
-        pointer = ct.c_void_p(
-            x.ctypes.data
-        )  # int address -> pointer; does not pin x
-        if len(_pointer_cache) >= _PTR_CACHE_MAX_SIZE:  # bound cache size
-            _pointer_cache.clear()
-        _pointer_cache[_id] = (weakref.ref(x), pointer)
+            pointer = entry[1]
+        else:
+            pointer = ct.c_void_p(
+                x.ctypes.data
+            )  # int address -> pointer; does not pin x
+            if len(_pointer_cache) >= _PTR_CACHE_MAX_SIZE:  # bound cache size
+                _pointer_cache.clear()
+            _pointer_cache[_id] = (weakref.ref(x), pointer)
         return pointer
 
-    def _getLen(x: NumpyArray) -> ct.c_int:
+    def _get_len(x: NumpyArray) -> ct.c_int:
         """
         Return the length of ``x`` as a ``c_int``.
 
@@ -223,7 +224,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
         """
         return ct.c_int(len(x))
 
-    def _validate(*pairs: tuple[NumpyArray, type]) -> None:
+    def _is_valid(*pairs: tuple[NumpyArray, type]) -> bool:
         """
         Assert each ``(array, dtype)`` has that dtype and is C-contiguous.
 
@@ -238,9 +239,12 @@ def reload_cpp_backend(  # NOQA: PLR0915
             One or more ``(array, dtype)`` tuples; each ``array`` must have
             the given ``dtype`` and be C-contiguous.
         """
+        valid = True
         for arr, dtype in pairs:
-            assert arr.dtype == dtype, (arr.dtype, dtype)
-            assert arr.flags.c_contiguous
+            if (arr.dtype != dtype) or (not arr.flags.c_contiguous):
+                valid = False
+                break
+        return valid
 
     _LIBBLOND.beam_phase.restype = c_real_t(floattype)
     _LIBBLOND.sum_1d_array.restype = c_real_t(floattype)
@@ -252,6 +256,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
     # other callable here we pass already-typed ctypes objects, so no `argtypes`
     # are needed (measured: setting them adds ~0.5 us of redundant per-arg
     # type-checking).
+    # TODO: Refactor this file to float64 only.
     complextype = np.complex64 if floattype == np.float32 else np.complex128
 
     class CppSpecials(Specials):
@@ -276,7 +281,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             phi_rf: float,
             bin_size: float,
         ) -> float:
-            _validate((hist_x, floattype), (hist_y, floattype))
+            assert _is_valid((hist_x, floattype), (hist_y, floattype))
 
             # Cast Python floats to backend floattype
             alpha = floattype(alpha)
@@ -305,7 +310,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             start: float,
             stop: float,
         ) -> None:
-            _validate((array_read, floattype), (array_write, floattype))
+            assert _is_valid((array_read, floattype), (array_write, floattype))
 
             # Cast Python floats to backend floattype
             start = floattype(start)
@@ -329,7 +334,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             charge: float,
             acceleration_kick: float,
         ) -> None:
-            _validate(
+            assert _is_valid(
                 (dt, floattype),
                 (dE, floattype),
                 (voltage, floattype),
@@ -361,7 +366,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             dE: NumpyArray,
             flags: NumpyArray,
         ) -> None:
-            _validate(
+            assert _is_valid(
                 (dt, floattype),
                 (dE, floattype),
                 (flags, np.int32),
@@ -375,7 +380,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(dt),
                 _get_pointer(dE),
                 _get_pointer(flags),
-                _getLen(dt),
+                _get_len(dt),
             )
 
         @staticmethod
@@ -388,7 +393,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             charge: float,
             acceleration_kick: float,
         ) -> None:
-            _validate((dt, floattype), (dE, floattype))
+            assert _is_valid((dt, floattype), (dE, floattype))
 
             # Cast Python floats to backend floattype
             charge = floattype(charge)
@@ -419,7 +424,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             n_rf: int,
             acceleration_kick: float,
         ) -> None:
-            _validate(
+            assert _is_valid(
                 (dt, floattype),
                 (dE, floattype),
                 (voltage, floattype),
@@ -439,17 +444,17 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(voltage),
                 _get_pointer(omega_rf),
                 _get_pointer(phi_rf),
-                _getLen(dt),
+                _get_len(dt),
                 c_real(acceleration_kick, floattype),
             )
 
         @staticmethod
         def sum_1d_array(array: NumpyArray) -> float:
-            _validate((array, floattype))
+            assert _is_valid((array, floattype))
             # requires setting of _LIBBLOND.sum_1d_array.restype = c_real_t(floattype) in
             # reload function
             return floattype(
-                _LIBBLOND.sum_1d_array(_get_pointer(array), _getLen(array))
+                _LIBBLOND.sum_1d_array(_get_pointer(array), _get_len(array))
             )
 
         @staticmethod
@@ -457,7 +462,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             array_1: NumpyArray,
             array_2: NumpyArray,
         ) -> float:
-            _validate((array_1, floattype), (array_2, floattype))
+            assert _is_valid((array_1, floattype), (array_2, floattype))
             assert len(array_1) == len(array_2)
 
             # requires setting of _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype) in
@@ -479,7 +484,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             beta: float,
             energy: float,
         ) -> None:
-            _validate((dt, floattype), (dE, floattype))
+            assert _is_valid((dt, floattype), (dE, floattype))
 
             # Cast Python floats to backend floattype
             T = floattype(T)
@@ -494,7 +499,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(eta_0, floattype),
                 c_real(beta, floattype),
                 c_real(energy, floattype),
-                _getLen(dt),
+                _get_len(dt),
             )
 
         @staticmethod
@@ -507,7 +512,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             beta: float,
             energy: float,
         ):
-            _validate(
+            assert _is_valid(
                 (dt, floattype),
                 (dE, floattype),
                 (higher_alpha, floattype),
@@ -527,10 +532,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(
                     higher_alpha
                 ),  # const real_t *__restrict__ higher_alpha
-                _getLen(higher_alpha),  # const int n_alpha
+                _get_len(higher_alpha),  # const int n_alpha
                 c_real(beta, floattype),  # const real_t beta
                 c_real(energy, floattype),  # const real_t energy
-                _getLen(dt),  # const int n_macroparticles
+                _get_len(dt),  # const int n_macroparticles
             )
 
         @staticmethod
@@ -550,10 +555,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
             if disable_quantum_excitation:
                 _LIBBLOND.apply_synchrotron_radiation_no_excitation(
-                    _getPointer(beam_dE),
+                    _get_pointer(beam_dE),
                     c_real(damping_factor, floattype),
                     c_real(energy_lost_typed, floattype),
-                    _getLen(beam_dE),
+                    _get_len(beam_dE),
                 )
             else:
                 noise_scale = floattype(
@@ -563,11 +568,11 @@ def reload_cpp_backend(  # NOQA: PLR0915
                     * total_energy
                 )
                 _LIBBLOND.apply_synchrotron_radiation_and_quantum_excitation(
-                    _getPointer(beam_dE),
+                    _get_pointer(beam_dE),
                     c_real(damping_factor, floattype),
                     c_real(energy_lost_typed, floattype),
                     c_real(noise_scale, floattype),
-                    _getLen(beam_dE),
+                    _get_len(beam_dE),
                 )
 
         @staticmethod
@@ -578,7 +583,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             dE: NumpyArray,
             ids: NumpyArray,
         ):
-            _validate(
+            assert _is_valid(
                 (dt, floattype),
                 (dE, floattype),
                 (flags, np.int32),
@@ -637,7 +642,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 ``bins_per_profile = 8``.
                 Use `_gen_array_bucket_index_to_memory_index` to generate this.
             """
-            _validate(
+            assert _is_valid(
                 (x, floattype),
                 (out, floattype),
                 (filling_pattern, np.bool),
@@ -707,7 +712,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             voltage_threaded
                 Cached `voltage` array per thread. For speedup.
             """
-            _validate(
+            assert _is_valid(
                 (profile, floattype),
                 (profile_dts, floattype),
                 (poles, complextype),
@@ -734,11 +739,11 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(states),
                 _get_pointer(voltage),
                 _get_pointer(voltage_threaded),
-                _getLen(profile),  # n_bins
-                _getLen(poles),  # n_poles
+                _get_len(profile),  # n_bins
+                _get_len(poles),  # n_poles
                 ct.c_int(voltage_threaded.shape[0]),  # n_threads
-                _getLen(update_on_bin),  # n_updates
-                _getLen(profile_dts),  # n_profile_dts
+                _get_len(update_on_bin),  # n_updates
+                _get_len(profile_dts),  # n_profile_dts
             )
 
     return CppSpecials
