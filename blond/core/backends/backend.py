@@ -414,7 +414,7 @@ class Specials(ABC):
         beam_dt: NumpyArray | CupyArray,
         beam_dE: NumpyArray | CupyArray,
         induced_voltage: NumpyArray | CupyArray,
-        array_parameters: NumpyArray | CupyArray,
+        parameter_array: NumpyArray | CupyArray,
         alpha: float,
         omega_bar: float,
         const: float,
@@ -438,7 +438,7 @@ class Specials(ABC):
             Macro-particle energy coordinates [eV]; updated in place.
         induced_voltage
             Output induced voltage [V]; filled by the kernel.
-        array_parameters
+        parameter_array
             Length-4 state vector
             ``[input_first, input_second, t_rev, last_dt]``; the running
             state and ``last_dt`` are written back in place. When
@@ -462,7 +462,7 @@ class Specials(ABC):
         multiturn
             If ``False`` (turn 1) the recurrence starts fresh. If ``True``
             the wake from the previous turn is bridged across the
-            revolution gap using ``array_parameters``.
+            revolution gap using ``parameter_array``.
         """
         raise NotImplementedError("The backend for `music_track` is missing.")
 

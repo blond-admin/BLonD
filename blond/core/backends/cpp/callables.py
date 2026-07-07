@@ -703,7 +703,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             beam_dt: NumpyArray,
             beam_dE: NumpyArray,
             induced_voltage: NumpyArray,
-            array_parameters: NumpyArray,
+            parameter_array: NumpyArray,
             alpha: float,
             omega_bar: float,
             const: float,
@@ -716,17 +716,17 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert beam_dt.dtype == floattype
             assert beam_dE.dtype == floattype
             assert induced_voltage.dtype == floattype
-            assert array_parameters.dtype == floattype
+            assert parameter_array.dtype == floattype
             assert beam_dt.flags.c_contiguous
             assert beam_dE.flags.c_contiguous
             assert induced_voltage.flags.c_contiguous
-            assert array_parameters.flags.c_contiguous
+            assert parameter_array.flags.c_contiguous
 
             _LIBBLOND.music_track(
                 _getPointer(beam_dt),
                 _getPointer(beam_dE),
                 _getPointer(induced_voltage),
-                _getPointer(array_parameters),
+                _getPointer(parameter_array),
                 ct.c_int(len(beam_dt)),
                 c_real(alpha, floattype),
                 c_real(omega_bar, floattype),

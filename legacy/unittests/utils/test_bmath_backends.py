@@ -498,7 +498,7 @@ class TestSameResult(unittest.TestCase):
             dt=np.arange(20, dtype=float),
             dE=np.arange(20, dtype=float),
             induced_voltage=np.arange(20, dtype=float),
-            array_parameters=np.empty(4),
+            parameter_array=np.empty(4),
             alpha=0.1,
             omega_bar=1,
             const=2,
@@ -510,7 +510,7 @@ class TestSameResult(unittest.TestCase):
 
         kwargs_py = deepcopy(kwargs)
         py_backend.music_track_multiturn(*deepcopy(args), **kwargs_py)
-        expected_result = kwargs_py["array_parameters"]
+        expected_result = kwargs_py["parameter_array"]
         for tested_backend in self.tested_backends:
             if isinstance(tested_backend, GpuBackend):
                 continue
@@ -518,7 +518,7 @@ class TestSameResult(unittest.TestCase):
             tested_backend.music_track_multiturn(
                 *deepcopy(args), **kwargs_other
             )
-            other_result = kwargs_other["array_parameters"]
+            other_result = kwargs_other["parameter_array"]
             self.assertTrue(
                 np.allclose(expected_result, other_result),
                 f"Failed with {tested_backend}, expected {expected_result}, but got {other_result}",
@@ -530,7 +530,7 @@ class TestSameResult(unittest.TestCase):
             dt=np.random.randn(20),
             dE=np.random.randn(20),
             induced_voltage=np.random.randn(20),
-            array_parameters=np.empty(4),
+            parameter_array=np.empty(4),
             alpha=0.1,
             omega_bar=1,
             const=2,
@@ -542,13 +542,13 @@ class TestSameResult(unittest.TestCase):
 
         kwargs_py = deepcopy(kwargs)
         py_backend.music_track(*deepcopy(args), **kwargs_py)
-        expected_result = kwargs_py["array_parameters"]
+        expected_result = kwargs_py["parameter_array"]
         for tested_backend in self.tested_backends:
             if isinstance(tested_backend, GpuBackend):
                 continue
             kwargs_other = deepcopy(kwargs)
             tested_backend.music_track(*deepcopy(args), **kwargs_other)
-            other_result = kwargs_other["array_parameters"]
+            other_result = kwargs_other["parameter_array"]
             self.assertTrue(
                 np.allclose(expected_result, other_result),
                 f"Failed with {tested_backend}",

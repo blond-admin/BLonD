@@ -810,7 +810,7 @@ class CudaSpecials(Specials):  # NOQA: D101
             beam_dt: CupyArray,
             beam_dE: CupyArray,
             induced_voltage: CupyArray,
-            array_parameters: CupyArray,
+            parameter_array: CupyArray,
             alpha: float,
             omega_bar: float,
             const: float,

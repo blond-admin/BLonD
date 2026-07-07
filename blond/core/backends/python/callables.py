@@ -690,7 +690,7 @@ class PythonSpecials(Specials):
         beam_dt: NumpyArray,
         beam_dE: NumpyArray,
         induced_voltage: NumpyArray,
-        array_parameters: NumpyArray,
+        parameter_array: NumpyArray,
         alpha: float,
         omega_bar: float,
         const: float,
@@ -703,18 +703,18 @@ class PythonSpecials(Specials):
         if multiturn:
             # Bridge the wake from the previous turn across the rev. gap.
             time_difference_0 = (
-                beam_dt[0] + array_parameters[2] - array_parameters[3]
+                beam_dt[0] + parameter_array[2] - parameter_array[3]
             )
             exp_term = np.exp(-alpha * time_difference_0)
             cos_term = np.cos(omega_bar * time_difference_0)
             sin_term = np.sin(omega_bar * time_difference_0)
             product_first = exp_term * (
-                (cos_term + coeff1 * sin_term) * array_parameters[0]
-                + coeff2 * sin_term * array_parameters[1]
+                (cos_term + coeff1 * sin_term) * parameter_array[0]
+                + coeff2 * sin_term * parameter_array[1]
             )
             product_second = exp_term * (
-                coeff3 * sin_term * array_parameters[0]
-                + (cos_term + coeff4 * sin_term) * array_parameters[1]
+                coeff3 * sin_term * parameter_array[0]
+                + (cos_term + coeff4 * sin_term) * parameter_array[1]
             )
         else:
             # Turn 1: no previous-turn wake to bridge.
@@ -738,9 +738,9 @@ class PythonSpecials(Specials):
             coeff3,
             coeff4,
         )
-        array_parameters[0] = input_first
-        array_parameters[1] = input_second
-        array_parameters[3] = beam_dt[len(beam_dt) - 1]
+        parameter_array[0] = input_first
+        parameter_array[1] = input_second
+        parameter_array[3] = beam_dt[len(beam_dt) - 1]
 
 
 def _music_recurrence(

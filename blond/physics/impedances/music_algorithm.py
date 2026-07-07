@@ -154,7 +154,7 @@ class Music(BeamPhysicsRelevant):
         #     refreshed each turn before bridging,
         #   - last_dt: dt of the last (largest-dt) particle of the previous
         #     turn, used to span the gap to this turn's first particle.
-        self._array_parameters: NumpyArray | None = None
+        self._parameter_array: NumpyArray | None = None
         # Induced voltage [V] of the most recent turn (one entry/particle).
         self.induced_voltage: NumpyArray | None = None
 
@@ -226,7 +226,7 @@ class Music(BeamPhysicsRelevant):
         )
         self._first_turn = True
         self._prev_reference_time = None
-        self._array_parameters = backend.array(
+        self._parameter_array = backend.array(
             [1.0, 0.0, 0.0, 0.0], dtype=backend.float
         )
         self.induced_voltage = None
@@ -264,14 +264,14 @@ class Music(BeamPhysicsRelevant):
         reference_time = float(beam.reference.time)
         multiturn = not self._first_turn
         if multiturn:
-            self._array_parameters[2] = (
+            self._parameter_array[2] = (
                 reference_time - self._prev_reference_time
             )
         backend.specials.music_track(
             dt,
             dE,
             self.induced_voltage,
-            self._array_parameters,
+            self._parameter_array,
             self._alpha,
             self._omega_bar,
             self._const,

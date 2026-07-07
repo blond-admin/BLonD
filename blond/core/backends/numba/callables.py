@@ -841,7 +841,7 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         beam_dt: NumpyArray,
         beam_dE: NumpyArray,
         induced_voltage: NumpyArray,
-        array_parameters: NumpyArray,
+        parameter_array: NumpyArray,
         alpha: float,
         omega_bar: float,
         const: float,
