@@ -164,20 +164,21 @@ class Music(BeamPhysicsRelevant):
         Raises
         ------
         NotImplementedError
-            If MPI is in use or the ``cuda`` backend is selected. The
-            per-turn sort (:meth:`~blond.core.beam.base.BeamBaseClass.sort_by_dt`)
+            If MPI is in use or the ``numba`` or ``cuda`` backend is selected.
+            The per-turn sort (:meth:`~blond.core.beam.base.BeamBaseClass.sort_by_dt`)
             also rejects distributed beams as a low-level safeguard.
         """
-        if mpi_is_distributed():  # MUSIC with MPI will be hard to implement
+        if mpi_is_distributed():
             raise NotImplementedError(
                 "MuSiC does not support MPI: the per-turn sort cannot order "
                 "a beam split across ranks."
             )
-        if (
-            backend.specials_mode == "cuda"
-        ):  # Should be straightforward to implement,
-            #  basically a copy of the CPP version (?)
-
+        if backend.specials_mode == "numba":
+            raise NotImplementedError(
+                "MuSiC does not support the `numba` backend; only `python` "
+                "and `cpp` are available (as in BLonD2)."
+            )
+        if backend.specials_mode == "cuda":
             raise NotImplementedError(
                 "MuSiC does not support the `cuda` backend."
             )
