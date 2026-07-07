@@ -576,6 +576,254 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_zero_macroparticles(
+        self,
+    ) -> None:
+        """Empty beam must be a no-op (no errors, no allocation surprises)."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            beam_dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE,
+                energy_lost=13e6,
+                longitudinal_damping_time=14955,
+                natural_energy_spread=1e-3,
+                total_energy=20e9,
+                disable_quantum_excitation=False,
+            )
+            self.assertEqual(
+                beam_dE.shape,
+                (0,),
+                msg=f"Failed `{special}` with {dtype}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_noise_statistics(
+        self,
+    ) -> None:
+        """With QE on, mean ≈ damping result, std ≈ noise_scale ($1\\sigma$ check)."""
+        # Use a large beam so the sample stats converge tightly.
+        dtype = np.float64
+        n_macroparticles = 200_000
+        initial_dE = 20e9
+        energy_lost = 13e6
+        longitudinal_damping_time = 14955.0
+        natural_energy_spread = 1e-3
+        total_energy = 20e9
+        expected_mean = (
+            1.0 - 2.0 / longitudinal_damping_time
+        ) * initial_dE - energy_lost
+        expected_std = (
+            2.0
+            * natural_energy_spread
+            / np.sqrt(longitudinal_damping_time)
+            * total_energy
+        )
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            beam_dE = backend.array(
+                initial_dE * np.ones(n_macroparticles, dtype=dtype),
+                dtype=backend.float,
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE,
+                energy_lost=energy_lost,
+                longitudinal_damping_time=longitudinal_damping_time,
+                natural_energy_spread=natural_energy_spread,
+                total_energy=total_energy,
+                disable_quantum_excitation=False,
+            )
+            dE_after_kick = copy_to_cpu(beam_dE)
+            sample_mean = float(dE_after_kick.mean())
+            sample_std = float(dE_after_kick.std())
+            # 5σ confidence at n=200k → mean error tol ~ 5·σ/√n ≈ 5·1.6e6/√2e5 ≈ 1.8e4
+            # Use a looser tol to keep flakes negligible across backends/RNGs.
+            self.assertAlmostEqual(
+                sample_mean,
+                expected_mean,
+                delta=max(1e-4 * abs(expected_mean), 5e4),
+                msg=(
+                    f"`{special}`: sample mean {sample_mean:.4e} far from "
+                    f"expected {expected_mean:.4e}"
+                ),
+            )
+            self.assertAlmostEqual(
+                sample_std / expected_std,
+                1.0,
+                delta=0.02,  # within 2% of true σ
+                msg=(
+                    f"`{special}`: sample std {sample_std:.4e} vs expected "
+                    f"{expected_std:.4e}"
+                ),
+            )
+
+    @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_disable_qe_is_noiseless(
+        self,
+    ) -> None:
+        """When QE is disabled, two consecutive calls must give the same delta."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            kick_kwargs = dict(
+                energy_lost=13e6,
+                longitudinal_damping_time=14955,
+                natural_energy_spread=1e-3,
+                total_energy=20e9,
+                disable_quantum_excitation=True,
+            )
+            beam_dE_first_call = backend.array(
+                20e9 * np.ones(1000, dtype=dtype), dtype=backend.float
+            )
+            beam_dE_second_call = backend.array(
+                20e9 * np.ones(1000, dtype=dtype), dtype=backend.float
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE_first_call, **kick_kwargs
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE_second_call, **kick_kwargs
+            )
+            dE_first_call = copy_to_cpu(beam_dE_first_call)
+            dE_second_call = copy_to_cpu(beam_dE_second_call)
+            np.testing.assert_array_equal(
+                dE_first_call,
+                dE_second_call,
+                err_msg=f"`{special}` produced non-deterministic output",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_qe_adds_variance(
+        self,
+    ) -> None:
+        """With QE on, two calls with same scalar inputs must differ (noise)."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            kick_kwargs = dict(
+                energy_lost=13e6,
+                longitudinal_damping_time=14955,
+                natural_energy_spread=1e-3,
+                total_energy=20e9,
+                disable_quantum_excitation=False,
+            )
+            beam_dE_first_call = backend.array(
+                20e9 * np.ones(1000, dtype=dtype), dtype=backend.float
+            )
+            beam_dE_second_call = backend.array(
+                20e9 * np.ones(1000, dtype=dtype), dtype=backend.float
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE_first_call, **kick_kwargs
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE_second_call, **kick_kwargs
+            )
+            dE_first_call = copy_to_cpu(beam_dE_first_call)
+            dE_second_call = copy_to_cpu(beam_dE_second_call)
+            self.assertFalse(
+                np.array_equal(dE_first_call, dE_second_call),
+                msg=(
+                    f"`{special}`: two QE-enabled calls returned identical "
+                    f"output — noise term not active"
+                ),
+            )
+
+    @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_deterministic(
+        self,
+    ) -> None:
+        """Disable QE → result is exactly ``(1 - 2/τ) * beam_dE - energy_lost``."""
+        dtype = np.float64
+        energy_lost = 13e6
+        longitudinal_damping_time = 14955.0
+        total_energy = 20e9
+        initial_dE = 20e9
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            beam_dE = backend.array(
+                initial_dE * np.ones(1000, dtype=dtype), dtype=backend.float
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE,
+                energy_lost=energy_lost,
+                longitudinal_damping_time=longitudinal_damping_time,
+                natural_energy_spread=1e-3,
+                total_energy=total_energy,
+                disable_quantum_excitation=True,
+            )
+            expected_dE = (
+                1.0 - 2.0 / longitudinal_damping_time
+            ) * initial_dE - energy_lost
+            dE_after_kick = copy_to_cpu(beam_dE)
+            np.testing.assert_allclose(
+                np.asarray(dE_after_kick),
+                expected_dE * np.ones(1000, dtype=dtype),
+                rtol=self.rtol,
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_inplace(
+        self,
+    ) -> None:
+        """The kick must mutate ``beam_dE`` in place — same object, not a copy."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            beam_dE = backend.array(
+                20e9 * np.ones(100, dtype=dtype), dtype=backend.float
+            )
+            id_before = id(beam_dE)
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE,
+                energy_lost=13e6,
+                longitudinal_damping_time=14955,
+                natural_energy_spread=1e-3,
+                total_energy=20e9,
+                disable_quantum_excitation=False,
+            )
+            self.assertEqual(
+                id_before,
+                id(beam_dE),
+                msg=f"Inplace contract violated for `{special}`",
+            )
+            # Value must have actually changed (damping + noise).
+            dE_after_kick = copy_to_cpu(beam_dE)
+            self.assertFalse(
+                np.allclose(
+                    np.asarray(dE_after_kick),
+                    20e9 * np.ones(100, dtype=dtype),
+                ),
+                msg=f"`{special}` did not modify beam_dE",
+            )
+
+    @pytest.mark.backend_mutation
     def test_kick_single_harmonic(self) -> None:
         dtype = np.float64
         for i, special in enumerate(self.special_modes):
