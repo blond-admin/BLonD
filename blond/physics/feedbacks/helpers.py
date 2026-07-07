@@ -72,6 +72,7 @@ def rf_beam_current(  # noqa: PLR0912
     dT: float = 0,
     forbid_charge_in_first_coarse_cell: bool = False,
     dT_index_sign: float = 1.0,
+    coarse_center_offset: float | None = None,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""
     Calculate the beam charge at the carrier frequency slice by slice.
@@ -140,6 +141,12 @@ def rf_beam_current(  # noqa: PLR0912
         blond2 reference (``legacy/blond2/llrf/signal_processing.py``) and is
         used by the LHC comparison path. Only affects the downsampling
         binning when ``dT != 0``; the phase correction always uses ``+dT``.
+    coarse_center_offset : float | None
+        Bin-centre offset [s] of the fine-to-coarse index mapping. Default
+        ``None`` uses ``pi / omega_c`` (half a period of the actual carrier,
+        the blond2/LHC convention). Callers whose coarse cell is not one
+        carrier period (e.g. the sub-stepped timing class) must pass their
+        own half-cell offset, ``T_s / 2``.
 
     Returns
     -------
@@ -232,9 +239,18 @@ def rf_beam_current(  # noqa: PLR0912
         # Find which index in fine grid matches index in coarse grid.
         # dT enters with sign `dT_index_sign`: +1 (mucol/reworked convention,
         # default) or -1 (blond2 reference, used by the LHC comparison path).
-        # np.pi / omega_c --> center of T_s (bin_center)
+        # The centering offset places the mapping on the coarse bin centre.
+        # The default, pi / omega_c (half a period of the *actual* carrier,
+        # including any RF-frequency offset), is the blond2 convention the
+        # LHC comparisons rely on. Callers with a coarse cell that is not
+        # one carrier period (e.g. the sub-stepped timing class, where the
+        # default would equal a *whole* cell and shift all charge one cell
+        # early -- a sign-flipped induced voltage) must pass their own
+        # half-cell offset via ``coarse_center_offset``.
+        if coarse_center_offset is None:
+            coarse_center_offset = np.pi / omega_c
         ind_fine = np.round(
-            (hist_x + dT_index_sign * dT - np.pi / omega_c) / T_s
+            (hist_x + dT_index_sign * dT - coarse_center_offset) / T_s
         )
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
